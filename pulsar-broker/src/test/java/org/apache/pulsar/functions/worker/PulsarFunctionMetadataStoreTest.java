@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.functions.instance.state.PulsarMetadataStateStoreProviderImpl;
 import org.testng.annotations.Test;
@@ -26,7 +26,7 @@ import org.testng.annotations.Test;
 /**
  * Test Pulsar sink on function.
  */
-@Slf4j
+@CustomLog
 @Test
 public class PulsarFunctionMetadataStoreTest extends PulsarFunctionLocalRunTest {
 

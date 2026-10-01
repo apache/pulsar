@@ -78,6 +78,7 @@ public class MessageParserTest extends MockedPulsarServiceBaseTest {
                 { false, CompressionType.NONE },
         };
     }
+    @SuppressWarnings("deprecation")
 
     @Test(dataProvider = "batchingAndCompression")
     public void testParseMessages(boolean batchEnabled, CompressionType compressionType) throws Exception{

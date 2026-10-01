@@ -148,6 +148,7 @@ public class SchemaBuilderTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testGenericRecordBuilderByFieldName() {
         RecordSchemaBuilder recordSchemaBuilder =
             SchemaBuilder.record("org.apache.pulsar.client.impl.schema.SchemaBuilderTest.AllPrimitiveFields");
@@ -164,6 +165,7 @@ public class SchemaBuilderTest {
         SchemaInfo schemaInfo = recordSchemaBuilder.build(
             SchemaType.AVRO
         );
+        @SuppressWarnings("rawtypes")
         GenericSchema schema = Schema.generic(schemaInfo);
         GenericRecord record = schema.newRecordBuilder()
             .set("intField", 32)
@@ -230,6 +232,7 @@ public class SchemaBuilderTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testGenericRecordBuilderAvroByFieldname() {
         RecordSchemaBuilder people1SchemaBuilder = SchemaBuilder.record(People1.class.getCanonicalName());
         people1SchemaBuilder.field("age").type(SchemaType.INT32);
@@ -298,6 +301,7 @@ public class SchemaBuilderTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testGenericRecordBuilderAvroByFieldnamePojo() {
         RecordSchemaBuilder people1SchemaBuilder = SchemaBuilder.record(People1.class.getCanonicalName());
         people1SchemaBuilder.field("age").type(SchemaType.INT32);
@@ -503,7 +507,7 @@ public class SchemaBuilderTest {
      * @param decoder the schema used for reading
      * @param writer the schema used for writing
      */
-    private static void injectWriterSchema(Schema decoder, Schema writer) {
+    private static void injectWriterSchema(Schema<?> decoder, Schema<?> writer) {
         AvroSchema<?> avroSchema = (AvroSchema<?>) decoder;
         avroSchema.setReader(new MultiVersionAvroReader<>(
                 AvroSchema.of(SchemaDefinition.

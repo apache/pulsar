@@ -26,8 +26,9 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 import java.util.function.Function;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.ReferenceCountedEntry;
 import org.apache.commons.lang3.tuple.Pair;
@@ -42,11 +43,11 @@ import org.apache.commons.lang3.tuple.Pair;
  * There's also a check that ensures that the value matches the key. This is used to detect races without impacting
  * consistency.
  */
-@Slf4j
+@CustomLog
 class RangeCache {
     private final ConcurrentNavigableMap<Position, RangeCacheEntryWrapper> entries;
     private final RangeCacheRemovalQueue removalQueue;
-    private AtomicLong size; // Total size of values stored in cache
+    private final AtomicLong size; // Total size of values stored in cache
 
     /**
      * Construct a new RangeCache.
@@ -72,19 +73,22 @@ class RangeCache {
             if (!value.matchesPosition(key)) {
                 throw new IllegalArgumentException("Value '" + value + "' does not match key '" + key + "'");
             }
-            boolean added = RangeCacheEntryWrapper.withNewInstance(this, key, value, entryLength, newWrapper -> {
-                if (entries.putIfAbsent(key, newWrapper) == null && removalQueue.addEntry(newWrapper)) {
-                    this.size.addAndGet(entryLength);
-                    return true;
-                } else {
-                    // recycle the new wrapper as it was not used
-                    newWrapper.recycle();
-                    return false;
-                }
-            });
-            return added;
+            return RangeCacheEntryWrapper.withNewInstance(this, key, value, entryLength, RangeCache::addEntry);
         } finally {
             value.release();
+        }
+    }
+
+    private static boolean addEntry(RangeCacheEntryWrapper newWrapper) {
+        // withNewInstance holds the wrapper's write lock while these initialized fields are used.
+        RangeCache cache = newWrapper.rangeCache;
+        if (cache.entries.putIfAbsent(newWrapper.key, newWrapper) == null && cache.removalQueue.addEntry(newWrapper)) {
+            cache.size.addAndGet(newWrapper.size);
+            return true;
+        } else {
+            // recycle the new wrapper as it was not used
+            newWrapper.recycle();
+            return false;
         }
     }
 
@@ -124,7 +128,8 @@ class RangeCache {
      * @apiNote the returned value must be released if it's not null
      */
     private ReferenceCountedEntry getValueMatchingEntry(Map.Entry<Position, RangeCacheEntryWrapper> entry) {
-        ReferenceCountedEntry valueMatchingEntry = RangeCacheEntryWrapper.getValueMatchingMapEntry(entry);
+        ReferenceCountedEntry valueMatchingEntry =
+                RangeCacheEntryWrapper.getValueMatchingMapEntry(entry);
         return getRetainedValueMatchingKey(entry.getKey(), valueMatchingEntry);
     }
 
@@ -165,7 +170,7 @@ class RangeCache {
      * @return a collections of the value found in cache
      */
     public Collection<ReferenceCountedEntry> getRange(Position first, Position last) {
-        List<ReferenceCountedEntry> values = new ArrayList();
+        List<ReferenceCountedEntry> values = new ArrayList<>();
 
         // Return the values of the entries found in cache
         for (Map.Entry<Position, RangeCacheEntryWrapper> entry : entries.subMap(first, true, last, true)
@@ -180,6 +185,24 @@ class RangeCache {
     }
 
     /**
+     * Visits matching entries in order without collecting them. Each entry is retained during the callback and
+     * released afterwards, including when the callback throws. The visitor must retain entries it needs to keep.
+     */
+    public void forEachInRange(Position first, Position last, Consumer<ReferenceCountedEntry> visitor) {
+        for (Map.Entry<Position, RangeCacheEntryWrapper> entry : entries.subMap(first, true, last, true)
+                .entrySet()) {
+            ReferenceCountedEntry value = getValueMatchingEntry(entry);
+            if (value != null) {
+                try {
+                    visitor.accept(value);
+                } finally {
+                    value.release();
+                }
+            }
+        }
+    }
+
+    /**
      *
      * @param first
      * @param last
@@ -187,9 +210,10 @@ class RangeCache {
      * @return an pair of ints, containing the number of removed entries and the total size
      */
     public Pair<Integer, Long> removeRange(Position first, Position last, boolean lastInclusive) {
-        if (log.isDebugEnabled()) {
-            log.debug("Removing entries in range [{}, {}], lastInclusive: {}", first, last, lastInclusive);
-        }
+        log.debug().attr("first", first)
+                .attr("last", last)
+                .attr("lastInclusive", lastInclusive)
+                .log("Removing entries in range");
         RangeCacheRemovalCounters counters = RangeCacheRemovalCounters.create();
         Map<Position, RangeCacheEntryWrapper> subMap = entries.subMap(first, true, last, lastInclusive);
         for (Map.Entry<Position, RangeCacheEntryWrapper> entry : subMap.entrySet()) {
@@ -246,8 +270,9 @@ class RangeCache {
                     // remove the cache reference
                     value.release();
                 } else {
-                    log.info("Unexpected refCnt {} for key {}, removed entry without releasing the value",
-                            value.refCnt(), key);
+                    log.info().attr("refCnt", value.refCnt())
+                            .attr("key", key)
+                            .log("Unexpected refCnt, removed entry without releasing the value");
                 }
                 return true;
             } else {
@@ -283,9 +308,7 @@ class RangeCache {
      * @return size of removed entries
      */
     public Pair<Integer, Long> clear() {
-        if (log.isDebugEnabled()) {
-            log.debug("Clearing the cache with {} entries and size {}", entries.size(), size.get());
-        }
+        log.debug().attr("numEntries", () -> entries.size()).attr("size", size.get()).log("Clearing the cache");
         RangeCacheRemovalCounters counters = RangeCacheRemovalCounters.create();
         while (!Thread.currentThread().isInterrupted()) {
             Map.Entry<Position, RangeCacheEntryWrapper> entry = entries.firstEntry();

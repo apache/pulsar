@@ -19,10 +19,10 @@
 package org.apache.pulsar.client.tutorial;
 
 import java.io.IOException;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.PulsarClient;
 
-@Slf4j
+@CustomLog
 public class SampleConsumerListener {
     public static void main(String[] args) throws InterruptedException, IOException {
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("http://localhost:8080").build();
@@ -31,7 +31,7 @@ public class SampleConsumerListener {
                 .topic("persistent://my-tenant/my-ns/my-topic") //
                 .subscriptionName("my-subscription-name") //
                 .messageListener((consumer, msg) -> {
-                    log.info("Received message: {}", msg);
+                    log.info().attr("message", msg).log("Received message");
                     consumer.acknowledgeAsync(msg);
                 }).subscribe();
 

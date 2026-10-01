@@ -106,6 +106,7 @@ public class ProxyExtensionsTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testNewChannelInitializersSuccess() {
         ChannelInitializer<SocketChannel> i1 = mock(ChannelInitializer.class);
         ChannelInitializer<SocketChannel> i2 = mock(ChannelInitializer.class);
@@ -131,6 +132,7 @@ public class ProxyExtensionsTest {
     }
 
     @Test(expectedExceptions = RuntimeException.class)
+    @SuppressWarnings("unchecked")
     public void testNewChannelInitializersOverlapped() {
         ChannelInitializer<SocketChannel> i1 = mock(ChannelInitializer.class);
         ChannelInitializer<SocketChannel> i2 = mock(ChannelInitializer.class);

@@ -33,14 +33,14 @@ import javax.security.sasl.AuthorizeCallback;
 import javax.security.sasl.Sasl;
 import javax.security.sasl.SaslException;
 import javax.security.sasl.SaslServer;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.sasl.SaslConstants;
 
 /**
  * Server side Sasl implementation.
  */
-@Slf4j
+@CustomLog
 public class PulsarSaslServer {
 
     private final SaslServer saslServer;
@@ -62,9 +62,8 @@ public class PulsarSaslServer {
             try {
                 final Object[] principals = subject.getPrincipals().toArray();
                 final Principal servicePrincipal = (Principal) principals[0];
-                if (log.isDebugEnabled()) {
-                    log.debug("Authentication will use SASL/JAAS/Kerberos, servicePrincipal is {}", servicePrincipal);
-                }
+                    log.debug().attr("servicePrincipal", servicePrincipal)
+                            .log("Authentication will use SASL/JAAS/Kerberos");
 
                 // e.g. servicePrincipalNameAndHostname := "broker/myhost.foo.com@EXAMPLE.COM"
                 final String servicePrincipalNameAndHostname = servicePrincipal.getName();
@@ -87,10 +86,11 @@ public class PulsarSaslServer {
                     serviceHostname = null;
                 }
 
-                if (log.isDebugEnabled()) {
-                    log.debug("serviceHostname is '{}', servicePrincipalName is '{}', SASL mechanism(mech) is '{}'.",
-                        serviceHostname, servicePrincipalName, GSSAPI);
-                }
+                log.debug()
+                    .attr("serviceHostname", serviceHostname)
+                    .attr("servicePrincipalName", servicePrincipalName)
+                    .attr("mechanism", GSSAPI)
+                    .log("SASL configuration");
 
                 try {
                     return Subject.doAs(subject, new PrivilegedExceptionAction<SaslServer>() {
@@ -139,7 +139,7 @@ public class PulsarSaslServer {
         try {
             return AuthData.of(saslServer.evaluateResponse(token.getBytes()));
         } catch (SaslException e) {
-            log.error("response: Failed to evaluate client token:", e);
+            log.error().exception(e).log("response: Failed to evaluate client token");
             throw new AuthenticationException(e.getMessage());
         }
     }
@@ -167,20 +167,22 @@ public class PulsarSaslServer {
             String authorizationID = ac.getAuthorizationID();
             if (!authenticationID.equals(authorizationID)) {
                 ac.setAuthorized(false);
-                log.info("Forbidden access to client: authenticationID: {} is different from authorizationID: {}",
-                    authenticationID, authorizationID);
+                log.info().attr("authenticationID", authenticationID).attr("authorizationID", authorizationID)
+                        .log("Forbidden access to client");
                 return;
             }
             if (!allowedIdsPattern.matcher(authenticationID).matches()) {
                 ac.setAuthorized(false);
-                log.info("Forbidden access to client: authenticationID {}, is not allowed (see {} property).",
-                    authenticationID, SaslConstants.JAAS_CLIENT_ALLOWED_IDS);
+                log.info()
+                    .attr("authenticationID", authenticationID)
+                    .attr("property", SaslConstants.JAAS_CLIENT_ALLOWED_IDS)
+                    .log("Forbidden access to client: not allowed");
                 return;
             }
 
             ac.setAuthorized(true);
-            log.info("Successfully authenticated client: authenticationID: {};  authorizationID: {}.",
-                authenticationID, authorizationID);
+            log.info().attr("authenticationID", authenticationID).attr("authorizationID", authorizationID)
+                    .log("Successfully authenticated client");
         }
     }
 }

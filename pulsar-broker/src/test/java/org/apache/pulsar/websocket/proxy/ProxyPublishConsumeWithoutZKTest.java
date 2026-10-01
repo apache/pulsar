@@ -26,6 +26,7 @@ import static org.mockito.Mockito.doReturn;
 import java.net.URI;
 import java.util.Optional;
 import java.util.concurrent.Future;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.websocket.WebSocketService;
@@ -35,14 +36,13 @@ import org.apache.pulsar.websocket.service.WebSocketServiceStarter;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "websocket")
+@CustomLog
 public class ProxyPublishConsumeWithoutZKTest extends ProducerConsumerBase {
     protected String methodName;
     private ProxyServer proxyServer;
@@ -96,13 +96,13 @@ public class ProxyPublishConsumeWithoutZKTest extends ProducerConsumerBase {
 
         try {
             consumeClient.start();
-            ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest();
-            Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeUri, consumeRequest);
-            log.info("Connecting to : {}", consumeUri);
+            ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest(consumeUri);
+            Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeRequest);
+            log.info().attr("uri", consumeUri).log("Connecting to");
 
-            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
+            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest(produceUri);
             produceClient.start();
-            Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
+            Future<Session> producerFuture = produceClient.connect(produceSocket, produceRequest);
             // let it connect
             Assert.assertTrue(consumerFuture.get().isOpen());
             Assert.assertTrue(producerFuture.get().isOpen());
@@ -118,10 +118,8 @@ public class ProxyPublishConsumeWithoutZKTest extends ProducerConsumerBase {
                 produceClient.stop();
                 log.info("proxy clients are stopped successfully");
             } catch (Exception e) {
-                log.error("failed to close clients ", e);
+                log.error().exception(e).log("failed to close clients");
             }
         }
     }
-
-    private static final Logger log = LoggerFactory.getLogger(ProxyPublishConsumeWithoutZKTest.class);
 }

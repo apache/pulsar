@@ -28,6 +28,7 @@ import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
 import org.apache.pulsar.broker.BookKeeperClientFactoryImpl;
@@ -37,6 +38,8 @@ import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SizeUnit;
+import org.apache.pulsar.client.impl.ClientBuilderImpl;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
@@ -44,14 +47,13 @@ import org.apache.pulsar.docs.tools.CmdGenerateDocs;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.ScopeType;
 
 @Command(name = "compact-topic", showDefaultValues = true, scope = ScopeType.INHERIT)
+@CustomLog
 public class CompactorTool {
 
     private static class Arguments {
@@ -95,9 +97,7 @@ public class CompactorTool {
         if (internalListener.getBrokerServiceUrlTls() != null && brokerConfig.isBrokerClientTlsEnabled()) {
             clientBuilder.serviceUrl(internalListener.getBrokerServiceUrlTls().toString())
                     .allowTlsInsecureConnection(brokerConfig.isTlsAllowInsecureConnection())
-                    .enableTlsHostnameVerification(brokerConfig.isTlsHostnameVerificationEnabled())
-                    .sslFactoryPlugin(brokerConfig.getBrokerClientSslFactoryPlugin())
-                    .sslFactoryPluginParams(brokerConfig.getBrokerClientSslFactoryPluginParams());
+                    .enableTlsHostnameVerification(brokerConfig.isTlsHostnameVerificationEnabled());
             if (brokerConfig.isBrokerClientTlsEnabledWithKeyStore()) {
                 clientBuilder.useKeyStoreTls(true)
                         .tlsKeyStoreType(brokerConfig.getBrokerClientTlsKeyStoreType())
@@ -110,6 +110,31 @@ public class CompactorTool {
                 clientBuilder.tlsTrustCertsFilePath(brokerConfig.getBrokerClientTrustCertsFilePath())
                         .tlsKeyFilePath(brokerConfig.getBrokerClientKeyFilePath())
                         .tlsCertificateFilePath(brokerConfig.getBrokerClientCertificateFilePath());
+            }
+            // PIP-478: the compactor's client is an outbound leg like the others, so it carries the same
+            // three broker-client provider pins. Only the engine axis has a builder setter; the other two
+            // are written onto the underlying configuration, as BrokerService.configTlsSettings does.
+            if (isNotBlank(brokerConfig.getBrokerClientSslProvider())) {
+                clientBuilder.sslProvider(brokerConfig.getBrokerClientSslProvider());
+            }
+            ClientConfigurationData clientConf =
+                    ((ClientBuilderImpl) clientBuilder).getClientConfigurationData();
+            if (isNotBlank(brokerConfig.getBrokerClientJsseProvider())) {
+                clientConf.setJsseProvider(brokerConfig.getBrokerClientJsseProvider());
+            }
+            if (isNotBlank(brokerConfig.getBrokerClientJcaProvider())) {
+                clientConf.setJcaProvider(brokerConfig.getBrokerClientJcaProvider());
+            }
+            // PIP-478: and the broker-client TLS factory selection, mirroring BrokerService.configTlsSettings.
+            // 4.x propagated the PIP-337 equivalent here (sslFactoryPlugin / sslFactoryPluginParams); without
+            // its successor an operator who sources broker-client TLS material from an HSM/KMS factory gets a
+            // working broker and a compactor that silently falls back to the built-in file-based factory with
+            // whatever brokerClient* paths happen to be set — no client certificate, and the system trust
+            // store. The pair resolves atomically (the config follows the class name), and both are written
+            // only when configured, so an unset key cannot clobber a brokerClient_ passthrough value.
+            if (isNotBlank(brokerConfig.getBrokerClientTlsFactoryClassName())) {
+                clientBuilder.tlsFactoryClassName(brokerConfig.getBrokerClientTlsFactoryClassName())
+                        .tlsFactoryConfig(brokerConfig.getBrokerClientTlsFactoryConfig());
             }
         } else {
             internalListener = ServiceConfigurationUtils.getInternalListener(brokerConfig, "pulsar");
@@ -146,7 +171,6 @@ public class CompactorTool {
         log.info(String.format("read configuration file %s", filepath));
         final ServiceConfiguration brokerConfig =
                 PulsarConfigurationLoader.create(filepath, ServiceConfiguration.class);
-
 
         if (isBlank(brokerConfig.getMetadataStoreUrl())) {
             final String message = String.format("""
@@ -193,8 +217,9 @@ public class CompactorTool {
         }
 
         long ledgerId = compactor.compact(arguments.topic).get();
-        log.info("Compaction of topic {} complete. Compacted to ledger {}", arguments.topic, ledgerId);
+        log.info()
+                .attr("topic", arguments.topic)
+                .attr("ledgerId", ledgerId)
+                .log("Compaction of topic complete");
     }
-
-    private static final Logger log = LoggerFactory.getLogger(CompactorTool.class);
 }

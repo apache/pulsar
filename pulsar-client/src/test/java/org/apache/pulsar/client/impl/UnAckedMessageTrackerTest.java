@@ -42,6 +42,7 @@ import org.testng.annotations.Test;
 public class UnAckedMessageTrackerTest  {
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testAddAndRemove() {
         PulsarClientImpl client = mock(PulsarClientImpl.class);
         ConnectionPool connectionPool = mock(ConnectionPool.class);
@@ -82,6 +83,7 @@ public class UnAckedMessageTrackerTest  {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testTrackChunkedMessageId() {
         PulsarClientImpl client = mock(PulsarClientImpl.class);
         ConnectionPool connectionPool = mock(ConnectionPool.class);

@@ -19,8 +19,7 @@
 package org.apache.pulsar.functions.instance;
 
 import static org.testng.Assert.assertEquals;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.testng.annotations.Test;
 
 public class InstanceUtilsTest {
@@ -30,15 +29,15 @@ public class InstanceUtilsTest {
      */
     @Test
     public void testCalculateSubjectTypeForSource() {
-        FunctionDetails.Builder builder = FunctionDetails.newBuilder();
+        FunctionDetails functionDetails = new FunctionDetails();
         // no input topics mean source
-        builder.setSource(Function.SourceSpec.newBuilder().build());
-        assertEquals(InstanceUtils.calculateSubjectType(builder.build()), FunctionDetails.ComponentType.SOURCE);
+        functionDetails.setSource();
+        assertEquals(InstanceUtils.calculateSubjectType(functionDetails), FunctionDetails.ComponentType.SOURCE);
         // make sure that if the componenttype is set, that gets precedence.
-        builder.setComponentType(FunctionDetails.ComponentType.SINK);
-        assertEquals(InstanceUtils.calculateSubjectType(builder.build()), FunctionDetails.ComponentType.SINK);
-        builder.setComponentType(FunctionDetails.ComponentType.FUNCTION);
-        assertEquals(InstanceUtils.calculateSubjectType(builder.build()), FunctionDetails.ComponentType.FUNCTION);
+        functionDetails.setComponentType(FunctionDetails.ComponentType.SINK);
+        assertEquals(InstanceUtils.calculateSubjectType(functionDetails), FunctionDetails.ComponentType.SINK);
+        functionDetails.setComponentType(FunctionDetails.ComponentType.FUNCTION);
+        assertEquals(InstanceUtils.calculateSubjectType(functionDetails), FunctionDetails.ComponentType.FUNCTION);
     }
 
     /**
@@ -46,17 +45,15 @@ public class InstanceUtilsTest {
      */
     @Test
     public void testCalculateSubjectTypeForFunction() {
-        FunctionDetails.Builder builder = FunctionDetails.newBuilder();
+        FunctionDetails functionDetails = new FunctionDetails();
         // an input but no sink classname is a function
-        builder.setSource(
-                Function.SourceSpec.newBuilder().putInputSpecs("topic", Function.ConsumerSpec.newBuilder().build())
-                        .build());
-        assertEquals(InstanceUtils.calculateSubjectType(builder.build()), FunctionDetails.ComponentType.FUNCTION);
+        functionDetails.setSource().putInputSpecs("topic");
+        assertEquals(InstanceUtils.calculateSubjectType(functionDetails), FunctionDetails.ComponentType.FUNCTION);
         // make sure that if the componenttype is set, that gets precedence.
-        builder.setComponentType(FunctionDetails.ComponentType.SOURCE);
-        assertEquals(InstanceUtils.calculateSubjectType(builder.build()), FunctionDetails.ComponentType.SOURCE);
-        builder.setComponentType(FunctionDetails.ComponentType.SINK);
-        assertEquals(InstanceUtils.calculateSubjectType(builder.build()), FunctionDetails.ComponentType.SINK);
+        functionDetails.setComponentType(FunctionDetails.ComponentType.SOURCE);
+        assertEquals(InstanceUtils.calculateSubjectType(functionDetails), FunctionDetails.ComponentType.SOURCE);
+        functionDetails.setComponentType(FunctionDetails.ComponentType.SINK);
+        assertEquals(InstanceUtils.calculateSubjectType(functionDetails), FunctionDetails.ComponentType.SINK);
     }
 
     /**
@@ -64,17 +61,15 @@ public class InstanceUtilsTest {
      */
     @Test
     public void testCalculateSubjectTypeForSink() {
-        FunctionDetails.Builder builder = FunctionDetails.newBuilder();
+        FunctionDetails functionDetails = new FunctionDetails();
         // an input and a sink classname is a sink
-        builder.setSource(
-                Function.SourceSpec.newBuilder().putInputSpecs("topic", Function.ConsumerSpec.newBuilder().build())
-                        .build());
-        builder.setSink(Function.SinkSpec.newBuilder().setClassName("something").build());
-        assertEquals(InstanceUtils.calculateSubjectType(builder.build()), FunctionDetails.ComponentType.SINK);
+        functionDetails.setSource().putInputSpecs("topic");
+        functionDetails.setSink().setClassName("something");
+        assertEquals(InstanceUtils.calculateSubjectType(functionDetails), FunctionDetails.ComponentType.SINK);
         // make sure that if the componenttype is set, that gets precedence.
-        builder.setComponentType(FunctionDetails.ComponentType.SOURCE);
-        assertEquals(InstanceUtils.calculateSubjectType(builder.build()), FunctionDetails.ComponentType.SOURCE);
-        builder.setComponentType(FunctionDetails.ComponentType.FUNCTION);
-        assertEquals(InstanceUtils.calculateSubjectType(builder.build()), FunctionDetails.ComponentType.FUNCTION);
+        functionDetails.setComponentType(FunctionDetails.ComponentType.SOURCE);
+        assertEquals(InstanceUtils.calculateSubjectType(functionDetails), FunctionDetails.ComponentType.SOURCE);
+        functionDetails.setComponentType(FunctionDetails.ComponentType.FUNCTION);
+        assertEquals(InstanceUtils.calculateSubjectType(functionDetails), FunctionDetails.ComponentType.FUNCTION);
     }
 }

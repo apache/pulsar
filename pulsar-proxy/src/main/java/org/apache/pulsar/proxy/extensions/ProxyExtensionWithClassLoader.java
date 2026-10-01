@@ -23,9 +23,9 @@ import io.netty.channel.socket.SocketChannel;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Map;
+import lombok.CustomLog;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.proxy.server.ProxyConfiguration;
 import org.apache.pulsar.proxy.server.ProxyService;
@@ -33,7 +33,7 @@ import org.apache.pulsar.proxy.server.ProxyService;
 /**
  * A extension with its classloader.
  */
-@Slf4j
+@CustomLog
 @Data
 @RequiredArgsConstructor
 class ProxyExtensionWithClassLoader implements ProxyExtension {
@@ -85,7 +85,7 @@ class ProxyExtensionWithClassLoader implements ProxyExtension {
         try {
             classLoader.close();
         } catch (IOException e) {
-            log.warn("Failed to close the extension class loader", e);
+            log.warn().exception(e).log("Failed to close the extension class loader");
         }
     }
 

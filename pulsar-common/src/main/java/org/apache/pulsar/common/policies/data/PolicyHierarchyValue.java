@@ -26,6 +26,7 @@ import lombok.Getter;
  * Currently, we have three hierarchy with priority : topic > namespace > broker.
  */
 public class PolicyHierarchyValue<T> {
+    @SuppressWarnings("rawtypes") // AtomicReferenceFieldUpdater requires raw type for the declaring class parameter
     private static final AtomicReferenceFieldUpdater<PolicyHierarchyValue, Object> VALUE_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(PolicyHierarchyValue.class, Object.class, "value");
 

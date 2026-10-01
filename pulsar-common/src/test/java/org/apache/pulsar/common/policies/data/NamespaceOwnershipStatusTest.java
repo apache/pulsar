@@ -25,6 +25,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.skyscreamer.jsonassert.JSONAssert;
+import org.skyscreamer.jsonassert.JSONCompareMode;
 import org.testng.annotations.Test;
 
 public class NamespaceOwnershipStatusTest {
@@ -55,6 +57,10 @@ public class NamespaceOwnershipStatusTest {
                 assertTrue(nsStatus.is_active);
             }
         }
-        assertEquals(jsonMapper.writeValueAsString(nsMap), jsonStr);
+        JSONAssert.assertEquals(
+                jsonMapper.writeValueAsString(nsMap),
+                jsonStr,
+                JSONCompareMode.STRICT
+        );
     }
 }

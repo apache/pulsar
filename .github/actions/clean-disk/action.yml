@@ -23,44 +23,98 @@ inputs:
   mode:
     description: "Use 'full' to clean as much as possible"
     required: false
+  clean-threshold-gb:
+    description: "Skip cleaning if available disk space exceeds this threshold (in GB)"
+    required: false
+    default: '20'
+  full-clean-threshold-gb:
+    description: "In 'full' mode, skip additional cleaning steps if available disk space exceeds this threshold (in GB)"
+    required: false
+    default: '40'
 runs:
   using: composite
   steps:
-    - run: |
+    - shell: bash
+      env:
+        CLEAN_MODE: ${{ inputs.mode }}
+        CLEAN_THRESHOLD_GB: ${{ inputs.clean-threshold-gb }}
+        FULL_CLEAN_THRESHOLD_GB: ${{ inputs.full-clean-threshold-gb }}
+      run: |
         if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-          directories=(/usr/local/lib/android /opt/ghc)
-          if [[ "${{ inputs.mode }}" == "full" ]]; then
-            # remove these directories only when mode is 'full'
-            directories+=(/usr/share/dotnet /opt/hostedtoolcache/CodeQL)
+
+          available_gb() {
+            df --output=avail -BG / | tail -1 | tr -d ' G'
+          }
+
+          show_disk() {
+            if mountpoint -q /mnt; then df -BM / /mnt; else df -BM /; fi
+          }
+
+          remove_dir() {
+            local directory=$1
+            if [ -d "$directory" ]; then
+              echo "::group::Removing $directory"
+              local emptydir=/tmp/empty$$/
+              mkdir -p "$emptydir"
+              # fast way to delete a lot of files on linux
+              time sudo eatmydata rsync -a --delete "$emptydir" "${directory}/"
+              time sudo eatmydata rm -rf "${directory}"
+              rmdir "$emptydir" 2>/dev/null || true
+              time show_disk
+              echo "::endgroup::"
+            fi
+          }
+
+          # Remove directories one at a time, stopping when threshold is met
+          clean_dirs() {
+            local threshold=$1
+            shift
+            for directory in "$@"; do
+              if (( $(available_gb) >= threshold )); then
+                return
+              fi
+              remove_dir "$directory"
+            done
+          }
+
+          if [[ "$CLEAN_MODE" == "full" ]]; then
+            threshold=$FULL_CLEAN_THRESHOLD_GB
+          else
+            threshold=$CLEAN_THRESHOLD_GB
           fi
-          emptydir=/tmp/empty$$/
-          mkdir $emptydir
-          echo "::group::Available diskspace"
-          time df -BM / /mnt
+
+          echo "::group::Available diskspace (threshold: ${threshold}GB)"
+          time show_disk
           echo "::endgroup::"
-          for directory in "${directories[@]}"; do
-            echo "::group::Removing $directory"
-            # fast way to delete a lot of files on linux
-            time sudo eatmydata rsync -a --delete $emptydir ${directory}/
-            time sudo eatmydata rm -rf ${directory}
-            time df -BM / /mnt
-            echo "::endgroup::"
-          done
-          if [[ "${{ inputs.mode }}" == "full" ]]; then
-            echo "::group::Moving /var/lib/docker to /mnt/docker"
-            sudo systemctl stop docker
-            echo '{"data-root": "/mnt/docker"}' | sudo tee /etc/docker/daemon.json
-            sudo mv /var/lib/docker /mnt/docker
-            sudo systemctl start docker
-            time df -BM / /mnt
+
+          if (( $(available_gb) >= threshold )); then
+            echo "Available disk space meets threshold, skipping cleanup."
+            exit 0
+          fi
+
+          clean_dirs "$threshold" /usr/local/lib/android /opt/ghc
+
+          if [[ "$CLEAN_MODE" == "full" ]]; then
+            clean_dirs "$threshold" /usr/share/dotnet /opt/hostedtoolcache/CodeQL
+            if (( $(available_gb) < threshold )) && mountpoint -q /mnt; then
+              echo "::group::Moving /var/lib/docker to /mnt/docker"
+              sudo systemctl stop docker
+              echo '{"data-root": "/mnt/docker"}' | sudo tee /etc/docker/daemon.json
+              sudo mv /var/lib/docker /mnt/docker
+              sudo systemctl start docker
+              time show_disk
+              echo "::endgroup::"
+            fi
+          fi
+
+          if (( $(available_gb) < threshold )); then
+            echo "::group::Cleaning apt state"
+            time sudo bash -c "apt-get clean; apt-get autoclean; apt-get -y --purge autoremove"
+            time show_disk
             echo "::endgroup::"
           fi
-          echo "::group::Cleaning apt state"
-          time sudo bash -c "apt-get clean; apt-get autoclean; apt-get -y --purge autoremove"
-          time df -BM / /mnt
+
+          echo "::group::Available diskspace"
+          time show_disk
           echo "::endgroup::"
         fi
-        echo "::group::Available diskspace"
-        time df -BM / /mnt
-        echo "::endgroup::"
-      shell: bash

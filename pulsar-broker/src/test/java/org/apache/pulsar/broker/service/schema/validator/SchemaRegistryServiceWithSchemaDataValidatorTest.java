@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.schema.validator;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
@@ -28,6 +29,8 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.module.jsonSchema.JsonSchemaGenerator;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
@@ -36,6 +39,7 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -157,6 +161,74 @@ public class SchemaRegistryServiceWithSchemaDataValidatorTest {
         }
         verify(underlyingService, times(0))
             .putSchemaIfAbsent(eq(schemaId), same(schemaData), eq(strategy));
+    }
+
+    // PIP-464: Tests for legacy Jackson format handling
+
+    @Test
+    public void testPutSchemaRejectsJacksonFormatByDefault() throws Exception {
+        // Default (strict mode) should reject Jackson JSON schema format
+        SchemaRegistryServiceWithSchemaDataValidator strictService =
+                SchemaRegistryServiceWithSchemaDataValidator.of(underlyingService);
+
+        ObjectMapper mapper = ObjectMapperFactory.getMapper().getObjectMapper();
+        SchemaData schemaData = SchemaData.builder()
+            .type(SchemaType.JSON)
+            .data(mapper.writeValueAsBytes(new JsonSchemaGenerator(mapper).generateSchema(Object.class)))
+            .build();
+
+        try {
+            strictService.putSchemaIfAbsent("test", schemaData, SchemaCompatibilityStrategy.FULL).get();
+            fail("Should fail with InvalidSchemaDataException");
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof InvalidSchemaDataException);
+        }
+        verify(underlyingService, times(0))
+            .putSchemaIfAbsent(eq("test"), any(SchemaData.class), any(SchemaCompatibilityStrategy.class));
+    }
+
+    @Test
+    public void testPutSchemaAcceptsJacksonFormatWhenLegacyEnabled() throws Exception {
+        // Legacy mode should accept Jackson JSON schema format
+        SchemaRegistryServiceWithSchemaDataValidator legacyService =
+                SchemaRegistryServiceWithSchemaDataValidator.of(underlyingService, true);
+
+        ObjectMapper mapper = ObjectMapperFactory.getMapper().getObjectMapper();
+        SchemaData schemaData = SchemaData.builder()
+            .type(SchemaType.JSON)
+            .data(mapper.writeValueAsBytes(new JsonSchemaGenerator(mapper).generateSchema(Object.class)))
+            .build();
+
+        CompletableFuture<SchemaVersion> future = new CompletableFuture<>();
+        when(underlyingService.putSchemaIfAbsent(eq("test"), any(SchemaData.class),
+                eq(SchemaCompatibilityStrategy.FULL))).thenReturn(future);
+
+        assertSame(future, legacyService.putSchemaIfAbsent("test", schemaData, SchemaCompatibilityStrategy.FULL));
+        verify(underlyingService, times(1))
+            .putSchemaIfAbsent(eq("test"), same(schemaData), eq(SchemaCompatibilityStrategy.FULL));
+    }
+
+    @Test
+    public void testPutSchemaRejectsJsonSchemaDraftByDefault() throws Exception {
+        // JSON Schema Draft 2020-12 should be rejected in strict mode
+        SchemaRegistryServiceWithSchemaDataValidator strictService =
+                SchemaRegistryServiceWithSchemaDataValidator.of(underlyingService);
+
+        String jsonSchemaDraft = "{\"$schema\":\"https://json-schema.org/draft/2020-12/schema\","
+                + "\"type\":\"object\",\"properties\":{\"field\":{\"type\":\"integer\"}}}";
+        SchemaData schemaData = SchemaData.builder()
+            .type(SchemaType.JSON)
+            .data(jsonSchemaDraft.getBytes(UTF_8))
+            .build();
+
+        try {
+            strictService.putSchemaIfAbsent("test", schemaData, SchemaCompatibilityStrategy.FULL).get();
+            fail("Should fail with InvalidSchemaDataException");
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof InvalidSchemaDataException);
+        }
+        verify(underlyingService, times(0))
+            .putSchemaIfAbsent(eq("test"), any(SchemaData.class), any(SchemaCompatibilityStrategy.class));
     }
 
 }

@@ -25,27 +25,13 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
-public class ConsumerAckListTest extends ProducerConsumerBase {
-
-    @BeforeClass
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+public class ConsumerAckListTest extends SharedPulsarBaseTest {
 
     @DataProvider(name = "ackReceiptEnabled")
     public Object[][] ackReceiptEnabled() {
@@ -61,7 +47,7 @@ public class ConsumerAckListTest extends ProducerConsumerBase {
     }
 
     private void ackListMessage(boolean isBatch, boolean isPartitioned, boolean ackReceiptEnabled) throws Exception {
-        final String topic = "persistent://my-property/my-ns/batch-ack-" + UUID.randomUUID();
+        final String topic = newTopicName();
         final String subName = "testBatchAck-sub" + UUID.randomUUID();
         final int messageNum = ThreadLocalRandom.current().nextInt(50, 100);
         if (isPartitioned) {
@@ -113,9 +99,9 @@ public class ConsumerAckListTest extends ProducerConsumerBase {
     @Test(timeOut = 30000)
     public void testAckMessageInAnotherTopic() throws Exception {
         final String[] topics = {
-                "persistent://my-property/my-ns/test-ack-message-in-other-topic1" + UUID.randomUUID(),
-                "persistent://my-property/my-ns/test-ack-message-in-other-topic2" + UUID.randomUUID(),
-                "persistent://my-property/my-ns/test-ack-message-in-other-topic3" + UUID.randomUUID()
+                newTopicName(),
+                newTopicName(),
+                newTopicName()
         };
         @Cleanup final Consumer<String> allTopicsConsumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topics)

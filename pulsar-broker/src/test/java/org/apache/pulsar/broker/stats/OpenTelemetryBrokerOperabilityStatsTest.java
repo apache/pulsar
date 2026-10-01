@@ -18,8 +18,11 @@
  */
 package org.apache.pulsar.broker.stats;
 
+import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.assertThat;
+import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricHistogramValue;
 import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -68,21 +71,26 @@ public class OpenTelemetryBrokerOperabilityStatsTest extends BrokerTestBase {
 
     @Test
     public void testBrokerConnection() throws Exception {
-        var topicName = BrokerTestUtil.newUniqueName("persistent://my-namespace/use/my-ns/testBrokerConnection");
+        var topicName = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/testBrokerConnection");
 
         @Cleanup
         var producer = pulsarClient.newProducer().topic(topicName).create();
 
+        // The broker's internal client may have already connected during setup,
+        // so use >= 1 for cumulative counts that include setup connections.
         var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
         assertMetricLongSumValue(metrics, BrokerOperabilityMetrics.CONNECTION_COUNTER_METRIC_NAME,
-                OpenTelemetryAttributes.ConnectionStatus.OPEN.attributes, 1);
+                OpenTelemetryAttributes.ConnectionStatus.OPEN.attributes,
+                actual -> assertThat(actual).isGreaterThanOrEqualTo(1));
         assertMetricLongSumValue(metrics, BrokerOperabilityMetrics.CONNECTION_COUNTER_METRIC_NAME,
                 OpenTelemetryAttributes.ConnectionStatus.CLOSE.attributes, 0);
         assertMetricLongSumValue(metrics, BrokerOperabilityMetrics.CONNECTION_COUNTER_METRIC_NAME,
-                OpenTelemetryAttributes.ConnectionStatus.ACTIVE.attributes, 1);
+                OpenTelemetryAttributes.ConnectionStatus.ACTIVE.attributes,
+                actual -> assertThat(actual).isGreaterThanOrEqualTo(1));
 
         assertMetricLongSumValue(metrics, BrokerOperabilityMetrics.CONNECTION_CREATE_COUNTER_METRIC_NAME,
-                ConnectionCreateStatus.SUCCESS.attributes, 1);
+                ConnectionCreateStatus.SUCCESS.attributes,
+                actual -> assertThat(actual).isGreaterThanOrEqualTo(1));
         assertMetricLongSumValue(metrics, BrokerOperabilityMetrics.CONNECTION_CREATE_COUNTER_METRIC_NAME,
                 ConnectionCreateStatus.FAILURE.attributes, 0);
 
@@ -90,7 +98,8 @@ public class OpenTelemetryBrokerOperabilityStatsTest extends BrokerTestBase {
 
         metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
         assertMetricLongSumValue(metrics, BrokerOperabilityMetrics.CONNECTION_COUNTER_METRIC_NAME,
-                OpenTelemetryAttributes.ConnectionStatus.CLOSE.attributes, 1);
+                OpenTelemetryAttributes.ConnectionStatus.CLOSE.attributes,
+                actual -> assertThat(actual).isGreaterThanOrEqualTo(1));
 
         pulsar.getConfiguration().setAuthenticationEnabled(true);
 
@@ -103,14 +112,18 @@ public class OpenTelemetryBrokerOperabilityStatsTest extends BrokerTestBase {
 
         metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
         assertMetricLongSumValue(metrics, BrokerOperabilityMetrics.CONNECTION_COUNTER_METRIC_NAME,
-                OpenTelemetryAttributes.ConnectionStatus.OPEN.attributes, 2);
+                OpenTelemetryAttributes.ConnectionStatus.OPEN.attributes,
+                actual -> assertThat(actual).isGreaterThanOrEqualTo(2));
         assertMetricLongSumValue(metrics, BrokerOperabilityMetrics.CONNECTION_COUNTER_METRIC_NAME,
-                OpenTelemetryAttributes.ConnectionStatus.CLOSE.attributes, 2);
+                OpenTelemetryAttributes.ConnectionStatus.CLOSE.attributes,
+                actual -> assertThat(actual).isGreaterThanOrEqualTo(2));
         assertMetricLongSumValue(metrics, BrokerOperabilityMetrics.CONNECTION_COUNTER_METRIC_NAME,
-                OpenTelemetryAttributes.ConnectionStatus.ACTIVE.attributes, 0);
+                OpenTelemetryAttributes.ConnectionStatus.ACTIVE.attributes,
+                actual -> assertThat(actual).isGreaterThanOrEqualTo(0));
 
         assertMetricLongSumValue(metrics, BrokerOperabilityMetrics.CONNECTION_CREATE_COUNTER_METRIC_NAME,
-                ConnectionCreateStatus.SUCCESS.attributes, 1);
+                ConnectionCreateStatus.SUCCESS.attributes,
+                actual -> assertThat(actual).isGreaterThanOrEqualTo(1));
         assertMetricLongSumValue(metrics, BrokerOperabilityMetrics.CONNECTION_CREATE_COUNTER_METRIC_NAME,
                 ConnectionCreateStatus.FAILURE.attributes, 1);
     }
@@ -123,9 +136,9 @@ public class OpenTelemetryBrokerOperabilityStatsTest extends BrokerTestBase {
         // Test initial state - should be 0
         var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
         assertMetricLongSumValue(metrics, BrokerOperabilityMetrics.NON_RECOVERABLE_LEDGERS_SKIPPED_COUNTER_METRIC_NAME,
-                io.opentelemetry.api.common.Attributes.empty(), 0);
+                Attributes.empty(), 0);
         assertMetricLongSumValue(metrics, BrokerOperabilityMetrics.NON_RECOVERABLE_ENTRIES_SKIPPED_COUNTER_METRIC_NAME,
-                io.opentelemetry.api.common.Attributes.empty(), 0);
+                Attributes.empty(), 0);
 
         // Test recording ledger skip metrics
         brokerOperabilityMetrics.recordNonRecoverableLedgerSkipped();
@@ -139,9 +152,9 @@ public class OpenTelemetryBrokerOperabilityStatsTest extends BrokerTestBase {
         // Verify the metrics have been updated
         metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
         assertMetricLongSumValue(metrics, BrokerOperabilityMetrics.NON_RECOVERABLE_LEDGERS_SKIPPED_COUNTER_METRIC_NAME,
-                io.opentelemetry.api.common.Attributes.empty(), 2);
+                Attributes.empty(), 2);
         assertMetricLongSumValue(metrics, BrokerOperabilityMetrics.NON_RECOVERABLE_ENTRIES_SKIPPED_COUNTER_METRIC_NAME,
-                io.opentelemetry.api.common.Attributes.empty(), 3);
+                Attributes.empty(), 3);
     }
 
     @Test
@@ -158,7 +171,7 @@ public class OpenTelemetryBrokerOperabilityStatsTest extends BrokerTestBase {
 
         // Test end-to-end callback integration by creating a real topic and subscription
         // This ensures we're testing the actual callback that BrokerService sets up during topic creation
-        String topicName = BrokerTestUtil.newUniqueName("persistent://my-namespace/use/my-ns/testEndToEndCallback");
+        String topicName = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/testEndToEndCallback");
 
         // Create a consumer, which will automatically create the topic and subscription
         @Cleanup
@@ -201,15 +214,15 @@ public class OpenTelemetryBrokerOperabilityStatsTest extends BrokerTestBase {
         // Verify that the ledger skip metrics increased by 1 (we called skipNonRecoverableLedger once)
         assertMetricLongSumValue(finalMetrics,
                 BrokerOperabilityMetrics.NON_RECOVERABLE_LEDGERS_SKIPPED_COUNTER_METRIC_NAME,
-                io.opentelemetry.api.common.Attributes.empty(), initialLedgersSkipped + 1);
+                Attributes.empty(), initialLedgersSkipped + 1);
 
         // Verify that the entries skip metrics increased by 10 (10 entries skipped)
         assertMetricLongSumValue(finalMetrics,
                 BrokerOperabilityMetrics.NON_RECOVERABLE_ENTRIES_SKIPPED_COUNTER_METRIC_NAME,
-                io.opentelemetry.api.common.Attributes.empty(), initialEntriesSkipped + 10);
+                Attributes.empty(), initialEntriesSkipped + 10);
     }
 
-    private long getMetricValue(java.util.Collection<io.opentelemetry.sdk.metrics.data.MetricData> metrics,
+    private long getMetricValue(Collection<MetricData> metrics,
                                 String metricName) {
         return metrics.stream()
                 .filter(m -> m.getName().equals(metricName))
@@ -219,5 +232,28 @@ public class OpenTelemetryBrokerOperabilityStatsTest extends BrokerTestBase {
                         .map(point -> point.getValue())
                         .orElse(0L))
                 .orElse(0L);
+    }
+
+    @Test
+    public void testPublishLatency() throws Exception {
+        final var topicName = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/testPublishLatency");
+        @Cleanup
+        final var producer = pulsarClient.newProducer().topic(topicName).create();
+
+        producer.send(("msg").getBytes());
+
+        var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
+        assertMetricHistogramValue(metrics, BrokerOperabilityMetrics.TOPIC_PUBLISH_LATENCY_METRIC_NAME,
+                Attributes.empty(), count -> assertThat(count).isEqualTo(1L),
+                sum -> assertThat(sum).isGreaterThan(0.0));
+
+        for (int i = 0; i < 9; i++) {
+            producer.send(("msg-" + i).getBytes());
+        }
+
+        metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
+        assertMetricHistogramValue(metrics, BrokerOperabilityMetrics.TOPIC_PUBLISH_LATENCY_METRIC_NAME,
+                Attributes.empty(), count -> assertThat(count).isEqualTo(10L),
+                sum -> assertThat(sum).isGreaterThan(0.0));
     }
 }

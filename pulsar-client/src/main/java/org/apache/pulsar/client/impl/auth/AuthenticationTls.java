@@ -76,6 +76,7 @@ public class AuthenticationTls implements Authentication, EncodedAuthenticationP
         return AUTH_METHOD_NAME;
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public AuthenticationDataProvider getAuthData() throws PulsarClientException {
         try {

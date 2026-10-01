@@ -20,18 +20,18 @@ package org.apache.pulsar.metadata.impl;
 
 import com.google.common.annotations.VisibleForTesting;
 import java.util.Collections;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import lombok.CustomLog;
 import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.zookeeper.BoundExponentialBackoffRetryPolicy;
-import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
@@ -44,8 +44,9 @@ import org.apache.pulsar.metadata.api.MetadataStoreLifecycle;
 import org.apache.pulsar.metadata.api.MetadataStoreProvider;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
+import org.apache.pulsar.metadata.api.Option;
+import org.apache.pulsar.metadata.api.OptionsHelper;
 import org.apache.pulsar.metadata.api.Stat;
-import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.impl.batching.AbstractBatchedMetadataStore;
@@ -54,6 +55,7 @@ import org.apache.pulsar.metadata.impl.batching.OpDelete;
 import org.apache.pulsar.metadata.impl.batching.OpGet;
 import org.apache.pulsar.metadata.impl.batching.OpGetChildren;
 import org.apache.pulsar.metadata.impl.batching.OpPut;
+import org.apache.pulsar.metadata.impl.batching.ZKMetadataStoreBatchStrategy;
 import org.apache.zookeeper.AddWatchMode;
 import org.apache.zookeeper.AsyncCallback;
 import org.apache.zookeeper.CreateMode;
@@ -67,7 +69,7 @@ import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.client.ConnectStringParser;
 
-@Slf4j
+@CustomLog
 public class ZKMetadataStore extends AbstractBatchedMetadataStore
         implements MetadataStoreExtended, MetadataStoreLifecycle {
     public static final String ZK_SCHEME = "zk";
@@ -110,25 +112,29 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                 sessionWatcher = null;
             }
             zkc.addWatch("/", eventWatcher, AddWatchMode.PERSISTENT_RECURSIVE);
+            initBatchStrategy();
         } catch (Throwable t) {
+            try {
+                super.close();
+            } catch (Exception e) {
+                t.addSuppressed(e);
+            }
             throw new MetadataStoreException(t);
         }
     }
 
     private void processSessionWatcher(WatchedEvent event) {
         if (sessionWatcher != null) {
-            executor.execute(() -> sessionWatcher.process(event));
+            processEvent(sessionWatcher::process, event);
         }
     }
 
     @VisibleForTesting
-    @SneakyThrows
     public ZKMetadataStore(ZooKeeper zkc) {
         this(zkc, MetadataStoreConfig.builder().build());
     }
 
     @VisibleForTesting
-    @SneakyThrows
     public ZKMetadataStore(ZooKeeper zkc, MetadataStoreConfig config) {
         this(zkc, config, false);
     }
@@ -144,6 +150,14 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
         this.zkc = zkc;
         this.sessionWatcher = new ZKSessionWatcher(zkc, this::receivedSessionEvent);
         zkc.addWatch("/", eventWatcher, AddWatchMode.PERSISTENT_RECURSIVE);
+        initBatchStrategy();
+    }
+
+    private void initBatchStrategy() {
+        ZKMetadataStoreBatchStrategy batchStrategy =
+                new ZKMetadataStoreBatchStrategy(nodeSizeStats, maxOperations, maxSize, zkc);
+        this.maxSize = batchStrategy.maxSize();
+        super.metadataStoreBatchStrategy = batchStrategy;
     }
 
     @Override
@@ -155,7 +169,8 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                         if (rc == Code.OK.intValue()) {
                             super.receivedSessionEvent(event);
                         } else {
-                            log.error("Failed to recreate persistent watch on ZooKeeper: {}", Code.get(rc));
+                            log.error().attr("code", Code.get(rc))
+                                    .log("Failed to recreate persistent watch on ZooKeeper");
                             if (sessionWatcher != null) {
                                 sessionWatcher.setSessionInvalid();
                             }
@@ -204,24 +219,40 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
 
                         // Build the log warning message
                         // summarize the operations by type
+                        final int logThresholdPut = maxSize >> 4;
+                        final int logThresholdGet = maxSize >> 4;
                         String countsByType = ops.stream().collect(
                                         Collectors.groupingBy(MetadataOp::getType, Collectors.summingInt(op -> 1)))
-                                .entrySet().stream().map(e -> e.getValue() + " " + e.getKey().name() + " entries")
+                                .entrySet().stream().map(e -> e.getValue() + " " + e.getKey().name())
                                 .collect(Collectors.joining(", "));
-                        List<Pair> opsForLog = ops.stream()
-                                .filter(item -> item.size() > 256 * 1024)
-                                .map(op -> Pair.of(op.getPath(), op.size()))
+                        boolean shouldLimitLogLen = ops.size() > 16;
+                        List<Triple<String, String, Integer>> opsForLog = ops.stream()
+                                .filter(item -> {
+                                    if (!shouldLimitLogLen) {
+                                        return true;
+                                    }
+                                    return switch (item.getType()) {
+                                        case PUT -> item.asPut().getData().length > logThresholdPut;
+                                        case GET -> nodeSizeStats
+                                                .getMaxSizeOfSameResourceType(item.getPath()) > logThresholdGet;
+                                        case GET_CHILDREN -> nodeSizeStats
+                                                .getMaxChildrenCountOfSameResourceType(item.getPath()) > 512;
+                                        default -> false;
+                                    };
+                                })
+                                .map(op -> Triple.of(op.getPath(), op.getType().toString(), op.size()))
                                 .collect(Collectors.toList());
                         Long totalSize = ops.stream().collect(Collectors.summingLong(MetadataOp::size));
-                        log.warn("Connection loss while executing batch operation of {} "
-                                + "of total data size of {}. "
-                                + "Retrying individual operations one-by-one. ops whose size > 256KB: {}",
-                                countsByType, totalSize, opsForLog);
+                        log.warn()
+                                .attr("countsByType", countsByType)
+                                .attr("totalSize", totalSize)
+                                .attr("largeOps", opsForLog)
+                                .log("Connection loss while executing batch operation."
+                                        + " Retrying individual operations one-by-one.");
 
                         // Retry with the individual operations
-                        executor.schedule(() -> {
-                            ops.forEach(o -> batchOperation(Collections.singletonList(o)));
-                        }, 100, TimeUnit.MILLISECONDS);
+                        scheduleDelayedTask(100, TimeUnit.MILLISECONDS,
+                            () -> ops.forEach(o -> batchOperation(Collections.singletonList(o))));
                     } else {
                         MetadataStoreException e = getException(code, path);
                         ops.forEach(o -> o.getFuture().completeExceptionally(e));
@@ -230,7 +261,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                 }
 
                 // Trigger all the futures in the batch
-                execute(() -> {
+                safeExecuteCallbacks(() -> {
                     for (int i = 0; i < ops.size(); i++) {
                         OpResult opr = results.get(i);
                         MetadataOp op = ops.get(i);
@@ -252,7 +283,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                                             "Operation type not supported in multi: " + op.getType()));
                             }
                         }
-                }, () -> ops.stream().map(MetadataOp::getFuture).collect(Collectors.toList()));
+                }, ops);
             }, null);
         } catch (Throwable t) {
             ops.forEach(o -> o.getFuture().completeExceptionally(new MetadataStoreException(t)));
@@ -364,12 +395,12 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
     }
 
     @Override
-    public CompletableFuture<Boolean> existsFromStore(String path) {
+    public CompletableFuture<Boolean> existsFromStore(String path, Set<Option> opts) {
         CompletableFuture<Boolean> future = new CompletableFuture<>();
 
         try {
             zkc.exists(path, null, (rc, path1, ctx, stat) -> {
-                execute(() -> {
+                safeExecuteCallback(() -> {
                     Code code = Code.get(rc);
                     if (code == Code.OK) {
                         future.complete(true);
@@ -395,7 +426,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
 
         try {
             zkc.delete(op.getPath(), expectedVersion, (rc, path1, ctx) -> {
-                execute(() -> {
+                safeExecuteCallback(() -> {
                     Code code = Code.get(rc);
                     if (code == Code.OK) {
                         future.complete(null);
@@ -420,7 +451,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                 CreateMode createMode = getCreateMode(opPut.getOptions());
                 asyncCreateFullPathOptimistic(zkc, opPut.getPath(), opPut.getData(), createMode,
                         (rc, path1, ctx, name) -> {
-                            execute(() -> {
+                            safeExecuteCallback(() -> {
                                 Code code = Code.get(rc);
                                 if (code == Code.OK) {
                                     future.complete(new Stat(name, 0, 0, 0, createMode.isEphemeral(), true));
@@ -434,7 +465,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                         });
             } else {
                 zkc.setData(opPut.getPath(), opPut.getData(), expectedVersion, (rc, path1, ctx, stat) -> {
-                    execute(() -> {
+                    safeExecuteCallback(() -> {
                         Code code = Code.get(rc);
                         if (code == Code.OK) {
                             future.complete(getStat(path1, stat));
@@ -504,9 +535,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
     }
 
     private void handleWatchEvent(WatchedEvent event) {
-        if (log.isDebugEnabled()) {
-            log.debug("Received ZK watch : {}", event);
-        }
+        log.debug().attr("event", event).log("Received ZK watch");
         String path = event.getPath();
         if (path == null) {
             // Ignore Session events
@@ -550,18 +579,13 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
         }
     }
 
-    private static CreateMode getCreateMode(EnumSet<CreateOption> options) {
-        if (options.contains(CreateOption.Ephemeral)) {
-            if (options.contains(CreateOption.Sequential)) {
-                return CreateMode.EPHEMERAL_SEQUENTIAL;
-            } else {
-                return CreateMode.EPHEMERAL;
-            }
-        } else if (options.contains(CreateOption.Sequential)) {
-            return CreateMode.PERSISTENT_SEQUENTIAL;
-        } else {
-            return CreateMode.PERSISTENT;
+    private static CreateMode getCreateMode(Set<Option> opts) {
+        boolean ephemeral = OptionsHelper.isEphemeral(opts);
+        boolean sequential = OptionsHelper.isSequential(opts);
+        if (ephemeral) {
+            return sequential ? CreateMode.EPHEMERAL_SEQUENTIAL : CreateMode.EPHEMERAL;
         }
+        return sequential ? CreateMode.PERSISTENT_SEQUENTIAL : CreateMode.PERSISTENT;
     }
 
     public long getZkSessionId() {
@@ -594,7 +618,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                     .build()) {
                 if (chrootZk.exists(chrootPath, false) == null) {
                     createFullPathOptimistic(chrootZk, chrootPath, new byte[0], CreateMode.PERSISTENT);
-                    log.info("Created zookeeper chroot path {} successfully", chrootPath);
+                    log.info().attr("chrootPath", chrootPath).log("Created zookeeper chroot path successfully");
                 }
             } catch (Exception e) {
                 return FutureUtil.failedFuture(e);
@@ -660,6 +684,11 @@ class ZkMetadataStoreProvider implements MetadataStoreProvider {
         if (metadataURL.startsWith(ZKMetadataStore.ZK_SCHEME_IDENTIFIER)) {
             metadataURL = metadataURL.substring(ZKMetadataStore.ZK_SCHEME_IDENTIFIER.length());
         }
-        return new ZKMetadataStore(metadataURL, metadataStoreConfig, enableSessionWatcher);
+
+        // Create the ZK metadata store
+        ZKMetadataStore zkStore = new ZKMetadataStore(metadataURL, metadataStoreConfig, enableSessionWatcher);
+
+        // Wrap with DualMetadataStore to enable migration capability
+        return new DualMetadataStore(zkStore, metadataStoreConfig);
     }
 }

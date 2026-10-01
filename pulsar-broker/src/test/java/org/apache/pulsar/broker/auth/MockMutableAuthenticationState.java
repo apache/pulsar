@@ -45,6 +45,7 @@ public class MockMutableAuthenticationState implements AuthenticationState {
         return authRole;
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public AuthData authenticate(AuthData authData) throws AuthenticationException {
         return null;
@@ -69,6 +70,7 @@ public class MockMutableAuthenticationState implements AuthenticationState {
         return authenticationDataSource;
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public boolean isComplete() {
         return true;

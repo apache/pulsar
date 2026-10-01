@@ -28,40 +28,24 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.BrokerTestUtil;
+import lombok.CustomLog;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TopicMessageId;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-impl")
-public class NegativeAcksTest extends ProducerConsumerBase {
-
-    @Override
-    @BeforeClass
-    public void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @Override
-    @AfterClass(alwaysRun = true)
-    public void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+public class NegativeAcksTest extends SharedPulsarBaseTest {
 
     @DataProvider(name = "variations")
     public static Object[][] variations() {
@@ -109,9 +93,13 @@ public class NegativeAcksTest extends ProducerConsumerBase {
     public void testNegativeAcks(boolean batching, boolean usePartitions, SubscriptionType subscriptionType,
             int negAcksDelayMillis, int ackTimeout)
             throws Exception {
-        log.info("Test negative acks batching={} partitions={} subType={} negAckDelayMs={}", batching, usePartitions,
-                subscriptionType, negAcksDelayMillis);
-        String topic = BrokerTestUtil.newUniqueName("testNegativeAcks");
+        log.info()
+                .attr("batching", batching)
+                .attr("partitions", usePartitions)
+                .attr("subType", subscriptionType)
+                .attr("negAckDelayMs", negAcksDelayMillis)
+                .log("Test negative acks batching= partitions= subType= negAckDelayMs");
+        String topic = newTopicName();
         if (usePartitions) {
             admin.topics().createPartitionedTopic(topic, 2);
         }
@@ -218,9 +206,14 @@ public class NegativeAcksTest extends ProducerConsumerBase {
     public void testNegativeAcksWithBackoff(boolean batching, boolean usePartitions, SubscriptionType subscriptionType,
             int minNackTimeMs, int maxNackTimeMs)
             throws Exception {
-        log.info("Test negative acks with back off batching={} partitions={} subType={} minNackTimeMs={}, "
-                        + "maxNackTimeMs={}", batching, usePartitions, subscriptionType, minNackTimeMs, maxNackTimeMs);
-        String topic = BrokerTestUtil.newUniqueName("testNegativeAcksWithBackoff");
+        log.info()
+                .attr("batching", batching)
+                .attr("partitions", usePartitions)
+                .attr("subType", subscriptionType)
+                .attr("minNackTimeMs", minNackTimeMs)
+                .attr("maxNackTimeMs", maxNackTimeMs)
+                .log("Test negative acks with back off batching= partitions= subType= minNackTimeMs=, maxNackTimeMs=");
+        String topic = newTopicName();
 
         MultiplierRedeliveryBackoff backoff = MultiplierRedeliveryBackoff.builder()
                 .minDelayMs(minNackTimeMs)
@@ -259,7 +252,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
             Message<String> msg = null;
             for (int j = 0; j < num; j++) {
                 msg = consumer.receive();
-                log.info("Received message {}", msg.getValue());
+                log.info().attr("message", msg.getValue()).log("Received message");
                 if (!batching) {
                     consumer.negativeAcknowledge(msg);
                 }
@@ -280,11 +273,11 @@ public class NegativeAcksTest extends ProducerConsumerBase {
             consumer.acknowledge(msg);
         }
         long receivedAfterRedeliveryAt = System.currentTimeMillis();
-        log.info("Total redelivery delay: {} ms", receivedAfterRedeliveryAt - firstReceivedAt);
+        log.info().attr("delay", receivedAfterRedeliveryAt - firstReceivedAt).log("Total redelivery delay: ms");
         assertEquals(receivedMessages, sentMessages);
 
         if (SubscriptionType.Shared == subscriptionType) {
-            log.info("Total expected redelivery delay {} ms", expectedTotalRedeliveryDelay);
+            log.info().attr("delay", expectedTotalRedeliveryDelay).log("Total expected redelivery delay ms");
             assertTrue(receivedAfterRedeliveryAt - firstReceivedAt >= expectedTotalRedeliveryDelay);
         }
 
@@ -296,7 +289,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
 
     @Test(timeOut = 10000)
     public void testNegativeAcksDeleteFromUnackedTracker() throws Exception {
-        String topic = BrokerTestUtil.newUniqueName("testNegativeAcksDeleteFromUnackedTracker");
+        String topic = newTopicName();
         @Cleanup
         ConsumerImpl<String> consumer = (ConsumerImpl<String>) pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
@@ -339,10 +332,8 @@ public class NegativeAcksTest extends ProducerConsumerBase {
      */
     @Test
     public void testNegativeAcksWithBatch() throws Exception {
-        cleanup();
-        conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
-        setup();
-        String topic = BrokerTestUtil.newUniqueName("testNegativeAcksWithBatch");
+        admin.namespaces().setIsAllowAutoUpdateSchema(getNamespace(), true, true);
+        String topic = newTopicName();
 
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
@@ -379,9 +370,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
 
     @Test
     public void testNegativeAcksWithBatchAckEnabled() throws Exception {
-        cleanup();
-        setup();
-        String topic = BrokerTestUtil.newUniqueName("testNegativeAcksWithBatchAckEnabled");
+        String topic = newTopicName();
 
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
@@ -427,7 +416,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
 
     @Test
     public void testFailoverConsumerBatchCumulateAck() throws Exception {
-        final String topic = BrokerTestUtil.newUniqueName("my-topic");
+        final String topic = newTopicName();
         admin.topics().createPartitionedTopic(topic, 2);
 
         @Cleanup
@@ -464,7 +453,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
             public void run() {
                 consumer.receiveAsync()
                         .thenCompose(m -> {
-                            log.info("received one msg : {}", m.getMessageId());
+                            log.info().attr("msg", m.getMessageId()).log("received one msg");
                             datas.remove(m.getValue());
                             return consumer.acknowledgeCumulativeAsync(m);
                         })
@@ -492,7 +481,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
             consumer.acknowledgeCumulative(msg);
             Thread.sleep(200);
             datas.remove(msg.getValue());
-            log.info("received msg : {}", msg.getMessageId());
+            log.info().attr("msg", msg.getMessageId()).log("received msg");
             count++;
         }
         Assert.assertEquals(count, 9);
@@ -501,7 +490,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
 
     @Test(invocationCount = 5)
     public void testMultiTopicConsumerConcurrentRedeliverAndReceive() throws Exception {
-        final String topic = BrokerTestUtil.newUniqueName("my-topic");
+        final String topic = newTopicName();
         admin.topics().createPartitionedTopic(topic, 2);
 
         final int receiverQueueSize = 10;
@@ -547,7 +536,6 @@ public class NegativeAcksTest extends ProducerConsumerBase {
 
         producer.close();
         consumer.close();
-        admin.topics().deletePartitionedTopic("persistent://public/default/" + topic);
     }
 
     @DataProvider(name = "negativeAckPrecisionBitCnt")
@@ -565,7 +553,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
      */
     @Test(dataProvider = "negativeAckPrecisionBitCnt")
     public void testConfigureNegativeAckPrecisionBitCnt(int negativeAckPrecisionBitCnt) throws Exception {
-        String topic = BrokerTestUtil.newUniqueName("testConfigureNegativeAckPrecisionBitCnt");
+        String topic = newTopicName();
         long timeDeviation = 1L << negativeAckPrecisionBitCnt;
         long delayInMs = 2000;
 

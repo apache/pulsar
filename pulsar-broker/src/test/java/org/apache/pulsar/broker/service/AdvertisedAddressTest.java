@@ -41,7 +41,7 @@ public class AdvertisedAddressTest {
 
     @BeforeMethod
     public void setup() throws Exception {
-        bkEnsemble = new LocalBookkeeperEnsemble(1, 0, () -> 0);
+        bkEnsemble = new LocalBookkeeperEnsemble(1, 0);
         bkEnsemble.start();
 
         ServiceConfiguration config = new ServiceConfiguration();

@@ -17,44 +17,23 @@
 # under the License.
 #
 
-ARG PULSAR_ALL_IMAGE
+ARG PULSAR_IMAGE
 ARG GOLANG_IMAGE
 
 # build go lang examples first in a separate layer
 FROM $GOLANG_IMAGE as pulsar-function-go
 
 COPY target/pulsar-function-go/ /go/src/github.com/apache/pulsar/pulsar-function-go
+COPY go-examples/exceptionFunc/ /go/src/github.com/apache/pulsar/pulsar-function-go/examples/exceptionFunc/
 RUN cd /go/src/github.com/apache/pulsar/pulsar-function-go && go install ./...
 RUN cd /go/src/github.com/apache/pulsar/pulsar-function-go/pf && go install
 RUN cd /go/src/github.com/apache/pulsar/pulsar-function-go/examples && go install ./...
 
 
-# patch Oracle Debezium Connector nar file to include Oracle JDBC dependencies
-FROM $PULSAR_ALL_IMAGE as oracle-jdbc-builder
-
-USER root
-WORKDIR /
-
-RUN OJDBC_VERSION="19.3.0.0" && \
-    OJDBC_BASE_URL="https://repo1.maven.org/maven2/com/oracle/ojdbc" && \
-    DEPS_DIR="META-INF/bundled-dependencies" && \
-    OJDBC_ARTIFACTS="ojdbc8 ucp oraclepki osdt_cert osdt_core simplefan orai18n xdb xmlparserv2" && \
-    cd / && rm -rf "$DEPS_DIR" && mkdir -p "$DEPS_DIR" && \
-    cd "$DEPS_DIR" && \
-    for ojdbc_artifact in $OJDBC_ARTIFACTS; do \
-        ojdbc_jar_file="${ojdbc_artifact}-${OJDBC_VERSION}.jar" && \
-        ojdbc_download_url="${OJDBC_BASE_URL}/${ojdbc_artifact}/${OJDBC_VERSION}/${ojdbc_jar_file}" && \
-        echo "Downloading $ojdbc_jar_file from $ojdbc_download_url" && \
-        curl -sSL --retry 5 --retry-delay 1 --retry-max-time 30 "${ojdbc_download_url}" -o "${ojdbc_jar_file}" && \
-        [ -f "${ojdbc_jar_file}" ] || (echo "Failed to download ${ojdbc_jar_file}" && exit 1); \
-    done && \
-    cd / && \
-    jar uvf /pulsar/connectors/pulsar-io-debezium-oracle-*.nar $DEPS_DIR/*.jar >&2
-
 ########################################
 ###### Main image build
 ########################################
-FROM $PULSAR_ALL_IMAGE
+FROM $PULSAR_IMAGE
 
 # Switch to run as the root user to simplify building container and then running
 # supervisord. Each of the pulsar components are spawned by supervisord and their
@@ -98,20 +77,22 @@ COPY target/certificate-authority /pulsar/certificate-authority/
 # copy broker plugins
 COPY target/plugins/ /pulsar/examples/
 
-# Copy patched Oracle Debezium Connector nar file which includes Oracle JDBC dependencies
-COPY --from=oracle-jdbc-builder /pulsar/connectors/pulsar-io-debezium-oracle-*.nar /pulsar/connectors/
+# Add the filesystem offloader NAR as an overlay (it is excluded from the base image, but the
+# filesystem offload integration tests require it).
+COPY target/offloaders/ /pulsar/offloaders/
 
 # Fix permissions for filesystem offloader
 RUN mkdir -p pulsar
 RUN chmod g+rwx pulsar
 
 ARG INSTALL_ASYNC_PROFILER=false
-# install async-profiler from https://github.com/async-profiler/async-profiler/releases/tag/v4.1 to /opt/async-profiler
+ARG ASYNC_PROFILER_VERSION=4.5
+# install async-profiler from https://github.com/async-profiler/async-profiler/releases to /opt/async-profiler
 RUN if [ "${INSTALL_ASYNC_PROFILER}" = "true" ]; then \
     mkdir -p /opt/async-profiler \
     && cd /opt/async-profiler \
     && curl -L \
-    "https://github.com/async-profiler/async-profiler/releases/download/v4.1/async-profiler-4.1-linux-$([ "$(uname -m)" = "aarch64" ] && echo "arm64" || echo "x64").tar.gz" \
+    "https://github.com/async-profiler/async-profiler/releases/download/v${ASYNC_PROFILER_VERSION}/async-profiler-${ASYNC_PROFILER_VERSION}-linux-$([ "$(uname -m)" = "aarch64" ] && echo "arm64" || echo "x64").tar.gz" \
     | tar -zxvf - --strip-components=1; \
     else \
     echo "async-profiler installation skipped"; \

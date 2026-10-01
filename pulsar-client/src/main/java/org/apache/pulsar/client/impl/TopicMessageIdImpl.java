@@ -22,8 +22,11 @@ import java.util.BitSet;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.TopicMessageId;
+import org.apache.pulsar.client.api.TraceableMessageId;
+import org.apache.pulsar.common.naming.TopicName;
 
-public class TopicMessageIdImpl implements MessageIdAdv, TopicMessageId {
+public class TopicMessageIdImpl implements MessageIdAdv, TopicMessageId, TraceableMessageId {
+    private static final long serialVersionUID = 1L;
 
     private final String ownerTopic;
     private final MessageIdAdv msgId;
@@ -91,6 +94,12 @@ public class TopicMessageIdImpl implements MessageIdAdv, TopicMessageId {
     }
 
     @Override
+    public boolean hasSameBasePartitionedTopic(String topicName) {
+        return TopicName.get(getOwnerTopic()).getPartitionedTopicName()
+                .equals(TopicName.get(topicName).getPartitionedTopicName());
+    }
+
+    @Override
     public long getLedgerId() {
         return msgId.getLedgerId();
     }
@@ -128,5 +137,23 @@ public class TopicMessageIdImpl implements MessageIdAdv, TopicMessageId {
     @Override
     public String toString() {
         return msgId.toString();
+    }
+
+    // TraceableMessageId implementation for OpenTelemetry support
+    // Delegates to the wrapped MessageIdAdv if it implements TraceableMessageId
+
+    @Override
+    public void setTracingSpan(io.opentelemetry.api.trace.Span span) {
+        if (msgId instanceof TraceableMessageId) {
+            ((TraceableMessageId) msgId).setTracingSpan(span);
+        }
+    }
+
+    @Override
+    public io.opentelemetry.api.trace.Span getTracingSpan() {
+        if (msgId instanceof TraceableMessageId) {
+            return ((TraceableMessageId) msgId).getTracingSpan();
+        }
+        return null;
     }
 }

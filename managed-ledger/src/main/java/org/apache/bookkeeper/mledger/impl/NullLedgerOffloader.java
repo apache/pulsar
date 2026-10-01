@@ -24,6 +24,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.util.FutureUtil;
 
 /**
  * Null implementation that throws an error on any invokation.
@@ -40,25 +41,19 @@ public class NullLedgerOffloader implements LedgerOffloader {
     public CompletableFuture<Void> offload(ReadHandle ledger,
                                            UUID uid,
                                            Map<String, String> extraMetadata) {
-        CompletableFuture<Void> promise = new CompletableFuture<>();
-        promise.completeExceptionally(new UnsupportedOperationException());
-        return promise;
+        return FutureUtil.failedFuture(new UnsupportedOperationException());
     }
 
     @Override
     public CompletableFuture<ReadHandle> readOffloaded(long ledgerId, UUID uid,
                                                        Map<String, String> offloadDriverMetadata) {
-        CompletableFuture<ReadHandle> promise = new CompletableFuture<>();
-        promise.completeExceptionally(new UnsupportedOperationException());
-        return promise;
+        return FutureUtil.failedFuture(new UnsupportedOperationException());
     }
 
     @Override
     public CompletableFuture<Void> deleteOffloaded(long ledgerId, UUID uid,
                                                    Map<String, String> offloadDriverMetadata) {
-        CompletableFuture<Void> promise = new CompletableFuture<>();
-        promise.completeExceptionally(new UnsupportedOperationException());
-        return promise;
+        return FutureUtil.failedFuture(new UnsupportedOperationException());
     }
 
     @Override

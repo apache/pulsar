@@ -39,6 +39,7 @@ import org.testng.annotations.Test;
 public class ProxyExtensionUtilsTest {
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testLoadProtocolHandler() throws Exception {
         ProxyExtensionDefinition def = new ProxyExtensionDefinition();
         def.setExtensionClass(MockProxyExtension.class.getName());
@@ -72,6 +73,7 @@ public class ProxyExtensionUtilsTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testLoadProtocolHandlerBlankHandlerClass() throws Exception {
         ProxyExtensionDefinition def = new ProxyExtensionDefinition();
         def.setDescription("test-ext");
@@ -104,6 +106,7 @@ public class ProxyExtensionUtilsTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testLoadProtocolHandlerWrongHandlerClass() throws Exception {
         ProxyExtensionDefinition def = new ProxyExtensionDefinition();
         def.setExtensionClass(Runnable.class.getName());

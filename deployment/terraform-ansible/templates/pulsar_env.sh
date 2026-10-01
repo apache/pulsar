@@ -47,9 +47,6 @@ PULSAR_MEM=" -Xms{{ max_heap_memory }} -Xmx{{ max_heap_memory }} -XX:MaxDirectMe
 # Garbage collection options
 PULSAR_GC=" -XX:+UseZGC -XX:+PerfDisableSharedMem -XX:+AlwaysPreTouch"
 
-# Extra options to be passed to the jvm
-PULSAR_EXTRA_OPTS="-Dio.netty.leakDetection.level=disabled -Dio.netty.recycler.maxCapacityPerThread=4096 ${PULSAR_EXTRA_OPTS}"
-
 # Add extra paths to the bookkeeper classpath
 # PULSAR_EXTRA_CLASSPATH=
 

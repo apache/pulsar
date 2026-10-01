@@ -25,9 +25,14 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
+import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.NonRecoverableDataMetricsCallback;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.testng.annotations.Test;
 
@@ -101,6 +106,33 @@ public class NonRecoverableDataCallbackTest extends MockedBookKeeperTestCase {
         assertEquals(entriesSkipped.get(), 5L);
 
         ledger.close();
+    }
+
+    @Test
+    public void testBatchedEntrySkipCountsOnlyUnacknowledgedEntries() throws Exception {
+        NonRecoverableDataMetricsCallback callback = mock(NonRecoverableDataMetricsCallback.class);
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setNonRecoverableDataMetricsCallback(callback);
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("test-batched-entry-skips", config);
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("cursor");
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            positions.add(ledger.addEntry(new byte[] {1}));
+        }
+        cursor.delete(positions.get(2));
+        Position end = PositionFactory.create(positions.get(4).getLedgerId(), positions.get(4).getEntryId() + 1);
+
+        cursor.skipNonRecoverableEntries(positions.get(1), end);
+        verify(callback).onSkipNonRecoverableEntries(3L);
+        cursor.skipNonRecoverableEntries(positions.get(1), end);
+        verify(callback, times(1)).onSkipNonRecoverableEntries(anyLong());
+
+        cursor.skipNonRecoverableEntries(positions.get(0), end);
+        verify(callback).onSkipNonRecoverableEntries(1L);
+        cursor.skipNonRecoverableEntries(positions.get(0), end);
+        verify(callback, times(2)).onSkipNonRecoverableEntries(anyLong());
     }
 
     @Test

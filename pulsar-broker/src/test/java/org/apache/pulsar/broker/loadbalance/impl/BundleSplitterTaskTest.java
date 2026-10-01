@@ -21,7 +21,7 @@ package org.apache.pulsar.broker.loadbalance.impl;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LoadData;
@@ -41,7 +41,7 @@ import org.testng.annotations.Test;
 /**
  * @author hezhangjian
  */
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class BundleSplitterTaskTest {
 
@@ -59,7 +59,7 @@ public class BundleSplitterTaskTest {
     @BeforeMethod
     void setup() throws Exception {
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble.start();
         // Start broker
         ServiceConfiguration config = new ServiceConfiguration();

@@ -19,6 +19,7 @@
 package org.apache.pulsar.proxy.extensions;
 
 import static org.apache.pulsar.common.util.PortManager.nextLockedFreePort;
+import static org.apache.pulsar.common.util.PortManager.releaseLockedPort;
 import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
 import io.netty.buffer.ByteBuf;
@@ -42,7 +43,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -50,7 +51,6 @@ import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
-import org.apache.pulsar.common.util.PortManager;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.proxy.server.ProxyConfiguration;
 import org.apache.pulsar.proxy.server.ProxyService;
@@ -59,7 +59,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "proxy")
 public abstract class SimpleProxyExtensionTestBase extends MockedPulsarServiceBaseTest {
 
@@ -90,6 +90,8 @@ public abstract class SimpleProxyExtensionTestBase extends MockedPulsarServiceBa
 
         @Override
         public Map<InetSocketAddress, ChannelInitializer<SocketChannel>> newChannelInitializers() {
+            // Pre-allocate a free port: extension handlers need to register a listener at a known
+            // address before the proxy calls back into them.
             int port = nextLockedFreePort();
             this.ports.add(port);
             return Collections.singletonMap(new InetSocketAddress(conf.getBindAddress(), port),
@@ -107,7 +109,7 @@ public abstract class SimpleProxyExtensionTestBase extends MockedPulsarServiceBa
                         }
                         @Override
                         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-                            log.error("error", cause);
+                            log.error().exception(cause).log("error");
                             ctx.close();
                         }
                     });
@@ -117,7 +119,7 @@ public abstract class SimpleProxyExtensionTestBase extends MockedPulsarServiceBa
 
         @Override
         public void close() {
-            ports.removeIf(PortManager::releaseLockedPort);
+            ports.removeIf(p -> releaseLockedPort(p));
         }
     }
 

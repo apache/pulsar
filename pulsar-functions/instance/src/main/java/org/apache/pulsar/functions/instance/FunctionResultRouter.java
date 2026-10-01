@@ -52,7 +52,7 @@ public class FunctionResultRouter extends RoundRobinPartitionMessageRouterImpl {
     }
 
     @Override
-    public int choosePartition(Message msg, TopicMetadata metadata) {
+    public int choosePartition(Message<?> msg, TopicMetadata metadata) {
         // if key is specified, we should use key as routing;
         // if key is not specified and no sequence id is provided, not an effectively-once publish, use the default
         // round-robin routing.

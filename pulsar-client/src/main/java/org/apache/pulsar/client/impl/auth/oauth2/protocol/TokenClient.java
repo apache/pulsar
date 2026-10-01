@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl.auth.oauth2.protocol;
 
 import java.io.IOException;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -27,61 +28,46 @@ import java.util.TreeMap;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.asynchttpclient.AsyncHttpClient;
-import org.asynchttpclient.AsyncHttpClientConfig;
-import org.asynchttpclient.DefaultAsyncHttpClient;
-import org.asynchttpclient.DefaultAsyncHttpClientConfig;
-import org.asynchttpclient.Response;
+import org.apache.pulsar.http.HttpRequest;
+import org.apache.pulsar.http.HttpResponse;
+import org.apache.pulsar.http.PulsarHttpClient;
 
 /**
  * A client for an OAuth 2.0 token endpoint.
  */
 public class TokenClient implements ClientCredentialsExchanger {
 
-    protected static final int DEFAULT_CONNECT_TIMEOUT_IN_SECONDS = 10;
-    protected static final int DEFAULT_READ_TIMEOUT_IN_SECONDS = 30;
-
     private final URL tokenUrl;
-    private final AsyncHttpClient httpClient;
+    private final PulsarHttpClient httpClient;
 
-    public TokenClient(URL tokenUrl) {
-        this(tokenUrl, null);
-    }
-
-    TokenClient(URL tokenUrl, AsyncHttpClient httpClient) {
-        if (httpClient == null) {
-            DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
-            confBuilder.setCookieStore(null);
-            confBuilder.setUseProxyProperties(true);
-            confBuilder.setFollowRedirect(true);
-            confBuilder.setConnectTimeout(DEFAULT_CONNECT_TIMEOUT_IN_SECONDS * 1000);
-            confBuilder.setReadTimeout(DEFAULT_READ_TIMEOUT_IN_SECONDS * 1000);
-            confBuilder.setUserAgent(String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
-            AsyncHttpClientConfig config = confBuilder.build();
-            this.httpClient = new DefaultAsyncHttpClient(config);
-        } else {
-            this.httpClient = httpClient;
-        }
+    public TokenClient(URL tokenUrl, PulsarHttpClient httpClient) {
+        this.httpClient = httpClient;
         this.tokenUrl = tokenUrl;
     }
 
     @Override
     public void close() throws Exception {
-        httpClient.close();
+        // The PulsarHttpClient is owned and closed by the OAuth2 flow (FlowBase) that created it and shares
+        // it with the metadata resolver; nothing to release here.
     }
 
     /**
      * Constructing http request parameters.
+     *
      * @param req object with relevant request parameters
      * @return Generate the final request body from a map.
      */
     String buildClientCredentialsBody(ClientCredentialsExchangeRequest req) {
+        TokenEndpointAuthMethod authMethod = req.getAuthMethod() == null
+                ? TokenEndpointAuthMethod.CLIENT_SECRET_POST
+                : req.getAuthMethod();
         Map<String, String> bodyMap = new TreeMap<>();
         bodyMap.put("grant_type", "client_credentials");
         bodyMap.put("client_id", req.getClientId());
-        bodyMap.put("client_secret", req.getClientSecret());
+        if (authMethod == TokenEndpointAuthMethod.CLIENT_SECRET_POST) {
+            bodyMap.put("client_secret", req.getClientSecret());
+        }
         // Only set audience and scope if they are non-empty.
         if (!StringUtils.isBlank(req.getAudience())) {
             bodyMap.put("audience", req.getAudience());
@@ -97,6 +83,7 @@ public class TokenClient implements ClientCredentialsExchanger {
 
     /**
      * Performs a token exchange using client credentials.
+     *
      * @param req the client credentials request details.
      * @return a token result
      * @throws TokenExchangeException
@@ -104,35 +91,32 @@ public class TokenClient implements ClientCredentialsExchanger {
     public TokenResult exchangeClientCredentials(ClientCredentialsExchangeRequest req)
             throws TokenExchangeException, IOException {
         String body = buildClientCredentialsBody(req);
-
         try {
+            HttpRequest request = HttpRequest.builder(HttpRequest.Method.POST, URI.create(tokenUrl.toString()))
+                    .header("Accept", "application/json")
+                    .body(new HttpRequest.Bytes(body.getBytes(StandardCharsets.UTF_8),
+                            "application/x-www-form-urlencoded"))
+                    .build();
+            HttpResponse res = httpClient.execute(request).get();
 
-            Response res = httpClient.preparePost(tokenUrl.toString())
-                    .setHeader("Accept", "application/json")
-                    .setHeader("Content-Type", "application/x-www-form-urlencoded")
-                    .setBody(body)
-                    .execute()
-                    .get();
+            switch (res.statusCode()) {
+                case 200:
+                    return ObjectMapperFactory.getMapper().reader().readValue(res.body(), TokenResult.class);
 
-            switch (res.getStatusCode()) {
-            case 200:
-                return ObjectMapperFactory.getMapper().reader().readValue(res.getResponseBodyAsBytes(),
-                        TokenResult.class);
+                case 400: // Bad request
+                case 401: // Unauthorized
+                    throw new TokenExchangeException(
+                            ObjectMapperFactory.getMapper().reader().readValue(res.body(), TokenError.class));
 
-            case 400: // Bad request
-            case 401: // Unauthorized
-                throw new TokenExchangeException(
-                        ObjectMapperFactory.getMapper().reader().readValue(res.getResponseBodyAsBytes(),
-                                TokenError.class));
-
-            default:
-                throw new IOException(
-                        "Failed to perform HTTP request. res: " + res.getStatusCode() + " " + res.getStatusText());
+                default:
+                    throw new IOException("Failed to perform HTTP request. res: " + res.statusCode());
             }
 
 
-
         } catch (InterruptedException | ExecutionException e1) {
+            if (e1 instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
             throw new IOException(e1);
         }
     }

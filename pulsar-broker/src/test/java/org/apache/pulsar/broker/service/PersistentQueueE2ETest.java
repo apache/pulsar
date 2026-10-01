@@ -31,6 +31,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import lombok.CustomLog;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -52,13 +53,12 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.eclipse.jetty.util.BlockingArrayQueue;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
+@CustomLog
 public class PersistentQueueE2ETest extends BrokerTestBase {
 
     @BeforeClass
@@ -73,8 +73,6 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         super.internalCleanup();
     }
 
-    private static final Logger log = LoggerFactory.getLogger(PersistentQueueE2ETest.class);
-
     private void deleteTopic(String topicName) {
         try {
             admin.topics().delete(topicName);
@@ -85,7 +83,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
 
     @Test
     public void testSimpleConsumerEvents() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abc/shared-topic1";
+        final String topicName = "persistent://prop/ns-abc/shared-topic1";
         final String subName = "sub1";
         final int numMsgs = 100;
 
@@ -186,7 +184,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
 
     @Test
     public void testReplayOnConsumerDisconnect() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abc/shared-topic3";
+        final String topicName = "persistent://prop/ns-abc/shared-topic3";
         final String subName = "sub3";
         final int numMsgs = 100;
 
@@ -240,7 +238,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
     // how the round robin distribution algorithm is behaving
     @Test(enabled = false)
     public void testRoundRobinBatchDistribution() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abc/shared-topic5";
+        final String topicName = "persistent://prop/ns-abc/shared-topic5";
         final String subName = "sub5";
         final int numMsgs = 137; /* some random number different than default batch size of 100 */
 
@@ -312,7 +310,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
     @Test(timeOut = 300000)
     public void testSharedSingleAckedNormalTopic() throws Exception {
         String key = "test1";
-        final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
+        final String topicName = "persistent://prop/ns-abc/topic-" + key;
         final String subscriptionName = "my-shared-subscription-" + key;
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 50;
@@ -337,7 +335,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         for (int i = 0; i < totalMessages; i++) {
             String message = messagePredicate + i;
             producer.send(message.getBytes());
-            log.info("Producer produced " + message);
+            log.info().attr("message", message).log("Producer produced");
         }
 
         // 4. Receive messages
@@ -346,18 +344,18 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         Message<byte[]> message2 = consumer2.receive();
         do {
             if (message1 != null) {
-                log.info("Consumer 1 Received: " + new String(message1.getData()));
+                log.info().attr("data", new String(message1.getData())).log("Consumer 1 Received");
                 receivedConsumer1 += 1;
             }
             if (message2 != null) {
-                log.info("Consumer 2 Received: " + new String(message2.getData()));
+                log.info().attr("data", new String(message2.getData())).log("Consumer 2 Received");
                 receivedConsumer2 += 1;
             }
             message1 = consumer1.receive(10000, TimeUnit.MILLISECONDS);
             message2 = consumer2.receive(10000, TimeUnit.MILLISECONDS);
         } while (message1 != null || message2 != null);
 
-        log.info("Total receives = " + (receivedConsumer2 + receivedConsumer1));
+        log.info().attr("value", (receivedConsumer2 + receivedConsumer1)).log("Total receives");
         assertEquals(receivedConsumer2 + receivedConsumer1, totalMessages);
 
         // 5. Close Consumer 1
@@ -371,19 +369,19 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
                 log.info("Consumer 2 - No Message in Incoming Message Queue, will try again");
                 continue;
             }
-            log.info("Consumer 2 Received: " + new String(message2.getData()));
+            log.info().attr("data", new String(message2.getData())).log("Consumer 2 Received");
             receivedConsumer2 += 1;
         }
 
         newPulsarClient.close();
-        log.info("Total receives by Consumer 2 = " + receivedConsumer2);
+        log.info().attr("receivedConsumer2", receivedConsumer2).log("Total receives by Consumer 2");
         assertEquals(receivedConsumer2, totalMessages);
     }
 
     @Test(timeOut = 60000)
     public void testCancelReadRequestOnLastDisconnect() throws Exception {
         String key = "testCancelReadRequestOnLastDisconnect";
-        final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
+        final String topicName = "persistent://prop/ns-abc/topic-" + key;
         final String subscriptionName = "my-shared-subscription-" + key;
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 10;
@@ -404,7 +402,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         for (int i = 0; i < totalMessages; i++) {
             String message = messagePredicate + i;
             producer.send(message.getBytes());
-            log.info("Producer produced " + message);
+            log.info().attr("message", message).log("Producer produced");
         }
 
         // 4. Receive messages
@@ -413,12 +411,12 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         Message<byte[]> message2 = consumer2.receive();
         do {
             if (message1 != null) {
-                log.info("Consumer 1 Received: " + new String(message1.getData()));
+                log.info().attr("data", new String(message1.getData())).log("Consumer 1 Received");
                 receivedConsumer1 += 1;
                 consumer1.acknowledge(message1);
             }
             if (message2 != null) {
-                log.info("Consumer 2 Received: " + new String(message2.getData()));
+                log.info().attr("data", new String(message2.getData())).log("Consumer 2 Received");
                 receivedConsumer2 += 1;
                 consumer2.acknowledge(message2);
             }
@@ -426,7 +424,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
             message2 = consumer2.receive(5000, TimeUnit.MILLISECONDS);
         } while (message1 != null || message2 != null);
 
-        log.info("Total receives = " + (receivedConsumer2 + receivedConsumer1));
+        log.info().attr("value", (receivedConsumer2 + receivedConsumer1)).log("Total receives");
         assertEquals(receivedConsumer2 + receivedConsumer1, totalMessages);
 
         // 5. Close Consumer 1 and 2
@@ -439,7 +437,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         for (int i = totalMessages; i < 2 * totalMessages; i++) {
             String message = messagePredicate + i;
             producer.send(message.getBytes());
-            log.info("Producer produced " + message);
+            log.info().attr("message", message).log("Producer produced");
         }
 
         // 7. Consumer reconnects
@@ -449,17 +447,17 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         receivedConsumer1 = 0;
         message1 = consumer1.receive();
         while (message1 != null) {
-            log.info("Consumer 1 Received: " + new String(message1.getData()));
+            log.info().attr("data", new String(message1.getData())).log("Consumer 1 Received");
             receivedConsumer1++;
             message1 = consumer1.receive(5000, TimeUnit.MILLISECONDS);
         }
-        log.info("Total receives by Consumer 2 = " + receivedConsumer2);
+        log.info().attr("receivedConsumer2", receivedConsumer2).log("Total receives by Consumer 2");
         assertEquals(receivedConsumer1, totalMessages);
     }
 
     @Test
     public void testUnackedCountWithRedeliveries() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abc/testUnackedCountWithRedeliveries";
+        final String topicName = "persistent://prop/ns-abc/testUnackedCountWithRedeliveries";
         final String subName = "sub3";
         final int numMsgs = 10;
 

@@ -79,6 +79,7 @@ public class AckSetPositionImpl implements Position, AckSetState {
         return obj instanceof Position && compareTo((Position) obj) == 0;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public <T> Optional<T> getExtension(Class<T> extensionClass) {
         if (extensionClass == AckSetState.class) {

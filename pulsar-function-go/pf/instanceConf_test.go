@@ -142,7 +142,7 @@ func TestInstanceConf_WithDetails(t *testing.T) {
 	assert.Equal(t, `{"secret1":"secret-value1"}`, instanceConf.funcDetails.SecretsMap)
 	assert.Equal(t, pb.FunctionDetails_GO, instanceConf.funcDetails.Runtime)
 
-	assert.Equal(t, true, instanceConf.funcDetails.AutoAck)
+	assert.Equal(t, true, instanceConf.funcDetails.AutoAck) //nolint:staticcheck
 	assert.Equal(t, int32(1), instanceConf.funcDetails.Parallelism)
 
 	sourceSpec := pb.SourceSpec{
@@ -273,7 +273,7 @@ func TestInstanceConf_WithEmptyOrInvalidDetails(t *testing.T) {
 			assert.Equal(t, `{"secret1":"secret-value1"}`, instanceConf.funcDetails.SecretsMap)
 			assert.Equal(t, pb.FunctionDetails_GO, instanceConf.funcDetails.Runtime)
 
-			assert.Equal(t, true, instanceConf.funcDetails.AutoAck)
+			assert.Equal(t, true, instanceConf.funcDetails.AutoAck) //nolint:staticcheck
 			assert.Equal(t, int32(1), instanceConf.funcDetails.Parallelism)
 
 			sourceSpec := pb.SourceSpec{

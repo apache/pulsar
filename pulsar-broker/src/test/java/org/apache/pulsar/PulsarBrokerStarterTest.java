@@ -96,6 +96,7 @@ public class PulsarBrokerStarterTest {
      * method returns a non-null {@link ServiceConfiguration} instance where all required settings are filled in and (2)
      * if the property variables inside the given property file are correctly referred to that returned object.
      */
+    @SuppressWarnings("deprecation")
     public void testLoadConfig() throws SecurityException, NoSuchMethodException, IOException, IllegalArgumentException,
             IllegalAccessException, InvocationTargetException {
 
@@ -172,6 +173,7 @@ public class PulsarBrokerStarterTest {
      * method returns a non-null {@link ServiceConfiguration} instance where all required settings are filled in and (2)
      * if the property variables inside the given property file are correctly referred to that returned object.
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testLoadBalancerConfig() throws SecurityException, NoSuchMethodException, IOException,
             IllegalArgumentException, IllegalAccessException, InvocationTargetException {
@@ -221,6 +223,7 @@ public class PulsarBrokerStarterTest {
      * method returns a non-null {@link ServiceConfiguration} instance where all required settings are filled in and (2)
      * if the property variables inside the given property file are correctly referred to that returned object.
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testGlobalZooKeeperConfig() throws SecurityException, NoSuchMethodException, IOException,
             IllegalArgumentException, IllegalAccessException, InvocationTargetException {
@@ -375,7 +378,7 @@ public class PulsarBrokerStarterTest {
             ByteArrayOutputStream baoStream = new ByteArrayOutputStream();
             System.setOut(new PrintStream(baoStream));
 
-            Class argumentsClass = Class.forName("org.apache.pulsar.PulsarBrokerStarter$StarterArguments");
+            Class<?> argumentsClass = Class.forName("org.apache.pulsar.PulsarBrokerStarter$StarterArguments");
             PulsarBrokerStarter.main(new String[]{"-g"});
 
             String message = baoStream.toString();

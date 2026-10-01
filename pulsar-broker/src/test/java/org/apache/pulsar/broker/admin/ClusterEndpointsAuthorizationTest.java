@@ -95,6 +95,10 @@ public class ClusterEndpointsAuthorizationTest extends MockedPulsarStandalone {
             superUserAdmin.close();
             superUserAdmin = null;
         }
+        if (nobodyAdmin != null) {
+            nobodyAdmin.close();
+            nobodyAdmin = null;
+        }
         spyAuthorizationService = null;
         orignalAuthorizationService = null;
         super.close();

@@ -24,7 +24,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -47,7 +47,7 @@ import org.testng.annotations.Test;
 /**
  * This tests verifies that a batch source can be successfully submitted and run via the pulsar-admin CLI.
  */
-@Slf4j
+@CustomLog
 public class BatchSourceTest extends PulsarStandaloneTestSuite {
 
     private static final String BATCH_CONFIG = "{\"discoveryTriggererConfig\": {\"__CRON__\": \"* * * * * *\"}, "
@@ -110,7 +110,7 @@ public class BatchSourceTest extends PulsarStandaloneTestSuite {
             "--archive", archive,
             "--batch-source-config", BATCH_CONFIG
         };
-        log.info("Run command : {}", StringUtils.join(commands, ' '));
+        log.info().attr("command", StringUtils.join(commands, ' ')).log("Run command");
         ContainerExecResult result = container.execCmd(commands);
         assertTrue(
             result.getStdout().contains("Created successfully"),
@@ -145,7 +145,7 @@ public class BatchSourceTest extends PulsarStandaloneTestSuite {
                         }
                         return false;
                     } catch (Exception e) {
-                        log.error("Encountered error when getting source status", e);
+                        log.error().exception(e).log("Encountered error when getting source status");
                         return false;
                     }
                 }, 10, 200);
@@ -184,9 +184,9 @@ public class BatchSourceTest extends PulsarStandaloneTestSuite {
                 fail("message " + i + " not received in time");
                 return;
             }
-            log.info("received {}", msg.getValue());
+            log.info().attr("received", msg.getValue()).log("received");
             msg.getValue().getFields().forEach(f -> {
-                log.info("field {} {}", f, msg.getValue().getField(f));
+                log.info().attr("field", f).attr("value", msg.getValue().getField(f)).log("field");
             });
         }
     }

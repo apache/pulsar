@@ -27,11 +27,11 @@ import (
 	"testing"
 
 	pb "github.com/apache/pulsar/pulsar-function-go/pb"
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 const bufSize = 1024 * 1024
@@ -48,7 +48,7 @@ func TestInstanceControlServicer_serve_creates_valid_instance(t *testing.T) {
 	// create a gRPC server object
 	grpcServer := grpc.NewServer()
 	instance := newGoInstance()
-	servicer := InstanceControlServicer{instance}
+	servicer := InstanceControlServicer{goInstance: instance}
 	// must register before we start the service.
 	pb.RegisterInstanceControlServer(grpcServer, &servicer)
 	// start the server
@@ -63,14 +63,14 @@ func TestInstanceControlServicer_serve_creates_valid_instance(t *testing.T) {
 	// Now we can setup the client:
 
 	ctx := context.Background()
-	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(getBufDialer(lis)),
+	conn, err := grpc.NewClient("passthrough:///bufnet", grpc.WithContextDialer(getBufDialer(lis)),
 		grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		t.Fatalf("Failed to dial bufnet: %v", err)
 	}
 	defer conn.Close()
 	client := pb.NewInstanceControlClient(conn)
-	resp, err := client.HealthCheck(ctx, &empty.Empty{})
+	resp, err := client.HealthCheck(ctx, &emptypb.Empty{})
 	if err != nil {
 		t.Fatalf("SayHello failed: %v", err)
 	}
@@ -87,16 +87,6 @@ func instanceCommunicationClient(t *testing.T, instance *goInstance) pb.Instance
 		t.Fatalf("cannot create communication client for nil instance")
 	}
 
-	var (
-		ctx = context.Background()
-		cf  context.CancelFunc
-	)
-
-	if testDeadline, ok := t.Deadline(); ok {
-		ctx, cf = context.WithDeadline(context.Background(), testDeadline)
-		t.Cleanup(cf)
-	}
-
 	lis = bufconn.Listen(bufSize)
 	t.Cleanup(func() {
 		lis.Close()
@@ -107,7 +97,7 @@ func instanceCommunicationClient(t *testing.T, instance *goInstance) pb.Instance
 		grpcServer.Stop()
 	})
 
-	servicer := InstanceControlServicer{instance}
+	servicer := InstanceControlServicer{goInstance: instance}
 	// must register before we start the service.
 	pb.RegisterInstanceControlServer(grpcServer, &servicer)
 
@@ -121,7 +111,7 @@ func instanceCommunicationClient(t *testing.T, instance *goInstance) pb.Instance
 	}()
 
 	// Now we can setup the client:
-	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(getBufDialer(lis)),
+	conn, err := grpc.NewClient("passthrough:///bufnet", grpc.WithContextDialer(getBufDialer(lis)),
 		grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		t.Fatalf("Failed to dial bufnet: %v", err)

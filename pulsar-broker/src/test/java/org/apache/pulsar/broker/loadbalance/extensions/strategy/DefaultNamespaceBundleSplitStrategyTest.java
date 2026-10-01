@@ -88,6 +88,7 @@ public class DefaultNamespaceBundleSplitStrategyTest {
     String broker = "broker-1";
 
     @BeforeMethod
+    @SuppressWarnings("unchecked")
     void setup() {
         config = new ServiceConfiguration();
         config.setLoadBalancerDebugModeEnabled(true);
@@ -120,7 +121,7 @@ public class DefaultNamespaceBundleSplitStrategyTest {
         doReturn(namespaceBundleFactory).when(namespaceService).getNamespaceBundleFactory();
         doReturn(brokerRegistry).when(loadManagerContext).brokerRegistry();
         doReturn(broker).when(brokerRegistry).getBrokerId();
-        doReturn(new AtomicReference(loadManagerWrapper)).when(pulsar).getLoadManager();
+        doReturn(new AtomicReference<>(loadManagerWrapper)).when(pulsar).getLoadManager();
         doReturn(loadManager).when(loadManagerWrapper).get();
         doReturn(channel).when(loadManager).getServiceUnitStateChannel();
         doReturn(true).when(channel).isOwner(any());

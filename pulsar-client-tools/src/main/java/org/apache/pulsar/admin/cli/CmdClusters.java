@@ -117,6 +117,7 @@ public class CmdClusters extends CmdBase {
         private boolean deleteAll;
 
         @Override
+        @SuppressWarnings("deprecation")
         void run() throws PulsarAdminException {
             if (deleteAll) {
                 for (String tenant : getAdmin().tenants().getTenants()) {
@@ -364,13 +365,20 @@ public class CmdClusters extends CmdBase {
                 description = "path for the TLS certificate file", required = false)
         protected String brokerClientCertificateFilePath;
 
-        @Option(names = "--tls-factory-plugin",
-                description = "TLS Factory Plugin to be used to generate SSL Context and SSL Engine")
-        protected String brokerClientSslFactoryPlugin;
+        @Option(names = "--tls-factory-class-name",
+                description = "PulsarTlsFactory class name used for outbound connections to this cluster — the "
+                        + "two legs configured from this cluster entry, the binary-protocol replication client "
+                        + "and the cross-cluster admin client. It does not reach the peer-cluster lookup "
+                        + "client, which stays broker-level (as in 4.x). "
+                        + "Leave unset to inherit the broker's brokerClientTlsFactoryClassName.")
+        protected String brokerClientTlsFactoryClassName;
 
-        @Option(names = "--tls-factory-plugin-params",
-                description = "Parameters used by the TLS Factory Plugin")
-        protected String brokerClientSslFactoryPluginParams;
+        @Option(names = "--tls-factory-config",
+                description = "Configuration passed to --tls-factory-class-name as its init params, either a "
+                        + "JSON object or a key=value list. Follows --tls-factory-class-name rather than "
+                        + "inheriting on its own: used verbatim when this cluster names a factory, ignored "
+                        + "otherwise.")
+        protected String brokerClientTlsFactoryConfig;
 
         @Option(names = "--listener-name",
                 description = "listenerName when client would like to connect to cluster", required = false)
@@ -448,11 +456,13 @@ public class CmdClusters extends CmdBase {
             if (brokerClientCertificateFilePath != null) {
                 builder.brokerClientCertificateFilePath(brokerClientCertificateFilePath);
             }
-            if (StringUtils.isNotBlank(brokerClientSslFactoryPlugin)) {
-                builder.brokerClientSslFactoryPlugin(brokerClientSslFactoryPlugin);
+
+            if (brokerClientTlsFactoryClassName != null) {
+                builder.brokerClientTlsFactoryClassName(brokerClientTlsFactoryClassName);
             }
-            if (StringUtils.isNotBlank(brokerClientSslFactoryPluginParams)) {
-                builder.brokerClientSslFactoryPluginParams(brokerClientSslFactoryPluginParams);
+
+            if (brokerClientTlsFactoryConfig != null) {
+                builder.brokerClientTlsFactoryConfig(brokerClientTlsFactoryConfig);
             }
 
             if (listenerName != null) {

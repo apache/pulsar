@@ -54,6 +54,7 @@ public class BuildersTest {
         assertEquals(b2.conf.getServiceUrl(), "pulsar://other-broker:6650");
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void enableTlsTest() {
         ClientBuilderImpl builder = (ClientBuilderImpl) PulsarClient.builder().serviceUrl("pulsar://service:6650");
@@ -107,7 +108,7 @@ public class BuildersTest {
             ".* must be specified but they cannot be specified at the same time.*")
     public void shouldNotSetTwoOptAtTheSameTime() throws Exception {
         PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
-        try (Reader reader = client.newReader().topic("abc").startMessageId(MessageId.latest)
+        try (Reader<?> reader = client.newReader().topic("abc").startMessageId(MessageId.latest)
                 .startMessageFromRollbackDuration(10, TimeUnit.HOURS).create()) {
             // no-op
         } finally {
@@ -119,7 +120,7 @@ public class BuildersTest {
             ".* must be specified but they cannot be specified at the same time.*")
     public void shouldSetOneStartOpt() throws Exception {
         PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
-        try (Reader reader = client.newReader().topic("abc").create()) {
+        try (Reader<?> reader = client.newReader().topic("abc").create()) {
             // no-op
         } finally {
             client.close();

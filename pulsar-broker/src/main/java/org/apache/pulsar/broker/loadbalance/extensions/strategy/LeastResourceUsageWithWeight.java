@@ -24,7 +24,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.concurrent.ThreadSafe;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
@@ -35,8 +35,8 @@ import org.apache.pulsar.common.naming.ServiceUnitId;
  * This strategy takes into account the historical load percentage and short-term load percentage, and thus will not
  * cause cluster fluctuations due to short-term load jitter.
  */
-@Slf4j
 @ThreadSafe
+@CustomLog
 public class LeastResourceUsageWithWeight implements BrokerSelectionStrategy {
     // Maintain this list to reduce object creation.
     private final ThreadLocal<ArrayList<String>> bestBrokers;
@@ -55,14 +55,14 @@ public class LeastResourceUsageWithWeight implements BrokerSelectionStrategy {
 
 
         if (maxUsageWithWeight > overloadThreshold) {
-            log.warn(
-                    "Broker {} is overloaded, brokerLoad({}%) > overloadThreshold({}%). load data:{{}}",
+            log.warnf(
+                    "Broker %s is overloaded, brokerLoad(%s%%) > overloadThreshold(%s%%). load data:{%s}",
                     broker,
                     maxUsageWithWeight * 100,
                     overloadThreshold * 100,
                     brokerLoadData.toString(conf));
         } else if (debugMode) {
-            log.info("Broker {} load data:{{}}", broker, brokerLoadData.toString(conf));
+            log.info().attr("broker", broker).attr("loadData", brokerLoadData.toString(conf)).log("Broker load data");
         }
 
 
@@ -83,7 +83,8 @@ public class LeastResourceUsageWithWeight implements BrokerSelectionStrategy {
             Set<String> candidates, ServiceUnitId bundleToAssign, LoadManagerContext context) {
         var conf = context.brokerConfiguration();
         if (candidates.isEmpty()) {
-            log.warn("There are no available brokers as candidates at this point for bundle: {}", bundleToAssign);
+            log.warn().attr("bundle", bundleToAssign)
+                    .log("There are no available brokers as candidates at this point for bundle");
             return Optional.empty();
         }
 
@@ -96,11 +97,12 @@ public class LeastResourceUsageWithWeight implements BrokerSelectionStrategy {
         // select one of them at the end.
         double totalUsage = 0.0d;
 
-        boolean debugMode = log.isDebugEnabled() || conf.isLoadBalancerDebugModeEnabled();
+        boolean debugMode = conf.isLoadBalancerDebugModeEnabled();
         for (String broker : candidates) {
             var brokerLoadDataOptional = context.brokerLoadDataStore().get(broker);
             if (brokerLoadDataOptional.isEmpty()) {
-                log.warn("There is no broker load data for broker:{}. Skipping this broker. Phase one", broker);
+                log.warn().attr("broker", broker)
+                        .log("There is no broker load data for broker. Skipping this broker. Phase one");
                 noLoadDataBrokers.add(broker);
                 continue;
             }
@@ -117,12 +119,14 @@ public class LeastResourceUsageWithWeight implements BrokerSelectionStrategy {
             final double diffThreshold =
                     conf.getLoadBalancerAverageResourceUsageDifferenceThresholdPercentage() / 100.0;
             if (debugMode) {
-                log.info("Computed avgUsage:{}, diffThreshold:{}", avgUsage, diffThreshold);
+                log.info().attr("avgUsage", avgUsage).attr("diffThreshold", diffThreshold)
+                        .log("Computed avgUsage and diffThreshold");
             }
             for (String broker : candidates) {
                 var brokerLoadDataOptional = context.brokerLoadDataStore().get(broker);
                 if (brokerLoadDataOptional.isEmpty()) {
-                    log.warn("There is no broker load data for broker:{}. Skipping this broker. Phase two", broker);
+                    log.warn().attr("broker", broker)
+                            .log("There is no broker load data for broker. Skipping this broker. Phase two");
                     continue;
                 }
                 double avgResUsage = brokerLoadDataOptional.get().getWeightedMaxEMA();
@@ -135,17 +139,20 @@ public class LeastResourceUsageWithWeight implements BrokerSelectionStrategy {
         if (bestBrokers.isEmpty()) {
             // Assign randomly as all brokers are overloaded.
             if (debugMode) {
-                log.info("Assign randomly as none of the brokers are underloaded. candidatesSize:{}, "
-                        + "noLoadDataBrokersSize:{}", candidates.size(), noLoadDataBrokers.size());
+                log.info().attr("candidatesSize", candidates.size())
+                        .attr("noLoadDataBrokersSize", noLoadDataBrokers.size())
+                        .log("Assign randomly as none of the brokers are underloaded");
             }
             bestBrokers.addAll(candidates);
         }
 
         if (debugMode) {
-            log.info("Selected {} best brokers: {} from candidate brokers: {}, noLoadDataBrokers:{}",
-                    bestBrokers.size(), bestBrokers,
-                    candidates,
-                    noLoadDataBrokers);
+            log.info()
+                    .attr("bestBrokersSize", bestBrokers.size())
+                    .attr("bestBrokers", bestBrokers)
+                    .attr("candidates", candidates)
+                    .attr("noLoadDataBrokers", noLoadDataBrokers)
+                    .log("Selected best brokers from candidates");
         }
         return Optional.of(bestBrokers.get(ThreadLocalRandom.current().nextInt(bestBrokers.size())));
     }

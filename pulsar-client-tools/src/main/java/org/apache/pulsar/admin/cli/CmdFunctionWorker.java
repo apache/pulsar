@@ -19,13 +19,13 @@
 package org.apache.pulsar.admin.cli;
 
 import java.util.function.Supplier;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClientException;
 import picocli.CommandLine.Command;
 
-@Slf4j
+@CustomLog
 @Command(description = "Operations to collect function-worker statistics")
 public class CmdFunctionWorker extends CmdBase {
 

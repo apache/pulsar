@@ -24,8 +24,7 @@ import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
 import java.util.Arrays;
 import java.util.concurrent.ScheduledExecutorService;
-import lombok.Getter;
-import org.apache.pulsar.functions.proto.InstanceCommunication;
+import org.apache.pulsar.functions.proto.FunctionStatus;
 
 public class SinkStatsManager extends ComponentStatsManager {
 
@@ -82,11 +81,9 @@ public class SinkStatsManager extends ComponentStatsManager {
     private Counter.Child statTotalSinkExceptionsChild1min;
     private Counter.Child statTotalWrittenChild1min;
 
-    @Getter
-    private EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> latestSystemExceptions =
+    private EvictingQueue<FunctionStatus.ExceptionInformation> latestSystemExceptions =
             EvictingQueue.create(10);
-    @Getter
-    private EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> latestSinkExceptions =
+    private EvictingQueue<FunctionStatus.ExceptionInformation> latestSinkExceptions =
             EvictingQueue.create(10);
 
     private final RateLimiter sysExceptionRateLimiter;
@@ -232,7 +229,7 @@ public class SinkStatsManager extends ComponentStatsManager {
         statTotalSysExceptions1minChild.inc();
 
         long ts = System.currentTimeMillis();
-        InstanceCommunication.FunctionStatus.ExceptionInformation info = getExceptionInfo(ex, ts);
+        FunctionStatus.ExceptionInformation info = getExceptionInfo(ex, ts);
         latestSystemExceptions.add(info);
 
         // report exception throw prometheus
@@ -258,7 +255,7 @@ public class SinkStatsManager extends ComponentStatsManager {
         statTotalSinkExceptionsChild1min.inc();
 
         long ts = System.currentTimeMillis();
-        InstanceCommunication.FunctionStatus.ExceptionInformation info = getExceptionInfo(ex, ts);
+        FunctionStatus.ExceptionInformation info = getExceptionInfo(ex, ts);
         latestSinkExceptions.add(info);
 
         // report exception throw prometheus
@@ -341,22 +338,22 @@ public class SinkStatsManager extends ComponentStatsManager {
     }
 
     @Override
-    public EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> getLatestUserExceptions() {
+    public EvictingQueue<FunctionStatus.ExceptionInformation> getLatestUserExceptions() {
         return emptyQueue;
     }
 
     @Override
-    public EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> getLatestSystemExceptions() {
+    public EvictingQueue<FunctionStatus.ExceptionInformation> getLatestSystemExceptions() {
         return latestSystemExceptions;
     }
 
     @Override
-    public EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> getLatestSourceExceptions() {
+    public EvictingQueue<FunctionStatus.ExceptionInformation> getLatestSourceExceptions() {
         return emptyQueue;
     }
 
     @Override
-    public EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> getLatestSinkExceptions() {
+    public EvictingQueue<FunctionStatus.ExceptionInformation> getLatestSinkExceptions() {
         return latestSinkExceptions;
     }
 }

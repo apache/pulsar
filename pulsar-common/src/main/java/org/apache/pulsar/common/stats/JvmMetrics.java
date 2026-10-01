@@ -21,10 +21,6 @@ package org.apache.pulsar.common.stats;
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import io.netty.buffer.PoolArenaMetric;
-import io.netty.buffer.PoolChunkListMetric;
-import io.netty.buffer.PoolChunkMetric;
-import io.netty.buffer.PooledByteBufAllocator;
 import java.lang.management.BufferPoolMXBean;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
@@ -36,17 +32,18 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.allocator.ByteBufAllocatorStats;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * This class is responsible for providing JVM metrics.
  */
+@CustomLog
 public class JvmMetrics {
 
-    private static final Logger log = LoggerFactory.getLogger(JvmMetrics.class);
     private final JvmGCMetricsLogger gcLogger;
 
     private final String componentName;
@@ -66,8 +63,10 @@ public class JvmMetrics {
                 gcLoggerImpl = (JvmGCMetricsLogger) Class.forName(gcLoggerImplClassName)
                         .getDeclaredConstructor().newInstance();
             } catch (Exception e) {
-                log.error("Failed to initialize jvmGCMetricsLogger {} due to {}", jvmGCMetricsLoggerClassName,
-                        e.getMessage(), e);
+                log.error()
+                        .attr("className", jvmGCMetricsLoggerClassName)
+                        .exception(e)
+                        .log("Failed to initialize jvmGCMetricsLogger");
             }
         }
         return new JvmMetrics(executor, componentName,
@@ -112,24 +111,9 @@ public class JvmMetrics {
 
         this.gcLogger.logMetrics(m);
 
-        long totalAllocated = 0;
-        long totalUsed = 0;
-
-        for (PoolArenaMetric arena : PooledByteBufAllocator.DEFAULT.metric().directArenas()) {
-            this.gcLogger.logMetrics(m);
-            for (PoolChunkListMetric list : arena.chunkLists()) {
-                for (PoolChunkMetric chunk : list) {
-                    int size = chunk.chunkSize();
-                    int used = size - chunk.freeBytes();
-
-                    totalAllocated += size;
-                    totalUsed += used;
-                }
-            }
-        }
-
-        m.put(this.componentName + "_default_pool_allocated", totalAllocated);
-        m.put(this.componentName + "_default_pool_used", totalUsed);
+        var allocatorStats = new ByteBufAllocatorStats(PulsarByteBufAllocator.getDefaultAllocatorMetric());
+        m.put(this.componentName + "_default_pool_allocated", allocatorStats.totalAllocated);
+        m.put(this.componentName + "_default_pool_used", allocatorStats.totalUsed);
 
         this.gcLogger.logMetrics(m);
 
@@ -141,9 +125,7 @@ public class JvmMetrics {
         if (usedDirectMemory != -1L) {
             return usedDirectMemory;
         }
-        if (log.isDebugEnabled()) {
-            log.debug("Failed to get netty-direct-memory used count.");
-        }
+        log.debug("Failed to get netty-direct-memory used count");
 
         List<BufferPoolMXBean> pools = ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class);
         for (BufferPoolMXBean pool : pools) {

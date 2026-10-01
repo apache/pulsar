@@ -20,7 +20,6 @@ package org.apache.pulsar.admin.cli;
 
 import java.util.function.Supplier;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.common.naming.TopicVersion;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
@@ -126,12 +125,9 @@ public class CmdBrokers extends CmdBase {
     @Command(description = "Run a health check against the broker")
     private class HealthcheckCmd extends CliCommand {
 
-        @Option(names = {"-tv", "--topic-version"}, description = "topic version V1 is default")
-        private TopicVersion topicVersion;
-
         @Override
         void run() throws Exception {
-            getAdmin().brokers().healthcheck(topicVersion);
+            getAdmin().brokers().healthcheck();
             System.out.println("ok");
         }
 

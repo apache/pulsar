@@ -21,7 +21,7 @@ package org.apache.pulsar.tests.integration.io;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.protobuf.DynamicMessage;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.KeyValueSchema;
@@ -31,7 +31,7 @@ import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 
-@Slf4j
+@CustomLog
 public class TestGenericObjectSink implements Sink<GenericObject> {
 
     @Override
@@ -39,16 +39,18 @@ public class TestGenericObjectSink implements Sink<GenericObject> {
     }
 
     public void write(Record<GenericObject> record) {
-        log.info("topic {}", record.getTopicName().orElse(null));
-        log.info("properties {}", record.getProperties());
-        log.info("received record {} {}", record, record.getClass());
-        log.info("schema {}", record.getSchema());
-        log.info("native schema {}", record.getSchema().getNativeSchema().orElse(null));
-        log.info("schemaInfo {}", record.getSchema().getSchemaInfo());
-        log.info("schemaInfo.type {}", record.getSchema().getSchemaInfo().getType());
+        log.info().attr("topic", record.getTopicName().orElse(null)).log("topic");
+        log.info().attr("properties", record.getProperties()).log("properties");
+        log.info().attr("record", record).attr("class", record.getClass()).log("received record");
+        log.info().attr("schema", record.getSchema()).log("schema");
+        log.info().attr("nativeSchema", record.getSchema().getNativeSchema().orElse(null))
+                .log("native schema");
+        log.info().attr("schemaInfo", record.getSchema().getSchemaInfo()).log("schemaInfo");
+        log.info().attr("type", record.getSchema().getSchemaInfo().getType())
+                .log("schemaInfo.type");
 
         String expectedRecordType = record.getProperties().getOrDefault("expectedType", "MISSING");
-        log.info("expectedRecordType {}", expectedRecordType);
+        log.info().attr("expectedRecordType", expectedRecordType).log("expectedRecordType");
         if (!expectedRecordType.equals(record.getSchema().getSchemaInfo().getType().name())) {
             final String message = String.format(
                     "Unexpected record type %s is not %s",
@@ -57,30 +59,35 @@ public class TestGenericObjectSink implements Sink<GenericObject> {
             throw new RuntimeException(message);
         }
 
-        log.info("value {}", record.getValue());
-        log.info("value schema type {}", record.getValue().getSchemaType());
-        log.info("value native object {}", record.getValue().getNativeObject());
+        log.info().attr("value", record.getValue()).log("value");
+        log.info().attr("schemaType", record.getValue().getSchemaType()).log("value schema type");
+        log.info().attr("nativeObject", record.getValue().getNativeObject())
+                .log("value native object");
 
         if (record.getSchema().getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
             // assert that we are able to access the schema (leads to ClassCastException if there is a problem)
             KeyValueSchema kvSchema = (KeyValueSchema) record.getSchema();
-            log.info("key schema type {}", kvSchema.getKeySchema());
-            log.info("value schema type {}", kvSchema.getValueSchema());
-            log.info("key encoding {}", kvSchema.getKeyValueEncodingType());
+            log.info().attr("keySchema", kvSchema.getKeySchema()).log("key schema type");
+            log.info().attr("valueSchema", kvSchema.getValueSchema()).log("value schema type");
+            log.info().attr("keyEncoding", kvSchema.getKeyValueEncodingType()).log("key encoding");
 
             KeyValue keyValue = (KeyValue) record.getValue().getNativeObject();
-            log.info("kvkey {}", keyValue.getKey());
-            log.info("kvvalue {}", keyValue.getValue());
+            log.info().attr("key", keyValue.getKey()).log("kvkey");
+            log.info().attr("value", keyValue.getValue()).log("kvvalue");
         }
 
         final GenericObject value = record.getValue();
-        log.info("value {}", value);
-        log.info("value schema type {}", value.getSchemaType());
-        log.info("value native object {} class {}", value.getNativeObject(), value.getNativeObject().getClass());
+        log.info().attr("value", value).log("value");
+        log.info().attr("schemaType", value.getSchemaType()).log("value schema type");
+        log.info().attr("nativeObject", value.getNativeObject())
+                .attr("class", value.getNativeObject().getClass())
+                .log("value native object");
 
         String expectedSchemaDefinition = record.getProperties().getOrDefault("expectedSchemaDefinition", "");
-        log.info("schemaDefinition {}", record.getSchema().getSchemaInfo().getSchemaDefinition());
-        log.info("expectedSchemaDefinition {}", expectedSchemaDefinition);
+        log.info().attr("schemaDefinition", record.getSchema().getSchemaInfo().getSchemaDefinition())
+                .log("schemaDefinition");
+        log.info().attr("expectedSchemaDefinition", expectedSchemaDefinition)
+                .log("expectedSchemaDefinition");
         if (!expectedSchemaDefinition.isEmpty()) {
             String schemaDefinition = record.getSchema().getSchemaInfo().getSchemaDefinition();
             if (!expectedSchemaDefinition.equals(schemaDefinition)) {
@@ -93,19 +100,22 @@ public class TestGenericObjectSink implements Sink<GenericObject> {
         // testing that actually the Sink is able to use Native AVRO
         if (record.getSchema().getSchemaInfo().getType() == SchemaType.AVRO) {
             GenericRecord nativeGenericRecord = (GenericRecord) record.getValue().getNativeObject();
-            log.info("Schema from AVRO generic object {}", nativeGenericRecord.getSchema());
+            log.info().attr("schema", nativeGenericRecord.getSchema())
+                    .log("Schema from AVRO generic object");
         }
 
         // testing that actually the Sink is able to use Native JSON
         if (record.getSchema().getSchemaInfo().getType() == SchemaType.JSON) {
             JsonNode nativeGenericRecord = (JsonNode) record.getValue().getNativeObject();
-            log.info("NodeType from JsonNode generic object {}", nativeGenericRecord.getNodeType());
+            log.info().attr("nodeType", nativeGenericRecord.getNodeType())
+                    .log("NodeType from JsonNode generic object");
         }
 
         // testing that actually the Sink is able to use Native JSON
         if (record.getSchema().getSchemaInfo().getType() == SchemaType.PROTOBUF_NATIVE) {
             DynamicMessage dynamicMessage = (DynamicMessage) record.getValue().getNativeObject();
-            log.info("Schema from PROTOBUF_NATIVE generic object {}", dynamicMessage.getAllFields());
+            log.info().attr("fields", dynamicMessage.getAllFields())
+                    .log("Schema from PROTOBUF_NATIVE generic object");
         }
 
         record.ack();

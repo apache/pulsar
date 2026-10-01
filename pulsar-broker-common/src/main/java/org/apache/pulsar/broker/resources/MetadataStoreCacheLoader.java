@@ -25,20 +25,20 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
+import java.util.concurrent.atomic.AtomicBoolean;
+import lombok.CustomLog;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Connects with MetadataStore and sets watch to listen changes for active broker list.
  *
  */
+@CustomLog
 public class MetadataStoreCacheLoader implements Closeable {
 
     private final LoadManagerReportResources loadReportResources;
@@ -46,6 +46,7 @@ public class MetadataStoreCacheLoader implements Closeable {
 
     private volatile List<LoadManagerReport> availableBrokers;
     private final FutureUtil.Sequencer<Void> sequencer;
+    private final AtomicBoolean refreshInProgress = new AtomicBoolean(false);
 
     private final OrderedScheduler orderedExecutor = OrderedScheduler.newSchedulerBuilder().numThreads(8)
             .name("pulsar-metadata-cache-loader-ordered-cache").build();
@@ -65,40 +66,38 @@ public class MetadataStoreCacheLoader implements Closeable {
      * @throws Exception
      */
     public void init() throws Exception {
-        Supplier<CompletableFuture<Void>> tryUpdate = () -> {
-            return loadReportResources.getChildrenAsync(LOADBALANCE_BROKERS_ROOT)
-                    .thenComposeAsync(brokerNodes -> {
-                        return updateBrokerList(brokerNodes).thenRun(() -> {
-                            log.info("Successfully updated broker info {}", brokerNodes);
-                        });
-                    })
-                    .exceptionally(ex -> {
-                        log.warn("Error updating broker info after broker list changed", ex);
-                        return null;
-                    });
-        };
         loadReportResources.getStore().registerListener((n) -> {
             if (LOADBALANCE_BROKERS_ROOT.equals(n.getPath()) && NotificationType.ChildrenChanged.equals(n.getType())) {
-                sequencer.sequential(tryUpdate);
+                sequencer.sequential(this::reloadBrokers);
             }
         });
         if (loadReportResources.getStore() instanceof MetadataStoreExtended) {
             ((MetadataStoreExtended) loadReportResources.getStore()).registerSessionListener(sessionEvent ->
-                    sequencer.sequential(tryUpdate));
+                    sequencer.sequential(this::reloadBrokers));
         }
         // Do initial fetch of brokers list
-        tryUpdate.get().get(operationTimeoutMs, TimeUnit.MILLISECONDS);
+        reloadBrokers().get(operationTimeoutMs, TimeUnit.MILLISECONDS);
+    }
+
+    private CompletableFuture<Void> reloadBrokers() {
+        return loadReportResources.getChildrenAsync(LOADBALANCE_BROKERS_ROOT)
+                .thenComposeAsync(brokerNodes -> updateBrokerList(brokerNodes).thenRun(() ->
+                        log.info().attr("info", brokerNodes).log("Successfully updated broker info")))
+                .exceptionally(ex -> {
+                    log.warn().exception(ex).log("Error updating broker info after broker list changed");
+                    return null;
+                });
     }
 
     public List<LoadManagerReport> getAvailableBrokers() {
-        if (CollectionUtils.isEmpty(availableBrokers)) {
-            try {
-                updateBrokerList(loadReportResources.getChildren(LOADBALANCE_BROKERS_ROOT));
-            } catch (Exception e) {
-                log.warn("Error updating broker from zookeeper.", e);
-            }
+        List<LoadManagerReport> brokers = availableBrokers;
+        if (CollectionUtils.isEmpty(brokers) && refreshInProgress.compareAndSet(false, true)) {
+            // Avoid blocking the caller (which may be a Netty IO thread): refresh the cache in the
+            // background and return the current snapshot. The cache is otherwise kept up to date by the
+            // metadata-store listener, so an empty snapshot means there are no active brokers.
+            sequencer.sequential(this::reloadBrokers).whenComplete((__, ex) -> refreshInProgress.set(false));
         }
-        return availableBrokers;
+        return brokers == null ? new ArrayList<>() : brokers;
     }
 
     @Override
@@ -144,7 +143,5 @@ public class MetadataStoreCacheLoader implements Closeable {
 
         return future;
     }
-
-    private static final Logger log = LoggerFactory.getLogger(MetadataStoreCacheLoader.class);
 
 }

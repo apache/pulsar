@@ -35,7 +35,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.stream.IntStream;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiterFactoryAsyncTokenBucket;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiterFactoryClassic;
 import org.apache.pulsar.client.api.Consumer;
@@ -52,7 +52,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class DispatchRateLimiterOverconsumingTest extends BrokerTestBase implements ITest {
     public enum DispatchRateLimiterImplType {
@@ -170,8 +170,10 @@ public class DispatchRateLimiterOverconsumingTest extends BrokerTestBase impleme
             if (elapsedFullSeconds > 0 && lastCalculatedSecond.compareAndSet(elapsedFullSeconds - 1,
                     elapsedFullSeconds)) {
                 int messagesCountForPreviousSecond = currentSecondMessagesCount.getAndSet(0);
-                log.info("Rate for second {}: {} msg/s {}", elapsedFullSeconds, messagesCountForPreviousSecond,
-                        TimeUnit.NANOSECONDS.toMillis(durationNanos));
+                log.info().attr("second", elapsedFullSeconds)
+                        .attr("rate", messagesCountForPreviousSecond)
+                        .attr("elapsedMs", TimeUnit.NANOSECONDS.toMillis(durationNanos))
+                        .log("Rate for second");
                 collectedRatesForEachSecond.add(messagesCountForPreviousSecond);
             }
         };
@@ -228,7 +230,8 @@ public class DispatchRateLimiterOverconsumingTest extends BrokerTestBase impleme
             try {
                 int messageNumber = i + 1;
                 producer.sendAsync(messageNumber).exceptionally(e -> {
-                    log.error("Failed to send message #{}", messageNumber, e);
+                    log.error().attr("messageNumber", messageNumber)
+                            .exception(e).log("Failed to send message");
                     return null;
                 });
             } catch (Exception e) {
@@ -254,11 +257,15 @@ public class DispatchRateLimiterOverconsumingTest extends BrokerTestBase impleme
         if (messagesCountForPreviousSecond > 0) {
             collectedRatesSnapshot.add(messagesCountForPreviousSecond);
         }
-        log.info("[{}] Collected rates for each second: {}", implType, collectedRatesSnapshot);
+        log.info().attr("implType", implType)
+                .attr("rates", collectedRatesSnapshot)
+                .log("Collected rates for each second");
         long avgMsgRate =
                 totalMessagesReceived.get() / TimeUnit.NANOSECONDS.toSeconds(
                         lastReceivedMessageTimeNanos.get() - startTimeNanos.get());
-        log.info("[{}] Average rate during the test run: {} msg/s", implType, avgMsgRate);
+        log.info().attr("implType", implType)
+                .attr("avgMsgRate", avgMsgRate)
+                .log("Average rate during the test run");
 
         assertSoftly(softly -> {
             // check the rate during the test run

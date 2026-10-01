@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import java.net.InetSocketAddress;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -28,6 +29,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Provides lookup service to find broker which serves given topic. It helps to
@@ -56,7 +58,21 @@ public interface LookupService extends AutoCloseable {
      * @return a {@link LookupTopicResult} representing the logical and physical address of the broker that serves the
      *         given topic, as well as proxying information.
      */
-    CompletableFuture<LookupTopicResult> getBroker(TopicName topicName);
+    default CompletableFuture<LookupTopicResult> getBroker(TopicName topicName) {
+        return getBroker(topicName, null);
+    }
+
+    /**
+     * Calls broker lookup-api to get broker {@link InetSocketAddress} which serves namespace bundle that contains given
+     * topic. This lookup is made with the given lookup properties. When null is passed, the
+     * default lookup properties specified in the client configuration are used.
+     *
+     * @param topicName
+     *            topic-name
+     * @return a {@link LookupTopicResult} representing the logical and physical address of the broker that serves the
+     *         given topic, as well as proxying information.
+     */
+    CompletableFuture<LookupTopicResult> getBroker(TopicName topicName, Map<String, String> lookupProperties);
 
     /**
      * Returns {@link PartitionedTopicMetadata} for a given topic.
@@ -104,7 +120,9 @@ public interface LookupService extends AutoCloseable {
      * @param topicName topic-name
      * @return SchemaInfo
      */
-    CompletableFuture<Optional<SchemaInfo>> getSchema(TopicName topicName);
+    default CompletableFuture<Optional<SchemaInfo>> getSchema(TopicName topicName) {
+        return getSchema(topicName, null);
+    }
 
     /**
      * Returns specific version SchemaInfo {@link SchemaInfo} for a given topic.
@@ -142,6 +160,17 @@ public interface LookupService extends AutoCloseable {
      * @param namespace : namespace-name
      * @return
      */
+    default CompletableFuture<GetTopicsResult> getTopicsUnderNamespace(NamespaceName namespace, Mode mode,
+                                                               String topicPattern, String topicsHash) {
+        return getTopicsUnderNamespace(namespace, mode, topicPattern, topicsHash, null);
+    }
+
     CompletableFuture<GetTopicsResult> getTopicsUnderNamespace(NamespaceName namespace, Mode mode,
-                                                               String topicPattern, String topicsHash);
+                                                               String topicPattern, String topicsHash,
+                                                               @Nullable Map<String, String> properties);
+
+    /**
+     * Returns true if the lookup service is a binary protocol lookup service.
+     */
+    boolean isBinaryProtoLookupService();
 }

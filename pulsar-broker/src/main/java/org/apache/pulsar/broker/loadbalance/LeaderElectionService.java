@@ -56,10 +56,20 @@ public class LeaderElectionService implements AutoCloseable {
         leaderElection.close();
     }
 
+    /**
+     * Authoritative read of the current leader: if a leader election is in progress, the returned
+     * future completes once it settles (bounded by the default metadata operation timeout). Use
+     * this whenever a decision is made based on who the leader is.
+     */
     public CompletableFuture<Optional<LeaderBroker>> readCurrentLeader() {
         return leaderElection.getLeaderValue();
     }
 
+    /**
+     * Non-blocking snapshot of the current leader; empty while a re-election is settling even
+     * though a leader may technically exist. Only suitable for best-effort uses such as logging —
+     * decision-making callers must use {@link #readCurrentLeader()}.
+     */
     public Optional<LeaderBroker> getCurrentLeader() {
         return leaderElection.getLeaderValueIfPresent();
     }

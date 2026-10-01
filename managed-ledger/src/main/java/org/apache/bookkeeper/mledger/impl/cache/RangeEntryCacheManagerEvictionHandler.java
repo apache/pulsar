@@ -21,10 +21,10 @@ package org.apache.bookkeeper.mledger.impl.cache;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheManagerImpl.MB;
 import com.google.common.annotations.VisibleForTesting;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.tuple.Pair;
 
-@Slf4j
+@CustomLog
 class RangeEntryCacheManagerEvictionHandler {
     private final RangeEntryCacheManagerImpl manager;
     private final RangeCacheRemovalQueue rangeCacheRemovalQueue;
@@ -56,12 +56,11 @@ class RangeEntryCacheManagerEvictionHandler {
         Pair<Integer, Long> evicted = rangeCacheRemovalQueue.evictLeastAccessedEntries(sizeToFree);
         int evictedEntries = evicted.getLeft();
         long evictedSize = evicted.getRight();
-        if (log.isDebugEnabled()) {
-            log.debug(
-                    "Doing cache eviction of at least {} Mb -- Deleted {} entries - Total size deleted: {} Mb "
-                            + " -- Current Size: {} Mb",
-                    sizeToFree / MB, evictedEntries, evictedSize / MB, manager.getSize() / MB);
-        }
+        log.debug().attr("sizeToFreeMb", sizeToFree / MB)
+                .attr("evictedEntries", evictedEntries)
+                .attr("evictedSizeMb", evictedSize / MB)
+                .attr("currentSizeMb", () -> manager.getSize() / MB)
+                .log("Doing cache eviction");
         manager.entriesRemoved(evictedSize, evictedEntries);
         return evicted;
     }

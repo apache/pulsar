@@ -20,16 +20,16 @@ package org.apache.pulsar.io.batchdiscovery;
 
 import java.util.Map;
 import java.util.function.Consumer;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.io.core.BatchSourceTriggerer;
 import org.apache.pulsar.io.core.SourceContext;
 
-@Slf4j
+@CustomLog
 public class ImmediateTriggerer implements BatchSourceTriggerer {
 
   @Override
   public void init(Map<String, Object> map, SourceContext sourceContext) throws Exception {
-    log.info("Initialized ImmediateTrigger at: {}", System.currentTimeMillis());
+    log.info().attr("timestamp", System.currentTimeMillis()).log("Initialized ImmediateTrigger");
   }
 
   @Override

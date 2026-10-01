@@ -31,7 +31,7 @@ import org.apache.pulsar.client.api.MessagePayloadContext;
 import org.apache.pulsar.client.api.MessagePayloadProcessor;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.functions.MessagePayloadProcessorConfig;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.MessagePayloadProcessorSpec;
 import org.testng.annotations.Test;
 
 public class MessagePayloadProcessorUtilsTest {
@@ -113,9 +113,8 @@ public class MessagePayloadProcessorUtilsTest {
 
     @Test
     public void testConvertFromSpecReturnsNullIfEmpty() {
-        Function.MessagePayloadProcessorSpec spec = Function.MessagePayloadProcessorSpec.newBuilder()
-                .setClassName("")
-                .build();
+        MessagePayloadProcessorSpec spec = new MessagePayloadProcessorSpec()
+                .setClassName("");
 
         assertNull(MessagePayloadProcessorUtils.convertFromSpec(spec));
     }
@@ -123,10 +122,9 @@ public class MessagePayloadProcessorUtilsTest {
     @Test
     public void testConvertFromSpecValid() {
         String json = "{\"threshold\": 10}";
-        Function.MessagePayloadProcessorSpec spec = Function.MessagePayloadProcessorSpec.newBuilder()
+        MessagePayloadProcessorSpec spec = new MessagePayloadProcessorSpec()
                 .setClassName("com.example.MyProcessor")
-                .setConfigs(json)
-                .build();
+                .setConfigs(json);
 
         MessagePayloadProcessorConfig config = MessagePayloadProcessorUtils.convertFromSpec(spec);
         assertNotNull(config);
@@ -144,7 +142,7 @@ public class MessagePayloadProcessorUtilsTest {
                 .config(conf)
                 .build();
 
-        Function.MessagePayloadProcessorSpec spec = MessagePayloadProcessorUtils.convert(config);
+        MessagePayloadProcessorSpec spec = MessagePayloadProcessorUtils.convert(config);
         assertEquals(spec.getClassName(), "test.Foo");
         assertTrue(spec.getConfigs().contains("foo"));
     }
@@ -156,7 +154,7 @@ public class MessagePayloadProcessorUtilsTest {
                 .config(null)
                 .build();
 
-        Function.MessagePayloadProcessorSpec spec = MessagePayloadProcessorUtils.convert(config);
+        MessagePayloadProcessorSpec spec = MessagePayloadProcessorUtils.convert(config);
         assertEquals(spec.getClassName(), "test.Foo");
         assertEquals(spec.getConfigs(), "");
     }

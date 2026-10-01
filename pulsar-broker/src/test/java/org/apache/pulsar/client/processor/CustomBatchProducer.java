@@ -21,14 +21,14 @@ package org.apache.pulsar.client.processor;
 import io.netty.buffer.ByteBuf;
 import java.util.ArrayList;
 import java.util.List;
+import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 
 @RequiredArgsConstructor
-@Slf4j
+@CustomLog
 public class CustomBatchProducer {
 
     private final List<String> messages = new ArrayList<>();
@@ -49,9 +49,13 @@ public class CustomBatchProducer {
         buf.release();
         persistentTopic.publishMessage(headerAndPayload, (e, ledgerId, entryId) -> {
             if (e == null) {
-                log.info("Send successfully to {} ({}, {})", persistentTopic.getName(), ledgerId, entryId);
+                log.info()
+                        .attr("successfully", persistentTopic.getName())
+                        .attr("ledgerId", ledgerId)
+                        .attr("entryId", entryId)
+                        .log("Send successfully to");
             } else {
-                log.error("Failed to send: {}", e.getMessage());
+                log.error().exceptionMessage(e).log("Failed to send");
             }
         });
         messages.clear();

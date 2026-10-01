@@ -46,6 +46,7 @@ public class MockMultiStageAuthenticationState implements AuthenticationState {
         return null;
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public AuthData authenticate(AuthData authData) throws AuthenticationException {
         String data = new String(authData.getBytes(), UTF_8);
@@ -68,6 +69,7 @@ public class MockMultiStageAuthenticationState implements AuthenticationState {
         return null;
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public boolean isComplete() {
         return authRole != null;

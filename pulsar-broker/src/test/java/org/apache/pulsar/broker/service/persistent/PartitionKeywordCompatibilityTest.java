@@ -21,7 +21,7 @@ package org.apache.pulsar.broker.service.persistent;
 import static org.testng.Assert.fail;
 import java.util.List;
 import lombok.Cleanup;
-import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -30,60 +30,49 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Test
-public class PartitionKeywordCompatibilityTest extends BrokerTestBase {
-
-    @BeforeClass(alwaysRun = true)
-    @Override
-    protected void setup() throws Exception {
-        baseSetup();
-        setupDefaultTenantAndNamespace();
-    }
-
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        internalCleanup();
-    }
+public class PartitionKeywordCompatibilityTest extends SharedPulsarBaseTest {
 
     public void testAutoCreatePartitionTopicWithKeywordAndDeleteIt()
             throws PulsarAdminException, PulsarClientException {
+        String namespace = getNamespace();
         AutoTopicCreationOverride override = AutoTopicCreationOverride.builder()
                 .allowAutoTopicCreation(true)
                 .topicType("partitioned")
                 .defaultNumPartitions(1)
                 .build();
-        admin.namespaces().setAutoTopicCreation("public/default", override);
-        String topicName = "persistent://public/default/XXX-partition-0-dd";
+        admin.namespaces().setAutoTopicCreation(namespace, override);
+        String topicName = "persistent://" + namespace + "/XXX-partition-0-dd";
         @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(topicName)
                 .subscriptionName("sub-1")
                 .subscriptionType(SubscriptionType.Exclusive)
                 .subscribe();
-        List<String> topics = admin.topics().getList("public/default");
-        List<String> partitionedTopicList = admin.topics().getPartitionedTopicList("public/default");
+        List<String> topics = admin.topics().getList(namespace);
+        List<String> partitionedTopicList = admin.topics().getPartitionedTopicList(namespace);
         Assert.assertTrue(topics.contains(TopicName.get(topicName).getPartition(0).toString()));
         Assert.assertTrue(partitionedTopicList.contains(topicName));
         consumer.close();
         PartitionedTopicStats stats = admin.topics().getPartitionedStats(topicName, false);
         Assert.assertEquals(stats.getSubscriptions().size(), 1);
         admin.topics().deletePartitionedTopic(topicName);
-        topics = admin.topics().getList("public/default");
-        partitionedTopicList = admin.topics().getPartitionedTopicList("public/default");
+        topics = admin.topics().getList(namespace);
+        partitionedTopicList = admin.topics().getPartitionedTopicList(namespace);
         Assert.assertFalse(topics.contains(topicName));
         Assert.assertFalse(partitionedTopicList.contains(topicName));
     }
 
     @Test
     public void testDeletePartitionedTopicValidation() throws PulsarAdminException {
-        final String topicName = "persistent://public/default/testDeletePartitionedTopicValidation";
-        final String partitionKeywordTopic = "persistent://public/default/testDelete-partition-edTopicValidation";
-        final String partitionedTopic = "persistent://public/default/testDeletePartitionedTopicValidation-partition-0";
+        String namespace = getNamespace();
+        final String topicName = "persistent://" + namespace + "/testDeletePartitionedTopicValidation";
+        final String partitionKeywordTopic = "persistent://" + namespace
+                + "/testDelete-partition-edTopicValidation";
+        final String partitionedTopic = "persistent://" + namespace
+                + "/testDeletePartitionedTopicValidation-partition-0";
         try {
             admin.topics().deletePartitionedTopic(topicName);
             fail("expect not found!");

@@ -19,9 +19,9 @@
 package org.apache.pulsar.functions.worker.service;
 
 import java.io.IOException;
+import lombok.CustomLog;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
@@ -41,7 +41,7 @@ import org.apache.pulsar.functions.worker.service.api.Workers;
 /**
  * A worker service with its classloader.
  */
-@Slf4j
+@CustomLog
 @Data
 @RequiredArgsConstructor
 public class WorkerServiceWithClassLoader implements WorkerService {
@@ -80,7 +80,7 @@ public class WorkerServiceWithClassLoader implements WorkerService {
         try {
             classLoader.close();
         } catch (IOException e) {
-            log.warn("Failed to close the worker service class loader", e);
+            log.warn().exception(e).log("Failed to close the worker service class loader");
         }
     }
 

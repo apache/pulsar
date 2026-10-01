@@ -37,7 +37,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -65,7 +65,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-impl")
 public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
 
@@ -171,7 +171,7 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
             if (hasMessageAvailable) {
                 reader.readNextAsync().whenComplete((msg, ex) -> {
                     if (ex != null) {
-                        log.error("Read message failed.", ex);
+                        log.error().exception(ex).log("Read message failed");
                         latch.countDown();
                         return;
                     }
@@ -182,7 +182,7 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
                 latch.countDown();
             }
         }).exceptionally(throwable -> {
-            log.error("Read message failed.", throwable);
+            log.error().exception(throwable).log("Read message failed");
             latch.countDown();
             return null;
         });

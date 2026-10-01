@@ -20,7 +20,7 @@ package org.apache.pulsar.broker.stats.prometheus;
 
 import static org.apache.pulsar.common.naming.SystemTopicNames.isEventSystemTopic;
 import io.netty.util.concurrent.FastThreadLocal;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
 import org.apache.pulsar.broker.PulsarService;
@@ -32,7 +32,7 @@ import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.impl.TransactionMetadataStoreStats;
 
-@Slf4j
+@CustomLog
 public class TransactionAggregator {
 
     private static final FastThreadLocal<AggregatedTransactionCoordinatorStats> localTransactionCoordinatorStats =
@@ -65,13 +65,20 @@ public class TransactionAggregator {
                                     if (!isEventSystemTopic(TopicName.get(subscription.getTopic().getName()))
                                             && subscription instanceof PersistentSubscription
                                             && ((PersistentSubscription) subscription).checkIfPendingAckStoreInit()) {
+                                        // Use getNow() rather than get() so a not-yet-resolved managed
+                                        // ledger cannot block (and exhaust) the metrics thread pool; the
+                                        // stats are simply skipped for this scrape and picked up later.
                                         ManagedLedger managedLedger = ((PersistentSubscription) subscription)
-                                                .getPendingAckManageLedger().get();
-                                        generateManageLedgerStats(managedLedger,
-                                                stream, cluster, namespace, name, subscription.getName());
+                                                .getPendingAckManageLedger().getNow(null);
+                                        if (managedLedger != null) {
+                                            generateManageLedgerStats(managedLedger,
+                                                    stream, cluster, namespace, name, subscription.getName());
+                                        }
                                     }
                                 } catch (Exception e) {
-                                    log.warn("Transaction pending ack generate managedLedgerStats fail!", e);
+                                    log.warn()
+                                            .exception(e)
+                                            .log("Transaction pending ack generate managedLedgerStats fail!");
                                 }
                             });
                         }

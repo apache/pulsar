@@ -20,12 +20,11 @@ package org.apache.pulsar.functions.instance;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import com.google.common.annotations.VisibleForTesting;
-import java.security.Security;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import lombok.Builder;
+import lombok.CustomLog;
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.CryptoKeyReader;
@@ -38,14 +37,13 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.functions.CryptoConfig;
 import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.functions.utils.CryptoUtils;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 /**
  * This class is responsible for creating ProducerBuilders with the appropriate configurations to
  * match the ProducerConfig provided. Producers are created in 2 locations in Pulsar Functions and Connectors
  * and this class is used to unify the configuration of the producers without duplicating code.
  */
-@Slf4j
+@CustomLog
 public class ProducerBuilderFactory {
 
     private final PulsarClient client;
@@ -68,6 +66,7 @@ public class ProducerBuilderFactory {
         }
     }
 
+    @SuppressWarnings("deprecation")
     public <T> ProducerBuilder<T> createProducerBuilder(String topic, Schema<T> schema, String producerName) {
         ProducerBuilder<T> builder = client.newProducer(schema);
         if (defaultConfigurer != null) {
@@ -160,11 +159,6 @@ public class ProducerBuilderFactory {
         }
 
         CryptoConfig cryptoConfig = producerConfig.getCryptoConfig();
-
-        // add provider only if it's not in the JVM
-        if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
-            Security.addProvider(new BouncyCastleProvider());
-        }
 
         final String[] encryptionKeys = cryptoConfig.getEncryptionKeys();
         Crypto.CryptoBuilder bldr = Crypto.builder()

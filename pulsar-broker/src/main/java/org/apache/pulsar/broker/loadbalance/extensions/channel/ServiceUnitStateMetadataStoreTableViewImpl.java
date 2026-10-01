@@ -29,17 +29,17 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
+import lombok.CustomLog;
 import lombok.NonNull;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.MetadataSessionExpiredPolicy;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreTableView;
-import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.tableview.impl.MetadataStoreTableViewImpl;
 
-@Slf4j
+@CustomLog
 public class ServiceUnitStateMetadataStoreTableViewImpl extends ServiceUnitStateTableViewBase {
     public static final String PATH_PREFIX = "/service_unit_state";
     private static final String VALID_PATH_REG_EX = "^\\/service_unit_state\\/.*\\/0x[0-9a-fA-F]{8}_0x[0-9a-fA-F]{8}$";
@@ -49,7 +49,7 @@ public class ServiceUnitStateMetadataStoreTableViewImpl extends ServiceUnitState
         try {
             VALID_PATH_PATTERN = Pattern.compile(VALID_PATH_REG_EX);
         } catch (PatternSyntaxException error) {
-            log.error("Invalid regular expression {}", VALID_PATH_REG_EX, error);
+            log.error().attr("expression", VALID_PATH_REG_EX).exception(error).log("Invalid regular expression");
             throw new IllegalArgumentException(error);
         }
     }
@@ -65,7 +65,7 @@ public class ServiceUnitStateMetadataStoreTableViewImpl extends ServiceUnitState
         init(pulsar);
         conflictResolver = new ServiceUnitStateDataConflictResolver();
         conflictResolver.setStorageType(MetadataStore);
-        if (!(pulsar.getLocalMetadataStore() instanceof AbstractMetadataStore)
+        if (!(pulsar.getLocalMetadataStore() instanceof MetadataStoreExtended)
             && !MetadataSessionExpiredPolicy.shutdown.equals(pulsar.getConfig().getZookeeperSessionExpiredPolicy())) {
             String errorMsg = String.format("Your current metadata store [%s] does not support the registration of "
                     + "session event listeners. Please set \"zookeeperSessionExpiredPolicy\" to \"shutdown\";"
@@ -92,7 +92,7 @@ public class ServiceUnitStateMetadataStoreTableViewImpl extends ServiceUnitState
 
     protected void handleTableViewShutDownEvent(Throwable throwable) {
         log.error("The component of load-balance, which named metadata store table view has shutdown. This Broker can"
-                    + " not work anymore, start tp shutdow,");
+                + " not work anymore, start tp shutdow,");
         pulsar.shutdownNow();
     }
 

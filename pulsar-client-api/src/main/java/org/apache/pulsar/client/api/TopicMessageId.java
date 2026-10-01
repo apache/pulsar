@@ -41,6 +41,19 @@ public interface TopicMessageId extends MessageId {
      */
     String getOwnerTopic();
 
+    /**
+     * Checks if this message's owner topic and the given topic refer to the same base
+     * partitioned topic by comparing their base partitioned topic names.
+     *
+     * <p>For example, {@code persistent://public/default/my-topic-partition-0} matches
+     * {@code persistent://public/default/my-topic} or any other partition of that topic.
+     * Topics sharing only a name prefix (e.g., {@code my-topic} vs {@code my-topic-v2}) do not match.
+     *
+     * @param topicName a full topic name (non-partitioned, partitioned, or specific partition)
+     * @return {@code true} if both topics resolve to the same base partitioned topic name
+     */
+    boolean hasSameBasePartitionedTopic(String topicName);
+
     static TopicMessageId create(String topic, MessageId messageId) {
         if (messageId instanceof TopicMessageId) {
             return (TopicMessageId) messageId;

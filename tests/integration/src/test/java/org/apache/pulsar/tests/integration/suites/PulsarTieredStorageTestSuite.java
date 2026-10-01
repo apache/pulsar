@@ -21,14 +21,14 @@ package org.apache.pulsar.tests.integration.suites;
 import static java.util.stream.Collectors.joining;
 import java.util.Map;
 import java.util.stream.Stream;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 
-@Slf4j
+@CustomLog
 public abstract class PulsarTieredStorageTestSuite extends PulsarClusterTestBase {
 
     protected int getNumEntriesPerLedger() {

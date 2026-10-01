@@ -29,8 +29,6 @@ import org.apache.pulsar.common.events.PulsarEvent;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Topic policies service.
@@ -40,8 +38,6 @@ import org.slf4j.LoggerFactory;
 public interface TopicPoliciesService extends AutoCloseable {
 
     String GLOBAL_POLICIES_MSG_KEY_PREFIX = "__G__";
-
-    Logger LOG = LoggerFactory.getLogger(TopicPoliciesService.class);
 
     TopicPoliciesService DISABLED = new TopicPoliciesServiceDisabled();
 
@@ -100,6 +96,15 @@ public interface TopicPoliciesService extends AutoCloseable {
     default void close() throws Exception {
     }
 
+
+    /**
+     * @implNote This method is never called unless by the default implementation of
+     * {@link TopicPoliciesService#registerListenerAsync(TopicName, TopicPolicyListener)}, which is actually called
+     * internally. This method is only retained for backward compatibility on custom implementations.
+     */
+    @Deprecated
+    boolean registerListener(TopicName topicName, TopicPolicyListener listener);
+
     /**
      * Registers a listener for topic policies updates.
      *
@@ -110,10 +115,10 @@ public interface TopicPoliciesService extends AutoCloseable {
      * guaranteed to be received by the listener.
      * In summary, the listener is guaranteed to receive only the latest value.
      * </p>
-     *
-     * @return true if the listener is registered successfully
      */
-    boolean registerListener(TopicName topicName, TopicPolicyListener listener);
+    default CompletableFuture<Boolean> registerListenerAsync(TopicName topicName, TopicPolicyListener listener) {
+        return CompletableFuture.completedFuture(registerListener(topicName, listener));
+    }
 
     /**
      * Unregister the topic policies listener.

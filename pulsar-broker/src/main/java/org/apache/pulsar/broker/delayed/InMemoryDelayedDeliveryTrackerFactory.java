@@ -23,15 +23,13 @@ import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class InMemoryDelayedDeliveryTrackerFactory implements DelayedDeliveryTrackerFactory {
-    private static final Logger log = LoggerFactory.getLogger(InMemoryDelayedDeliveryTrackerFactory.class);
-
     private Timer timer;
 
     private long tickTimeMillis;
@@ -59,8 +57,11 @@ public class InMemoryDelayedDeliveryTrackerFactory implements DelayedDeliveryTra
             tracker = newTracker0(dispatcher);
         } catch (Exception e) {
             // it should never go here
-            log.warn("Failed to create InMemoryDelayedDeliveryTracker, topic {}, subscription {}",
-                    topicName, subscriptionName, e);
+            log.warn()
+                    .attr("topic", topicName)
+                    .attr("subscription", subscriptionName)
+                    .exception(e)
+                    .log("Failed to create InMemoryDelayedDeliveryTracker");
         }
         return tracker;
     }

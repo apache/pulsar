@@ -51,11 +51,13 @@ public class TopicPolicies implements Cloneable {
     private List<SubType> subscriptionTypesEnabled = new ArrayList<>();
     private List<String> replicationClusters;
     private List<String> shadowTopics;
+    @Builder.Default
     private Boolean isGlobal = false;
     private PersistencePolicies persistence;
     private RetentionPolicies retentionPolicies;
     private Boolean deduplicationEnabled;
     private Integer messageTTLInSeconds;
+    private Integer subscriptionExpirationTimeInMinutes;
     private Integer maxProducerPerTopic;
     private Integer maxConsumerPerTopic;
     private Integer maxConsumersPerSubscription;
@@ -220,6 +222,10 @@ public class TopicPolicies implements Cloneable {
 
     public boolean isMessageTTLSet() {
         return messageTTLInSeconds != null;
+    }
+
+    public boolean isSubscriptionExpirationTimeInMinutesSet() {
+        return subscriptionExpirationTimeInMinutes != null;
     }
 
     public boolean isMaxProducerPerTopicSet() {

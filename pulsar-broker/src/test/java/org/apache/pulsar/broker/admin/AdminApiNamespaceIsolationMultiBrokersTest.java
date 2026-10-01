@@ -26,7 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.MultiBrokerBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
@@ -41,7 +41,7 @@ import org.testng.annotations.Test;
 /**
  * Test multi-broker admin api.
  */
-@Slf4j
+@CustomLog
 @Test(groups = "broker-admin")
 public class AdminApiNamespaceIsolationMultiBrokersTest extends MultiBrokerBaseTest {
 
@@ -77,7 +77,8 @@ public class AdminApiNamespaceIsolationMultiBrokersTest extends MultiBrokerBaseT
     public void testNamespaceIsolationPolicyForReplNS() throws Exception {
 
         // Verify that namespace is not present in cluster-2.
-        Set<String> replicationClusters = localAdmin.namespaces().getPolicies("prop-ig/ns1").replication_clusters;
+        Set<String> replicationClusters = localAdmin.namespaces()
+                .getPolicies("prop-ig/ns1").replication_clusters; // Nothing is needed to be changed.
         Assert.assertFalse(replicationClusters.contains("cluster-2"));
 
         // setup ns-isolation-policy in both the clusters.

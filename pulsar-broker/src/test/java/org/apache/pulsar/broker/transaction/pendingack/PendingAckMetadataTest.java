@@ -95,6 +95,7 @@ public class PendingAckMetadataTest extends MockedBookKeeperTestCase {
         ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) field.get(pendingAckStore);
         field = ManagedLedgerImpl.class.getDeclaredField("STATE_UPDATER");
         field.setAccessible(true);
+        @SuppressWarnings("unchecked")
         AtomicReferenceFieldUpdater<ManagedLedgerImpl, ManagedLedgerImpl.State> state =
                 (AtomicReferenceFieldUpdater<ManagedLedgerImpl, ManagedLedgerImpl.State>) field.get(managedLedger);
         state.set(managedLedger, WriteFailed);

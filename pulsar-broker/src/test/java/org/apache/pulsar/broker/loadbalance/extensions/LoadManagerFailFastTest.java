@@ -26,7 +26,6 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannel;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
-import org.apache.pulsar.common.util.PortManager;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
@@ -38,8 +37,7 @@ import org.testng.annotations.Test;
 public class LoadManagerFailFastTest {
 
     private static final String cluster = "test";
-    private final int zkPort = PortManager.nextLockedFreePort();
-    private final LocalBookkeeperEnsemble bk = new LocalBookkeeperEnsemble(2, zkPort, PortManager::nextLockedFreePort);
+    private final LocalBookkeeperEnsemble bk = new LocalBookkeeperEnsemble(2, 0);
     private final ServiceConfiguration config = new ServiceConfiguration();
 
     @BeforeClass
@@ -49,7 +47,7 @@ public class LoadManagerFailFastTest {
         config.setAdvertisedAddress("localhost");
         config.setBrokerServicePort(Optional.of(0));
         config.setWebServicePort(Optional.of(0));
-        config.setMetadataStoreUrl("zk:localhost:" + zkPort);
+        config.setMetadataStoreUrl("zk:localhost:" + bk.getZookeeperPort());
     }
 
     @AfterClass

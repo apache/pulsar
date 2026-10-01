@@ -29,7 +29,7 @@ public class AsyncContextFunction implements Function<String, CompletableFuture<
     @Override
     public CompletableFuture<Void> process(String input, Context context) {
         Logger log = context.getLogger();
-        CompletableFuture<Void> future = new CompletableFuture();
+        CompletableFuture<Void> future = new CompletableFuture<>();
 
         // this method only delay a function execute.
         Executors.newCachedThreadPool().submit(() -> {

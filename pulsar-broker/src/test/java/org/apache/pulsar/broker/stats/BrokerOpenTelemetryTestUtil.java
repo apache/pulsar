@@ -121,4 +121,19 @@ public class BrokerOpenTelemetryTestUtil {
                                             valueConsumer.accept(point.getValue());
                                         }))));
     }
+
+    public static void assertMetricHistogramValue(Collection<MetricData> metrics, String metricName,
+                                                  Attributes attributes, Consumer<Long> countConsumer,
+                                                  Consumer<Double> sumConsumer) {
+        final Map<AttributeKey<?>, Object> attributesMap = attributes.asMap();
+        assertThat(metrics).anySatisfy(metric -> assertThat(metric)
+                        .hasName(metricName)
+                        .hasHistogramSatisfying(histogram -> histogram.satisfies(
+                                histoData -> assertThat(histoData.getPoints()).anySatisfy(
+                                        point -> {
+                                            assertThat(point.getAttributes().asMap()).isEqualTo(attributesMap);
+                                            countConsumer.accept(point.getCount());
+                                            sumConsumer.accept(point.getSum());
+                                        }))));
+    }
 }

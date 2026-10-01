@@ -19,14 +19,18 @@
 package org.apache.pulsar.broker.admin;
 
 import java.util.Set;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.avro.reflect.AvroAlias;
 import org.apache.avro.reflect.AvroDefault;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
@@ -35,7 +39,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-admin")
 public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
@@ -48,9 +52,7 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
         admin.tenants().createTenant("prop-xyz", tenantInfo);
         admin.namespaces().createNamespace("prop-xyz/ns1", Set.of("test"));
-        admin.namespaces().createNamespace("prop-xyz/test/ns1");
         admin.namespaces().createNamespace("prop-xyz/ns2", Set.of("test"));
-        admin.namespaces().createNamespace("prop-xyz/test/ns2");
     }
 
     @AfterMethod(alwaysRun = true)
@@ -59,6 +61,7 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
+    @SuppressWarnings("deprecation")
     private void testAutoUpdateBackward(String namespace, String topicName) throws Exception {
         Assert.assertNull(admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespace));
 
@@ -83,6 +86,7 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
 
     }
 
+    @SuppressWarnings("deprecation")
     private void testAutoUpdateForward(String namespace, String topicName) throws Exception {
         Assert.assertNull(admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespace));
 
@@ -106,6 +110,7 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @SuppressWarnings("deprecation")
     private void testAutoUpdateFull(String namespace, String topicName) throws Exception {
         Assert.assertNull(admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespace));
 
@@ -133,6 +138,7 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @SuppressWarnings("deprecation")
     private void testAutoUpdateDisabled(String namespace, String topicName) throws Exception {
         Assert.assertNull(admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespace));
 
@@ -257,25 +263,87 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testBackwardV1() throws Exception {
-        testAutoUpdateBackward("prop-xyz/test/ns1", "persistent://prop-xyz/test/ns1/backward");
-        testAutoUpdateBackward("prop-xyz/test/ns2", "non-persistent://prop-xyz/test/ns2/backward-np");
+        testAutoUpdateBackward("prop-xyz/ns1", "persistent://prop-xyz/ns1/backward");
+        testAutoUpdateBackward("prop-xyz/ns2", "non-persistent://prop-xyz/ns2/backward-np");
     }
 
     @Test
     public void testForwardV1() throws Exception {
-        testAutoUpdateForward("prop-xyz/test/ns1", "persistent://prop-xyz/test/ns1/forward");
-        testAutoUpdateForward("prop-xyz/test/ns2", "non-persistent://prop-xyz/test/ns2/forward-np");
+        testAutoUpdateForward("prop-xyz/ns1", "persistent://prop-xyz/ns1/forward");
+        testAutoUpdateForward("prop-xyz/ns2", "non-persistent://prop-xyz/ns2/forward-np");
     }
 
     @Test
     public void testFullV1() throws Exception {
-        testAutoUpdateFull("prop-xyz/test/ns1", "persistent://prop-xyz/test/ns1/full");
-        testAutoUpdateFull("prop-xyz/test/ns2", "non-persistent://prop-xyz/test/ns2/full-np");
+        testAutoUpdateFull("prop-xyz/ns1", "persistent://prop-xyz/ns1/full");
+        testAutoUpdateFull("prop-xyz/ns2", "non-persistent://prop-xyz/ns2/full-np");
     }
 
     @Test
     public void testDisabledV1() throws Exception {
-        testAutoUpdateDisabled("prop-xyz/test/ns1", "persistent://prop-xyz/test/ns1/disabled");
-        testAutoUpdateDisabled("prop-xyz/test/ns2", "non-persistent://prop-xyz/test/ns2/disabled-np");
+        testAutoUpdateDisabled("prop-xyz/ns1", "persistent://prop-xyz/ns1/disabled");
+        testAutoUpdateDisabled("prop-xyz/ns2", "non-persistent://prop-xyz/ns2/disabled-np");
+    }
+
+    @Test(timeOut = 60_000)
+    @SuppressWarnings("deprecation")
+    public void testIsAllowAutoUpdateSchemaWithReplicator() throws Exception {
+        final String namespace = BrokerTestUtil.newUniqueName("prop-xyz/ns");
+        admin.namespaces().createNamespace(namespace);
+        final String topic = BrokerTestUtil.newUniqueName(namespace + "/tp");
+        admin.topics().createNonPartitionedTopic(topic);
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).join().get();
+
+        // By default, it is true.
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertTrue(admin.namespaces().getPolicies(namespace).is_allow_auto_update_schema_with_replicator);
+            Assert.assertTrue(persistentTopic.getIsAllowAutoUpdateSchemaWithReplicator());
+        });
+
+        try {
+            admin.namespaces().setIsAllowAutoUpdateSchema(
+                    namespace, true, false);
+            Assert.fail("Should have thrown exception");
+        } catch (PulsarAdminException e) {
+            Assert.assertTrue(e.getMessage().contains("Can not enable for all producers but denies for replicators,"
+                    + " which is meaningless"));
+        }
+
+        admin.namespaces().setIsAllowAutoUpdateSchema(
+                namespace, false, false);
+        Awaitility.await().untilAsserted(() -> {
+            // namespace level.
+            Policies policies = admin.namespaces().getPolicies(namespace);
+            Assert.assertFalse(policies.is_allow_auto_update_schema);
+            Assert.assertFalse(policies.is_allow_auto_update_schema_with_replicator);
+            // topic level.
+            Assert.assertFalse(persistentTopic.getIsAllowAutoUpdateSchemaWithReplicator());
+        });
+
+        admin.namespaces().setIsAllowAutoUpdateSchema(
+                namespace, true, true);
+        Awaitility.await().untilAsserted(() -> {
+            // namespace level.
+            Policies policies = admin.namespaces().getPolicies(namespace);
+            Assert.assertTrue(policies.is_allow_auto_update_schema);
+            Assert.assertTrue(policies.is_allow_auto_update_schema_with_replicator);
+            // topic level.
+            Assert.assertTrue(persistentTopic.getIsAllowAutoUpdateSchemaWithReplicator());
+        });
+
+        admin.namespaces().setIsAllowAutoUpdateSchema(
+                namespace, false, true);
+        Awaitility.await().untilAsserted(() -> {
+            // namespace level.
+            Policies policies = admin.namespaces().getPolicies(namespace);
+            Assert.assertFalse(policies.is_allow_auto_update_schema);
+            Assert.assertTrue(policies.is_allow_auto_update_schema_with_replicator);
+            // topic level.
+            Assert.assertTrue(persistentTopic.getIsAllowAutoUpdateSchemaWithReplicator());
+        });
+
+        // cleanup.
+        admin.topics().delete(topic);
     }
 }

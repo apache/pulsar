@@ -21,7 +21,7 @@ package org.apache.pulsar.tests.integration.admin;
 import static org.testng.Assert.assertNotNull;
 import java.util.function.Supplier;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -35,7 +35,7 @@ import org.testng.annotations.Test;
 /**
  * Integration tests for Pulsar Admin.
  */
-@Slf4j
+@CustomLog
 public class AdminTest extends MessagingBase {
 
     @Test(dataProvider = "ServiceAndAdminUrls")
@@ -64,7 +64,7 @@ public class AdminTest extends MessagingBase {
             assertNotNull(messageId);
         }
 
-        log.info("Successfully to publish 10 messages to {}", topicName);
+        log.info().attr("to", topicName).log("Successfully to publish 10 messages to");
         PersistentTopicInternalStats stats = admin.topics().getInternalStats(topicName);
         Assert.assertTrue(stats.ledgers.size() > 0);
         for (PersistentTopicInternalStats.LedgerInfo ledger : stats.ledgers) {

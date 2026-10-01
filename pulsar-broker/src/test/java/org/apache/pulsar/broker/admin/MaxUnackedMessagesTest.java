@@ -27,50 +27,30 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.common.naming.TopicName;
 import org.awaitility.Awaitility;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-admin")
-public class MaxUnackedMessagesTest extends ProducerConsumerBase {
-    private final String testTenant = "my-property";
-    private final String testNamespace = "my-ns";
-    private final String myNamespace = testTenant + "/" + testNamespace;
-    private final String testTopic = "persistent://" + myNamespace + "/max-unacked-";
+public class MaxUnackedMessagesTest extends SharedPulsarBaseTest {
 
-    @BeforeMethod
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
-
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 10000)
     public void testMaxUnackedMessagesOnSubscriptionApi() throws Exception {
-        final String topicName = testTopic + UUID.randomUUID().toString();
+        final String topicName = newTopicName();
         admin.topics().createPartitionedTopic(topicName, 3);
         waitCacheInit(topicName);
         Integer max = admin.topics().getMaxUnackedMessagesOnSubscription(topicName);
@@ -85,101 +65,105 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
                 -> assertNull(admin.topics().getMaxUnackedMessagesOnSubscription(topicName)));
         assertNull(admin.topics().getMaxUnackedMessagesOnSubscription(topicName));
     }
+    @SuppressWarnings("deprecation")
 
     // See https://github.com/apache/pulsar/issues/5438
     @Test(timeOut = 20000)
     public void testMaxUnackedMessagesOnSubscription() throws Exception {
-        final String topicName = testTopic + System.currentTimeMillis();
-        final String subscriberName = "test-sub" + System.currentTimeMillis();
+        final String topicName = newTopicName();
+        final String subscriberName = "test-sub";
         final int unackMsgAllowed = 100;
         final int receiverQueueSize = 10;
         final int totalProducedMsgs = 200;
 
-        pulsar.getConfiguration().setMaxUnackedMessagesPerSubscription(unackMsgAllowed);
-        ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName)
-                .subscriptionName(subscriberName).receiverQueueSize(receiverQueueSize)
-                .subscriptionType(SubscriptionType.Shared);
-        Consumer<byte[]> consumer1 = consumerBuilder.subscribe();
-        Consumer<byte[]> consumer2 = consumerBuilder.subscribe();
-        Consumer<byte[]> consumer3 = consumerBuilder.subscribe();
-        List<Consumer<?>> consumers = List.of(consumer1, consumer2, consumer3);
-        waitCacheInit(topicName);
-        admin.topics().setMaxUnackedMessagesOnSubscription(topicName, unackMsgAllowed);
-        Awaitility.await().untilAsserted(()
-                -> assertNotNull(admin.topics().getMaxUnackedMessagesOnSubscription(topicName)));
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        int origValue = getConfig().getMaxUnackedMessagesPerSubscription();
+        getConfig().setMaxUnackedMessagesPerSubscription(unackMsgAllowed);
+        try {
+            ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName)
+                    .subscriptionName(subscriberName).receiverQueueSize(receiverQueueSize)
+                    .subscriptionType(SubscriptionType.Shared);
+            Consumer<byte[]> consumer1 = consumerBuilder.subscribe();
+            Consumer<byte[]> consumer2 = consumerBuilder.subscribe();
+            Consumer<byte[]> consumer3 = consumerBuilder.subscribe();
+            List<Consumer<?>> consumers = List.of(consumer1, consumer2, consumer3);
+            waitCacheInit(topicName);
+            admin.topics().setMaxUnackedMessagesOnSubscription(topicName, unackMsgAllowed);
+            Awaitility.await().untilAsserted(()
+                    -> assertNotNull(admin.topics().getMaxUnackedMessagesOnSubscription(topicName)));
+            Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
-        // (1) Produced Messages
-        for (int i = 0; i < totalProducedMsgs; i++) {
-            String message = "my-message-" + i;
-            producer.send(message.getBytes());
-        }
+            // (1) Produced Messages
+            for (int i = 0; i < totalProducedMsgs; i++) {
+                String message = "my-message-" + i;
+                producer.send(message.getBytes());
+            }
 
-        // (2) try to consume messages: but will be able to consume number of messages = unackMsgAllowed
-        Message<?> msg = null;
-        Map<Message<?>, Consumer<?>> messages = new HashMap<>();
-        for (int i = 0; i < 3; i++) {
-            for (int j = 0; j < totalProducedMsgs; j++) {
-                msg = consumers.get(i).receive(500, TimeUnit.MILLISECONDS);
-                if (msg != null) {
-                    messages.put(msg, consumers.get(i));
-                } else {
-                    break;
+            // (2) try to consume messages: but will be able to consume number of messages = unackMsgAllowed
+            Message<?> msg = null;
+            Map<Message<?>, Consumer<?>> messages = new HashMap<>();
+            for (int i = 0; i < 3; i++) {
+                for (int j = 0; j < totalProducedMsgs; j++) {
+                    msg = consumers.get(i).receive(500, TimeUnit.MILLISECONDS);
+                    if (msg != null) {
+                        messages.put(msg, consumers.get(i));
+                    } else {
+                        break;
+                    }
                 }
             }
+
+            // client must receive number of messages = unAckedMessagesBufferSize rather all produced messages
+            assertEquals(unackMsgAllowed, messages.size(), receiverQueueSize * 3);
+
+            // start acknowledging messages
+            messages.forEach((m, c) -> {
+                try {
+                    c.acknowledge(m);
+                } catch (PulsarClientException e) {
+                    fail("ack failed", e);
+                }
+            });
+
+            // try to consume remaining messages
+            Set<MessageId> result = ConcurrentHashMap.newKeySet();
+            int expectedRemainingMessages = totalProducedMsgs - messages.size();
+            CountDownLatch latch = new CountDownLatch(expectedRemainingMessages);
+            for (int i = 0; i < consumers.size(); i++) {
+                final int consumerCount = i;
+                for (int j = 0; j < totalProducedMsgs; j++) {
+                    consumers.get(i).receiveAsync().thenAccept(m -> {
+                        result.add(m.getMessageId());
+                        try {
+                            consumers.get(consumerCount).acknowledge(m);
+                        } catch (PulsarClientException e) {
+                            fail("failed to ack msg", e);
+                        }
+                        latch.countDown();
+                    });
+                }
+            }
+
+            latch.await(10, TimeUnit.SECONDS);
+
+            // total received-messages should match to produced messages (it may have duplicate messages)
+            assertEquals(result.size(), expectedRemainingMessages);
+
+            producer.close();
+            consumers.forEach(c -> {
+                try {
+                    c.close();
+                } catch (PulsarClientException e) {
+                }
+            });
+        } finally {
+            getConfig().setMaxUnackedMessagesPerSubscription(origValue);
         }
-
-        // client must receive number of messages = unAckedMessagesBufferSize rather all produced messages: check
-        // delta as 3 consumers with receiverQueueSize = 10
-        assertEquals(unackMsgAllowed, messages.size(), receiverQueueSize * 3);
-
-        // start acknowledging messages
-        messages.forEach((m, c) -> {
-            try {
-                c.acknowledge(m);
-            } catch (PulsarClientException e) {
-                fail("ack failed", e);
-            }
-        });
-
-        // try to consume remaining messages: broker may take time to deliver so, retry multiple time to consume
-        // all messages
-        Set<MessageId> result = ConcurrentHashMap.newKeySet();
-        // expecting messages which are not received
-        int expectedRemainingMessages = totalProducedMsgs - messages.size();
-        CountDownLatch latch = new CountDownLatch(expectedRemainingMessages);
-        for (int i = 0; i < consumers.size(); i++) {
-            final int consumerCount = i;
-            for (int j = 0; j < totalProducedMsgs; j++) {
-                consumers.get(i).receiveAsync().thenAccept(m -> {
-                    result.add(m.getMessageId());
-                    try {
-                        consumers.get(consumerCount).acknowledge(m);
-                    } catch (PulsarClientException e) {
-                        fail("failed to ack msg", e);
-                    }
-                    latch.countDown();
-                });
-            }
-        }
-
-        latch.await(10, TimeUnit.SECONDS);
-
-        // total received-messages should match to produced messages (it may have duplicate messages)
-        assertEquals(result.size(), expectedRemainingMessages);
-
-        producer.close();
-        consumers.forEach(c -> {
-            try {
-                c.close();
-            } catch (PulsarClientException e) {
-            }
-        });
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 20000)
     public void testMaxUnackedMessagesOnConsumerApi() throws Exception {
-        final String topicName = testTopic + UUID.randomUUID().toString();
+        final String topicName = newTopicName();
         admin.topics().createPartitionedTopic(topicName, 3);
         waitCacheInit(topicName);
         Integer max = admin.topics().getMaxUnackedMessagesOnConsumer(topicName);
@@ -195,24 +179,25 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
         assertNull(admin.topics().getMaxUnackedMessagesOnConsumer(topicName));
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 20000)
     public void testMaxUnackedMessagesOnConsumerAppliedApi() throws Exception {
-        final String topicName = testTopic + UUID.randomUUID().toString();
+        final String topicName = newTopicName();
         admin.topics().createPartitionedTopic(topicName, 3);
         waitCacheInit(topicName);
         Integer max = admin.topics().getMaxUnackedMessagesOnConsumer(topicName, true);
-        assertEquals(max.intValue(), pulsar.getConfiguration().getMaxUnackedMessagesPerConsumer());
+        assertEquals(max.intValue(), getConfig().getMaxUnackedMessagesPerConsumer());
 
-        admin.namespaces().setMaxUnackedMessagesPerConsumer(myNamespace, 15);
+        admin.namespaces().setMaxUnackedMessagesPerConsumer(getNamespace(), 15);
         Awaitility.await().untilAsserted(()
-                -> assertEquals(admin.namespaces().getMaxUnackedMessagesPerConsumer(myNamespace).intValue(), 15));
-        admin.namespaces().removeMaxUnackedMessagesPerConsumer(myNamespace);
+                -> assertEquals(admin.namespaces().getMaxUnackedMessagesPerConsumer(getNamespace()).intValue(), 15));
+        admin.namespaces().removeMaxUnackedMessagesPerConsumer(getNamespace());
         Awaitility.await().untilAsserted(()
-                -> assertEquals(admin.namespaces().getMaxUnackedMessagesPerConsumer(myNamespace), null));
+                -> assertEquals(admin.namespaces().getMaxUnackedMessagesPerConsumer(getNamespace()), null));
 
-        admin.namespaces().setMaxUnackedMessagesPerConsumer(myNamespace, 10);
+        admin.namespaces().setMaxUnackedMessagesPerConsumer(getNamespace(), 10);
         Awaitility.await().untilAsserted(()
-                -> assertNotNull(admin.namespaces().getMaxUnackedMessagesPerConsumer(myNamespace)));
+                -> assertNotNull(admin.namespaces().getMaxUnackedMessagesPerConsumer(getNamespace())));
         max = admin.topics().getMaxUnackedMessagesOnConsumer(topicName, true);
         assertEquals(max.intValue(), 10);
 
@@ -223,38 +208,41 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
         assertEquals(max.intValue(), 20);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testMaxUnackedMessagesOnSubApplied() throws Exception {
-        final String topicName = testTopic + UUID.randomUUID().toString();
+        final String topicName = newTopicName();
         waitCacheInit(topicName);
-        assertNull(admin.namespaces().getMaxUnackedMessagesPerSubscription(myNamespace));
+        assertNull(admin.namespaces().getMaxUnackedMessagesPerSubscription(getNamespace()));
         assertNull(admin.topics().getMaxUnackedMessagesOnSubscription(topicName));
         assertEquals(admin.topics().getMaxUnackedMessagesOnSubscription(topicName, true),
-                Integer.valueOf(conf.getMaxUnackedMessagesPerSubscription()));
+                Integer.valueOf(getConfig().getMaxUnackedMessagesPerSubscription()));
 
-        admin.namespaces().setMaxUnackedMessagesPerSubscription(myNamespace, 10);
+        admin.namespaces().setMaxUnackedMessagesPerSubscription(getNamespace(), 10);
         Awaitility.await().untilAsserted(()
-                -> assertEquals(admin.namespaces().getMaxUnackedMessagesPerSubscription(myNamespace),
+                -> assertEquals(admin.namespaces().getMaxUnackedMessagesPerSubscription(getNamespace()),
                 Integer.valueOf(10)));
 
         admin.topics().setMaxUnackedMessagesOnSubscription(topicName, 20);
         Awaitility.await().untilAsserted(()
-                -> assertEquals(admin.topics().getMaxUnackedMessagesOnSubscription(topicName), Integer.valueOf(20)));
+                -> assertEquals(admin.topics().getMaxUnackedMessagesOnSubscription(topicName),
+                Integer.valueOf(20)));
 
         admin.topics().removeMaxUnackedMessagesOnSubscription(topicName);
         Awaitility.await().untilAsserted(()
-                -> assertEquals(admin.namespaces().getMaxUnackedMessagesPerSubscription(myNamespace),
+                -> assertEquals(admin.namespaces().getMaxUnackedMessagesPerSubscription(getNamespace()),
                 Integer.valueOf(10)));
 
-        admin.namespaces().removeMaxUnackedMessagesPerSubscription(myNamespace);
+        admin.namespaces().removeMaxUnackedMessagesPerSubscription(getNamespace());
         assertEquals(admin.topics().getMaxUnackedMessagesOnSubscription(topicName, true),
-                Integer.valueOf(conf.getMaxUnackedMessagesPerSubscription()));
+                Integer.valueOf(getConfig().getMaxUnackedMessagesPerSubscription()));
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 30000)
     public void testMaxUnackedMessagesOnConsumer() throws Exception {
-        final String topicName = testTopic + System.currentTimeMillis();
-        final String subscriberName = "test-sub" + System.currentTimeMillis();
+        final String topicName = newTopicName();
+        final String subscriberName = "test-sub";
         final int unackMsgAllowed = 100;
         final int receiverQueueSize = 10;
         final int totalProducedMsgs = 300;
@@ -335,6 +323,5 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
 
     private void waitCacheInit(String topicName) throws Exception {
         pulsarClient.newConsumer().topic(topicName).subscriptionName("my-sub").subscribe().close();
-        TopicName topic = TopicName.get(topicName);
     }
 }
