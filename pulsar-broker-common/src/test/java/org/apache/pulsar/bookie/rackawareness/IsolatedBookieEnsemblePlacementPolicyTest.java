@@ -696,6 +696,64 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
         assertEquals(bookieIdGroup1.containsAll(defaultBookieList), true);
     }
 
+    /**
+     * Bookies of a secondary isolation group that are listed in the rack configuration but are not currently
+     * available must not be counted towards the available-bookie total, otherwise the fallback to non-region
+     * bookies does not run and ensemble creation fails while usable bookies sit excluded.
+     *
+     * <p>The primary count at
+     * {@code totalAvailableBookiesInPrimaryGroup += knownBookies.containsKey(bookieId) ? 1 : 0} only counts
+     * known bookies, but the secondary count increments for every bookie it removes from the exclusion set,
+     * and that set is built from the rack configuration rather than from the live bookies.
+     */
+    @Test
+    public void testSecondaryIsolationGroupDoesNotCountUnavailableBookiesAsAvailable() throws Exception {
+        final String downBookie1 = BOOKIE5;
+        final String downBookie2 = "127.0.0.6:3181";
+        // writableBookies holds BOOKIE1..BOOKIE4, so neither of the two above is a live bookie.
+        assertFalse(writableBookies.contains(new BookieSocketAddress(downBookie1).toBookieId()));
+        assertFalse(writableBookies.contains(new BookieSocketAddress(downBookie2).toBookieId()));
+
+        final String primaryGroup = "primaryGroup";
+        final String secondaryGroup = "secondaryGroup";
+
+        Map<String, BookieInfo> primary = new HashMap<>();
+        primary.put(BOOKIE1, BookieInfo.builder().rack("rack0").build());
+
+        Map<String, BookieInfo> secondary = new HashMap<>();
+        secondary.put(downBookie1, BookieInfo.builder().rack("rack1").build());
+        secondary.put(downBookie2, BookieInfo.builder().rack("rack1").build());
+
+        Map<String, Map<String, BookieInfo>> bookieMapping = new HashMap<>();
+        bookieMapping.put(primaryGroup, primary);
+        bookieMapping.put(secondaryGroup, secondary);
+
+        store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(bookieMapping),
+                Optional.empty()).join();
+
+        ClientConfiguration bkClientConf = new ClientConfiguration();
+        bkClientConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
+        bkClientConf.setProperty(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, primaryGroup);
+        bkClientConf.setProperty(IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS,
+                secondaryGroup);
+        IsolatedBookieEnsemblePlacementPolicy isolationPolicy = createIsolationPolicy(bkClientConf);
+        isolationPolicy.onClusterChanged(writableBookies, readOnlyBookies);
+
+        MutablePair<Set<String>, Set<String>> groups = new MutablePair<>();
+        groups.setLeft(Sets.newHashSet(primaryGroup));
+        groups.setRight(Sets.newHashSet(secondaryGroup));
+
+        // One live bookie in the primary group and two dead ones in the secondary group cannot satisfy an
+        // ensemble of three, so the non-region bookies BOOKIE2..BOOKIE4 must be released from the exclusion set.
+        Set<BookieId> excluded = isolationPolicy.getExcludedBookiesWithIsolationGroups(3, groups);
+
+        for (String liveNonRegionBookie : new String[]{BOOKIE2, BOOKIE3, BOOKIE4}) {
+            assertFalse(excluded.contains(new BookieSocketAddress(liveNonRegionBookie).toBookieId()),
+                    "available non-region bookie " + liveNonRegionBookie + " stayed excluded because two "
+                            + "unavailable secondary-group bookies were counted as available; excluded=" + excluded);
+        }
+    }
+
     @Test
     public void testGetExcludedBookiesWithIsolationGroups() throws Exception {
         Map<String, Map<String, BookieInfo>> bookieMapping = new HashMap<>();

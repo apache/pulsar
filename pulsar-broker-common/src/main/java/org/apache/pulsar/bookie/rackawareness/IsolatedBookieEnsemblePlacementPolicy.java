@@ -293,7 +293,11 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
                         Map<String, BookieInfo> bookieGroup = allGroupsBookieMapping.get(group);
                         if (bookieGroup != null && !bookieGroup.isEmpty()) {
                             for (String bookieAddress : bookieGroup.keySet()) {
-                                if (excludedBookies.remove(BookieId.parse(bookieAddress))) {
+                                BookieId bookieId = BookieId.parse(bookieAddress);
+                                // Only count bookies that are actually available: the exclusion set is built
+                                // from the rack configuration, which also lists bookies that are currently
+                                // down, and counting those would keep the non-region fallback from running.
+                                if (excludedBookies.remove(bookieId) && knownBookies.containsKey(bookieId)) {
                                     totalAvailableBookiesFromPrimaryAndSecondary += 1;
                                 }
                             }
