@@ -39,6 +39,12 @@ import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
  */
 public class BrokerOperabilityMetrics implements AutoCloseable {
     private static final Counter TOPIC_LOAD_FAILED = Counter.build("topic_load_failed", "-").register();
+    private static final Counter NON_RECOVERABLE_LEDGERS_SKIPPED = Counter.build(
+            "pulsar_broker_non_recoverable_ledgers_skipped_total",
+            "Count of non-recoverable ledgers skipped").register();
+    private static final Counter NON_RECOVERABLE_ENTRIES_SKIPPED = Counter.build(
+            "pulsar_broker_non_recoverable_entries_skipped_total",
+            "Count of non-recoverable entries skipped").register();
     private final List<Metrics> metricsList;
     private final String localCluster;
     private final DimensionStats topicLoadStats;
@@ -50,6 +56,8 @@ public class BrokerOperabilityMetrics implements AutoCloseable {
 
     private final LongAdder connectionCreateSuccessCount;
     private final LongAdder connectionCreateFailCount;
+    private final LongAdder nonRecoverableLedgersSkippedCount;
+    private final LongAdder nonRecoverableEntriesSkippedCount;
 
     public static final String CONNECTION_COUNTER_METRIC_NAME = "pulsar.broker.connection.count";
     private final ObservableLongCounter connectionCounter;
@@ -57,6 +65,14 @@ public class BrokerOperabilityMetrics implements AutoCloseable {
     public static final String CONNECTION_CREATE_COUNTER_METRIC_NAME =
             "pulsar.broker.connection.create.operation.count";
     private final ObservableLongCounter connectionCreateCounter;
+
+    public static final String NON_RECOVERABLE_LEDGERS_SKIPPED_COUNTER_METRIC_NAME =
+            "pulsar.broker.non.recoverable.ledgers.skipped.count";
+    private final ObservableLongCounter nonRecoverableLedgersSkippedCounter;
+
+    public static final String NON_RECOVERABLE_ENTRIES_SKIPPED_COUNTER_METRIC_NAME =
+            "pulsar.broker.non.recoverable.entries.skipped.count";
+    private final ObservableLongCounter nonRecoverableEntriesSkippedCounter;
 
     public static final String TOPIC_PUBLISH_LATENCY_METRIC_NAME = "pulsar.broker.topic.publish.latency";
     private final DoubleHistogram topicPublishLatencyHistogram;
@@ -82,6 +98,8 @@ public class BrokerOperabilityMetrics implements AutoCloseable {
         this.healthCheckStatus = -1;
         this.connectionCreateSuccessCount = new LongAdder();
         this.connectionCreateFailCount = new LongAdder();
+        this.nonRecoverableLedgersSkippedCount = new LongAdder();
+        this.nonRecoverableEntriesSkippedCount = new LongAdder();
 
         connectionCounter = pulsar.getOpenTelemetry().getMeter()
                 .counterBuilder(CONNECTION_COUNTER_METRIC_NAME)
@@ -105,6 +123,22 @@ public class BrokerOperabilityMetrics implements AutoCloseable {
                     measurement.record(connectionCreateFailCount.sum(), ConnectionCreateStatus.FAILURE.attributes);
                 });
 
+        nonRecoverableLedgersSkippedCounter = pulsar.getOpenTelemetry().getMeter()
+                .counterBuilder(NON_RECOVERABLE_LEDGERS_SKIPPED_COUNTER_METRIC_NAME)
+                .setDescription("The number of non-recoverable ledgers skipped.")
+                .setUnit("{ledger}")
+                .buildWithCallback(measurement -> {
+                    measurement.record(nonRecoverableLedgersSkippedCount.sum());
+                });
+
+        nonRecoverableEntriesSkippedCounter = pulsar.getOpenTelemetry().getMeter()
+                .counterBuilder(NON_RECOVERABLE_ENTRIES_SKIPPED_COUNTER_METRIC_NAME)
+                .setDescription("The number of non-recoverable entries skipped.")
+                .setUnit("{entry}")
+                .buildWithCallback(measurement -> {
+                    measurement.record(nonRecoverableEntriesSkippedCount.sum());
+                });
+
         this.topicPublishLatencyHistogram = pulsar.getOpenTelemetry().getMeter()
                 .histogramBuilder(TOPIC_PUBLISH_LATENCY_METRIC_NAME)
                 .setUnit("s")
@@ -118,6 +152,8 @@ public class BrokerOperabilityMetrics implements AutoCloseable {
     public void close() throws Exception {
         connectionCounter.close();
         connectionCreateCounter.close();
+        nonRecoverableLedgersSkippedCounter.close();
+        nonRecoverableEntriesSkippedCounter.close();
     }
 
     public List<Metrics> getMetrics() {
@@ -130,6 +166,7 @@ public class BrokerOperabilityMetrics implements AutoCloseable {
         metricsList.add(getTopicLoadMetrics());
         metricsList.add(getConnectionMetrics());
         metricsList.add(getHealthMetrics());
+        metricsList.add(getNonRecoverableSkippedMetrics());
     }
 
     public Metrics generateConnectionMetrics() {
@@ -149,6 +186,13 @@ public class BrokerOperabilityMetrics implements AutoCloseable {
     Metrics getHealthMetrics() {
         Metrics rMetrics = Metrics.create(getDimensionMap("broker_health"));
         rMetrics.put("brk_health", healthCheckStatus);
+        return rMetrics;
+    }
+
+    Metrics getNonRecoverableSkippedMetrics() {
+        Metrics rMetrics = Metrics.create(getDimensionMap("broker_non_recoverable_skipped"));
+        rMetrics.put("brk_non_recoverable_ledgers_skipped_total", NON_RECOVERABLE_LEDGERS_SKIPPED.get());
+        rMetrics.put("brk_non_recoverable_entries_skipped_total", NON_RECOVERABLE_ENTRIES_SKIPPED.get());
         return rMetrics;
     }
 
@@ -219,6 +263,21 @@ public class BrokerOperabilityMetrics implements AutoCloseable {
 
     public void recordHealthCheckStatusFail() {
         this.healthCheckStatus = 0;
+    }
+
+    public void recordNonRecoverableLedgerSkipped() {
+        this.nonRecoverableLedgersSkippedCount.increment();
+        NON_RECOVERABLE_LEDGERS_SKIPPED.inc();
+    }
+
+    public void recordNonRecoverableEntriesSkipped() {
+        this.nonRecoverableEntriesSkippedCount.increment();
+        NON_RECOVERABLE_ENTRIES_SKIPPED.inc();
+    }
+
+    public void recordNonRecoverableEntriesSkipped(long amount) {
+        this.nonRecoverableEntriesSkippedCount.add(amount);
+        NON_RECOVERABLE_ENTRIES_SKIPPED.inc(amount);
     }
 
     public void recordPublishLatency(long latency, TimeUnit unit) {

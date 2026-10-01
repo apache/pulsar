@@ -127,6 +127,9 @@ public class ManagedLedgerConfig {
     private String storageClassName;
     @Getter
     @Setter
+    private NonRecoverableDataMetricsCallback nonRecoverableDataMetricsCallback;
+    @Getter
+    @Setter
     private String shadowSourceName;
     @Getter
     private boolean persistIndividualAckAsLongArray;

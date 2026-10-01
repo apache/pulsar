@@ -3199,8 +3199,16 @@ public class ManagedCursorImpl implements ManagedCursor {
         log.warn("[{}] [{}] Since these entry for ledger [{}] is lost and the autoSkipNonRecoverableData is true, "
                         + "these entries [{}:{}) will be auto acknowledge in subscription",
                 ledger.getName(), name, ledgerId, startEntryId, endEntryId);
+        AtomicLong skippedEntries = new AtomicLong();
         asyncDelete(() -> LongStream.range(startEntryId, endEntryId)
-                        .mapToObj(i -> PositionFactory.create(ledgerId, i)).iterator(),
+                        .mapToObj(i -> {
+                            Position position = PositionFactory.create(ledgerId, i);
+                            // asyncDelete consumes this iterator while holding the cursor write lock.
+                            if (!internalIsMessageDeleted(position)) {
+                                skippedEntries.incrementAndGet();
+                            }
+                            return position;
+                        }).iterator(),
                 new AsyncCallbacks.DeleteCallback() {
                     @Override
                     public void deleteComplete(Object ctx) {
@@ -3214,6 +3222,10 @@ public class ManagedCursorImpl implements ManagedCursor {
                         // If the broker crashed, the non-recoverable ledger will be detected again.
                     }
                 }, null);
+        if (skippedEntries.get() > 0 && ledger.getConfig().getNonRecoverableDataMetricsCallback() != null) {
+            ledger.getConfig().getNonRecoverableDataMetricsCallback()
+                    .onSkipNonRecoverableEntries(skippedEntries.get());
+        }
     }
 
     // //////////////////////////////////////////////////
