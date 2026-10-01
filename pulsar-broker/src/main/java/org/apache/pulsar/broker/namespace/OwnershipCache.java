@@ -119,18 +119,15 @@ public class OwnershipCache {
                         OwnedBundle ownedBundle = new OwnedBundle(namespaceBundle, rl);
                         rl.getLockExpiredFuture()
                                 .thenRun(() -> {
-                                    // ResourceLockImpl completes the expiry future on a deliberate release()
-                                    // as well, and both removeOwnership overloads take the lock out of
-                                    // locallyAcquiredLocks before releasing it. So the lock is still registered
-                                    // here only when it died on its own — a lost metadata session or a failed
-                                    // revalidation — which is the case worth an INFO line. A deliberate release,
-                                    // or a stale listener whose generation has already been replaced, is routine
-                                    // and would otherwise report one false expiry per unload.
-                                    if (locallyAcquiredLocks.remove(namespaceBundle, rl)) {
+                                    // Normal ownership releases remove the registration before releasing the lock.
+                                    // During shutdown, LockManager also releases any remaining locks directly,
+                                    // so those callbacks can still find a registration. Always remove it, but
+                                    // only report expiry at INFO while the broker is running.
+                                    if (locallyAcquiredLocks.remove(namespaceBundle, rl) && pulsar.isRunning()) {
                                         log.info("Resource lock for {} has expired", rl.getPath());
                                     } else if (log.isDebugEnabled()) {
-                                        log.debug("Resource lock for {} was released; running the expiry listener",
-                                                rl.getPath());
+                                        log.debug("Resource lock for {} is no longer active; running the expiry"
+                                                + " listener", rl.getPath());
                                     }
                                     // Only unload the generation this listener belongs to.
                                     // unloadNamespaceBundle resolves the owner by bundle name, so a listener
