@@ -54,6 +54,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
@@ -3234,8 +3235,16 @@ public class ManagedCursorImpl implements ManagedCursor {
                 .attr("startEntryId", startEntryId)
                 .attr("endEntryId", endEntryId)
                 .log("Entries are lost, auto-acknowledging in subscription (autoSkipNonRecoverableData=true)");
+        AtomicLong skippedEntries = new AtomicLong();
         asyncDelete(() -> LongStream.range(startEntryId, endEntryId)
-                        .mapToObj(i -> PositionFactory.create(ledgerId, i)).iterator(),
+                        .mapToObj(i -> {
+                            Position position = PositionFactory.create(ledgerId, i);
+                            // asyncDelete consumes this iterator while holding the cursor write lock.
+                            if (!internalIsMessageDeleted(position)) {
+                                skippedEntries.incrementAndGet();
+                            }
+                            return position;
+                        }).iterator(),
                 new AsyncCallbacks.DeleteCallback() {
                     @Override
                     public void deleteComplete(Object ctx) {
@@ -3249,6 +3258,10 @@ public class ManagedCursorImpl implements ManagedCursor {
                         // If the broker crashed, the non-recoverable ledger will be detected again.
                     }
                 }, null);
+        if (skippedEntries.get() > 0 && ledger.getConfig().getNonRecoverableDataMetricsCallback() != null) {
+            ledger.getConfig().getNonRecoverableDataMetricsCallback()
+                    .onSkipNonRecoverableEntries(skippedEntries.get());
+        }
     }
 
     // //////////////////////////////////////////////////
