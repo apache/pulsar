@@ -1434,6 +1434,11 @@ public class Consumer {
      *
      * <p>No-op if {@code pendingAcks} is not initialized.
      *
+     * <p>This is a low-level pending-ack operation. It does not update this consumer's aggregate
+     * {@code unackedMessages} count or reconcile its blocked state. After a successful update, broker acknowledgement
+     * handling inside this class must call {@link #decrementUnackedMessagesAndReconcileBlockedState(int)} on the
+     * pending-ack owner.
+     *
      * @return {@code true} if the update succeeds or pendingAcks is null;
      *         {@code false} otherwise
      */
@@ -1448,6 +1453,11 @@ public class Consumer {
      * Atomically remove the pending ack entry and return its stored values.
      *
      * <p>No-op if {@code pendingAcks} is not initialized.
+     *
+     * <p>This is a low-level pending-ack operation. It does not update this consumer's aggregate
+     * {@code unackedMessages} count or reconcile its blocked state. After a successful removal, broker acknowledgement
+     * handling inside this class must pass the returned count to
+     * {@link #decrementUnackedMessagesAndReconcileBlockedState(int)} on the pending-ack owner.
      *
      * @return the remaining unacked count, or {@link PendingAcksMap#PENDING_ACK_NOT_FOUND} if not found
      */
@@ -1551,6 +1561,14 @@ public class Consumer {
         return subscription;
     }
 
+    /**
+     * Updates the aggregate unacknowledged-message counters without reconciling this consumer's blocked state.
+     *
+     * <p>Acknowledgement and pending-ack removal paths must use
+     * {@link #decrementUnackedMessagesAndReconcileBlockedState(int)} instead. Redelivery paths that use this primitive
+     * must immediately complete the corresponding blocked-permit transfer with
+     * {@link #unblockAndTransferBlockedPermits()}.
+     */
     private int addAndGetUnackedMessages(int ackedMessages) {
         int unackedMsgs = 0;
         if (isPersistentTopic && Subscription.isIndividualAckMode(subType)) {
