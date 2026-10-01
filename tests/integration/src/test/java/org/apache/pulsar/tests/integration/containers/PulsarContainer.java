@@ -25,9 +25,11 @@ import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import lombok.CustomLog;
@@ -36,6 +38,7 @@ import lombok.Setter;
 import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.tests.ExtendedNettyLeakDetector;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
+import org.apache.pulsar.tests.integration.profiling.JonoffcpuAgent;
 import org.apache.pulsar.tests.integration.utils.DockerUtils;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
@@ -100,6 +103,20 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
      */
     @Setter
     private String profileDirectory;
+    /**
+     * Host path of the jonoffcpu agent JAR. When set, profiling attaches jonoffcpu (which embeds
+     * async-profiler and adds kernel-measured off-CPU samples) instead of the async-profiler library
+     * installed in the image. Unset means the {@code inttest.jonoffcpu.agent} system property, and failing
+     * that plain async-profiler.
+     */
+    @Setter
+    private String jonoffcpuAgentJar;
+    /**
+     * The jonoffcpu agent's {@code sampling} block, deciding which off-CPU intervals are recorded. Only
+     * used when jonoffcpu is attached.
+     */
+    @Setter
+    private Map<String, Object> jonoffcpuOptions = Map.of();
 
     public PulsarContainer(String clusterName,
                            String hostname,
@@ -401,23 +418,47 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
         }
         withFileSystemBind(asyncProfilerDir.getAbsolutePath(), "/profiles", BindMode.READ_WRITE);
 
-        // build the async-profiler java agent command line
-        StringBuilder sb = new StringBuilder();
-        sb.append("-agentpath:/opt/async-profiler/lib/libasyncProfiler.so=start,");
-        sb.append(System.getProperty("inttest.asyncprofiler.opts", "event=cpu,lock=1ms,alloc=2m,jfrsync=profile"));
+        String profilerOptions =
+                System.getProperty("inttest.asyncprofiler.opts", "event=cpu,lock=1ms,alloc=2m,jfrsync=profile");
         StringBuilder fileName = new StringBuilder("inttest_profile");
         // Set by the build; left out of the name when the revision could not be determined
         String commitId = System.getProperty("git.commit.id.abbrev", "");
         if (isNotBlank(commitId)) {
             fileName.append('_').append(commitId);
         }
-        // async-profiler expands %t (the time profiling started) and %p (the pid inside the
-        // container) itself, which is what keeps the profiles of separate runs apart
-        fileName.append("_%t_").append(getContainerName()).append("_%p.")
-                .append(System.getProperty("inttest.asyncprofiler.outputformat", "jfr"));
-        sb.append(",file=/profiles/").append(fileName);
+        String agentArgument;
+        String agentJar = resolveJonoffcpuAgentJar();
+        if (agentJar != null) {
+            // jonoffcpu fixes both of its output paths up front, so runs are kept apart by a timestamp
+            // chosen here rather than by async-profiler's %t/%p expansion
+            fileName.append('_').append(System.currentTimeMillis()).append('_').append(getContainerName());
+            try {
+                agentArgument = JonoffcpuAgent.writeConfig(asyncProfilerDir.toPath(), "/profiles",
+                        fileName.toString(), profilerOptions, jonoffcpuOptions);
+            } catch (IOException e) {
+                throw new UncheckedIOException("Cannot write jonoffcpu configuration", e);
+            }
+            JonoffcpuAgent.attach(this, Path.of(agentJar));
+            // supervisord would otherwise drop the JVM back to the image's unprivileged user
+            withEnv(JonoffcpuAgent.PROCESS_USER_ENV, JonoffcpuAgent.ROOT_USER);
+        } else {
+            // async-profiler expands %t (the time profiling started) and %p (the pid inside the
+            // container) itself, which is what keeps the profiles of separate runs apart
+            fileName.append("_%t_").append(getContainerName()).append("_%p.")
+                    .append(System.getProperty("inttest.asyncprofiler.outputformat", "jfr"));
+            agentArgument = "-agentpath:/opt/async-profiler/lib/libasyncProfiler.so=start," + profilerOptions
+                    + ",file=/profiles/" + fileName;
+        }
         initializePulsarExtraOpts();
-        appendToEnv("PULSAR_EXTRA_OPTS", "-XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints " + sb);
+        appendToEnv("PULSAR_EXTRA_OPTS", "-XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints " + agentArgument);
+    }
+
+    private String resolveJonoffcpuAgentJar() {
+        if (isNotBlank(jonoffcpuAgentJar)) {
+            return jonoffcpuAgentJar;
+        }
+        String fromBuild = System.getProperty(JonoffcpuAgent.AGENT_JAR_PROPERTY);
+        return isNotBlank(fromBuild) ? fromBuild : null;
     }
 
     /**

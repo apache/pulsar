@@ -122,8 +122,6 @@ public abstract class AbstractPersistentDispatcherMultipleConsumers extends Abst
 
     public abstract Map<String, TopicMetricBean> getBucketDelayedIndexStats();
 
-    public abstract boolean isClassic();
-
     static long getTotalBytesSize(List<Entry> entries) {
         long totalBytesSize = 0;
         for (int i = 0, entriesSize = entries.size(); i < entriesSize; i++) {

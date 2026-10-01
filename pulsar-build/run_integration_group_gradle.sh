@@ -46,9 +46,15 @@ function gradle_integration_test() {
     shift
   fi
 
+  # CI jobs load the test image that an earlier job built instead of building it
+  local docker_build_args=""
+  if [[ "$GITHUB_ACTIONS" == "true" ]]; then
+    docker_build_args="-Pinttest.skipDockerBuild"
+  fi
+
   echo "::group::Run integration tests for " "$@"
   set -x
-  ./gradlew --no-configuration-cache :tests:integration:integrationTest "$@" $failfast_args $coverage_args
+  ./gradlew --no-configuration-cache :tests:integration:integrationTest "$@" $failfast_args $coverage_args $docker_build_args
   set +x
   echo "::endgroup::"
   "$SCRIPT_DIR/pulsar_ci_tool.sh" move_test_reports

@@ -105,7 +105,6 @@ public class ReplicatedSubscriptionsControllerTest {
         PersistentSubscription subscription = mock(PersistentSubscription.class);
         when(subscription.isReplicated()).thenReturn(true);
 
-        topic.getMaxReadPositionCallBack().maxReadPositionMovedForward(null, PositionFactory.create(1, 1));
         Assert.assertEquals(topic.getLastMaxReadPositionMovedForwardTimestamp(), 0L,
                 "Topics without a controller should not maintain the snapshot timestamp");
 
@@ -151,10 +150,11 @@ public class ReplicatedSubscriptionsControllerTest {
             when(executor.scheduleAtFixedRate(any(Runnable.class), anyLong(), anyLong(), any(TimeUnit.class)))
                     .thenAnswer(invocation -> {
                         // Publish after the initial seed check but before the controller reference is visible.
+                        long constructionTimestamp = topic.getLastMaxReadPositionMovedForwardTimestamp();
                         when(ledger.getNumberOfEntries()).thenReturn(1L);
                         topic.getMaxReadPositionCallBack().maxReadPositionMovedForward(
                                 PositionFactory.create(1, 3), PositionFactory.create(1, 4));
-                        Assert.assertEquals(topic.getLastMaxReadPositionMovedForwardTimestamp(), updatedTimestamp,
+                        Assert.assertEquals(topic.getLastMaxReadPositionMovedForwardTimestamp(), constructionTimestamp,
                                 "Publishes racing with construction still see the controller as disabled");
                         return timer;
                     });

@@ -20,9 +20,24 @@ package org.apache.pulsar.client.cli;
 
 import java.net.URI;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.concurrent.Callable;
+import org.apache.pulsar.cli.ClientApi;
+import org.apache.pulsar.cli.ClientApiOptionGroups;
+import picocli.CommandLine.Model.CommandSpec;
+import picocli.CommandLine.ParameterException;
 
 public abstract class AbstractCmd implements Callable<Integer> {
+
+    /** Second paragraph of the description of every command that can drive both client APIs. */
+    static final String CLIENT_API_DESCRIPTION = "The topic picks the client: topic:// (scalable) topics use "
+            + "the V5 client; persistent://, non-persistent:// and unprefixed topics use the v4 client. "
+            + ClientApi.OPTION_NAME + " overrides the choice. Options listed under a client's section apply "
+            + "only when that client is used.";
+
+    /** Hint appended to errors about a capability only the v4 client has. */
+    static final String USE_V4_CLIENT_HINT = "use a persistent:// topic or " + ClientApi.OPTION_NAME + " V4";
+
     // Picocli entrypoint.
     @Override
     public Integer call() throws Exception {
@@ -30,6 +45,37 @@ public abstract class AbstractCmd implements Callable<Integer> {
     }
 
     abstract int run() throws Exception;
+
+    /**
+     * Resolve the client API for {@code topic} and reject options typed on the command line that
+     * belong to the other client. A WebSocket service URL goes through the WebSocket proxy, which
+     * only serves persistent and non-persistent topics, so a {@code topic://} topic is rejected there.
+     */
+    static ClientApi resolveClientApi(CommandSpec spec, ClientApi requested, String topic, String serviceURL) {
+        if (isWebSocketUrl(serviceURL) && ClientApi.isScalableTopic(topic)) {
+            throw new ParameterException(spec.commandLine(), "Topic '" + topic + "' is a topic:// (scalable) "
+                    + "topic, which the WebSocket proxy (" + serviceURL + ") does not support.");
+        }
+        ClientApi clientApi = ClientApi.resolve(requested, List.of(topic), spec.commandLine());
+        ClientApiOptionGroups.validate(spec, clientApi);
+        return clientApi;
+    }
+
+    static boolean isWebSocketUrl(String serviceURL) {
+        return serviceURL != null && serviceURL.startsWith("ws");
+    }
+
+    /**
+     * The V5 client only reads encryption keys from files, so reject any other key URI (such as
+     * {@code data:}) up front when the V5 client is used.
+     */
+    static void validateV5EncryptionKeyUri(CommandSpec spec, String keyUri) {
+        if (keyUri != null && !keyUri.isBlank() && !keyUri.regionMatches(true, 0, "file:", 0, 5)) {
+            throw new ParameterException(spec.commandLine(), "--encryption-key-value '" + keyUri
+                    + "': the V5 client supports only file: key URIs; for other key URIs " + USE_V4_CLIENT_HINT
+                    + ".");
+        }
+    }
 
     /**
      * Resolve a {@code file:} URI (as accepted by the encryption-key flags) to a {@link Path}.

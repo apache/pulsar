@@ -39,6 +39,7 @@ import org.apache.bookkeeper.client.impl.LedgerEntriesImpl;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.OffloadedLedgerHandle;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.MapFile;
@@ -46,7 +47,7 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.naming.TopicName;
 
 @CustomLog
-public class FileStoreBackedReadHandleImpl implements ReadHandle {
+public class FileStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedgerHandle {
     private final ExecutorService executor;
     private final MapFile.Reader reader;
     private final long ledgerId;

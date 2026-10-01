@@ -38,9 +38,6 @@ public class IotScenarioTest {
             for (String command : new String[] {"iot-produce", "iot-consume"}) {
                 List<String> arguments = new ArrayList<>(List.of(command, "--config", config.toString(),
                         "--output", "results"));
-                if (command.equals("iot-consume")) {
-                    arguments.addAll(List.of("--application-index", "0"));
-                }
                 var parsed = new CommandLine(new PerformanceTool()).parseArgs(arguments.toArray(String[]::new));
                 var tool = (PerformanceTool.ScenarioCommand) parsed.subcommand().commandSpec().userObject();
                 assertThat(tool.coordinationDirectory()).isEqualTo(Path.of("results/coordination"));
@@ -114,12 +111,12 @@ public class IotScenarioTest {
 
     @Test
     public void includesRateLimitedMessageWarmupInMinimumRuntime() {
-        assertThatThrownBy(() -> new IotScenario(
-                "pulsar://localhost:6650", "persistent://public/default/iot-", "app-",
-                120, 0, 1_001, 3, 2,
-                100, 1_000, 64, 1_000, 10, 2, 1, 2,
-                2, 2, 100, true, true, 158, 0, 0))
-                .isInstanceOf(IllegalArgumentException.class);
+        // 11 s for each of the 3 warmup rounds of 1,001 messages at 100 msg/s, 2 s between them and 120 s measured
+        assertThatThrownBy(() -> scenario(0, 1_001, 3, 2, 100, 1_000, 158))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("timeoutSeconds is 158, but the workload needs 159 s: 39 s of warmup"
+                        + " (3 round(s) of 11 s and a 2 s delay after each) and 120 s of measurement at 100 msg/s")
+                .hasMessageContaining("set timeoutSeconds to at least 159, and better about 259");
     }
 
     private static IotScenario scenario(int warmupSeconds, long warmupMessages, int rate, long numberOfMessages) {
@@ -128,9 +125,19 @@ public class IotScenarioTest {
 
     private static IotScenario scenario(int warmupSeconds, long warmupMessages, int warmupRounds,
                                         int warmupRoundDelaySeconds, int rate, long numberOfMessages) {
-        return new IotScenario("pulsar://localhost:6650", "persistent://public/default/iot-", "app-",
-                120, warmupSeconds, warmupMessages, warmupRounds, warmupRoundDelaySeconds,
-                rate, numberOfMessages, 64, 1_000, 10, 2, 1, 2,
-                2, 2, 100, true, true, 300, 0, 0);
+        return scenario(warmupSeconds, warmupMessages, warmupRounds, warmupRoundDelaySeconds, rate, numberOfMessages,
+                300);
+    }
+
+    private static IotScenario scenario(int warmupSeconds, long warmupMessages, int warmupRounds,
+                                        int warmupRoundDelaySeconds, int rate, long numberOfMessages,
+                                        int timeoutSeconds) {
+        return new IotScenario("pulsar://localhost:6650",
+                new IotScenario.Warmup(warmupSeconds, warmupMessages, warmupRounds, warmupRoundDelaySeconds),
+                new IotScenario.Measurement(120, numberOfMessages), rate, new IotScenario.Payload(64),
+                new IotScenario.Devices(1_000),
+                new IotScenario.Gateways(10, new IotScenario.Producer(2, 2, 100, true, true), null),
+                new IotScenario.Topics(2, "persistent://public/default/iot-"),
+                new IotScenario.Applications(1, 2, "app-", new IotScenario.Client(2, 2), null), null, timeoutSeconds);
     }
 }
