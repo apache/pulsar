@@ -24,8 +24,8 @@
 This module contains [JMH](https://github.com/openjdk/jmh) microbenchmarks for Apache Pulsar, for questions about
 the performance of a single class or method, such as what a method, a data structure or a codec costs. JMH handles
 warm-up, dead-code elimination and measurement, which hand-written timing code gets wrong, so a benchmark is the
-strongest evidence for a small, self-contained optimization. [Performance testing](../tests/performance/README.md)
-covers end-to-end scenarios that run a Pulsar cluster, and profiling and analysis.
+strongest evidence for a small, self-contained optimization.
+[The Pulsar Performance Testing Framework](../tests/performance/README.md) covers end-to-end scenarios that run a Pulsar cluster, and profiling and analysis.
 
 > **Run benchmarks on Linux x86_64 when the numbers matter.** That is Pulsar's most common deployment
 > target, and results from elsewhere do not carry over. `System.nanoTime()` is far more expensive on
@@ -147,5 +147,5 @@ Each recording gets a directory beside it named after the file without its exten
 (`cpu_classify.html`). A view whose event the recording does not contain is skipped.
 
 The `.jfr` can also be opened in [Eclipse Mission Control](https://adoptium.net/jmc) or IntelliJ
-IDEA, or analyzed by an AI agent. [Performance testing](../tests/performance/README.md) leads to the
-analysis workflow and its tools.
+IDEA, or analyzed by an AI agent.
+[The Pulsar Performance Testing Framework](../tests/performance/README.md) leads to the analysis workflow and its tools.

@@ -33,17 +33,18 @@ use the CPU, and keep the disk that holds Docker's data less than 90 % full.
 
 ## Check out both revisions
 
-Use a worktree for each revision, so that both can be built and run without switching branches. Both revisions need
-the same performance tests, and everything they build from, so that only the code under test differs.
+Use a worktree for each revision, so that both can be built and run without switching branches. Both revisions need the
+same version of the Pulsar Performance Testing Framework, and everything it builds from, so that only the code under
+test differs.
 
-When the candidate changes only the code under test, and the base revision already has the same performance tests,
-check out the base revision as the baseline. For example, from a candidate checkout based on `origin/master`:
+When the candidate changes only the code under test, and the base revision already has the same version of the
+framework, check out the base revision as the baseline. For example, from a candidate checkout based on `origin/master`:
 
 ```bash
 git worktree add --detach ../pulsar-baseline origin/master
 ```
 
-Otherwise, for example when the candidate also changes the performance tests, or the base revision doesn't have them
+Otherwise, for example when the candidate also changes the framework, or the base revision doesn't have them
 yet, create the baseline from the candidate and restore only the code under test from the base revision. Take the
 paths from `git diff --stat origin/master...HEAD`, such as the broker's and the managed ledger's sources, and commit
 the result, so that the baseline's runs name their own commit:
@@ -139,8 +140,8 @@ runs go under `pulsar-latest`, which gathers the runs of different releases as `
 same axes for both runs, so that their values can be compared by position:
 
 ```bash
-./gradlew :tests:performance:report-tool:compareRuns --args='--baseline <A run directory> \
-  --comparison <B run directory> --baseline-label 4.0.13 --comparison-label master --output <directory>'
+./gradlew :tests:performance:report-tool:compareRuns --args="--baseline <A run directory> \
+  --comparison <B run directory> --baseline-label 4.0.13 --comparison-label master --output <directory>"
 ```
 
 It writes the throughput (published and consumed), the backlog, and the publish and end-to-end latency by
