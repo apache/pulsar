@@ -177,7 +177,7 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
     CompletableFuture<LedgerHandle> createLedger(String bucketKey, String topicName, String cursorName) {
         return CompletableFuture.completedFuture(topicName)
                 .thenApply(TopicName::get)
-                .thenCompose(pulsar::getBookKeeperClientContext)
+                .thenCompose(name -> pulsar.getBookKeeperClientContext(name, () -> bookKeeper))
                 .thenCompose(bookKeeperClientContext -> {
                     CompletableFuture<LedgerHandle> future = new CompletableFuture<>();
                     Map<String, byte[]> metadata = bookKeeperClientContext.withPlacementMetadata(

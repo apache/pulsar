@@ -1664,12 +1664,28 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
     /**
-     * Resolve the placement policy for a topic and borrow the corresponding shared BookKeeper client.
+     * Resolve the namespace placement policy for an auxiliary ledger using the broker's default BookKeeper storage.
+     * The topic's managed-ledger storage class is not used to select the client.
      *
      * @param topicName the topic that owns the ledger
      * @return a future that completes with the BookKeeper client and matching placement metadata
      */
     public CompletableFuture<BookKeeperClientContext> getBookKeeperClientContext(TopicName topicName) {
+        return getBookKeeperClientContext(topicName, this::getBookKeeperClient);
+    }
+
+    /**
+     * Resolve the namespace placement policy for an auxiliary ledger, using the caller's BookKeeper client when there
+     * is no custom policy. A custom policy uses the broker's default BookKeeper storage class, not the topic's
+     * managed-ledger storage class. The caller's client must access the same BookKeeper backend for later reads and
+     * deletion.
+     *
+     * @param topicName the topic that owns the ledger
+     * @param fallbackDefaultClient the caller's existing BookKeeper client, used only when there is no custom policy
+     * @return a future that completes with the BookKeeper client and matching placement metadata
+     */
+    public CompletableFuture<BookKeeperClientContext> getBookKeeperClientContext(
+            TopicName topicName, Supplier<BookKeeper> fallbackDefaultClient) {
         return CompletableFuture.completedFuture(topicName)
                 .thenCompose(name -> {
                     Objects.requireNonNull(name, "topicName");
@@ -1677,8 +1693,16 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                             .getLocalPoliciesAsync(name.getNamespaceObject());
                 }).thenCompose(localPolicies -> {
                     EnsemblePlacementPolicyConfig placementPolicyConfig =
-                            BookKeeperPlacementPolicyConfigResolver.resolve(config, topicName, localPolicies)
+                            BookKeeperPlacementPolicyConfigResolver.resolve(getConfig(), topicName, localPolicies)
                                     .orElse(null);
+                    if (placementPolicyConfig == null) {
+                        try {
+                            return CompletableFuture.completedFuture(
+                                    BookKeeperClientContext.create(fallbackDefaultClient.get(), null));
+                        } catch (ParseEnsemblePlacementPolicyConfigException e) {
+                            return CompletableFuture.failedFuture(e);
+                        }
+                    }
                     ManagedLedgerStorageClass defaultStorageClass =
                             getManagedLedgerStorage().getDefaultStorageClass();
                     if (!(defaultStorageClass instanceof BookkeeperManagedLedgerStorageClass bkStorageClass)) {

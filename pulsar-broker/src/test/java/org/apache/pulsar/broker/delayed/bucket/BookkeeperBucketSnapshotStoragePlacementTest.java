@@ -20,6 +20,8 @@ package org.apache.pulsar.broker.delayed.bucket;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_SELF;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -57,7 +59,7 @@ public class BookkeeperBucketSnapshotStoragePlacementTest {
                 Map.of(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, "primary",
                         IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS, "secondary"));
         BookKeeperClientContext context = BookKeeperClientContext.create(policyBookKeeper, placementPolicy);
-        when(pulsar.getBookKeeperClientContext(TopicName.get(TOPIC)))
+        when(pulsar.getBookKeeperClientContext(eq(TopicName.get(TOPIC)), any()))
                 .thenReturn(CompletableFuture.completedFuture(context));
 
         CreateBuilder createBuilder = mock(CreateBuilder.class, RETURNS_SELF);
@@ -99,7 +101,7 @@ public class BookkeeperBucketSnapshotStoragePlacementTest {
         PulsarService pulsar = mock(PulsarService.class);
         when(pulsar.getConfig()).thenReturn(new ServiceConfiguration());
         RuntimeException lookupFailure = new RuntimeException("Failed to read local policies");
-        when(pulsar.getBookKeeperClientContext(TopicName.get(TOPIC)))
+        when(pulsar.getBookKeeperClientContext(eq(TopicName.get(TOPIC)), any()))
                 .thenReturn(FutureUtil.failedFuture(lookupFailure));
         BookkeeperBucketSnapshotStorage storage = new BookkeeperBucketSnapshotStorage(pulsar);
 

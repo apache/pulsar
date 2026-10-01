@@ -468,10 +468,13 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         return createLedger(schemaId).thenCompose(ledgerHandle -> {
             final long ledgerId = ledgerHandle.getId();
             return addEntry(ledgerHandle, schemaEntry)
-                    .thenApply(entryId -> {
-                        ledgerHandle.closeAsync();
-                        return Functions.newPositionInfo(ledgerId, entryId);
-                    });
+                    .thenCompose(entryId -> FutureUtil.supplySafely(ledgerHandle::closeAsync)
+                            .thenApply(__ -> Functions.newPositionInfo(ledgerId, entryId))
+                            .exceptionallyCompose(ex -> {
+                                Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                                return deleteLedgerAsync(schemaId, ledgerId, "schema ledger close failed")
+                                        .thenCompose(__ -> FutureUtil.failedFuture(cause));
+                            }));
         });
     }
 
@@ -653,7 +656,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                     if (topicName.isEmpty()) {
                         return createLedger(id, bookKeeper, LedgerMetadataUtils.buildMetadataForSchema(id));
                     }
-                    return pulsar.getBookKeeperClientContext(topicName.get())
+                    return pulsar.getBookKeeperClientContext(topicName.get(), () -> bookKeeper)
                             .thenCompose(clientContext -> createLedger(id, clientContext));
                 });
     }

@@ -22,6 +22,8 @@ import static org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage.bk
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -32,7 +34,9 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import java.nio.ByteBuffer;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import org.apache.bookkeeper.client.AsyncCallback;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.api.BKException;
@@ -47,9 +51,14 @@ import org.apache.pulsar.broker.service.schema.exceptions.SchemaException;
 import org.apache.pulsar.broker.storage.BookKeeperClientContext;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
+import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.LongSchemaVersion;
+import org.apache.pulsar.metadata.api.MetadataCache;
+import org.apache.pulsar.metadata.api.MetadataSerde;
+import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -126,13 +135,13 @@ public class BookkeeperSchemaStorageTest {
                         IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS, "secondary"));
         BookKeeperClientContext clientContext =
                 BookKeeperClientContext.create(placementBookKeeper, placementPolicy);
-        when(pulsar.getBookKeeperClientContext(ownerTopic))
+        when(pulsar.getBookKeeperClientContext(eq(ownerTopic), any()))
                 .thenReturn(CompletableFuture.completedFuture(clientContext));
 
         BookkeeperSchemaStorage schemaStorage = new BookkeeperSchemaStorage(pulsar);
         assertThat(schemaStorage.createLedger(schemaId).join()).isSameAs(ledgerHandle);
 
-        verify(pulsar).getBookKeeperClientContext(ownerTopic);
+        verify(pulsar).getBookKeeperClientContext(eq(ownerTopic), any());
         verify(placementBookKeeper).newCreateLedgerOp();
         ArgumentCaptor<Map<String, byte[]>> metadataCaptor = ArgumentCaptor.captor();
         verify(createBuilder).withCustomMetadata(metadataCaptor.capture());
@@ -184,6 +193,76 @@ public class BookkeeperSchemaStorageTest {
                 EnsemblePlacementPolicyConfig.ENSEMBLE_PLACEMENT_POLICY_CONFIG);
     }
 
+    @DataProvider(name = "ledgerCloseResults")
+    public static Object[][] ledgerCloseResults() {
+        return new Object[][] {{true}, {false}};
+    }
+
+    @Test(dataProvider = "ledgerCloseResults")
+    public void testSchemaLocatorWaitsForLedgerClose(boolean closeSucceeds) throws Exception {
+        String schemaId = "id2";
+        PulsarService pulsar = mock(PulsarService.class);
+        MetadataStoreExtended store = mock(MetadataStoreExtended.class);
+        when(pulsar.getLocalMetadataStore()).thenReturn(store);
+        when(pulsar.getConfiguration()).thenReturn(new ServiceConfiguration());
+        @SuppressWarnings("unchecked")
+        MetadataCache<SchemaLocator> locatorCache = mock(MetadataCache.class);
+        doReturn(locatorCache).when(store).getMetadataCache(
+                ArgumentMatchers.<MetadataSerde<SchemaLocator>>any());
+        when(locatorCache.getWithStats("/schemas/" + schemaId))
+                .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+        when(store.put(eq("/schemas/" + schemaId), any(byte[].class), eq(Optional.of(-1L))))
+                .thenReturn(CompletableFuture.completedFuture(mock(Stat.class)));
+
+        BookKeeper bookKeeper = mock(BookKeeper.class);
+        BookKeeperClientFactory bookKeeperClientFactory = mock(BookKeeperClientFactory.class);
+        when(pulsar.getBookKeeperClientFactory()).thenReturn(bookKeeperClientFactory);
+        doReturn(CompletableFuture.completedFuture(bookKeeper))
+                .when(bookKeeperClientFactory).create(any(), any(), any(), any(), any());
+        CreateBuilder createBuilder = mock(CreateBuilder.class, Mockito.RETURNS_SELF);
+        LedgerHandle ledgerHandle = mock(LedgerHandle.class);
+        when(ledgerHandle.getId()).thenReturn(42L);
+        doReturn(createBuilder).when(bookKeeper).newCreateLedgerOp();
+        doReturn(CompletableFuture.completedFuture(ledgerHandle)).when(createBuilder).execute();
+        doAnswer(invocation -> {
+            AsyncCallback.AddCallback callback = invocation.getArgument(1);
+            callback.addComplete(BKException.Code.OK, ledgerHandle, 0L, null);
+            return null;
+        }).when(ledgerHandle).asyncAddEntry(any(byte[].class), any(), any());
+        doAnswer(invocation -> {
+            AsyncCallback.DeleteCallback callback = invocation.getArgument(1);
+            callback.deleteComplete(BKException.Code.OK, null);
+            return null;
+        }).when(bookKeeper).asyncDeleteLedger(eq(42L), any(), any());
+        CompletableFuture<Void> closeFuture = new CompletableFuture<>();
+        when(ledgerHandle.closeAsync()).thenReturn(closeFuture);
+
+        BookkeeperSchemaStorage schemaStorage = new BookkeeperSchemaStorage(pulsar);
+        schemaStorage.start();
+        try {
+            CompletableFuture<SchemaVersion> putFuture = schemaStorage.put(schemaId, new byte[] {1}, new byte[] {2});
+
+            verify(ledgerHandle).closeAsync();
+            assertThat(putFuture.isDone()).isFalse();
+            verify(store, never()).put(eq("/schemas/" + schemaId), any(byte[].class), eq(Optional.of(-1L)));
+
+            if (closeSucceeds) {
+                closeFuture.complete(null);
+                assertThat(putFuture.join()).isEqualTo(new LongSchemaVersion(0));
+                verify(store).put(eq("/schemas/" + schemaId), any(byte[].class), eq(Optional.of(-1L)));
+                verify(bookKeeper, never()).asyncDeleteLedger(eq(42L), any(), any());
+            } else {
+                RuntimeException failure = new RuntimeException("ledger close failed");
+                closeFuture.completeExceptionally(failure);
+                assertThatThrownBy(putFuture::join).hasCause(failure);
+                verify(store, never()).put(eq("/schemas/" + schemaId), any(byte[].class), eq(Optional.of(-1L)));
+                verify(bookKeeper).asyncDeleteLedger(eq(42L), any(), any());
+            }
+        } finally {
+            schemaStorage.close();
+        }
+    }
+
     @Test
     public void testCreateLedgerDoesNotFallbackWhenPlacementLookupFails() {
         String schemaId = "tenant/namespace/topic";
@@ -191,7 +270,7 @@ public class BookkeeperSchemaStorageTest {
         when(pulsar.getLocalMetadataStore()).thenReturn(mock(MetadataStoreExtended.class));
         when(pulsar.getConfiguration()).thenReturn(new ServiceConfiguration());
         RuntimeException failure = new RuntimeException("placement lookup failed");
-        when(pulsar.getBookKeeperClientContext(TopicName.get(schemaId)))
+        when(pulsar.getBookKeeperClientContext(eq(TopicName.get(schemaId)), any()))
                 .thenReturn(CompletableFuture.failedFuture(failure));
         BookkeeperSchemaStorage schemaStorage = new BookkeeperSchemaStorage(pulsar);
 
