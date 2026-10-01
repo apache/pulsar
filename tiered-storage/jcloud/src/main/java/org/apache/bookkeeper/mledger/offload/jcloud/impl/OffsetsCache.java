@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -41,16 +42,21 @@ public class OffsetsCache implements AutoCloseable {
     private final Cache<OffsetsCache.Key, Long> entryOffsetsCache;
 
     public OffsetsCache() {
-        if (CACHE_MAX_SIZE > 0) {
+        this(CACHE_TTL_SECONDS, CACHE_MAX_SIZE);
+    }
+
+    @VisibleForTesting
+    OffsetsCache(int ttlSeconds, int maxSize) {
+        if (maxSize > 0) {
             entryOffsetsCache = CacheBuilder
                     .newBuilder()
-                    .expireAfterAccess(CACHE_TTL_SECONDS, TimeUnit.SECONDS)
-                    .maximumSize(CACHE_MAX_SIZE)
+                    .expireAfterAccess(ttlSeconds, TimeUnit.SECONDS)
+                    .maximumSize(maxSize)
                     .build();
             cacheEvictionExecutor =
                     Executors.newSingleThreadScheduledExecutor(
                             new ThreadFactoryBuilder().setNameFormat("jcloud-offsets-cache-eviction").build());
-            int period = Math.max(CACHE_TTL_SECONDS / 2, 1);
+            int period = Math.max(ttlSeconds / 2, 1);
             cacheEvictionExecutor.scheduleAtFixedRate(() -> {
                 entryOffsetsCache.cleanUp();
             }, period, period, TimeUnit.SECONDS);

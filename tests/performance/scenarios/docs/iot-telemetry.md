@@ -43,6 +43,14 @@ application-visible order across Key_Shared hash-range reassignment.
   workstation whose CPU runs at a fixed base frequency: without a rate limit, the gateways publish faster than the
   applications receive, and an application that falls behind can stall for tens of seconds. It uses the high-memory
   configuration.
+- [`iot-telemetry-max-rate.yaml`](../iot-telemetry-max-rate.yaml) runs the high-rate scenario's 500 gateways at the
+  maximum rate: `rate: 0` removes the rate limit, so the gateways publish four million unbatched 128-byte messages
+  as fast as the cluster takes them, with at most 100,000 in flight. One application consumes them with twenty pods
+  on its Key_Shared subscription, so one topic's dispatcher and managed ledger carry all of the traffic, and the run
+  measures the most telemetry that one application takes in. Ledgers keep a single copy, with an ensemble, write
+  and ack quorum of 1, so each entry is written once, and the three bookies share the ledgers, which balances the
+  write load between them; the results aren't capacity guidance for a durable deployment. It is the launcher's
+  counterpart of the legacy runner's `key-shared-500x20` scenario.
 
 Each scenario runs with a memory configuration from the scenarios' `configs` directory, which sets the cluster and
 the memory of every container: the low-memory one needs about 3 GB of memory available to Docker and isn't meant for
@@ -178,20 +186,22 @@ the scenarios' `configs` directory, here the broker's and the gateways' to the h
   --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --extends configs/profile-broker --extends configs/profile-gateways'
 ```
 
-The options are async-profiler options. The [jonoffcpu](https://github.com/jonoffcpu/jonoffcpu) agent runs
-async-profiler with them, JDK Flight Recorder alongside with `jfrsync`, and its kernel-measured off-CPU recording, all
-at the same time. [Profiling](../../docs/profiling.md) describes the requirements
-and the files each recording produces, and [Analyzing profiles](../../docs/analyzing-profiles.md) how to find what to
-optimize.
+The options are a comma-separated list of [async-profiler's
+options](https://github.com/async-profiler/async-profiler/blob/master/docs/ProfilerOptions.md), as the page's "Launch
+as agent" column names them. The [jonoffcpu](https://github.com/jonoffcpu/jonoffcpu) agent runs async-profiler with
+them, JDK Flight Recorder alongside with `jfrsync` when the component lists JFR configurations or events, as it does
+by default, and its kernel-measured off-CPU recording, all at the same time. [Profiling](../../docs/profiling.md)
+describes the requirements and the files each recording produces, and [Analyzing
+profiles](../../docs/analyzing-profiles.md) how to find what to optimize.
 
 Broker recordings are written under `broker-profile/`, the gateways' under `gateways/` and the applications' under
 `applications/`. The launcher owns each recording path so recordings remain inside the run
 directory, and rejects options that set `file=`. A component without options isn't profiled. The ordinary `run` task
 rejects profiling-enabled YAML rather than silently running without the agent.
 
-The profile files sample CPU every 10 ms and allocations every 2 MB in their component, record the
-JVM's own events with JFR's `profile` configuration (`jfrsync=profile`, see
-[Configuring profiling](../../docs/profiling.md#configuring-profiling)), and record only intervals where a thread
+The profile files sample CPU every 10 ms and allocations every 2 MB in their component, record the JVM's own events
+with JFR's `profile` configuration (see [The JFR configuration](../../docs/profiling.md#the-jfr-configuration)), and
+record only intervals where a thread
 blocked (`reasons: [blocked]`), not those where it was runnable but waiting for a CPU. It ignores waits under 100 µs
 (`minOffCpuMicros: 100`) and records every wait of 10 ms or longer, sampling shorter ones in proportion to their
 length (`admission: {policy: proportional, recordAllAboveMicros: 10000}`), which bounds the recording rate by off-CPU

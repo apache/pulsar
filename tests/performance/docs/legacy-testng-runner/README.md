@@ -105,7 +105,10 @@ directory.
 
 [`key-shared-500x20`][profiling-scenarios] runs a single Key_Shared subscription with 500
 producers and 20 consumers. It disables batching so that every entry has one key, and uses isolated clients with
-shared resources on both sides. All consumers use the same subscription; `receiverQueueSize` is per consumer.
+shared resources on both sides. All consumers use the same subscription; `receiverQueueSize` is per consumer. The
+standalone launcher runs the same workload as
+[`iot-telemetry-max-rate.yaml`](../../scenarios/iot-telemetry-max-rate.yaml), which also checks delivery and
+per-key ordering and can profile off-CPU time.
 
 ## Client profiling
 

@@ -60,6 +60,11 @@ public class TopicLookupBase extends PulsarWebResource {
 
     protected CompletableFuture<LookupData> internalLookupTopicAsync(final TopicName topicName, boolean authoritative,
                                                                      String listenerName) {
+        if (!pulsar().getConfiguration().isScalableTopicsEnabled()
+                && (topicName.isScalable() || topicName.isSegment())) {
+            return FutureUtil.failedFuture(new RestException(Response.Status.PRECONDITION_FAILED,
+                    "Scalable topics are disabled on this broker"));
+        }
         Semaphore lookupRequestSemaphore = pulsar().getBrokerService().getLookupRequestSemaphore();
         if (!lookupRequestSemaphore.tryAcquire()) {
             log.warn().attr("topic", topicName)
@@ -189,6 +194,11 @@ public class TopicLookupBase extends PulsarWebResource {
                                                               long requestId, final String advertisedListenerName,
                                                               Map<String, String> properties) {
 
+        if (!pulsarService.getConfiguration().isScalableTopicsEnabled()
+                && (topicName.isScalable() || topicName.isSegment())) {
+            return CompletableFuture.completedFuture(newLookupErrorResponse(ServerError.InvalidTopicName,
+                    "Scalable topics are disabled on this broker", requestId));
+        }
         final CompletableFuture<ByteBuf> validationFuture = new CompletableFuture<>();
         final CompletableFuture<ByteBuf> lookupfuture = new CompletableFuture<>();
 
@@ -368,8 +378,14 @@ public class TopicLookupBase extends PulsarWebResource {
 
     protected TopicName getTopicName(String topicDomain, String tenant, String namespace,
             @Encoded String encodedTopic) {
+        TopicDomain domain = TopicDomain.getEnum(topicDomain);
+        if (!pulsar().getConfiguration().isScalableTopicsEnabled()
+                && (domain == TopicDomain.topic || domain == TopicDomain.segment)) {
+            throw new RestException(Response.Status.PRECONDITION_FAILED,
+                    "Scalable topics are disabled on this broker");
+        }
         String decodedName = Codec.decode(encodedTopic);
-        return TopicName.get(TopicDomain.getEnum(topicDomain).value(), tenant, namespace, decodedName);
+        return TopicName.get(domain.value(), tenant, namespace, decodedName);
     }
 
     private static boolean shouldRedirectThroughServiceUrl(ServiceConfiguration conf, LookupData lookupData) {

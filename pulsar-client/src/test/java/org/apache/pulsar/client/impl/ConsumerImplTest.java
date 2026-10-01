@@ -240,6 +240,18 @@ public class ConsumerImplTest {
     }
 
     @Test
+    public void testConnectionOpenedAfterConsumerCloseReleasesConnection() {
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(consumer.client.getCnxPool()).thenReturn(connectionPool);
+        ClientCnx clientCnx = mock(ClientCnx.class);
+
+        consumer.setState(HandlerState.State.Closed);
+        consumer.connectionOpened(clientCnx).join();
+
+        verify(connectionPool).releaseConnection(clientCnx);
+    }
+
+    @Test
     public void testConsumerCreatedWhilePaused() throws InterruptedException {
         PulsarClientImpl client = ClientTestFixtures.createPulsarClientMock(executorProvider, internalExecutor);
         ClientConfigurationData clientConf = client.getConfiguration();
