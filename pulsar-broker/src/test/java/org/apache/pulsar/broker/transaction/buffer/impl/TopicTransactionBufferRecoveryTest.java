@@ -32,8 +32,12 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
@@ -44,10 +48,13 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
@@ -199,6 +206,81 @@ public class TopicTransactionBufferRecoveryTest extends ProducerConsumerBase {
                                 + " the snapshot timestamp");
             });
         } finally {
+            pulsar.setTransactionBufferProvider(originalProvider);
+        }
+    }
+
+    @SuppressWarnings("deprecation")
+    @Test(dataProvider = "snapshotExists", timeOut = 60_000)
+    public void testRecoveryUpdatesTimestampWithReplicatedSubscription(boolean snapshotExists) throws Exception {
+        conf.setEnableReplicatedSubscriptions(true);
+        String remoteCluster = BrokerTestUtil.newUniqueName("tb-recovery-remote");
+        String tenant = BrokerTestUtil.newUniqueName("tb-recovery");
+        String namespace = tenant + "/ns";
+        String topicName = "persistent://" + namespace + "/topic";
+        admin.clusters().createCluster(remoteCluster, ClusterData.builder()
+                .serviceUrl(pulsar.getWebServiceAddress()).brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
+        admin.tenants().createTenant(tenant, new TenantInfoImpl(Set.of(), Set.of("test", remoteCluster)));
+        admin.namespaces().createNamespace(namespace);
+        admin.namespaces().setNamespaceReplicationClusters(namespace, Set.of("test", remoteCluster));
+
+        CountDownLatch recoveryStarted = new CountDownLatch(1);
+        CountDownLatch allowRecovery = new CountDownLatch(1);
+        AtomicReference<SingleSnapshotAbortedTxnProcessorImpl> processorRef = new AtomicReference<>();
+        AtomicReference<Position> recoveredPosition = new AtomicReference<>();
+        TransactionBufferProvider originalProvider = pulsar.getTransactionBufferProvider();
+        pulsar.setTransactionBufferProvider(originTopic -> {
+            if (!originTopic.getName().equals(topicName)) {
+                return originalProvider.newTransactionBuffer(originTopic);
+            }
+            // Pause the real snapshot processor before its storage read, then delegate to normal recovery.
+            // Both the snapshot and the user messages are persisted through the broker/client path.
+            SingleSnapshotAbortedTxnProcessorImpl processor =
+                    new SingleSnapshotAbortedTxnProcessorImpl((PersistentTopic) originTopic) {
+                        @Override
+                        Position doRecoverFromSnapshot(ScheduledExecutorService executor) throws Exception {
+                            recoveryStarted.countDown();
+                            if (!allowRecovery.await(30, TimeUnit.SECONDS)) {
+                                throw new IllegalStateException("Timed out waiting to resume snapshot recovery");
+                            }
+                            Position position = super.doRecoverFromSnapshot(executor);
+                            recoveredPosition.set(position);
+                            return position;
+                        }
+                    };
+            processorRef.set(processor);
+            return new TopicTransactionBuffer((PersistentTopic) originTopic, processor,
+                    AbortedTxnProcessor.SnapshotType.Single);
+        });
+        try {
+            @Cleanup
+            Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("sub")
+                    .replicateSubscriptionState(true).subscribe();
+            PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService()
+                    .getTopicIfExists(topicName).get().orElseThrow();
+            assertThat(recoveryStarted.await(10, TimeUnit.SECONDS)).isTrue();
+            assertThat(topic.getReplicatedSubscriptionController()).isPresent();
+            assertThat(topic.getLastMaxReadPositionMovedForwardTimestamp()).isZero();
+            Position snapshotPosition = topic.getManagedLedger().getLastConfirmedEntry();
+            if (snapshotExists) {
+                processorRef.get().takeAbortedTxnsSnapshot(snapshotPosition).get(10, TimeUnit.SECONDS);
+            }
+
+            @Cleanup
+            Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).enableBatching(false).create();
+            for (int i = 0; i < 3; i++) {
+                producer.newMessage().replicationClusters(List.of("test"))
+                        .value(("during-recovery-" + i).getBytes(StandardCharsets.UTF_8)).send();
+            }
+            assertThat(topic.getLastMaxReadPositionMovedForwardTimestamp()).isZero();
+            allowRecovery.countDown();
+            topic.checkIfTransactionBufferRecoverCompletely().get(10, TimeUnit.SECONDS);
+            assertThat(recoveredPosition.get()).isEqualTo(snapshotExists ? snapshotPosition : null);
+            assertThat(topic.getTransactionBuffer().getMaxReadPosition())
+                    .isEqualTo(topic.getManagedLedger().getLastConfirmedEntry());
+            assertThat(topic.getLastMaxReadPositionMovedForwardTimestamp()).isPositive();
+        } finally {
+            allowRecovery.countDown();
             pulsar.setTransactionBufferProvider(originalProvider);
         }
     }
