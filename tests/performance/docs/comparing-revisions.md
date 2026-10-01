@@ -133,5 +133,29 @@ runs go under `pulsar-latest`, which gathers the runs of different releases as `
 - Report percentage changes alongside the absolute values, and say which direction is better for each measure.
 - Compare profiles with the correlator, see [Comparing two profiles](analyzing-profiles.md#comparing-two-profiles).
 
+### Comparison charts
+
+`compareRuns` charts a baseline run (A) against a comparison run (B), such as each revision's median run, with the
+same axes for both runs, so that their values can be compared by position:
+
+```bash
+./gradlew :tests:performance:report-tool:compareRuns --args='--baseline <A run directory> \
+  --comparison <B run directory> --baseline-label 4.0.13 --comparison-label master --output <directory>'
+```
+
+It writes the throughput (published and dispatched), the backlog, and the publish and end-to-end latency by
+percentile, the latency both on a linear and on a logarithmic axis (`latency-percentiles-log`), for latencies that
+differ by orders of magnitude. Each chart comes in two forms:
+
+| File | Form |
+|---|---|
+| `<chart>.svg` | Both runs in one diagram: A's lines thin and blue, B's thick and orange |
+| `<chart>-separate.svg` | A above B, in two panels with the same axes, each tinted in its run's color and labeled with it |
+
+Within a run, the published rate and the publish latency are dashed, and the dispatched rate and the end-to-end
+latency solid. Time runs from each run's measurement start, and a marker in each run's color shows when its gateways
+finished. A label defaults to the run's name, the name of its directory's parent. The charts are read from the run
+directories, so runs of different checkouts or releases, and runs made before this task, can be compared.
+
 Each run's report records the commit it was made from, and whether the checkout had uncommitted changes. Keep the
 scenario, any local changes, the runs and the conclusions together, so that a later run can reproduce the workload.

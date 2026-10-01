@@ -145,6 +145,7 @@ Run commands from the repository root. Gradle properties (`-P...`) configure the
 | Keep logs for diagnosis | Add `-Pperformance.keepLauncherLog` | Retains `launcher.log` even on success; failures retain it by default |
 | Start repetitions at a similar temperature | Add `-Pperformance.cooldownTemperature=<degrees-C>` | With Linux host sensors, waits before cluster startup and after warmup; keep the threshold identical across revisions and inspect timed-out waits in the report |
 | Disable metrics | Add `-Pperformance.metrics=false` | Omits metrics collection; keep this choice identical across compared runs |
+| Chart two runs against each other | `./gradlew :tests:performance:report-tool:compareRuns --args='--baseline <A run> --comparison <B run> --output <directory>'` | Writes throughput, backlog and latency charts with the same axes for both runs, combined and in separate panels, as [Comparison charts](docs/comparing-revisions.md#comparison-charts) describes |
 | Browse reports | `./gradlew :tests:performance:report-tool:serveReports` | Serves the configured reports root at <http://127.0.0.1:8000/> by default; stop the foreground server when finished |
 | Query stored metrics after a run | `./gradlew :tests:performance:metrics:up` | Starts VictoriaMetrics and Grafana in the background, prints URLs; default ports are 8428 and 3000 |
 | Stop that metrics stack | `./gradlew :tests:performance:metrics:down` | Stops containers while retaining metrics and dashboards in Docker volumes |
