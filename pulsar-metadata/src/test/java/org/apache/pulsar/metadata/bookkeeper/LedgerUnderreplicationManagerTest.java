@@ -61,8 +61,12 @@ import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
+import org.apache.pulsar.metadata.impl.DualMetadataStore;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -91,13 +95,14 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
     private LedgerUnderreplicationManager lum;
 
     private String basePath;
+    private String ledgersRoot;
     private String urLedgerPath;
     private ExecutorService executor;
 
     @SuppressWarnings("deprecation")
     private void methodSetup(Supplier<String> urlSupplier) throws Exception {
         this.executor = Executors.newSingleThreadExecutor();
-        String ledgersRoot = "/ledgers-" + UUID.randomUUID();
+        ledgersRoot = "/ledgers-" + UUID.randomUUID();
         this.store = MetadataStoreExtended.create(urlSupplier.get(),
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
         this.layoutManager = new PulsarLayoutManager(store, ledgersRoot);
@@ -133,6 +138,218 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
                 Thread.currentThread().interrupt();
             }
             executor = null;
+        }
+    }
+
+    @DataProvider(name = "lockCleanup")
+    public Object[][] lockCleanup() {
+        return new Object[][]{{false, false}, {false, true}, {true, false}, {true, true}};
+    }
+
+    @Test(timeOut = 60000, dataProvider = "lockCleanup")
+    public void testLockCleanupAfterSessionExpiration(boolean explicit, boolean close) throws Exception {
+        methodSetup(zks::getConnectionString);
+        long ledgerId = 123L;
+        if (explicit) {
+            lum.acquireUnderreplicatedLedger(ledgerId);
+        } else {
+            lum.markLedgerUnderreplicated(ledgerId, "bookie:3181");
+            assertThat(lum.pollLedgerToRereplicate()).isEqualTo(ledgerId);
+        }
+
+        CountDownLatch reestablished = new CountDownLatch(1);
+        store.registerSessionListener(event -> {
+            if (event == SessionEvent.SessionReestablished) {
+                reestablished.countDown();
+            }
+        });
+        ZKMetadataStore zkStore = (ZKMetadataStore) ((DualMetadataStore) store).getSourceStore();
+        zks.expireSession(zkStore.getZkSessionId());
+        assertThat(reestablished.await(20, TimeUnit.SECONDS)).isTrue();
+
+        try (var other = lmf.newLedgerUnderreplicationManager()) {
+            other.acquireUnderreplicatedLedger(ledgerId);
+            if (close) {
+                lum.close();
+            } else {
+                lum.releaseUnderreplicatedLedger(ledgerId);
+            }
+            assertThat(other.isLedgerBeingReplicated(ledgerId))
+                    .as("Cleanup from the expired session must preserve the new owner's lock").isTrue();
+            other.releaseUnderreplicatedLedger(ledgerId);
+            lum.acquireUnderreplicatedLedger(ledgerId);
+            lum.releaseUnderreplicatedLedger(ledgerId);
+            assertThat(other.isLedgerBeingReplicated(ledgerId)).isFalse();
+        }
+    }
+
+    @Test(timeOut = 60000, dataProvider = "lockCleanup")
+    public void testLockCleanupAfterAmbiguousDelete(boolean interrupted, boolean close) throws Exception {
+        methodSetup(zks::getConnectionString);
+        long ledgerId = 123L;
+        lum.acquireUnderreplicatedLedger(ledgerId);
+        String lockPath = PulsarLedgerUnderreplicationManager.getUrLedgerLockPath(
+                PulsarLedgerUnderreplicationManager.getUrLockPath(ledgersRoot), ledgerId);
+        CountDownLatch callbackBlocked = new CountDownLatch(1);
+        CountDownLatch resumeCallbacks = new CountDownLatch(1);
+
+        // ZooKeeper sends the watch event before acknowledging the delete to its owner.
+        // Pause that real notification so the already applied delete's result remains pending.
+        store.registerListener(notification -> {
+            if (notification.getPath().equals(lockPath)
+                    && notification.getType() == NotificationType.Deleted) {
+                callbackBlocked.countDown();
+                try {
+                    assertThat(resumeCallbacks.await(50, TimeUnit.SECONDS)).isTrue();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        });
+
+        try (MetadataStoreExtended otherStore = MetadataStoreExtended.create(zks.getConnectionString(),
+                MetadataStoreConfig.builder().build());
+             var other = new PulsarLedgerUnderreplicationManager(new ClientConfiguration(), otherStore, ledgersRoot)) {
+            AtomicReference<Thread> cleanupThread = new AtomicReference<>();
+            Future<UnavailableException> firstCleanup = executor.submit(() -> {
+                cleanupThread.set(Thread.currentThread());
+                try {
+                    if (close) {
+                        lum.close();
+                    } else {
+                        lum.releaseUnderreplicatedLedger(ledgerId);
+                    }
+                    throw new AssertionError("Cleanup must fail while its delete acknowledgement is blocked");
+                } catch (UnavailableException error) {
+                    assertThat(Thread.currentThread().isInterrupted()).isEqualTo(interrupted);
+                    return error;
+                } finally {
+                    Thread.interrupted();
+                }
+            });
+            Future<?> repeatedCleanup;
+            try {
+                assertThat(callbackBlocked.await(10, TimeUnit.SECONDS)).isTrue();
+                if (interrupted) {
+                    cleanupThread.get().interrupt();
+                }
+                assertThat(firstCleanup.get(40, TimeUnit.SECONDS))
+                        .hasCauseInstanceOf(interrupted ? InterruptedException.class : TimeoutException.class);
+
+                Awaitility.await().untilAsserted(() -> assertThat(otherStore.get(lockPath).join()).isEmpty());
+                other.acquireUnderreplicatedLedger(ledgerId);
+
+                AtomicReference<Thread> retryThread = new AtomicReference<>();
+                repeatedCleanup = executor.submit(() -> {
+                    retryThread.set(Thread.currentThread());
+                    lum.releaseUnderreplicatedLedger(ledgerId);
+                    lum.close();
+                    return null;
+                });
+                // The second cleanup is waiting while the first delete's acknowledgement is still blocked.
+                Awaitility.await().until(() -> retryThread.get() != null
+                        && retryThread.get().getState() == Thread.State.TIMED_WAITING);
+            } finally {
+                resumeCallbacks.countDown();
+            }
+            repeatedCleanup.get(10, TimeUnit.SECONDS);
+
+            // Both cleanup entry points must reuse the first deletion, including across calls.
+            lum.releaseUnderreplicatedLedger(ledgerId);
+            lum.close();
+            assertThat(other.isLedgerBeingReplicated(ledgerId))
+                    .as("Retrying an ambiguous delete must preserve the new owner's lock").isTrue();
+        } finally {
+            resumeCallbacks.countDown();
+        }
+    }
+
+    @DataProvider(name = "cleanupMethods")
+    public Object[][] cleanupMethods() {
+        return new Object[][]{{false}, {true}};
+    }
+
+    @Test(timeOut = 60000, dataProvider = "cleanupMethods")
+    public void testLockCleanupBeforeSessionLostNotification(boolean close) throws Exception {
+        methodSetup(zks::getConnectionString);
+        long ledgerId = 123L;
+        lum.acquireUnderreplicatedLedger(ledgerId);
+        String lockPath = PulsarLedgerUnderreplicationManager.getUrLedgerLockPath(
+                PulsarLedgerUnderreplicationManager.getUrLockPath(ledgersRoot), ledgerId);
+        String barrierPath = "/session-callback-barrier-" + UUID.randomUUID();
+        CountDownLatch callbackBlocked = new CountDownLatch(1);
+        CountDownLatch resumeCallbacks = new CountDownLatch(1);
+        store.registerListener(notification -> {
+            if (notification.getPath().equals(barrierPath)
+                    && notification.getType() == NotificationType.Created) {
+                callbackBlocked.countDown();
+                try {
+                    assertThat(resumeCallbacks.await(40, TimeUnit.SECONDS)).isTrue();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        });
+
+        try (MetadataStoreExtended otherStore = MetadataStoreExtended.create(zks.getConnectionString(),
+                MetadataStoreConfig.builder().build());
+             var other = new PulsarLedgerUnderreplicationManager(new ClientConfiguration(), otherStore, ledgersRoot)) {
+            ZKMetadataStore zkStore = (ZKMetadataStore) ((DualMetadataStore) store).getSourceStore();
+            long expiredSession = zkStore.getZkSessionId();
+            CompletableFuture<?> barrierWrite = store.put(barrierPath, new byte[0], Optional.of(-1L));
+            Future<?> cleanup;
+            try {
+                assertThat(callbackBlocked.await(10, TimeUnit.SECONDS)).isTrue();
+                zks.expireSession(expiredSession);
+                Awaitility.await().atMost(20, TimeUnit.SECONDS).until(() ->
+                        zkStore.getZkSessionId() != expiredSession && zkStore.getZkSessionId() != 0);
+                Awaitility.await().untilAsserted(() -> assertThat(otherStore.get(lockPath).join()).isEmpty());
+                other.acquireUnderreplicatedLedger(ledgerId);
+
+                AtomicReference<Thread> cleanupThread = new AtomicReference<>();
+                cleanup = executor.submit(() -> {
+                    cleanupThread.set(Thread.currentThread());
+                    if (close) {
+                        lum.close();
+                    } else {
+                        lum.releaseUnderreplicatedLedger(ledgerId);
+                    }
+                    return null;
+                });
+                Awaitility.await().until(() -> cleanupThread.get() != null
+                        && cleanupThread.get().getState() == Thread.State.TIMED_WAITING);
+            } finally {
+                resumeCallbacks.countDown();
+            }
+            barrierWrite.get(10, TimeUnit.SECONDS);
+            cleanup.get(10, TimeUnit.SECONDS);
+            assertThat(other.isLedgerBeingReplicated(ledgerId))
+                    .as("Delayed session notifications must not let cleanup delete another session's lock").isTrue();
+        } finally {
+            resumeCallbacks.countDown();
+        }
+    }
+
+    @Test(timeOut = 30000, dataProvider = "impl")
+    public void testLockCleanupPreservesModifiedLock(String provider, Supplier<String> urlSupplier) throws Exception {
+        methodSetup(urlSupplier);
+        long ledgerId = 123L;
+        lum.acquireUnderreplicatedLedger(ledgerId);
+        String lockPath = PulsarLedgerUnderreplicationManager.getUrLedgerLockPath(
+                PulsarLedgerUnderreplicationManager.getUrLockPath(ledgersRoot), ledgerId);
+        GetResult acquired = store.get(lockPath).get(10, TimeUnit.SECONDS).orElseThrow();
+        store.put(lockPath, acquired.getValue(), Optional.of(acquired.getStat().getVersion()))
+                .get(10, TimeUnit.SECONDS);
+        GetResult modified = store.get(lockPath).get(10, TimeUnit.SECONDS).orElseThrow();
+        try {
+            lum.releaseUnderreplicatedLedger(ledgerId);
+            lum.close();
+            assertThat(store.get(lockPath).get(10, TimeUnit.SECONDS)).isPresent().get()
+                    .extracting(result -> result.getStat().getVersion()).isEqualTo(modified.getStat().getVersion());
+        } finally {
+            if (store.get(lockPath).get(10, TimeUnit.SECONDS).isPresent()) {
+                store.delete(lockPath, Optional.of(modified.getStat().getVersion())).get(10, TimeUnit.SECONDS);
+            }
         }
     }
 

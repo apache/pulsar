@@ -40,6 +40,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -59,13 +60,16 @@ import org.apache.bookkeeper.proto.UnderreplicatedLedgerFormat;
 import org.apache.bookkeeper.replication.ReplicationEnableCb;
 import org.apache.bookkeeper.replication.ReplicationException;
 import org.apache.bookkeeper.util.BookKeeperConstants;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.PulsarExecutors;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
+import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.impl.DualMetadataStore;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.metadata.impl.oxia.OxiaMetadataStore;
@@ -82,10 +86,13 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
     private static class Lock {
         private final String lockPath;
         private final Optional<Long> ledgerNodeVersion;
+        private final long lockNodeVersion;
+        private final AtomicReference<CompletableFuture<Void>> releaseFuture = new AtomicReference<>();
 
-        Lock(String lockPath, Optional<Long> ledgerNodeVersion) {
+        Lock(String lockPath, Optional<Long> ledgerNodeVersion, long lockNodeVersion) {
             this.lockPath = lockPath;
             this.ledgerNodeVersion = ledgerNodeVersion;
+            this.lockNodeVersion = lockNodeVersion;
         }
 
         String getLockPath() {
@@ -98,6 +105,9 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
     }
 
     private final Map<Long, Lock> heldLocks = new ConcurrentHashMap<>();
+    private final Object lockStateMutex = new Object();
+    // Guarded by lockStateMutex, together with registration and invalidation of held locks.
+    private long sessionGeneration;
 
     private static final Pattern ID_EXTRACTION_PATTERN = Pattern.compile("urL(\\d+)$");
 
@@ -158,6 +168,14 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
 
         this.store = store;
         store.registerListener(this::handleNotification);
+        store.registerSessionListener(event -> {
+            if (event == SessionEvent.SessionLost) {
+                synchronized (lockStateMutex) {
+                    sessionGeneration++;
+                    heldLocks.clear();
+                }
+            }
+        });
 
         checkLayout();
     }
@@ -414,20 +432,30 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
     @Override
     public void acquireUnderreplicatedLedger(long ledgerId) throws ReplicationException {
         try {
-            internalAcquireUnderreplicatedLedger(ledgerId);
-            String lockPath = getUrLedgerLockPath(urLockPath, ledgerId);
             // Explicit acquisition holds only the lock, without claiming an underreplication record version.
-            heldLocks.put(ledgerId, new Lock(lockPath, Optional.empty()));
+            internalAcquireUnderreplicatedLedger(ledgerId, Optional.empty());
         } catch (ExecutionException | TimeoutException | InterruptedException e) {
             throw new ReplicationException.UnavailableException("Failed to acuire under-replicated ledger", e);
         }
     }
 
-    private void internalAcquireUnderreplicatedLedger(long ledgerId) throws ExecutionException,
+    private void internalAcquireUnderreplicatedLedger(long ledgerId, Optional<Long> ledgerNodeVersion)
+            throws ExecutionException,
             InterruptedException, TimeoutException {
+        long generation;
+        synchronized (lockStateMutex) {
+            generation = sessionGeneration;
+        }
         String lockPath = getUrLedgerLockPath(urLockPath, ledgerId);
-        store.put(lockPath, LOCK_DATA, Optional.of(-1L), EnumSet.of(CreateOption.Ephemeral))
+        Stat stat = store.put(lockPath, LOCK_DATA, Optional.of(-1L), EnumSet.of(CreateOption.Ephemeral))
                 .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
+        synchronized (lockStateMutex) {
+            if (generation != sessionGeneration) {
+                throw new ExecutionException(
+                        new MetadataStoreException("Metadata session expired during lock acquisition"));
+            }
+            heldLocks.put(ledgerId, new Lock(lockPath, ledgerNodeVersion, stat.getVersion()));
+        }
     }
 
     @Override
@@ -582,9 +610,7 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
                     }
 
                     long ledgerId = getLedgerId(tryChild);
-                    internalAcquireUnderreplicatedLedger(ledgerId);
-                    String lockPath = getUrLedgerLockPath(urLockPath, ledgerId);
-                    heldLocks.put(ledgerId, new Lock(lockPath, Optional.of(optRes.get().getStat().getVersion())));
+                    internalAcquireUnderreplicatedLedger(ledgerId, Optional.of(optRes.get().getStat().getVersion()));
                     return ledgerId;
                 } catch (ExecutionException ee) {
                     if (ee.getCause() instanceof MetadataStoreException.BadVersionException) {
@@ -667,11 +693,10 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
     @Override
     public void releaseUnderreplicatedLedger(long ledgerId) throws ReplicationException.UnavailableException {
         log.debug().attr("ledgerId", ledgerId).log("releaseLedger");
+        Lock l = heldLocks.get(ledgerId);
         try {
-            Lock l = heldLocks.get(ledgerId);
             if (l != null) {
-                store.delete(l.getLockPath(), Optional.empty())
-                            .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
+                releaseLock(ledgerId, l).get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
             }
         } catch (ExecutionException ee) {
             if (ee.getCause() instanceof MetadataStoreException.NotFoundException) {
@@ -686,7 +711,51 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
             Thread.currentThread().interrupt();
             throw new ReplicationException.UnavailableException("Interrupted while connecting metadata store", ie);
         }
-        heldLocks.remove(ledgerId);
+        if (l != null) {
+            heldLocks.remove(ledgerId, l);
+        }
+    }
+
+    private CompletableFuture<Void> releaseLock(long ledgerId, Lock lock) {
+        if (heldLocks.get(ledgerId) != lock) {
+            return CompletableFuture.completedFuture(null);
+        }
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        CompletableFuture<Void> existingRelease = lock.releaseFuture.compareAndExchange(null, result);
+        if (existingRelease != null) {
+            return existingRelease;
+        }
+
+        // A timed-out or interrupted wait does not cancel the delete. Reuse its outcome instead
+        // of sending another delete, which could target a lock acquired by a different manager.
+        FutureUtil.supplySafely(() -> store.get(lock.getLockPath()))
+                .whenComplete((ignored, error) -> {
+                    if (error != null) {
+                        // A failed read has not submitted a delete, so it is safe to retry.
+                        lock.releaseFuture.compareAndSet(result, null);
+                    }
+                })
+                .thenCompose(existing -> {
+                    if (existing.isEmpty() || !existing.get().getStat().isCreatedBySelf()
+                            || existing.get().getStat().getVersion() != lock.lockNodeVersion
+                            || heldLocks.get(ledgerId) != lock) {
+                        return CompletableFuture.<Void>completedFuture(null);
+                    }
+                    return store.delete(lock.getLockPath(), Optional.of(lock.lockNodeVersion));
+                })
+                .whenComplete((ignored, error) -> {
+                    Throwable cause = error == null ? null : FutureUtil.unwrapCompletionException(error);
+                    if (cause == null || cause instanceof MetadataStoreException.NotFoundException
+                            || cause instanceof MetadataStoreException.BadVersionException) {
+                        heldLocks.remove(ledgerId, lock);
+                        result.complete(null);
+                    } else {
+                        // A metadata failure may also have an ambiguous outcome. Keep the original
+                        // result: retrying it cannot prove ownership of a subsequently recreated node.
+                        result.completeExceptionally(cause);
+                    }
+                });
+        return result;
     }
 
     @Override
@@ -695,8 +764,7 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
         notificationCallbackExecutor.shutdownNow();
         try {
             for (Map.Entry<Long, Lock> e : heldLocks.entrySet()) {
-                store.delete(e.getValue().getLockPath(), Optional.empty())
-                        .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
+                releaseLock(e.getKey(), e.getValue()).get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
             }
         } catch (ExecutionException ee) {
             if (ee.getCause() instanceof MetadataStoreException.NotFoundException) {
