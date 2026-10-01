@@ -31,6 +31,7 @@ import org.apache.pulsar.client.api.v5.PulsarClient;
 import org.apache.pulsar.client.api.v5.PulsarClientBuilder;
 import org.apache.pulsar.client.api.v5.PulsarClientException;
 import org.apache.pulsar.client.api.v5.auth.Authentication;
+import org.apache.pulsar.client.api.v5.config.BackoffPolicy;
 import org.apache.pulsar.client.api.v5.config.ConnectionPolicy;
 import org.apache.pulsar.client.api.v5.config.MemorySize;
 import org.apache.pulsar.client.api.v5.config.TransactionPolicy;
@@ -379,9 +380,25 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
                         org.apache.pulsar.client.api.ProxyProtocol.valueOf(policy.proxyProtocol().name()));
             }
         }
-        // BackoffPolicy adaptation will be implemented when the v4 client exposes
-        // a public way to override the reconnection backoff.
+        applyConnectionBackoff(policy.connectionBackoff());
         return this;
+    }
+
+    /**
+     * Copy {@link BackoffPolicy#initialInterval()} and {@link BackoffPolicy#maxInterval()} onto the v4
+     * client. The v4 reconnection backoff always doubles and uses {@link BackoffPolicy#DEFAULT_JITTER_PERCENT},
+     * so a policy that asks for a different multiplier or jitter cannot be applied faithfully.
+     */
+    private void applyConnectionBackoff(BackoffPolicy backoff) {
+        if (Double.compare(backoff.multiplier(), 2.0) != 0
+                || Double.compare(backoff.jitterPercent(), BackoffPolicy.DEFAULT_JITTER_PERCENT) != 0) {
+            throw new IllegalArgumentException("ConnectionPolicy.connectionBackoff only supports "
+                    + "exponential backoff with the default jitter ("
+                    + BackoffPolicy.DEFAULT_JITTER_PERCENT
+                    + "%); custom multiplier and jitter are not yet carried to the client");
+        }
+        conf.setInitialBackoffIntervalNanos(backoff.initialInterval().toNanos());
+        conf.setMaxBackoffIntervalNanos(backoff.maxInterval().toNanos());
     }
 
     @Override
