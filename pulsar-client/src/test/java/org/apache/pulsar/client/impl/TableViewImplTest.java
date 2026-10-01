@@ -289,6 +289,14 @@ public class TableViewImplTest {
         return FutureUtil.failedFuture(new PulsarClientException.NotConnectedException());
     }
 
+    /** The refresh is already settled, with the failure a closed table view gives. */
+    private static void assertFailedAsClosed(CompletableFuture<Void> refresh, String message) {
+        assertTrue(refresh.isCompletedExceptionally(), message);
+        ExecutionException failure = expectThrows(ExecutionException.class, refresh::get);
+        assertTrue(failure.getCause() instanceof PulsarClientException.AlreadyClosedException,
+                message + ", got " + failure.getCause());
+    }
+
     @Test(timeOut = 10_000)
     public void testTailReadFailureSchedulesRetryInsteadOfRecursing() throws Exception {
         try (TailRetryFixture f = new TailRetryFixture()) {
@@ -362,16 +370,13 @@ public class TableViewImplTest {
 
             f.tableView.closeAsync().get(5, TimeUnit.SECONDS);
 
-            // The delay elapses after the close: the queued retry must not read any more.
-            f.runLatestRetry();
-            verify(f.reader, times(1)).readNextAsync();
-            ExecutionException failure = expectThrows(ExecutionException.class,
-                    () -> refresh.get(5, TimeUnit.SECONDS));
-            assertTrue(failure.getCause() instanceof PulsarClientException.AlreadyClosedException,
-                    "A refresh pending at close must fail right away, got " + failure.getCause());
+            assertFailedAsClosed(refresh, "A refresh pending at close must fail right away");
             // Same shape as when the failure came from the closed reader: callbacks look at getCause().
             assertTrue(seenByCallback.get().getCause() instanceof PulsarClientException.AlreadyClosedException,
                     "A callback must find the cause where it used to be, got " + seenByCallback.get());
+            // The delay elapses after the close: the queued retry must not read any more.
+            f.runLatestRetry();
+            verify(f.reader, times(1)).readNextAsync();
         }
     }
 
@@ -424,24 +429,19 @@ public class TableViewImplTest {
     }
 
     @Test(timeOut = 10_000)
-    public void testRefreshInFlightWhileClosingFailsRightAway() throws Exception {
+    public void testRefreshFetchingLastMessageIdsFailsWhenTheTableViewCloses() throws Exception {
         try (TailRetryFixture f = new TailRetryFixture()) {
             when(f.reader.readNextAsync()).thenAnswer(inv -> failedRead());
             f.tableView.start().get(5, TimeUnit.SECONDS);
-            // The refresh is still asking for the last message ids when the table view closes; the answer
-            // arrives afterwards, when no read is left that could ever complete the refresh.
+            // The refresh is still asking for the last message ids when the table view closes.
             CompletableFuture<List<TopicMessageId>> lastMessageIds = new CompletableFuture<>();
             when(f.reader.getLastMessageIdsAsync()).thenReturn(lastMessageIds);
             CompletableFuture<Void> refresh = f.tableView.refreshAsync();
 
             f.tableView.closeAsync().get(5, TimeUnit.SECONDS);
-            assertFalse(refresh.isDone(), "The refresh is still waiting for the last message ids");
-            lastMessageIds.complete(List.of(new TopicMessageIdImpl(TAIL_RETRY_TOPIC, new MessageIdImpl(1, 5, -1))));
 
-            ExecutionException failure = expectThrows(ExecutionException.class,
-                    () -> refresh.get(5, TimeUnit.SECONDS));
-            assertTrue(failure.getCause() instanceof PulsarClientException.AlreadyClosedException,
-                    "A refresh that registers after the close must fail right away, got " + failure.getCause());
+            assertFailedAsClosed(refresh, "A refresh still looking up the last message ids must fail at close");
+            assertFalse(lastMessageIds.isDone(), "The lookup itself is left alone");
         }
     }
 
@@ -473,23 +473,18 @@ public class TableViewImplTest {
             when(f.reader.readNextAsync()).thenAnswer(inv -> failedRead());
             f.tableView.start().get(5, TimeUnit.SECONDS);
 
-            TopicMessageId lastMessageId = new TopicMessageIdImpl(TAIL_RETRY_TOPIC, new MessageIdImpl(1, 5, -1));
-            when(f.reader.getLastMessageIdsAsync())
-                    .thenReturn(CompletableFuture.completedFuture(List.of(lastMessageId)));
+            // The mocked reader would still answer, with an empty topic even.
+            when(f.reader.getLastMessageIdsAsync()).thenReturn(CompletableFuture.completedFuture(List.of()));
             CompletableFuture<Void> refresh = f.tableView.refreshAsync();
 
-            ExecutionException failure = expectThrows(ExecutionException.class,
-                    () -> refresh.get(5, TimeUnit.SECONDS));
-            assertTrue(failure.getCause() instanceof PulsarClientException.AlreadyClosedException,
-                    "A refresh after the retries stopped must fail right away, got " + failure.getCause());
+            assertFailedAsClosed(refresh, "A refresh after the retries stopped must fail right away");
+            verify(f.reader, never()).getLastMessageIdsAsync();
         }
     }
 
     @Test(timeOut = 10_000)
-    public void testRefreshRegisteringAfterTheReaderClosedFailsRightAway() throws Exception {
+    public void testRefreshFetchingLastMessageIdsFailsWhenTheReaderIsClosed() throws Exception {
         try (TailRetryFixture f = new TailRetryFixture()) {
-            // The reader is closed under the table view, by the client shutting down: the tail loop ends there,
-            // while a refresh is still fetching the last message ids.
             CompletableFuture<Message<String>> read = new CompletableFuture<>();
             when(f.reader.readNextAsync()).thenReturn(read);
             f.tableView.start().get(5, TimeUnit.SECONDS);
@@ -497,15 +492,162 @@ public class TableViewImplTest {
             when(f.reader.getLastMessageIdsAsync()).thenReturn(lastMessageIds);
             CompletableFuture<Void> refresh = f.tableView.refreshAsync();
 
+            // The reader is closed under the table view, by the client shutting down: the tail loop ends there.
             read.completeExceptionally(new PulsarClientException.AlreadyClosedException("Consumer was already closed"));
-            lastMessageIds.complete(List.of(new TopicMessageIdImpl(TAIL_RETRY_TOPIC, new MessageIdImpl(1, 5, -1))));
+
+            assertFailedAsClosed(refresh, "A refresh still looking up the last message ids must fail with the loop");
+            assertFalse(lastMessageIds.isDone(), "The lookup itself is left alone");
+        }
+    }
+
+    @Test(timeOut = 10_000)
+    public void testRefreshFetchingLastMessageIdsFailsWhenTheRetryIsRejected() throws Exception {
+        try (TailRetryFixture f = new TailRetryFixture()) {
+            CompletableFuture<Message<String>> read = new CompletableFuture<>();
+            when(f.reader.readNextAsync()).thenReturn(read);
+            f.tableView.start().get(5, TimeUnit.SECONDS);
+            CompletableFuture<List<TopicMessageId>> lastMessageIds = new CompletableFuture<>();
+            when(f.reader.getLastMessageIdsAsync()).thenReturn(lastMessageIds);
+            CompletableFuture<Void> refresh = f.tableView.refreshAsync();
+            doThrow(new RejectedExecutionException("shutting down"))
+                    .when(f.scheduler).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+
+            read.completeExceptionally(new PulsarClientException.NotConnectedException());
+
+            assertFailedAsClosed(refresh, "A refresh still looking up the last message ids must fail with the loop");
+            assertFalse(lastMessageIds.isDone(), "The lookup itself is left alone");
+        }
+    }
+
+    @Test(timeOut = 10_000)
+    public void testRefreshAfterTheTableViewClosedDoesNotLookUpTheLastMessageIds() throws Exception {
+        try (TailRetryFixture f = new TailRetryFixture()) {
+            when(f.reader.readNextAsync()).thenReturn(new CompletableFuture<>());
+            f.tableView.start().get(5, TimeUnit.SECONDS);
+            f.tableView.closeAsync().get(5, TimeUnit.SECONDS);
+            // The mocked reader would still answer, with an empty topic even: only the table view knows that
+            // nothing will be read any more.
+            when(f.reader.getLastMessageIdsAsync()).thenReturn(CompletableFuture.completedFuture(List.of()));
+
+            CompletableFuture<Void> refresh = f.tableView.refreshAsync();
+
+            assertFailedAsClosed(refresh, "A refresh on a closed table view must fail, empty topic or not");
+            verify(f.reader, never()).getLastMessageIdsAsync();
+        }
+    }
+
+    @Test(timeOut = 10_000)
+    @SuppressWarnings("unchecked")
+    public void testNoReadIsIssuedAfterTheTableViewClosed() throws Exception {
+        try (TailRetryFixture f = new TailRetryFixture()) {
+            CompletableFuture<Message<String>> read = new CompletableFuture<>();
+            when(f.reader.readNextAsync()).thenReturn(read, new CompletableFuture<>());
+            f.tableView.start().get(5, TimeUnit.SECONDS);
+            f.tableView.closeAsync().get(5, TimeUnit.SECONDS);
+            // The read that was in flight completes after the close; the mocked reader would take another one.
+            Message<String> message = mock(Message.class);
+            when(message.getTopicName()).thenReturn(TAIL_RETRY_TOPIC);
+            when(message.getMessageId()).thenReturn(new MessageIdImpl(1, 0, -1));
+            when(message.hasKey()).thenReturn(false);
+
+            read.complete(message);
+
+            verify(f.reader, times(1)).readNextAsync();
+        }
+    }
+
+    @Test(timeOut = 10_000)
+    public void testEmptyLookupAnswerArrivingDuringTheStopDoesNotCompleteTheRefresh() throws Exception {
+        try (TailRetryFixture f = new TailRetryFixture()) {
+            when(f.reader.readNextAsync()).thenReturn(new CompletableFuture<>());
+            f.tableView.start().get(5, TimeUnit.SECONDS);
+            CompletableFuture<List<TopicMessageId>> firstLookup = new CompletableFuture<>();
+            CompletableFuture<List<TopicMessageId>> secondLookup = new CompletableFuture<>();
+            when(f.reader.getLastMessageIdsAsync()).thenReturn(firstLookup, secondLookup);
+            CompletableFuture<Void> first = f.tableView.refreshAsync();
+            CompletableFuture<Void> second = f.tableView.refreshAsync();
+            // Whichever refresh the stop fails first, the answer for the other one arrives at that very moment,
+            // when the stop is under way but has not reached it yet, and says that the topic is empty.
+            first.whenComplete((v, e) -> secondLookup.complete(List.of()));
+            second.whenComplete((v, e) -> firstLookup.complete(List.of()));
+
+            f.tableView.closeAsync().get(5, TimeUnit.SECONDS);
+
+            assertFailedAsClosed(first, "An empty topic must not turn a stopped refresh into a success");
+            assertFailedAsClosed(second, "An empty topic must not turn a stopped refresh into a success");
+        }
+    }
+
+    @Test(timeOut = 10_000)
+    public void testFirstStopCauseIsKept() throws Exception {
+        try (TailRetryFixture f = new TailRetryFixture()) {
+            CompletableFuture<Message<String>> read = new CompletableFuture<>();
+            when(f.reader.readNextAsync()).thenReturn(read);
+            f.tableView.start().get(5, TimeUnit.SECONDS);
+            f.tableView.closeAsync().get(5, TimeUnit.SECONDS);
+            // The reader then fails the read that was in flight: a second reason to stop.
+            read.completeExceptionally(new PulsarClientException.AlreadyClosedException("Consumer already closed"));
 
             ExecutionException failure = expectThrows(ExecutionException.class,
-                    () -> refresh.get(5, TimeUnit.SECONDS));
-            assertTrue(failure.getCause() instanceof PulsarClientException.AlreadyClosedException,
-                    "A refresh that registers after the reader closed must fail right away, got "
-                            + failure.getCause());
+                    () -> f.tableView.refreshAsync().get());
+            assertTrue(failure.getCause().getMessage().contains("TableView was closed"),
+                    "A later refresh must report why the tail reads stopped first, got " + failure.getCause());
         }
+    }
+
+    @Test(timeOut = 10_000)
+    public void testCompletedRefreshesAreNoLongerTracked() throws Exception {
+        try (TailRetryFixture f = new TailRetryFixture()) {
+            when(f.reader.readNextAsync()).thenReturn(new CompletableFuture<>());
+            f.tableView.start().get(5, TimeUnit.SECONDS);
+            // The caller gives up on a refresh that waits for a message, and on one whose last message ids only
+            // arrive afterwards.
+            f.pendingRefresh().cancel(false);
+            CompletableFuture<List<TopicMessageId>> lateAnswer = new CompletableFuture<>();
+            when(f.reader.getLastMessageIdsAsync()).thenReturn(lateAnswer);
+            f.tableView.refreshAsync().cancel(false);
+            lateAnswer.complete(List.of(new TopicMessageIdImpl(TAIL_RETRY_TOPIC, new MessageIdImpl(1, 5, -1))));
+            assertFalse(f.tableView.isTrackingRefreshes(), "A refresh the caller completed must not be kept around");
+
+            // The stop fails a refresh that waits for a message and one that is still looking up the ids.
+            CompletableFuture<Void> waiting = f.pendingRefresh();
+            when(f.reader.getLastMessageIdsAsync()).thenReturn(new CompletableFuture<>());
+            CompletableFuture<Void> lookingUp = f.tableView.refreshAsync();
+            assertTrue(f.tableView.isTrackingRefreshes());
+            f.tableView.closeAsync().get(5, TimeUnit.SECONDS);
+
+            assertTrue(waiting.isDone(), "The stop must have settled the refresh waiting for a message");
+            assertTrue(lookingUp.isDone(), "The stop must have settled the refresh still looking up the ids");
+            assertFalse(f.tableView.isTrackingRefreshes(), "A refresh the stop failed must not be kept around");
+        }
+    }
+
+    @Test(timeOut = 10_000)
+    @SuppressWarnings("unchecked")
+    public void testNoTailReadStartsWhenTheTableViewClosesDuringTheInitialReplay() throws Exception {
+        PulsarClientImpl client = mock(PulsarClientImpl.class);
+        ReaderBuilder<String> builder = mock(ReaderBuilder.class, RETURNS_SELF);
+        Reader<String> reader = mock(Reader.class);
+        when(client.getConfiguration()).thenReturn(new ClientConfigurationData());
+        when(client.newReader(Schema.STRING)).thenReturn(builder);
+        when(builder.createAsync()).thenReturn(CompletableFuture.completedFuture(reader));
+        when(reader.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
+        when(reader.readNextAsync()).thenReturn(new CompletableFuture<>());
+        // A persistent topic: start() replays the existing messages first, and is still asking for the last
+        // message ids when the table view closes.
+        CompletableFuture<List<TopicMessageId>> lastMessageIds = new CompletableFuture<>();
+        when(reader.getLastMessageIdsAsync()).thenReturn(lastMessageIds);
+        TableViewConfigurationData conf = new TableViewConfigurationData();
+        conf.setTopicName("persistent://tenant/ns/closed-during-replay");
+        TableViewImpl<String> tableView = new TableViewImpl<>(client, Schema.STRING, conf);
+        CompletableFuture<TableView<String>> start = tableView.start();
+
+        tableView.closeAsync().get(5, TimeUnit.SECONDS);
+        // The replay finds an empty topic and ends normally.
+        lastMessageIds.complete(List.of());
+
+        start.get(5, TimeUnit.SECONDS);
+        verify(reader, never()).readNextAsync();
     }
 
 }
