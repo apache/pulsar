@@ -331,6 +331,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             AtomicReferenceFieldUpdater.newUpdater(ManagedLedgerImpl.class, State.class, "state");
     protected volatile State state = null;
     private volatile boolean migrated = false;
+    // State becomes Terminated before the BookKeeper close completes, so the position is not immediately final.
+    private volatile boolean terminationPositionReady;
+    // Guarded by this.
+    private CompletableFuture<Position> migrationFuture;
 
     @Getter
     private final OrderedScheduler scheduledExecutor;
@@ -469,10 +473,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             public void operationComplete(ManagedLedgerInfo mlInfo, Stat stat) {
                 ledgersStat = stat;
                 if (mlInfo.hasTerminatedPosition()) {
-                    state = State.Terminated;
                     NestedPositionInfo terminatedPosition = mlInfo.getTerminatedPosition();
                     lastConfirmedEntry =
                             PositionFactory.create(terminatedPosition.getLedgerId(), terminatedPosition.getEntryId());
+                    terminationPositionReady = true;
+                    state = State.Terminated;
                     log.info().attr("lastConfirmedEntry", lastConfirmedEntry)
                             .log("Recovering managed ledger terminated");
                 }
@@ -1502,19 +1507,51 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     public CompletableFuture<Position> asyncMigrate() {
-        CompletableFuture<Position> result = new CompletableFuture<>();
-        asyncSetProperty(MIGRATION_STATE_PROPERTY, Boolean.TRUE.toString(), new UpdatePropertiesCallback() {
-            @Override
-            public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
-                terminateForMigration(result);
+        final CompletableFuture<Position> result;
+        synchronized (this) {
+            if (migrationFuture != null) {
+                return migrationFuture.copy();
             }
+            if (migrated) {
+                return CompletableFuture.completedFuture(lastConfirmedEntry);
+            }
+            result = new CompletableFuture<>();
+            migrationFuture = result;
+        }
 
-            @Override
-            public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
-                result.completeExceptionally(exception);
-            }
-        }, null);
-        return result;
+        try {
+            asyncSetProperty(MIGRATION_STATE_PROPERTY, Boolean.TRUE.toString(), new UpdatePropertiesCallback() {
+                @Override
+                public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
+                    try {
+                        terminateForMigration(result);
+                    } catch (Throwable t) {
+                        clearRetryableMigration(result);
+                        result.completeExceptionally(t);
+                    }
+                }
+
+                @Override
+                public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
+                    clearRetryableMigration(result);
+                    result.completeExceptionally(exception);
+                }
+            }, null);
+        } catch (Throwable t) {
+            clearRetryableMigration(result);
+            result.completeExceptionally(t);
+        }
+        return result.copy();
+    }
+
+    private synchronized void clearRetryableMigration(CompletableFuture<Position> result) {
+        // Retrying after a BookKeeper close failure would take asyncTerminate's already-terminated fast path and
+        // incorrectly report success with a stale position. Metadata failures after a successful close are safe to
+        // retry because terminationPositionReady is true.
+        if (migrationFuture == result && state != State.Closed && !state.isFenced()
+                && (state != State.Terminated || terminationPositionReady)) {
+            migrationFuture = null;
+        }
     }
 
     private void terminateForMigration(CompletableFuture<Position> result) {
@@ -1525,11 +1562,17 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 migrated = true;
                 log.info().attr("position", lastCommittedPosition).log("Topic successfully terminated and migrated");
                 result.complete(lastCommittedPosition);
+                synchronized (ManagedLedgerImpl.this) {
+                    if (migrationFuture == result) {
+                        migrationFuture = null;
+                    }
+                }
             }
 
             @Override
             public void terminateFailed(ManagedLedgerException exception, Object ctx) {
                 log.info().exception(exception).log("Topic failed to terminate and migrate");
+                clearRetryableMigration(result);
                 result.completeExceptionally(exception);
             }
         }, null);
@@ -1648,6 +1691,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         log.info("Terminating managed ledger");
+        terminationPositionReady = false;
         state = State.Terminated;
 
         LedgerHandle lh = currentLedger;
@@ -1661,6 +1705,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 callback.terminateFailed(createManagedLedgerException(rc), ctx);
             } else {
                 lastConfirmedEntry = PositionFactory.create(lh.getId(), lh.getLastAddConfirmed());
+                terminationPositionReady = true;
                 storeTerminatedPosition(callback, ctx);
             }
         }, null);
@@ -4771,7 +4816,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     private ManagedLedgerInfo buildManagedLedgerInfo(ManagedLedgerInfo mlInfo,
                                                       Map<String, String> properties) {
-        if (state == State.Terminated) {
+        if (state == State.Terminated && terminationPositionReady) {
             mlInfo.setTerminatedPosition()
                     .setLedgerId(lastConfirmedEntry.getLedgerId())
                     .setEntryId(lastConfirmedEntry.getEntryId());
@@ -5236,7 +5281,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             propertiesSnapshot = new ConcurrentHashMap<>(updatedProperties);
         } catch (Throwable t) {
             metadataMutex.unlock();
-            callback.updatePropertiesFailed(ManagedLedgerException.getManagedLedgerException(t), ctx);
+            try {
+                callback.updatePropertiesFailed(ManagedLedgerException.getManagedLedgerException(t), ctx);
+            } catch (Throwable callbackError) {
+                log.error().exception(callbackError).log("Managed ledger properties callback failed");
+            }
             return;
         }
 

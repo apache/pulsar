@@ -81,6 +81,7 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -146,6 +147,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCache;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
+import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.mledger.util.Futures;
@@ -2020,6 +2022,45 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testPropertiesFailureCallbackExceptionDoesNotEscape() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("properties-failure-callback-exception-test");
+        ManagedLedgerInterceptor originalInterceptor = ledger.managedLedgerInterceptor;
+        ManagedLedgerInterceptor failingInterceptor = mock(ManagedLedgerInterceptor.class);
+        RuntimeException buildFailure = new RuntimeException("injected build failure");
+        doThrow(buildFailure).when(failingInterceptor).onUpdateManagedLedgerInfo(anyMap());
+        AtomicBoolean successCalled = new AtomicBoolean();
+        AtomicReference<ManagedLedgerException> callbackFailure = new AtomicReference<>();
+
+        try {
+            ledger.managedLedgerInterceptor = failingInterceptor;
+            ledger.asyncSetProperty("key", "value", new AsyncCallbacks.UpdatePropertiesCallback() {
+                @Override
+                public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
+                    successCalled.set(true);
+                }
+
+                @Override
+                public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
+                    callbackFailure.set(exception);
+                    throw new RuntimeException("injected callback failure");
+                }
+            }, null);
+        } finally {
+            ledger.managedLedgerInterceptor = originalInterceptor;
+        }
+
+        assertFalse(successCalled.get());
+        assertNotNull(callbackFailure.get());
+        assertSame(callbackFailure.get().getCause(), buildFailure);
+        assertEquals(ledger.getProperties(), Map.of());
+        assertTrue(ledger.metadataMutex.tryLock());
+        ledger.metadataMutex.unlock();
+
+        ledger.setProperty("after-failure", "value");
+        assertEquals(ledger.getProperties(), Map.of("after-failure", "value"));
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     public void testConcurrentPropertyUpdateDoesNotEraseMigrationMarker() throws Exception {
         String ledgerName = "properties-migration-race-test";
@@ -2111,24 +2152,33 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         CompletableFuture<Void> releasePropertyUpdate = new CompletableFuture<>();
         CountDownLatch propertyMetadataStored = new CountDownLatch(1);
         AtomicBoolean interceptNextPut = new AtomicBoolean(false);
+        AtomicBoolean countMetadataPuts = new AtomicBoolean(false);
+        AtomicInteger metadataPuts = new AtomicInteger();
+        AtomicReference<byte[]> propertyMetadata = new AtomicReference<>();
 
         FaultInjectionMetadataStore spyStore = spy(metadataStore);
         doAnswer(invocation -> {
-            if (ledgerPath.equals(invocation.getArgument(0))
-                    && interceptNextPut.compareAndSet(true, false)) {
-                CompletableFuture<Stat> realResult = (CompletableFuture<Stat>) invocation.callRealMethod();
-                CompletableFuture<Stat> gatedResult = new CompletableFuture<>();
-                realResult.whenComplete((stat, error) -> {
-                    propertyMetadataStored.countDown();
-                    releasePropertyUpdate.whenComplete((ignored, releaseError) -> {
-                        if (error != null) {
-                            gatedResult.completeExceptionally(error);
-                        } else {
-                            gatedResult.complete(stat);
-                        }
+            if (ledgerPath.equals(invocation.getArgument(0))) {
+                if (countMetadataPuts.get()) {
+                    metadataPuts.incrementAndGet();
+                }
+                if (interceptNextPut.compareAndSet(true, false)) {
+                    byte[] metadata = invocation.getArgument(1);
+                    propertyMetadata.set(Arrays.copyOf(metadata, metadata.length));
+                    CompletableFuture<Stat> realResult = (CompletableFuture<Stat>) invocation.callRealMethod();
+                    CompletableFuture<Stat> gatedResult = new CompletableFuture<>();
+                    realResult.whenComplete((stat, error) -> {
+                        propertyMetadataStored.countDown();
+                        releasePropertyUpdate.whenComplete((ignored, releaseError) -> {
+                            if (error != null) {
+                                gatedResult.completeExceptionally(error);
+                            } else {
+                                gatedResult.complete(stat);
+                            }
+                        });
                     });
-                });
-                return gatedResult;
+                    return gatedResult;
+                }
             }
             return invocation.callRealMethod();
         }).when(spyStore).put(eq(ledgerPath), any(byte[].class), any());
@@ -2138,6 +2188,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         try {
             ManagedLedgerImpl ledger = (ManagedLedgerImpl) gatedFactory.open(ledgerName);
             ledger.setProperty("existing", "value");
+            Position expectedPosition = ledger.addEntry("entry".getBytes(UTF_8));
+            countMetadataPuts.set(true);
 
             LedgerHandle currentLedger = ledger.currentLedger;
             LedgerHandle spyLedgerHandle = spy(currentLedger);
@@ -2156,7 +2208,13 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
             CompletableFuture<Position> migrationResult = ledger.asyncMigrate();
             assertTrue(ledgerCloseIntercepted.await(5, TimeUnit.SECONDS));
+            assertEquals(metadataPuts.get(), 1);
             assertEquals(ledger.getProperties(), Map.of("existing", "value", "migrated", "true"));
+
+            CompletableFuture<Position> concurrentMigrationResult = ledger.asyncMigrate();
+            assertEquals(metadataPuts.get(), 1);
+            assertFalse(migrationResult.isDone());
+            assertFalse(concurrentMigrationResult.isDone());
 
             CompletableFuture<Void> propertyResult = new CompletableFuture<>();
             interceptNextPut.set(true);
@@ -2173,6 +2231,10 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             }, null);
 
             assertTrue(propertyMetadataStored.await(5, TimeUnit.SECONDS));
+            assertEquals(metadataPuts.get(), 2);
+            ManagedLedgerInfo storedPropertyMetadata =
+                    ((MetaStoreImpl) gatedFactory.getMetaStore()).parseManagedLedgerInfo(propertyMetadata.get());
+            assertFalse(storedPropertyMetadata.hasTerminatedPosition());
             assertFalse(propertyResult.isDone());
             boolean metadataMutexAcquired = ledger.metadataMutex.tryLock();
             if (metadataMutexAcquired) {
@@ -2184,7 +2246,9 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
             releasePropertyUpdate.complete(null);
             propertyResult.get(5, TimeUnit.SECONDS);
-            migrationResult.get(5, TimeUnit.SECONDS);
+            assertEquals(migrationResult.get(5, TimeUnit.SECONDS), expectedPosition);
+            assertEquals(concurrentMigrationResult.get(5, TimeUnit.SECONDS), expectedPosition);
+            assertEquals(metadataPuts.get(), 3);
             assertTrue(ledger.isTerminated());
             assertFalse(ledger.state.isFenced());
 
@@ -2192,6 +2256,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             ManagedLedger reopenedLedger = gatedFactory.open(ledgerName);
             assertTrue(reopenedLedger.isMigrated());
             assertTrue(reopenedLedger.isTerminated());
+            assertEquals(reopenedLedger.getLastConfirmedEntry(), expectedPosition);
             assertEquals(reopenedLedger.getProperties(),
                     Map.of("existing", "value", "migrated", "true", "after-marker", "value"));
         } finally {
@@ -2199,6 +2264,66 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             releaseLedgerClose.complete(null);
             gatedFactory.shutdown();
         }
+    }
+
+    @Test
+    public void testAsyncMigrateCanRetryAfterMarkerUpdateFailure() throws Exception {
+        String ledgerName = "migration-marker-retry-test";
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(ledgerName);
+        Position expectedPosition = ledger.addEntry("entry".getBytes(UTF_8));
+        metadataStore.failConditional(new MetadataStoreException("injected failure"),
+                (operation, path) -> operation == FaultInjectionMetadataStore.OperationType.PUT
+                        && path.equals("/managed-ledgers/" + ledgerName));
+
+        try {
+            ledger.asyncMigrate().get(5, TimeUnit.SECONDS);
+            fail("The first migration should fail");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof ManagedLedgerException);
+        }
+
+        assertFalse(ledger.isMigrated());
+        assertFalse(ledger.isTerminated());
+        assertEquals(ledger.getProperties(), Map.of());
+
+        assertEquals(ledger.asyncMigrate().get(5, TimeUnit.SECONDS), expectedPosition);
+        assertTrue(ledger.isMigrated());
+        assertTrue(ledger.isTerminated());
+        assertEquals(ledger.getProperties(), Map.of("migrated", "true"));
+    }
+
+    @Test
+    public void testAsyncMigrateCanRetryAfterTerminationMetadataFailure() throws Exception {
+        String ledgerName = "migration-termination-retry-test";
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(ledgerName);
+        Position expectedPosition = ledger.addEntry("entry".getBytes(UTF_8));
+        AtomicInteger metadataUpdates = new AtomicInteger();
+        metadataStore.failConditional(new MetadataStoreException("injected failure"),
+                (operation, path) -> operation == FaultInjectionMetadataStore.OperationType.PUT
+                        && path.equals("/managed-ledgers/" + ledgerName)
+                        && metadataUpdates.incrementAndGet() == 2);
+
+        try {
+            ledger.asyncMigrate().get(5, TimeUnit.SECONDS);
+            fail("The first migration should fail");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof ManagedLedgerException);
+        }
+
+        assertFalse(ledger.isMigrated());
+        assertTrue(ledger.isTerminated());
+        assertEquals(ledger.getLastConfirmedEntry(), expectedPosition);
+        assertEquals(ledger.getProperties(), Map.of("migrated", "true"));
+
+        assertEquals(ledger.asyncMigrate().get(5, TimeUnit.SECONDS), expectedPosition);
+        assertTrue(ledger.isMigrated());
+        assertTrue(ledger.isTerminated());
+
+        ledger.close();
+        ManagedLedger reopenedLedger = factory.open(ledgerName);
+        assertTrue(reopenedLedger.isMigrated());
+        assertTrue(reopenedLedger.isTerminated());
+        assertEquals(reopenedLedger.getLastConfirmedEntry(), expectedPosition);
     }
 
     @Test
