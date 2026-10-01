@@ -150,13 +150,6 @@ public class Consumer {
     private static final AtomicIntegerFieldUpdater<Consumer> UNACKED_MESSAGES_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(Consumer.class, "unackedMessages");
     private volatile int unackedMessages = 0;
-    /**
-     * Published while a tracked consumer is rechecking the unacked limit before it can set
-     * {@link #blockedConsumerOnUnackedMsgs}. An ACK or policy update can use this marker to distinguish an ordinary
-     * unblocked consumer, which needs no lock, from a block-state transition that it must reconcile under
-     * {@link #flowPermitAccountingLock}.
-     */
-    private volatile boolean blockStateUpdateInProgress = false;
     private volatile boolean blockedConsumerOnUnackedMsgs = false;
 
     private final Map<String, String> metadata;
@@ -486,7 +479,7 @@ public class Consumer {
             return;
         }
 
-        int updatedUnackedMessages = addAndGetUnAckedMsgs(this, unackedMessages);
+        int updatedUnackedMessages = addAndGetUnackedMessages(unackedMessages);
         int maxUnackedMessages = getMaxUnackedMessages();
         if (maxUnackedMessages <= 0 || updatedUnackedMessages < maxUnackedMessages) {
             return;
@@ -500,7 +493,7 @@ public class Consumer {
         synchronized (flowPermitAccountingLock) {
             // An ACK can reduce the count after the lock-free candidate check. Recheck while holding the same lock
             // used by unblock so an old dispatch-side snapshot cannot publish a permanently stale blocked state.
-            blockConsumerIfUnackedLimitReachedLocked();
+            blockConsumerIfUnackedLimitReached();
         }
     }
 
@@ -692,15 +685,13 @@ public class Consumer {
                     boolean updated = ackOwnerConsumer.updateRemainingUnacked(
                             position.getLedgerId(), position.getEntryId(), (int) ackedCount);
                     if (updated) {
-                        addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
-                        updateBlockedConsumerOnUnackedMsgs(ackOwnerConsumer);
+                        ackOwnerConsumer.decrementUnackedMessagesAndReconcileBlockedState((int) ackedCount);
                     }
                 } else if (!hasAckSet) {
                     int removed = ackOwnerConsumer.removePendingAckAndGetRemainingUnacked(
                             position.getLedgerId(), position.getEntryId());
                     if (removed != PENDING_ACK_NOT_FOUND) {
-                        addAndGetUnAckedMsgs(ackOwnerConsumer, -removed);
-                        updateBlockedConsumerOnUnackedMsgs(ackOwnerConsumer);
+                        ackOwnerConsumer.decrementUnackedMessagesAndReconcileBlockedState(removed);
                     }
                 }
 
@@ -830,23 +821,29 @@ public class Consumer {
         for (int i = 0; i < pendingAckCompletions.size(); i++) {
             Consumer ackOwnerConsumer = pendingAckCompletions.consumerAt(i);
             Position position = pendingAckCompletions.positionAt(i);
+            boolean blockedStateReconciled = false;
 
             if (pendingAckCompletions.hasAckSetAt(i)) {
                 if (pendingAckCompletions.ackedCountAt(i) > 0) {
                     boolean updated = ackOwnerConsumer.updateRemainingUnacked(
                             position.getLedgerId(), position.getEntryId(), (int) pendingAckCompletions.ackedCountAt(i));
                     if (updated) {
-                        addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) pendingAckCompletions.ackedCountAt(i));
+                        ackOwnerConsumer.decrementUnackedMessagesAndReconcileBlockedState(
+                                (int) pendingAckCompletions.ackedCountAt(i));
+                        blockedStateReconciled = true;
                     }
                 }
             } else {
                 int removed = ackOwnerConsumer.removePendingAckAndGetRemainingUnacked(
                         position.getLedgerId(), position.getEntryId());
                 if (removed != PENDING_ACK_NOT_FOUND) {
-                    addAndGetUnAckedMsgs(ackOwnerConsumer, -removed);
+                    ackOwnerConsumer.decrementUnackedMessagesAndReconcileBlockedState(removed);
+                    blockedStateReconciled = true;
                 }
             }
-            updateBlockedConsumerOnUnackedMsgs(ackOwnerConsumer);
+            if (!blockedStateReconciled) {
+                updateBlockedConsumerOnUnackedMsgs(ackOwnerConsumer);
+            }
 
             if (isTransactionEnabled() && Subscription.isIndividualAckMode(subType)) {
                 //check if the position can remove from the consumer pending acks.
@@ -1001,7 +998,7 @@ public class Consumer {
         boolean blocked;
         if (shouldTrackPendingDispatcherFlowPermits()) {
             synchronized (flowPermitAccountingLock) {
-                blockConsumerIfUnackedLimitReachedLocked();
+                blockConsumerIfUnackedLimitReached();
                 blocked = blockedConsumerOnUnackedMsgs;
                 if (blocked) {
                     beforeAddingBlockedFlowPermits();
@@ -1179,23 +1176,6 @@ public class Consumer {
                 });
     }
 
-    private void blockConsumerIfUnackedLimitReachedLocked() {
-        int maxUnackedMessages = getMaxUnackedMessages();
-        if (!Subscription.isIndividualAckMode(subType) || maxUnackedMessages <= 0
-                || UNACKED_MESSAGES_UPDATER.get(this) < maxUnackedMessages) {
-            return;
-        }
-
-        blockStateUpdateInProgress = true;
-        try {
-            // Re-read after publishing the transition marker. An ACK that observed the marker will reconcile under
-            // the lock; an ACK that ran before the marker wrote the new unacked count before this final read.
-            blockConsumerIfUnackedLimitReached();
-        } finally {
-            blockStateUpdateInProgress = false;
-        }
-    }
-
     private void blockConsumerIfUnackedLimitReached() {
         int maxUnackedMessages = getMaxUnackedMessages();
         if (Subscription.isIndividualAckMode(subType) && maxUnackedMessages > 0
@@ -1363,19 +1343,42 @@ public class Consumer {
 
     public void updateBlockedConsumerOnUnackedMsgs(Consumer ackOwnedConsumer) {
         // ACKs on Shared subscriptions can be sent through a consumer other than the message owner.
-        ackOwnedConsumer.reconcileBlockedConsumerState(true);
+        ackOwnedConsumer.reconcileBlockedConsumerStateAfterAcknowledgment(false);
     }
 
     /**
      * Reconciles a blocked consumer after a dynamic topic or namespace policy update.
      */
     public void reconcileBlockedStateAfterPolicyUpdate() {
-        reconcileBlockedConsumerState(false);
+        // Policy reconciliation must serialize with a block-state publication even when the lock-free state still
+        // looks unblocked. The policy update itself may have changed whether blocking is enabled.
+        reconcileBlockedConsumerState(false, true);
     }
 
-    private void reconcileBlockedConsumerState(boolean notifyWhenBlockingIsDisabled) {
+    /**
+     * Decrements this consumer's unacked count and reconciles its blocked state. The one decrement that crosses the
+     * resume threshold must acquire {@link #flowPermitAccountingLock}, even if the consumer still looks unblocked.
+     * This orders the decrement with a concurrent block-state publication: whichever operation acquires the lock
+     * second observes and reconciles the first operation's state change.
+     */
+    private void decrementUnackedMessagesAndReconcileBlockedState(int messagesToRemove) {
+        int updatedUnackedMessages = addAndGetUnackedMessages(-messagesToRemove);
+        int previousUnackedMessages = updatedUnackedMessages + messagesToRemove;
+        int maxUnackedMessages = getMaxUnackedMessages();
+        boolean crossedResumeThreshold = maxUnackedMessages > 0
+                && previousUnackedMessages > maxUnackedMessages / 2
+                && updatedUnackedMessages <= maxUnackedMessages / 2;
+        reconcileBlockedConsumerStateAfterAcknowledgment(crossedResumeThreshold);
+    }
+
+    private void reconcileBlockedConsumerStateAfterAcknowledgment(boolean crossedResumeThreshold) {
+        reconcileBlockedConsumerState(true, crossedResumeThreshold);
+    }
+
+    private void reconcileBlockedConsumerState(boolean notifyWhenBlockingIsDisabled,
+                                               boolean synchronizeWithBlockStatePublication) {
         boolean trackedPermitAccounting = shouldTrackPendingDispatcherFlowPermits();
-        if (trackedPermitAccounting && !blockStateUpdateInProgress) {
+        if (trackedPermitAccounting && !synchronizeWithBlockStatePublication) {
             int maxUnackedMessages = getMaxUnackedMessages();
             boolean blockingEnabled = Subscription.isIndividualAckMode(subType) && maxUnackedMessages > 0;
             if (blockingEnabled && UNACKED_MESSAGES_UPDATER.get(this) > maxUnackedMessages / 2) {
@@ -1478,8 +1481,7 @@ public class Consumer {
                 });
         int totalUnacked = mutableTotalUnacked.intValue();
         if (totalUnacked > 0) {
-            addAndGetUnAckedMsgs(this, -totalUnacked);
-            updateBlockedConsumerOnUnackedMsgs(this);
+            decrementUnackedMessagesAndReconcileBlockedState(totalUnacked);
         }
     }
 
@@ -1500,7 +1502,7 @@ public class Consumer {
             });
 
             if (totalRedeliveryMessages.intValue() > 0) {
-                addAndGetUnAckedMsgs(this, -totalRedeliveryMessages.intValue());
+                addAndGetUnackedMessages(-totalRedeliveryMessages.intValue());
             }
             blockedPermits = unblockAndTransferBlockedPermits();
 
@@ -1509,7 +1511,7 @@ public class Consumer {
 
             subscription.redeliverUnacknowledgedMessages(this, pendingPositions);
         } else {
-            clearUnAckedMsgs();
+            clearUnackedMessages();
             blockedPermits = unblockAndTransferBlockedPermits();
             subscription.redeliverUnacknowledgedMessages(this, consumerEpoch);
         }
@@ -1530,7 +1532,7 @@ public class Consumer {
             }
         }
 
-        addAndGetUnAckedMsgs(this, -totalRedeliveryMessages);
+        addAndGetUnackedMessages(-totalRedeliveryMessages);
         int blockedPermits = unblockAndTransferBlockedPermits();
 
         log.debug()
@@ -1549,11 +1551,11 @@ public class Consumer {
         return subscription;
     }
 
-    private int addAndGetUnAckedMsgs(Consumer consumer, int ackedMessages) {
+    private int addAndGetUnackedMessages(int ackedMessages) {
         int unackedMsgs = 0;
         if (isPersistentTopic && Subscription.isIndividualAckMode(subType)) {
             subscription.addUnAckedMessages(ackedMessages);
-            unackedMsgs = UNACKED_MESSAGES_UPDATER.addAndGet(consumer, ackedMessages);
+            unackedMsgs = UNACKED_MESSAGES_UPDATER.addAndGet(this, ackedMessages);
         }
         if (unackedMsgs < 0 && System.currentTimeMillis() - negativeUnackedMsgsTimestamp >= 10_000) {
             negativeUnackedMsgsTimestamp = System.currentTimeMillis();
@@ -1565,7 +1567,7 @@ public class Consumer {
         return unackedMsgs;
     }
 
-    private void clearUnAckedMsgs() {
+    private void clearUnackedMessages() {
         int unaAckedMsgs = UNACKED_MESSAGES_UPDATER.getAndSet(this, 0);
         subscription.addUnAckedMessages(-unaAckedMsgs);
     }

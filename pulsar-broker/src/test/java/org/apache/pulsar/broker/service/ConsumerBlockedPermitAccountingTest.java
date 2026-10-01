@@ -27,6 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import java.lang.management.ManagementFactory;
@@ -81,6 +82,11 @@ public class ConsumerBlockedPermitAccountingTest {
         BLOCK_PUBLICATION
     }
 
+    enum RacingActionOutcome {
+        COMPLETED_BEFORE_RELEASE,
+        BLOCKED_ON_PAUSED_ACTION
+    }
+
     @BeforeMethod
     public void setup() {
         ServiceConfiguration configuration = mock(ServiceConfiguration.class);
@@ -100,6 +106,8 @@ public class ConsumerBlockedPermitAccountingTest {
         when(configuration.isTransactionCoordinatorEnabled()).thenReturn(true);
         when(subscription.getTopic()).thenReturn(topic);
         when(subscription.getName()).thenReturn("sub");
+        doReturn(CompletableFuture.completedFuture(null))
+                .when(subscription).acknowledgeMessageAsync(any(), any(), any());
         when(((PersistentSubscription) subscription).transactionIndividualAcknowledge(any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(null));
         dispatcherFlowPermits = new AtomicInteger();
@@ -139,9 +147,11 @@ public class ConsumerBlockedPermitAccountingTest {
         PausingConsumer consumer = new PausingConsumer(subscription, subType, cnx);
         Consumer ackConsumer = newConsumer(subType, 2);
         AtomicInteger redeliveryCalls = new AtomicInteger();
-        setConsumerState(consumer, true, 1, 0);
+        setConsumerState(consumer, true,
+                unblockPath == UnblockPath.ACK ? MAX_UNACKED_MESSAGES / 2 + 1 : 1, 0);
+        assertThat(consumer.getPendingAcks().addPendingAckIfAllowed(LEDGER_ID, ENTRY_ID, 1, 0)).isTrue();
+        when(subscription.getConsumers()).thenReturn(List.of(consumer, ackConsumer));
         if (unblockPath != UnblockPath.ACK) {
-            assertThat(consumer.getPendingAcks().addPendingAckIfAllowed(LEDGER_ID, ENTRY_ID, 1, 0)).isTrue();
             doAnswer(invocation -> {
                 redeliveryCalls.incrementAndGet();
                 assertThat(consumer.isBlocked()).isFalse();
@@ -154,7 +164,8 @@ public class ConsumerBlockedPermitAccountingTest {
 
         consumer.pauseAt(PausePoint.BLOCKED_FLOW);
         runRace(consumer, () -> consumer.flowPermits(FLOW_PERMITS),
-                () -> unblock(ackConsumer, consumer, unblockPath));
+                () -> unblock(ackConsumer, consumer, unblockPath),
+                RacingActionOutcome.BLOCKED_ON_PAUSED_ACTION);
 
         assertThat(consumer.isBlocked()).isFalse();
         assertThat(consumer.getAvailablePermits()).isEqualTo(FLOW_PERMITS);
@@ -178,9 +189,56 @@ public class ConsumerBlockedPermitAccountingTest {
                 .addPendingAckIfAllowed(LEDGER_ID, ENTRY_ID, MAX_UNACKED_MESSAGES, 0)).isTrue();
         consumer.pauseAt(PausePoint.MAX_UNACKED_READ);
         runRace(consumer, () -> consumer.incrementUnackedMessagesForTesting(MAX_UNACKED_MESSAGES),
-                () -> consumer.removePendingAcksUpToPositionAndDecrementUnacked(LEDGER_ID, ENTRY_ID));
+                () -> consumer.removePendingAcksUpToPositionAndDecrementUnacked(LEDGER_ID, ENTRY_ID),
+                RacingActionOutcome.COMPLETED_BEFORE_RELEASE);
 
         assertUnblockedAndCanFlow(consumer, 0);
+    }
+
+    @Test(timeOut = 30_000)
+    public void testAckThresholdCrossingWaitsForBlockStatePublication() throws Exception {
+        PausingConsumer consumer = new PausingConsumer(subscription, Shared, cnx);
+        Consumer ackConsumer = newConsumer(Shared, 2);
+        assertThat(consumer.getPendingAcks()
+                .addPendingAckIfAllowed(LEDGER_ID, ENTRY_ID, MAX_UNACKED_MESSAGES / 2, 0)).isTrue();
+        when(subscription.getConsumers()).thenReturn(List.of(consumer, ackConsumer));
+        consumer.pauseAt(PausePoint.BLOCK_PUBLICATION);
+
+        runRace(consumer, () -> consumer.incrementUnackedMessagesForTesting(MAX_UNACKED_MESSAGES),
+                () -> acknowledgeEntry(ackConsumer), RacingActionOutcome.BLOCKED_ON_PAUSED_ACTION);
+
+        assertUnblockedAndCanFlow(consumer, MAX_UNACKED_MESSAGES / 2);
+        assertThat(zeroDispatcherFlowCalls).hasValue(1);
+    }
+
+    @Test(timeOut = 30_000)
+    public void testAckAboveResumeThresholdDoesNotWaitForBlockStatePublication() throws Exception {
+        PausingConsumer consumer = new PausingConsumer(subscription, Key_Shared, cnx);
+        Consumer ackConsumer = newConsumer(Key_Shared, 2);
+        assertThat(consumer.getPendingAcks().addPendingAckIfAllowed(LEDGER_ID, ENTRY_ID, 1, 0)).isTrue();
+        when(subscription.getConsumers()).thenReturn(List.of(consumer, ackConsumer));
+        consumer.pauseAt(PausePoint.BLOCK_PUBLICATION);
+
+        FutureTask<Void> blockTask = task(() -> consumer.incrementUnackedMessagesForTesting(MAX_UNACKED_MESSAGES));
+        Thread blockThread = new Thread(blockTask, "paused-block-publication");
+        blockThread.start();
+        assertThat(consumer.awaitPaused()).isTrue();
+
+        FutureTask<Void> ackTask = task(() -> acknowledgeEntry(ackConsumer));
+        Thread ackThread = new Thread(ackTask, "ack-above-resume-threshold");
+        ackThread.start();
+        try {
+            ackTask.get(10, SECONDS);
+            assertThat(consumer.getUnackedMessages()).isEqualTo(MAX_UNACKED_MESSAGES - 1);
+        } finally {
+            consumer.release();
+        }
+        blockTask.get(10, SECONDS);
+
+        assertThat(consumer.isBlocked()).isTrue();
+        assertThat(consumer.getAvailablePermits()).isZero();
+        assertThat(positiveDispatcherFlowCalls).hasValue(0);
+        assertThat(zeroDispatcherFlowCalls).hasValue(0);
     }
 
     @Test(timeOut = 30_000)
@@ -193,7 +251,7 @@ public class ConsumerBlockedPermitAccountingTest {
                 () -> {
                     policies.getMaxUnackedMessagesOnConsumer().updateBrokerValue(0);
                     consumer.reconcileBlockedStateAfterPolicyUpdate();
-                });
+                }, RacingActionOutcome.BLOCKED_ON_PAUSED_ACTION);
 
         assertUnblockedAndCanFlow(consumer, MAX_UNACKED_MESSAGES);
     }
@@ -227,10 +285,11 @@ public class ConsumerBlockedPermitAccountingTest {
     }
 
     @Test
-    public void testUnblockingEmptyBucketPreservesZeroDispatcherNotification() {
+    public void testUnblockingEmptyBucketPreservesZeroDispatcherNotification() throws Exception {
         Consumer consumer = newConsumer(Shared, 1);
-        setConsumerState(consumer, true, 0, 0);
-        consumer.updateBlockedConsumerOnUnackedMsgs(consumer);
+        setConsumerState(consumer, true, MAX_UNACKED_MESSAGES / 2 + 1, 0);
+        assertThat(consumer.getPendingAcks().addPendingAckIfAllowed(LEDGER_ID, ENTRY_ID, 1, 0)).isTrue();
+        acknowledgeEntry(consumer);
         assertThat(consumer.isBlocked()).isFalse();
         assertThat(consumer.getAvailablePermits()).isZero();
         assertThat(zeroDispatcherFlowCalls).hasValue(1);
@@ -283,7 +342,7 @@ public class ConsumerBlockedPermitAccountingTest {
     }
 
     private static void runRace(PausingConsumer consumer, ThrowingRunnable pausedAction,
-                                ThrowingRunnable racingAction) throws Exception {
+                                ThrowingRunnable racingAction, RacingActionOutcome expectedOutcome) throws Exception {
         FutureTask<Void> pausedTask = task(pausedAction);
         Thread pausedThread = new Thread(pausedTask, "paused-consumer-operation");
         pausedThread.start();
@@ -293,7 +352,7 @@ public class ConsumerBlockedPermitAccountingTest {
         Thread racingThread = new Thread(racingTask, "racing-consumer-operation");
         racingThread.start();
         try {
-            awaitCompletionOrBlockedOn(racingThread, pausedThread);
+            assertThat(awaitCompletionOrBlockedOn(racingThread, pausedThread)).isEqualTo(expectedOutcome);
         } finally {
             consumer.release();
         }
@@ -301,9 +360,9 @@ public class ConsumerBlockedPermitAccountingTest {
         racingTask.get(10, SECONDS);
     }
 
-    private void unblock(Consumer ackConsumer, Consumer ackOwnedConsumer, UnblockPath unblockPath) {
+    private void unblock(Consumer ackConsumer, Consumer ackOwnedConsumer, UnblockPath unblockPath) throws Exception {
         switch (unblockPath) {
-            case ACK -> ackConsumer.updateBlockedConsumerOnUnackedMsgs(ackOwnedConsumer);
+            case ACK -> acknowledgeEntry(ackConsumer);
             case FULL_REDELIVERY -> ackOwnedConsumer.redeliverUnacknowledgedMessages(DEFAULT_CONSUMER_EPOCH);
             case SELECTIVE_REDELIVERY -> {
                 MessageIdData messageId = new MessageIdData().setLedgerId(LEDGER_ID).setEntryId(ENTRY_ID);
@@ -312,7 +371,14 @@ public class ConsumerBlockedPermitAccountingTest {
         }
     }
 
-    private static void awaitCompletionOrBlockedOn(Thread waiter, Thread lockOwner) {
+    private static void acknowledgeEntry(Consumer consumer) throws Exception {
+        CommandAck ack = new CommandAck().setConsumerId(consumer.consumerId())
+                .setAckType(CommandAck.AckType.Individual);
+        ack.addMessageId().setLedgerId(LEDGER_ID).setEntryId(ENTRY_ID);
+        consumer.messageAcked(ack, true).get(10, SECONDS);
+    }
+
+    private static RacingActionOutcome awaitCompletionOrBlockedOn(Thread waiter, Thread lockOwner) {
         Awaitility.await().atMost(10, SECONDS).until(() -> {
             if (!waiter.isAlive()) {
                 return true;
@@ -322,6 +388,9 @@ public class ConsumerBlockedPermitAccountingTest {
                     && threadInfo.getThreadState() == Thread.State.BLOCKED
                     && threadInfo.getLockOwnerId() == lockOwner.threadId();
         });
+        return waiter.isAlive()
+                ? RacingActionOutcome.BLOCKED_ON_PAUSED_ACTION
+                : RacingActionOutcome.COMPLETED_BEFORE_RELEASE;
     }
 
     private static int readRemovalBalanceFromAnotherThread(Consumer consumer) throws Exception {
