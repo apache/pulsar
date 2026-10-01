@@ -32,11 +32,11 @@ import java.util.Locale;
  * Draws a chart that compares a baseline run (A) with a comparison run (B), as SVG, in the width and style of the run
  * report's charts. The same chart is drawn in two forms:
  * <ul>
- *   <li>combined: both runs' lines in one diagram, A in {@link #A_COLOR} with thin lines and B in
- *   {@link #B_COLOR} with thick ones;</li>
+ *   <li>combined: both runs' lines in one diagram, A in {@link #A_COLOR} and B in {@link #B_COLOR};</li>
  *   <li>separate: A above B, in two panels with the same axes, each tinted in its run's color and labeled with it,
  *   so that the runs can be told apart at a glance and their values compared by position.</li>
  * </ul>
+ * The lines are thin in both forms: the colors tell the runs apart.
  * Each run can have several lines, such as the published and dispatched rates; within a run they differ by dash.
  */
 final class ComparisonRenderer {
@@ -47,8 +47,8 @@ final class ComparisonRenderer {
     /** The separate charts' panel backgrounds: light tints of the runs' colors. */
     static final Color A_TINT = new Color(236, 242, 250);
     static final Color B_TINT = new Color(253, 241, 230);
-    static final double A_STROKE = 1.5;
-    static final double B_STROKE = 3;
+    /** Every line's width, for both runs. */
+    static final double STROKE = 1.5;
     private static final int PLOT_LEFT = 110;
     private static final int PLOT_RIGHT = WIDTH - 50;
     private static final int TITLE_HEIGHT = 110;
@@ -118,7 +118,7 @@ final class ComparisonRenderer {
         int legendTop = panel.bottom() + X_AXIS_HEIGHT + 10;
         int legendRows = legend(legend, chart.lines(), labelA, labelB, true, legendTop);
         int height = legendTop + legendRows * LEGEND_ROW_HEIGHT + FOOTER_HEIGHT;
-        StringBuilder out = start(chart, height, "A: " + labelA + " (thin lines) · B: " + labelB + " (thick lines)");
+        StringBuilder out = start(chart, height, "A: " + labelA + " · B: " + labelB);
         plot(out, chart, panel, null, chart.lines());
         marker(out, chart, panel, Side.A, chart.finishedA(), true);
         marker(out, chart, panel, Side.B, chart.finishedB(), true);
@@ -190,7 +190,7 @@ final class ComparisonRenderer {
                 .append("\"/>\n<text x=\"").append((PLOT_LEFT + PLOT_RIGHT) / 2).append("\" y=\"")
                 .append(panel.bottom() + 42).append("\" text-anchor=\"middle\" font-size=\"12\">")
                 .append(xml(chart.x().title())).append("</text>\n");
-        // A first, so that B's thicker lines are drawn on top
+        // A first, so that B's lines are drawn on top
         for (Side side : Side.values()) {
             for (Line line : lines) {
                 if (line.side() == side) {
@@ -220,7 +220,7 @@ final class ComparisonRenderer {
         }
         for (StringBuilder segment : segments) {
             out.append("<polyline fill=\"none\" stroke=\"").append(hex(color(line.side())))
-                    .append("\" stroke-width=\"").append(stroke(line.side())).append("\" stroke-linejoin=\"round\"")
+                    .append("\" stroke-width=\"").append(STROKE).append("\" stroke-linejoin=\"round\"")
                     .append(line.dashed() ? " stroke-dasharray=\"" + PUBLISHED_DASHES + "\"" : "")
                     .append(" points=\"").append(segment).append("\"/>\n");
         }
@@ -279,7 +279,7 @@ final class ComparisonRenderer {
                 }
                 int y = top + row * LEGEND_ROW_HEIGHT + 14;
                 out.add("<line x1=\"" + x + "\" y1=\"" + (y - 5) + "\" x2=\"" + (x + 28) + "\" y2=\"" + (y - 5)
-                        + "\" stroke=\"" + hex(color(side)) + "\" stroke-width=\"" + stroke(side) + "\""
+                        + "\" stroke=\"" + hex(color(side)) + "\" stroke-width=\"" + STROKE + "\""
                         + (line.dashed() ? " stroke-dasharray=\"" + PUBLISHED_DASHES + "\"" : "") + "/>\n<text x=\""
                         + (x + 36) + "\" y=\"" + y + "\" font-size=\"14\">" + xml(text) + "</text>\n");
                 x += width;
@@ -290,10 +290,6 @@ final class ComparisonRenderer {
 
     static Color color(Side side) {
         return side == Side.A ? A_COLOR : B_COLOR;
-    }
-
-    static double stroke(Side side) {
-        return side == Side.A ? A_STROKE : B_STROKE;
     }
 
     static int x(XAxis axis, double value) {

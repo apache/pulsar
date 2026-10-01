@@ -149,12 +149,13 @@ differ by orders of magnitude. Each chart comes in two forms:
 
 | File | Form |
 |---|---|
-| `<chart>.svg` | Both runs in one diagram: A's lines thin and blue, B's thick and orange |
+| `<chart>.svg` | Both runs in one diagram: A's lines blue, B's orange |
 | `<chart>-separate.svg` | A above B, in two panels with the same axes, each tinted in its run's color and labeled with it |
 
 Within a run, the published rate and the publish latency are dashed, and the dispatched rate and the end-to-end
 latency solid. Time runs from each run's measurement start, and a marker in each run's color shows when its gateways
-finished. A label defaults to the run's name, the name of its directory's parent. The charts are read from the run
+finished. A label defaults to the run's name, the name of its directory's parent; `--baseline-label` and `--comparison-label`
+set it, such as to a release version in place of a branch name. The charts are read from the run
 directories, so runs of different checkouts or releases, and runs made before this task, can be compared.
 
 Each run's report records the commit it was made from, and whether the checkout had uncommitted changes. Keep the

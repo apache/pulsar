@@ -70,11 +70,11 @@ public class ComparisonChartsTest {
         String combined = Files.readString(directory.resolve("charts/throughput.svg"));
         // The runs' labels: given for A, the run's name, its directory's parent, for B
         assertThat(combined).contains("A (4.0.13): Published").contains("B (change): Dispatched");
-        // A's lines are thin and blue, B's thick and orange
+        // A's lines are blue and B's orange, both thin
         String aColor = ComparisonRenderer.hex(ComparisonRenderer.A_COLOR);
         String bColor = ComparisonRenderer.hex(ComparisonRenderer.B_COLOR);
-        assertThat(combined).contains("stroke=\"" + aColor + "\" stroke-width=\"" + ComparisonRenderer.A_STROKE)
-                .contains("stroke=\"" + bColor + "\" stroke-width=\"" + ComparisonRenderer.B_STROKE);
+        assertThat(combined).contains("stroke=\"" + aColor + "\" stroke-width=\"" + ComparisonRenderer.STROKE)
+                .contains("stroke=\"" + bColor + "\" stroke-width=\"" + ComparisonRenderer.STROKE);
         // The value axis reaches past B's 4,000 msg/s in both forms, and the separate form's panels share it
         String separate = Files.readString(directory.resolve("charts/throughput-separate.svg"));
         assertThat(yAxisLabels(combined)).containsExactly("0", "1k", "2k", "3k", "4k", "5k");
