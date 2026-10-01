@@ -20,7 +20,11 @@
 package org.apache.pulsar;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.AssertJUnit.assertNotNull;
+import static org.testng.AssertJUnit.assertTrue;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -35,9 +39,11 @@ public class PulsarStandaloneBuilderTest {
         PulsarStandalone standalone = PulsarStandaloneBuilder.instance()
                 .withTempDirectory()
                 .build();
+        Path tempBaseDir = standalone.getTempBaseDir();
         try {
             standalone.setNumOfBk(2);
             standalone.start();
+            assertTrue(Files.exists(tempBaseDir));
             try (PulsarClient client = standalone.buildClient()) {
                 Producer<String> producer = client.newProducer(Schema.STRING)
                         .topic("test-topic").create();
@@ -53,5 +59,6 @@ public class PulsarStandaloneBuilderTest {
         } finally {
             standalone.close();
         }
-    }
+        assertFalse(Files.exists(tempBaseDir), "Temp directory was not cleaned up: " + tempBaseDir);
+        }
 }

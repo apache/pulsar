@@ -225,6 +225,10 @@ public class PulsarStandalone implements AutoCloseable {
         this.tempBaseDir = tempBaseDir;
     }
 
+    public Path getTempBaseDir() {
+        return this.tempBaseDir;
+    }
+
     public PulsarClient buildClient() throws PulsarClientException {
         return PulsarClient.builder()
                 .serviceUrl(this.getBrokerServiceUrl())
