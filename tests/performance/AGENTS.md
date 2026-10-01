@@ -106,6 +106,24 @@ Lessons from earlier iterations:
 - The launcher doesn't profile the bookies. Their metrics (`bookie_throttled_write`, `bookie_flush`, journal queue
   and flush latencies, `bookkeeper_server_ADD_ENTRY*`) and their threads' CPU, sampled from `/proc/<pid>/task/*/stat`
   inside the container with `docker exec`, show whether a bookie thread or its storage is the limit.
+- **When the disk is the limit.** All the bookies share the host's disk, and on a developer machine it is often a
+  laptop SSD, sometimes behind full-disk encryption, that limits large unbatched entries long before Pulsar does. The
+  signs: the disk's write MB/s in `host-io.csv` stays flat across runs and variants while the host's CPU has headroom;
+  `bookie_throttled_write` counts writes; the broker's managed-ledger add latency is high while the bookies' own add
+  latency is low and no broker or bookie thread is busy. Two options take the disk out of the way, so that the run
+  measures Pulsar instead:
+  - [`--extends configs/bookie-journal-tmpfs`](scenarios/README.md#the-bookies-journal-on-a-tmpfs) puts the bookies'
+    journals on a tmpfs. Every entry is written to the disk twice, once to the journal and once to the entry log, so
+    this halves the disk's writes. The test cluster doesn't sync the journal anyway, so it changes no durability
+    guarantee of the test; it costs about 512 MB of memory per busy bookie.
+  - [`configure-perf-test-environment.sh start --disable-write-barriers`](environment/README.md#disabling-write-barriers)
+    makes the ledger storage's syncs at each write-cache flush stop waiting for the disk's volatile cache. It risks
+    the host's file system on a power loss, so use it only on a host where that is acceptable, and only when the
+    tmpfs alone isn't enough.
+
+  Neither changes a limit inside a bookie: with one topic on single-copy ledgers, one bookie's single write-cache
+  flush thread (`db-storage`) still caps large entries (about 500 MB/s on an i9-9980HK). Compare runs only with the
+  same options, and mention them with the results.
 
 Before proposing a change for review, validate it as the [Experiment loop](#experiment-loop) describes.
 

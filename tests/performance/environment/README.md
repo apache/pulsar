@@ -60,11 +60,14 @@ states limited to C1, `min_perf_pct=100`) and adds:
 
 ## Disabling write barriers
 
-The bookies' ledgers are in their containers' file systems. Each time a bookie
-flushes its write cache, it calls `fsync` on its entry logs and its RocksDB index, and the file system then makes the
-disk write its volatile cache too. On a disk without power loss protection, as in most laptops and desktops, that can
-make the disk the limit of a run. The bookies' journal isn't synced in the test cluster, and with
-[`journalTmpfs`](../scenarios/README.md#the-bookies-journal-on-a-tmpfs) it isn't on the disk at all.
+The bookies' ledgers are in their containers' file systems, on the host's disk. Each time a bookie flushes its write
+cache, it syncs its entry logs and its RocksDB index (`fdatasync`, `fsync`), and the file system then makes the disk
+write its volatile cache too. A server's disk with power loss protection acknowledges that at once; most laptop and
+desktop disks don't, so with large unbatched entries the syncs can make the disk the limit of a run, which a production
+cluster wouldn't have: the bookies' flushes take long (`bookie_flush`), they throttle writes
+(`bookie_throttled_write`), and the broker's adds wait while no thread is busy. The bookies' journal isn't synced in
+the test cluster, and with [`journalTmpfs`](../scenarios/README.md#the-bookies-journal-on-a-tmpfs) it isn't on the
+disk at all; try that first, since it has no risk.
 
 `start --disable-write-barriers` remounts the file system that holds the containers' file systems without write
 barriers (`barrier=0` on ext4, `nobarrier` on btrfs; other file systems are left as they are), so that `fsync` no

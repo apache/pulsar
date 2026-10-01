@@ -141,6 +141,10 @@ scenarios in detail.
 - **Disk space**: keep the disk that holds Docker's data less than 90 % full. BookKeeper bookies switch to read-only
   mode when it is 95 % full. [`docker-cleanup.sh`](environment/scripts/docker-cleanup.sh) frees the space that test
   runs and image builds use up.
+- **Disk speed**: all the bookies write to the host's disk, which can limit runs with large messages before Pulsar
+  does. The [bookies' journal on a tmpfs](scenarios/README.md#the-bookies-journal-on-a-tmpfs) halves its writes, and
+  [disabling write barriers](environment/README.md#disabling-write-barriers) makes its syncs cheaper on a disk without
+  power loss protection.
 - **Recommended: A Linux host configured for consistent results**: turbo frequencies depend on the CPU's temperature,
   and power management changes CPU settings during a run, so results vary between runs of the same code, and a change
   smaller than that variance can't be detected. [The performance testing environment setup](environment/README.md) fixes
