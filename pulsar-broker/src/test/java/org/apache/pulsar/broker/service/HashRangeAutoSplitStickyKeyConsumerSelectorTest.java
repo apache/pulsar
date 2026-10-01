@@ -26,6 +26,11 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.Range;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -98,6 +103,56 @@ public class HashRangeAutoSplitStickyKeyConsumerSelectorTest {
             assertSelectionMatchesRanges(selector, 64);
         }
         Assert.assertNull(selector.select(0));
+    }
+
+    @Test(timeOut = 30000)
+    public void testConcurrentSelectionDuringMembershipChanges() throws Exception {
+        HashRangeAutoSplitStickyKeyConsumerSelector selector =
+                new HashRangeAutoSplitStickyKeyConsumerSelector(2 << 10, false);
+        Consumer stableConsumer = mock(Consumer.class);
+        Consumer transientConsumer = mock(Consumer.class);
+        selector.addConsumer(stableConsumer).join();
+        Range hashRange = selector.getKeyHashRange();
+        int readerCount = 3;
+        int rounds = 100;
+        CyclicBarrier phase = new CyclicBarrier(readerCount + 1);
+        ExecutorService executor = Executors.newFixedThreadPool(readerCount);
+        List<Future<?>> readers = new ArrayList<>();
+        try {
+            for (int reader = 0; reader < readerCount; reader++) {
+                readers.add(executor.submit(() -> {
+                    for (int round = 0; round < rounds; round++) {
+                        phase.await(5, TimeUnit.SECONDS);
+                        for (int hash = hashRange.getStart(); hash <= hashRange.getEnd(); hash++) {
+                            Consumer selected = selector.select(hash);
+                            Assert.assertTrue(selected == stableConsumer || selected == transientConsumer);
+                        }
+                        phase.await(5, TimeUnit.SECONDS);
+                    }
+                    for (int hash = hashRange.getStart(); hash <= hashRange.getEnd(); hash++) {
+                        Assert.assertSame(selector.select(hash), stableConsumer, "hash " + hash);
+                    }
+                    return null;
+                }));
+            }
+            for (int round = 0; round < rounds; round++) {
+                // Readers and membership changes participate in every round before advancing together.
+                phase.await(5, TimeUnit.SECONDS);
+                selector.addConsumer(transientConsumer).join();
+                selector.removeConsumer(transientConsumer);
+                phase.await(5, TimeUnit.SECONDS);
+            }
+            for (Future<?> reader : readers) {
+                reader.get(10, TimeUnit.SECONDS);
+            }
+            selector.removeConsumer(stableConsumer);
+            for (int hash = hashRange.getStart(); hash <= hashRange.getEnd(); hash++) {
+                Assert.assertNull(selector.select(hash), "hash " + hash);
+            }
+        } finally {
+            executor.shutdownNow();
+            Assert.assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS));
+        }
     }
 
     private static void assertSelectionMatchesRanges(HashRangeAutoSplitStickyKeyConsumerSelector selector,
