@@ -1,6 +1,6 @@
 # Compatibility
 
-**Status:** Draft (targeting Stable)
+**Status:** Stable
 
 This document specifies interoperability between scalable topics and classic (v4) Pulsar: the
 migration bridge from existing topics, broker version/feature gating, and forward/backward compatibility

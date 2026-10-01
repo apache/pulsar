@@ -1,6 +1,6 @@
 # Overview & Conventions
 
-**Status:** Draft
+**Status:** Stable
 
 This document defines the scope of the Scalable Topics Client Specification and the conventions every
 other document in the set follows.

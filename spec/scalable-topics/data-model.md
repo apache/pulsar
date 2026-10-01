@@ -1,6 +1,6 @@
 # Data Model
 
-**Status:** Draft (targeting Stable)
+**Status:** Stable
 
 This document defines the data objects a scalable-topics client exposes and the identity scheme for
 topics. It is language-neutral; the Java surface is in [Java Reference Mapping](java-mapping.md). Terms

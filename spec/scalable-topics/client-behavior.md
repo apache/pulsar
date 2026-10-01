@@ -1,6 +1,6 @@
 # Implementation Requirements
 
-**Status:** Draft (targeting Stable)
+**Status:** Stable
 
 This document specifies what a conformant client MUST do **internally** to realize the
 [Client API](client-api.md) contract over the [Wire Protocol](wire-protocol.md). The API states the

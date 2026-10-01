@@ -1,7 +1,7 @@
 # Scalable Topics — Client Specification
 
-**Specification version:** 0.1 (Draft)
-**Status:** Draft — under active development. See [Stability and Versioning](stability.md).
+**Specification version:** 1.0
+**Status:** Stable. See [Stability and Versioning](stability.md).
 
 This is the authoritative, language-neutral specification for **Apache Pulsar Scalable Topics** clients.
 It defines what a conformant client SDK MUST do, in any language, to interoperate with an Apache Pulsar
@@ -25,18 +25,18 @@ must do internally).
 
 | # | Document | Status | Summary |
 |---|----------|--------|---------|
-| 1 | [Overview & Conventions](conventions.md) | Draft | Scope, normative language (BCP 14), document statuses, the language-neutral naming policy and Java mapping. |
-| 2 | [Terminology](terminology.md) | Draft | Normative definitions of every term used across the spec. |
-| 3 | [Stability and Versioning](stability.md) | Draft | Specification versioning, feature stability tiers, and backward/forward-compatibility guarantees. |
-| 4 | [Data Model](data-model.md) | Draft | Topic identity, the key/hash ring, message, message identifier, checkpoint, schema. |
-| 5 | [Client API](client-api.md) | Draft | The observable **contract**: producers, the three consumer modes, transactions — operations, inputs, guarantees, errors. Transport-agnostic. |
-| 6 | [Implementation Requirements](client-behavior.md) | Draft | What a conformant client MUST do internally: routing, layout tracking, per-segment fan-out, retries, multiplexing, concurrency, resource lifetime. |
-| 7 | [Wire Protocol](wire-protocol.md) | Draft | The complete Pulsar binary-protocol binding with sequence diagrams: command catalog, DAG-watch, consumer assignment, producing/consuming, namespace watch, transaction-coordinator discovery, auto-creation. |
-| 8 | [Error Model](error-model.md) | Draft | Error taxonomy, typed errors, retryability, and no-throw rules. |
-| 9 | [Conformance](conformance.md) | Draft | The binary conformance criteria and the per-feature requirements checklist. |
-| 10 | [Compatibility](compatibility.md) | Draft | Interoperability with classic (v4) topics, the migration bridge, and broker version requirements. |
-| 11 | [Scalable Key-Shared Consumption](key-shared.md) | Draft | Entry-bucketing ([PIP-486](../../pip/pip-486.md)): scaling ordered consumption beyond one consumer per segment, with per-key affinity. Normative; required on the consumer side for Stream consumers. |
-| A | [Java Reference Mapping](java-mapping.md) | Draft | Maps each language-neutral operation/type to the Java V5 client surface. |
+| 1 | [Overview & Conventions](conventions.md) | Stable | Scope, normative language (BCP 14), document statuses, the language-neutral naming policy and Java mapping. |
+| 2 | [Terminology](terminology.md) | Stable | Normative definitions of every term used across the spec. |
+| 3 | [Stability and Versioning](stability.md) | Stable | Specification versioning, feature stability tiers, and backward/forward-compatibility guarantees. |
+| 4 | [Data Model](data-model.md) | Stable | Topic identity, the key/hash ring, message, message identifier, checkpoint, schema. |
+| 5 | [Client API](client-api.md) | Stable | The observable **contract**: producers, the three consumer modes, transactions — operations, inputs, guarantees, errors. Transport-agnostic. |
+| 6 | [Implementation Requirements](client-behavior.md) | Stable | What a conformant client MUST do internally: routing, layout tracking, per-segment fan-out, retries, multiplexing, concurrency, resource lifetime. |
+| 7 | [Wire Protocol](wire-protocol.md) | Stable | The complete Pulsar binary-protocol binding with sequence diagrams: command catalog, DAG-watch, consumer assignment, producing/consuming, namespace watch, transaction-coordinator discovery, auto-creation. |
+| 8 | [Error Model](error-model.md) | Stable | Error taxonomy, typed errors, retryability, and no-throw rules. |
+| 9 | [Conformance](conformance.md) | Stable | The binary conformance criteria and the per-feature requirements checklist. |
+| 10 | [Compatibility](compatibility.md) | Stable | Interoperability with classic (v4) topics, the migration bridge, and broker version requirements. |
+| 11 | [Scalable Key-Shared Consumption](key-shared.md) | Stable | Entry-bucketing ([PIP-486](../../pip/pip-486.md)): scaling ordered consumption beyond one consumer per segment, with per-key affinity. Normative; required on the consumer side for Stream consumers. |
+| A | [Java Reference Mapping](java-mapping.md) | Stable | Maps each language-neutral operation/type to the Java V5 client surface. |
 
 > **Status legend:** *Draft* = written, subject to change; *Stable* = ratified and frozen under the
 > versioning rules. Per-document and per-feature stability is governed by

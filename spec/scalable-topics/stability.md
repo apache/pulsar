@@ -1,6 +1,6 @@
 # Stability and Versioning
 
-**Status:** Draft
+**Status:** Stable
 
 This document defines how the specification is versioned, how feature maturity is expressed, and what
 compatibility guarantees clients and brokers owe each other.
@@ -120,14 +120,11 @@ On this basis:
 
 | Area | Tier | Notes |
 |------|------|-------|
-| Topic identity & migration bridge | Draft → targeting Stable | |
-| Producer & routing | Draft → targeting Stable | |
-| Stream / Queue / Checkpoint consumers | Draft → targeting Stable | |
-| Transactions | Draft → targeting Stable | Coordinator discovery via assignment watch. |
-| Namespace subscription | Draft → targeting Stable | |
-| Wire protocol (`CommandScalableTopic*`, watches) | Draft → targeting Stable | |
+| Topic identity & migration bridge | Stable | |
+| Producer & routing | Stable | |
+| Stream / Queue / Checkpoint consumers | Stable | |
+| Transactions | Stable | Coordinator discovery via assignment watch. |
+| Namespace subscription | Stable | |
+| Wire protocol (`CommandScalableTopic*`, watches) | Stable | |
 | Scalable key-shared consumption (entry-bucketing) | Normative | Ratified via [PIP-486](../../pip/pip-486.md). Consumer side required for Stream consumers; producer side exchangeable for unbatched publishing. |
 | Geo-replication of scalable topics | Out of scope | Design not yet settled. |
-
-While the specification is at `0.x`, all rows are **Draft**; the "targeting" column states the intended
-tier at `1.0`.

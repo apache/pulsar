@@ -1,6 +1,6 @@
 # Terminology
 
-**Status:** Draft
+**Status:** Stable
 
 This document gives the normative definitions of terms used throughout the specification. A term in
 *italics* elsewhere in the spec refers to a definition here. Definitions are normative; examples are

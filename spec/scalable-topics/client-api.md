@@ -1,6 +1,6 @@
 # Client API
 
-**Status:** Draft (targeting Stable)
+**Status:** Stable
 
 This document defines the **observable contract** of a scalable-topics client: the operations an
 application invokes, their inputs, and the guarantees they provide. It is transport-agnostic and

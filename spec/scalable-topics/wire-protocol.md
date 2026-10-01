@@ -1,6 +1,6 @@
 # Wire Protocol
 
-**Status:** Draft (targeting Stable)
+**Status:** Stable
 
 This document specifies the **complete** client↔broker protocol for scalable topics: every command, its
 fields, and every interaction (with sequence diagrams). It binds the transport-agnostic

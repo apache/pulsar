@@ -1,6 +1,6 @@
 # Conformance
 
-**Status:** Draft (targeting Stable)
+**Status:** Stable
 
 This document defines what it means for a client to **conform** to this specification, separates the
 **required core** from **optional capabilities**, and gives a per-requirement checklist.

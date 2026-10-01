@@ -1,6 +1,6 @@
 # Error Model
 
-**Status:** Draft (targeting Stable)
+**Status:** Stable
 
 This document defines how a scalable-topics client reports failures: the error categories, which are
 retried internally vs. surfaced, and the rules every operation follows. Error *categories* are

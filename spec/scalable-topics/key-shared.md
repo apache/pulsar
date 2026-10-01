@@ -1,6 +1,6 @@
 # Scalable Key-Shared Consumption (Entry-Bucketing)
 
-**Status:** Draft (targeting Stable)
+**Status:** Stable
 
 > **Normative.** This feature is specified by [PIP-486](../../pip/pip-486.md) and is a **normative**
 > part of this specification — not Experimental. How much of it a client must implement depends on what

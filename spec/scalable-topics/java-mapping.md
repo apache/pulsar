@@ -1,6 +1,6 @@
 # Appendix A — Java Reference Mapping
 
-**Status:** Draft · Informative
+**Status:** Stable · Informative
 
 This appendix maps the language-neutral concepts and operations of this specification to the **Java V5
 client** (`org.apache.pulsar.client.api.v5`), the reference implementation. It is **informative**: the
