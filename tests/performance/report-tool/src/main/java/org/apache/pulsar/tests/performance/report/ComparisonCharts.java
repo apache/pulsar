@@ -33,7 +33,9 @@ import java.util.concurrent.Callable;
 import org.HdrHistogram.Histogram;
 import org.HdrHistogram.HistogramIterationValue;
 import org.apache.pulsar.tests.performance.report.ComparisonRenderer.Chart;
+import org.apache.pulsar.tests.performance.report.ComparisonRenderer.Event;
 import org.apache.pulsar.tests.performance.report.ComparisonRenderer.Line;
+import org.apache.pulsar.tests.performance.report.ComparisonRenderer.Marker;
 import org.apache.pulsar.tests.performance.report.ComparisonRenderer.Side;
 import org.apache.pulsar.tests.performance.report.ComparisonRenderer.XAxis;
 import picocli.CommandLine;
@@ -42,11 +44,13 @@ import picocli.CommandLine.Option;
 
 /**
  * Compares two finished IoT runs, a baseline (A) and a comparison (B), in charts with the same axes for both: the
- * throughput (published and dispatched), the backlog, and the publish and end-to-end latency by percentile, on a
+ * throughput (published and consumed), the backlog, and the publish and end-to-end latency by percentile, on a
  * linear and on a logarithmic axis, since latencies that differ by orders of magnitude flatten on a linear one. Each
- * chart is written twice: {@code <chart>.svg} with both runs in one diagram, and {@code <chart>-separate.svg} with A
- * above B in panels of their own. The charts are read from the run directories' files: {@code topic-stats.csv},
- * {@code gateways/gateways-summary.json} and the HDR latency logs.
+ * chart is written twice: {@code <chart>-<baselineLabel>-vs-<comparisonLabel>.svg} with both runs in one diagram,
+ * and {@code <chart>-<baselineLabel>-vs-<comparisonLabel>-separate.svg} with A above B in panels of their own, unless
+ * {@code --no-labels-in-file-names} leaves the labels out. The charts are read from the run
+ * directories' files: {@code topic-stats.csv}, {@code gateways/gateways-summary.json}, the applications' summaries and
+ * the HDR latency logs.
  */
 @Command(name = "compare-runs", mixinStandardHelpOptions = true,
         description = "Chart a baseline run (A) against a comparison run (B) with the same axes for both")
@@ -77,14 +81,22 @@ public final class ComparisonCharts implements Callable<Integer> {
     @Option(names = "--output", required = true, description = "The directory to write the charts to")
     private Path output;
 
+    @Option(names = "--labels-in-file-names", negatable = true, defaultValue = "true", fallbackValue = "true",
+            description = "Name the charts <chart>-<A label>-vs-<B label>[-separate].svg; with"
+                    + " --no-labels-in-file-names, <chart>[-separate].svg. Default: ${DEFAULT-VALUE}")
+    private boolean labelsInFileNames;
+
     /**
      * A run's data, with times in seconds since its measurement start.
      *
-     * @param finishedSeconds when the gateways finished publishing
+     * @param gatewaysFinishedSeconds when the gateways finished publishing
+     * @param consumersFinishedSeconds when the last application received its last measured message, {@link Double#NaN}
+     *     when unknown
+     * @param consumed the rate that the subscriptions' consumers received messages at, summed over the subscriptions
      * @param latencies the publish latency first, then each application's end-to-end latency, by percentile
      */
-    record RunData(String label, String footer, double finishedSeconds, double[] seconds, double[] published,
-                   double[] dispatched, double[] backlog, List<Curve> latencies) {
+    record RunData(String label, String footer, double gatewaysFinishedSeconds, double consumersFinishedSeconds,
+                   double[] seconds, double[] published, double[] consumed, double[] backlog, List<Curve> latencies) {
     }
 
     /** A named line of a latency chart: percentile axis positions and latencies in milliseconds. */
@@ -102,7 +114,7 @@ public final class ComparisonCharts implements Callable<Integer> {
     public Integer call() throws Exception {
         RunData a = read(baseline, baselineLabel);
         RunData b = read(comparison, comparisonLabel);
-        for (Path chart : render(a, b, output)) {
+        for (Path chart : render(a, b, output, labelsInFileNames)) {
             System.out.println(chart);
         }
         return 0;
@@ -124,25 +136,53 @@ public final class ComparisonCharts implements Callable<Integer> {
             seconds[round] = (samples.epochMillis()[round] - start) / 1000.0;
         }
         String name = label != null ? label : run.getParent().getFileName().toString();
-        return new RunData(name, name + " " + run.getFileName(), finished, seconds, samples.published(),
-                sum(samples.dispatched(), seconds.length), sum(samples.backlog(), seconds.length), latencies(run));
+        return new RunData(name, name + " " + run.getFileName(), finished, consumersFinished(run, start), seconds,
+                samples.published(), sum(samples.dispatched(), seconds.length), sum(samples.backlog(), seconds.length),
+                latencies(run));
+    }
+
+    // When the last application received its last measured message, from the applications' summaries
+    private static double consumersFinished(Path run, long start) throws IOException {
+        JsonNode workload = workload(run);
+        ObjectMapper mapper = new ObjectMapper();
+        long last = -1;
+        for (int application = 0; ; application++) {
+            Path summary = RunReport.applicationDirectory(run, workload, application)
+                    .resolve("application-summary.json");
+            if (!Files.isRegularFile(summary)) {
+                break;
+            }
+            last = Math.max(last, mapper.readTree(summary.toFile()).path("lastMeasurementMessageReceivedEpochMs")
+                    .asLong(-1));
+        }
+        return last < 0 ? Double.NaN : (last - start) / 1000.0;
+    }
+
+    // The run's IoT workload settings, which name the applications' directories
+    private static JsonNode workload(Path run) throws IOException {
+        Path resolvedConfig = run.resolve(RunReport.RESOLVED_CONFIG);
+        return Files.isRegularFile(resolvedConfig)
+                ? new YAMLMapper().readTree(resolvedConfig.toFile()).path("workloads").path("iotTelemetry")
+                : MissingNode.getInstance();
     }
 
     /**
      * Writes the charts.
      *
+     * @param labelsInFileNames whether the file names include {@code -<baselineLabel>-vs-<comparisonLabel>}
      * @return the charts written: each chart's combined form followed by its separate form
      */
-    static List<Path> render(RunData a, RunData b, Path output) throws IOException {
+    static List<Path> render(RunData a, RunData b, Path output, boolean labelsInFileNames) throws IOException {
         Files.createDirectories(output);
+        String labels = labelsInFileNames ? "-" + fileNamePart(a.label()) + "-vs-" + fileNamePart(b.label()) : "";
         String footer = "A: " + a.footer() + "    B: " + b.footer();
         double end = Math.max(last(a.seconds()), last(b.seconds()));
         XAxis time = XAxis.seconds(0, end);
         List<Line> throughput = List.of(
                 new Line("Published", Side.A, a.seconds(), a.published(), true),
-                new Line("Dispatched", Side.A, a.seconds(), a.dispatched(), false),
+                new Line("Consumed", Side.A, a.seconds(), a.consumed(), false),
                 new Line("Published", Side.B, b.seconds(), b.published(), true),
-                new Line("Dispatched", Side.B, b.seconds(), b.dispatched(), false));
+                new Line("Consumed", Side.B, b.seconds(), b.consumed(), false));
         List<Line> backlog = List.of(
                 new Line("Backlog", Side.A, a.seconds(), a.backlog(), false),
                 new Line("Backlog", Side.B, b.seconds(), b.backlog(), false));
@@ -151,19 +191,31 @@ public final class ComparisonCharts implements Callable<Integer> {
         addCurves(latency, b, Side.B);
         XAxis percentiles = XAxis.percentiles(HdrHistogramRenderer.percentileAxisPosition(MAX_PERCENTILE));
         double latencyMax = TimeSeriesRenderer.axisMaximum(max(latency, percentiles) * 1.05);
+        List<Marker> markers = List.of(
+                new Marker(Side.A, Event.GATEWAYS_FINISHED, a.gatewaysFinishedSeconds()),
+                new Marker(Side.A, Event.CONSUMERS_FINISHED, a.consumersFinishedSeconds()),
+                new Marker(Side.B, Event.GATEWAYS_FINISHED, b.gatewaysFinishedSeconds()),
+                new Marker(Side.B, Event.CONSUMERS_FINISHED, b.consumersFinishedSeconds()));
         List<Path> written = new ArrayList<>();
-        write(written, output, THROUGHPUT, new Chart("Throughput", "Messages per second, sampled once per second",
-                time, TimeSeriesRenderer.axisMaximum(max(throughput, time) * 1.05), false, 0, throughput,
-                a.finishedSeconds(), b.finishedSeconds()), a, b, footer);
-        write(written, output, BACKLOG, new Chart("Backlog", "Messages in the backlog, sampled once per second",
-                time, TimeSeriesRenderer.axisMaximum(max(backlog, time) * 1.05), false, 0, backlog,
-                a.finishedSeconds(), b.finishedSeconds()), a, b, footer);
-        write(written, output, LATENCY, new Chart("Latency by percentile", "Latency (ms)", percentiles,
-                latencyMax, false, 0, latency, Double.NaN, Double.NaN), a, b, footer);
-        write(written, output, LATENCY_LOG, new Chart("Latency by percentile", "Latency (ms), logarithmic scale",
-                percentiles, Math.pow(10, Math.ceil(Math.log10(latencyMax))), true, LOG_LATENCY_MIN, latency,
-                Double.NaN, Double.NaN), a, b, footer);
+        write(written, output, THROUGHPUT + labels, new Chart("Throughput",
+                "Messages per second, sampled once per second", time,
+                TimeSeriesRenderer.axisMaximum(max(throughput, time) * 1.05), false, 0, throughput, markers),
+                a, b, footer);
+        write(written, output, BACKLOG + labels, new Chart("Backlog",
+                "Messages in the backlog, sampled once per second", time,
+                TimeSeriesRenderer.axisMaximum(max(backlog, time) * 1.05), false, 0, backlog, markers),
+                a, b, footer);
+        write(written, output, LATENCY + labels, new Chart("Latency by percentile", "Latency (ms)", percentiles,
+                latencyMax, false, 0, latency, List.of()), a, b, footer);
+        write(written, output, LATENCY_LOG + labels, new Chart("Latency by percentile",
+                "Latency (ms), logarithmic scale", percentiles, Math.pow(10, Math.ceil(Math.log10(latencyMax))), true,
+                LOG_LATENCY_MIN, latency, List.of()), a, b, footer);
         return written;
+    }
+
+    // A label as part of a file name: letters, digits, dots and underscores, anything else as an underscore
+    static String fileNamePart(String label) {
+        return label.replaceAll("[^A-Za-z0-9._]", "_");
     }
 
     private static void write(List<Path> written, Path output, String name, Chart chart, RunData a, RunData b,
@@ -192,10 +244,7 @@ public final class ComparisonCharts implements Callable<Integer> {
             return curves;
         }
         curves.add(curve("Publish", publish));
-        Path resolvedConfig = run.resolve(RunReport.RESOLVED_CONFIG);
-        JsonNode workload = Files.isRegularFile(resolvedConfig)
-                ? new YAMLMapper().readTree(resolvedConfig.toFile()).path("workloads").path("iotTelemetry")
-                : MissingNode.getInstance();
+        JsonNode workload = workload(run);
         List<Path> logs = new ArrayList<>();
         List<String> names = new ArrayList<>();
         for (int application = 0; ; application++) {

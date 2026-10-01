@@ -91,7 +91,8 @@ tasks.register<JavaExec>("renderHdrHistograms") {
 
 // Charts a baseline run (A) against a comparison run (B) with the same axes for both, combined in one diagram and in
 // separate panels: --args='--baseline <run directory> --comparison <run directory> --output <directory>', and
-// optionally --baseline-label and --comparison-label. Paths resolve from the repository root.
+// optionally --baseline-label, --comparison-label and --no-labels-in-file-names. Paths resolve from the repository
+// root.
 tasks.register<JavaExec>("compareRuns") {
     group = "verification"
     description = "Chart a baseline run (A) against a comparison run (B) with the same axes for both"

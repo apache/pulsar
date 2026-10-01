@@ -25,6 +25,7 @@ import static org.apache.pulsar.tests.performance.report.ChartStyle.WIDTH;
 import static org.apache.pulsar.tests.performance.report.ChartStyle.xml;
 import java.awt.Color;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 
@@ -37,7 +38,7 @@ import java.util.Locale;
  *   so that the runs can be told apart at a glance and their values compared by position.</li>
  * </ul>
  * The lines are thin in both forms: the colors tell the runs apart.
- * Each run can have several lines, such as the published and dispatched rates; within a run they differ by dash.
+ * Each run can have several lines, such as the published and consumed rates; within a run they differ by dash.
  */
 final class ComparisonRenderer {
     /** The baseline run's color: blue. */
@@ -63,6 +64,9 @@ final class ComparisonRenderer {
     private static final int FOOTER_HEIGHT = 30;
     private static final int GRID_LINES = 5;
     private static final String PUBLISHED_DASHES = "9 6";
+    // A marker label's width per character at its font size, and the distance between stacked labels
+    private static final double MARKER_CHAR_WIDTH = 7.2;
+    private static final int MARKER_ROW_HEIGHT = 16;
 
     /** The run a line belongs to. */
     enum Side {
@@ -72,7 +76,7 @@ final class ComparisonRenderer {
     /**
      * One line; a {@link Double#NaN} value leaves a gap.
      *
-     * @param dashed whether the line is dashed, which tells a run's lines apart, such as published from dispatched
+     * @param dashed whether the line is dashed, which tells a run's lines apart, such as published from consumed
      */
     record Line(String name, Side side, double[] x, double[] y, boolean dashed) {
     }
@@ -91,15 +95,36 @@ final class ComparisonRenderer {
         }
     }
 
+    /** What a run's marker line shows: when its gateways or its consumers finished. */
+    enum Event {
+        GATEWAYS_FINISHED("gateways finished", "5 4"),
+        CONSUMERS_FINISHED("consumers finished", "1.5 3");
+
+        private final String label;
+        private final String dashes;
+
+        Event(String label, String dashes) {
+            this.label = label;
+            this.dashes = dashes;
+        }
+    }
+
+    /**
+     * A vertical marker line of a run, labeled with its event.
+     *
+     * @param at the x position, {@link Double#NaN} for none
+     */
+    record Marker(Side side, Event event, double at) {
+    }
+
     /**
      * What a chart shows, for both runs.
      *
      * @param yMax the top of the value axis, the same for both runs
      * @param logY whether the value axis is logarithmic, from {@code yMinLog} to {@code yMax}
-     * @param finishedA the x position where A's producers finished, {@link Double#NaN} for no marker
      */
     record Chart(String title, String yLabel, XAxis x, double yMax, boolean logY, double yMinLog, List<Line> lines,
-                 double finishedA, double finishedB) {
+                 List<Marker> markers) {
     }
 
     private record Panel(int top, int height) {
@@ -120,8 +145,7 @@ final class ComparisonRenderer {
         int height = legendTop + legendRows * LEGEND_ROW_HEIGHT + FOOTER_HEIGHT;
         StringBuilder out = start(chart, height, "A: " + labelA + " · B: " + labelB);
         plot(out, chart, panel, null, chart.lines());
-        marker(out, chart, panel, Side.A, chart.finishedA(), true);
-        marker(out, chart, panel, Side.B, chart.finishedB(), true);
+        markers(out, chart, panel, chart.markers(), true);
         legend.forEach(out::append);
         return end(out, footer, height);
     }
@@ -138,10 +162,12 @@ final class ComparisonRenderer {
                 + " axes");
         plot(out, chart, panelA, Side.A, chart.lines().stream().filter(line -> line.side() == Side.A).toList());
         badge(out, panelA, Side.A, labelA);
-        marker(out, chart, panelA, Side.A, chart.finishedA(), false);
+        markers(out, chart, panelA, chart.markers().stream().filter(marker -> marker.side() == Side.A).toList(),
+                false);
         plot(out, chart, panelB, Side.B, chart.lines().stream().filter(line -> line.side() == Side.B).toList());
         badge(out, panelB, Side.B, labelB);
-        marker(out, chart, panelB, Side.B, chart.finishedB(), false);
+        markers(out, chart, panelB, chart.markers().stream().filter(marker -> marker.side() == Side.B).toList(),
+                false);
         legend.forEach(out::append);
         return end(out, footer, height);
     }
@@ -238,21 +264,51 @@ final class ComparisonRenderer {
                 .append("</text>\n");
     }
 
-    private static void marker(StringBuilder out, Chart chart, Panel panel, Side side, double at, boolean prefix) {
-        if (Double.isNaN(at) || at < chart.x().min() || at > chart.x().max()) {
-            return;
+    /**
+     * Draws the markers' lines and labels. A label goes right of its line, or left of it near the plot's right edge,
+     * in the first row from the top where it doesn't overlap another marker's label, so that labels of close markers
+     * stack instead of overlapping.
+     *
+     * @param prefix whether a label names its run, as in a combined chart
+     */
+    private static void markers(StringBuilder out, Chart chart, Panel panel, List<Marker> markers, boolean prefix) {
+        List<Marker> shown = markers.stream().filter(marker -> !Double.isNaN(marker.at())
+                && marker.at() >= chart.x().min() && marker.at() <= chart.x().max())
+                .sorted(Comparator.comparingDouble(Marker::at)).toList();
+        List<List<int[]>> rows = new ArrayList<>();
+        for (Marker marker : shown) {
+            int x = x(chart.x(), marker.at());
+            String label = (prefix ? marker.side() + ": " : "") + marker.event().label;
+            int width = (int) Math.ceil(label.length() * MARKER_CHAR_WIDTH);
+            boolean left = x + 6 + width > PLOT_RIGHT;
+            int[] extent = left ? new int[] {x - 6 - width, x} : new int[] {x, x + 6 + width};
+            int row = 0;
+            while (row < rows.size() && overlaps(rows.get(row), extent)) {
+                row++;
+            }
+            if (row == rows.size()) {
+                rows.add(new ArrayList<>());
+            }
+            rows.get(row).add(extent);
+            String color = hex(color(marker.side()));
+            out.append("<line x1=\"").append(x).append("\" y1=\"").append(panel.top()).append("\" x2=\"").append(x)
+                    .append("\" y2=\"").append(panel.bottom()).append("\" stroke=\"").append(color)
+                    .append("\" stroke-width=\"1.5\" stroke-dasharray=\"").append(marker.event().dashes)
+                    .append("\"/>\n<text x=\"").append(left ? x - 6 : x + 6).append("\" y=\"")
+                    .append(panel.top() + 14 + row * MARKER_ROW_HEIGHT).append(left ? "\" text-anchor=\"end" : "")
+                    .append("\" font-size=\"12\" style=\"fill:").append(color).append("\">").append(xml(label))
+                    .append("</text>\n");
         }
-        int x = x(chart.x(), at);
-        String label = (prefix ? side + ": " : "") + "gateways finished";
-        boolean left = x > PLOT_RIGHT - 200;
-        // A's label at the top, B's below it, so that the labels of close markers don't overlap
-        int labelY = panel.top() + (side == Side.A || !prefix ? 14 : 30);
-        out.append("<line x1=\"").append(x).append("\" y1=\"").append(panel.top()).append("\" x2=\"").append(x)
-                .append("\" y2=\"").append(panel.bottom()).append("\" stroke=\"").append(hex(color(side)))
-                .append("\" stroke-width=\"1.5\" stroke-dasharray=\"4 4\"/>\n<text x=\"")
-                .append(left ? x - 6 : x + 6).append("\" y=\"").append(labelY)
-                .append(left ? "\" text-anchor=\"end" : "").append("\" font-size=\"12\" style=\"fill:")
-                .append(hex(color(side))).append("\">").append(xml(label)).append("</text>\n");
+    }
+
+    // Whether an extent, with a small gap, overlaps any of a row's extents
+    private static boolean overlaps(List<int[]> row, int[] extent) {
+        for (int[] other : row) {
+            if (extent[0] < other[1] + 8 && other[0] < extent[1] + 8) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -272,7 +328,7 @@ final class ComparisonRenderer {
                 }
                 String text = (combined ? side + " (" + (side == Side.A ? labelA : labelB) + "): " : side + ": ")
                         + line.name();
-                int width = 44 + (int) (text.length() * 7.5);
+                int width = 56 + (int) (text.length() * 7.8);
                 if (x > PLOT_LEFT && x + width > PLOT_RIGHT) {
                     x = PLOT_LEFT;
                     row++;

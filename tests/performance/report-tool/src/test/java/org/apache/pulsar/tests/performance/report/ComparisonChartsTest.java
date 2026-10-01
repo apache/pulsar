@@ -26,7 +26,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -56,12 +59,13 @@ public class ComparisonChartsTest {
 
     @Test
     public void writesCombinedAndSeparateChartsWithTheSameAxesForBothRuns() throws Exception {
-        // A publishes 1,000 msg/s for 10 s and dispatches nothing; B publishes and dispatches 4,000 msg/s for 5 s
+        // A publishes 1,000 msg/s for 10 s and its consumers receive nothing; B publishes and consumes 4,000 msg/s
+        // for 5 s
         Path a = writeRun("baseline/run-a", 1_000, 0, 10, 2_000, 200_000);
         Path b = writeRun("change/run-b", 4_000, 4_000, 5, 1_000, 2_000);
 
         List<Path> charts = ComparisonCharts.render(ComparisonCharts.read(a, "4.0.13"),
-                ComparisonCharts.read(b, null), directory.resolve("charts"));
+                ComparisonCharts.read(b, null), directory.resolve("charts"), false);
 
         List<String> names = charts.stream().map(path -> path.getFileName().toString()).toList();
         assertThat(names).containsExactly("throughput.svg", "throughput-separate.svg", "backlog.svg",
@@ -69,7 +73,7 @@ public class ComparisonChartsTest {
                 "latency-percentiles-log.svg", "latency-percentiles-log-separate.svg");
         String combined = Files.readString(directory.resolve("charts/throughput.svg"));
         // The runs' labels: given for A, the run's name, its directory's parent, for B
-        assertThat(combined).contains("A (4.0.13): Published").contains("B (change): Dispatched");
+        assertThat(combined).contains("A (4.0.13): Published").contains("B (change): Consumed");
         // A's lines are blue and B's orange, both thin
         String aColor = ComparisonRenderer.hex(ComparisonRenderer.A_COLOR);
         String bColor = ComparisonRenderer.hex(ComparisonRenderer.B_COLOR);
@@ -80,6 +84,10 @@ public class ComparisonChartsTest {
         assertThat(yAxisLabels(combined)).containsExactly("0", "1k", "2k", "3k", "4k", "5k");
         assertThat(yAxisLabels(separate)).containsExactly("0", "1k", "2k", "3k", "4k", "5k", "0", "1k", "2k", "3k",
                 "4k", "5k");
+        // Each run's gateways and consumers finished, A's consumers 12 s after the start
+        assertThat(combined).contains(">A: gateways finished</text>").contains(">A: consumers finished</text>")
+                .contains(">B: gateways finished</text>").contains(">B: consumers finished</text>");
+        assertThat(separate).contains(">gateways finished</text>").contains(">consumers finished</text>");
         // Each panel is tinted in its run's color and labeled with it
         assertThat(separate).contains("fill=\"" + ComparisonRenderer.hex(ComparisonRenderer.A_TINT) + "\"")
                 .contains("fill=\"" + ComparisonRenderer.hex(ComparisonRenderer.B_TINT) + "\"")
@@ -89,6 +97,47 @@ public class ComparisonChartsTest {
         assertThat(yAxisLabels(log)).containsExactly("0.1", "1", "10", "100", "1k");
         assertThat(Files.readString(directory.resolve("charts/latency-percentiles.svg")))
                 .contains("A (4.0.13): End-to-end").contains("B (change): Publish");
+    }
+
+    @Test
+    public void namesTheChartsAfterTheRunsLabels() throws Exception {
+        Path a = writeRun("baseline/run-a", 1_000, 0, 10, 2_000, 200_000);
+        Path b = writeRun("change/run-b", 4_000, 4_000, 5, 1_000, 2_000);
+
+        List<Path> charts = ComparisonCharts.render(ComparisonCharts.read(a, "4.0.13"),
+                ComparisonCharts.read(b, "lh/branch x"), directory.resolve("charts"), true);
+
+        assertThat(charts.stream().map(path -> path.getFileName().toString()).toList().subList(0, 2))
+                .containsExactly("throughput-4.0.13-vs-lh_branch_x.svg",
+                        "throughput-4.0.13-vs-lh_branch_x-separate.svg");
+    }
+
+    @Test
+    public void stacksTheLabelsOfCloseMarkersInRowsOfTheirOwn() {
+        ComparisonRenderer.Chart chart = new ComparisonRenderer.Chart("Throughput", "Messages per second",
+                ComparisonRenderer.XAxis.seconds(0, 100), 10, false, 0, List.of(), List.of(
+                        new ComparisonRenderer.Marker(ComparisonRenderer.Side.A,
+                                ComparisonRenderer.Event.GATEWAYS_FINISHED, 30),
+                        new ComparisonRenderer.Marker(ComparisonRenderer.Side.A,
+                                ComparisonRenderer.Event.CONSUMERS_FINISHED, 31),
+                        new ComparisonRenderer.Marker(ComparisonRenderer.Side.B,
+                                ComparisonRenderer.Event.GATEWAYS_FINISHED, 32),
+                        new ComparisonRenderer.Marker(ComparisonRenderer.Side.B,
+                                ComparisonRenderer.Event.CONSUMERS_FINISHED, 90)));
+
+        String svg = ComparisonRenderer.combined(chart, "4.0.13", "5.0.0", "");
+
+        // The three close labels are in three rows; B's consumers' label, far from them, goes back to the first
+        Matcher matcher = Pattern.compile("y=\"(\\d+)\"(?: text-anchor=\"end\")? font-size=\"12\""
+                + " style=\"fill:#[0-9a-f]{6}\">([AB]: [a-z ]+)</text>").matcher(svg);
+        Map<String, Integer> rows = new HashMap<>();
+        while (matcher.find()) {
+            rows.put(matcher.group(2), Integer.parseInt(matcher.group(1)));
+        }
+        assertThat(rows).hasSize(4);
+        assertThat(Set.of(rows.get("A: gateways finished"), rows.get("A: consumers finished"),
+                rows.get("B: gateways finished"))).hasSize(3);
+        assertThat(rows.get("B: consumers finished")).isEqualTo(rows.get("A: gateways finished"));
     }
 
     @Test
@@ -130,6 +179,10 @@ public class ComparisonChartsTest {
         Files.writeString(run.resolve(RunReport.TOPIC_STATS_FILE), csv);
         Files.writeString(run.resolve("gateways/gateways-summary.json"), "{\"measurementStartEpochMs\":" + START
                 + ",\"measurementEndEpochMs\":" + (START + seconds * 1_000L) + "}");
+        Path application = RunReport.applicationDirectory(run, MissingNode.getInstance(), 0);
+        Files.createDirectories(application);
+        Files.writeString(application.resolve("application-summary.json"),
+                "{\"lastMeasurementMessageReceivedEpochMs\":" + (START + (seconds + 2) * 1_000L) + "}");
         writeLog(run.resolve("gateways/gateways-latency.hdr"), publishMicros);
         writeLog(RunReport.applicationDirectory(run, MissingNode.getInstance(), 0)
                 .resolve("application-latency.hdr"), endToEndMicros);

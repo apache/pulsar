@@ -143,18 +143,22 @@ same axes for both runs, so that their values can be compared by position:
   --comparison <B run directory> --baseline-label 4.0.13 --comparison-label master --output <directory>'
 ```
 
-It writes the throughput (published and dispatched), the backlog, and the publish and end-to-end latency by
+It writes the throughput (published and consumed), the backlog, and the publish and end-to-end latency by
 percentile, the latency both on a linear and on a logarithmic axis (`latency-percentiles-log`), for latencies that
 differ by orders of magnitude. Each chart comes in two forms:
 
 | File | Form |
 |---|---|
-| `<chart>.svg` | Both runs in one diagram: A's lines blue, B's orange |
-| `<chart>-separate.svg` | A above B, in two panels with the same axes, each tinted in its run's color and labeled with it |
+| `<chart>-<A label>-vs-<B label>.svg` | Both runs in one diagram: A's lines blue, B's orange |
+| `<chart>-<A label>-vs-<B label>-separate.svg` | A above B, in two panels with the same axes, each tinted in its run's color and labeled with it |
 
-Within a run, the published rate and the publish latency are dashed, and the dispatched rate and the end-to-end
-latency solid. Time runs from each run's measurement start, and a marker in each run's color shows when its gateways
-finished. A label defaults to the run's name, the name of its directory's parent; `--baseline-label` and `--comparison-label`
+The labels in the file names, such as `throughput-4.0.13-vs-5.0.0.svg`, keep the charts of several comparisons apart
+in one directory; characters other than letters, digits, dots and underscores become underscores, and
+`--no-labels-in-file-names` leaves them out (`throughput.svg`).
+
+Within a run, the published rate and the publish latency are dashed, and the consumed rate and the end-to-end latency
+solid. Time runs from each run's measurement start, and markers in each run's color show when its gateways finished
+publishing and when its consumers received their last measured message; labels of close markers stack. A label defaults to the run's name, the name of its directory's parent; `--baseline-label` and `--comparison-label`
 set it, such as to a release version in place of a branch name. The charts are read from the run
 directories, so runs of different checkouts or releases, and runs made before this task, can be compared.
 
