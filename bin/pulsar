@@ -85,6 +85,7 @@ Environment variables:
    PULSAR_PROXY_CONF             Configuration file for Pulsar proxy (default: $DEFAULT_PROXY_CONF)
    PULSAR_WORKER_CONF            Configuration file for functions worker (default: $DEFAULT_WORKER_CONF)
    PULSAR_STANDALONE_CONF        Configuration file for standalone (default: $DEFAULT_STANDALONE_CONF)
+   PULSAR_MIN_JAVA_VERSION       Minimum Java version accepted by the launcher (default: 21)
    PULSAR_EXTRA_OPTS             Extra options to be passed to the jvm
    PULSAR_EXTRA_CLASSPATH        Add extra paths to the pulsar classpath
    PULSAR_PID_DIR                Folder where the pulsar server PID file should be stored
@@ -147,8 +148,9 @@ if [[ -z $JAVA_MAJOR_VERSION ]]; then
   done
 fi
 
-if [[ $JAVA_MAJOR_VERSION -lt 17 ]]; then
-    echo "Error: Pulsar requires Java 17 or later." 1>&2
+PULSAR_MIN_JAVA_VERSION=${PULSAR_MIN_JAVA_VERSION:-21}
+if [[ $JAVA_MAJOR_VERSION -lt $PULSAR_MIN_JAVA_VERSION ]]; then
+    echo "Error: Pulsar server commands require Java $PULSAR_MIN_JAVA_VERSION or later." 1>&2
     exit 1
 fi
 
@@ -275,6 +277,13 @@ OPTS="-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager $OPTS"
 if [[ $JAVA_MAJOR_VERSION -ge 23 ]]; then
   OPTS="--sun-misc-unsafe-memory-access=allow $OPTS"
 fi
+# Use compact object headers (JEP 519, https://openjdk.org/jeps/519), which shrink object headers from 12 to 8 bytes
+# and so reduce heap usage and improve cache locality. They are a product feature since JDK 25 and the default from
+# JDK 27 on (JEP 534, https://openjdk.org/jeps/534). The option is prepended so that the configured options can
+# override it with -XX:-UseCompactObjectHeaders.
+if [[ $JAVA_MAJOR_VERSION -eq 25 || $JAVA_MAJOR_VERSION -eq 26 ]]; then
+  OPTS="-XX:+UseCompactObjectHeaders $OPTS"
+fi
 
 # Enable TCP keepalive for all Zookeeper client connections
 OPTS="$OPTS -Dzookeeper.clientTcpKeepAlive=true"
@@ -323,8 +332,12 @@ OPTS="-Dio.netty.recycler.maxCapacityPerThread=4096 -Dio.netty.allocator.maxOrde
 
 OPTS="-cp $PULSAR_CLASSPATH $OPTS"
 
+# Netty's leak detection samples buffer allocations and records access traces for the sampled ones, which costs CPU
+# on every component's hot paths. Disable it by default; the options that come later on the command line, such as
+# -Dio.netty.leakDetection.level=simple in PULSAR_EXTRA_OPTS (BOOKIE_EXTRA_OPTS for bookies), override this.
+OPTS="-Dio.netty.leakDetection.level=disabled $OPTS"
+
 if [ $COMMAND == "bookie" ]; then
-  OPTS="-Dio.netty.leakDetection.level=disabled $OPTS"
   # Pass BOOKIE_EXTRA_OPTS option defined in bkenv.sh
   OPTS="$OPTS $BOOKIE_MEM $BOOKIE_GC $BOOKIE_GC_LOG $BOOKIE_EXTRA_OPTS"
 else

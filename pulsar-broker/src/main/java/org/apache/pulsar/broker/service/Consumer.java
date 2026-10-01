@@ -162,7 +162,6 @@ public class Consumer {
 
     private static final double avgPercent = 0.9;
     private boolean preciseDispatcherFlowControl;
-    private Position readPositionWhenJoining;
     private final String clientAddress; // IP address only, no port number included
     private final MessageId startMessageId;
     private final boolean isAcknowledgmentAtBatchIndexLevelEnabled;
@@ -477,6 +476,10 @@ public class Consumer {
                 && getMaxUnackedMessages() > 0) {
             blockedConsumerOnUnackedMsgs = true;
         }
+    }
+
+    void notifyChannelWritable() {
+        subscription.notifyChannelWritable(this);
     }
 
     public boolean isWritable() {
@@ -1148,9 +1151,6 @@ public class Consumer {
         stats.blockedConsumerOnUnackedMsgs = blockedConsumerOnUnackedMsgs;
         stats.avgMessagesPerEntry = getAvgMessagesPerEntry();
         stats.consumerName = consumerName;
-        if (readPositionWhenJoining != null) {
-            stats.readPositionWhenJoining = readPositionWhenJoining.toString();
-        }
         if (drainingHashesConsumerStatsUpdater != null) {
             drainingHashesConsumerStatsUpdater.accept(this, stats);
         }
@@ -1420,10 +1420,6 @@ public class Consumer {
 
     public boolean isPreciseDispatcherFlowControl() {
         return preciseDispatcherFlowControl;
-    }
-
-    public void setReadPositionWhenJoining(Position readPositionWhenJoining) {
-        this.readPositionWhenJoining = readPositionWhenJoining;
     }
 
     public int getMaxUnackedMessages() {

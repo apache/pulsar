@@ -125,9 +125,9 @@ public class SegmentLoadReporter {
     static boolean isMaterialChange(SegmentLoadStats last, SegmentLoadStats current,
                                     double threshold) {
         return changed(last.msgRateIn(), current.msgRateIn(), threshold)
-                || changed(last.bytesRateIn(), current.bytesRateIn(), threshold)
+                || changed(last.byteRateIn(), current.byteRateIn(), threshold)
                 || changed(last.msgRateOut(), current.msgRateOut(), threshold)
-                || changed(last.bytesRateOut(), current.bytesRateOut(), threshold);
+                || changed(last.byteRateOut(), current.byteRateOut(), threshold);
     }
 
     private static boolean changed(double last, double current, double threshold) {

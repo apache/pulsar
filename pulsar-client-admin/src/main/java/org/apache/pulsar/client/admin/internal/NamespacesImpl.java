@@ -1209,6 +1209,20 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
 
+    /**
+     * Used by the broker when dispatching to namespace bundles; not part of the public
+     * {@link org.apache.pulsar.client.admin.Namespaces} API.
+     */
+    public CompletableFuture<Void> clearNamespaceBundleBacklogForSubscriptionAsync(String namespace, String bundle,
+            String subscription, boolean subscriptionOnly) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, bundle, "clearBacklog", subscription);
+        if (subscriptionOnly) {
+            path = path.queryParam("subscriptionOnly", true);
+        }
+        return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+    }
+
     @Override
     public void unsubscribeNamespace(String namespace, String subscription) throws PulsarAdminException {
         sync(() -> unsubscribeNamespaceAsync(namespace, subscription));

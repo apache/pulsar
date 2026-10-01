@@ -201,17 +201,15 @@ public class TopicOwnerTest {
         final String topic1 = "persistent://my-tenant/my-ns/topic-1";
         final String topic2 = "persistent://my-tenant/my-ns/topic-2";
 
-        // Do topic lookup here for broker to own namespace bundles
+        // Assign the bundles to different brokers without relying on load-balancer distribution.
+        final MutableObject<PulsarService> leaderAuthorizedBroker = spyLeaderNamespaceServiceForAuthorizedBroker();
+        leaderAuthorizedBroker.setValue(pulsarServices[1]);
         String serviceUrlForTopic1 = pulsarAdmins[0].lookups().lookupTopic(topic1);
+        Assert.assertEquals(serviceUrlForTopic1, pulsarServices[1].getBrokerServiceUrl());
+        leaderAuthorizedBroker.setValue(pulsarServices[2]);
         String serviceUrlForTopic2 = pulsarAdmins[0].lookups().lookupTopic(topic2);
-
-        while (serviceUrlForTopic1.equals(serviceUrlForTopic2)) {
-            // Retry for bundle distribution,
-            // should make sure bundles for topic1 and topic2 are maintained in different brokers.
-            pulsarAdmins[0].namespaces().unload("my-tenant/my-ns");
-            serviceUrlForTopic1 = pulsarAdmins[0].lookups().lookupTopic(topic1);
-            serviceUrlForTopic2 = pulsarAdmins[0].lookups().lookupTopic(topic2);
-        }
+        Assert.assertEquals(serviceUrlForTopic2, pulsarServices[2].getBrokerServiceUrl());
+        leaderAuthorizedBroker.setValue(null);
         // All brokers will invalidate bundles cache after namespace bundle split
         pulsarAdmins[0].namespaces().splitNamespaceBundle("my-tenant/my-ns",
                 pulsarServices[0].getNamespaceService().getBundle(TopicName.get(topic1)).getBundleRange(),

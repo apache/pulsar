@@ -554,6 +554,7 @@ public class ManagedCursorImpl implements ManagedCursor {
      */
     void recover(final VoidCallback callback) {
         // Read the meta-data ledgerId from the store
+        long timestampStartReadCursorMeta = System.currentTimeMillis();
         log.info("Recovering from bookkeeper ledger cursor");
         ledger.getStore().asyncGetCursorInfo(ledger.getName(), name, new MetaStoreCallback<ManagedCursorInfo>() {
             @Override
@@ -595,7 +596,10 @@ public class ManagedCursorImpl implements ManagedCursor {
                     callback.operationComplete();
                 } else {
                     // Need to proceed and read the last entry in the specified ledger to find out the last position
-                    log.info().attr("cursorLedgerId", info.getCursorsLedgerId()).log("Meta-data recover from ledger");
+                    log.info().attr("cursorLedgerId", info.getCursorsLedgerId())
+                            .attr("read cursor metadata costs",
+                                System.currentTimeMillis() - timestampStartReadCursorMeta)
+                            .log("Meta-data recover from ledger");
                     recoverFromLedger(info, callback);
                 }
             }
@@ -616,8 +620,11 @@ public class ManagedCursorImpl implements ManagedCursor {
         // ManagedCursorInfo. The properties saved alongside that snapshot must be carried over: initialize()
         // persists whatever map it receives, so passing an empty map would durably wipe them out.
         Map<String, Long> rollbackProperties = recoverProperties(info.getPropertiesCount(), info::getPropertyAt);
+        long startTimestampOpeningLedger = System.currentTimeMillis();
         OpenCallback openCallback = (rc, lh, ctx) -> {
-            log.info().attr("ledgerId", ledgerId).attr("rc", rc).log("Opened ledger");
+            log.info().attr("ledgerId", ledgerId).attr("rc", rc)
+                    .attr("cost ms", System.currentTimeMillis() - startTimestampOpeningLedger)
+                    .log("Opened ledger of recover cursor from metadata stored in BK");
             if (isBkErrorNotRecoverable(rc) || (rc != BKException.Code.OK && ledgerForceRecovery)) {
                 log.error()
                         .attr("ledgerId", ledgerId)
@@ -1307,7 +1314,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
         if (markDeletePosition.compareTo(lastPosition) > 0) {
             if (!ledger.ledgerExists(lastPosition.getLedgerId())
-                    || isMarkDeletePositionOnEmptyCurrentLedger(markDeletePosition)) {
+                    || isMarkDeletePositionAtStartOfCurrentLedger(markDeletePosition)) {
                 return 0;
             }
             throw new IllegalArgumentException(String.format(
@@ -1370,10 +1377,14 @@ public class ManagedCursorImpl implements ManagedCursor {
         return adjustedSize;
     }
 
-    private boolean isMarkDeletePositionOnEmptyCurrentLedger(Position markDeletePosition) {
-        return ledger.currentLedger != null
-                && markDeletePosition.getLedgerId() == ledger.currentLedger.getId()
-                && ledger.currentLedgerEntries == 0;
+    private boolean isMarkDeletePositionAtStartOfCurrentLedger(Position markDeletePosition) {
+        // The caller has already checked that mark-delete is ahead of the last confirmed position.
+        // Rollover can move the cursor to this sentinel while the first add is still pending;
+        // currentLedgerEntries includes pending adds, so it cannot identify this state.
+        LedgerHandle currentLedger = ledger.currentLedger;
+        return currentLedger != null
+                && markDeletePosition.getLedgerId() == currentLedger.getId()
+                && markDeletePosition.getEntryId() == -1;
     }
 
     private long getNumberOfEntriesInBacklog() {

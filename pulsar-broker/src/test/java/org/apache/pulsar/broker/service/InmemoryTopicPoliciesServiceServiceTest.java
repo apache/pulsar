@@ -38,6 +38,7 @@ public class InmemoryTopicPoliciesServiceServiceTest extends MockedPulsarService
     @Override
     protected void setup() throws Exception {
         conf.setTopicPoliciesServiceClassName(InmemoryTopicPoliciesService.class.getName());
+        conf.setEnableShadowTopics(true);
         conf.setSystemTopicEnabled(false); // verify topic policies don't rely on system topics
         super.internalSetup();
         super.setupDefaultTenantAndNamespace();

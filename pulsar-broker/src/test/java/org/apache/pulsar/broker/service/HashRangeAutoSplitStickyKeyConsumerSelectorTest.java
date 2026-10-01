@@ -26,6 +26,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import org.apache.pulsar.client.api.Range;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -79,6 +83,72 @@ public class HashRangeAutoSplitStickyKeyConsumerSelectorTest {
                 Assert.assertNotEquals(prev, ranges);
             }
             prev = ranges;
+        }
+    }
+
+    @Test
+    public void testSelectionMatchesPublishedRangesAcrossMembershipChanges() throws Exception {
+        HashRangeAutoSplitStickyKeyConsumerSelector selector =
+                new HashRangeAutoSplitStickyKeyConsumerSelector(2 << 5, false);
+        List<Consumer> consumers = new ArrayList<>();
+        for (int i = 0; i < 8; i++) {
+            Consumer consumer = mock(Consumer.class);
+            selector.addConsumer(consumer).join();
+            consumers.add(consumer);
+            assertSelectionMatchesRanges(selector, 64);
+        }
+        for (Consumer consumer : consumers) {
+            selector.removeConsumer(consumer);
+            assertSelectionMatchesRanges(selector, 64);
+        }
+        Assert.assertNull(selector.select(0));
+    }
+
+    @Test
+    public void testConcurrentSelectionDuringMembershipChanges() throws Exception {
+        HashRangeAutoSplitStickyKeyConsumerSelector selector =
+                new HashRangeAutoSplitStickyKeyConsumerSelector(2 << 10, false);
+        Consumer stableConsumer = mock(Consumer.class);
+        selector.addConsumer(stableConsumer).join();
+        Set<Consumer> observedConsumers = java.util.concurrent.ConcurrentHashMap.newKeySet();
+        observedConsumers.add(stableConsumer);
+        ExecutorService executor = Executors.newFixedThreadPool(4);
+        try {
+            List<CompletableFuture<Void>> readers = new ArrayList<>();
+            for (int reader = 0; reader < 3; reader++) {
+                final int offset = reader;
+                readers.add(CompletableFuture.runAsync(() -> {
+                    for (int hash = offset; hash < 4096; hash += 3) {
+                        Consumer selected = selector.select(hash);
+                        Assert.assertNotNull(selected);
+                        Assert.assertTrue(observedConsumers.contains(selected));
+                    }
+                }, executor));
+            }
+            for (int i = 0; i < 100; i++) {
+                Consumer transientConsumer = mock(Consumer.class);
+                observedConsumers.add(transientConsumer);
+                selector.addConsumer(transientConsumer).join();
+                selector.removeConsumer(transientConsumer);
+            }
+            CompletableFuture.allOf(readers.toArray(CompletableFuture[]::new)).join();
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    private static void assertSelectionMatchesRanges(HashRangeAutoSplitStickyKeyConsumerSelector selector,
+                                                     int rangeSize) {
+        Map<Consumer, List<Range>> ranges = selector.getConsumerKeyHashRanges();
+        for (int hash = 0; hash < rangeSize; hash++) {
+            Consumer selected = selector.select(hash);
+            int currentHash = hash;
+            Consumer expected = ranges.entrySet().stream()
+                    .filter(entry -> entry.getValue().stream().anyMatch(range -> range.contains(currentHash)))
+                    .map(Map.Entry::getKey)
+                    .findFirst()
+                    .orElse(null);
+            Assert.assertSame(selected, expected, "hash " + hash);
         }
     }
 }

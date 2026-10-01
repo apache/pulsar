@@ -19,6 +19,7 @@
 package org.apache.pulsar.tests.integration.profiling;
 
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
+import com.github.dockerjava.api.model.Capability;
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -33,6 +34,7 @@ import lombok.CustomLog;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.tests.ManualTestUtil;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
@@ -46,7 +48,7 @@ import org.testcontainers.containers.GenericContainer;
  *
  * The concrete subclasses only pick which client generation the load is driven with:
  * {@link PulsarProfilingTest} drives a v5 scalable topic with the v5 pulsar-perf commands and
- * {@link PulsarProfilingV4Test} drives a classic v4 topic with the {@code -v4} pulsar-perf commands.
+ * {@link PulsarProfilingV4Test} drives a classic v4 topic, which makes pulsar-perf use the v4 client.
  * Everything else - the cluster spec, the broker and bookie tuning, the pulsar-perf containers and
  * the profiling wiring - is shared, so the two runs differ only in the client and the topic domain.
  * They are not like-for-like beyond that: scalable topics auto-split their segments under load
@@ -58,7 +60,7 @@ import org.testcontainers.containers.GenericContainer;
  * That single task builds the test image with async-profiler in it, relaxes the kernel perf_event
  * limits that the cpu sampling engine needs, and runs {@link PulsarProfilingTest} against the
  * result. Add --tests "*PulsarProfilingV4Test" to profile the v4 variant instead. See
- * {@code tests/performance/README.md} for scenario YAML files and environment overrides.
+ * {@code tests/performance/docs/legacy-testng-runner/README.md} for scenario YAML files and environment overrides.
  * On a Linux host the perf_event limits can also be set persistently with sysctl, in which case
  * -Pinttest.asyncprofiler.skipPerfEventTuning skips the container that sets them:
  * kernel.perf_event_paranoid=1
@@ -70,7 +72,12 @@ import org.testcontainers.containers.GenericContainer;
  * By default, the .jfr files and logs will go into tests/integration/build/pulsar-profiling
  * You can use jfrconv from async profiler to convert them into html flamegraphs or use other tools such
  * as Eclipse Mission Control (https://adoptium.net/jmc) or IntelliJ to open them.
+ *
+ * @deprecated The TestNG wrapper is retained for the existing v4 and v5 pulsar-perf scenarios while they are
+ * migrated. New performance scenarios should use the standalone launcher under {@code tests/performance}, which
+ * owns the Testcontainers and workload lifecycle directly. See {@code tests/performance/README.md}.
  */
+@Deprecated(forRemoval = false)
 @CustomLog
 public abstract class AbstractPulsarProfilingTest extends PulsarTestSuite {
     // this assumes that Transparent Huge Pages are available on the host machine
@@ -87,19 +94,11 @@ public abstract class AbstractPulsarProfilingTest extends PulsarTestSuite {
     /**
      * The topic domain to drive the load against: {@link TopicDomain#topic} for a v5 scalable topic,
      * {@link TopicDomain#persistent} for a classic v4 topic.
+     *
+     * <p>It also selects the pulsar-perf client generation: {@code produce}/{@code consume} run the V5
+     * client for a {@code topic://} topic and the v4 client for a {@code persistent://} one.
      */
     protected abstract TopicDomain getTopicDomain();
-
-    /**
-     * The suffix that selects the pulsar-perf client generation: an empty string runs the v5
-     * {@code produce}/{@code consume} commands, {@code "-v4"} runs {@code produce-v4}/{@code consume-v4}
-     * on the v4 client.
-     *
-     * This is not independent of {@link #getTopicDomain()}: the v4 client refuses scalable topics
-     * outright (PulsarClientImpl rejects the {@code topic://} and {@code segment://} domains with an
-     * InvalidTopicNameException), so {@code "-v4"} only pairs with {@link TopicDomain#persistent}.
-     */
-    protected abstract String getPerfCommandSuffix();
 
     /**
      * One admin endpoint the print-stats container polls: the prefix its response is written under in
@@ -129,7 +128,9 @@ public abstract class AbstractPulsarProfilingTest extends PulsarTestSuite {
     // A container that runs pulsar-perf for the configured profiling scenario.
     static class PulsarPerfContainer extends GenericContainer<PulsarPerfContainer> {
         private final String brokerHostname;
-        private final String commandSuffix;
+        private final boolean v4Client;
+        // Keeps the v4 run's output files apart from the V5 run's (consume-v4.*.txt and so on).
+        private final String outputSuffix;
         private final PulsarProfilingConfig.Load load;
         // Sized to finish well inside the wait in runPulsarPerfBenchmark. The containers sustain
         // roughly 290k msg/s, so this is a bit over a minute of load - long enough for a profile,
@@ -140,11 +141,12 @@ public abstract class AbstractPulsarProfilingTest extends PulsarTestSuite {
                                    String brokerHostname,
                                    String hostname,
                                    String memArgs,
-                                   String commandSuffix,
+                                   boolean v4Client,
                                    PulsarProfilingConfig.Load load) {
             super(PulsarContainer.DEFAULT_IMAGE_NAME);
             this.brokerHostname = brokerHostname;
-            this.commandSuffix = commandSuffix;
+            this.v4Client = v4Client;
+            this.outputSuffix = v4Client ? "-v4" : "";
             this.load = load;
             withCreateContainerCmdModifier(createContainerCmd -> {
                 createContainerCmd.withHostName(hostname);
@@ -160,37 +162,57 @@ public abstract class AbstractPulsarProfilingTest extends PulsarTestSuite {
         public CompletableFuture<Long> consume(String topicName) throws Exception {
             return DockerUtils.runCommandAsyncWithLogging(getDockerClient(), getContainerId(),
                     "bash", "-c", "set -o pipefail; echo $$ > /tmp/command.pid; "
-                            + "/pulsar/bin/pulsar-perf consume" + commandSuffix + " " + topicName + " "
+                            + "/pulsar/bin/pulsar-perf consume " + topicName + " "
                             + "-u pulsar://" + brokerHostname + ":6650 "
-                            + "-st Shared "
-                            + "-q 50000 "
+                            + "-st " + load.subscriptionType() + " "
+                            + "-q " + load.receiverQueueSize() + " "
+                            + "--num-consumers " + load.consumerCount() + " "
+                            + "--num-io-threads " + load.consumerIoThreads() + " "
                             + isolatedClientsOption(load.isolatedConsumers())
                             + "-m " + load.numberOfMessages() + " -ml " + load.consumeMemoryLimit() + " "
-                            + "--histogram-file=/testoutput/consume" + commandSuffix
+                            + "--histogram-file=/testoutput/consume" + outputSuffix
                             + ".histogram.$(date +%s).hdr "
-                            + "2>&1 | tee /testoutput/consume" + commandSuffix + ".$(date +%s).txt");
+                            + "2>&1 | tee /testoutput/consume" + outputSuffix + ".$(date +%s).txt");
         }
 
         public CompletableFuture<Long> produce(String topicName) throws Exception {
             return DockerUtils.runCommandAsyncWithLogging(getDockerClient(), getContainerId(),
                     "bash", "-c", "set -o pipefail; echo $$ > /tmp/command.pid; "
-                            + "/pulsar/bin/pulsar-perf produce" + commandSuffix + " " + topicName + " "
+                            + "/pulsar/bin/pulsar-perf produce " + topicName + " "
                             + "-u pulsar://" + brokerHostname + ":6650 "
                             + "-au http://" + brokerHostname + ":8080 "
                             + "-r " + load.produceRate() + " "
-                            + "-s " + load.messageSize() + " -db "
+                            + "-s " + load.messageSize() + " "
+                            + (load.batchingEnabled() ? "" : "-db ")
+                            + (load.messageKeyGenerationMode() == null || load.messageKeyGenerationMode().isEmpty()
+                                    ? "" : "--message-key-generation-mode " + load.messageKeyGenerationMode() + " ")
+                            + "--num-producers " + load.producerCount() + " "
+                            + "--num-io-threads " + load.producerIoThreads() + " "
+                            + "--max-connections 1 "
                             + isolatedClientsOption(load.isolatedProducers())
-                            // maxOutstanding only applies to the v4 client; the v5 client accepts
-                            // the flag for back-compat but ignores it
-                            + "-o " + load.maxOutstanding() + " "
+                            // maxOutstanding only applies to the v4 client, which rejects it on V5
+                            + (v4Client ? "-o " + load.maxOutstanding() + " " : "")
                             + "-m " + load.numberOfMessages() + " -ml " + load.produceMemoryLimit() + " "
-                            + "--histogram-file=/testoutput/produce" + commandSuffix
+                            + "--histogram-file=/testoutput/produce" + outputSuffix
                             + ".histogram.$(date +%s).hdr "
-                            + "2>&1 | tee /testoutput/produce" + commandSuffix + ".$(date +%s).txt");
+                            + "2>&1 | tee /testoutput/produce" + outputSuffix + ".$(date +%s).txt");
         }
 
         private String isolatedClientsOption(int count) {
-            return commandSuffix.equals("-v4") && count > 0 ? "--isolated-clients " + count + " " : "";
+            return v4Client && count > 0 ? "--isolated-clients " + count + " " : "";
+        }
+
+        void enableProfiling(String options, String role) {
+            if (options == null || options.isBlank()) {
+                return;
+            }
+            // Permit native CPU sampling, as for the profiled broker containers.
+            withCreateContainerCmdModifier(cmd -> cmd.getHostConfig()
+                    .withCapAdd(Capability.PERFMON)
+                    .withSecurityOpts(List.of("seccomp=unconfined")));
+            withEnv("PULSAR_EXTRA_OPTS", "-XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints "
+                    + "-agentpath:/opt/async-profiler/lib/libasyncProfiler.so=start," + options
+                    + ",file=/testoutput/client-" + role + "-%t-%p.jfr");
         }
 
         /**
@@ -208,10 +230,10 @@ public abstract class AbstractPulsarProfilingTest extends PulsarTestSuite {
                 firstEndpoint = false;
                 script.append("curl -s ").append(brokerUrl).append(endpoint.path())
                         .append(" | jq | tee /testoutput/").append(endpoint.fileNamePrefix())
-                        .append(commandSuffix).append(".$(date +%s).txt; ");
+                        .append(outputSuffix).append(".$(date +%s).txt; ");
             }
             script.append("curl -s ").append(brokerUrl).append("/metrics/ > /testoutput/metrics")
-                    .append(commandSuffix).append(".$(date +%s).txt; sleep ")
+                    .append(outputSuffix).append(".$(date +%s).txt; sleep ")
                     .append(load.statsIntervalSeconds()).append("; done");
             return DockerUtils.runCommandAsyncWithLogging(getDockerClient(), getContainerId(),
                     "bash", "-c", script.toString());
@@ -270,6 +292,8 @@ public abstract class AbstractPulsarProfilingTest extends PulsarTestSuite {
         // This matters only on Linux
         try {
             Files.setPosixFilePermissions(testOutputDir.toPath(), PosixFilePermissions.fromString("rwxrwxrwx"));
+            ObjectMapperFactory.getYamlMapper().getObjectMapper().writeValue(
+                    new File(testOutputDir, "resolved-config.yaml"), profilingConfig);
         } catch (IOException e) {
             throw new UncheckedIOException("Cannot change access to test output directory", e);
         }
@@ -332,8 +356,6 @@ public abstract class AbstractPulsarProfilingTest extends PulsarTestSuite {
         Map<String, String> brokerEnvs = new HashMap<>(cluster.brokerEnvs());
         brokerEnvs.put("PULSAR_MEM", cluster.brokerMemory());
         //brokerEnvs.put("maxPendingPublishRequestsPerConnection", "1000");
-        //brokerEnvs.put("PULSAR_PREFIX_subscriptionKeySharedUseClassicPersistentImplementation", "true");
-        //brokerEnvs.put("PULSAR_PREFIX_subscriptionSharedUseClassicPersistentImplementation", "true");
         //brokerEnvs.put("dispatcherMaxReadSizeBytes", "10000000");
         //brokerEnvs.put("dispatcherDispatchMessagesInSubscriptionThread", "false");
         //brokerEnvs.put("dispatcherMaxRoundRobinBatchSize", "1000");
@@ -346,14 +368,16 @@ public abstract class AbstractPulsarProfilingTest extends PulsarTestSuite {
 
         // Create pulsar-perf containers
         String brokerHostname = clusterName + "-pulsar-broker-0";
-        String commandSuffix = getPerfCommandSuffix();
+        boolean v4Client = getTopicDomain() != TopicDomain.topic;
         PulsarProfilingConfig.Load load = profilingConfig.load();
         perfProduce = new PulsarPerfContainer(testOutputDir, clusterName, brokerHostname, "perf-produce", "-Xmx2g",
-                commandSuffix, load);
+                v4Client, load);
         perfConsume = new PulsarPerfContainer(testOutputDir, clusterName, brokerHostname, "perf-consume", "-Xmx1g",
-                commandSuffix, load);
+                v4Client, load);
+        perfProduce.enableProfiling(profilingConfig.profiling().producerOptions(), "producer");
+        perfConsume.enableProfiling(profilingConfig.profiling().consumerOptions(), "consumer");
         printStats = new PulsarPerfContainer(testOutputDir, clusterName, brokerHostname, "print-stats", "-Xmx1g",
-                commandSuffix, load);
+                v4Client, load);
         specBuilder.externalServices(Map.of(
                 "pulsar-produce", perfProduce,
                 "pulsar-consume", perfConsume,
@@ -366,7 +390,8 @@ public abstract class AbstractPulsarProfilingTest extends PulsarTestSuite {
     /**
      * Drives pulsar-perf against a freshly generated topic and waits for both sides to finish.
      *
-     * The concrete subclasses wrap this in the actual {@code @Test} method: Gradle's TestNG detector
+     * The concrete subclasses in this deprecated runner wrap this in the actual {@code @Test} method: Gradle's
+     * TestNG detector
      * never scans method annotations on an abstract class, so an {@code @Test} that lived only here
      * would leave both subclasses looking like non-test classes and neither would be handed to
      * TestNG. (The detector does follow the superclass chain, so a subclass of a *concrete* base does
@@ -374,6 +399,7 @@ public abstract class AbstractPulsarProfilingTest extends PulsarTestSuite {
      */
     protected void runPulsarPerfBenchmark() throws Exception {
         String topicName = generateTopicName("profiletest", getTopicDomain());
+        prepareTopic(topicName);
         CompletableFuture<Long> consumeFuture = perfConsume.consume(topicName);
         Thread.sleep(1000);
         CompletableFuture<Long> produceFuture = perfProduce.produce(topicName);
@@ -381,7 +407,7 @@ public abstract class AbstractPulsarProfilingTest extends PulsarTestSuite {
         printStats.stats(getTopicStatsEndpoints(topicName));
         // pulsar-perf is sized to finish inside this window, so running out of it is a failure.
         FutureUtil.waitForAll(List.of(consumeFuture, produceFuture))
-                .orTimeout(3, TimeUnit.MINUTES)
+                .orTimeout(profilingConfig.load().timeoutSeconds(), TimeUnit.SECONDS)
                 .exceptionally(t -> {
                     log.error().exception(t).log("Failed to run pulsar-perf");
                     throw FutureUtil.wrapToCompletionException(t);
@@ -391,5 +417,8 @@ public abstract class AbstractPulsarProfilingTest extends PulsarTestSuite {
             softly.assertThat(consumeFuture).as("consume should have completed successfully").isCompletedWithValue(0L);
             softly.assertThat(produceFuture).as("produce should have completed successfully").isCompletedWithValue(0L);
         });
+    }
+
+    protected void prepareTopic(String topicName) throws Exception {
     }
 }

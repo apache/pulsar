@@ -169,10 +169,6 @@ public class RangeEntryCacheImpl implements EntryCache {
         EntryImpl cacheEntry =
                 EntryImpl.createWithRetainedDuplicate(position, cachedData, entry.getReadCountHandler(),
                             copy ? null : entry.getMessageMetadata());
-        if (ml.getConfig().isPulsarMessageEntries()) {
-            // Parse the message metadata once at insert time so that cache reads don't have to do it lazily
-            cacheEntry.initializeMessageMetadataIfNeeded(ml.getName());
-        }
         cachedData.release();
         if (entries.put(position, cacheEntry, entryLength)) {
             totalAddedEntriesSize.add(entryLength);
@@ -404,7 +400,8 @@ public class RangeEntryCacheImpl implements EntryCache {
     void doAsyncReadEntriesByPosition(ReadHandle lh, Position firstPosition, Position lastPosition, int numberOfEntries,
                                       long maxSizeBytes, IntSupplier expectedReadCount,
                                       final ReadEntriesCallback callback, Object ctx) {
-        CachedEntries cachedEntries = new CachedEntries(firstPosition.getEntryId(), numberOfEntries);
+        CachedEntries cachedEntries = new CachedEntries(firstPosition.getEntryId(), numberOfEntries,
+                ml.getConfig().isPulsarMessageEntries() ? ml.getName() : null);
         if (firstPosition.compareTo(lastPosition) == 0) {
             ReferenceCountedEntry cachedEntry = entries.get(firstPosition);
             if (cachedEntry != null) {
@@ -508,13 +505,15 @@ public class RangeEntryCacheImpl implements EntryCache {
     static final class CachedEntries implements Consumer<ReferenceCountedEntry> {
         private final long firstEntryId;
         private final int numberOfEntries;
+        private final String managedLedgerName;
         List<Entry> entries;
         private int count;
         private long totalSize;
 
-        CachedEntries(long firstEntryId, int numberOfEntries) {
+        CachedEntries(long firstEntryId, int numberOfEntries, String managedLedgerName) {
             this.firstEntryId = firstEntryId;
             this.numberOfEntries = numberOfEntries;
+            this.managedLedgerName = managedLedgerName;
         }
 
         @Override
@@ -524,6 +523,11 @@ public class RangeEntryCacheImpl implements EntryCache {
                 for (int i = 0; i < numberOfEntries; i++) {
                     entries.add(null);
                 }
+            }
+            // The visitor retains the cached entry while parsing. Initialize on the shared cached entry
+            // before copying, so fanout readers reuse one instance backed by the cache-owned buffer.
+            if (managedLedgerName != null && entry.getMessageMetadata() == null) {
+                ((EntryImpl) entry).initializeMessageMetadataIfNeeded(managedLedgerName);
             }
             int index = (int) (entry.getPosition().getEntryId() - firstEntryId);
             entries.set(index, EntryImpl.create(entry));

@@ -82,7 +82,7 @@ public class SegmentLoadReporterTest {
     @Test
     public void testMaterialChangeAnyMetric() {
         SegmentLoadStats last = new SegmentLoadStats(1000, 1000, 1000, 1000);
-        // Only bytesRateOut moves materially; still counts.
+        // Only byteRateOut moves materially; still counts.
         SegmentLoadStats current = new SegmentLoadStats(1000, 1000, 1000, 2000);
         assertTrue(SegmentLoadReporter.isMaterialChange(last, current, THRESHOLD));
     }
