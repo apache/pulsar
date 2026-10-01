@@ -102,6 +102,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
         }
 
         throwRestExceptionIfUnauthorizedForNamespace(tenant, namespace, functionName, "register", authParams);
+        checkPackageSourcePermission(functionPkgUrl, authParams);
 
         try {
             // Check tenant exists
@@ -285,6 +286,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
 
         throwRestExceptionIfUnauthorizedForNamespace(tenant, namespace, functionName, "update",
                 authParams);
+        checkPackageSourcePermission(functionPkgUrl, authParams);
 
         FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
 

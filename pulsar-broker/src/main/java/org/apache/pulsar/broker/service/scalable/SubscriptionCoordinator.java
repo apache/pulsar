@@ -715,8 +715,9 @@ public class SubscriptionCoordinator {
     }
 
     /**
-     * Test hook: return the assignment that would be sent right now, computed against the
-     * current layout and connected consumers. Visible for unit tests.
+     * The assignment that would be sent right now, computed against the current layout and
+     * the registered consumers (connected or within their grace period). Used by the
+     * controller's stats snapshot and by unit tests.
      */
     synchronized Map<ConsumerSession, ConsumerAssignment> currentAssignment() {
         return computeAssignment(currentLayout, sessions.values());

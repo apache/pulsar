@@ -242,9 +242,9 @@ public class V5CheckpointConsumerGroupTest extends V5ClientBaseTest {
         Awaitility.await().atMost(Duration.ofSeconds(90)).untilAsserted(() -> {
             var stats = admin.scalableTopics().getStats(topic);
             var sub = stats.getSubscriptions().get(group);
-            assertTrue(sub == null || sub.consumerCount() == 0,
+            assertTrue(sub == null || sub.getConsumers().isEmpty(),
                     "group '" + group + "' must leave no consumers behind, got "
-                            + (sub == null ? "null" : sub.consumerCount() + " consumers"));
+                            + (sub == null ? "null" : sub.getConsumers().size() + " consumers"));
         });
     }
 

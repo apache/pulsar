@@ -27,6 +27,7 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.GetStatsOptions;
 import org.apache.pulsar.broker.transaction.metadata.TxnMetadataStore;
 import org.apache.pulsar.common.api.proto.ScalableConsumerType;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -49,6 +50,15 @@ import org.apache.pulsar.metadata.api.coordination.CoordinationService;
  */
 @CustomLog
 public class ScalableTopicService {
+
+    /**
+     * Options used to read a segment's backing-topic stats, both for the per-segment stats
+     * endpoint and for the per-segment collection behind the topic-level stats: imprecise
+     * backlog (no ledger scan), per-subscription backlog size, no earliest-time-in-backlog
+     * lookup, publishers and consumers included.
+     */
+    public static final GetStatsOptions SEGMENT_STATS_OPTIONS =
+            new GetStatsOptions(false, true, false, false, false);
 
     private final BrokerService brokerService;
     private final ScalableTopicResources resources;
@@ -242,10 +252,11 @@ public class ScalableTopicService {
     }
 
     /**
-     * Get aggregated stats for a scalable topic. Read-only: does not require leadership.
-     * Returns segment-DAG counts and per-subscription consumer counts, read from the
-     * metadata store so the answer is consistent regardless of which broker is serving the
-     * request.
+     * Get the stats of a scalable topic as a whole: the segment DAG with per-segment load,
+     * the subscriptions with their backlog across segments, and the producers. Delegates to
+     * the controller, which fans out to the segment-owning brokers; the REST layer routes
+     * the request to the controller leader so the STREAM consumer sessions it holds are
+     * part of the picture.
      */
     public CompletableFuture<ScalableTopicStats> getStats(TopicName topic) {
         return getOrCreateController(topic)

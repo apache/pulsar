@@ -44,8 +44,8 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
- * End-to-end coverage of {@code pulsar-perf transaction-v4}, which drives the v4 client and the v4
- * transaction coordinator against ordinary {@code persistent://} topics. The V5 counterpart lives in
+ * End-to-end coverage of {@code pulsar-perf transaction} on ordinary {@code persistent://} topics,
+ * which it drives with the v4 client and the v4 transaction coordinator. The V5 counterpart lives in
  * {@link PerformanceTransactionTest}, which needs scalable topics and a V5 SDK client; here the v4
  * SDK client the base test already provides is the verifier.
  */
@@ -113,7 +113,7 @@ public class PerformanceTransactionV4Test extends MockedPulsarServiceBaseTest {
         Consumer<byte[]> produced = verifier(produceTopic);
         for (int i = 0; i < TRANSACTIONS; i++) {
             assertThat(produced.receive(30, TimeUnit.SECONDS))
-                    .as("message %d committed by transaction-v4", i)
+                    .as("message %d committed by the v4 client", i)
                     .isNotNull();
         }
 
@@ -122,7 +122,7 @@ public class PerformanceTransactionV4Test extends MockedPulsarServiceBaseTest {
         Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() ->
                 assertThat(admin.topics().getStats(consumeTopic).getSubscriptions()
                                 .get(subscription).getMsgBacklog())
-                        .as("acknowledgements committed by transaction-v4")
+                        .as("acknowledgements committed by the v4 client")
                         .isEqualTo(PUBLISHED - TRANSACTIONS));
     }
 
@@ -177,19 +177,19 @@ public class PerformanceTransactionV4Test extends MockedPulsarServiceBaseTest {
         AtomicBoolean succeeded = new AtomicBoolean();
         Thread thread = new Thread(() -> {
             try {
-                succeeded.set(new PerformanceTransactionV4().run(args));
+                succeeded.set(new PerformanceTransaction().run(args));
             } catch (Exception e) {
-                log.error().exception(e).log("transaction-v4 failed");
+                log.error().exception(e).log("transaction (v4 client) failed");
             }
-        }, "transaction-v4");
+        }, "transaction-v4-client");
         thread.start();
         thread.join(RUN_TIMEOUT.toMillis());
         if (thread.isAlive()) {
             thread.interrupt();
             thread.join(Duration.ofSeconds(10).toMillis());
-            fail("transaction-v4 did not finish within " + RUN_TIMEOUT);
+            fail("transaction (v4 client) did not finish within " + RUN_TIMEOUT);
         }
-        assertThat(succeeded.get()).as("transaction-v4 exited cleanly").isTrue();
+        assertThat(succeeded.get()).as("transaction (v4 client) exited cleanly").isTrue();
     }
 
     private Consumer<byte[]> verifier(String topic) throws Exception {

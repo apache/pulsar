@@ -39,7 +39,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
@@ -60,6 +59,7 @@ import org.apache.bookkeeper.proto.UnderreplicatedLedgerFormat;
 import org.apache.bookkeeper.replication.ReplicationEnableCb;
 import org.apache.bookkeeper.replication.ReplicationException;
 import org.apache.bookkeeper.util.BookKeeperConstants;
+import org.apache.pulsar.common.util.PulsarExecutors;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
@@ -81,9 +81,9 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
 
     private static class Lock {
         private final String lockPath;
-        private final long ledgerNodeVersion;
+        private final Optional<Long> ledgerNodeVersion;
 
-        Lock(String lockPath, long ledgerNodeVersion) {
+        Lock(String lockPath, Optional<Long> ledgerNodeVersion) {
             this.lockPath = lockPath;
             this.ledgerNodeVersion = ledgerNodeVersion;
         }
@@ -92,7 +92,7 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
             return lockPath;
         }
 
-        long getLedgerNodeVersion() {
+        Optional<Long> getLedgerNodeVersion() {
             return ledgerNodeVersion;
         }
     }
@@ -123,7 +123,8 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
     // Registered callbacks can perform synchronous metadata-store reads, so run them on a dedicated
     // single-threaded executor instead of the metadata-store notification thread (and outside the lock).
     private final ExecutorService notificationCallbackExecutor =
-            Executors.newSingleThreadExecutor(new DefaultThreadFactory("pulsar-underreplication-notification"));
+            PulsarExecutors.newSingleThreadExecutor(
+                    new DefaultThreadFactory("pulsar-underreplication-notification"), false);
 
     private static class PulsarUnderreplicatedLedger extends UnderreplicatedLedger {
         PulsarUnderreplicatedLedger(long ledgerId) {
@@ -414,6 +415,9 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
     public void acquireUnderreplicatedLedger(long ledgerId) throws ReplicationException {
         try {
             internalAcquireUnderreplicatedLedger(ledgerId);
+            String lockPath = getUrLedgerLockPath(urLockPath, ledgerId);
+            // Explicit acquisition holds only the lock, without claiming an underreplication record version.
+            heldLocks.put(ledgerId, new Lock(lockPath, Optional.empty()));
         } catch (ExecutionException | TimeoutException | InterruptedException e) {
             throw new ReplicationException.UnavailableException("Failed to acuire under-replicated ledger", e);
         }
@@ -431,8 +435,8 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
         log.debug().attr("ledgerId", ledgerId).log("markLedgerReplicated");
         try {
             Lock l = heldLocks.get(ledgerId);
-            if (l != null) {
-                store.delete(getUrLedgerPath(ledgerId), Optional.of(l.getLedgerNodeVersion()))
+            if (l != null && l.getLedgerNodeVersion().isPresent()) {
+                store.delete(getUrLedgerPath(ledgerId), l.getLedgerNodeVersion())
                         .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
                 if (store instanceof ZKMetadataStore
                         || store instanceof DualMetadataStore
@@ -580,7 +584,7 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
                     long ledgerId = getLedgerId(tryChild);
                     internalAcquireUnderreplicatedLedger(ledgerId);
                     String lockPath = getUrLedgerLockPath(urLockPath, ledgerId);
-                    heldLocks.put(ledgerId, new Lock(lockPath, optRes.get().getStat().getVersion()));
+                    heldLocks.put(ledgerId, new Lock(lockPath, Optional.of(optRes.get().getStat().getVersion())));
                     return ledgerId;
                 } catch (ExecutionException ee) {
                     if (ee.getCause() instanceof MetadataStoreException.BadVersionException) {

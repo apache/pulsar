@@ -41,6 +41,15 @@ public interface Dispatcher {
      */
     void consumerFlow(Consumer consumer, int additionalNumberOfMessages);
 
+    /**
+     * Called on the connection's event loop when its write buffer becomes writable again.
+     * Writability is only a hint and must be checked again before reading. Implementations must
+     * defer work that can write to the channel, avoiding recursive writability callbacks, and
+     * must not block the event loop while resuming dispatch.
+     */
+    default void notifyChannelWritable(Consumer consumer) {
+    }
+
     boolean isConsumerConnected();
 
     List<Consumer> getConsumers();

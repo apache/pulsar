@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl.schema.util;
 
 import static org.apache.pulsar.client.impl.schema.SchemaDefinitionBuilderImpl.JSR310_CONVERSION_ENABLED;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import java.util.HashMap;
@@ -108,4 +109,22 @@ public class SchemaUtilTest {
                 .build();
     }
 
+    @Test
+    public void testParseAvroSchemaWithLegacyNamedTypeReference() {
+        // Avro 1.12.2 rejects named type references written as {"type": "name"} (AVRO-4176); schemas stored in
+        // that form must still be readable
+        String colorEnum = "{\"type\":\"enum\",\"name\":\"Color\",\"namespace\":\"org.example.shapes\","
+                + "\"symbols\":[\"RED\",\"BLUE\"]}";
+        String legacyForm = "{\"type\":\"record\",\"name\":\"Drawing\",\"namespace\":\"org.example.shapes\","
+                + "\"fields\":[{\"name\":\"background\",\"type\":" + colorEnum + "},"
+                + "{\"name\":\"outline\",\"type\":{\"type\":\"org.example.shapes.Color\"}},"
+                + "{\"name\":\"highlight\",\"type\":[\"null\",{\"type\":\"org.example.shapes.Color\"}],"
+                + "\"default\":null}]}";
+        String bareNameForm = legacyForm.replace("{\"type\":\"org.example.shapes.Color\"}",
+                "\"org.example.shapes.Color\"");
+
+        org.apache.avro.Schema parsed = SchemaUtil.parseAvroSchema(legacyForm);
+        assertEquals(parsed, SchemaUtil.parseAvroSchema(bareNameForm));
+        assertEquals(parsed.getField("outline").schema().getFullName(), "org.example.shapes.Color");
+    }
 }

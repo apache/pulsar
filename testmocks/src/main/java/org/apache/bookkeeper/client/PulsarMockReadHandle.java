@@ -18,40 +18,50 @@
  */
 package org.apache.bookkeeper.client;
 
+import io.netty.buffer.ByteBuf;
+import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import lombok.CustomLog;
+import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
+import org.apache.bookkeeper.client.AsyncCallback.CloseCallback;
+import org.apache.bookkeeper.client.AsyncCallback.ReadCallback;
+import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.api.LastConfirmedAndEntry;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
-import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.bookkeeper.client.api.WriteFlag;
 import org.apache.bookkeeper.client.impl.LedgerEntriesImpl;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
+import org.apache.bookkeeper.versioning.LongVersion;
+import org.apache.bookkeeper.versioning.Versioned;
 
 /**
- * Mock implementation of ReadHandle.
+ * Mock read-only view of a ledger, the counterpart of {@link ReadOnlyLedgerHandle}.
+ *
+ * <p>It is a {@link LedgerHandle} sharing the entries of the {@link PulsarMockLedgerHandle} that wrote them, so that
+ * what {@link PulsarMockBookKeeper#newOpenLedgerOp()} returns can be cast to {@link LedgerHandle} like the handle
+ * returned by the real client. Closing it never affects the ledger.
  */
 @CustomLog
-class PulsarMockReadHandle implements ReadHandle {
+class PulsarMockReadHandle extends LedgerHandle {
     private final PulsarMockBookKeeper bk;
-    private final long ledgerId;
-    private final LedgerMetadata metadata;
     private final List<LedgerEntryImpl> entries;
     private final Supplier<PulsarMockReadHandleInterceptor> readHandleInterceptorSupplier;
     private final AtomicLong totalLengthCounter;
 
-    PulsarMockReadHandle(PulsarMockBookKeeper bk, long ledgerId, LedgerMetadata metadata,
-                         List<LedgerEntryImpl> entries,
+    PulsarMockReadHandle(PulsarMockBookKeeper bk, long ledgerId, LedgerMetadata metadata, DigestType digestType,
+                         byte[] password, List<LedgerEntryImpl> entries,
                          Supplier<PulsarMockReadHandleInterceptor> readHandleInterceptorSupplier,
-                         AtomicLong totalLengthCounter) {
+                         AtomicLong totalLengthCounter) throws GeneralSecurityException {
+        super(bk.getClientCtx(), ledgerId, new Versioned<>(metadata, new LongVersion(0L)), digestType, password,
+                WriteFlag.NONE);
         this.bk = bk;
-        this.ledgerId = ledgerId;
-        this.metadata = metadata;
         this.entries = entries;
         this.readHandleInterceptorSupplier = readHandleInterceptorSupplier;
         this.totalLengthCounter = totalLengthCounter;
@@ -84,6 +94,42 @@ class PulsarMockReadHandle implements ReadHandle {
     }
 
     @Override
+    public CompletableFuture<LedgerEntries> batchReadAsync(long firstEntry, int maxCount, long maxSize) {
+        return readAsync(firstEntry, batchReadLastEntry(entries, firstEntry, maxCount, maxSize));
+    }
+
+    @Override
+    public CompletableFuture<LedgerEntries> batchReadUnconfirmedAsync(long firstEntry, int maxCount, long maxSize) {
+        return readUnconfirmedAsync(firstEntry, batchReadLastEntry(entries, firstEntry, maxCount, maxSize));
+    }
+
+    /**
+     * Resolves the last entry of a batch read the way a bookie bounds it: at most {@code maxCount} entries, at most
+     * {@code maxSize} bytes (a non-positive size is unlimited), always at least the first entry, and only entries that
+     * exist. Batch reads then go through the handle's own {@code readAsync} / {@code readUnconfirmedAsync}, so that
+     * stubs installed on a Mockito spy keep intercepting them.
+     */
+    static long batchReadLastEntry(List<LedgerEntryImpl> entries, long firstEntry, int maxCount, long maxSize) {
+        long lastEntryByCount = Math.min(firstEntry + maxCount - 1, entries.size() - 1);
+        long accumulatedSize = 0;
+        long lastEntry = firstEntry;
+        for (long eid = firstEntry; eid <= lastEntryByCount; eid++) {
+            long entrySize = entries.get((int) eid).getLength();
+            if (maxSize > 0 && eid > firstEntry && accumulatedSize + entrySize > maxSize) {
+                break;
+            }
+            accumulatedSize += entrySize;
+            lastEntry = eid;
+        }
+        return lastEntry;
+    }
+
+    @Override
+    public void asyncReadEntries(long firstEntry, long lastEntry, ReadCallback cb, Object ctx) {
+        PulsarMockLedgerHandle.asyncReadEntries(bk, entries, this, firstEntry, lastEntry, cb, ctx);
+    }
+
+    @Override
     public CompletableFuture<Long> readLastAddConfirmedAsync() {
         return CompletableFuture.completedFuture(getLastAddConfirmed());
     }
@@ -95,7 +141,9 @@ class PulsarMockReadHandle implements ReadHandle {
 
     @Override
     public long getLastAddConfirmed() {
-        if (entries.isEmpty()) {
+        // Honor the programmed "empty ledger" steps exactly like the write handle does, since tests that force a
+        // cursor recovery from an empty ledger see this view once opens go through the builder.
+        if (bk.checkReturnEmptyLedger() || entries.isEmpty()) {
             return -1;
         } else {
             return entries.get(entries.size() - 1).getEntryId();
@@ -109,7 +157,7 @@ class PulsarMockReadHandle implements ReadHandle {
 
     @Override
     public boolean isClosed() {
-        return metadata.isClosed();
+        return getLedgerMetadata().isClosed();
     }
 
     @Override
@@ -121,19 +169,41 @@ class PulsarMockReadHandle implements ReadHandle {
         return promise;
     }
 
-    // Handle interface
+    // Like ReadOnlyLedgerHandle: a read-only view rejects writes instead of reaching the write path
+
     @Override
-    public long getId() {
-        return ledgerId;
+    public long addEntry(byte[] data) throws InterruptedException, BKException {
+        return addEntry(data, 0, data.length);
+    }
+
+    @Override
+    public long addEntry(byte[] data, int offset, int length) throws InterruptedException, BKException {
+        throw BKException.create(BKException.Code.IllegalOpException);
+    }
+
+    @Override
+    public void asyncAddEntry(byte[] data, AddCallback cb, Object ctx) {
+        asyncAddEntry(data, 0, data.length, cb, ctx);
+    }
+
+    @Override
+    public void asyncAddEntry(byte[] data, int offset, int length, AddCallback cb, Object ctx) {
+        cb.addComplete(BKException.Code.IllegalOpException, this, INVALID_ENTRY_ID, ctx);
+    }
+
+    @Override
+    public void asyncAddEntry(ByteBuf data, AddCallback cb, Object ctx) {
+        cb.addComplete(BKException.Code.IllegalOpException, this, INVALID_ENTRY_ID, ctx);
+    }
+
+    @Override
+    public void asyncClose(CloseCallback cb, Object ctx) {
+        // Like ReadOnlyLedgerHandle: closing the view does not touch the ledger.
+        cb.closeComplete(BKException.Code.OK, this, ctx);
     }
 
     @Override
     public CompletableFuture<Void> closeAsync() {
         return CompletableFuture.completedFuture(null);
-    }
-
-    @Override
-    public LedgerMetadata getLedgerMetadata() {
-        return metadata;
     }
 }

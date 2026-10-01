@@ -109,7 +109,7 @@ public class RangeCacheReadBenchmark {
         if (range == RANGE_COUNT) {
             range = 0;
         }
-        RangeEntryCacheImpl.CachedEntries result = new RangeEntryCacheImpl.CachedEntries(0, batchSize);
+        RangeEntryCacheImpl.CachedEntries result = new RangeEntryCacheImpl.CachedEntries(0, batchSize, null);
         if (visit) {
             cache.forEachInRange(firstPositions[currentRange], lastPositions[currentRange], result);
         } else {

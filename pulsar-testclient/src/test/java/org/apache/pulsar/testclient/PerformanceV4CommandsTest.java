@@ -54,9 +54,9 @@ import org.testng.annotations.Test;
 import picocli.CommandLine;
 
 /**
- * End-to-end coverage of the v4-client perf subcommands ({@code produce-v4}, {@code consume-v4},
- * {@code read-v4}), which drive the v4 client against ordinary (non-scalable) topics. The
- * verification side uses the v4 SDK client provided by the base test.
+ * End-to-end coverage of the v4-client path of the {@code produce}, {@code consume} and {@code read}
+ * perf commands, which is what a {@code persistent://} topic selects. The verification side uses the
+ * v4 SDK client provided by the base test.
  */
 @CustomLog
 public class PerformanceV4CommandsTest extends MockedPulsarServiceBaseTest {
@@ -99,12 +99,12 @@ public class PerformanceV4CommandsTest extends MockedPulsarServiceBaseTest {
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub")
                 .subscriptionType(SubscriptionType.Shared).subscribe();
 
-        Thread thread = runCommand(new PerformanceProducerV4(),
+        Thread thread = runCommand(new PerformanceProducer(),
                 "%s -r 100 -u %s -m 10", topic, pulsar.getBrokerServiceUrl());
 
         for (int i = 0; i < 10; i++) {
             Message<byte[]> message = consumer.receive(30, TimeUnit.SECONDS);
-            assertThat(message).as("message %d produced by produce-v4", i).isNotNull();
+            assertThat(message).as("message %d produced by produce", i).isNotNull();
             consumer.acknowledge(message);
         }
         stop(thread);
@@ -113,7 +113,7 @@ public class PerformanceV4CommandsTest extends MockedPulsarServiceBaseTest {
     @Test(timeOut = 120000)
     public void testProduceV4CreatesPartitions() throws Exception {
         String topic = testTopic + UUID.randomUUID();
-        Thread thread = runCommand(new PerformanceProducerV4(),
+        Thread thread = runCommand(new PerformanceProducer(),
                 "%s -r 100 -u %s -au %s -m 10 -np 10",
                 topic, pulsar.getBrokerServiceUrl(), pulsar.getWebServiceAddress());
         thread.join();
@@ -124,13 +124,13 @@ public class PerformanceV4CommandsTest extends MockedPulsarServiceBaseTest {
     /**
      * {@code --max-outstanding}, {@code --max-outstanding-across-partitions} and round-robin
      * partition routing have no equivalent on the V5 producer builder, and being able to drive them
-     * is one of the reasons {@code produce-v4} exists. They are not observable from outside the
+     * is one of the reasons the v4 client is still driven by {@code produce}. They are not observable from outside the
      * client, so assert on the configuration the command builds.
      */
     @Test(timeOut = 60000)
     public void testProduceV4WiresTheProducerKnobsThatV5CannotExpress() {
-        PerformanceProducerV4 command = new PerformanceProducerV4();
-        new CommandLine(command).parseArgs("-o", "500", "-p", "1000", "-db", "-z", "LZ4", "my-topic");
+        PerformanceProducerV4 command = new PerformanceProducerV4(
+                parse(new PerformanceProducer(), "-o", "500", "-p", "1000", "-db", "-z", "LZ4", "my-topic"));
 
         ProducerBuilderImpl<byte[]> builder =
                 (ProducerBuilderImpl<byte[]>) command.createProducerBuilder(pulsarClient, 0, "my-topic");
@@ -160,13 +160,12 @@ public class PerformanceV4CommandsTest extends MockedPulsarServiceBaseTest {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).enableBatching(false).create();
 
         // "0,1" is the only draw ThreadLocalRandom can make, so this is deterministic.
-        PerformanceProducerV4 delayed = new PerformanceProducerV4();
-        new CommandLine(delayed).parseArgs("-dr", "0,1", topic);
+        PerformanceProducerV4 delayed =
+                new PerformanceProducerV4(parse(new PerformanceProducer(), "-dr", "0,1", topic));
         assertThat(delayed.nextDeliverAfterSeconds()).isEqualTo(0L);
         delayed.sendMessage(producer, "delayed".getBytes(), null, null, delayed.nextDeliverAfterSeconds()).get();
 
-        PerformanceProducerV4 plain = new PerformanceProducerV4();
-        new CommandLine(plain).parseArgs(topic);
+        PerformanceProducerV4 plain = new PerformanceProducerV4(parse(new PerformanceProducer(), topic));
         plain.sendMessage(producer, "plain".getBytes(), null, null, plain.nextDeliverAfterSeconds()).get();
 
         // Arrival order is publish order here: the subscription is Exclusive, and
@@ -188,8 +187,7 @@ public class PerformanceV4CommandsTest extends MockedPulsarServiceBaseTest {
     /** Chunking and batching are mutually exclusive on the v4 producer; chunking wins. */
     @Test(timeOut = 60000)
     public void testProduceV4ChunkingDisablesBatching() {
-        PerformanceProducerV4 command = new PerformanceProducerV4();
-        new CommandLine(command).parseArgs("-ch", "my-topic");
+        PerformanceProducerV4 command = new PerformanceProducerV4(parse(new PerformanceProducer(), "-ch", "my-topic"));
 
         ProducerBuilderImpl<byte[]> builder =
                 (ProducerBuilderImpl<byte[]>) command.createProducerBuilder(pulsarClient, 0, "my-topic");
@@ -208,11 +206,11 @@ public class PerformanceV4CommandsTest extends MockedPulsarServiceBaseTest {
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe().close();
         publish(topic, 50);
 
-        Thread thread = runCommand(new PerformanceConsumerV4(),
+        Thread thread = runCommand(new PerformanceConsumer(),
                 "%s -u %s -m 50 -ss %s -sp Earliest", topic, pulsar.getBrokerServiceUrl(), subscription);
 
         assertThat(exitLatch.await(60, TimeUnit.SECONDS))
-                .as("consume-v4 must finish once it has consumed --num-messages")
+                .as("consume must finish once it has consumed --num-messages")
                 .isTrue();
         stop(thread);
 
@@ -221,7 +219,7 @@ public class PerformanceV4CommandsTest extends MockedPulsarServiceBaseTest {
         // before the client is closed, and acks are grouped on a delay, so wait for the flush.
         Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() ->
                 assertThat(admin.topics().getStats(topic).getSubscriptions().get(subscription).getMsgBacklog())
-                        .as("consume-v4 must acknowledge what it consumed")
+                        .as("consume must acknowledge what it consumed")
                         .isLessThanOrEqualTo(1));
     }
 
@@ -230,18 +228,18 @@ public class PerformanceV4CommandsTest extends MockedPulsarServiceBaseTest {
         String topic = testTopic + UUID.randomUUID();
         publish(topic, 20);
 
-        Thread thread = runCommand(new PerformanceReaderV4(),
+        Thread thread = runCommand(new PerformanceReader(),
                 "%s -u %s -n 20 -m earliest", topic, pulsar.getBrokerServiceUrl());
 
         assertThat(exitLatch.await(60, TimeUnit.SECONDS))
-                .as("read-v4 must finish once it has read --num-messages")
+                .as("read must finish once it has read --num-messages")
                 .isTrue();
         stop(thread);
     }
 
     /**
-     * The {@code lid:eid} start message id is a v4-reader capability that {@code read} rejects,
-     * because the V5 CheckpointConsumer it drives has no equivalent.
+     * The {@code lid:eid} start message id is a v4-reader capability that the V5 client rejects,
+     * because the V5 CheckpointConsumer has no equivalent.
      *
      * <p>Starts from the id of the <em>last</em> published message, which the v4 reader treats as
      * exclusive, so nothing is available until one more message is published. A reader that ignored
@@ -254,36 +252,42 @@ public class PerformanceV4CommandsTest extends MockedPulsarServiceBaseTest {
         MessageIdImpl lastId = (MessageIdImpl) publish(topic, 20).get(19);
         String startMessageId = lastId.getLedgerId() + ":" + lastId.getEntryId();
 
-        Thread thread = runCommand(new PerformanceReaderV4(),
+        Thread thread = runCommand(new PerformanceReader(),
                 "%s -u %s -n 1 -m %s", topic, pulsar.getBrokerServiceUrl(), startMessageId);
 
         assertThat(exitLatch.await(10, TimeUnit.SECONDS))
-                .as("read-v4 must start after the given message id, so the 20 earlier messages "
+                .as("read must start after the given message id, so the 20 earlier messages "
                         + "must not satisfy --num-messages")
                 .isFalse();
 
         publish(topic, 1);
 
         assertThat(exitLatch.await(60, TimeUnit.SECONDS))
-                .as("read-v4 must read the message published after the given message id")
+                .as("read must read the message published after the given message id")
                 .isTrue();
         stop(thread);
     }
 
-    /** {@code read} drives the V5 CheckpointConsumer, which cannot express a {@code lid:eid} start. */
+    /** The V5 CheckpointConsumer cannot express a {@code lid:eid} start; the v4 reader can. */
     @Test(timeOut = 30000)
-    public void testReadRejectsASpecificMessageIdAndPointsAtReadV4() {
-        PerformanceReader reader = new PerformanceReader();
-        new CommandLine(reader).parseArgs("-m", "1:2", "persistent://a/b/c");
-
-        assertThatThrownBy(reader::validate)
-                .as("read must reject the v4 'lid:eid' start message id")
+    public void testReadAcceptsASpecificMessageIdOnlyWithTheV4Client() {
+        PerformanceReader scalable = parse(new PerformanceReader(), "-m", "1:2", "topic://a/b/c");
+        assertThatThrownBy(scalable::validate)
+                .as("the V5 client must reject the v4 'lid:eid' start message id")
                 .hasMessageContaining("lid:eid");
 
-        // Same arguments, but the v4 reader accepts them.
-        PerformanceReaderV4 readerV4 = new PerformanceReaderV4();
-        new CommandLine(readerV4).parseArgs("-m", "1:2", "persistent://a/b/c");
-        assertThatCode(readerV4::validate).doesNotThrowAnyException();
+        PerformanceReader overridden = parse(new PerformanceReader(), "--client-api", "V5", "-m", "1:2",
+                "persistent://a/b/c");
+        assertThatThrownBy(overridden::validate).hasMessageContaining("lid:eid");
+
+        // Same arguments on a persistent:// topic select the v4 reader, which accepts them.
+        PerformanceReader persistent = parse(new PerformanceReader(), "-m", "1:2", "persistent://a/b/c");
+        assertThatCode(persistent::validate).doesNotThrowAnyException();
+    }
+
+    private static <T> T parse(T command, String... args) {
+        new CommandLine(command).setCaseInsensitiveEnumValuesAllowed(true).parseArgs(args);
+        return command;
     }
 
     private List<MessageId> publish(String topic, int numMessages) throws Exception {

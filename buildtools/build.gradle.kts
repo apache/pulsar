@@ -21,6 +21,11 @@ plugins {
     id("pulsar.java-conventions")
 }
 
+// External consumers may use the test support classes without publishing them in normal releases.
+if (PulsarApiSpiPublication.isEnabled(project)) {
+    apply(plugin = "pulsar.publish-conventions")
+}
+
 dependencies {
     implementation(libs.slog)
     implementation(libs.snakeyaml)
@@ -36,7 +41,7 @@ dependencies {
     implementation(libs.jcl.over.slf4j)
     implementation(libs.commons.lang3)
 
-    // Netty is needed at runtime for ExtendedNettyLeakDetector and FastThreadLocalCleanupListener.
+    // Netty is needed at runtime for ExtendedNettyLeakDetector.
     // Using runtimeOnly so it propagates transitively when other modules depend on buildtools.
     compileOnly(libs.netty.common)
     runtimeOnly(libs.netty.common)

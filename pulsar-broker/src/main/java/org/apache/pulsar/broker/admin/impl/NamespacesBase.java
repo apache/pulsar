@@ -42,6 +42,7 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -64,15 +65,18 @@ import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyE
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.scalable.AutoScaleConfig;
 import org.apache.pulsar.broker.topiclistlimit.TopicListMemoryLimiter;
 import org.apache.pulsar.broker.topiclistlimit.TopicListSizeResultCache;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.GrantTopicPermissionOptions;
+import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.RevokeTopicPermissionOptions;
+import org.apache.pulsar.client.admin.internal.NamespacesImpl;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.naming.NamedEntity;
@@ -1956,20 +1960,28 @@ public abstract class NamespacesBase extends AdminResource {
 
     protected CompletableFuture<Void> internalClearNamespaceBacklogAsync(boolean authoritative) {
         return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.CLEAR_BACKLOG)
-                .thenCompose(__ -> pulsar().getNamespaceService().getNamespaceBundleFactory()
-                        .getBundlesAsync(namespaceName))
-                .thenCompose(bundles -> {
-                    final List<CompletableFuture<Void>> futures = new ArrayList<>();
-                    for (NamespaceBundle nsBundle : bundles.getBundles()) {
-                        try {
-                            futures.add(pulsar().getAdminClient().namespaces()
-                                    .clearNamespaceBundleBacklogAsync(namespaceName.toString(),
-                                            nsBundle.getBundleRange()));
-                        } catch (PulsarServerException e) {
-                            return CompletableFuture.failedFuture(e);
-                        }
+                .thenCompose(__ -> isSuperUserOrTenantAdminAsync())
+                .thenCompose(isAdmin -> {
+                    if (!isAdmin) {
+                        // the topics are listed from local metadata: redirect if a peer cluster owns the namespace
+                        return validateGlobalNamespaceOwnershipAsync(namespaceName)
+                                .thenCompose(__ -> clearAuthorizedSubscriptionsBacklogAsync());
                     }
-                    return FutureUtil.waitForAll(futures);
+                    return pulsar().getNamespaceService().getNamespaceBundleFactory()
+                            .getBundlesAsync(namespaceName)
+                            .thenCompose(bundles -> {
+                                final List<CompletableFuture<Void>> futures = new ArrayList<>();
+                                for (NamespaceBundle nsBundle : bundles.getBundles()) {
+                                    try {
+                                        futures.add(pulsar().getAdminClient().namespaces()
+                                                .clearNamespaceBundleBacklogAsync(namespaceName.toString(),
+                                                        nsBundle.getBundleRange()));
+                                    } catch (PulsarServerException e) {
+                                        return CompletableFuture.failedFuture(e);
+                                    }
+                                }
+                                return FutureUtil.waitForAll(futures);
+                            });
                 }).thenRun(() -> log.info()
                         .attr("namespace", namespaceName)
                         .log("Successfully cleared backlog on all the bundles for namespace"));
@@ -1992,7 +2004,8 @@ public abstract class NamespacesBase extends AdminResource {
                         // even if not loaded.
                         validateNamespaceBundleOwnershipAsync(namespaceName, bundleRange,
                                 authoritative, false))
-                .thenCompose(bundle -> clearBacklogAsync(bundle, null))
+                .thenCompose(bundle -> isSuperUserOrTenantAdminAsync()
+                        .thenCompose(isAdmin -> clearBacklogAsync(bundle, null, isAdmin)))
                 .thenRun(() -> log.info()
                         .attr("namespace", namespaceName)
                         .attr("bundleRange", bundleRange)
@@ -2005,21 +2018,27 @@ public abstract class NamespacesBase extends AdminResource {
             return FutureUtil.failedFuture(new RestException(Status.BAD_REQUEST, "Subscription should not be null"));
         }
 
-        return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.CLEAR_BACKLOG)
-                .thenCompose(__ -> pulsar().getNamespaceService().getNamespaceBundleFactory()
-                        .getBundlesAsync(namespaceName))
-                .thenCompose(bundles -> {
-                    final List<CompletableFuture<Void>> futures = new ArrayList<>();
-                    for (NamespaceBundle nsBundle : bundles.getBundles()) {
-                        try {
-                            futures.add(pulsar().getAdminClient().namespaces()
-                                    .clearNamespaceBundleBacklogForSubscriptionAsync(
-                                            namespaceName.toString(), nsBundle.getBundleRange(), subscription));
-                        } catch (PulsarServerException e) {
-                            return CompletableFuture.failedFuture(e);
-                        }
+        return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.CLEAR_BACKLOG, subscription)
+                .thenCompose(__ -> isSuperUserOrTenantAdminAsync())
+                .thenCompose(canClearReplicatorBacklog -> {
+                    if (!canClearReplicatorBacklog && isReplicatorCursorName(subscription)) {
+                        return CompletableFuture.failedFuture(replicatorCursorForbidden());
                     }
-                    return FutureUtil.waitForAll(futures);
+                    return pulsar().getNamespaceService().getNamespaceBundleFactory()
+                            .getBundlesAsync(namespaceName)
+                            .thenCompose(bundles -> {
+                                final List<CompletableFuture<Void>> futures = new ArrayList<>();
+                                for (NamespaceBundle nsBundle : bundles.getBundles()) {
+                                    try {
+                                        futures.add(clearNamespaceBundleBacklogForSubscriptionAsync(
+                                                nsBundle.getBundleRange(), subscription,
+                                                !canClearReplicatorBacklog));
+                                    } catch (PulsarServerException e) {
+                                        return CompletableFuture.failedFuture(e);
+                                    }
+                                }
+                                return FutureUtil.waitForAll(futures);
+                            });
                 }).thenRun(() -> log.info()
                         .attr("subscription", subscription)
                         .attr("namespace", namespaceName)
@@ -2027,9 +2046,8 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     @SuppressWarnings("deprecation")
-    protected CompletableFuture<Void> internalClearNamespaceBundleBacklogForSubscriptionAsync(String subscription,
-                                                                                              String bundleRange,
-                                                                                              boolean authoritative) {
+    protected CompletableFuture<Void> internalClearNamespaceBundleBacklogForSubscriptionAsync(
+            String subscription, String bundleRange, boolean authoritative, boolean subscriptionOnly) {
         if (subscription == null) {
             return FutureUtil.failedFuture(new RestException(Status.BAD_REQUEST, "Subscription should not be null"));
         }
@@ -2037,7 +2055,7 @@ public abstract class NamespacesBase extends AdminResource {
             return FutureUtil.failedFuture(new RestException(Status.BAD_REQUEST, "BundleRange should not be null"));
         }
 
-        return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.CLEAR_BACKLOG)
+        return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.CLEAR_BACKLOG, subscription)
                 .thenCompose(__ -> {
                     // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
                     return validateGlobalNamespaceOwnershipAsync(namespaceName);
@@ -2047,7 +2065,11 @@ public abstract class NamespacesBase extends AdminResource {
                         // even if not loaded.
                         validateNamespaceBundleOwnershipAsync(namespaceName, bundleRange,
                                 authoritative, false))
-                .thenCompose(bundle -> clearBacklogAsync(bundle, subscription))
+                .thenCompose(bundle -> (subscriptionOnly
+                        ? CompletableFuture.completedFuture(false)
+                        : isSuperUserOrTenantAdminAsync())
+                        .thenCompose(canClearReplicatorBacklog ->
+                                clearBacklogAsync(bundle, subscription, canClearReplicatorBacklog)))
                 .thenRun(() -> log.info()
                         .attr("subscription", subscription)
                         .attr("namespace", namespaceName)
@@ -2061,7 +2083,7 @@ public abstract class NamespacesBase extends AdminResource {
             return FutureUtil.failedFuture(new RestException(Status.BAD_REQUEST, "Subscription should not be null"));
         }
 
-        return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.UNSUBSCRIBE)
+        return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.UNSUBSCRIBE, subscription)
                 .thenCompose(__ -> pulsar().getNamespaceService().getNamespaceBundleFactory()
                         .getBundlesAsync(namespaceName))
                 .thenCompose(bundles -> {
@@ -2091,7 +2113,7 @@ public abstract class NamespacesBase extends AdminResource {
             return FutureUtil.failedFuture(new RestException(Status.BAD_REQUEST, "BundleRange should not be null"));
         }
 
-        return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.UNSUBSCRIBE)
+        return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.UNSUBSCRIBE, subscription)
                 .thenCompose(__ -> validateGlobalNamespaceOwnershipAsync(namespaceName))
                 .thenCompose(__ -> validateNamespaceBundleOwnershipAsync(namespaceName, bundleRange,
                         authoritative, false))
@@ -2294,35 +2316,135 @@ public abstract class NamespacesBase extends AdminResource {
         return checkBacklogQuota(quota, retention);
     }
 
-    private CompletableFuture<Void> clearBacklogAsync(NamespaceBundle bundle, String subscription) {
+    /**
+     * Whether the caller may clear the backlog of the subscription, checked as for a single subscription.
+     */
+    private CompletableFuture<Boolean> canClearSubscriptionBacklogAsync(String subscription) {
+        if (isReplicatorCursorName(subscription)) {
+            return CompletableFuture.completedFuture(false);
+        }
+        return isAuthorizedAsync(validateNamespaceOperationAsync(namespaceName, NamespaceOperation.CLEAR_BACKLOG,
+                subscription));
+    }
+
+    /**
+     * Clears the backlog of the namespace subscriptions that the caller may clear, without replicators. Dispatched
+     * per topic, because bundle requests are made with the broker's identity.
+     */
+    private CompletableFuture<Void> clearAuthorizedSubscriptionsBacklogAsync() {
+        final PulsarAdmin admin;
+        try {
+            admin = pulsar().getAdminClient();
+        } catch (PulsarServerException e) {
+            return CompletableFuture.failedFuture(e);
+        }
+        final Map<String, CompletableFuture<Boolean>> allowed = new ConcurrentHashMap<>();
+        return pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName)
+                .thenCompose(topics -> FutureUtil.waitForAll(topics.stream()
+                        .filter(topic -> !pulsar().getBrokerService().isSystemTopic(TopicName.get(topic)))
+                        .map(topic -> ignoreNotFound(admin.topics().getSubscriptionsAsync(topic), List.<String>of())
+                                .thenCompose(subscriptions -> FutureUtil.waitForAll(subscriptions.stream()
+                                        .map(sub -> allowed.computeIfAbsent(sub,
+                                                        this::canClearSubscriptionBacklogAsync)
+                                                .thenCompose(canClear -> canClear
+                                                        ? ignoreNotFound(
+                                                                admin.topics().skipAllMessagesAsync(topic, sub), null)
+                                                        : CompletableFuture.<Void>completedFuture(null)))
+                                        .toList())))
+                        .toList()));
+    }
+
+    private boolean isReplicatorCursorName(String subscription) {
+        return subscription.startsWith(pulsar().getConfiguration().getReplicatorPrefix() + ".");
+    }
+
+    private static RestException replicatorCursorForbidden() {
+        return new RestException(Status.FORBIDDEN,
+                "Clearing the backlog of a replicator cursor is not allowed for this request");
+    }
+
+    private CompletableFuture<Void> clearNamespaceBundleBacklogForSubscriptionAsync(String bundleRange,
+                                                                                    String subscription,
+                                                                                    boolean subscriptionOnly)
+            throws PulsarServerException {
+        Namespaces namespaces = pulsar().getAdminClient().namespaces();
+        if (!subscriptionOnly) {
+            return namespaces.clearNamespaceBundleBacklogForSubscriptionAsync(namespaceName.toString(),
+                    bundleRange, subscription);
+        }
+        if (namespaces instanceof NamespacesImpl namespacesImpl) {
+            return namespacesImpl.clearNamespaceBundleBacklogForSubscriptionAsync(namespaceName.toString(),
+                    bundleRange, subscription, true);
+        }
+        return CompletableFuture.failedFuture(new RestException(Status.INTERNAL_SERVER_ERROR,
+                "Unsupported admin client implementation " + namespaces.getClass().getName()));
+    }
+
+    /**
+     * When {@code canClearReplicatorBacklog} is false, only subscriptions can be cleared, and without a
+     * subscription name only those that the caller may clear.
+     */
+    private CompletableFuture<Void> clearBacklogAsync(NamespaceBundle bundle, String subscription,
+                                                      boolean canClearReplicatorBacklog) {
+        final String replicatorPrefix = pulsar().getConfiguration().getReplicatorPrefix();
+        if (subscription != null && !canClearReplicatorBacklog && isReplicatorCursorName(subscription)) {
+            return CompletableFuture.failedFuture(replicatorCursorForbidden());
+        }
         return pulsar().getNamespaceService().getOwnedPersistentTopicListForNamespaceBundle(bundle)
                 .thenCompose(topicsInBundle -> {
-                    List<CompletableFuture<Void>> futures = new ArrayList<>();
-                    final String replicatorPrefix = pulsar().getConfiguration().getReplicatorPrefix();
-                    final String finalSubscription = subscription == null ? null
-                            : PersistentReplicator.getRemoteCluster(replicatorPrefix, subscription)
-                                    .orElse(subscription);
-
+                    List<CompletableFuture<Optional<Topic>>> topicFutures = new ArrayList<>();
                     for (String topic : topicsInBundle) {
                         TopicName topicName = TopicName.get(topic);
                         if (pulsar().getBrokerService().isSystemTopic(topicName)) {
                             continue;
                         }
-                        futures.add(pulsar().getBrokerService().getTopic(topicName.toString(), false)
-                                .thenCompose(optTopic -> {
-                                    if (optTopic.isEmpty()) {
-                                        return CompletableFuture.completedFuture(null);
-                                    }
-                                    Topic loaded = optTopic.get();
-                                    if (!(loaded instanceof PersistentTopic persistentTopic)) {
-                                        return CompletableFuture.completedFuture(null);
-                                    }
-                                    return finalSubscription != null
-                                            ? persistentTopic.clearBacklog(finalSubscription)
-                                            : persistentTopic.clearBacklog();
-                                }));
+                        topicFutures.add(pulsar().getBrokerService().getTopic(topicName.toString(), false));
                     }
-
+                    return FutureUtil.waitForAll(topicFutures).thenApply(__ -> topicFutures.stream()
+                            .map(CompletableFuture::join)
+                            .flatMap(Optional::stream)
+                            .filter(PersistentTopic.class::isInstance)
+                            .map(PersistentTopic.class::cast)
+                            .toList());
+                })
+                .thenCompose(persistentTopics -> {
+                    if (subscription == null) {
+                        if (canClearReplicatorBacklog) {
+                            return FutureUtil.waitForAll(persistentTopics.stream()
+                                    .map(PersistentTopic::clearBacklog)
+                                    .toList());
+                        }
+                        // only the subscriptions that the caller may clear
+                        Map<String, CompletableFuture<Boolean>> allowed = new HashMap<>();
+                        List<CompletableFuture<Void>> futures = new ArrayList<>();
+                        for (PersistentTopic topic : persistentTopics) {
+                            topic.getSubscriptions().forEach((name, sub) -> futures.add(
+                                    allowed.computeIfAbsent(name, this::canClearSubscriptionBacklogAsync)
+                                            .thenCompose(canClear -> canClear ? sub.clearBacklog()
+                                                    : CompletableFuture.completedFuture(null))));
+                        }
+                        return FutureUtil.waitForAll(futures);
+                    }
+                    if (canClearReplicatorBacklog) {
+                        final String cursorName = PersistentReplicator.getRemoteCluster(replicatorPrefix,
+                                subscription).orElse(subscription);
+                        return FutureUtil.waitForAll(persistentTopics.stream()
+                                .map(topic -> topic.clearBacklog(cursorName))
+                                .toList());
+                    }
+                    for (PersistentTopic topic : persistentTopics) {
+                        if (topic.getSubscription(subscription) == null
+                                && (topic.getPersistentReplicator(subscription) != null
+                                || topic.getShadowReplicators().containsKey(subscription))) {
+                            return CompletableFuture.failedFuture(replicatorCursorForbidden());
+                        }
+                    }
+                    List<CompletableFuture<Void>> futures = new ArrayList<>();
+                    for (PersistentTopic topic : persistentTopics) {
+                        PersistentSubscription sub = topic.getSubscription(subscription);
+                        futures.add(sub != null ? sub.clearBacklog()
+                                : FutureUtil.failedFuture(new BrokerServiceException("Cursor not found")));
+                    }
                     return FutureUtil.waitForAll(futures);
                 }).exceptionally(ex -> {
                     Throwable cause = FutureUtil.unwrapCompletionException(ex);

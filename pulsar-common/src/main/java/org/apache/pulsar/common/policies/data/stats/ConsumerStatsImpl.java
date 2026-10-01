@@ -79,9 +79,6 @@ public class ConsumerStatsImpl implements ConsumerStats {
     /** Flag to verify if consumer is blocked due to reaching threshold of unacked messages. */
     public boolean blockedConsumerOnUnackedMsgs;
 
-    /** The read position of the cursor when the consumer joining. */
-    public String readPositionWhenJoining;
-
     /**
      * For Key_Shared AUTO_SPLIT ordered subscriptions: The current number of hashes in the draining state.
      */
@@ -127,18 +124,8 @@ public class ConsumerStatsImpl implements ConsumerStats {
     public long firstConsumedFlowTimestamp;
 
 
-    /**
-     * Hash ranges assigned to this consumer if in Key_Shared subscription mode.
-     * This format and field is used when `subscriptionKeySharedUseClassicPersistentImplementation` is set to `false`
-     * (default).
-     */
+    /** Hash ranges assigned to this consumer if in Key_Shared subscription mode. */
     public List<int[]> keyHashRangeArrays;
-
-    /**
-     * Hash ranges assigned to this consumer if in Key_Shared subscription mode.
-     * This format and field is used when `subscriptionKeySharedUseClassicPersistentImplementation` is set to `true`.
-     */
-    public List<String> keyHashRanges;
 
     /** Metadata (key/value strings) associated with this consumer. */
     public Map<String, String> metadata;
@@ -154,12 +141,10 @@ public class ConsumerStatsImpl implements ConsumerStats {
         this.availablePermits += stats.availablePermits;
         this.unackedMessages += stats.unackedMessages;
         this.blockedConsumerOnUnackedMsgs = stats.blockedConsumerOnUnackedMsgs;
-        this.readPositionWhenJoining = stats.readPositionWhenJoining;
         this.drainingHashesCount = stats.drainingHashesCount;
         this.drainingHashesClearedTotal += stats.drainingHashesClearedTotal;
         this.drainingHashesUnackedMessages = stats.drainingHashesUnackedMessages;
         this.drainingHashes = stats.drainingHashes;
-        this.keyHashRanges = stats.keyHashRanges;
         this.keyHashRangeArrays = stats.keyHashRangeArrays;
         this.consumerName = stats.consumerName;
         this.firstMessagesSentTimestamp = stats.firstMessagesSentTimestamp;
@@ -189,10 +174,6 @@ public class ConsumerStatsImpl implements ConsumerStats {
 
     public void setClientVersion(String clientVersion) {
         this.clientVersion = clientVersion;
-    }
-
-    public String getReadPositionWhenJoining() {
-        return readPositionWhenJoining;
     }
 
     public String getLastAckedTime() {

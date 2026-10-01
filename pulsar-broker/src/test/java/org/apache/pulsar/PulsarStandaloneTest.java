@@ -45,15 +45,16 @@ public class PulsarStandaloneTest {
 
     @Test
     public void testStandaloneWithRocksDB() throws Exception {
+        final File tempDir = IOUtils.createTempDir("standalone", "test");
         String[] args = new String[]{"--config",
                 "./src/test/resources/configurations/pulsar_broker_test_standalone_with_rocksdb.conf",
                 "-nss",
-                "-nfw"};
+                "-nfw",
+                "--metadata-dir", new File(tempDir, "metadata").getAbsolutePath()};
         final int bookieNum = 3;
-        final File tempDir = IOUtils.createTempDir("standalone", "test");
 
         PulsarStandaloneStarter standalone = new PulsarStandaloneStarter(args);
-        standalone.setBkDir(tempDir.getAbsolutePath());
+        standalone.setBkDir(new File(tempDir, "bookies").getAbsolutePath());
         standalone.setNumOfBk(bookieNum);
 
         standalone.startBookieWithMetadataStore();
@@ -71,6 +72,7 @@ public class PulsarStandaloneTest {
         for (int i = 0; i < bookieNum; i++) {
             ServerConfiguration conf1 = firstBsConfs.get(i);
             ServerConfiguration conf2 = secondBsConfs.get(i);
+            Assert.assertEquals(conf1.getBookieId(), "bk-" + i);
             Assert.assertEquals(conf1.getBookieId(), conf2.getBookieId());
         }
         standalone.close();
@@ -123,7 +125,11 @@ public class PulsarStandaloneTest {
 
         String topic = "test-get-topic-bundle-range";
         admin.topics().createNonPartitionedTopic(topic);
-        assertEquals(admin.lookups().getBundleRange(topic), "0xc0000000_0xffffffff");
+        // public/default is created with the default number of bundles (32); crc32 of the full topic name is
+        // 0xca437fb1, which falls into the 26th of the 32 equally sized ranges
+        assertEquals(admin.namespaces().getBundles("public/default").getNumBundles(),
+                standalone.getConfig().getDefaultNumberOfNamespaceBundles());
+        assertEquals(admin.lookups().getBundleRange(topic), "0xc8000000_0xd0000000");
 
         standalone.close();
         cleanDirectory(bkDir);

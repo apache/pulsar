@@ -132,10 +132,10 @@ public class PerfClientUtils {
         }
 
         // PIP-478: pin the same two provider axes the V5 builder and the admin builder pin, so that
-        // `pulsar-perf produce-v4 --jsse-provider/--jca-provider` really runs on those providers
-        // rather than silently falling back to the JVM provider search order. ClientBuilder has no
-        // fluent setter for either, so this mirrors createAdminBuilderFromArguments and writes them
-        // onto the underlying configuration.
+        // `pulsar-perf produce --jsse-provider/--jca-provider` on the v4 client really runs on those
+        // providers rather than silently falling back to the JVM provider search order. ClientBuilder
+        // has no fluent setter for either, so this mirrors createAdminBuilderFromArguments and writes
+        // them onto the underlying configuration.
         if (clientBuilder instanceof ClientBuilderImpl clientBuilderImpl
                 && (isNotBlank(arguments.jsseProvider) || isNotBlank(arguments.jcaProvider))) {
             ClientConfigurationData conf = clientBuilderImpl.getClientConfigurationData();
@@ -309,7 +309,14 @@ public class PerfClientUtils {
         // clear interrupted status and restore later
         boolean wasInterrupted = Thread.currentThread().interrupted();
         try {
-            Runtime.getRuntime().removeShutdownHook(shutdownHookThread);
+            try {
+                Runtime.getRuntime().removeShutdownHook(shutdownHookThread);
+            } catch (IllegalStateException e) {
+                // JVM shutdown is already in progress (e.g. Ctrl-C), so the hook is being run by the
+                // JVM itself: just wait for it rather than failing the command with a stack trace.
+                shutdownHookThread.join();
+                return;
+            }
             shutdownHookThread.start();
             shutdownHookThread.join();
         } finally {

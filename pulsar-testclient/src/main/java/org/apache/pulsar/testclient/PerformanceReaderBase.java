@@ -34,13 +34,13 @@ import java.util.concurrent.atomic.LongAdder;
 import org.HdrHistogram.Histogram;
 import org.HdrHistogram.Recorder;
 import org.apache.pulsar.common.naming.TopicName;
-import picocli.CommandLine.Option;
 
 /**
  * Client-agnostic implementation of the {@code pulsar-perf} reader benchmark.
  *
- * <p>The CLI options, the throughput and latency accounting and the reports live here. Concrete
- * subclasses bind the client types: {@link PerformanceReader} drives the V5 {@code
+ * <p>The throughput and latency accounting and the reports live here; the options come from the
+ * {@link PerformanceReader} command. Concrete subclasses bind the client types:
+ * {@link PerformanceReaderV5} drives the V5 {@code
  * CheckpointConsumer} from dedicated poll threads, and {@link PerformanceReaderV4} drives a v4
  * {@code Reader} through a {@code ReaderListener}.
  *
@@ -48,14 +48,14 @@ import picocli.CommandLine.Option;
  * @param <ReaderT> the reader handle
  * @param <MessageT> the received message type
  */
-public abstract class PerformanceReaderBase<ClientT, ReaderT, MessageT> extends PerformanceTopicListArguments {
+public abstract class PerformanceReaderBase<ClientT, ReaderT, MessageT> {
 
     /**
-     * Logger named after the <em>concrete</em> command class rather than this base, so that the
-     * report lines keep identifying the subcommand that produced them (the integration tests in
-     * {@code PerfToolTest} match on {@code PerformanceReader - Aggregated ...}).
+     * Logger named after the {@code read} command rather than the runner, so that the report lines
+     * read the same whichever client runs the benchmark (the integration tests in {@code PerfToolTest}
+     * match on {@code PerformanceReader - Aggregated ...}).
      */
-    protected final Logger log = Logger.get(getClass());
+    protected final Logger log = Logger.get(PerformanceReader.class);
 
     private final LongAdder messagesReceived = new LongAdder();
     private final LongAdder bytesReceived = new LongAdder();
@@ -71,32 +71,11 @@ public abstract class PerformanceReaderBase<ClientT, ReaderT, MessageT> extends 
 
     private RateLimiter limiter;
 
-    @Option(names = {"-r", "--rate"}, description = "Simulate a slow message reader (rate in msg/s)")
-    public double rate = 0;
+    /** The parsed {@code read} command line. */
+    protected final PerformanceReader arguments;
 
-    @Option(names = {"-m",
-            "--start-message-id"}, description = "Start message id. This can be either 'earliest', "
-            + "'latest' or a specific message id by using 'lid:eid'")
-    public String startMessageId = "earliest";
-
-    @Option(names = {"-q", "--receiver-queue-size"}, description = "Size of the receiver queue")
-    public int receiverQueueSize = 1000;
-
-    @Option(names = {"-n",
-            "--num-messages"}, description = "Number of messages to consume in total. If <= 0, "
-            + "it will keep consuming")
-    public long numMessages = 0;
-
-    @Option(names = {
-            "--use-tls"}, description = "Use TLS encryption on the connection", descriptionKey = "useTls")
-    public boolean useTls;
-
-    @Option(names = {"-time",
-            "--test-duration"}, description = "Test duration in secs. If <= 0, it will keep consuming")
-    public long testTime = 0;
-
-    protected PerformanceReaderBase(String cmdName) {
-        super(cmdName);
+    protected PerformanceReaderBase(PerformanceReader arguments) {
+        this.arguments = arguments;
     }
 
     // ------------------------------------------------------------------------------------------
@@ -135,23 +114,23 @@ public abstract class PerformanceReaderBase<ClientT, ReaderT, MessageT> extends 
 
     // ------------------------------------------------------------------------------------------
 
-    @Override
     public void run() throws Exception {
         // Dump config variables
         PerfClientUtils.printJVMInformation(log);
         ObjectMapper m = new ObjectMapper();
         ObjectWriter w = m.writerWithDefaultPrettyPrinter();
-        log.info().attr("config", w.writeValueAsString(this)).log("Starting Pulsar performance reader with config");
+        log.info().attr("config", w.writeValueAsString(arguments))
+                .log("Starting Pulsar performance reader with config");
 
         prepareRun();
 
-        this.limiter = this.rate > 0 ? RateLimiter.create(this.rate) : null;
+        this.limiter = arguments.rate > 0 ? RateLimiter.create(arguments.rate) : null;
 
         ClientT client = createClient();
 
         List<CompletableFuture<ReaderT>> futures = new ArrayList<>();
-        for (int i = 0; i < this.numTopics; i++) {
-            final TopicName topicName = TopicName.get(this.topics.get(i));
+        for (int i = 0; i < arguments.numTopics; i++) {
+            final TopicName topicName = TopicName.get(arguments.topics.get(i));
             futures.add(createReaderAsync(client, topicName.toString()));
         }
 
@@ -162,7 +141,7 @@ public abstract class PerformanceReaderBase<ClientT, ReaderT, MessageT> extends 
 
         startReading(readers);
 
-        log.info().attr("reading", this.numTopics).log("Start reading from topics");
+        log.info().attr("reading", arguments.numTopics).log("Start reading from topics");
 
         final long start = System.nanoTime();
         Thread shutdownHookThread = addShutdownHook(() -> {
@@ -170,19 +149,19 @@ public abstract class PerformanceReaderBase<ClientT, ReaderT, MessageT> extends 
             printAggregatedStats();
         });
 
-        if (this.testTime > 0) {
+        if (arguments.testTime > 0) {
             TimerTask timoutTask = new TimerTask() {
                 @Override
                 public void run() {
                     log.info()
-                            .attr("duration", testTime)
+                            .attr("duration", arguments.testTime)
                             .log("------------- DONE (reached the maximum duration:"
                                     + " [ seconds] of consumption) --------------");
                     PerfClientUtils.exit(0);
                 }
             };
             Timer timer = new Timer();
-            timer.schedule(timoutTask, this.testTime * 1000);
+            timer.schedule(timoutTask, arguments.testTime * 1000);
         }
 
         long oldTime = System.nanoTime();
@@ -237,8 +216,8 @@ public abstract class PerformanceReaderBase<ClientT, ReaderT, MessageT> extends 
         totalMessagesReceived.increment();
         totalBytesReceived.add(size);
 
-        if (this.numMessages > 0 && totalMessagesReceived.sum() >= this.numMessages) {
-            log.info().attr("number", this.numMessages).log("DONE (reached the maximum number: of consumption");
+        if (arguments.numMessages > 0 && totalMessagesReceived.sum() >= arguments.numMessages) {
+            log.info().attr("number", arguments.numMessages).log("DONE (reached the maximum number: of consumption");
             PerfClientUtils.exit(0);
             return true;
         }

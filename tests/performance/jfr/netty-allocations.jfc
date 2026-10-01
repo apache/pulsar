@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<!--
+  The events of Netty's buffer allocators, as Netty's microbench/src/main/resources/Netty Allocator Events.jfc lists
+  them: every buffer allocation, reallocation and free, and every chunk of memory that an allocator allocates, frees
+  or returns for reuse. Netty 4.2.4 and later emit them, from AdaptivePoolingAllocator and PooledByteBufAllocator;
+  Netty 4.1, which Pulsar 4.x uses, has none, so a Pulsar 4.x image records none of them. An event that the JVM's Netty
+  version doesn't have is ignored, such as io.netty.ReturnChunk, which no Netty release has yet (4.2.18).
+
+  A profiled component records them when its profiling settings list this file in jfrConfigurations, such as
+  jfrConfigurations: [profile, netty-allocations.jfc] in configs/profile-broker-netty-allocations.yaml, which also sets
+  nettyAllocationsReport: true for the profile report's summary of them. The buffer events are recorded for every
+  buffer, without stack traces, so they add overhead to the profiled JVM and make its recording much larger: in the IoT
+  telemetry max-rate scenario, about 2.5 events of each kind per message, and a broker recording of 1 GB instead of
+  10 MB. Prefer a short measurement, and compare throughput and latency only between runs that record the same events.
+-->
+<configuration version="2.0" label="Netty allocator events" description="The events of Netty's buffer allocators">
+  <category label="Netty">
+    <event name="io.netty.AllocateBuffer">
+      <setting name="enabled">true</setting>
+      <setting name="stackTrace">false</setting>
+      <setting name="threshold">0 ns</setting>
+    </event>
+    <event name="io.netty.ReallocateBuffer">
+      <setting name="enabled">true</setting>
+      <setting name="stackTrace">false</setting>
+      <setting name="threshold">0 ns</setting>
+    </event>
+    <event name="io.netty.FreeBuffer">
+      <setting name="enabled">true</setting>
+      <setting name="stackTrace">false</setting>
+      <setting name="threshold">0 ns</setting>
+    </event>
+    <event name="io.netty.AllocateChunk">
+      <setting name="enabled">true</setting>
+      <setting name="stackTrace">false</setting>
+      <setting name="threshold">0 ns</setting>
+    </event>
+    <event name="io.netty.FreeChunk">
+      <setting name="enabled">true</setting>
+      <setting name="stackTrace">false</setting>
+      <setting name="threshold">0 ns</setting>
+    </event>
+    <event name="io.netty.ReturnChunk">
+      <setting name="enabled">true</setting>
+      <setting name="stackTrace">false</setting>
+      <setting name="threshold">0 ns</setting>
+    </event>
+  </category>
+</configuration>

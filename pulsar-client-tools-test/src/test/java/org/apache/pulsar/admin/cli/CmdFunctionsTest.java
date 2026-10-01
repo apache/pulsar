@@ -501,6 +501,25 @@ public class CmdFunctionsTest {
     }
 
     @Test
+    public void testCreateFunctionWithClientApi() throws Exception {
+        cmd.run(new String[] {
+            "create",
+            "--name", FN_NAME,
+            "--inputs", "persistent://sample/ns1/in",
+            "--output", "persistent://sample/ns1/out",
+            "--client-api", "V5",
+            "--jar", JAR_NAME,
+            "--tenant", "sample",
+            "--namespace", "ns1",
+            "--className", DummyFunction.class.getName(),
+        });
+
+        CreateFunction creater = cmd.getCreater();
+        assertEquals(FunctionConfig.ClientApi.V5, creater.getFunctionConfig().getClientApi());
+        verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
+    }
+
+    @Test
     public void testCreateUsingFullyQualifiedFunctionName() throws Exception {
         String tenant = "sample";
         String namespace = "ns1";
