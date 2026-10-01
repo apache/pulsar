@@ -220,9 +220,10 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                             return CompletableFuture.completedFuture(Pair.of(info.toByteArray(), context));
                         });
                 }))).whenComplete((v, ex) -> {
+                    Throwable actEx = FutureUtil.unwrapCompletionException(ex);
                     var latencyMs = this.clock.millis() - start.longValue();
                     if (ex != null) {
-                        if (ex instanceof IncompatibleSchemaException) {
+                        if (actEx instanceof IncompatibleSchemaException) {
                             log.warn()
                                     .attr("schemaId", schemaId)
                                     .exception(ex)
