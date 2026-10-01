@@ -21,6 +21,7 @@ package org.apache.pulsar.metadata.bookkeeper;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.apache.pulsar.metadata.bookkeeper.AbstractMetadataDriver.BLOCKING_CALL_TIMEOUT;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.net.UnknownHostException;
@@ -39,6 +40,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
@@ -59,6 +61,7 @@ import org.apache.bookkeeper.proto.UnderreplicatedLedgerFormat;
 import org.apache.bookkeeper.replication.ReplicationEnableCb;
 import org.apache.bookkeeper.replication.ReplicationException;
 import org.apache.bookkeeper.util.BookKeeperConstants;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.PulsarExecutors;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -691,38 +694,77 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
 
     @Override
     public void close() throws ReplicationException.UnavailableException {
+        close(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
+    }
+
+    @VisibleForTesting
+    void close(long timeout, TimeUnit timeoutUnit) throws ReplicationException.UnavailableException {
         log.debug("close()");
         notificationCallbackExecutor.shutdownNow();
-        ReplicationException.UnavailableException failure = null;
-        for (Map.Entry<Long, Lock> e : heldLocks.entrySet()) {
-            try {
-                store.delete(e.getValue().getLockPath(), Optional.empty())
-                        .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
-            } catch (ExecutionException | TimeoutException ex) {
-                if (!(ex instanceof ExecutionException
-                        && ex.getCause() instanceof MetadataStoreException.NotFoundException)) {
-                    if (failure == null) {
-                        failure = new ReplicationException.UnavailableException("Error contacting metadata store", ex);
-                    } else {
-                        failure.addSuppressed(ex);
-                    }
-                    continue;
-                }
-                // A missing lock is already released; continue cleaning up the remaining locks.
-            } catch (InterruptedException ie) {
-                Thread.currentThread().interrupt();
-                var interrupted = new ReplicationException.UnavailableException(
-                        "Interrupted while connecting metadata store", ie);
-                if (failure != null) {
-                    interrupted.addSuppressed(failure);
-                }
-                throw interrupted;
-            }
-            heldLocks.remove(e.getKey(), e.getValue());
+
+        Map<Long, Lock> locks = Map.copyOf(heldLocks);
+        List<CompletableFuture<Throwable>> deleteResults = new ArrayList<>(locks.size());
+        for (Map.Entry<Long, Lock> entry : locks.entrySet()) {
+            deleteResults.add(FutureUtil.supplySafely(
+                            () -> store.delete(entry.getValue().getLockPath(), Optional.empty()))
+                    .handle((__, error) -> {
+                        Throwable cause = error == null ? null : FutureUtil.unwrapCompletionException(error);
+                        if (cause == null || cause instanceof MetadataStoreException.NotFoundException) {
+                            heldLocks.remove(entry.getKey(), entry.getValue());
+                            return null;
+                        }
+                        return new ExecutionException(cause);
+                    }));
         }
+
+        try {
+            FutureUtil.waitForAll(deleteResults).get(timeout, timeoutUnit);
+        } catch (TimeoutException timeoutException) {
+            var timeoutFailure = new ReplicationException.UnavailableException(
+                    "Timed out while deleting underreplicated ledger locks", timeoutException);
+            ReplicationException.UnavailableException completedFailures = collectDeleteFailures(deleteResults);
+            if (completedFailures != null) {
+                timeoutFailure.addSuppressed(completedFailures);
+            }
+            throw timeoutFailure;
+        } catch (InterruptedException interruptedException) {
+            Thread.currentThread().interrupt();
+            var interruptedFailure = new ReplicationException.UnavailableException(
+                    "Interrupted while deleting underreplicated ledger locks", interruptedException);
+            ReplicationException.UnavailableException completedFailures = collectDeleteFailures(deleteResults);
+            if (completedFailures != null) {
+                interruptedFailure.addSuppressed(completedFailures);
+            }
+            throw interruptedFailure;
+        } catch (ExecutionException executionException) {
+            throw new ReplicationException.UnavailableException(
+                    "Error deleting underreplicated ledger locks", executionException);
+        }
+
+        ReplicationException.UnavailableException failure = collectDeleteFailures(deleteResults);
         if (failure != null) {
             throw failure;
         }
+    }
+
+    private static ReplicationException.UnavailableException collectDeleteFailures(
+            Collection<CompletableFuture<Throwable>> deleteResults) {
+        ReplicationException.UnavailableException failure = null;
+        for (CompletableFuture<Throwable> deleteResult : deleteResults) {
+            if (!deleteResult.isDone()) {
+                continue;
+            }
+            Throwable error = deleteResult.getNow(null);
+            if (error != null) {
+                if (failure == null) {
+                    failure = new ReplicationException.UnavailableException(
+                            "Error contacting metadata store", error);
+                } else {
+                    failure.addSuppressed(error);
+                }
+            }
+        }
+        return failure;
     }
 
     @Override
