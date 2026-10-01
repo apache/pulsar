@@ -96,6 +96,11 @@ public class DualMetadataStore implements MetadataStoreExtended {
     private static final IllegalStateException READ_ONLY_STATE_EXCEPTION =
             new IllegalStateException("Write operations not allowed during migrations");
 
+    /** Returns the current migration phase used to route metadata operations. */
+    public MigrationPhase getMigrationPhase() {
+        return migrationState.getPhase();
+    }
+
     public DualMetadataStore(MetadataStore sourceStore, MetadataStoreConfig config) throws MetadataStoreException {
         this.sourceStore = (MetadataStoreExtended) sourceStore;
         this.config = config;

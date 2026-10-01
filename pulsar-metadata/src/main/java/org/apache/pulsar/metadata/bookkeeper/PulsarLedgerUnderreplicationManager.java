@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
@@ -60,16 +61,15 @@ import org.apache.bookkeeper.proto.UnderreplicatedLedgerFormat;
 import org.apache.bookkeeper.replication.ReplicationEnableCb;
 import org.apache.bookkeeper.replication.ReplicationException;
 import org.apache.bookkeeper.util.BookKeeperConstants;
+import org.apache.pulsar.common.migration.MigrationPhase;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.PulsarExecutors;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
-import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.impl.DualMetadataStore;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.metadata.impl.oxia.OxiaMetadataStore;
@@ -86,13 +86,13 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
     private static class Lock {
         private final String lockPath;
         private final Optional<Long> ledgerNodeVersion;
-        private final long lockNodeVersion;
+        private final byte[] lockData;
         private final AtomicReference<CompletableFuture<Void>> releaseFuture = new AtomicReference<>();
 
-        Lock(String lockPath, Optional<Long> ledgerNodeVersion, long lockNodeVersion) {
+        Lock(String lockPath, Optional<Long> ledgerNodeVersion, byte[] lockData) {
             this.lockPath = lockPath;
             this.ledgerNodeVersion = ledgerNodeVersion;
-            this.lockNodeVersion = lockNodeVersion;
+            this.lockData = lockData;
         }
 
         String getLockPath() {
@@ -105,9 +105,6 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
     }
 
     private final Map<Long, Lock> heldLocks = new ConcurrentHashMap<>();
-    private final Object lockStateMutex = new Object();
-    // Guarded by lockStateMutex, together with registration and invalidation of held locks.
-    private long sessionGeneration;
 
     private static final Pattern ID_EXTRACTION_PATTERN = Pattern.compile("urL(\\d+)$");
 
@@ -168,14 +165,6 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
 
         this.store = store;
         store.registerListener(this::handleNotification);
-        store.registerSessionListener(event -> {
-            if (event == SessionEvent.SessionLost) {
-                synchronized (lockStateMutex) {
-                    sessionGeneration++;
-                    heldLocks.clear();
-                }
-            }
-        });
 
         checkLayout();
     }
@@ -442,20 +431,15 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
     private void internalAcquireUnderreplicatedLedger(long ledgerId, Optional<Long> ledgerNodeVersion)
             throws ExecutionException,
             InterruptedException, TimeoutException {
-        long generation;
-        synchronized (lockStateMutex) {
-            generation = sessionGeneration;
-        }
         String lockPath = getUrLedgerLockPath(urLockPath, ledgerId);
-        Stat stat = store.put(lockPath, LOCK_DATA, Optional.of(-1L), EnumSet.of(CreateOption.Ephemeral))
+        // Text-format comments are ignored by BookKeeper readers. Preserve the worker id while
+        // distinguishing acquisitions made by managers sharing a store session, including after migration.
+        byte[] lockData = (new String(LOCK_DATA, UTF_8) + "\n# lock-id: " + UUID.randomUUID() + "\n").getBytes(UTF_8);
+        store.put(lockPath, lockData, Optional.of(-1L), EnumSet.of(CreateOption.Ephemeral))
                 .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
-        synchronized (lockStateMutex) {
-            if (generation != sessionGeneration) {
-                throw new ExecutionException(
-                        new MetadataStoreException("Metadata session expired during lock acquisition"));
-            }
-            heldLocks.put(ledgerId, new Lock(lockPath, ledgerNodeVersion, stat.getVersion()));
-        }
+        // SessionLost can be provisional or signal migration with surviving ephemeral nodes.
+        // Always retain successful acquisitions; cleanup verifies the actual node's identity.
+        heldLocks.put(ledgerId, new Lock(lockPath, ledgerNodeVersion, lockData));
     }
 
     @Override
@@ -463,7 +447,10 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
         log.debug().attr("ledgerId", ledgerId).log("markLedgerReplicated");
         try {
             Lock l = heldLocks.get(ledgerId);
-            if (l != null && l.getLedgerNodeVersion().isPresent()) {
+            Optional<GetResult> currentLock = l == null ? Optional.empty()
+                    : store.get(l.getLockPath()).get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
+            if (l != null && l.getLedgerNodeVersion().isPresent() && currentLock.isPresent()
+                    && ownsLock(ledgerId, l, currentLock.get())) {
                 store.delete(getUrLedgerPath(ledgerId), l.getLedgerNodeVersion())
                         .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
                 if (store instanceof ZKMetadataStore
@@ -728,34 +715,53 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
 
         // A timed-out or interrupted wait does not cancel the delete. Reuse its outcome instead
         // of sending another delete, which could target a lock acquired by a different manager.
-        FutureUtil.supplySafely(() -> store.get(lock.getLockPath()))
-                .whenComplete((ignored, error) -> {
-                    if (error != null) {
-                        // A failed read has not submitted a delete, so it is safe to retry.
-                        lock.releaseFuture.compareAndSet(result, null);
+        MigrationPhase migrationPhase = getStoreMigrationPhase();
+        FutureUtil.supplySafely(() -> {
+                    if (migrationPhase == MigrationPhase.PREPARATION || migrationPhase == MigrationPhase.COPYING) {
+                        return CompletableFuture.<Optional<GetResult>>failedFuture(
+                                new MetadataStoreException("Metadata migration is in progress; retry lock cleanup"));
                     }
+                    return store.get(lock.getLockPath());
                 })
                 .thenCompose(existing -> {
-                    if (existing.isEmpty() || !existing.get().getStat().isCreatedBySelf()
-                            || existing.get().getStat().getVersion() != lock.lockNodeVersion
-                            || heldLocks.get(ledgerId) != lock) {
+                    if (getStoreMigrationPhase() != migrationPhase) {
+                        return CompletableFuture.<Void>failedFuture(
+                                new MetadataStoreException("Metadata migration changed during lock cleanup; retry"));
+                    }
+                    if (existing.isEmpty() || !ownsLock(ledgerId, lock, existing.get())) {
+                        if (migrationPhase == MigrationPhase.FAILED) {
+                            // A failed migration may still retain this acquisition in the inactive target.
+                            return CompletableFuture.<Void>failedFuture(
+                                    new MetadataStoreException("Lock ownership is uncertain after failed migration"));
+                        }
                         return CompletableFuture.<Void>completedFuture(null);
                     }
-                    return store.delete(lock.getLockPath(), Optional.of(lock.lockNodeVersion));
+                    return store.delete(lock.getLockPath(), Optional.of(existing.get().getStat().getVersion()));
                 })
                 .whenComplete((ignored, error) -> {
                     Throwable cause = error == null ? null : FutureUtil.unwrapCompletionException(error);
-                    if (cause == null || cause instanceof MetadataStoreException.NotFoundException
-                            || cause instanceof MetadataStoreException.BadVersionException) {
+                    if (cause == null || cause instanceof MetadataStoreException.NotFoundException) {
                         heldLocks.remove(ledgerId, lock);
                         result.complete(null);
                     } else {
-                        // A metadata failure may also have an ambiguous outcome. Keep the original
-                        // result: retrying it cannot prove ownership of a subsequently recreated node.
+                        // Once the operation has completed, retry with a fresh ownership read.
+                        // The acquisition id also distinguishes nodes recreated after an ambiguous failure.
+                        // In particular, a version conflict can leave our node present after migration or an update.
+                        lock.releaseFuture.compareAndSet(result, null);
                         result.completeExceptionally(cause);
                     }
                 });
         return result;
+    }
+
+    private MigrationPhase getStoreMigrationPhase() {
+        return store instanceof DualMetadataStore dualStore
+                ? dualStore.getMigrationPhase() : MigrationPhase.NOT_STARTED;
+    }
+
+    private boolean ownsLock(long ledgerId, Lock lock, GetResult current) {
+        return heldLocks.get(ledgerId) == lock && current.getStat().isCreatedBySelf()
+                && Arrays.equals(current.getValue(), lock.lockData);
     }
 
     @Override
