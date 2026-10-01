@@ -35,8 +35,8 @@ on any Linux distribution where TuneD and the profile are installed.
 | Command | What it does |
 |---|---|
 | `install` | Installs TuneD when it is missing (Debian based distributions), disables TuneD's dynamic tuning, installs the `performance-testing` TuneD profile without activating it, limits the size of Docker's container logs and leaves the TuneD daemon disabled; when the profile is active, it applies the updated profile. Run once, and again after the profile changes. |
-| `start` | Checks that the host is on AC power and warns when Docker's disk is 90 % full, stops `thermald` (and `com.system76.PowerDaemon.service` on Pop!_OS), activates and verifies the `performance-testing` profile and skips the `:tests:integration:tuneKernelPerfEvents` task in `~/.gradle/gradle.properties`. |
-| `stop` | Switches TuneD to the `balanced` profile, stops TuneD, applies the system's configured dirty page limits and swappiness again, starts the stopped daemons again and removes the Gradle property. |
+| `start` | Checks that the host is on AC power and warns when Docker's disk is 90 % full, stops `thermald` (and `com.system76.PowerDaemon.service` on Pop!_OS), activates and verifies the `performance-testing` profile and skips the `:tests:integration:tuneKernelPerfEvents` task in `~/.gradle/gradle.properties`. With `--disable-write-barriers`, it also disables the write barriers of the file system that holds the containers' file systems, see [Disabling write barriers](#disabling-write-barriers). |
+| `stop` | Switches TuneD to the `balanced` profile, stops TuneD, applies the system's configured dirty page limits and swappiness again, starts the stopped daemons again, enables the write barriers that `start` disabled and removes the Gradle property. |
 | `validate` | Checks that the host is ready for performance tests, see [Checking the host](#checking-the-host). Runs on Linux and macOS. |
 
 `install`, `start` and `stop` run as root: `sudo scripts/configure-perf-test-environment.sh start`.
@@ -57,6 +57,31 @@ states limited to C1, `min_perf_pct=100`) and adds:
   disabled and Transparent Huge Pages in `madvise` mode with `defrag=madvise`.
 
 `stop` restores the previous values, except the profiling and Transparent Huge Pages settings, which stay in place.
+
+## Disabling write barriers
+
+The bookies' ledgers are in their containers' file systems. Each time a bookie
+flushes its write cache, it calls `fsync` on its entry logs and its RocksDB index, and the file system then makes the
+disk write its volatile cache too. On a disk without power loss protection, as in most laptops and desktops, that can
+make the disk the limit of a run. The bookies' journal isn't synced in the test cluster, and with
+[`journalTmpfs`](../scenarios/README.md#the-bookies-journal-on-a-tmpfs) it isn't on the disk at all.
+
+`start --disable-write-barriers` remounts the file system that holds the containers' file systems without write
+barriers (`barrier=0` on ext4, `nobarrier` on btrfs; other file systems are left as they are), so that `fsync` no
+longer waits for the disk's cache. It finds that file system from the overlay of a disposable container: it is the
+one of Docker's data directory with Docker's own storage drivers, and of containerd's, such as `/var/lib/containerd`,
+with the containerd image store. When the host has several file systems, only that one is remounted.
+`stop`, or a `start` without the option, turns them on again, and so does a reboot.
+
+**Use it only when losing the file system's data is acceptable.** Without write barriers, the disk can write the file
+system's journal out of order. If the disk then loses its cache, in a power loss or when the host is powered off
+without shutting down, the file system can be corrupted, and with it any file on it, not only Docker's. On a host
+whose Docker data is on the root file system, that is the whole system. A crash of the kernel is less of a risk, since
+the disk keeps its power and writes its cache, but a hard reset of the disk can lose it too.
+
+```sh
+sudo scripts/configure-perf-test-environment.sh start --disable-write-barriers
+```
 
 ## Setup
 
@@ -89,6 +114,16 @@ tmp="$(mktemp)"
 echo "$rule" >"$tmp"
 visudo -cf "$tmp" && sudo install -o root -g root -m 0440 "$tmp" /etc/sudoers.d/perf-test-environment
 rm "$tmp"
+```
+
+A command with arguments in a sudoers rule allows exactly those arguments, so the rule above doesn't allow
+`start --disable-write-barriers`, see [Disabling write barriers](#disabling-write-barriers). To allow it, set `rule`
+to this instead and run the other commands above again, which replace the rule:
+
+```sh
+rule="$USER ALL=(root) NOPASSWD: /usr/local/sbin/configure-perf-test-environment.sh start, \
+/usr/local/sbin/configure-perf-test-environment.sh start --disable-write-barriers, \
+/usr/local/sbin/configure-perf-test-environment.sh stop"
 ```
 
 The rule takes effect immediately. Check it:

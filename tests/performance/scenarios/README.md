@@ -107,6 +107,25 @@ dumps](../docs/heap-dumps.md) describes the other settings, such as dumps at giv
   --args='--scenario tests/performance/scenarios/iot-telemetry.yaml --extends configs/heap-dumps-broker'
 ```
 
+### The bookies' journal on a tmpfs
+
+[`bookie-journal-tmpfs.yaml`](configs/bookie-journal-tmpfs.yaml) puts each bookie's journal on a tmpfs of 2 GB with
+`cluster.bookies.journalTmpfs`, the tmpfs's size, so that only the ledger storage writes to the disk. Use it for runs
+whose limit is the disk's write bandwidth, such as the max-rate scenario with large messages. The test cluster doesn't
+sync the journal anyway (`journalSyncData=false`), so a crash would lose the same. A bookie deletes its old journal
+files when it has flushed its write cache, but keeps the current file until it is full, so the launcher sets the
+journal's files to 256 MB without backups (`journalMaxSizeMB` and `journalMaxBackups`, in place of the scenario's),
+and each bookie's journal takes about 512 MB of memory. The bookies' `env` can't set `journalDirectory` with it.
+
+```bash
+./gradlew :tests:performance:launcher:run \
+  --args='--scenario tests/performance/scenarios/iot-telemetry-max-rate.yaml --extends configs/bookie-journal-tmpfs'
+```
+
+The ledger storage still syncs its files each time it flushes its write cache. [Disabling write
+barriers](../environment/README.md#disabling-write-barriers) makes those syncs cheaper on a disk without power loss
+protection, at the risk of the host's file system.
+
 ## Scenarios for the legacy TestNG runner
 
 The scenarios of [the legacy TestNG profiling runner](../docs/legacy-testng-runner/README.md#scenario-files), which runs
