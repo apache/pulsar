@@ -24,6 +24,18 @@ import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.handler.codec.haproxy.HAProxyCommand;
+import io.netty.handler.codec.haproxy.HAProxyMessage;
+import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
+import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
+import io.netty.util.ReferenceCountUtil;
+import java.util.Collections;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.testng.annotations.Test;
 
@@ -116,5 +128,54 @@ public class ProxyConnectionTest {
 
         assertThat(clientConfiguration.getJsseProvider()).isEqualTo("SunJSSE");
         assertThat(clientConfiguration.getJcaProvider()).isEqualTo("SUN");
+    }
+
+    @Test
+    public void droppedInboundMessageIsReleasedWhenConnectionIsClosing() throws Exception {
+        ProxyService proxyService = mock(ProxyService.class);
+        doReturn(new ProxyConfiguration()).when(proxyService).getConfiguration();
+        ProxyConnection proxyConnection = new ProxyConnection(proxyService, null);
+        ChannelHandlerContext context = mock(ChannelHandlerContext.class);
+        Channel channel = mock(Channel.class);
+        doReturn(channel).when(context).channel();
+        doReturn(false).when(channel).isOpen();
+
+        proxyConnection.exceptionCaught(context, new IllegalStateException("test"));
+        ByteBuf message = Unpooled.directBuffer(1).writeByte(1);
+        try {
+            proxyConnection.channelRead(context, message);
+            assertThat(message.refCnt())
+                    .as("a message dropped by the closing proxy connection must be released")
+                    .isZero();
+        } finally {
+            ReferenceCountUtil.safeRelease(message);
+        }
+    }
+
+    @Test
+    public void storedHAProxyMessageIsReleasedWhenConnectionCloses() throws Exception {
+        ProxyService proxyService = mock(ProxyService.class);
+        doReturn(new ProxyConfiguration()).when(proxyService).getConfiguration();
+        Set<ProxyConnection> clientConnections = Collections.newSetFromMap(new ConcurrentHashMap<>());
+        doReturn(clientConnections).when(proxyService).getClientCnxs();
+        ProxyConnection proxyConnection = new ProxyConnection(proxyService, null);
+        ChannelHandlerContext context = mock(ChannelHandlerContext.class);
+        HAProxyMessage message = new HAProxyMessage(
+                HAProxyProtocolVersion.V1,
+                HAProxyCommand.PROXY,
+                HAProxyProxiedProtocol.TCP4,
+                "192.0.2.1",
+                "192.0.2.2",
+                1234,
+                6650);
+        try {
+            proxyConnection.channelRead(context, message);
+            proxyConnection.channelInactive(context);
+            assertThat(message.refCnt())
+                    .as("the stored HAProxy message must be released when the connection closes")
+                    .isZero();
+        } finally {
+            ReferenceCountUtil.safeRelease(message);
+        }
     }
 }

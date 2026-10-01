@@ -30,6 +30,7 @@ import io.netty.channel.epoll.EpollSocketChannel;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.resolver.dns.DnsAddressResolverGroup;
+import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.ScheduledFuture;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -225,6 +226,9 @@ public class ProxyConnection extends PulsarHandler {
             directProxyHandler = null;
         }
 
+        ReferenceCountUtil.safeRelease(haProxyMessage);
+        haProxyMessage = null;
+
         if (authRefreshTask != null) {
             authRefreshTask.cancel(false);
         }
@@ -333,6 +337,7 @@ public class ProxyConnection extends PulsarHandler {
                         .attr("bytes", msg instanceof ByteBuf ? ((ByteBuf) msg).readableBytes() : -1)
                         .log("Received message while connection to broker"
                                 + " is missing. Dropping input.");
+                ReferenceCountUtil.safeRelease(msg);
             }
             break;
         case ProxyConnectingToBroker:
@@ -342,8 +347,10 @@ public class ProxyConnection extends PulsarHandler {
                             ? ((ByteBuf) msg).readableBytes() : -1)
                     .log("Received message while connecting to broker."
                             + " Dropping input.");
+            ReferenceCountUtil.safeRelease(msg);
             break;
         default:
+            ReferenceCountUtil.safeRelease(msg);
             break;
         }
     }
