@@ -19,12 +19,12 @@
 
 -->
 
-# Performance testing
+# Pulsar Performance Testing Framework
 
-The performance tests are for running performance test experiments: measuring a change, comparing two revisions
-and finding what to optimize. They run a Pulsar cluster and its client workloads in Docker containers on one host, as
-a [scenario](scenarios/README.md) describes them, and write a report for every run: throughput, latency, delivery and
-ordering checks, and the host's CPU temperature. A run can also be profiled with
+The Pulsar Performance Testing Framework is for running performance experiments: measuring a change, comparing two
+revisions and finding what to optimize. It runs a Pulsar cluster and its client workloads in Docker containers on one
+host, as a [scenario](scenarios/README.md) describes them, and writes a report for every run: throughput, latency,
+delivery and ordering checks, and the host's CPU temperature. A run can also be profiled with
 [async-profiler](https://github.com/async-profiler/async-profiler),
 [JDK Flight Recorder](https://docs.oracle.com/en/java/javase/25/troubleshoot/diagnostic-tools.html#GUID-D38849B6-61C7-4ED6-A395-EA4BC32A9FD6)
 and [jonoffcpu](https://github.com/jonoffcpu/jonoffcpu) at the same time, which gives CPU, allocation and off-CPU
@@ -32,9 +32,9 @@ flame graphs of the broker and the clients: both where threads use CPU and where
 command line and writes its results to files, so that experiments can be automated, including tuning by AI agents,
 which [`AGENTS.md`](AGENTS.md) guides.
 
-The performance tests aren't currently used as automated regression tests: no CI job runs the scenarios, and no run
-is checked against a baseline automatically. A person or an agent compares revisions, as
-[Compare two revisions](#5-compare-two-revisions) describes. A future improvement is to evolve the tests into an
+The framework isn't currently used for automated regression testing: no CI job runs the scenarios, and no run is
+checked against a baseline automatically. A person or an agent compares revisions, as
+[Compare two revisions](#5-compare-two-revisions) describes. A future improvement is to evolve the framework into an
 automated regression test suite, which would prevent performance regressions by checking changes against a baseline,
 and set the new baseline when a change improves performance.
 
@@ -130,7 +130,8 @@ scenarios in detail.
   | [Podman Desktop](https://podman-desktop.io/) | | Untested |
 - **Memory**: 32 GB of RAM on the host is recommended, although testing may be possible with less. A scenario's memory
   configuration sets the heap and direct memory of the cluster's and the workloads' JVMs, and so the memory that the
-  host has to have available to Docker, which on macOS and Windows is the memory of Docker's virtual machine. The IoT telemetry scenarios use the medium-memory configuration by default; see
+  host has to have available to Docker, which on macOS and Windows is the memory of Docker's virtual machine. The IoT
+  telemetry scenarios use the medium-memory configuration by default; see
   [Memory configurations](scenarios/README.md#memory-configurations):
 
   | Configuration | Recommended memory available to Docker | Used by |
@@ -141,6 +142,10 @@ scenarios in detail.
 - **Disk space**: keep the disk that holds Docker's data less than 90 % full. BookKeeper bookies switch to read-only
   mode when it is 95 % full. [`docker-cleanup.sh`](environment/scripts/docker-cleanup.sh) frees the space that test
   runs and image builds use up.
+- **Disk speed**: all the bookies write to the host's disk, which can limit runs with large messages before Pulsar
+  does. The [bookies' journal on a tmpfs](scenarios/README.md#the-bookies-journal-on-a-tmpfs) halves its writes, and
+  [disabling write barriers](environment/README.md#disabling-write-barriers) makes its syncs cheaper on a disk without
+  power loss protection.
 - **Recommended: A Linux host configured for consistent results**: turbo frequencies depend on the CPU's temperature,
   and power management changes CPU settings during a run, so results vary between runs of the same code, and a change
   smaller than that variance can't be detected. [The performance testing environment setup](environment/README.md) fixes
@@ -329,8 +334,8 @@ The `profile` task runs a scenario with three recorders running at the same time
 records the JVM's own events into the same recording, and
 [jonoffcpu](https://github.com/jonoffcpu/jonoffcpu) records from the kernel the time each thread spent blocked. It
 needs a Docker engine whose kernel has BTF, such as a Linux host's or [OrbStack](https://orbstack.dev/)'s on macOS, see
-[Requirements](docs/profiling.md#requirements). The profiling scenario publishes 30,000 messages per second to one topic from 500
-producers, and needs about 14 GB of memory available to Docker:
+[Requirements](docs/profiling.md#requirements). The profiling scenario publishes 30,000 messages per second to one
+topic from 500 producers, and needs about 14 GB of memory available to Docker:
 
 ```bash
 ./gradlew :tests:performance:launcher:profile \
@@ -381,7 +386,8 @@ inferno-flamegraph < /path/to/recording-offcpu/offcpu-no-idle-app-root.collapsed
 ```
 
 For SQL analysis, DuckDB's [quack_flamegraph](https://github.com/kevintruong/quack-flamegraph) community extension
-reads collapsed stacks as tables. See [Analysing collapsed stacktrace files with DuckDB and quack_flamegraph](docs/analyzing-profiles.md#analysing-collapsed-stacktrace-files-with-quack_flamegraph)
+reads collapsed stacks as tables. See
+[Analyzing collapsed stacktrace files with quack_flamegraph](docs/analyzing-profiles.md#analyzing-collapsed-stacktrace-files-with-quack_flamegraph)
 for setup and examples that rank stacks, methods and call edges, and attribute samples to application frames.
 
 The JFR recordings also open in JDK Mission Control, whose OpenJDK distribution is
@@ -425,6 +431,17 @@ such as the latest release or a particular one. The workloads, and so the Pulsar
 [Comparing with a released Pulsar](docs/comparing-revisions.md#comparing-with-a-released-pulsar) describes the
 details.
 
+When both revisions have valid runs, chart the median run of each against the other, with the same axes for both
+and each revision's label in the charts and their file names:
+
+```bash
+./gradlew :tests:performance:report-tool:compareRuns --args="--baseline <baseline run directory> \
+  --comparison <candidate run directory> --baseline-label baseline --comparison-label candidate --output <directory>"
+```
+
+[Comparison charts](docs/comparing-revisions.md#comparison-charts) describes the throughput, backlog and latency
+charts that it writes, in one diagram and in separate panels.
+
 ## Reference
 
 - [Running scenarios](docs/running-scenarios.md): the Gradle tasks, the launcher's options and Gradle properties,
@@ -433,20 +450,21 @@ details.
   HTTP.
 - [Scenarios](scenarios/README.md) and [the scenario format](scenarios/docs/scenario-format.md): the maintained
   scenarios, inheritance, environment overrides and the warmup.
-- [Profiling](docs/profiling.md): the jonoffcpu profiler, its requirements and options, the files of a profiled run
-  and the measurement recording.
-- [Metrics](docs/metrics.md): the metrics stack, VictoriaMetrics and Grafana with the Pulsar dashboards, which collects
-  the metrics of the brokers, the bookies and ZooKeeper during runs, and renders Grafana's panels as images.
-- [Heap dumps](docs/heap-dumps.md): heap dumps of the broker, the gateways and the applications when they run out of
-  memory, at the highest heap usage and at given times.
+- [Comparing revisions](docs/comparing-revisions.md): running an A/B comparison, comparing with a released Pulsar,
+  and charting the comparison.
+- [Profiling](docs/profiling.md): async-profiler, JDK Flight Recorder and jonoffcpu, their requirements and options,
+  the files of a profiled run and the measurement recording.
 - [Analyzing profiles](docs/analyzing-profiles.md): finding what to optimize, comparing profiles,
   [flame graphs of other recordings](docs/analyzing-profiles.md#flame-graphs-of-other-recordings), such as those of
   profiled tests, integration tests and benchmarks, the tools that read the recordings, including JDK Mission Control
   and [AI agents](docs/analyzing-profiles.md#ai-agent-analysis), and
   [analyzing heap dumps](docs/analyzing-profiles.md#heap-dumps-and-memory-leaks).
-- [Comparing revisions](docs/comparing-revisions.md): running an A/B comparison.
+- [Metrics](docs/metrics.md): the metrics stack, VictoriaMetrics and Grafana with the Pulsar dashboards, which collects
+  the metrics of the brokers, the bookies and ZooKeeper during runs, and renders Grafana's panels as images.
+- [Heap dumps](docs/heap-dumps.md): heap dumps of the broker, the gateways and the applications when they run out of
+  memory, at the highest heap usage and at given times.
 - [The performance testing environment setup](environment/README.md): configuring a Linux host for consistent
-  results, and freeing Docker disk space.
+  results, taking the disk out of the way of large-message runs, and freeing Docker disk space.
 - [The legacy TestNG profiling runner](docs/legacy-testng-runner/README.md): the deprecated `pulsar-perf` based runner
   and its scenarios.
 
@@ -459,6 +477,6 @@ details.
 | [`tools`](tools) | The workload applications, which run in the workload containers |
 | [`common`](common) | The scenario loader, shared by the launcher and the workload applications |
 | [`metrics`](metrics) | The metrics stack, VictoriaMetrics and Grafana, which Docker Compose runs from its compose file, and the collection of a run's metrics |
-| [`report-tool`](report-tool) | Writes the run and profile reports, charts and flame graphs, and serves the reports over HTTP |
+| [`report-tool`](report-tool) | Writes the run and profile reports, charts and flame graphs, the comparison charts of two runs, and serves the reports over HTTP |
 | [`environment`](environment/README.md) | Scripts that configure the host for performance testing and free Docker disk space |
 | [`docs`](docs) | The reference documentation |

@@ -264,7 +264,7 @@ on a host with several interfaces, such as Docker's or a VPN's, when that addres
 or when you reach the server through an SSH tunnel or a proxy. `serveReports` prints the same base URL when it starts.
 A run written with `--output` outside the reports root has no URL.
 
-When the performance tests run on a separate machine, start the server there. It's reachable from your own machine
+When the framework runs on a separate machine, start the server there. It's reachable from your own machine
 only when `performance.reportsServer.bindAddress` is set as above, in that machine's `~/.gradle/gradle.properties` or
 with `-P`, or through an SSH tunnel with the default address. The tunnel forwards local ports to those loopback
 addresses over the encrypted SSH connection. This one forwards the reports server, and Grafana and VictoriaMetrics of
