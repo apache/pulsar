@@ -33,17 +33,18 @@ use the CPU, and keep the disk that holds Docker's data less than 90 % full.
 
 ## Check out both revisions
 
-Use a worktree for each revision, so that both can be built and run without switching branches. Both revisions need
-the same performance tests, and everything they build from, so that only the code under test differs.
+Use a worktree for each revision, so that both can be built and run without switching branches. Both revisions need the
+same version of the Pulsar Performance Testing Framework, and everything it builds from, so that only the code under
+test differs.
 
-When the candidate changes only the code under test, and the base revision already has the same performance tests,
-check out the base revision as the baseline. For example, from a candidate checkout based on `origin/master`:
+When the candidate changes only the code under test, and the base revision already has the same version of the
+framework, check out the base revision as the baseline. For example, from a candidate checkout based on `origin/master`:
 
 ```bash
 git worktree add --detach ../pulsar-baseline origin/master
 ```
 
-Otherwise, for example when the candidate also changes the performance tests, or the base revision doesn't have them
+Otherwise, for example when the candidate also changes the framework, or the base revision doesn't have them
 yet, create the baseline from the candidate and restore only the code under test from the base revision. Take the
 paths from `git diff --stat origin/master...HEAD`, such as the broker's and the managed ledger's sources, and commit
 the result, so that the baseline's runs name their own commit:
@@ -132,6 +133,35 @@ runs go under `pulsar-latest`, which gathers the runs of different releases as `
   between runs of the same revision isn't a result.
 - Report percentage changes alongside the absolute values, and say which direction is better for each measure.
 - Compare profiles with the correlator, see [Comparing two profiles](analyzing-profiles.md#comparing-two-profiles).
+
+### Comparison charts
+
+`compareRuns` charts a baseline run (A) against a comparison run (B), such as each revision's median run, with the
+same axes for both runs, so that their values can be compared by position:
+
+```bash
+./gradlew :tests:performance:report-tool:compareRuns --args="--baseline <A run directory> \
+  --comparison <B run directory> --baseline-label 4.0.13 --comparison-label master --output <directory>"
+```
+
+It writes the throughput (published and consumed), the backlog, and the publish and end-to-end latency by
+percentile, the latency both on a linear and on a logarithmic axis (`latency-percentiles-log`), for latencies that
+differ by orders of magnitude. Each chart comes in two forms:
+
+| File | Form |
+|---|---|
+| `<chart>-<A label>-vs-<B label>.svg` | Both runs in one diagram: A's lines blue, B's orange |
+| `<chart>-<A label>-vs-<B label>-separate.svg` | A above B, in two panels with the same axes, each tinted in its run's color and labeled with it |
+
+The labels in the file names, such as `throughput-4.0.13-vs-5.0.0.svg`, keep the charts of several comparisons apart
+in one directory; characters other than letters, digits, dots and underscores become underscores, and
+`--no-labels-in-file-names` leaves them out (`throughput.svg`).
+
+Within a run, the published rate and the publish latency are dashed, and the consumed rate and the end-to-end latency
+solid. Time runs from each run's measurement start, and markers in each run's color show when its gateways finished
+publishing and when its consumers received their last measured message; labels of close markers stack. A label defaults to the run's name, the name of its directory's parent; `--baseline-label` and `--comparison-label`
+set it, such as to a release version in place of a branch name. The charts are read from the run
+directories, so runs of different checkouts or releases, and runs made before this task, can be compared.
 
 Each run's report records the commit it was made from, and whether the checkout had uncommitted changes. Keep the
 scenario, any local changes, the runs and the conclusions together, so that a later run can reproduce the workload.

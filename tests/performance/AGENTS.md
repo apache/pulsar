@@ -1,15 +1,17 @@
-# Agent guide for the performance tests
+# Agent guide for the Pulsar Performance Testing Framework
 
-Use this guide to turn an experiment into evidence: run a realistic workload, profile it, form a hypothesis,
-change one thing, and compare it with its baseline over repeated runs. The framework runs a Pulsar cluster and
-its workloads in Docker on a developer's machine; a run takes minutes once its images are built. The deliverable
-is a reproducible conclusion with run reports, measurements and an explanation supported by profiles or metrics.
-A faster run is useful only when the workload's delivery guarantees still hold.
+The Pulsar Performance Testing Framework, in `tests/performance`, runs a Pulsar cluster and the client workloads of
+a simulated real-world use case in Docker on a developer's machine, checks the use case's delivery guarantees, and
+writes a report, metrics and, on request, profiles of every run; a run takes minutes once its images are built. Use
+this guide to turn an experiment with it into evidence: run a realistic workload, profile it, form a hypothesis,
+change one thing, and compare it with its baseline over repeated runs. The deliverable is a reproducible conclusion
+with run reports, measurements and an explanation supported by profiles or metrics. A faster run is useful only when
+the workload's delivery guarantees still hold.
 
-This supplements the repository's [`AGENTS.md`](../../AGENTS.md). [`README.md`](README.md) is the tutorial;
-read it before running or changing the tests. This guide is the agent's working reference, and the linked pages
-describe the full interfaces. There is no automatic baseline comparison or performance regression verdict:
-the agent must make and explain the comparison.
+This supplements the repository's [`AGENTS.md`](../../AGENTS.md). [`README.md`](README.md) is the tutorial; read it
+before running or changing the framework. This guide is the agent's working reference, and the linked pages describe
+the full interfaces. The framework charts a comparison but gives no performance verdict: the agent must make and
+explain the comparison.
 
 The testing strategy is to simulate real-world use cases of Pulsar: a domain models a use case, currently IoT
 telemetry, and each scenario sets its scale so that it maps to a kind of real-world deployment. This keeps the tests
@@ -17,6 +19,109 @@ from becoming synthetic: unlike a `pulsar-perf` producer and consumer pair, a sc
 real deployments use together and checks their delivery guarantees, so its improvements are likely to carry over to
 real-world use. Express experiments and new scenarios in the domain's terms, as
 [How the tests work](README.md#how-the-tests-work) describes.
+
+## Before running
+
+A run takes minutes and uses the whole host. Don't start runs, or run them alongside other runs or builds, unless the
+user asked for them. Before a series of runs, check these:
+
+| Check | How | When it fails |
+|---|---|---|
+| Memory available to Docker. Recommended headroom: 20 GB for Docker and 32 GB on the host | Scenario memory configurations: low about 3 GB; medium (default) about 11 GB; high about 14 GB; see [Memory configurations](scenarios/README.md#memory-configurations) | Tell the user if the scenario will not fit; the low-memory scenarios are for smaller runs, not profiling |
+| Docker is available and has sufficient disk space; on Linux also fixed CPU frequency, stopped power-management daemons and AC power | [`configure-perf-test-environment.sh`](environment/scripts/configure-perf-test-environment.sh) `validate` checks Docker and disk on Linux and macOS, and host tuning only on Linux; failed checks print to stderr | Find the failed checks from its exit code in the table of [Exit codes](environment/README.md#exit-codes), and ask the user before doing what it says: for permission to run [`environment/scripts/docker-cleanup.sh`](environment/scripts/docker-cleanup.sh) when Docker's disk is too full, showing what it would remove with `--dry-run` first, and to configure the host, which needs `sudo` |
+| Profiled scenario | Profile a scenario with the medium- or the high-memory configuration | Don't profile a scenario that uses the low-memory configuration |
+
+Follow the repository's [build prerequisites](../../CONTRIBUTING.md#building) for Java and Docker.
+`docker compose version` checks the Compose plugin needed by metrics. Collection is enabled by default: a run
+reuses a running stack, or starts and stops one for itself. Missing metrics or failed panel rendering may only
+produce a warning, so check `metrics.json` and the report before relying on that evidence.
+
+Profiling also changes the environment: `profile` depends on `:tests:integration:tuneKernelPerfEvents`, which
+runs a privileged container to change perf-event, BPF and transparent-huge-page settings in the Docker engine's
+Linux kernel (the VM's kernel on macOS). Profiled containers run privileged with their JVM as root. Account for
+this when preparing the host; these are not just image-build steps. When the kernel is already configured,
+`-Pinttest.asyncprofiler.skipPerfEventTuning` skips the tuning task; the environment script's `start` sets that
+property until `stop`. See [Profiling requirements](docs/profiling.md#requirements).
+
+Variance sets the smallest change that a comparison can detect: when the spread between runs of the same revision is
+larger than a change's effect, the effect can't be told apart from noise. When you'll be running experiments
+repeatedly on Linux, you can suggest that the user sets up the sudoers rule that
+[Running start and stop without a password](environment/README.md#running-start-and-stop-without-a-password)
+describes. It lets you run `sudo /usr/local/sbin/configure-perf-test-environment.sh start` before the runs and `stop`
+after them yourself; `install` still needs the user.
+On a host with Linux temperature sensors, the optional cool-down gate can reduce thermal drift when fixed-frequency
+tuning is unavailable; it does not replace checking throttling or run-to-run spread. It proceeds after
+`--cooldown-timeout` (600 seconds by default), so inspect the report's Host section for whether the target was reached.
+
+### Platforms
+
+The cluster and the workloads run in Linux containers, so the tests run on any host with a Docker engine. The
+README's [Before you start](README.md#before-you-start) lists the hosts that the tooling was tested on.
+
+Linux x86_64 is Pulsar's main target platform, and on dedicated hardware a run has no noisy neighbours and less
+thermal and power throttling and CPU frequency variance. On macOS and Windows, Docker runs in a virtual machine that
+shares the host's CPUs, memory, disk and network with the host operating system, which schedules them, so the results
+aren't representative of a Linux deployment and vary more between runs. Off-CPU profiling needs a kernel with BTF,
+see [Profiling](docs/profiling.md#requirements); without it, profile with async-profiler and JDK Flight Recorder
+only. Non-Linux hosts also lack the launcher's `host-stats.csv` evidence of temperature and throttling; a passing
+Docker/disk validation does not fill that gap. Use non-Linux comparisons as exploratory results for that host:
+name the host and Docker engine, repeat runs to establish their spread, and do not present the result as
+representative of a Linux deployment. Confirm a deployment-performance claim on Linux x86_64. Never compare
+runs made on different hosts.
+
+## Quick reference
+
+Run commands from the repository root. Gradle properties (`-P...`) configure the task; launcher options go inside
+`--args='...'`. The launcher tasks build their images and workload applications when needed, then run the experiment.
+
+| Purpose | Command or input | Output / effect |
+|---|---|---|
+| Run an unprofiled measurement | `./gradlew :tests:performance:launcher:run --args='--scenario tests/performance/scenarios/iot-telemetry.yaml'` | Prints the run directory, resolved settings, progress and report path; writes the [run artifacts](#the-run) |
+| Profile selected components | `./gradlew :tests:performance:launcher:profile --args='--scenario tests/performance/scenarios/iot-telemetry.yaml --extends configs/profile-broker'` | Adds JFR recordings, off-CPU captures, digests and flame graphs; use `profile`, since `run` rejects profiling options |
+| Select more profiled components | Repeat `--extends configs/profile-gateways` and/or `--extends configs/profile-applications` inside `--args` of `profile` | Profiles producers and/or consumers; each workload container's recording covers all its gateways or applications |
+| Profile Netty's buffer allocations | Use `--extends configs/profile-<component>-netty-allocations` in place of `configs/profile-<component>` | Records Netty's allocator events (`jfrConfigurations: [profile, netty-allocations.jfc]`) and summarizes them in the profile report (`nettyAllocationsReport: true`). Heavy overhead: an event for every buffer, about 2.5 per message of each kind at max rate and a 1 GB broker recording, so use a short measurement, don't compare its throughput or latency with runs without it, and profile allocations only for allocation questions. Pulsar 4.x images (Netty 4.1) have no such events |
+| Change a setting for one run | Add `--set workloads.iotTelemetry.rate=5000` to `--args` | Applies after inheritance and environment overrides; inspect `resolved-config.yaml` to verify it |
+| Group an experiment's runs | Add `--name <experiment>` to `--args` | Uses that name below the checkout's branch directory, which can be shared by both revisions; does not combine or compare reports |
+| Keep revisions' images apart | Add `-Pdocker.tag=baseline` or `-Pdocker.tag=candidate` | Builds and uses a separate image tag in each checkout |
+| Share a reports root | Add `-Pperformance.reportsDir=<absolute-directory>` to run and report-server commands | Keeps evidence outside worktrees; alternatively set `performance.reportsDir=/absolute/path` once in `~/.gradle/gradle.properties` |
+| Keep logs for diagnosis | Add `-Pperformance.keepLauncherLog` | Retains `launcher.log` even on success; failures retain it by default |
+| Start repetitions at a similar temperature | Add `-Pperformance.cooldownTemperature=<degrees-C>` | With Linux host sensors, waits before cluster startup and after warmup; keep the threshold identical across revisions and inspect timed-out waits in the report |
+| Disable metrics | Add `-Pperformance.metrics=false` | Omits metrics collection; keep this choice identical across compared runs |
+| Chart two runs against each other | `./gradlew :tests:performance:report-tool:compareRuns --args='--baseline <A run> --comparison <B run> --output <directory>'` | Writes throughput, backlog and latency charts with the same axes for both runs, combined and in separate panels, as [Comparison charts](docs/comparing-revisions.md#comparison-charts) describes |
+| Browse reports | `./gradlew :tests:performance:report-tool:serveReports` | Serves the configured reports root at <http://127.0.0.1:8000/> by default; stop the foreground server when finished |
+| Query stored metrics after a run | `./gradlew :tests:performance:metrics:up` | Starts VictoriaMetrics and Grafana in the background, prints URLs; default ports are 8428 and 3000 |
+| Stop that metrics stack | `./gradlew :tests:performance:metrics:down` | Stops containers while retaining metrics and dashboards in Docker volumes |
+| Validate the host | `tests/performance/environment/scripts/configure-perf-test-environment.sh validate` | Checks Docker and disk space; on Linux also host tuning and AC power; errors go to stderr with a documented exit code |
+
+[Running scenarios](docs/running-scenarios.md) lists every launcher option and Gradle property. A profiled
+component's `asyncProfilerOptions` is a comma-separated list of
+[async-profiler's options](https://github.com/async-profiler/async-profiler/blob/master/docs/ProfilerOptions.md), as
+the page's "Launch as agent" column names them, and
+[Configuring profiling](docs/profiling.md#configuring-profiling) describes its other settings.
+Relative `--extends` paths resolve against the scenario file's directory first, then the working directory;
+`.yaml` can be omitted. Use an absolute path for a configuration outside those locations.
+`./gradlew :tests:performance:launcher:run --args='--help'` prints the launcher's options, but its Gradle image-build
+dependencies still run; it is not a side-effect-free preflight command.
+
+For an A/B run, use this in the baseline checkout and repeat it in the candidate checkout with
+`-Pdocker.tag=candidate`. Alternate them for the repetitions; do not run the commands concurrently:
+
+```bash
+./gradlew :tests:performance:launcher:run -Pdocker.tag=baseline \
+  -Pperformance.reportsDir="$HOME/pulsar-performance-reports" \
+  --args='--scenario tests/performance/scenarios/iot-telemetry.yaml --name my-change-ab'
+```
+
+Use the printed `Run directory:` as the exact run identity. By default the layout is
+`<reports root>/<yyyy-MM-dd>/<branch>/<name>/<MM-dd-HH-mm-ss>/`, under `build/performance` if no root is configured.
+`Run report:` names `index.html`; read the sibling `README.md` for text analysis. A report URL does not start the
+HTTP server. Progress lines appear every 10 seconds and are copied to `console.log.txt`; they include warmup and
+interval statistics, so use the report and summary files for measurement results. Avoid selecting a run merely
+because it is the newest: associate each command, revision and resolved configuration with its printed path.
+Check the commit and dirty state in `run-info.json`: a detached baseline can share the candidate's branch directory.
+The report's delivered throughput divides measured messages by the time until the slowest application received
+the last one; console receive rates and broker dispatch metrics sum deliveries across subscriptions. Do not
+compare those as if they were the same measure.
 
 ## Experiment loop
 
@@ -49,6 +154,61 @@ real-world use. Express experiments and new scenarios in the domain's terms, as
    [Experiment handoff](#experiment-handoff), including negative or inconclusive results. Keep run outputs outside
    source control. Restore host settings and stop services that this experiment started, within the user's
    authorization; leave a pre-existing metrics stack running.
+
+## Using a run's results
+
+- Find a run's results from the launcher's output, which prints the run directory and the run report.
+- Use a run's measurement results only when its report shows a valid run, as [Read the report](README.md#2-read-the-report)
+  describes: every application received every message, without ordering violations or invalid messages. Duplicates
+  are counted and allowed by at-least-once delivery; the report flags them, but they do not alone fail the run.
+  Report and investigate a change in duplicates rather than assuming the warning means a delivery failure.
+- Don't claim a performance change from a single run: compare revisions as
+  [Comparing revisions](docs/comparing-revisions.md) describes.
+- A run that fails writes no report. Find the cause as [When a run fails](docs/run-reports.md#when-a-run-fails)
+  describes, and tell the user rather than using the run.
+- Don't use the measurement results of a run that wrote heap dumps: the dumps stop the JVM.
+- Don't use a profiled run's measurement results for latency and throughput improvement claims; use comparisons
+  between matching profiled runs to investigate the cause instead.
+- Exclude runs with timeouts, out-of-memory errors, broker restarts or incomparable host throttling, even if clients
+  recovered. Keep diagnostic evidence and record why the run was excluded. Missing host samples are not evidence
+  that the host did not throttle.
+- Don't add run output to the git repository.
+
+## Comparison charts
+
+Chart a comparison with `compareRuns` once both revisions have valid runs. Its charts show a baseline run (A) and a
+comparison run (B) with the same axes, so that their values can be compared by position; the run reports' own
+charts each have their own scale. Use them in experiment notes, pull requests and documentation.
+
+1. **Pick the runs.** Use each revision's median run by the measure that the comparison is about, such as the
+   steady consumption rate or a latency percentile, from valid unprofiled runs of the same scenario and options. Say
+   which runs they are.
+2. **Render the charts.** Give each run a short label that names what differs, such as a release version, a branch
+   or a setting; the labels appear in the charts' legends, panel badges and file names:
+
+   ```bash
+   ./gradlew :tests:performance:report-tool:compareRuns --args="--baseline <A run directory> \
+     --comparison <B run directory> --baseline-label 4.0.13 --comparison-label 5.0.0 --output <directory>"
+   ```
+
+   A label defaults to its run's name. `--no-labels-in-file-names` leaves the labels out of the file names, for
+   example when the directory already names the comparison.
+3. **Choose the charts.** For the throughput (published and consumed), the backlog, and the latency by percentile
+   on a linear and on a logarithmic axis (`latency-percentiles-log`), it writes two forms:
+   - `<chart>-<A label>-vs-<B label>.svg`: both runs in one diagram, A in blue and B in orange;
+   - `<chart>-<A label>-vs-<B label>-separate.svg`: A above B in panels with the same axes, tinted in the runs'
+     colors, which reads better when the lines overlap and for readers new to the charts.
+
+   Prefer the logarithmic latency chart when the runs' latencies differ by orders of magnitude, which flattens one of
+   them on a linear axis. Markers in each run's color show when its gateways finished publishing and when its
+   consumers received their last message.
+4. **Look at the charts before using them.** They are SVG: convert one to view it, for example with
+   `rsvg-convert -w 1400 <chart>.svg -o <chart>.png`, and check the labels, the markers and that the axes cover both
+   runs.
+5. **Report the numbers too.** The charts show one run of each revision; the table of medians and spreads that
+   [Experiment handoff](#experiment-handoff) describes is the result.
+
+[Comparison charts](docs/comparing-revisions.md#comparison-charts) describes the charts and the task's options.
 
 ## Eliminating bottlenecks
 
@@ -106,129 +266,26 @@ Lessons from earlier iterations:
 - The launcher doesn't profile the bookies. Their metrics (`bookie_throttled_write`, `bookie_flush`, journal queue
   and flush latencies, `bookkeeper_server_ADD_ENTRY*`) and their threads' CPU, sampled from `/proc/<pid>/task/*/stat`
   inside the container with `docker exec`, show whether a bookie thread or its storage is the limit.
+- **When the disk is the limit.** All the bookies share the host's disk, and on a developer machine it is often a
+  laptop SSD, sometimes behind full-disk encryption, that limits large unbatched entries long before Pulsar does. The
+  signs: the disk's write MB/s in `host-io.csv` stays flat across runs and variants while the host's CPU has headroom;
+  `bookie_throttled_write` counts writes; the broker's managed-ledger add latency is high while the bookies' own add
+  latency is low and no broker or bookie thread is busy. Two options take the disk out of the way, so that the run
+  measures Pulsar instead:
+  - [`--extends configs/bookie-journal-tmpfs`](scenarios/README.md#the-bookies-journal-on-a-tmpfs) puts the bookies'
+    journals on a tmpfs. Every entry is written to the disk twice, once to the journal and once to the entry log, so
+    this halves the disk's writes. The test cluster doesn't sync the journal anyway, so it changes no durability
+    guarantee of the test; it costs about 512 MB of memory per busy bookie.
+  - [`configure-perf-test-environment.sh start --disable-write-barriers`](environment/README.md#disabling-write-barriers)
+    makes the ledger storage's syncs at each write-cache flush stop waiting for the disk's volatile cache. It risks
+    the host's file system on a power loss, so use it only on a host where that is acceptable, and only when the
+    tmpfs alone isn't enough.
+
+  Neither changes a limit inside a bookie: with one topic on single-copy ledgers, one bookie's single write-cache
+  flush thread (`db-storage`) still caps large entries (about 500 MB/s on an i9-9980HK). Compare runs only with the
+  same options, and mention them with the results.
 
 Before proposing a change for review, validate it as the [Experiment loop](#experiment-loop) describes.
-
-## Quick reference
-
-Run commands from the repository root. Gradle properties (`-P...`) configure the task; launcher options go inside
-`--args='...'`. The launcher tasks build their images and workload applications when needed, then run the experiment.
-
-| Purpose | Command or input | Output / effect |
-|---|---|---|
-| Run an unprofiled measurement | `./gradlew :tests:performance:launcher:run --args='--scenario tests/performance/scenarios/iot-telemetry.yaml'` | Prints the run directory, resolved settings, progress and report path; writes the [run artifacts](#the-run) |
-| Profile selected components | `./gradlew :tests:performance:launcher:profile --args='--scenario tests/performance/scenarios/iot-telemetry.yaml --extends configs/profile-broker'` | Adds JFR recordings, off-CPU captures, digests and flame graphs; use `profile`, since `run` rejects profiling options |
-| Select more profiled components | Repeat `--extends configs/profile-gateways` and/or `--extends configs/profile-applications` inside `--args` of `profile` | Profiles producers and/or consumers; each workload container's recording covers all its gateways or applications |
-| Profile Netty's buffer allocations | Use `--extends configs/profile-<component>-netty-allocations` in place of `configs/profile-<component>` | Records Netty's allocator events (`jfrConfigurations: [profile, netty-allocations.jfc]`) and summarizes them in the profile report (`nettyAllocationsReport: true`). Heavy overhead: an event for every buffer, about 2.5 per message of each kind at max rate and a 1 GB broker recording, so use a short measurement, don't compare its throughput or latency with runs without it, and profile allocations only for allocation questions. Pulsar 4.x images (Netty 4.1) have no such events |
-| Change a setting for one run | Add `--set workloads.iotTelemetry.rate=5000` to `--args` | Applies after inheritance and environment overrides; inspect `resolved-config.yaml` to verify it |
-| Group an experiment's runs | Add `--name <experiment>` to `--args` | Uses that name below the checkout's branch directory, which can be shared by both revisions; does not combine or compare reports |
-| Keep revisions' images apart | Add `-Pdocker.tag=baseline` or `-Pdocker.tag=candidate` | Builds and uses a separate image tag in each checkout |
-| Share a reports root | Add `-Pperformance.reportsDir=<absolute-directory>` to run and report-server commands | Keeps evidence outside worktrees; alternatively set `performance.reportsDir=/absolute/path` once in `~/.gradle/gradle.properties` |
-| Keep logs for diagnosis | Add `-Pperformance.keepLauncherLog` | Retains `launcher.log` even on success; failures retain it by default |
-| Start repetitions at a similar temperature | Add `-Pperformance.cooldownTemperature=<degrees-C>` | With Linux host sensors, waits before cluster startup and after warmup; keep the threshold identical across revisions and inspect timed-out waits in the report |
-| Disable metrics | Add `-Pperformance.metrics=false` | Omits metrics collection; keep this choice identical across compared runs |
-| Browse reports | `./gradlew :tests:performance:report-tool:serveReports` | Serves the configured reports root at <http://127.0.0.1:8000/> by default; stop the foreground server when finished |
-| Query stored metrics after a run | `./gradlew :tests:performance:metrics:up` | Starts VictoriaMetrics and Grafana in the background, prints URLs; default ports are 8428 and 3000 |
-| Stop that metrics stack | `./gradlew :tests:performance:metrics:down` | Stops containers while retaining metrics and dashboards in Docker volumes |
-| Validate the host | `tests/performance/environment/scripts/configure-perf-test-environment.sh validate` | Checks Docker and disk space; on Linux also host tuning and AC power; errors go to stderr with a documented exit code |
-
-[Running scenarios](docs/running-scenarios.md) lists every launcher option and Gradle property. A profiled
-component's `asyncProfilerOptions` is a comma-separated list of
-[async-profiler's options](https://github.com/async-profiler/async-profiler/blob/master/docs/ProfilerOptions.md), as
-the page's "Launch as agent" column names them, and
-[Configuring profiling](docs/profiling.md#configuring-profiling) describes its other settings.
-Relative `--extends` paths resolve against the scenario file's directory first, then the working directory;
-`.yaml` can be omitted. Use an absolute path for a configuration outside those locations.
-`./gradlew :tests:performance:launcher:run --args='--help'` prints the launcher's options, but its Gradle image-build
-dependencies still run; it is not a side-effect-free preflight command.
-
-For an A/B run, use this in the baseline checkout and repeat it in the candidate checkout with
-`-Pdocker.tag=candidate`. Alternate them for the repetitions; do not run the commands concurrently:
-
-```bash
-./gradlew :tests:performance:launcher:run -Pdocker.tag=baseline \
-  -Pperformance.reportsDir="$HOME/pulsar-performance-reports" \
-  --args='--scenario tests/performance/scenarios/iot-telemetry.yaml --name my-change-ab'
-```
-
-Use the printed `Run directory:` as the exact run identity. By default the layout is
-`<reports root>/<yyyy-MM-dd>/<branch>/<name>/<MM-dd-HH-mm-ss>/`, under `build/performance` if no root is configured.
-`Run report:` names `index.html`; read the sibling `README.md` for text analysis. A report URL does not start the
-HTTP server. Progress lines appear every 10 seconds and are copied to `console.log.txt`; they include warmup and
-interval statistics, so use the report and summary files for measurement results. Avoid selecting a run merely
-because it is the newest: associate each command, revision and resolved configuration with its printed path.
-Check the commit and dirty state in `run-info.json`: a detached baseline can share the candidate's branch directory.
-The report's delivered throughput divides measured messages by the time until the slowest application received
-the last one; console receive rates and broker dispatch metrics sum deliveries across subscriptions. Do not
-compare those as if they were the same measure.
-
-## Before running
-
-A run takes minutes and uses the whole host. Don't start runs, or run them alongside other runs or builds, unless the
-user asked for them. Before a series of runs, check these:
-
-| Check | How | When it fails |
-|---|---|---|
-| Memory available to Docker. Recommended headroom: 20 GB for Docker and 32 GB on the host | Scenario memory configurations: low about 3 GB; medium (default) about 11 GB; high about 14 GB; see [Memory configurations](scenarios/README.md#memory-configurations) | Tell the user if the scenario will not fit; the low-memory scenarios are for smaller runs, not profiling |
-| Docker is available and has sufficient disk space; on Linux also fixed CPU frequency, stopped power-management daemons and AC power | [`configure-perf-test-environment.sh`](environment/scripts/configure-perf-test-environment.sh) `validate` checks Docker and disk on Linux and macOS, and host tuning only on Linux; failed checks print to stderr | Find the failed checks from its exit code in the table of [Exit codes](environment/README.md#exit-codes), and ask the user before doing what it says: for permission to run [`environment/scripts/docker-cleanup.sh`](environment/scripts/docker-cleanup.sh) when Docker's disk is too full, showing what it would remove with `--dry-run` first, and to configure the host, which needs `sudo` |
-| Profiled scenario | Profile a scenario with the medium- or the high-memory configuration | Don't profile a scenario that uses the low-memory configuration |
-
-Follow the repository's [build prerequisites](../../CONTRIBUTING.md#building) for Java and Docker.
-`docker compose version` checks the Compose plugin needed by metrics. Collection is enabled by default: a run
-reuses a running stack, or starts and stops one for itself. Missing metrics or failed panel rendering may only
-produce a warning, so check `metrics.json` and the report before relying on that evidence.
-
-Profiling also changes the environment: `profile` depends on `:tests:integration:tuneKernelPerfEvents`, which
-runs a privileged container to change perf-event, BPF and transparent-huge-page settings in the Docker engine's
-Linux kernel (the VM's kernel on macOS). Profiled containers run privileged with their JVM as root. Account for
-this when preparing the host; these are not just image-build steps. When the kernel is already configured,
-`-Pinttest.asyncprofiler.skipPerfEventTuning` skips the tuning task; the environment script's `start` sets that
-property until `stop`. See [Profiling requirements](docs/profiling.md#requirements).
-
-Variance sets the smallest change that a comparison can detect: when the spread between runs of the same revision is
-larger than a change's effect, the effect can't be told apart from noise. When you'll be running experiments
-repeatedly on Linux, you can suggest that the user sets up the sudoers rule that
-[Running start and stop without a password](environment/README.md#running-start-and-stop-without-a-password)
-describes. It lets you run `sudo /usr/local/sbin/configure-perf-test-environment.sh start` before the runs and `stop`
-after them yourself; `install` still needs the user.
-On a host with Linux temperature sensors, the optional cool-down gate can reduce thermal drift when fixed-frequency
-tuning is unavailable; it does not replace checking throttling or run-to-run spread. It proceeds after
-`--cooldown-timeout` (600 seconds by default), so inspect the report's Host section for whether the target was reached.
-
-### Platforms
-
-The cluster and the workloads run in Linux containers, so the tests run on any host with a Docker engine. The
-README's [Before you start](README.md#before-you-start) lists the hosts that the tooling was tested on.
-
-Linux x86_64 is Pulsar's main target platform, and on dedicated hardware a run has no noisy neighbours and less
-thermal and power throttling and CPU frequency variance. On macOS and Windows, Docker runs in a virtual machine that
-shares the host's CPUs, memory, disk and network with the host operating system, which schedules them, so the results
-aren't representative of a Linux deployment and vary more between runs. Off-CPU profiling needs a kernel with BTF,
-see [Profiling](docs/profiling.md#requirements); without it, profile with async-profiler and JDK Flight Recorder
-only. Non-Linux hosts also lack the launcher's `host-stats.csv` evidence of temperature and throttling; a passing
-Docker/disk validation does not fill that gap. Use non-Linux comparisons as exploratory results for that host:
-name the host and Docker engine, repeat runs to establish their spread, and do not present the result as
-representative of a Linux deployment. Confirm a deployment-performance claim on Linux x86_64. Never compare
-runs made on different hosts.
-
-## Using a run's results
-
-- Find a run's results from the launcher's output, which prints the run directory and the run report.
-- Use a run's measurement results only when its report shows a valid run, as [Read the report](README.md#2-read-the-report)
-  describes: every application received every message, without ordering violations or invalid messages. Duplicates
-  are counted and allowed by at-least-once delivery; the report flags them, but they do not alone fail the run.
-  Report and investigate a change in duplicates rather than assuming the warning means a delivery failure.
-- Don't claim a performance change from a single run: compare revisions as
-  [Comparing revisions](docs/comparing-revisions.md) describes.
-- A run that fails writes no report. Find the cause as [When a run fails](docs/run-reports.md#when-a-run-fails)
-  describes, and tell the user rather than using the run.
-- Don't use the measurement results of a run that wrote heap dumps: the dumps stop the JVM.
-- Don't use a profiled run's measurement results for latency and throughput improvement claims; use comparisons
-  between matching profiled runs to investigate the cause instead.
-- Exclude runs with timeouts, out-of-memory errors, broker restarts or incomparable host throttling, even if clients
-  recovered. Keep diagnostic evidence and record why the run was excluded. Missing host samples are not evidence
-  that the host did not throttle.
-- Don't add run output to the git repository.
 
 ## Inputs for analysis in a run directory
 
@@ -426,16 +483,16 @@ run directories and any per-recording analyses. Give the user:
   which direction is better. State the number of valid repetitions. Report a latency percentile's median across
   runs as such; do not present it as the percentile of pooled messages. A difference within run-to-run spread
   is inconclusive, and three runs alone do not establish statistical significance.
-- Links to the reports, relevant charts, profile callsites and metric queries that support the explanation,
-  alongside limitations, missing evidence and the next experiment if the question remains open.
+- The [comparison charts](#comparison-charts) of the median runs, and links to the reports, profile callsites and
+  metric queries that support the explanation, alongside limitations, missing evidence and the next experiment if
+  the question remains open.
 
 ## Pull requests for performance improvements
 
 When the user asks you to create a pull request, or update one, for a performance improvement that was tested with
-these tests, suggest adding the charts of the comparison to the pull request's description as SVG images. Each run
-directory has its charts as SVG, such as `throughput.svg` and `latency-percentiles.svg`, see
-[Files of a run](docs/run-reports.md#files-of-a-run). Use the run of each revision whose numbers are closest to that
-revision's medians, and suggest the charts that show the improvement. Add the charts only when the user agrees.
+the framework, suggest adding charts of the comparison to the pull request's description as SVG images: render them
+as [Comparison charts](#comparison-charts) describes, and suggest the ones that show the improvement. Add the charts
+only when the user agrees.
 
 These instructions are for the `apache/pulsar` repository, when a human has prepared the change and asks you to
 create the pull request. Never open or update a pull request in `apache/pulsar` without the human's explicit
@@ -447,14 +504,15 @@ personal fork or another fork.
 - Attach the charts with the `--attach` option of `gh pr create` and `gh pr edit`, which recent versions of the
   GitHub CLI have. Check its details with `gh pr create --help` or `gh pr edit --help`, and if the installed `gh`
   lacks the option, tell the user.
-- The charts of every run have the same file names, so copy them to names that say the revision, such as
-  `baseline-throughput.svg` and `candidate-throughput.svg`, before attaching them.
-- Give each image an alt text that says what the chart shows and for which revision:
-  `--attach './candidate-throughput.svg#Throughput with the change'`.
+- The comparison charts' file names already say both revisions. A run report's own charts, such as `throughput.svg`
+  of [Files of a run](docs/run-reports.md#files-of-a-run), have the same names in every run: copy them to names that
+  say the revision, such as `baseline-throughput.svg`, before attaching them.
+- Give each image an alt text that says what the chart shows and for which revisions:
+  `--attach './throughput-master-vs-change-separate.svg#Throughput of master and the change'`.
 - `gh` appends an attachment to the end of the description, unless the description references the file with a
-  Markdown image, such as `![Throughput with the change](candidate-throughput.svg)`, in which case it points that
-  reference at the uploaded file. Put the references where the charts belong, such as in a table with a column for
-  the baseline and one for the change.
+  Markdown image, such as `![Throughput of master and the change](throughput-master-vs-change-separate.svg)`, in
+  which case it points that reference at the uploaded file. Put the references where the charts belong, such as
+  under the table of measurements.
 - Then turn each Markdown image into an HTML image with a width, wrapped in a link to the uploaded file, by editing the
   description, for example with `gh pr view --json body` and `gh pr edit --body-file`:
   `<a href="<uploaded URL>"><img src="<uploaded URL>" alt="Throughput with the change" width="480"></a>`. Markdown
@@ -463,7 +521,7 @@ personal fork or another fork.
 - The charts don't replace the numbers: state the medians of the measures and their changes in the text, as
   [Compare](docs/comparing-revisions.md#compare) describes.
 
-## Changing the performance tests
+## Changing the framework
 
 - New scenarios, workload applications and profiling support belong to the standalone launcher, not to the
   deprecated TestNG runner under `tests/integration`.

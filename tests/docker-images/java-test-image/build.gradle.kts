@@ -118,6 +118,11 @@ fun registerDockerBuild(taskName: String, imageTag: String, installAsyncProfiler
         args.add(".")
 
         commandLine(args)
+        // docker writes the image ID file but doesn't create its directory. Gradle creates it for a declared output,
+        // which a build on a released Pulsar image, such as dockerBuildCluster's, doesn't have
+        doFirst {
+            imageIdFile.parentFile.mkdirs()
+        }
 
         inputs.file("Dockerfile")
         inputs.files(prepareBuildContext)

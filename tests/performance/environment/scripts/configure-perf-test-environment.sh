@@ -26,9 +26,12 @@
 #   start    checks that the host is on AC power and has disk space, stops daemons that
 #            would throttle or retune the host, activates the performance-testing TuneD
 #            profile and skips the Gradle task that applies the same kernel settings in
-#            ~/.gradle/gradle.properties of the user running sudo
+#            ~/.gradle/gradle.properties of the user running sudo. With
+#            --disable-write-barriers, it also remounts the file system of the containers'
+#            file systems without write barriers, see disable_write_barriers
 #   stop     switches TuneD to a balanced profile that allows power saving, stops TuneD,
-#            starts the daemons stopped by "start" again and removes the Gradle property
+#            starts the daemons stopped by "start" again, enables the write barriers that
+#            "start" disabled and removes the Gradle property
 #   validate checks that the host is ready for performance tests: on every operating system
 #            that Docker is available and has disk space, and on Linux also AC power, the
 #            active TuneD profile and the settings it applies. It prints each check to stdout
@@ -69,9 +72,12 @@ EXIT_HOST_CONFIGURATION=8
 GRADLE_SKIP_PROPERTY="inttest.asyncprofiler.skipPerfEventTuning"
 GRADLE_PROPERTIES_BEGIN="# BEGIN added by configure-perf-test-environment.sh start, removed by stop"
 GRADLE_PROPERTIES_END="# END added by configure-perf-test-environment.sh start"
+# The mount point whose write barriers "start --disable-write-barriers" disabled, for "stop". /run is
+# emptied at boot, when the file system is mounted with its own options again.
+WRITE_BARRIERS_STATE="/run/configure-perf-test-environment/write-barriers-disabled"
 
 usage() {
-    echo "Usage: sudo $0 install|start|stop, or $0 validate" >&2
+    echo "Usage: sudo $0 install|start [--disable-write-barriers]|stop, or $0 validate" >&2
 }
 
 require_root() {
@@ -367,6 +373,96 @@ print_perf_settings() {
     echo
 }
 
+# The directory of a container's writable layer, where the bookies' ledgers are: the upper directory
+# of the overlay mount of a disposable container's root. It is in Docker's data directory with Docker's
+# own storage drivers, and in containerd's, such as /var/lib/containerd, with the containerd image store.
+container_layer_directory() {
+    local id pid upper
+    id="$(docker run --detach --rm "${DISK_CHECK_IMAGE}" sleep 60 2>/dev/null)" || return 1
+    pid="$(docker inspect --format '{{.State.Pid}}' "${id}" 2>/dev/null || true)"
+    # The root's line in mountinfo ends with the overlay's options, which have upperdir=
+    upper="$(awk '$5 == "/" { print $NF }' "/proc/${pid:-0}/mountinfo" 2>/dev/null \
+        | tr ',' '\n' | sed -n 's/^upperdir=//p' || true)"
+    docker rm --force "${id}" >/dev/null 2>&1 || true
+    [[ -n "${upper}" ]] && echo "${upper}"
+}
+
+# The mount point and the type of the file system of the containers' writable layers, where the
+# bookies' ledgers are. Only this file system is changed, when the host has several.
+docker_data_mount() {
+    local directory
+    if ! directory="$(container_layer_directory)"; then
+        # Docker's data directory, when a container's layer can't be found, such as with a storage
+        # driver that doesn't use overlays
+        if ! directory="$(docker info --format '{{.DockerRootDir}}' 2>/dev/null)" || [[ -z "${directory}" ]]; then
+            echo "ERROR: Can't find where Docker keeps the containers' file systems. Start Docker first." >&2
+            return 1
+        fi
+        echo "The containers' layers weren't found, using Docker's data directory ${directory}" >&2
+    fi
+    # The container's layer has been removed with the container, and its parent directory stays
+    while [[ ! -e "${directory}" && "${directory}" != / ]]; do
+        directory="$(dirname "${directory}")"
+    done
+    findmnt --noheadings --output TARGET,FSTYPE --target "${directory}"
+}
+
+# The mount options that turn the write barriers of a file system type off and on, or nothing for a
+# type that doesn't have them. XFS no longer has an option to turn them off.
+write_barrier_options() {
+    case "$1" in
+        ext4) echo "barrier=0 barrier=1" ;;
+        btrfs) echo "nobarrier barrier" ;;
+        *) return 1 ;;
+    esac
+}
+
+write_barriers_disabled() {
+    [[ ",$(findmnt --noheadings --output OPTIONS --mountpoint "$1")," =~ ,(nobarrier|barrier=0), ]]
+}
+
+# Remounts the file system of the containers' file systems without write barriers: an fsync then no longer waits for
+# the disk to write its volatile cache, which BookKeeper's ledger storage does at each flush. The disk
+# may then write the file system's journal out of order, so losing its cache, in a power loss or when
+# the host is powered off without shutting down, can corrupt the file system and any file on it, not
+# only Docker's. "stop" turns them on again.
+disable_write_barriers() {
+    local target fstype options
+    read -r target fstype < <(docker_data_mount) || exit 1
+    if ! options="$(write_barrier_options "${fstype}")"; then
+        echo "WARNING: The containers' file systems are on ${target}, which is ${fstype}, whose write barriers" \
+            "can't be disabled; it's left as it is." >&2
+        return
+    fi
+    if write_barriers_disabled "${target}"; then
+        echo "The write barriers of ${target} are already disabled"
+        return
+    fi
+    echo "Disabling the write barriers of ${target} (${fstype}), where the containers' file systems are"
+    echo "WARNING: Until \"$0 stop\", a power loss or powering the host off without shutting it down can" \
+        "corrupt the file system of ${target} and any file on it." >&2
+    mount -o "remount,${options%% *}" "${target}"
+    mkdir -p "$(dirname "${WRITE_BARRIERS_STATE}")"
+    echo "${target} ${fstype}" >"${WRITE_BARRIERS_STATE}"
+    if ! write_barriers_disabled "${target}"; then
+        echo "ERROR: The write barriers of ${target} are still enabled." >&2
+        exit 1
+    fi
+}
+
+# Enables the write barriers that "start --disable-write-barriers" disabled
+restore_write_barriers() {
+    local target fstype options
+    if [[ ! -f "${WRITE_BARRIERS_STATE}" ]]; then
+        return
+    fi
+    read -r target fstype <"${WRITE_BARRIERS_STATE}"
+    options="$(write_barrier_options "${fstype}")"
+    echo "Enabling the write barriers of ${target} again"
+    mount -o "remount,${options##* }" "${target}"
+    rm -f "${WRITE_BARRIERS_STATE}"
+}
+
 # The Docker logging configuration is updated with jq, which is expected on the host. Checked before
 # install changes anything
 check_jq_for_docker_logging() {
@@ -548,12 +644,30 @@ activate_perf_profile() {
 }
 
 start() {
+    local disable_barriers=false
+    while (($# > 0)); do
+        case "$1" in
+            --disable-write-barriers) disable_barriers=true ;;
+            *)
+                usage
+                exit 1
+                ;;
+        esac
+        shift
+    done
+
     check_perf_profile_installed
     check_ac_power
     check_disk_space
     stop_thermald
     stop_distro_specific_services
     activate_perf_profile
+    if [[ "${disable_barriers}" == true ]]; then
+        disable_write_barriers
+    else
+        # A previous "start --disable-write-barriers" disabled them
+        restore_write_barriers
+    fi
     add_gradle_properties
 
     echo
@@ -613,6 +727,7 @@ stop() {
     restore_system_memory_settings
     start_distro_specific_services
     start_thermald
+    restore_write_barriers
     remove_gradle_properties
 
     echo
@@ -787,7 +902,7 @@ case "${1:-}" in
         ;;
     start)
         require_root start
-        start
+        start "${@:2}"
         ;;
     stop)
         require_root stop
