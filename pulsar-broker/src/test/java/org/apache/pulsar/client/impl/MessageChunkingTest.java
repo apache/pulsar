@@ -313,6 +313,64 @@ public class MessageChunkingTest extends ProducerConsumerBase {
     }
 
     /**
+     * Verifies that expiry of incomplete chunked messages still works after an earlier chunked
+     * message has completed.
+     *
+     * removeExpireIncompleteChunkedMessages() only peek()s the head of pendingChunkedMessageUuidQueue
+     * and bails out (else -> return) the moment the head uuid is no longer present in
+     * chunkedMessagesMap. On the original client the completion path never removed a completed uuid
+     * from the queue, so the first completed message left a permanent "ghost" uuid at the head. From
+     * then on every expiry run saw that ghost, took the else branch and returned without ever
+     * inspecting the genuinely-incomplete uuids behind it: expiry was dead for the rest of the
+     * consumer's life (an unbounded leak of incomplete contexts).
+     *
+     * Here we complete one chunked message, then leave a second one incomplete. With the queue kept
+     * in sync on completion the incomplete message is expired and chunkedMessagesMap drains to empty;
+     * without it, the completed ghost blocks expiry and the incomplete context is never removed.
+     */
+    @Test
+    public void testExpiryWorksAfterAnEarlierChunkedMessageCompletes() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/expiryAfterComplete";
+        final String subName = "my-sub";
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName(subName)
+                .expireTimeOfIncompleteChunkedMessage(1, TimeUnit.SECONDS)
+                .subscribe();
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .chunkMaxMessageSize(100)
+                .enableChunking(true)
+                .enableBatching(false)
+                .create();
+
+        ConsumerImpl<String> consumerImpl = (ConsumerImpl<String>) consumer;
+
+        // 1. A complete chunked message. Receiving + acking it leaves its uuid as the head of
+        //    pendingChunkedMessageUuidQueue unless completion keeps the queue in sync.
+        sendSingleChunk(producer, "done", 0, 2);
+        sendSingleChunk(producer, "done", 1, 2);
+        Message<String> done = consumer.receive(5, TimeUnit.SECONDS);
+        assertNotNull(done);
+        assertEquals(done.getValue(), "chunk-done-0|chunk-done-1|");
+        consumer.acknowledge(done);
+
+        // 2. A second message left incomplete (only its first chunk arrives). Wait for the first
+        //    chunk to be received and its assembly context to be registered before asserting expiry.
+        sendSingleChunk(producer, "stuck", 0, 2);
+        Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertEquals(consumerImpl.chunkedMessagesMap.size(), 1));
+
+        // 3. Past the expiry window, the incomplete "stuck" context must be discarded. If the
+        //    completed "done" uuid still sits at the queue head, expiry bails and this never happens.
+        Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertEquals(consumerImpl.chunkedMessagesMap.size(), 0,
+                        "expiry did not run: a completed message's uuid is blocking the queue head"));
+    }
+
+    /**
      * This test used to test the consumer configuration of maxPendingChunkedMessage.
      * If we set maxPendingChunkedMessage is 1 that means only one incomplete chunk message can be store in this
      * consumer.
