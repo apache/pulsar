@@ -123,7 +123,14 @@ public class ManagedLedgerConfig {
     @Getter
     @Setter
     private boolean pulsarMessageEntries = true;
+    /**
+     * This setting configures the duration of continuing to cache added entries while there are no
+     * active cursors, when the last active cursor has left or immediately after initialization when
+     * the persistent topic and the managed ledger gets loaded.
+     * This setting is ignored unless cacheEvictionByExpectedReadCount is enabled.
+     */
     @Getter
+    @Setter
     private long continueCachingAddedEntriesAfterLastActiveCursorLeavesMillis;
     private int minimumBacklogCursorsForCaching = 0;
     private int minimumBacklogEntriesForCaching = 1000;
@@ -132,6 +139,9 @@ public class ManagedLedgerConfig {
     @Getter
     @Setter
     private String storageClassName;
+    @Getter
+    @Setter
+    private NonRecoverableDataMetricsCallback nonRecoverableDataMetricsCallback;
     @Getter
     @Setter
     private String shadowSourceName;

@@ -32,8 +32,9 @@ import java.util.Locale;
 /**
  * Writes the profile report into a directory of profiled recordings, such as {@code broker-profile/}: the run
  * it belongs to, and for each recording tables linking its files (the off-CPU digest, the JFR recordings, the capture
- * stream and the patterns used), the off-CPU flame graphs with their totals, and the CPU, allocation, lock or
- * wall-clock views that were rendered, followed by where to open the JFR recordings when any remain. Links are
+ * stream and the patterns used), the off-CPU flame graphs with their totals, the CPU, allocation, lock or
+ * wall-clock views that were rendered and the summary of Netty's allocator events, followed by where to open the JFR
+ * recordings when any remain. Links are
  * relative, so the directory can be moved or archived, and only files that exist are listed.
  */
 public final class ProfileReport {
@@ -117,6 +118,11 @@ public final class ProfileReport {
             appendFiles(report, directory, base);
             appendOffCpu(report, directory, base, mapper);
             appendViews(report, directory, base);
+            Path nettyAllocator = NettyAllocatorEvents.summaryFile(directory, base);
+            if (Files.isRegularFile(nettyAllocator)) {
+                NettyAllocatorEvents.appendReport(report, mapper.readTree(nettyAllocator.toFile()),
+                        nettyAllocator.getFileName().toString());
+            }
         }
         if (recordings.stream().anyMatch(recording -> hasJfrRecording(directory, base(recording)))) {
             // A section of its own among numbered recordings, like the sections of a single recording otherwise
@@ -151,6 +157,8 @@ public final class ProfileReport {
                 {base + ".jfr", "JFR recording", "The complete recording, for JDK Mission Control or the converter"},
                 {base + ".measurement.jfr", "JFR recording for the measurement period", "Cut to the measurement"
                         + " window; the CPU, allocation, lock and wall-clock views are rendered from it"},
+                {base + ".measurement" + NettyAllocatorEvents.OUTPUT_SUFFIX, "Netty allocator events", "The"
+                        + " measurement recording's Netty buffer and chunk allocations, summarized as JSON"},
                 {base + OffCpuFlamegraphs.CAPTURE_SUFFIX, "Off-CPU capture stream", "The kernel's off-CPU intervals;"
                         + " correlating it with the JFR recording again reproduces the off-CPU outputs"},
                 {offCpu + OffCpuFlamegraphs.IDLE_WAITS_FILE, "Idle-wait patterns", "The waits for work that the"

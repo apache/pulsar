@@ -21,6 +21,8 @@
 docker-jdk = "25"
 pulsar-client-python = "3.13.0"
 async-profiler = "4.5"
+# The malloc that the Alpine-based Pulsar image preloads, https://github.com/microsoft/mimalloc
+mimalloc = "3.5.3"
 # Code quality
 checkstyle = "13.3.0"
 # Major frameworks

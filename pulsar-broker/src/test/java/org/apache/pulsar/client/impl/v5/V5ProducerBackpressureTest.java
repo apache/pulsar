@@ -387,9 +387,12 @@ public class V5ProducerBackpressureTest extends V5ClientBaseTest {
         List<CompletableFuture<MessageId>> futures = new ArrayList<>(numMessages);
         Thread sender = new Thread(() -> {
             for (int i = 0; i < numMessages; i++) {
-                CompletableFuture<MessageId> future = producer.async().newMessage().value(payload).send();
-                future.whenComplete((__, ___) -> completed.incrementAndGet());
-                futures.add(future);
+                // Keep the stage that counts the completion, so that waiting for the futures below
+                // also waits for the count. A future runs its dependents in LIFO order, so the
+                // allOf relay would otherwise run before the counter and could let the main thread
+                // read the count too early.
+                futures.add(producer.async().newMessage().value(payload).send()
+                        .whenComplete((__, ___) -> completed.incrementAndGet()));
             }
         }, "sender");
         sender.start();

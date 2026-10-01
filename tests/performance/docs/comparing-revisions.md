@@ -119,8 +119,8 @@ runs go under `pulsar-latest`, which gathers the runs of different releases as `
   and commit as the clients'. `run-info.json` has the image and the version as `cluster.pulsarImage` and
   `cluster.version`, beside the checkout's git keys.
 - Profiling works on the release too: the jonoffcpu agent is mounted into the profiled containers, and it has
-  libraries for musl. On Alpine, native frames are less complete than on the Wolfi image that profiled runs of the
-  checkout use.
+  libraries for musl, and the test image built on the release's image installs musl's debug symbols, so that native
+  frames in musl are named.
 
 ## Compare
 

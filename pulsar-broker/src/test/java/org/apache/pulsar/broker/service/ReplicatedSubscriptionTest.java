@@ -41,10 +41,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.persistent.GeoPersistentReplicator;
@@ -363,6 +365,77 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         producer1.close();
         client1.close();
         client2.close();
+    }
+
+    @DataProvider
+    public Object[][] replicatedSubscriptionInitiallyEnabled() {
+        return new Object[][] { { false }, { true } };
+    }
+
+    @SuppressWarnings("deprecation")
+    @Test(dataProvider = "replicatedSubscriptionInitiallyEnabled", timeOut = 60_000)
+    public void testEnableReplicatedSubscriptionAfterConsumedDataIsTrimmed(boolean initiallyEnabled) throws Exception {
+        String namespace = BrokerTestUtil.newUniqueName("pulsar/replicatedsubscription-trimmed");
+        String topicName = "persistent://" + namespace + "/topic";
+        String subscriptionName = "sub";
+        admin1.namespaces().createNamespace(namespace);
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"), false);
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(url1.toString()).build();
+        @Cleanup
+        Consumer<String> consumer = client.newConsumer(Schema.STRING).topic(topicName)
+                .subscriptionName(subscriptionName).replicateSubscriptionState(initiallyEnabled)
+                .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS).subscribe();
+        @Cleanup
+        Producer<String> producer = client.newProducer(Schema.STRING).topic(topicName)
+                .enableBatching(false).create();
+        PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService()
+                .getTopicIfExists(topicName).get().orElseThrow();
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) topic.getManagedLedger();
+        ledger.getConfig().setMaxEntriesPerLedger(1);
+        ledger.getConfig().setMinimumRolloverTime(0, TimeUnit.MILLISECONDS);
+        ledger.getConfig().setRetentionTime(0, TimeUnit.MILLISECONDS);
+        ledger.getConfig().setRetentionSizeInMB(0);
+
+        if (initiallyEnabled) {
+            Awaitility.await().during(2 * config1.getReplicatedSubscriptionsSnapshotFrequencyMillis(),
+                    TimeUnit.MILLISECONDS).untilAsserted(() -> {
+                        assertThat(topic.getReplicatedSubscriptionController()).isPresent();
+                        assertThat(topic.getLastMaxReadPositionMovedForwardTimestamp()).isZero();
+                        assertThat(ledger.getNumberOfEntries()).isZero();
+                    });
+            admin1.topics().setReplicatedSubscriptionStatus(topicName, subscriptionName, false);
+        }
+        assertThat(topic.getReplicatedSubscriptionController()).isEmpty();
+        producer.send("consumed-before-activation");
+        Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
+        assertThat(message).isNotNull();
+        consumer.acknowledge(message);
+        Awaitility.await().untilAsserted(() -> {
+            assertThat(topic.getSubscription(subscriptionName).getCursor().getNumberOfEntriesInBacklog(false))
+                    .isZero();
+            assertThat(topic.getReplicators()).hasSize(1);
+            assertThat(topic.getReplicators().get("r2").getStats().getReplicationBacklog()).isZero();
+        });
+        ledger.rollCurrentLedgerIfFull();
+        Awaitility.await().untilAsserted(() -> {
+            CompletableFuture<Void> trimmed = new CompletableFuture<>();
+            ledger.trimConsumedLedgersInBackground(trimmed);
+            trimmed.get(10, TimeUnit.SECONDS);
+            assertThat(ledger.getNumberOfEntries()).isZero();
+        });
+        assertThat(topic.getLastMaxReadPositionMovedForwardTimestamp()).isZero();
+
+        // Enable through the admin API without publishing any more data. The old data's activity must survive
+        // ledger trimming and still let the two clusters establish a subscription snapshot.
+        admin1.topics().setReplicatedSubscriptionStatus(topicName, subscriptionName, true);
+        Awaitility.await().untilAsserted(() -> {
+            assertThat(topic.getReplicatedSubscriptionController()).isPresent();
+            assertThat(topic.getLastMaxReadPositionMovedForwardTimestamp()).isPositive();
+            assertThat(topic.getReplicatedSubscriptionController().orElseThrow().getLastCompletedSnapshotId())
+                    .isPresent();
+        });
     }
 
     /**

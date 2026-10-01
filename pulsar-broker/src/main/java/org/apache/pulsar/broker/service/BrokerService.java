@@ -1580,7 +1580,18 @@ public class BrokerService implements Closeable {
                 future.completeExceptionally(ex);
                 return;
             }
-            CompletableFuture<ManagedLedgerConfig> mlConfigFuture = getManagedLedgerConfig(topicName);
+            CompletableFuture<ManagedLedgerConfig> mlConfigFuture = getManagedLedgerConfig(topicName)
+                    .thenCombine(fetchPartitionShadowSourceAsync(tn), (config, shadowSource) -> {
+                        shadowSource.ifPresent(source -> {
+                            Map<String, String> properties = new HashMap<>();
+                            if (config.getProperties() != null) {
+                                properties.putAll(config.getProperties());
+                            }
+                            properties.put(PROPERTY_SOURCE_TOPIC_KEY, source);
+                            config.setProperties(properties);
+                        });
+                        return config;
+                    });
             mlConfigFuture.thenAccept(config -> {
                 getManagedLedgerFactoryForTopic(topicName, config.getStorageClassName())
                         .asyncDelete(tn.getPersistenceNamingEncoding(),
@@ -2120,6 +2131,26 @@ public class BrokerService implements Closeable {
         return topicFuture;
     }
 
+    /**
+     * Resolves the shadow source of a partition from the properties of its partitioned topic metadata.
+     * The partitions of a partitioned shadow topic list the ledgers of the source partitions, and the managed
+     * ledger of a partition may not contain the shadow source property itself.
+     */
+    private CompletableFuture<Optional<String>> fetchPartitionShadowSourceAsync(TopicName topicName) {
+        if (!topicName.isPartitioned()) {
+            return CompletableFuture.completedFuture(Optional.empty());
+        }
+        TopicName partitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
+        return fetchPartitionedTopicMetadataAsync(partitionedTopicName).thenApply(metadata -> {
+            String sourceTopic = metadata.partitions != PartitionedTopicMetadata.NON_PARTITIONED
+                    ? MapUtils.getString(metadata.properties, PROPERTY_SOURCE_TOPIC_KEY) : null;
+            if (sourceTopic == null) {
+                return Optional.empty();
+            }
+            return Optional.of(TopicName.getTopicPartitionNameString(sourceTopic, topicName.getPartitionIndex()));
+        });
+    }
+
     @VisibleForTesting
     protected CompletableFuture<Map<String, String>> fetchTopicPropertiesAsync(TopicName topicName) {
         if (!topicName.isPartitioned()) {
@@ -2221,6 +2252,23 @@ public class BrokerService implements Closeable {
                 managedLedgerConfig.setManagedLedgerInterceptor(
                         new ManagedLedgerInterceptorImpl(interceptors, brokerEntryPayloadProcessors));
             }
+
+            // Set non-recoverable data metrics callback
+            if (pulsarStats.getBrokerOperabilityMetrics() != null) {
+                managedLedgerConfig.setNonRecoverableDataMetricsCallback(
+                    new org.apache.bookkeeper.mledger.NonRecoverableDataMetricsCallback() {
+                        @Override
+                        public void onSkipNonRecoverableLedger(long ledgerId) {
+                            pulsarStats.getBrokerOperabilityMetrics().recordNonRecoverableLedgerSkipped();
+                        }
+
+                        @Override
+                        public void onSkipNonRecoverableEntries(long entryCount) {
+                            pulsarStats.getBrokerOperabilityMetrics().recordNonRecoverableEntriesSkipped(entryCount);
+                        }
+                    });
+            }
+
             managedLedgerConfig.setCreateIfMissing(createIfMissing);
             if (context.getProperties() != null) {
                 managedLedgerConfig.setProperties(context.getProperties());
@@ -2563,6 +2611,13 @@ public class BrokerService implements Closeable {
                         serviceConfig.isCacheEvictionByMarkDeletedPosition());
                 managedLedgerConfig.setCacheEvictionByExpectedReadCount(false);
             }
+            Long continueCachingAddedEntriesAfterLastActiveCursorLeavesMillis =
+                    serviceConfig.getManagedLedgerContinueCachingAddedEntriesAfterLastActiveCursorLeavesMillis();
+            // default to 2 * managedLedgerCacheEvictionTimeThresholdMillis if the value is unset
+            managedLedgerConfig.setContinueCachingAddedEntriesAfterLastActiveCursorLeavesMillis(
+                    continueCachingAddedEntriesAfterLastActiveCursorLeavesMillis != null
+                            ? continueCachingAddedEntriesAfterLastActiveCursorLeavesMillis
+                            : 2 * serviceConfig.getManagedLedgerCacheEvictionTimeThresholdMillis());
             managedLedgerConfig.setBatchReadEnabled(serviceConfig.isManagedLedgerBatchReadEnabled());
             managedLedgerConfig.setReadEntriesCallbackInline(serviceConfig.isManagedLedgerReadEntriesCallbackInline());
             managedLedgerConfig.setAddEntryHandoverMaxBatchItems(

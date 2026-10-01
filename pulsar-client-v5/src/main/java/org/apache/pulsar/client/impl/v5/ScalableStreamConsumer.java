@@ -95,6 +95,11 @@ final class ScalableStreamConsumer<T>
     // ownership (a consumer joined/left) re-subscribes the segment with the new ranges.
     private final ConcurrentHashMap<Long, List<HashRange>> segmentBucketRanges = new ConcurrentHashMap<>();
 
+    // The receive loops of the segments subscribed before the initial subscribe completed, which start once it
+    // has; both fields are guarded by deferredReceiveLoops
+    private final List<Runnable> deferredReceiveLoops = new ArrayList<>();
+    private boolean deliveryStarted;
+
     /**
      * Tracks the latest message ID delivered from each segment. Updated atomically
      * inside {@link #startReceiveLoop} before the message is enqueued, and snapshot
@@ -250,6 +255,7 @@ final class ScalableStreamConsumer<T>
         consumer.latestAssignment = initialAssignment;
         return consumer.subscribeInitialWithRetry(initialAssignment)
                 .thenApply(__ -> {
+                    consumer.startDelivery();
                     session.setListener(consumer);
                     return consumer;
                 })
@@ -553,8 +559,16 @@ final class ScalableStreamConsumer<T>
             Duration delay = reconcileBackoff.next();
             log.info().attr("delayMs", delay.toMillis()).exceptionMessage(ex)
                     .log("Initial subscribe rejected during rebalance, retrying after backoff");
-            scheduler().schedule(() -> attemptInitialSubscribe(assigned, deadlineNanos, result),
-                    delay.toMillis(), TimeUnit.MILLISECONDS);
+            // Retry with the session's current assignment, not the one this attempt started with: the
+            // rebalance that rejected us usually also moved segments away from this consumer, and
+            // retrying the stale assignment would keep asking for a segment another member now owns.
+            // The assignment listener is only registered once the initial subscribe succeeds, so the
+            // session, not latestAssignment, holds the updates that arrived in the meantime.
+            scheduler().schedule(() -> {
+                List<ActiveSegment> current = session.currentAssignment();
+                latestAssignment = current;
+                attemptInitialSubscribe(current, deadlineNanos, result);
+            }, delay.toMillis(), TimeUnit.MILLISECONDS);
         });
     }
 
@@ -821,10 +835,40 @@ final class ScalableStreamConsumer<T>
         }
         return v4Client.subscribeSegmentAsync(segConf, v4Schema)
                 .thenApply(consumer -> {
-                    startReceiveLoop(consumer, segment.segmentId(),
+                    startReceiveLoopWhenDelivering(consumer, segment.segmentId(),
                             segmentReceiveEpoch.getOrDefault(segment.segmentId(), 0L));
                     return consumer;
                 });
+    }
+
+    /**
+     * Starts the segment's receive loop, or defers it until the initial subscribe completes. Until then the
+     * application has no consumer to ack with, so a message handed out early could never be acked: an
+     * initial-subscribe retry that releases the segment would wait forever for its drain.
+     */
+    private void startReceiveLoopWhenDelivering(org.apache.pulsar.client.api.Consumer<T> v4Consumer,
+                                                long segmentId, long armedEpoch) {
+        synchronized (deferredReceiveLoops) {
+            if (!deliveryStarted) {
+                deferredReceiveLoops.add(() -> startReceiveLoop(v4Consumer, segmentId, armedEpoch));
+                return;
+            }
+        }
+        startReceiveLoop(v4Consumer, segmentId, armedEpoch);
+    }
+
+    /**
+     * Starts the receive loops deferred during the initial subscribe. A loop whose segment was released in the
+     * meantime finds its consumer closed or its epoch stale, and stops.
+     */
+    private void startDelivery() {
+        List<Runnable> loops;
+        synchronized (deferredReceiveLoops) {
+            deliveryStarted = true;
+            loops = new ArrayList<>(deferredReceiveLoops);
+            deferredReceiveLoops.clear();
+        }
+        loops.forEach(Runnable::run);
     }
 
     /**
