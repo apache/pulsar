@@ -142,8 +142,8 @@ public class RangeEntryCacheImpl implements EntryCache {
      * so that they don't displace the page where the managed ledger adds its entries.
      *
      * @param entriesToInsert the entries to cache, in order
-     * @param copy whether to copy the entries' data into cache owned buffers, as {@link #insert(Entry, boolean,
-     *             RangeCache.Inserter)} describes
+     * @param copy whether to copy the entries' data into cache owned buffers, always the case when the cache is
+     *             configured to copy entries
      * @return the number of entries that were inserted
      */
     public int insert(List<? extends Entry> entriesToInsert, boolean copy) {
