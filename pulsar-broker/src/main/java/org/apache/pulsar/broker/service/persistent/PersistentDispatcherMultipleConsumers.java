@@ -888,6 +888,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                     entriesForThisConsumer, batchSizes, sendMessageInfo, batchIndexesAcks, cursor,
                     readType == ReadType.Replay, c);
             totalEntriesProcessed += entriesForThisConsumer.size();
+            // read before sendMessages: it hands batchIndexesAcks to the consumer's event loop, which recycles it
+            int totalAckedIndexCount = batchIndexesAcks.getTotalAckedIndexCount();
 
             c.sendMessages(entriesForThisConsumer, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
                     sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(), redeliveryTracker);
@@ -896,12 +898,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             remainingMessages -= msgSent;
             start += maxEntriesInThisBatch;
             entriesToDispatch -= maxEntriesInThisBatch;
-            TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this,
-                    -(msgSent - batchIndexesAcks.getTotalAckedIndexCount()));
+            TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -(msgSent - totalAckedIndexCount));
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Added -({} minus {}) permits to TOTAL_AVAILABLE_PERMITS_UPDATER in "
                                 + "PersistentDispatcherMultipleConsumers",
-                        name, msgSent, batchIndexesAcks.getTotalAckedIndexCount());
+                        name, msgSent, totalAckedIndexCount);
             }
             totalMessagesSent += sendMessageInfo.getTotalMessages();
             totalBytesSent += sendMessageInfo.getTotalBytes();
@@ -997,6 +998,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             totalEntries += filterEntriesForConsumer(entryAndMetadataList, batchSizes, sendMessageInfo,
                     batchIndexesAcks, cursor, readType == ReadType.Replay, consumer);
             totalEntriesProcessed += entryAndMetadataList.size();
+            // read before sendMessages: it hands batchIndexesAcks to the consumer's event loop, which recycles it
+            final int totalAckedIndexCount = batchIndexesAcks.getTotalAckedIndexCount();
             consumer.sendMessages(entryAndMetadataList, batchSizes, batchIndexesAcks,
                     sendMessageInfo.getTotalMessages(), sendMessageInfo.getTotalBytes(),
                     sendMessageInfo.getTotalChunkedMessages(), getRedeliveryTracker()
@@ -1007,7 +1010,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             });
 
             TOTAL_AVAILABLE_PERMITS_UPDATER.getAndAdd(this,
-                    -(sendMessageInfo.getTotalMessages() - batchIndexesAcks.getTotalAckedIndexCount()));
+                    -(sendMessageInfo.getTotalMessages() - totalAckedIndexCount));
             totalMessagesSent += sendMessageInfo.getTotalMessages();
             totalBytesSent += sendMessageInfo.getTotalBytes();
         }
