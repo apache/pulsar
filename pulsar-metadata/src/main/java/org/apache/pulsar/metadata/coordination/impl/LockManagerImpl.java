@@ -89,7 +89,13 @@ class LockManagerImpl<T> implements LockManager<T> {
         lock.acquire(value).thenRun(() -> {
             synchronized (LockManagerImpl.this) {
                 if (state == State.Ready) {
-                    locks.put(path, lock);
+                    ResourceLockImpl<T> replaced = locks.put(path, lock);
+                    if (replaced != null && replaced != lock) {
+                        // The previous handle for this path is superseded: retire it, so that
+                        // a revalidation of it that is still scheduled or in flight cannot
+                        // re-create the path and resurrect a torn-down resource.
+                        replaced.retire();
+                    }
                     lock.getLockExpiredFuture().thenRun(() -> {
                         log.info().attr("path", path).log("Released resource lock");
                         synchronized (LockManagerImpl.this) {
