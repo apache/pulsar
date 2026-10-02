@@ -139,7 +139,9 @@ public class RangeEntryCacheImpl implements EntryCache {
 
     /**
      * Inserts consecutive entries in order, such as the entries of a read from storage, with an inserter of their own,
-     * so that they don't displace the page where the managed ledger adds its entries.
+     * so that they don't displace the page where the managed ledger adds its entries. Cached entries are immutable,
+     * so an entry that is already cached, such as one that an overlapping read inserted, is skipped before it's
+     * copied.
      *
      * @param entriesToInsert the entries to cache, in order
      * @param copy whether to copy the entries' data into cache owned buffers, always the case when the cache is
@@ -150,7 +152,7 @@ public class RangeEntryCacheImpl implements EntryCache {
         RangeCache.Inserter inserter = entries.newInserter();
         int inserted = 0;
         for (Entry entry : entriesToInsert) {
-            if (insert(entry, copy, inserter)) {
+            if (!inserter.contains(entry.getPosition()) && insert(entry, copy, inserter)) {
                 inserted++;
             }
         }

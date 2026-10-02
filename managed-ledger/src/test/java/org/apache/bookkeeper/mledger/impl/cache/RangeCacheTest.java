@@ -523,6 +523,21 @@ public class RangeCacheTest {
     }
 
     @Test
+    public void inserterTellsWhetherThePositionIsCached() {
+        RangeCache cache = new RangeCache(createRemovalQueue());
+        RangeCache.Inserter inserter = cache.newInserter();
+        assertFalse(inserter.contains(createPosition(1)));
+        putToCache(cache, 1, "1");
+        // the inserter looks the page up, and then uses it
+        assertTrue(inserter.contains(createPosition(1)));
+        assertFalse(inserter.contains(createPosition(2)));
+        assertFalse(inserter.contains(PositionFactory.create(1, 1)));
+        cache.removeRange(createPosition(1), createPosition(1), true);
+        assertFalse(inserter.contains(createPosition(1)));
+        cache.clear();
+    }
+
+    @Test
     public void inserterAddsToANewPageAfterItsPageWasRemoved() {
         RangeCache cache = new RangeCache(createRemovalQueue());
         RangeCache.Inserter inserter = cache.newInserter();

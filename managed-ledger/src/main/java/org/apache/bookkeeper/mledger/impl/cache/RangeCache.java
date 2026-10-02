@@ -127,6 +127,25 @@ class RangeCache {
         }
 
         /**
+         * Returns whether the cache has an entry at the position. Cached entries are immutable and never replaced, so
+         * an entry that the cache has doesn't need to be prepared for an insert, such as copied.
+         */
+        public boolean contains(Position key) {
+            long ledgerId = key.getLedgerId();
+            long entryId = key.getEntryId();
+            long pageIndex = entryId >> PAGE_SHIFT;
+            Page current = page;
+            if (current == null || !current.covers(ledgerId, pageIndex)) {
+                current = pages.get(new PageKey(ledgerId, pageIndex));
+                if (current == null) {
+                    return false;
+                }
+                page = current;
+            }
+            return current.slots.get((int) (entryId & SLOT_MASK)) != null;
+        }
+
+        /**
          * Adds the new wrapper to the cache. withNewInstance holds the wrapper's write lock while its initialized
          * fields are used.
          */

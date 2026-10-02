@@ -177,6 +177,37 @@ public class RangeEntryCacheImplTest {
     }
 
     @Test
+    public void testBatchInsertSkipsCachedEntriesBeforeCopyingThem() {
+        EntryImpl cachedSource = EntryImpl.create(1, 11, "cached".getBytes(StandardCharsets.UTF_8));
+        assertThat(rangeEntryCache.insert(cachedSource)).isTrue();
+        ReferenceCountedEntry cached = rangeEntryCache.getEntries().get(PositionFactory.create(1, 11));
+        List<Entry> read = new ArrayList<>();
+        for (long entryId = 10; entryId <= 12; entryId++) {
+            read.add(EntryImpl.create(1, entryId, ("read-" + entryId).getBytes(StandardCharsets.UTF_8)));
+        }
+        try {
+            int sourceRefCnt = read.get(1).getDataBuffer().refCnt();
+            // a read from storage that overlaps the cached entry inserts the others, copying them
+            assertThat(rangeEntryCache.insert(read, true)).isEqualTo(2);
+            // the cached entry is immutable, so it's kept, and the read's entry at its position isn't copied
+            ReferenceCountedEntry after = rangeEntryCache.getEntries().get(PositionFactory.create(1, 11));
+            try {
+                assertThat(after).isSameAs(cached);
+                assertThat(new String(after.getData(), StandardCharsets.UTF_8)).isEqualTo("cached");
+            } finally {
+                after.release();
+            }
+            assertThat(read.get(1).getDataBuffer().refCnt()).isEqualTo(sourceRefCnt);
+            assertThat(rangeEntryCache.getEntries().getNumberOfEntries()).isEqualTo(3);
+        } finally {
+            cached.release();
+            cachedSource.release();
+            read.forEach(Entry::release);
+            rangeEntryCache.clear();
+        }
+    }
+
+    @Test
     public void testInsertDefersMetadataUntilFirstReadAndSharesIt() {
         managedLedgerConfig.setPulsarMessageEntries(true);
         ByteBuf headersAndPayload = serializeMessage("producer");
