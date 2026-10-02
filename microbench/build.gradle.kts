@@ -33,6 +33,7 @@ dependencies {
     api(project(":pulsar-broker"))
     implementation(libs.bookkeeper.server)
     implementation(libs.fastutil)
+    implementation(libs.protobuf.java)
     api(libs.guava)
     api("org.openjdk.jmh:jmh-core:1.37")
     annotationProcessor("org.openjdk.jmh:jmh-generator-annprocess:1.37")
