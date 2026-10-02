@@ -744,36 +744,49 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
      */
     private void onSendFailure(PendingSend<T> send, long segmentId, Throwable ex) {
         Throwable cause = ex instanceof CompletionException ? ex.getCause() : ex;
-        if (!isSegmentGoneError(cause) || isShuttingDown()) {
+        if (!isSegmentGoneError(cause)) {
             finish(send, null, ex);
             return;
         }
         boolean parked = false;
         boolean startedRetiring = false;
+        boolean shuttingDown;
         synchronized (orderLock) {
             if (send.state != SEND_IN_FLIGHT || send.segmentId != segmentId) {
                 // Already given up on: finish() untracked it.
                 return;
             }
-            SegmentSends<T> sends = segmentSends.get(segmentId);
-            sends.inFlight--;
-            if (send.attempts < SEND_RETRY_MAX_ATTEMPTS) {
-                send.attempts++;
-                send.lastFailure = ex;
-                send.state = SEND_PARKED;
-                sends.parked.add(send);
-                // The message stays with this layer until it is re-sent.
-                reholdPayloadShare(send);
-                parked = true;
-            } else {
-                send.state = SEND_UNTRACKED;
-                send.segmentId = -1;
+            // Checked under the lock, together with parking: failWaitingSends drains under it once
+            // closing is visible, and a send parked after that would wait for a layout that never
+            // comes. No new layout is coming once this producer or its client is closing.
+            shuttingDown = isShuttingDown();
+            if (!shuttingDown) {
+                SegmentSends<T> sends = segmentSends.get(segmentId);
+                sends.inFlight--;
+                if (send.attempts < SEND_RETRY_MAX_ATTEMPTS) {
+                    send.attempts++;
+                    send.lastFailure = ex;
+                    send.state = SEND_PARKED;
+                    sends.parked.add(send);
+                    // The message stays with this layer until it is re-sent.
+                    reholdPayloadShare(send);
+                    parked = true;
+                } else {
+                    send.state = SEND_UNTRACKED;
+                    send.segmentId = -1;
+                }
+                if (!sends.retiring) {
+                    sends.retiring = true;
+                    holdingSends = true;
+                    startedRetiring = true;
+                }
             }
-            if (!sends.retiring) {
-                sends.retiring = true;
-                holdingSends = true;
-                startedRetiring = true;
-            }
+        }
+        if (shuttingDown) {
+            finish(send, null, ex);
+            // Closing the client does not close this producer: fail what waits for a layout here.
+            failWaitingSends();
+            return;
         }
         if (parked) {
             log.debug().attr("segmentId", segmentId).attr("attempt", send.attempts)
@@ -795,8 +808,35 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
         try {
             dispatchExecutor.execute(this::releaseSends);
         } catch (RejectedExecutionException e) {
-            // The client is closing: closeAsync fails the parked and held sends.
+            // The client is closing and its executors are gone: nothing will release the waiting sends.
             releaseScheduled.set(false);
+            failWaitingSends();
+        }
+    }
+
+    /**
+     * No new layout is coming once this producer or its client is closing: fail the sends waiting
+     * for one, parked or held. Closing the client does not close this producer, so besides
+     * {@link #closeAsync}, every path that finds the client closing calls this. Idempotent. The sends
+     * still in flight fail as their segment producers close.
+     */
+    private void failWaitingSends() {
+        List<PendingSend<T>> waiting = new ArrayList<>();
+        synchronized (orderLock) {
+            waiting.addAll(heldSends);
+            heldSends.clear();
+            for (var sends : segmentSends.values()) {
+                waiting.addAll(sends.parked);
+                sends.parked.clear();
+            }
+            for (var send : waiting) {
+                send.state = SEND_UNTRACKED;
+                send.segmentId = -1;
+            }
+            holdingSends = false;
+        }
+        for (var send : waiting) {
+            finish(send, null, new PulsarClientException.AlreadyClosedException("Producer already closed"));
         }
     }
 
@@ -816,6 +856,10 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
     private void releaseSends() {
         synchronized (releaseLock) {
             releaseScheduled.set(false);
+            if (isShuttingDown()) {
+                failWaitingSends();
+                return;
+            }
             while (true) {
                 List<PendingSend<T>> batch = new ArrayList<>();
                 long batchLayout;
@@ -860,7 +904,7 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
                     if (!dispatchSend(batch.get(i), batchLayout)) {
                         boolean closing;
                         synchronized (orderLock) {
-                            // closeAsync fails the held sends under the lock after closing.
+                            // failWaitingSends fails the held sends under the lock after closing.
                             closing = isShuttingDown();
                             if (!closing) {
                                 for (int j = batch.size() - 1; j >= i; j--) {
@@ -875,6 +919,7 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
                                 finish(batch.get(j), null,
                                         new PulsarClientException.AlreadyClosedException("Producer already closed"));
                             }
+                            failWaitingSends();
                             return;
                         }
                         break;
@@ -887,24 +932,28 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
     /**
      * A segment whose sends failed because it is gone, while the layout still has it, retires once
      * the new layout drops it. If no new layout comes within the retry budget, its parked sends fail.
+     *
+     * <p>Runs on the JDK's delayed executor rather than the client's: closing the client shuts its
+     * executors down without closing this producer, and the check must still run then to fail the
+     * waiting sends. It only does bookkeeping and completes futures, which {@link #finish} hands off.
      */
     private void scheduleRetirementCheck(long segmentId, int check) {
-        try {
-            CompletableFuture.delayedExecutor(Math.min(100L * check, SEND_RETRY_MAX_BACKOFF_MS),
-                            TimeUnit.MILLISECONDS, dispatchExecutor)
-                    .execute(() -> checkRetirement(segmentId, check));
-        } catch (RejectedExecutionException e) {
-            // The client is closing: closeAsync fails the parked sends.
-        }
+        CompletableFuture.delayedExecutor(Math.min(100L * check, SEND_RETRY_MAX_BACKOFF_MS),
+                        TimeUnit.MILLISECONDS)
+                .execute(() -> checkRetirement(segmentId, check));
     }
 
     private void checkRetirement(long segmentId, int check) {
+        if (isShuttingDown()) {
+            failWaitingSends();
+            return;
+        }
         List<PendingSend<T>> expired = List.of();
         boolean recheck = false;
         synchronized (orderLock) {
             SegmentSends<T> sends = segmentSends.get(segmentId);
-            if (sends == null || !sends.retiring || !isActive(segmentId) || isShuttingDown()) {
-                // Retired, or handled by closeAsync.
+            if (sends == null || !sends.retiring || !isActive(segmentId)) {
+                // Retired: releaseSends re-sends its parked sends.
             } else if (check < SEND_RETRY_MAX_ATTEMPTS || sends.inFlight > 0) {
                 recheck = true;
             } else {
@@ -924,6 +973,30 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
             finish(send, null, send.lastFailure);
         }
         scheduleRelease();
+    }
+
+    /** Test hook: how many async sends wait to be re-sent or dispatched, parked or held. */
+    @VisibleForTesting
+    int waitingSendCount() {
+        synchronized (orderLock) {
+            int waiting = heldSends.size();
+            for (var sends : segmentSends.values()) {
+                waiting += sends.parked.size();
+            }
+            return waiting;
+        }
+    }
+
+    /** Test hook: how many async sends are in flight to a segment. */
+    @VisibleForTesting
+    int inFlightSendCount() {
+        synchronized (orderLock) {
+            int inFlight = 0;
+            for (var sends : segmentSends.values()) {
+                inFlight += sends.inFlight;
+            }
+            return inFlight;
+        }
     }
 
     private boolean isActive(long segmentId) {
@@ -1109,23 +1182,7 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
 
         // No new layout is coming: fail the sends waiting for one. The sends in flight fail as their
         // segment producers close below.
-        List<PendingSend<T>> waiting = new ArrayList<>();
-        synchronized (orderLock) {
-            waiting.addAll(heldSends);
-            heldSends.clear();
-            for (var sends : segmentSends.values()) {
-                waiting.addAll(sends.parked);
-                sends.parked.clear();
-            }
-            for (var send : waiting) {
-                send.state = SEND_UNTRACKED;
-                send.segmentId = -1;
-            }
-            holdingSends = false;
-        }
-        for (var send : waiting) {
-            finish(send, null, new PulsarClientException.AlreadyClosedException("Producer already closed"));
-        }
+        failWaitingSends();
 
         List<CompletableFuture<Void>> futures = new ArrayList<>();
         for (var future : segmentProducers.values()) {
