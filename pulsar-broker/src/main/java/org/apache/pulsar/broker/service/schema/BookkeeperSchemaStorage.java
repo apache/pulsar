@@ -575,13 +575,23 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     ) {
         log.debug().attr("position", position).log("Reading schema entry from");
 
-        return openLedger(position.getLedgerId())
-            .thenCompose((ledger) ->
-                Functions.getLedgerEntry(ledger, position.getEntryId(), config.isSchemaLedgerForceRecovery())
-                    .thenCompose(entry -> closeLedger(ledger)
-                        .thenApply(ignore -> entry)
-                    )
-            ).thenCompose(Functions::parseSchemaEntry);
+        return openLedger(position.getLedgerId()).thenCompose(ledger ->
+                FutureUtil.supplySafely(() -> Functions.getLedgerEntry(ledger, position.getEntryId(),
+                                config.isSchemaLedgerForceRecovery()).thenCompose(Functions::parseSchemaEntry))
+                        .handle((entry, readError) -> FutureUtil.supplySafely(() -> closeLedger(ledger))
+                                .handle((ignored, closeError) -> {
+                                    if (readError != null) {
+                                        if (closeError != null && closeError != readError) {
+                                            readError.addSuppressed(closeError);
+                                        }
+                                        throw FutureUtil.wrapToCompletionException(readError);
+                                    }
+                                    if (closeError != null) {
+                                        throw FutureUtil.wrapToCompletionException(closeError);
+                                    }
+                                    return entry;
+                                }))
+                        .thenCompose(Function.identity()));
     }
 
     @NonNull
