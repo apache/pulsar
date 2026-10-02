@@ -503,7 +503,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                     .attr("rc", BKException.getMessage(rc))
                                     .log("Opened ledger");
                             if (rc == BKException.Code.OK) {
-                                if (State.Terminated.equals(state)) {
+                                boolean retainHandle = State.Terminated.equals(state);
+                                if (retainHandle) {
                                     currentLedger = lh;
                                 }
                                 ledgers.compute(id, (ledgerId, oldInfo) -> {
@@ -517,15 +518,24 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                             .setSize(lh.getLength()).setTimestamp(clock.millis());
                                 });
                                 if (managedLedgerInterceptor != null) {
-                                    managedLedgerInterceptor
-                                            .onManagedLedgerLastLedgerInitialize(name, createLastEntryHandle(lh))
+                                    FutureUtil.supplySafely(() -> managedLedgerInterceptor
+                                            .onManagedLedgerLastLedgerInitialize(name, createLastEntryHandle(lh)))
+                                            .whenComplete((ignored, error) -> {
+                                                if (!retainHandle) {
+                                                    closeReadHandleAsync(lh, log);
+                                                }
+                                            })
                                             .thenRun(() -> initializeBookKeeper(callback))
                                             .exceptionally(ex -> {
                                                 callback.initializeFailed(
-                                                        new ManagedLedgerInterceptException(ex.getCause()));
+                                                        new ManagedLedgerInterceptException(
+                                                                FutureUtil.unwrapCompletionException(ex)));
                                                 return null;
                                             });
                                 } else {
+                                    if (!retainHandle) {
+                                        closeReadHandleAsync(lh, log);
+                                    }
                                     initializeBookKeeper(callback);
                                 }
                             } else if (isNoSuchLedgerExistsException(rc)) {
@@ -2089,7 +2099,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         .log("Successfully opened ledger to check the last add confirmed"
                                 + " position when the ledger was concurrently modified"
                                 + " (the ledger may be closed by auto-replication)");
-                ledgerClosed(currentLedger, lh.getLastAddConfirmed());
+                try {
+                    ledgerClosed(currentLedger, lh.getLastAddConfirmed());
+                } finally {
+                    closeReadHandleAsync(lh, log);
+                }
                 // Close the abandoned write handle, or it leaks with its periodic explicit-LAC flush task.
                 currentLedger.asyncClose((closeRc, closedLedger, closeCtx) -> {
                     if (closeRc != Code.OK) {
@@ -2517,6 +2531,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
             return new long[] {offloadedLedgerHandle.getIndexedEntryIdFloor(position.getEntryId()),
                     offloadedLedgerHandle.getIndexedEntryIdCeiling(position.getEntryId())};
+        });
+    }
+
+    // Temporary read handles have no cache owner to close them when the managed ledger is unloaded.
+    static CompletableFuture<Void> closeReadHandleAsync(ReadHandle handle, Logger log) {
+        return FutureUtil.supplySafely(handle::closeAsync).exceptionally(error -> {
+            log.debug().attr("ledgerId", handle.getId()).exception(error).log("Failed to close temporary read handle");
+            return null;
         });
     }
 
