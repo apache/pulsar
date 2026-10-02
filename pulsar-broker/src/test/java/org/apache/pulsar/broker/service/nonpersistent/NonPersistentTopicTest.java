@@ -138,8 +138,8 @@ public class NonPersistentTopicTest extends BrokerTestBase {
      * {@code addConsumerToSubscription}, and the consumer must NOT be attached to the subscription on the
      * old cluster. The previous code ran {@code getMigratedClusterUrlAsync().thenAccept(consumer::topicMigrated)}
      * concurrently with {@code addConsumerToSubscription}, so the consumer could be added before the redirect
-     * and disconnect ran. The fix sequences the check through {@link org.apache.pulsar.broker.service.Consumer
-     * #checkAndApplyTopicMigrationAsync()} and skips the add when migrated.
+     * and disconnect ran. The fix sequences a pure migration check before {@code addConsumerToSubscription} and
+     * lets the common {@code ServerCnx} post-subscribe path apply the redirect when migrated.
      */
     @Test
     public void testSubscribeOnMigratedTopicSkipsAddingConsumer() throws Exception {
@@ -202,17 +202,24 @@ public class NonPersistentTopicTest extends BrokerTestBase {
                 spyTopic.subscribe(option).get(10, TimeUnit.SECONDS);
         assertNotNull(consumer);
 
-        // The migration redirect must have been sent to the client.
-        Mockito.verify(commandSender).sendTopicMigrated(Mockito.any(), Mockito.eq(1L),
-                Mockito.eq(migratedUrl.getBrokerServiceUrl()), Mockito.eq(migratedUrl.getBrokerServiceUrlTls()));
-
         // The core regression assertion: a migrated topic must never attach the consumer to the
         // subscription. The buggy code added it before the async redirect/disconnect could run.
         Mockito.verify(spySubscription, Mockito.never()).addConsumer(Mockito.any());
         assertTrue(spySubscription.getConsumers().isEmpty());
 
-        // No usage-count leak: handleConsumerAdded's increment is balanced by the disconnect's removeConsumer.
-        assertEquals(spyTopic.currentUsageCount(), usageBefore);
+        // NonPersistentTopic only checks migration and skips addConsumerToSubscription. The common ServerCnx
+        // post-subscribe check remains responsible for sending the redirect and closing the consumer.
+        Mockito.verify(commandSender, Mockito.never()).sendTopicMigrated(Mockito.any(), Mockito.eq(1L),
+                Mockito.any(), Mockito.any());
+        assertEquals(spyTopic.currentUsageCount(), usageBefore + 1);
+
+        // Simulate ServerCnx.handleSubscribe's generic post-subscribe migration check.
+        consumer.checkAndApplyTopicMigrationAsync().get(10, TimeUnit.SECONDS);
+
+        Mockito.verify(commandSender).sendTopicMigrated(Mockito.any(), Mockito.eq(1L),
+                Mockito.eq(migratedUrl.getBrokerServiceUrl()), Mockito.eq(migratedUrl.getBrokerServiceUrlTls()));
+        assertEquals(spyTopic.currentUsageCount(), usageBefore,
+                "The post-subscribe migration check must close the skipped consumer and balance usage count");
     }
 
     @Test
