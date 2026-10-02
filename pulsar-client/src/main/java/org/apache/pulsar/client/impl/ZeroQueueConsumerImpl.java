@@ -142,10 +142,18 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
 
         // For zerosize queue : If the connection is reset and someone is waiting for the messages
         // or queue was not empty: send a flow command
-        if (waitingOnReceiveForZeroQueueSize
+        int pendingAsyncReceives = 0;
+        for (CompletableFuture<Message<T>> pendingReceive : pendingReceives) {
+            if (!pendingReceive.isDone()) {
+                pendingAsyncReceives++;
+            }
+        }
+        boolean shouldSendPermit = waitingOnReceiveForZeroQueueSize
                 || currentQueueSize > 0
-                || (listener != null && !waitingOnListenerForZeroQueueSize)) {
-            increaseAvailablePermits(cnx);
+                || (listener != null && !waitingOnListenerForZeroQueueSize);
+        int permits = Math.max(pendingAsyncReceives, shouldSendPermit ? 1 : 0);
+        if (permits > 0) {
+            increaseAvailablePermits(cnx, permits);
         }
     }
 
