@@ -31,7 +31,9 @@ import io.netty.buffer.Unpooled;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Random;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -521,6 +523,30 @@ public class RangeCacheTest {
     }
 
     @Test
+    public void inserterAddsToANewPageAfterItsPageWasRemoved() {
+        RangeCache cache = new RangeCache(createRemovalQueue());
+        RangeCache.Inserter inserter = cache.newInserter();
+        ReferenceCountedEntry first = createCachedEntry(0, "0");
+        assertTrue(inserter.put(first.getPosition(), first, first.getLength()));
+        // the page loses its only entry and is removed, while the inserter still remembers it
+        assertEquals(cache.removeRange(createPosition(0), createPosition(0), true).getLeft(), 1);
+        assertEquals(cache.getNumberOfPages(), 0);
+        ReferenceCountedEntry second = createCachedEntry(1, "1");
+        assertTrue(inserter.put(second.getPosition(), second, second.getLength()));
+        assertEquals(cache.getNumberOfPages(), 1);
+        assertEquals(new String(releaseRetained(cache, createPosition(1)).getData()), "1");
+        // an entry before the inserter's page, as a read from storage inserts, and one in a later page
+        ReferenceCountedEntry earlier = createCachedEntry(PositionFactory.create(-1, 5), "e");
+        assertTrue(inserter.put(earlier.getPosition(), earlier, earlier.getLength()));
+        ReferenceCountedEntry later = createCachedEntry(2 * RangeCache.PAGE_SIZE, "l");
+        assertTrue(inserter.put(later.getPosition(), later, later.getLength()));
+        assertRange(cache, PositionFactory.create(-1, 0), createPosition(1000), earlier.getPosition(),
+                createPosition(1), later.getPosition());
+        cache.clear();
+        assertEquals(cache.getNumberOfPages(), 0);
+    }
+
+    @Test
     public void concurrentInsertsReadsAndRemovals() throws Exception {
         RangeCacheRemovalQueue removalQueue = createRemovalQueue();
         RangeCache cache = new RangeCache(removalQueue);
@@ -595,6 +621,91 @@ public class RangeCacheTest {
         assertEquals(cache.getNumberOfPages(), 0);
         assertThat(values).allSatisfy(value -> assertEquals(value.refCnt(), 1));
         values.forEach(ReferenceCountedEntry::release);
+    }
+
+    @Test
+    public void concurrentTailAndCatchUpInserts() throws Exception {
+        RangeCacheRemovalQueue removalQueue = createRemovalQueue();
+        RangeCache cache = new RangeCache(removalQueue);
+        long catchUpLedger = 1;
+        long tailLedger = 2;
+        int catchUpLedgerEntries = 5_000;
+        int tailEntries = 100_000;
+        // every entry offered to the cache, with the test's own reference, to check that the cache releases each of
+        // its references exactly once and doesn't keep an entry that it didn't insert
+        Queue<ReferenceCountedEntry> offered = new ConcurrentLinkedQueue<>();
+        AtomicBoolean done = new AtomicBoolean();
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+        @Cleanup("shutdownNow")
+        ExecutorService executor = Executors.newFixedThreadPool(4);
+        List<Future<?>> futures = new ArrayList<>();
+        // catch-up reads insert runs of consecutive entries at random positions of the earlier ledger
+        for (int t = 0; t < 2; t++) {
+            int seed = t;
+            futures.add(executor.submit(() -> {
+                Random random = new Random(seed);
+                while (!done.get()) {
+                    int first = random.nextInt(catchUpLedgerEntries - 100);
+                    int count = 1 + random.nextInt(100);
+                    // a read from storage inserts its consecutive entries with an inserter of its own
+                    RangeCache.Inserter inserter = cache.newInserter();
+                    for (int i = first; i < first + count; i++) {
+                        offer(inserter, offered, PositionFactory.create(catchUpLedger, i));
+                    }
+                    Position firstPosition = PositionFactory.create(catchUpLedger, first);
+                    Position lastPosition = PositionFactory.create(catchUpLedger, first + count - 1);
+                    cache.forEachInRange(firstPosition, lastPosition, value -> {
+                        if (value.refCnt() < 2 || value.getPosition().compareTo(firstPosition) < 0
+                                || value.getPosition().compareTo(lastPosition) > 0) {
+                            failure.compareAndSet(null, new AssertionError("Unexpected entry " + value));
+                        }
+                    });
+                    if (random.nextInt(4) == 0) {
+                        cache.removeRange(firstPosition, lastPosition, true);
+                    }
+                }
+            }));
+        }
+        futures.add(executor.submit(() -> {
+            while (!done.get()) {
+                removalQueue.evictLeastAccessedEntries(1_000);
+            }
+        }));
+        try {
+            RangeCache.Inserter tailInserter = cache.newInserter();
+            for (int i = 0; i < tailEntries; i++) {
+                offer(tailInserter, offered, PositionFactory.create(tailLedger, i));
+                if (i % 1_000 == 999) {
+                    // the cursors moved past the oldest tail entries
+                    cache.removeRange(PositionFactory.create(tailLedger, 0),
+                            PositionFactory.create(tailLedger, i - 500), false);
+                }
+            }
+        } finally {
+            done.set(true);
+        }
+        for (Future<?> future : futures) {
+            future.get(30, TimeUnit.SECONDS);
+        }
+        assertNull(failure.get());
+
+        cache.clear();
+        removalQueue.evictLeastAccessedEntries(Long.MAX_VALUE);
+        assertEquals(cache.getSize(), 0);
+        assertEquals(cache.getNumberOfEntries(), 0);
+        assertEquals(cache.getNumberOfPages(), 0);
+        assertThat(offered).allSatisfy(value -> assertEquals(value.refCnt(), 1));
+        offered.forEach(ReferenceCountedEntry::release);
+    }
+
+    // offers a new entry to the cache, which takes over its reference when it inserts it
+    private static void offer(RangeCache.Inserter inserter, Queue<ReferenceCountedEntry> offered, Position position) {
+        ReferenceCountedEntry value = createCachedEntry(position, "x");
+        value.retain();
+        offered.add(value);
+        if (!inserter.put(position, value, value.getLength())) {
+            value.release();
+        }
     }
 
     private void putToCache(RangeCache cache, long ledgerId, long entryId) {

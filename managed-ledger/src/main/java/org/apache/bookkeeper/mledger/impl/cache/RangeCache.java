@@ -38,10 +38,12 @@ import org.apache.commons.lang3.tuple.Pair;
  * Special type of cache where get() and delete() operations can be done over a range of keys.
  *
  * <p>The entries are stored in pages, each holding up to {@link #PAGE_SIZE} consecutive entry IDs of one ledger in an
- * array, and the pages are kept in a ConcurrentSkipListMap ordered by ledger ID and page. A managed ledger adds its
- * entries in order, so an insert usually goes to the page of the previous insert, which is remembered, and costs a
- * write to an array slot instead of a search of a skip list of all the cached entries. A lookup is a page lookup and an
- * array read, and a range is visited page by page. A page is removed from the map when its last entry is removed.
+ * array, and the pages are kept in a ConcurrentSkipListMap ordered by ledger ID and page. Entries are inserted in
+ * order: a managed ledger adds its entries at the tail, and a read from storage inserts the consecutive entries that
+ * it read, at any earlier position. Each of them inserts with an {@link Inserter}, which remembers the page of its
+ * previous insert, so that an insert usually costs a write to an array slot instead of a search of a skip list of all
+ * the cached entries, and a new page is found with a search of the pages. A lookup is a page lookup and an array read,
+ * and a range is visited page by page. A page is removed from the map when its last entry is removed.
  *
  * <p>The implementation avoids locks and synchronization by relying on the ConcurrentSkipListMap and atomic array
  * slots. Since there are no locks, it's necessary to ensure that a single entry in the cache is removed exactly once.
@@ -61,8 +63,6 @@ class RangeCache {
     private final ConcurrentNavigableMap<PageKey, Page> pages;
     private final RangeCacheRemovalQueue removalQueue;
     private final AtomicLong size; // Total size of values stored in cache
-    // The page of the latest insert, where the next insert usually goes
-    private volatile Page insertPage;
 
     /**
      * Construct a new RangeCache.
@@ -82,55 +82,90 @@ class RangeCache {
      * @return whether the entry was inserted in the cache
      */
     public boolean put(Position key, ReferenceCountedEntry value, int entryLength) {
-        // retain value so that it's not released before we put it in the cache and calculate the weight
-        value.retain();
-        try {
-            if (!value.matchesPosition(key)) {
-                throw new IllegalArgumentException("Value '" + value + "' does not match key '" + key + "'");
-            }
-            return RangeCacheEntryWrapper.withNewInstance(this, key, value, entryLength, RangeCache::addEntry);
-        } finally {
-            value.release();
-        }
-    }
-
-    private static boolean addEntry(RangeCacheEntryWrapper newWrapper) {
-        // withNewInstance holds the wrapper's write lock while these initialized fields are used.
-        RangeCache cache = newWrapper.rangeCache;
-        if (cache.addToPage(newWrapper) && cache.removalQueue.addEntry(newWrapper)) {
-            cache.size.addAndGet(newWrapper.size);
-            return true;
-        } else {
-            // recycle the new wrapper as it was not used
-            newWrapper.recycle();
-            return false;
-        }
+        return newInserter().put(key, value, entryLength);
     }
 
     /**
-     * Stores the wrapper in the slot of its key, unless the slot already has an entry.
+     * Returns an inserter for entries that are inserted in order, such as a managed ledger's added entries or the
+     * entries of a read from storage.
      */
-    private boolean addToPage(RangeCacheEntryWrapper wrapper) {
-        long ledgerId = wrapper.key.getLedgerId();
-        long entryId = wrapper.key.getEntryId();
-        long pageIndex = entryId >> PAGE_SHIFT;
-        int slot = (int) (entryId & SLOT_MASK);
-        while (true) {
-            Page page = insertPage;
-            if (page == null || !page.covers(ledgerId, pageIndex)) {
-                page = getOrCreatePage(ledgerId, pageIndex);
-                insertPage = page;
+    public Inserter newInserter() {
+        return new Inserter();
+    }
+
+    /**
+     * Inserts entries into the cache, remembering the page of its previous insert, so that the next entry in order
+     * usually goes to the same page without a lookup. An entry at any other position is inserted too, after a lookup
+     * of its page. An inserter is used by one thread at a time.
+     */
+    public final class Inserter implements Function<RangeCacheEntryWrapper, Boolean> {
+        // the page of the previous insert; its fields that are used here are final
+        private Page page;
+
+        private Inserter() {
+        }
+
+        /**
+         * Insert.
+         *
+         * @param key         the position of the entry
+         * @param value       ref counted value with at least 1 ref to pass on the cache
+         * @param entryLength size of the entry in bytes
+         * @return whether the entry was inserted in the cache
+         */
+        public boolean put(Position key, ReferenceCountedEntry value, int entryLength) {
+            // retain value so that it's not released before we put it in the cache and calculate the weight
+            value.retain();
+            try {
+                if (!value.matchesPosition(key)) {
+                    throw new IllegalArgumentException("Value '" + value + "' does not match key '" + key + "'");
+                }
+                return RangeCacheEntryWrapper.withNewInstance(RangeCache.this, key, value, entryLength, this);
+            } finally {
+                value.release();
             }
-            if (!page.reserveSlot()) {
-                // the page lost its last entry and is being removed, so the entry goes to a new page
-                removePage(page);
-                continue;
-            }
-            if (page.slots.compareAndSet(slot, null, wrapper)) {
+        }
+
+        /**
+         * Adds the new wrapper to the cache. withNewInstance holds the wrapper's write lock while its initialized
+         * fields are used.
+         */
+        @Override
+        public Boolean apply(RangeCacheEntryWrapper newWrapper) {
+            if (addToPage(newWrapper) && removalQueue.addEntry(newWrapper)) {
+                size.addAndGet(newWrapper.size);
                 return true;
+            } else {
+                // recycle the new wrapper as it was not used
+                newWrapper.recycle();
+                return false;
             }
-            releaseSlot(page);
-            return false;
+        }
+
+        /**
+         * Stores the wrapper in the slot of its key, unless the slot already has an entry.
+         */
+        private boolean addToPage(RangeCacheEntryWrapper wrapper) {
+            long ledgerId = wrapper.key.getLedgerId();
+            long entryId = wrapper.key.getEntryId();
+            long pageIndex = entryId >> PAGE_SHIFT;
+            int slot = (int) (entryId & SLOT_MASK);
+            while (true) {
+                if (page == null || !page.covers(ledgerId, pageIndex)) {
+                    page = getOrCreatePage(ledgerId, pageIndex);
+                }
+                if (!page.reserveSlot()) {
+                    // the page lost its last entry and is being removed, so the entry goes to a new page
+                    removePage(page);
+                    page = null;
+                    continue;
+                }
+                if (page.slots.compareAndSet(slot, null, wrapper)) {
+                    return true;
+                }
+                releaseSlot(page);
+                return false;
+            }
         }
     }
 
@@ -148,16 +183,10 @@ class RangeCache {
     }
 
     /**
-     * Returns the page of the entry ID, or null when there isn't one. A page that hasn't been sealed is the only page
-     * of its key in the map, so the page of the latest insert can be used without a lookup.
+     * Returns the page of the entry ID, or null when there isn't one.
      */
     private Page findPage(long ledgerId, long entryId) {
-        long pageIndex = entryId >> PAGE_SHIFT;
-        Page page = insertPage;
-        if (page != null && page.covers(ledgerId, pageIndex) && !page.isSealed()) {
-            return page;
-        }
-        return pages.get(new PageKey(ledgerId, pageIndex));
+        return pages.get(new PageKey(ledgerId, entryId >> PAGE_SHIFT));
     }
 
     private void releaseSlot(Page page) {
@@ -168,9 +197,6 @@ class RangeCache {
 
     private void removePage(Page page) {
         pages.remove(page.key, page);
-        if (insertPage == page) {
-            insertPage = null;
-        }
     }
 
     /**
@@ -486,10 +512,6 @@ class RangeCache {
 
         boolean covers(long ledgerId, long pageIndex) {
             return key.ledgerId() == ledgerId && key.pageIndex() == pageIndex;
-        }
-
-        boolean isSealed() {
-            return count == SEALED;
         }
 
         /**

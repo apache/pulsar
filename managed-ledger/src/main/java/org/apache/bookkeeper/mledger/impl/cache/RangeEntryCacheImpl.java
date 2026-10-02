@@ -72,6 +72,8 @@ public class RangeEntryCacheImpl implements EntryCache {
     private final Logger log;
     private ManagedLedgerInterceptor interceptor;
     private final RangeCache entries;
+    // inserts the managed ledger's added entries, which come in order on the managed ledger's executor
+    private final RangeCache.Inserter addedEntriesInserter;
     private final boolean copyEntries;
     private final PendingReadsManager pendingReadsManager;
 
@@ -99,6 +101,7 @@ public class RangeEntryCacheImpl implements EntryCache {
         this.entryLengthFunction = entryLengthFunction;
         this.interceptor = ml.getManagedLedgerInterceptor();
         this.entries = new RangeCache(rangeCacheRemovalQueue);
+        this.addedEntriesInserter = entries.newInserter();
         this.copyEntries = copyEntries;
 
         log.debug("Initialized managed-ledger entry cache");
@@ -131,7 +134,7 @@ public class RangeEntryCacheImpl implements EntryCache {
 
     @Override
     public boolean insert(Entry entry) {
-        return insert(entry, copyEntries);
+        return insert(entry, copyEntries, addedEntriesInserter);
     }
 
     /**
@@ -142,9 +145,10 @@ public class RangeEntryCacheImpl implements EntryCache {
      * @param entry the entry to cache
      * @param copy whether to copy the entry data into a cache owned buffer, always the case when the cache is
      *             configured to copy entries
+     * @param inserter the inserter of the entries that this entry is inserted in order with
      * @return whether the entry was inserted
      */
-    public boolean insert(Entry entry, boolean copy) {
+    private boolean insert(Entry entry, boolean copy, RangeCache.Inserter inserter) {
         int entryLength = entryLengthFunction.getEntryLength(ml, entry);
 
         log.debug().attr("position", entry.getPosition())
@@ -170,7 +174,7 @@ public class RangeEntryCacheImpl implements EntryCache {
                 EntryImpl.createWithRetainedDuplicate(position, cachedData, entry.getReadCountHandler(),
                             copy ? null : entry.getMessageMetadata());
         cachedData.release();
-        if (entries.put(position, cacheEntry, entryLength)) {
+        if (inserter.put(position, cacheEntry, entryLength)) {
             totalAddedEntriesSize.add(entryLength);
             totalAddedEntriesCount.increment();
             manager.entryAdded(entryLength);
@@ -592,6 +596,8 @@ public class RangeEntryCacheImpl implements EntryCache {
                                 long totalSize = 0;
                                 int expectedReadCountVal = expectedReadCount.getAsInt();
                                 final List<Entry> entriesToReturn = new ArrayList<>(entriesToRead);
+                                // the entries are consecutive, so they're inserted in order
+                                RangeCache.Inserter inserter = expectedReadCountVal > 0 ? entries.newInserter() : null;
                                 for (LedgerEntry e : ledgerEntries) {
                                     EntryImpl entry = EntryImpl.create(e, interceptor, expectedReadCountVal);
                                     if (ml.getConfig().isPulsarMessageEntries()) {
@@ -600,7 +606,7 @@ public class RangeEntryCacheImpl implements EntryCache {
                                     entriesToReturn.add(entry);
                                     totalSize += entry.getLength();
                                     if (expectedReadCountVal > 0) {
-                                        insert(entry, copyEntries || batchRead);
+                                        insert(entry, copyEntries || batchRead, inserter);
                                     }
                                 }
 

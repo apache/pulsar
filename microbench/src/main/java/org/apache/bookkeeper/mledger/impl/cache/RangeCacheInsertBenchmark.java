@@ -57,6 +57,7 @@ public class RangeCacheInsertBenchmark {
     private final ByteBuf payload = Unpooled.wrappedBuffer(new byte[0]);
     private RangeCacheRemovalQueue removalQueue;
     private RangeCache cache;
+    private RangeCache.Inserter inserter;
     private long ledgerId;
     private long entryId;
     private long sequence;
@@ -65,6 +66,8 @@ public class RangeCacheInsertBenchmark {
     public void setup() {
         removalQueue = new RangeCacheRemovalQueue(0, false);
         cache = new RangeCache(removalQueue);
+        // the managed ledger inserts its added entries with one inserter
+        inserter = cache.newInserter();
         for (int i = 0; i < cachedEntries; i++) {
             insert();
         }
@@ -87,7 +90,7 @@ public class RangeCacheInsertBenchmark {
 
     private boolean insert() {
         EntryImpl entry = EntryImpl.create(ledgerId, entryId, payload);
-        boolean inserted = cache.put(entry.getPosition(), entry);
+        boolean inserted = inserter.put(entry.getPosition(), entry, entry.getLength());
         if (!inserted) {
             entry.release();
         }
