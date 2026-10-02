@@ -581,10 +581,14 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                         .handle((entry, readError) -> FutureUtil.supplySafely(() -> closeLedger(ledger))
                                 .handle((ignored, closeError) -> {
                                     if (readError != null) {
-                                        if (closeError != null && closeError != readError) {
-                                            readError.addSuppressed(closeError);
+                                        Throwable cause = FutureUtil.unwrapCompletionException(readError);
+                                        if (closeError != null) {
+                                            Throwable closeCause = FutureUtil.unwrapCompletionException(closeError);
+                                            if (closeCause != cause) {
+                                                cause.addSuppressed(closeCause);
+                                            }
                                         }
-                                        throw FutureUtil.wrapToCompletionException(readError);
+                                        throw FutureUtil.wrapToCompletionException(cause);
                                     }
                                     if (closeError != null) {
                                         throw FutureUtil.wrapToCompletionException(closeError);
