@@ -98,7 +98,7 @@ public class WorkerServer {
         this.authenticationService = authenticationService;
         this.webServerExecutor = new WebExecutorThreadPool(this.workerConfig.getNumHttpServerThreads(), "function-web",
                 this.workerConfig.getHttpServerThreadPoolQueueSize());
-        this.filterInitializer = new FilterInitializer(workerConfig, authenticationService);
+        this.filterInitializer = new FilterInitializer(workerConfig, authenticationService, workerOpenTelemetry());
         init();
     }
 
@@ -215,11 +215,12 @@ public class WorkerServer {
         private final List<FilterHolder> filterHolders = new ArrayList<>();
         private final FilterHolder authenticationFilterHolder;
 
-        FilterInitializer(WorkerConfig config, AuthenticationService authenticationService) {
+        FilterInitializer(WorkerConfig config, AuthenticationService authenticationService,
+                          OpenTelemetry openTelemetry) {
             if (config.isHttpRequestsLimitEnabled()) {
                 filterHolders.add(new FilterHolder(
                         new RateLimitingFilter(config.getHttpRequestsMaxPerSecond(),
-                                OpenTelemetry.noop().getMeter(PulsarWorkerOpenTelemetry.INSTRUMENTATION_SCOPE_NAME))));
+                                openTelemetry.getMeter(PulsarWorkerOpenTelemetry.INSTRUMENTATION_SCOPE_NAME))));
             }
 
             if (config.isAuthenticationEnabled()) {
