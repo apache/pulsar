@@ -380,7 +380,7 @@ public class PerformanceLauncher implements Callable<Integer> {
                 .clusterImage(clusterImage)
                 .brokerEnvs(brokerEnv)
                 .brokerMountFiles(brokerMounts)
-                .bookkeeperEnvs(metricsSettings.withBookieStatsSettings(clusterSettings.bookies().env()))
+                .bookkeeperEnvs(metricsSettings.withBookieStatsSettings(clusterSettings.bookies().containerEnv()))
                 .build();
 
         HostStatsSampler.Sensors sensors = HostStatsSampler.discover(sysfs);
@@ -391,6 +391,11 @@ public class PerformanceLauncher implements Callable<Integer> {
         }
         Thread measurementGate = null;
         PulsarCluster cluster = PulsarCluster.forSpec(spec);
+        // The containers are created, not started yet
+        Map<String, String> journalTmpfsMount = clusterSettings.bookies().journalTmpfsMount();
+        if (!journalTmpfsMount.isEmpty()) {
+            cluster.getBookies().forEach(bookie -> bookie.withTmpFs(journalTmpfsMount));
+        }
         Path applicationsOutput = runOutput.resolve(APPLICATIONS_DIRECTORY);
         GenericContainer<?> consumer = null;
         GenericContainer<?> producer = null;
@@ -412,8 +417,10 @@ public class PerformanceLauncher implements Callable<Integer> {
                 ReportsUrl.DEFAULT_BIND_ADDRESS);
         ZonedDateTime workloadFinished;
         try {
-            status(String.format(Locale.ROOT, "Starting the Pulsar cluster: %d broker(s), %d bookie(s)",
-                    spec.numBrokers(), spec.numBookies()));
+            String journalTmpfs = clusterSettings.bookies().journalTmpfs();
+            status(String.format(Locale.ROOT, "Starting the Pulsar cluster: %d broker(s), %d bookie(s)%s",
+                    spec.numBrokers(), spec.numBookies(),
+                    journalTmpfs != null ? ", with each bookie's journal on a tmpfs of " + journalTmpfs : ""));
             long clusterStart = System.nanoTime();
             cluster.start();
             status(String.format(Locale.ROOT, "Started the Pulsar cluster in %.0f s",
