@@ -381,6 +381,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
                 EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(messagesForC);
                 totalEntries += filterEntriesForConsumer(entriesWithSameKey, batchSizes, sendMessageInfo,
                         batchIndexesAcks, cursor, readType == ReadType.Replay, consumer);
+                // read before sendMessages: it hands batchIndexesAcks to the consumer's event loop, which recycles it
+                int totalAckedIndexCount = batchIndexesAcks.getTotalAckedIndexCount();
                 consumer.sendMessages(entriesWithSameKey, batchSizes, batchIndexesAcks,
                         sendMessageInfo.getTotalMessages(),
                         sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
@@ -391,7 +393,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
                 });
 
                 TOTAL_AVAILABLE_PERMITS_UPDATER.getAndAdd(this,
-                        -(sendMessageInfo.getTotalMessages() - batchIndexesAcks.getTotalAckedIndexCount()));
+                        -(sendMessageInfo.getTotalMessages() - totalAckedIndexCount));
                 totalMessagesSent += sendMessageInfo.getTotalMessages();
                 totalBytesSent += sendMessageInfo.getTotalBytes();
             } else {

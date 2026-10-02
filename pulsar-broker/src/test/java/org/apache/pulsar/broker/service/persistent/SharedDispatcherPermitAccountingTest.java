@@ -38,16 +38,25 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.concurrent.ImmediateEventExecutor;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
+import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
@@ -69,7 +78,9 @@ import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
+import org.apache.pulsar.common.protocol.Commands;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -82,6 +93,8 @@ public class SharedDispatcherPermitAccountingTest extends BrokerTestBase {
     @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
+        // testRedeliveredPartiallyAckedBatchDoesNotLosePermits needs batch index acks, off by default on this branch
+        conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
         super.baseSetup();
     }
 
@@ -113,6 +126,19 @@ public class SharedDispatcherPermitAccountingTest extends BrokerTestBase {
                 {true, Failover},
                 {false, Shared},
                 {false, Key_Shared}
+        };
+    }
+
+    @DataProvider(name = "partiallyAckedBatchDispatchPaths")
+    public Object[][] partiallyAckedBatchDispatchPaths() {
+        return new Object[][] {
+                {false, Shared, false},
+                {true, Shared, false},
+                // A chunk in the read routes the whole read through the Shared chunked-message dispatch path
+                {false, Shared, true},
+                {true, Shared, true},
+                {false, Key_Shared, false},
+                {true, Key_Shared, false}
         };
     }
 
@@ -427,19 +453,79 @@ public class SharedDispatcherPermitAccountingTest extends BrokerTestBase {
         }
     }
 
+    @Test(dataProvider = "partiallyAckedBatchDispatchPaths", timeOut = 30_000)
+    public void testRedeliveredPartiallyAckedBatchDoesNotLosePermits(boolean classic, SubType subType,
+                                                                    boolean readHasChunk) throws Exception {
+        int batchSize = 10;
+        int ackedIndexes = 4;
+        int permitsPerConsumer = 100;
+        String topicName = newTopicName();
+        admin.topics().createNonPartitionedTopic(topicName);
+        PersistentTopic topic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().orElseThrow();
+        byte[] batch = serializeEntry(new MessageMetadata().setNumMessagesInBatch(batchSize));
+        byte[] chunk = serializeEntry(new MessageMetadata()
+                .setUuid("chunked-message")
+                .setChunkId(0)
+                .setNumChunksFromMsg(2));
+        Position batchPosition = topic.getManagedLedger().addEntry(batch);
+        Position chunkPosition = topic.getManagedLedger().addEntry(chunk);
+
+        // Ack the first batch indexes, as a consumer did before the batch was redelivered.
+        BitSet unackedIndexes = new BitSet(batchSize);
+        unackedIndexes.set(ackedIndexes, batchSize);
+        ManagedCursor cursor = topic.getManagedLedger().newNonDurableCursor(PositionFactory.EARLIEST);
+        cursor.delete(AckSetStateUtil.createPositionWithAckSet(batchPosition.getLedgerId(),
+                batchPosition.getEntryId(), unackedIndexes.toLongArray()));
+        cursor.close();
+        Dispatcher dispatcher = createTestContext(classic, subType, topic, cursor).dispatcher();
+        int initialPermits = permitsPerConsumer * dispatcher.getConsumers().size();
+        for (Consumer consumer : dispatcher.getConsumers()) {
+            consumer.flowPermits(permitsPerConsumer);
+        }
+        drainBrokerWorkerGroup(topic);
+        assertThat(totalAvailablePermits(dispatcher)).isEqualTo(initialPermits);
+
+        List<Entry> entries = new ArrayList<>();
+        entries.add(EntryImpl.create(batchPosition.getLedgerId(), batchPosition.getEntryId(), batch));
+        if (readHasChunk) {
+            entries.add(EntryImpl.create(chunkPosition.getLedgerId(), chunkPosition.getEntryId(), chunk));
+        }
+        // The command sender from createConsumer recycles batchIndexesAcks before sendMessages returns, like a
+        // consumer event loop that runs the send task before the dispatcher thread continues.
+        if (dispatcher instanceof PersistentDispatcherMultipleConsumers pip379Dispatcher) {
+            pip379Dispatcher.sendMessagesToConsumers(PersistentDispatcherMultipleConsumers.ReadType.Replay,
+                    entries, true);
+        } else {
+            ((PersistentDispatcherMultipleConsumersClassic) dispatcher).sendMessagesToConsumers(
+                    PersistentDispatcherMultipleConsumersClassic.ReadType.Replay, entries, true);
+        }
+
+        int deliveredMessages = batchSize - ackedIndexes + (readHasChunk ? 1 : 0);
+        assertThat(totalAvailablePermits(dispatcher)).isEqualTo(initialPermits - deliveredMessages);
+        assertThat(totalAvailablePermits(dispatcher)).isEqualTo(
+                dispatcher.getConsumers().stream().mapToInt(Consumer::getAvailablePermits).sum());
+    }
+
     private TestContext createTestContext(boolean classic) throws Exception {
         return createTestContext(classic, Shared);
     }
 
     private TestContext createTestContext(boolean classic, SubType subType) throws Exception {
         String topicName = newTopicName();
-        String subscriptionName = "shared-sub";
         admin.topics().createNonPartitionedTopic(topicName);
 
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().get();
         ManagedCursor cursor = mock(ManagedCursorImpl.class);
-        when(cursor.getName()).thenReturn(subscriptionName);
+        when(cursor.getName()).thenReturn("shared-sub");
         when(cursor.isClosed()).thenReturn(true);
+        return createTestContext(classic, subType, topic, cursor);
+    }
+
+    private TestContext createTestContext(boolean classic, SubType subType, PersistentTopic topic,
+                                          ManagedCursor cursor) {
+        String topicName = topic.getName();
+        String subscriptionName = cursor.getName();
         Subscription subscription = mock(PersistentSubscription.class);
         when(subscription.getName()).thenReturn(subscriptionName);
         when(subscription.getTopic()).thenReturn(topic);
@@ -475,9 +561,20 @@ public class SharedDispatcherPermitAccountingTest extends BrokerTestBase {
         when(cnx.isActive()).thenReturn(true);
         when(cnx.isWritable()).thenReturn(true);
         when(cnx.getCommandSender()).thenReturn(commandSender);
+        // Release and recycle what the consumer event loop would, before sendMessages returns.
         when(commandSender.sendMessagesToConsumer(anyLong(), anyString(), any(), anyInt(), anyList(),
-                any(EntryBatchSizes.class), any(EntryBatchIndexesAcks.class), any(RedeliveryTracker.class), anyLong()))
-                .thenReturn(ImmediateEventExecutor.INSTANCE.newSucceededFuture(null));
+                any(EntryBatchSizes.class), any(), any(RedeliveryTracker.class), anyLong()))
+                .thenAnswer(invocation -> {
+                    List<? extends Entry> entries = invocation.getArgument(4);
+                    entries.stream().filter(Objects::nonNull).forEach(Entry::release);
+                    EntryBatchSizes batchSizes = invocation.getArgument(5);
+                    batchSizes.recyle();
+                    EntryBatchIndexesAcks batchIndexesAcks = invocation.getArgument(6);
+                    if (batchIndexesAcks != null) {
+                        batchIndexesAcks.recycle();
+                    }
+                    return ImmediateEventExecutor.INSTANCE.newSucceededFuture(null);
+                });
         return new Consumer(subscription, subType, topicName, consumerId, 0, "consumer-" + consumerId,
                 true, cnx, "role", emptyMap(), false, new KeySharedMeta().setKeySharedMode(AUTO_SPLIT),
                 MessageId.latest, DEFAULT_CONSUMER_EPOCH);
@@ -501,9 +598,19 @@ public class SharedDispatcherPermitAccountingTest extends BrokerTestBase {
         consumer.sendMessages(new ArrayList<>(List.of(entry)), stickyKeyHashes, batchSizes, batchIndexesAcks,
                 permits, 0, 0, redeliveryTracker, DEFAULT_CONSUMER_EPOCH).syncUninterruptibly();
         decrementTotalAvailablePermits(dispatcher, permits);
+    }
 
-        batchSizes.recyle();
-        batchIndexesAcks.recycle();
+    private static byte[] serializeEntry(MessageMetadata metadata) {
+        metadata.setProducerName("producer")
+                .setSequenceId(0)
+                .setPublishTime(System.currentTimeMillis());
+        ByteBuf entry = Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, metadata,
+                Unpooled.EMPTY_BUFFER);
+        try {
+            return ByteBufUtil.getBytes(entry);
+        } finally {
+            entry.release();
+        }
     }
 
     private static void decrementTotalAvailablePermits(Dispatcher dispatcher, int permits) {
