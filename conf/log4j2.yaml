@@ -57,7 +57,7 @@ Configuration:
 
     # Console
     Console:
-      name: Console
+    - name: Console
       target: SYSTEM_OUT
       SystemPropertyArbiter:
         - propertyName: pulsar.log.format
@@ -69,9 +69,14 @@ Configuration:
           PatternLayout:
             Pattern: "%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg%equals{ %X}{ {}}{}%n"
 
+    - name: ConsoleMDC
+      target: SYSTEM_OUT
+      PatternLayout:
+        Pattern: "%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} %X - %msg%n"
+
     # Rolling file appender configuration
     RollingFile:
-      name: RollingFile
+    - name: RollingFile
       fileName: "${sys:pulsar.log.dir}/${sys:pulsar.log.file}"
       filePattern: "${sys:pulsar.log.dir}/${sys:pulsar.log.file}-%d{MM-dd-yyyy}-%i.log.gz"
       immediateFlush: ${sys:pulsar.log.immediateFlush}
@@ -84,6 +89,28 @@ Configuration:
           propertyValue: text
           PatternLayout:
             Pattern: "%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg%equals{ %X}{ {}}{}%n"
+      Policies:
+        TimeBasedTriggeringPolicy:
+          interval: 1
+          modulate: true
+        SizeBasedTriggeringPolicy:
+          size: 1 GB
+      # Delete file older than 30days
+      DefaultRolloverStrategy:
+          Delete:
+            basePath: ${sys:pulsar.log.dir}
+            maxDepth: 2
+            IfFileName:
+              glob: "${sys:pulsar.log.file}*log.gz"
+            IfLastModified:
+              age: 30d
+
+    - name: RollingFileMDC
+      fileName: "${sys:pulsar.log.dir}/${sys:pulsar.log.file}"
+      filePattern: "${sys:pulsar.log.dir}/${sys:pulsar.log.file}-%d{MM-dd-yyyy}-%i.log.gz"
+      immediateFlush: ${sys:pulsar.log.immediateFlush}
+      PatternLayout:
+        Pattern: "%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} %X - %msg%n"
       Policies:
         TimeBasedTriggeringPolicy:
           interval: 1
@@ -171,7 +198,12 @@ Configuration:
         additivity: false
         AppenderRef:
           - ref: Console
-
+      - name: org.apache.bookkeeper.bookie.storage.directentrylogger
+        level: "${sys:pulsar.log.root.level}"
+        additivity: false
+        AppenderRef:
+          - ref: "${sys:pulsar.log.appender}MDC"
+            level: "${sys:pulsar.log.level}"
       - name: verbose
         level: info
         additivity: false
