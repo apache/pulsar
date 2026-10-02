@@ -55,6 +55,7 @@ import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.jetty.metrics.JettyStatisticsCollector;
 import org.apache.pulsar.jetty.tls.JettyTlsFactory;
+import org.apache.pulsar.jetty.tls.PulsarSslConnectionFactory;
 import org.apache.pulsar.proxy.stats.PulsarProxyOpenTelemetry;
 import org.apache.pulsar.tls.PulsarTlsFactory;
 import org.apache.pulsar.tls.TlsFactoryInitContext;
@@ -74,7 +75,6 @@ import org.eclipse.jetty.server.ProxyConnectionFactory;
 import org.eclipse.jetty.server.SecureRequestCustomizer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
-import org.eclipse.jetty.server.SslConnectionFactory;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.QoSHandler;
@@ -162,7 +162,8 @@ public class WebServer {
                 if (config.isWebServiceHaProxyProtocolEnabled()) {
                     connectionFactories.add(new ProxyConnectionFactory());
                 }
-                connectionFactories.add(new SslConnectionFactory(sslCtxFactory, httpConnectionFactory.getProtocol()));
+                connectionFactories.add(
+                        new PulsarSslConnectionFactory(sslCtxFactory, httpConnectionFactory.getProtocol()));
                 connectionFactories.add(httpConnectionFactory);
                 // org.eclipse.jetty.server.AbstractConnectionFactory.getFactories contains similar logic
                 // this is needed for TLS authentication
