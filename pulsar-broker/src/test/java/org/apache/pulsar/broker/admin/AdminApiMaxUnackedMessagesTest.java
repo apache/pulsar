@@ -19,8 +19,10 @@
 package org.apache.pulsar.broker.admin;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -79,9 +81,10 @@ public class AdminApiMaxUnackedMessagesTest extends MockedPulsarServiceBaseTest 
         admin.namespaces().setMaxUnackedMessagesPerConsumer(namespace, 1);
         PersistentTopic persistentTopic =
                 (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
+        org.apache.pulsar.broker.service.Consumer serverConsumer =
+                persistentTopic.getSubscription("sub").getConsumers().get(0);
         Awaitility.await().untilAsserted(() ->
-                assertEquals(persistentTopic.getSubscription("sub")
-                        .getConsumers().get(0).getMaxUnackedMessages(), 1));
+                assertEquals(serverConsumer.getMaxUnackedMessages(), 1));
         //consumer-throttling should take effect
         for (int i = 0; i < 20; i++) {
             producer.send("msg".getBytes());
@@ -90,15 +93,18 @@ public class AdminApiMaxUnackedMessagesTest extends MockedPulsarServiceBaseTest 
         assertNotNull(message);
         Message<byte[]> nullMsg = consumer.receive(500, TimeUnit.MILLISECONDS);
         assertNull(nullMsg);
+        Awaitility.await().untilAsserted(() -> assertTrue(serverConsumer.isBlocked()));
 
         //disable limit check
         admin.namespaces().setMaxUnackedMessagesPerConsumer(namespace, 0);
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(persistentTopic.getSubscription("sub")
-                        .getConsumers().get(0).getMaxUnackedMessages(), 0));
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(serverConsumer.getMaxUnackedMessages(), 0);
+            assertFalse(serverConsumer.isBlocked());
+        });
+        Message<byte[]> nextMessage = consumer.receive(5, TimeUnit.SECONDS);
+        assertNotNull(nextMessage);
         consumer.acknowledge(message);
-        message = consumer.receive(500, TimeUnit.MILLISECONDS);
-        assertNotNull(message);
+        consumer.acknowledge(nextMessage);
     }
 
     @Test
