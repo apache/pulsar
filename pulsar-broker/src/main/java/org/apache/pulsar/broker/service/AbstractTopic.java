@@ -123,7 +123,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
 
     // Wraps this topic as a TopicPolicyListener so topic-policy updates received while the initial policy is still
     // loading are buffered and applied in order once initTopicPolicy() completes initialization.
-    protected final TopicPolicyListenerWrapper topicPolicyListener = new TopicPolicyListenerWrapper(this);
+    protected final TopicPolicyListenerWrapper topicPolicyListener;
 
     // Prefix for replication cursors
     protected final String replicatorPrefix;
@@ -211,6 +211,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
 
     public AbstractTopic(String topic, BrokerService brokerService) {
         this.topic = topic;
+        this.topicPolicyListener = new TopicPolicyListenerWrapper(this, topic);
         this.log = LOG.with().attr("topic", topic).build();
         this.namespace = TopicName.get(topic).getNamespaceObject();
         // Pin the per-topic policies-notify thread once. BrokerService#getTopicPoliciesNotifyThread centralizes
@@ -622,19 +623,14 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
      * topic load, which removes the need to broadcast every topic's policy when a namespace's policy cache finishes
      * loading (see {@code topicPolicyListenerReplayEnabled}).
      *
-     * <p>Each call re-initializes the listener wrapper and, whatever the outcome, always completes its initialization
-     * afterwards, so the wrapper never stays in the buffering phase (dropping updates) even if policy loading fails.
-     * This makes the method safe to run again (e.g. a future retry); runs are expected to be serialized.
+     * <p>This method is invoked once during topic initialization. The listener wrapper is one-shot for a topic
+     * instance and does not support re-initialization.
      */
     protected CompletableFuture<Void> initTopicPolicy() {
         final var topicPoliciesService = brokerService.getPulsar().getTopicPoliciesService();
         final var partitionedTopicName = TopicName.getPartitionedTopicName(topic);
 
-        // Begin a fresh initialization phase: updates are buffered until initialization completes below. This resets
-        // any previous phase so the method can be run again.
-        topicPolicyListener.startInitialization();
-        CompletableFuture<Void> initTopicPolicyFuture =
-                topicPoliciesService.registerListenerAsync(partitionedTopicName, topicPolicyListener)
+        return topicPoliciesService.registerListenerAsync(partitionedTopicName, topicPolicyListener)
                         .thenCompose(registered -> {
                             if (!registered) {
                                 return CompletableFuture.completedFuture(null);
@@ -659,14 +655,6 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
                                         getPoliciesNotifyThread());
                             }).thenCompose(Function.identity());
                         });
-        // Whatever the outcome -- success, failure, or the listener not being registered -- make sure the wrapper
-        // leaves the initialization (buffering) phase, so it forwards any buffered value plus all future live updates
-        // instead of dropping them. This is a no-op when the loaded policies were already applied above. Return the
-        // whenComplete stage (not initTopicPolicyFuture) so the returned future completes only after this has run, and
-        // whenComplete's pass-through semantics carry the original success or failure to the caller's initialize().
-        return initTopicPolicyFuture.whenCompleteAsync((v, ex) -> {
-            topicPolicyListener.completeInitializationUnlessAlreadyCompleted();
-        }, getPoliciesNotifyThread());
     }
 
     protected boolean isSameAddressProducersExceeded(Producer producer) {
