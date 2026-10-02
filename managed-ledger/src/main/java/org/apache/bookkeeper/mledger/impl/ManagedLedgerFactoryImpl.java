@@ -1306,13 +1306,15 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                         .attr("result", BKException.getMessage(rc))
                                         .log("Opened ledger");
                                 if (rc == BKException.Code.OK) {
-                                    LedgerInfo info =
-                                            new LedgerInfo()
-                                                    .setLedgerId(id)
-                                                    .setEntries(lh.getLastAddConfirmed() + 1)
-                                                    .setSize(lh.getLength()).setTimestamp(System.currentTimeMillis());
-                                    ledgers.put(id, info);
-                                    mlMetaCounter.countDown();
+                                    try {
+                                        LedgerInfo info = new LedgerInfo().setLedgerId(id)
+                                                .setEntries(lh.getLastAddConfirmed() + 1)
+                                                .setSize(lh.getLength()).setTimestamp(System.currentTimeMillis());
+                                        ledgers.put(id, info);
+                                    } finally {
+                                        ManagedLedgerImpl.closeReadHandleAsync(lh, log);
+                                        mlMetaCounter.countDown();
+                                    }
                                 } else if (Errors.isNoSuchLedgerExistsException(rc)) {
                                     log.warn().attr("managedLedger", managedLedgerName)
                                             .attr("ledgerId", ledgers.lastKey())
@@ -1449,6 +1451,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                     .attr("lac", lac)
                                     .attr("ledgerId", ledgerId)
                                     .log("Cursor LAC read from ledger");
+                            ManagedLedgerImpl.closeReadHandleAsync(lh, log);
                             cursorCounter.countDown();
                             return;
                         }
@@ -1505,6 +1508,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                         offlineTopicStats.addCursorDetails(cursorName, cursorBacklog, lh.getId());
                                     }
                                 } finally {
+                                    ManagedLedgerImpl.closeReadHandleAsync(lh, log);
                                     cursorCounter.countDown();
                                 }
                             }
