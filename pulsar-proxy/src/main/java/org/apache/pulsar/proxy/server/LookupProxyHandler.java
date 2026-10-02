@@ -279,7 +279,7 @@ public class LookupProxyHandler {
                             .exception(t)
                             .log("failed to get Partitioned");
                     PulsarClientException pce = PulsarClientException.unwrap(t);
-                    writeAndFlush(Commands.newLookupErrorResponse(ClientCnx.revertClientExToErrorCode(pce),
+                    writeAndFlush(Commands.newPartitionMetadataResponse(ClientCnx.revertClientExToErrorCode(pce),
                             t.getMessage(), clientRequestId));
                 } else {
                     writeAndFlush(
