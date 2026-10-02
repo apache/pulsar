@@ -18,6 +18,16 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import io.netty.util.concurrent.ImmediateEventExecutor;
+import io.netty.util.concurrent.Promise;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -28,6 +38,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
@@ -35,8 +46,12 @@ import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.intercept.MockBrokerInterceptor;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
+import org.apache.pulsar.broker.service.EntryBatchSizes;
+import org.apache.pulsar.broker.service.SendMessageInfo;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.Subscription;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -141,6 +156,47 @@ public class PersistentDispatcherSingleActiveConsumerTest extends ProducerConsum
 
         // Verify: the topic can be deleted successfully.
         admin.topics().delete(topicName, false);
+    }
+
+    @Test
+    public void testDispatchQuotaWhenSendMessageInfoReusedBeforeWriteCompletes() throws Exception {
+        String topicName = BrokerTestUtil.newUniqueName(
+                "persistent://public/default/testDispatchQuotaWhenSendMessageInfoReused");
+        String subscription = "s1";
+        admin.topics().createNonPartitionedTopic(topicName);
+        admin.topics().createSubscription(topicName, subscription, MessageId.earliest);
+        PersistentTopic topic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().orElseThrow();
+        PersistentSubscription sub = topic.getSubscription(subscription);
+        DispatchRateLimiter rateLimiter = mock(DispatchRateLimiter.class);
+        PersistentDispatcherSingleActiveConsumer dispatcher =
+                new PersistentDispatcherSingleActiveConsumer(sub.getCursor(),
+                        CommandSubscribe.SubType.Exclusive, 0, topic, sub) {
+                    @Override
+                    public Optional<DispatchRateLimiter> getRateLimiter() {
+                        return Optional.of(rateLimiter);
+                    }
+                };
+        // The write to the consumer connection stays pending until the test completes it.
+        Promise<Void> writePromise = ImmediateEventExecutor.INSTANCE.newPromise();
+        Consumer consumer = mock(Consumer.class);
+        when(consumer.sendMessages(any(), any(), any(), anyInt(), anyLong(), anyLong(), any(), anyLong()))
+                .thenReturn(writePromise);
+
+        SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
+        sendMessageInfo.setTotalMessages(3);
+        sendMessageInfo.setTotalBytes(300);
+        dispatcher.dispatchEntriesToConsumer(consumer, List.of(mock(Entry.class)), EntryBatchSizes.get(1),
+                EntryBatchIndexesAcks.get(1), sendMessageInfo, DEFAULT_CONSUMER_EPOCH);
+
+        // Another dispatch on this thread reuses the thread-local SendMessageInfo before the write completes.
+        SendMessageInfo nextSendMessageInfo = SendMessageInfo.getThreadLocal();
+        nextSendMessageInfo.setTotalMessages(7);
+        nextSendMessageInfo.setTotalBytes(700);
+        writePromise.setSuccess(null);
+
+        // The dispatch quota must be charged with the counts of the messages that were written.
+        verify(rateLimiter).consumeDispatchQuota(3, 300);
     }
 
     @DataProvider
