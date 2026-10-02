@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.github.merlimat.slog.Logger;
 import io.netty.channel.Channel;
 import io.netty.util.ReferenceCountUtil;
@@ -25,6 +26,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.api.proto.KeyValue;
@@ -135,6 +137,18 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
                         .attr("persistedSourceLedgerId", lastPersistedSourceLedgerId)
                         .attr("persistedSourceEntryId", lastPersistedSourceEntryId)
                         .log("Received msg send receipt, pending send is repeated due to repl cursor rewind");
+            if (isDuplicateAckWithoutTargetPosition(targetLId, targetEid)
+                    && isBeforeLastPersistedSourcePosition(pendingLId, pendingEId)) {
+                log.warn()
+                        .attr("sourceLedgerId", sourceLId).attr("sourceEntryId", sourceEId)
+                        .attr("pendingLedgerId", pendingLId).attr("pendingEntryId", pendingEId)
+                        .attr("persistedSourceLedgerId", lastPersistedSourceLedgerId)
+                        .attr("persistedSourceEntryId", lastPersistedSourceEntryId)
+                        .log("Received duplicate ack for rewound replicated message without target position");
+                removeAndFailCallback(op, sourceLId, sourceEId, new PulsarClientException(
+                        "Replicated message was acknowledged as duplicate without a target position"));
+                return;
+            }
             removeAndApplyCallback(op, sourceLId, sourceEId, targetLId, targetEid, false);
             ackReceived(cnx, sourceLId, sourceEId, targetLId, targetEid);
             return;
@@ -257,6 +271,31 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
         cnx.channel().close();
     }
 
+    private boolean isDuplicateAckWithoutTargetPosition(long ledgerId, long entryId) {
+        return ledgerId == -1 && entryId == -1;
+    }
+
+    private boolean isBeforeLastPersistedSourcePosition(long ledgerId, long entryId) {
+        return ledgerId < lastPersistedSourceLedgerId
+                || (ledgerId == lastPersistedSourceLedgerId && entryId < lastPersistedSourceEntryId);
+    }
+
+    private void removeAndFailCallback(OpSendMsg op, long lIdSent, long eIdSent, Exception exception) {
+        pendingMessages.remove();
+        releaseSemaphoreForSendOp(op);
+        try {
+            op.sendComplete(exception);
+        } catch (Throwable t) {
+            log.warn()
+                    .attr("sourceMessage", lIdSent)
+                    .attr("eIdSent", eIdSent)
+                    .exception(t)
+                    .log("Got exception while completing the failed callback");
+        }
+        ReferenceCountUtil.safeRelease(op.cmd);
+        op.recycle();
+    }
+
     private void removeAndApplyCallback(OpSendMsg op, long lIdSent, long eIdSent, long ledgerId, long entryId,
                                         boolean isMarker) {
         pendingMessages.remove();
@@ -285,6 +324,12 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
     private boolean isReplicationMarker(OpSendMsg op) {
         return op.msg != null && op.msg.getMessageBuilder().hasMarkerType()
                 && Markers.isReplicationMarker(op.msg.getMessageBuilder().getMarkerType());
+    }
+
+    @VisibleForTesting
+    void setLastPersistedSourcePosition(long ledgerId, long entryId) {
+        lastPersistedSourceLedgerId = ledgerId;
+        lastPersistedSourceEntryId = entryId;
     }
 
     @Override
