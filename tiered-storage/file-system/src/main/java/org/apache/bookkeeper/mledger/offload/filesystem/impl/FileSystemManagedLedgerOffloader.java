@@ -318,6 +318,11 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
             String topicName = TopicName.fromPersistenceNamingEncoding(managedLedgerName);
             if (ledgerReader.fileSystemWriteException == null) {
                 Iterator<LedgerEntry> iterator = ledgerEntriesOnce.iterator();
+                long startOffloadTime = System.currentTimeMillis();
+                long ledgerCreateTime = ledgerReader.readHandle.getLedgerMetadata().getCtime();
+                long ledgerOffloadLatencyTime = startOffloadTime - ledgerCreateTime;
+                ledgerReader.offloaderStats.recordOffloadDataLatency(topicName, ledgerOffloadLatencyTime,
+                        TimeUnit.MILLISECONDS);
                 while (iterator.hasNext()) {
                     LedgerEntry entry = iterator.next();
                     long entryId = entry.getEntryId();
