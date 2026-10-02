@@ -33,6 +33,9 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.DefaultChannelPromise;
 import io.netty.channel.EventLoopGroup;
@@ -41,13 +44,16 @@ import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.concurrent.ImmediateEventExecutor;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -71,7 +77,9 @@ import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
+import org.apache.pulsar.common.protocol.Commands;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
@@ -138,6 +146,16 @@ public class SharedDispatcherPermitAccountingTest extends SharedPulsarBaseTest {
                 {true, Failover},
                 {false, Shared},
                 {false, Key_Shared}
+        };
+    }
+
+    @DataProvider(name = "partiallyAckedBatchDispatchPaths")
+    public Object[][] partiallyAckedBatchDispatchPaths() {
+        return new Object[][] {
+                {Shared, false},
+                // A chunk in the read routes the whole read through the Shared chunked-message dispatch path
+                {Shared, true},
+                {Key_Shared, false}
         };
     }
 
@@ -442,14 +460,67 @@ public class SharedDispatcherPermitAccountingTest extends SharedPulsarBaseTest {
         }
     }
 
+    @Test(dataProvider = "partiallyAckedBatchDispatchPaths", timeOut = 30_000)
+    public void testRedeliveredPartiallyAckedBatchDoesNotLosePermits(SubType subType, boolean readHasChunk)
+            throws Exception {
+        int batchSize = 10;
+        int ackedIndexes = 4;
+        int permitsPerConsumer = 100;
+        String topicName = newTopicName();
+        admin.topics().createNonPartitionedTopic(topicName);
+        PersistentTopic topic = (PersistentTopic) getTopic(topicName, false).join().orElseThrow();
+        byte[] batch = serializeEntry(new MessageMetadata().setNumMessagesInBatch(batchSize));
+        byte[] chunk = serializeEntry(new MessageMetadata()
+                .setUuid("chunked-message")
+                .setChunkId(0)
+                .setNumChunksFromMsg(2));
+        Position batchPosition = topic.getManagedLedger().addEntry(batch);
+        Position chunkPosition = topic.getManagedLedger().addEntry(chunk);
+
+        // Ack the first batch indexes, as a consumer did before the batch was redelivered.
+        BitSet unackedIndexes = new BitSet(batchSize);
+        unackedIndexes.set(ackedIndexes, batchSize);
+        ManagedCursor cursor = topic.getManagedLedger().newNonDurableCursor(PositionFactory.EARLIEST);
+        cursor.delete(AckSetStateUtil.createPositionWithAckSet(batchPosition.getLedgerId(),
+                batchPosition.getEntryId(), unackedIndexes.toLongArray()));
+        cursor.close();
+        PersistentDispatcherMultipleConsumers dispatcher =
+                (PersistentDispatcherMultipleConsumers) createTestContext(subType, topic, cursor).dispatcher();
+        int initialPermits = permitsPerConsumer * dispatcher.getConsumers().size();
+        for (Consumer consumer : dispatcher.getConsumers()) {
+            consumer.flowPermits(permitsPerConsumer);
+        }
+        drainBrokerWorkerGroup(topic);
+        assertThat(totalAvailablePermits(dispatcher)).isEqualTo(initialPermits);
+
+        List<Entry> entries = new ArrayList<>();
+        entries.add(EntryImpl.create(batchPosition.getLedgerId(), batchPosition.getEntryId(), batch));
+        if (readHasChunk) {
+            entries.add(EntryImpl.create(chunkPosition.getLedgerId(), chunkPosition.getEntryId(), chunk));
+        }
+        // The command sender from createConsumer recycles batchIndexesAcks before sendMessages returns, like a
+        // consumer event loop that runs the send task before the dispatcher thread continues.
+        dispatcher.sendMessagesToConsumers(PersistentDispatcherMultipleConsumers.ReadType.Replay, entries, true);
+
+        int deliveredMessages = batchSize - ackedIndexes + (readHasChunk ? 1 : 0);
+        assertThat(totalAvailablePermits(dispatcher)).isEqualTo(initialPermits - deliveredMessages);
+        assertThat(totalAvailablePermits(dispatcher)).isEqualTo(
+                dispatcher.getConsumers().stream().mapToInt(Consumer::getAvailablePermits).sum());
+    }
+
     private TestContext createTestContext(SubType subType) throws Exception {
         String topicName = newTopicName();
-        String subscriptionName = "shared-sub";
         admin.topics().createNonPartitionedTopic(topicName);
 
         PersistentTopic topic = (PersistentTopic) getTopic(topicName, false).join().get();
         ManagedCursor cursor = topic.getManagedLedger().newNonDurableCursor(PositionFactory.EARLIEST);
         cursor.close();
+        return createTestContext(subType, topic, cursor);
+    }
+
+    private TestContext createTestContext(SubType subType, PersistentTopic topic, ManagedCursor cursor) {
+        String topicName = topic.getName();
+        String subscriptionName = "shared-sub";
         PersistentSubscription subscription = new PersistentSubscription(topic, subscriptionName, cursor, false);
         Dispatcher dispatcher;
         if (subType == Key_Shared) {
@@ -533,6 +604,19 @@ public class SharedDispatcherPermitAccountingTest extends SharedPulsarBaseTest {
         consumer.sendMessages(new ArrayList<>(List.of(entry)), stickyKeyHashes, batchSizes, batchIndexesAcks,
                 permits, 0, 0, redeliveryTracker, DEFAULT_CONSUMER_EPOCH).syncUninterruptibly();
         decrementTotalAvailablePermits(dispatcher, permits);
+    }
+
+    private static byte[] serializeEntry(MessageMetadata metadata) {
+        metadata.setProducerName("producer")
+                .setSequenceId(0)
+                .setPublishTime(System.currentTimeMillis());
+        ByteBuf entry = Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, metadata,
+                Unpooled.EMPTY_BUFFER);
+        try {
+            return ByteBufUtil.getBytes(entry);
+        } finally {
+            entry.release();
+        }
     }
 
     private static void decrementTotalAvailablePermits(Dispatcher dispatcher, int permits) {
