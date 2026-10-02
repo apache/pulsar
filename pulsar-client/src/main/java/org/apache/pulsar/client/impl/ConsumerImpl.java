@@ -3202,15 +3202,24 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (expireTimeOfIncompleteChunkedMessageMillis <= 0) {
             return;
         }
-        ChunkedMessageCtx chunkedMsgCtx = null;
+        ChunkedMessageCtx chunkedMsgCtx;
         String messageUUID;
         while ((messageUUID = pendingChunkedMessageUuidQueue.peek()) != null) {
             chunkedMsgCtx = StringUtils.isNotBlank(messageUUID) ? chunkedMessagesMap.get(messageUUID) : null;
-            if (chunkedMsgCtx != null && System
-                    .currentTimeMillis() > (chunkedMsgCtx.receivedTime + expireTimeOfIncompleteChunkedMessageMillis)) {
+            if (chunkedMsgCtx == null) {
+                // Stale queue head with no backing context (e.g. the message already completed, or a
+                // discard path left the uuid behind). Like removeOldestPendingChunkedMessage(), skip
+                // it by polling and continue, so a ghost head cannot block expiry of live entries
+                // queued behind it.
+                pendingChunkedMessageUuidQueue.poll();
+                continue;
+            }
+            if (System.currentTimeMillis() > (chunkedMsgCtx.receivedTime + expireTimeOfIncompleteChunkedMessageMillis)) {
                 pendingChunkedMessageUuidQueue.remove(messageUUID);
                 removeChunkMessage(messageUUID, chunkedMsgCtx, true);
             } else {
+                // Head is a live, not-yet-expired context. Entries are queued in arrival order, so
+                // nothing behind it can be older; stop here.
                 return;
             }
         }

@@ -371,6 +371,46 @@ public class MessageChunkingTest extends ProducerConsumerBase {
     }
 
     /**
+     * Verifies that expiry still works when the queue head is a stale uuid left behind
+     *
+     * removeExpireIncompleteChunkedMessages() must poll past that ghost head rather than returning on
+     * it, otherwise an incomplete message queued behind the ghost would never expire.
+     */
+    @Test
+    public void testExpirySkipsStaleQueueHeadFromDiscardPath() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/expirySkipsDiscardGhost";
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("my-sub")
+                .expireTimeOfIncompleteChunkedMessage(1, TimeUnit.SECONDS)
+                .subscribe();
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .chunkMaxMessageSize(100)
+                .enableChunking(true)
+                .enableBatching(false)
+                .create();
+
+        ConsumerImpl<String> consumerImpl = (ConsumerImpl<String>) consumer;
+
+        // "ghost": chunk 0 arrives (queues the uuid), then chunk 2 of 3 arrives non-contiguously.
+        sendSingleChunk(producer, "ghost", 0, 3);
+        sendSingleChunk(producer, "ghost", 2, 3);
+        // "stuck": a genuinely incomplete message queued behind the ghost head.
+        sendSingleChunk(producer, "stuck", 0, 2);
+        Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertNotNull(consumerImpl.chunkedMessagesMap.get("stuck")));
+
+        // Past the expiry window, "stuck" must be collected. If the expiry loop returns on the ghost
+        // head instead of polling past it, "stuck" is never reached and stays in the map forever.
+        Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertNull(consumerImpl.chunkedMessagesMap.get("stuck"),
+                        "expiry did not run: a stale discard-path uuid is blocking the queue head"));
+    }
+
+    /**
      * This test used to test the consumer configuration of maxPendingChunkedMessage.
      * If we set maxPendingChunkedMessage is 1 that means only one incomplete chunk message can be store in this
      * consumer.
