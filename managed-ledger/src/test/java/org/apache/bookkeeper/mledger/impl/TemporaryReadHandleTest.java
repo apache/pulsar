@@ -26,11 +26,13 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -39,6 +41,7 @@ import java.util.function.Consumer;
 import org.apache.bookkeeper.client.AsyncCallback;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.api.OpenBuilder;
 import org.apache.bookkeeper.client.api.ReadHandle;
@@ -159,14 +162,20 @@ public class TemporaryReadHandleTest extends MockedBookKeeperTestCase {
         assertClosed(openedHandles.get(0));
     }
 
-    @Test
-    public void testTemporaryHandleCloseFailureDoesNotFailInitialization() throws Exception {
+    @Test(dataProvider = "completionResults")
+    public void testTemporaryHandleCloseFailureDoesNotFailInitialization(boolean synchronous) throws Exception {
         ManagedLedgerConfig config = retainedConfig();
         ManagedLedger ledger = factory.open("temporary-close-failure", config);
         ledger.addEntry(new byte[] {1});
         ledger.close();
-        configureHandle = handle -> doReturn(CompletableFuture.failedFuture(new BKException.BKReadException()))
-                .when(handle).closeAsync();
+        configureHandle = handle -> {
+            if (synchronous) {
+                doThrow(new IllegalStateException("close failed")).when(handle).closeAsync();
+            } else {
+                doReturn(CompletableFuture.failedFuture(new BKException.BKReadException()))
+                        .when(handle).closeAsync();
+            }
+        };
 
         ManagedLedger reopened = factory.open(ledger.getName(), config);
         assertThat(openedHandles).hasSize(1);
@@ -214,6 +223,23 @@ public class TemporaryReadHandleTest extends MockedBookKeeperTestCase {
             opening.get(5, TimeUnit.SECONDS);
         }
         assertClosed(handle);
+        readOnly.close();
+    }
+
+    @Test
+    public void testReadOnlyInitializationClosesHandleWhenLacReadThrows() throws Exception {
+        ManagedLedgerConfig config = retainedConfig();
+        ManagedLedger ledger = factory.open("readonly-lac-throws", config);
+        ledger.addEntry(new byte[] {1});
+        configureHandle = handle -> doThrow(new IllegalStateException("LAC read failed"))
+                .when(handle).readLastAddConfirmedAsync();
+        ReadOnlyManagedLedgerImpl readOnly = new ReadOnlyManagedLedgerImpl(factory, bkc, factory.getMetaStore(),
+                config, executor, ledger.getName());
+
+        assertThatThrownBy(() -> readOnly.initialize().get(5, TimeUnit.SECONDS))
+                .hasRootCauseMessage("LAC read failed");
+        assertThat(openedHandles).hasSize(1);
+        assertClosed(openedHandles.get(0));
         readOnly.close();
     }
 
@@ -296,13 +322,21 @@ public class TemporaryReadHandleTest extends MockedBookKeeperTestCase {
         if (outcome.equals("success")) {
             assertThat(cursor.getCursorLedger()).isEqualTo(handle.getId());
             verify(handle, never()).closeAsync();
+            cursor.close();
+            Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                    .untilAsserted(() -> assertThat(bkc.getLedgers()).doesNotContain(handle.getId()));
         } else {
             assertClosed(handle);
         }
     }
 
-    @Test(dataProvider = "completionResults")
-    public void testOfflineCursorStatisticsCloseTemporaryHandle(boolean failRead) throws Exception {
+    @DataProvider(name = "offlineCursorResults")
+    public Object[][] offlineCursorResults() {
+        return new Object[][] {{"success"}, {"read-failure"}, {"parse-failure"}, {"empty"}};
+    }
+
+    @Test(dataProvider = "offlineCursorResults")
+    public void testOfflineCursorStatisticsCloseTemporaryHandle(String outcome) throws Exception {
         TopicName topic = TopicName.get("persistent://public/default/offline-cursor-handles");
         ManagedLedgerConfig config = retainedConfig().setMaxUnackedRangesToPersistInMetadataStore(0);
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(topic.getPersistenceNamingEncoding(), config);
@@ -324,19 +358,30 @@ public class TemporaryReadHandleTest extends MockedBookKeeperTestCase {
         }).when(metaStore).getCursors(eq(ledger.getName()), any());
         factory = spy(factory);
         doReturn(metaStore).when(factory).getMetaStore();
-        if (failRead) {
-            configureHandle = handle -> {
-                if (handle.getId() == cursorLedgerId) {
+        configureHandle = handle -> {
+            if (handle.getId() == cursorLedgerId) {
+                if (outcome.equals("empty")) {
+                    doReturn(LedgerHandle.INVALID_ENTRY_ID).when(handle).getLastAddConfirmed();
+                } else if (!outcome.equals("success")) {
                     doAnswer(invocation -> {
                         AsyncCallback.ReadCallback callback = invocation.getArgument(2);
-                        callback.readComplete(BKException.Code.ReadException, handle, null, invocation.getArgument(3));
+                        if (outcome.equals("read-failure")) {
+                            callback.readComplete(BKException.Code.ReadException, handle, null,
+                                    invocation.getArgument(3));
+                        } else {
+                            LedgerEntry entry = mock(LedgerEntry.class);
+                            when(entry.getEntry()).thenReturn(new byte[] {(byte) 0xff});
+                            callback.readComplete(BKException.Code.OK, handle, Collections.enumeration(List.of(entry)),
+                                    invocation.getArgument(3));
+                        }
                         return null;
                     }).when(handle).asyncReadEntries(anyLong(), anyLong(), any(), any());
                 }
-            };
-        }
+            }
+        };
         factory.estimateUnloadedTopicBacklog(new PersistentOfflineTopicStats(topic.toString(), "broker"), topic,
-                true, List.of(BookKeeper.DigestType.fromApiDigestType(config.getDigestType()), config.getPassword()));
+                !outcome.equals("empty"),
+                List.of(BookKeeper.DigestType.fromApiDigestType(config.getDigestType()), config.getPassword()));
         LedgerHandle handle = openedHandles.stream().filter(h -> h.getId() == cursorLedgerId).findFirst().orElseThrow();
         assertClosed(handle);
     }
