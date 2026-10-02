@@ -1547,9 +1547,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 // This message is dropped instead of being delivered to the application, so its
                 // outstanding flow-control permit is never returned via messageProcessed(). Return
                 // it here to avoid leaking a permit for the boundary message that a seek/startMessageId
-                // caused to be re-dispatched. (For a chunked message the non-last chunks were already
-                // credited at the top of this method; this repays the single remaining permit.)
-                increaseAvailablePermits(cnx);
+                // caused to be re-dispatched. Refund numMessages : the broker charges
+                // one permit per message in the entry, so an undecryptable batch (which can also reach
+                // this block) is repaid exactly what it consumed. For the plain and chunked cases numMessages is 1.
+                increaseAvailablePermits(cnx, numMessages);
                 return;
             }
 

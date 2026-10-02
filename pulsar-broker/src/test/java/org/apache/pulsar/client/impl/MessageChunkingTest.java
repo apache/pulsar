@@ -491,62 +491,6 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         producer = null; // clean reference of mocked producer
     }
 
-    /**
-     * Seeking to a specific messageId re-dispatches the boundary message, which the consumer filters
-     * out at the startMessageId drop block in messageReceived():
-     *
-     *   if (isPersistent() && isSameEntry(msgId) && isPriorEntryIndex(messageId.getEntryId())) {
-     *       uncompressedPayload.release();
-     *       return;   // dropped without increaseAvailablePermits()
-     *   }
-     *
-     * The dropped boundary message's flow-control permit is never returned (it is not delivered, so
-     * messageProcessed() never runs for it). With receiverQueueSize=1 that single leaked permit
-     * exhausts the whole budget, so the broker stops dispatching and the consumer stalls right after
-     * the seek -- the message after the seek target is never delivered.
-     *
-     * This is NOT chunking-specific: the test uses plain (non-chunked) messages.
-     *
-     * Without the fix: the receive after seek returns null (stalled). With the fix (permit returned
-     * in the drop block): the message after the seek target is delivered.
-     */
-    @Test
-    public void testSeekBoundaryDropDoesNotLeakPermit() throws Exception {
-        final String topicName = "persistent://my-property/my-ns/seekBoundaryPermitLeak";
-        final String subName = "my-sub";
-
-        @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topicName)
-                .enableBatching(false)
-                .create();
-
-        // Plain messages (no chunking).
-        List<MessageId> ids = new ArrayList<>();
-        for (int i = 0; i < 5; i++) {
-            ids.add(producer.send(("seek-msg-" + i).getBytes()));
-        }
-
-        @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                .topic(topicName)
-                .subscriptionName(subName)
-                .receiverQueueSize(1)   // tiny budget: a single leaked permit stalls the consumer
-                .subscribe();
-
-        // Seek exclusively to message index 1. The boundary message (index 1) is filtered; the
-        // messages after it (index 2, 3, 4) must still be deliverable.
-        consumer.seek(ids.get(1));
-
-        // Without the fix this returns null (permit leaked -> budget 0 -> broker stops dispatching).
-        Message<byte[]> msg = consumer.receive(10, TimeUnit.SECONDS);
-        assertNotNull(msg, "consumer stalled after seek: the boundary-message drop leaked its permit "
-                + "and the receiverQueueSize=1 budget was exhausted");
-        // The delivered message must be one AFTER the seek target, not the filtered boundary itself.
-        assertEquals(msg.getValue(), "seek-msg-2".getBytes());
-        consumer.acknowledge(msg);
-    }
-
     @Test
     public void testChunksEnqueueFailed() throws Exception {
         final String topicName = "persistent://my-property/my-ns/test-chunks-enqueue-failed";

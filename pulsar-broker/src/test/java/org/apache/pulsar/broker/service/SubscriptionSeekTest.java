@@ -1185,4 +1185,85 @@ public class SubscriptionSeekTest extends BrokerTestBase {
             assertTrue(e.getCause().getMessage().contains("Only support seek by messageId or timestamp"));
         }
     }
+
+    /**
+     * Seeking exclusively to a messageId re-dispatches that boundary message, which the consumer
+     * filters out instead of delivering. The dropped message's flow-control permit must still be
+     * returned; otherwise, with receiverQueueSize=1, the single leaked permit exhausts the budget and
+     * the consumer stalls right after the seek, never delivering the message after the seek target.
+     */
+    @Test
+    public void testSeekBoundaryDropDoesNotLeakPermit() throws Exception {
+        final String topicName = "persistent://prop/ns-abc/seekBoundaryPermitLeak";
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+                .enableBatching(false).create();
+
+        List<MessageId> ids = new ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            ids.add(producer.send(("seek-msg-" + i).getBytes()));
+        }
+
+        @Cleanup
+        org.apache.pulsar.client.api.Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName("my-sub")
+                .receiverQueueSize(1)   // tiny budget: a single leaked permit stalls the consumer
+                .subscribe();
+
+        // Seek exclusively to index 1. The boundary message (index 1) is filtered; the messages
+        // after it (index 2, 3, 4) must still be deliverable.
+        consumer.seek(ids.get(1));
+
+        Message<byte[]> msg = consumer.receive(10, TimeUnit.SECONDS);
+        assertNotNull(msg, "consumer stalled after seek: the boundary-message drop leaked its permit "
+                + "and the receiverQueueSize=1 budget was exhausted");
+        assertEquals(msg.getValue(), "seek-msg-2".getBytes());
+        consumer.acknowledge(msg);
+    }
+
+    /**
+     * The chunked variant of {@link #testSeekBoundaryDropDoesNotLeakPermit}: the boundary message
+     * dropped on seek is a chunked message. The ConsumerImpl drop block credits the non-last chunks
+     * at arrival and must repay the last chunk's permit when the assembled message is filtered;
+     * otherwise, with receiverQueueSize=1, the consumer stalls and the next chunked message is never
+     * delivered.
+     */
+    @Test
+    public void testSeekBoundaryDropDoesNotLeakPermitForChunkedMessage() throws Exception {
+        final String topicName = "persistent://prop/ns-abc/seekBoundaryPermitLeakChunked";
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+                .enableBatching(false)
+                .enableChunking(true)
+                .chunkMaxMessageSize(100)   // force multi-chunk from a modest payload
+                .create();
+
+        // Each message is ~3 chunks at chunkMaxMessageSize=100.
+        byte[] payload = new byte[250];
+        Arrays.fill(payload, (byte) 'x');
+        List<MessageId> ids = new ArrayList<>();
+        for (int i = 0; i < 3; i++) {
+            ids.add(producer.send(payload));
+        }
+
+        @Cleanup
+        org.apache.pulsar.client.api.Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName("my-sub")
+                .receiverQueueSize(1)
+                .subscribe();
+
+        // Seek exclusively to the first chunked message; it is filtered as the boundary. The chunked
+        // message after it must still be delivered.
+        consumer.seek(ids.get(0));
+
+        Message<byte[]> msg = consumer.receive(15, TimeUnit.SECONDS);
+        assertNotNull(msg, "consumer stalled after seek: dropping the chunked boundary message leaked "
+                + "a flow-control permit and the receiverQueueSize=1 budget was exhausted");
+        assertEquals(msg.getMessageId(), ids.get(1));
+        consumer.acknowledge(msg);
+    }
 }
