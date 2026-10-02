@@ -20,6 +20,8 @@ package org.apache.pulsar.broker.service;
 
 import static java.util.Collections.emptyMap;
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.apache.pulsar.common.api.proto.CommandSubscribe.SubType.Exclusive;
+import static org.apache.pulsar.common.api.proto.CommandSubscribe.SubType.Failover;
 import static org.apache.pulsar.common.api.proto.CommandSubscribe.SubType.Key_Shared;
 import static org.apache.pulsar.common.api.proto.CommandSubscribe.SubType.Shared;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
@@ -38,6 +40,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
@@ -48,7 +51,6 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.policies.data.HierarchyTopicPolicies;
-import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.awaitility.Awaitility;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -147,17 +149,22 @@ public class ConsumerBlockedPermitAccountingTest {
         PausingConsumer consumer = new PausingConsumer(subscription, subType, cnx);
         Consumer ackConsumer = newConsumer(subType, 2);
         AtomicInteger redeliveryCalls = new AtomicInteger();
-        setConsumerState(consumer, true,
-                unblockPath == UnblockPath.ACK ? MAX_UNACKED_MESSAGES / 2 + 1 : 1, 0);
-        assertThat(consumer.getPendingAcks().addPendingAckIfAllowed(LEDGER_ID, ENTRY_ID, 1, 0)).isTrue();
+        int ackedMessages = unblockPath == UnblockPath.ACK ? MAX_UNACKED_MESSAGES / 2 : MAX_UNACKED_MESSAGES;
+        assertThat(consumer.getPendingAcks().addPendingAckIfAllowed(LEDGER_ID, ENTRY_ID, ackedMessages, 0)).isTrue();
+        if (unblockPath == UnblockPath.ACK) {
+            assertThat(consumer.getPendingAcks().addPendingAckIfAllowed(
+                    LEDGER_ID, ENTRY_ID + 1, MAX_UNACKED_MESSAGES - ackedMessages, 0)).isTrue();
+        }
+        consumer.incrementUnackedMessagesForTesting(MAX_UNACKED_MESSAGES);
+        assertThat(consumer.isBlocked()).isTrue();
         when(subscription.getConsumers()).thenReturn(List.of(consumer, ackConsumer));
         if (unblockPath != UnblockPath.ACK) {
             doAnswer(invocation -> {
                 redeliveryCalls.incrementAndGet();
                 assertThat(consumer.isBlocked()).isFalse();
                 assertThat(consumer.getAvailablePermits()).isEqualTo(FLOW_PERMITS);
-                assertThat(readRemovalBalanceFromAnotherThread(consumer)).isZero();
-                assertThat(consumer.getAvailablePermitsForDispatcherRemoval()).isZero();
+                assertThat(readRemovalBalanceFromAnotherThread(consumer)).isEqualTo(dispatcherFlowPermits.get());
+                assertThat(consumer.getAvailablePermitsForDispatcherRemoval()).isEqualTo(dispatcherFlowPermits.get());
                 return null;
             }).when(subscription).redeliverUnacknowledgedMessages(any(), any(List.class));
         }
@@ -174,7 +181,7 @@ public class ConsumerBlockedPermitAccountingTest {
         assertThat(positiveDispatcherFlowCalls).hasValue(1);
         assertThat(redeliveryCalls).hasValue(unblockPath == UnblockPath.ACK ? 0 : 1);
 
-        consumer.flowConsumerBlockedPermits(consumer);
+        consumer.redeliverUnacknowledgedMessages(DEFAULT_CONSUMER_EPOCH);
         assertThat(consumer.getAvailablePermits()).isEqualTo(FLOW_PERMITS);
         assertThat(consumer.getAvailablePermitsForDispatcherRemoval()).isEqualTo(FLOW_PERMITS);
         assertThat(dispatcherFlowPermits).hasValue(FLOW_PERMITS);
@@ -201,6 +208,8 @@ public class ConsumerBlockedPermitAccountingTest {
         Consumer ackConsumer = newConsumer(Shared, 2);
         assertThat(consumer.getPendingAcks()
                 .addPendingAckIfAllowed(LEDGER_ID, ENTRY_ID, MAX_UNACKED_MESSAGES / 2, 0)).isTrue();
+        assertThat(consumer.getPendingAcks()
+                .addPendingAckIfAllowed(LEDGER_ID, ENTRY_ID + 1, MAX_UNACKED_MESSAGES / 2, 0)).isTrue();
         when(subscription.getConsumers()).thenReturn(List.of(consumer, ackConsumer));
         consumer.pauseAt(PausePoint.BLOCK_PUBLICATION);
 
@@ -211,11 +220,217 @@ public class ConsumerBlockedPermitAccountingTest {
         assertThat(zeroDispatcherFlowCalls).hasValue(1);
     }
 
+    @DataProvider(name = "partialAckResumeVariants")
+    public Object[][] partialAckResumeVariants() {
+        return new Object[][] {
+                {Shared, true}, {Shared, false},
+                {Key_Shared, true}, {Key_Shared, false}
+        };
+    }
+
+    @Test(dataProvider = "partialAckResumeVariants", timeOut = 30_000)
+    public void testNonTransactionalPartialAckWaitsForBlockStatePublication(
+            SubType subType, boolean requirePersistedAck) throws Exception {
+        when(subscription.getTopic().getBrokerService().getPulsar().getConfiguration()
+                .isAcknowledgmentAtBatchIndexLevelEnabled()).thenReturn(true);
+        when(((PersistentSubscription) subscription).getCursor()).thenReturn(mock(ManagedCursor.class));
+        CompletableFuture<Void> persistence = new CompletableFuture<>();
+        doReturn(persistence).when(subscription).acknowledgeMessageAsync(any(), any(), any());
+
+        PausingConsumer consumer = new PausingConsumer(subscription, subType, cnx);
+        Consumer ackConsumer = newConsumer(subType, 2);
+        assertThat(consumer.getPendingAcks()
+                .addPendingAckIfAllowed(LEDGER_ID, ENTRY_ID, MAX_UNACKED_MESSAGES, 0)).isTrue();
+        when(subscription.getConsumers()).thenReturn(List.of(consumer, ackConsumer));
+        CommandAck ack = new CommandAck().setConsumerId(ackConsumer.consumerId())
+                .setAckType(CommandAck.AckType.Individual);
+        ack.addMessageId().setLedgerId(LEDGER_ID).setEntryId(ENTRY_ID)
+                .setBatchSize(MAX_UNACKED_MESSAGES).addAckSet(0b1_1111L);
+        consumer.pauseAt(PausePoint.BLOCK_PUBLICATION);
+
+        try {
+            runRace(consumer, () -> consumer.incrementUnackedMessagesForTesting(MAX_UNACKED_MESSAGES),
+                    () -> {
+                        CompletableFuture<Void> result = ackConsumer.messageAcked(ack, requirePersistedAck);
+                        assertThat(consumer.getUnackedMessages()).isEqualTo(MAX_UNACKED_MESSAGES);
+                        assertThat(consumer.getPendingAcks().getRemainingUnacked(LEDGER_ID, ENTRY_ID))
+                                .isEqualTo(MAX_UNACKED_MESSAGES);
+                        if (requirePersistedAck) {
+                            assertThat(result).isNotDone();
+                        }
+                        persistence.complete(null);
+                        assertThat(result).isCompletedWithValue(null);
+                    }, RacingActionOutcome.BLOCKED_ON_PAUSED_ACTION);
+
+            assertUnblockedAndCanFlow(consumer, MAX_UNACKED_MESSAGES / 2);
+            assertThat(consumer.getPendingAcks().getRemainingUnacked(LEDGER_ID, ENTRY_ID))
+                    .isEqualTo(MAX_UNACKED_MESSAGES / 2);
+            assertThat(ackConsumer.getUnackedMessages()).isZero();
+            assertThat(zeroDispatcherFlowCalls).hasValue(1);
+        } finally {
+            consumer.getPendingAcks().forEachAndClose((ledgerId, entryId, remaining, stickyKeyHash) -> { });
+            ackConsumer.getPendingAcks().forEachAndClose((ledgerId, entryId, remaining, stickyKeyHash) -> { });
+        }
+    }
+
+    @DataProvider(name = "ackNotificationVariants")
+    public Object[][] ackNotificationVariants() {
+        return new Object[][] {
+                {Shared, 0, false}, {Shared, 0, true}, {Shared, 10, false}, {Shared, 10, true},
+                {Key_Shared, 0, false}, {Key_Shared, 0, true}, {Key_Shared, 10, false}, {Key_Shared, 10, true},
+                {Exclusive, 0, false}, {Exclusive, 0, true}, {Exclusive, 10, false}, {Exclusive, 10, true},
+                {Failover, 0, false}, {Failover, 0, true}, {Failover, 10, false}, {Failover, 10, true}
+        };
+    }
+
+    @Test(dataProvider = "ackNotificationVariants")
+    public void testPartialAckOfActiveConsumerDoesNotNotifyDispatcher(SubType subType, int limit,
+                                                                    boolean transactional) {
+        enableBatchIndexAcknowledgment();
+        policies.getMaxUnackedMessagesOnConsumer().updateBrokerValue(limit);
+        Consumer consumer = newConsumer(subType, 1);
+        when(subscription.getConsumers()).thenReturn(List.of(consumer));
+        boolean individualAckMode = Subscription.isIndividualAckMode(subType);
+        if (individualAckMode) {
+            assertThat(consumer.getPendingAcks().addPendingAckIfAllowed(LEDGER_ID, ENTRY_ID, 4, 0)).isTrue();
+            consumer.incrementUnackedMessagesForTesting(4);
+        }
+        CommandAck ack = partialAck(consumer, 4, 0b11L);
+        if (transactional) {
+            ack.setTxnidMostBits(1).setTxnidLeastBits(2);
+        }
+        assertThat(consumer.messageAcked(ack, true)).isCompletedWithValue(null);
+        assertThat(consumer.getUnackedMessages()).isEqualTo(individualAckMode ? 2 : 0);
+        assertThat(consumer.isBlocked()).isFalse();
+        assertThat(zeroDispatcherFlowCalls).hasValue(0);
+        assertThat(positiveDispatcherFlowCalls).hasValue(0);
+    }
+
+    @DataProvider(name = "partialAckFailureVariants")
+    public Object[][] partialAckFailureVariants() {
+        return new Object[][] {{Shared, true}, {Shared, false}, {Key_Shared, true}, {Key_Shared, false}};
+    }
+
+    @Test(dataProvider = "partialAckFailureVariants")
+    public void testFailedPartialAckDoesNotReleaseBlockedPermits(SubType subType, boolean requirePersistedAck) {
+        enableBatchIndexAcknowledgment();
+        Consumer consumer = newConsumer(subType, 1);
+        assertThat(consumer.getPendingAcks()
+                .addPendingAckIfAllowed(LEDGER_ID, ENTRY_ID, MAX_UNACKED_MESSAGES, 0)).isTrue();
+        consumer.incrementUnackedMessagesForTesting(MAX_UNACKED_MESSAGES);
+        consumer.flowPermits(FLOW_PERMITS);
+        CompletableFuture<Void> persistence = new CompletableFuture<>();
+        doReturn(persistence).when(subscription).acknowledgeMessageAsync(any(), any(), any());
+
+        CompletableFuture<Void> result = consumer.messageAcked(
+                partialAck(consumer, MAX_UNACKED_MESSAGES, 0b1_1111L), requirePersistedAck);
+        persistence.completeExceptionally(new IllegalStateException("injected persistence failure"));
+        if (requirePersistedAck) {
+            assertThat(result).isCompletedExceptionally();
+        } else {
+            assertThat(result).isCompletedWithValue(null);
+        }
+        assertThat(consumer.getUnackedMessages()).isEqualTo(MAX_UNACKED_MESSAGES);
+        assertThat(consumer.getPendingAcks().getRemainingUnacked(LEDGER_ID, ENTRY_ID)).isEqualTo(MAX_UNACKED_MESSAGES);
+        assertThat(consumer.isBlocked()).isTrue();
+        assertThat(consumer.getAvailablePermits()).isZero();
+        assertThat(dispatcherFlowPermits).hasValue(0);
+
+        doReturn(CompletableFuture.completedFuture(null))
+                .when(subscription).acknowledgeMessageAsync(any(), any(), any());
+        assertThat(consumer.messageAcked(partialAck(consumer, MAX_UNACKED_MESSAGES, 0b1_1111L), true))
+                .isCompletedWithValue(null);
+        assertThat(consumer.isBlocked()).isFalse();
+        assertThat(consumer.getAvailablePermits()).isEqualTo(FLOW_PERMITS);
+        assertThat(dispatcherFlowPermits).hasValue(FLOW_PERMITS);
+        assertThat(positiveDispatcherFlowCalls).hasValue(1);
+    }
+
+    @DataProvider(name = "policyUnblockVariants")
+    public Object[][] policyUnblockVariants() {
+        return new Object[][] {{Shared, 0}, {Shared, 20}, {Key_Shared, 0}, {Key_Shared, 20}};
+    }
+
+    @Test(dataProvider = "policyUnblockVariants")
+    public void testPolicyUnblockWakesExistingPermitsOnlyOnce(SubType subType, int newLimit) {
+        Consumer consumer = newConsumer(subType, 1);
+        assertThat(consumer.getPendingAcks()
+                .addPendingAckIfAllowed(LEDGER_ID, ENTRY_ID, MAX_UNACKED_MESSAGES, 0)).isTrue();
+        consumer.flowPermits(FLOW_PERMITS);
+        consumer.incrementUnackedMessagesForTesting(MAX_UNACKED_MESSAGES);
+        assertThat(consumer.isBlocked()).isTrue();
+        policies.getMaxUnackedMessagesOnConsumer().updateBrokerValue(newLimit);
+
+        consumer.reconcileBlockedStateAfterPolicyUpdate();
+        consumer.reconcileBlockedStateAfterPolicyUpdate();
+        assertThat(consumer.isBlocked()).isFalse();
+        assertThat(consumer.getAvailablePermits()).isEqualTo(FLOW_PERMITS);
+        assertThat(consumer.getAvailablePermitsForDispatcherRemoval()).isEqualTo(FLOW_PERMITS);
+        assertThat(dispatcherFlowPermits).hasValue(FLOW_PERMITS);
+        assertThat(positiveDispatcherFlowCalls).hasValue(1);
+        assertThat(zeroDispatcherFlowCalls).hasValue(1);
+    }
+
+    @Test
+    public void testRepeatedFullAckDoesNotNotifyDispatcherAgain() throws Exception {
+        Consumer consumer = newConsumer(Shared, 1);
+        when(subscription.getConsumers()).thenReturn(List.of(consumer));
+        assertThat(consumer.getPendingAcks()
+                .addPendingAckIfAllowed(LEDGER_ID, ENTRY_ID, MAX_UNACKED_MESSAGES, 0)).isTrue();
+        consumer.incrementUnackedMessagesForTesting(MAX_UNACKED_MESSAGES);
+        acknowledgeEntry(consumer);
+        acknowledgeEntry(consumer);
+        consumer.reconcileBlockedStateAfterPolicyUpdate();
+        assertThat(consumer.getUnackedMessages()).isZero();
+        assertThat(consumer.isBlocked()).isFalse();
+        assertThat(zeroDispatcherFlowCalls).hasValue(1);
+    }
+
+    @DataProvider(name = "individualAckSubscriptions")
+    public Object[][] individualAckSubscriptions() {
+        return new Object[][] {{Shared}, {Key_Shared}};
+    }
+
+    @Test(dataProvider = "individualAckSubscriptions")
+    public void testRaisedLimitPreservesResumeThresholdUntilNextAck(SubType type) throws Exception {
+        Consumer consumer = newConsumer(type, 1);
+        assertThat(consumer.getPendingAcks().addPendingAckIfAllowed(LEDGER_ID, ENTRY_ID, 1, 0)).isTrue();
+        assertThat(consumer.getPendingAcks().addPendingAckIfAllowed(LEDGER_ID, ENTRY_ID + 1, 9, 0)).isTrue();
+        consumer.incrementUnackedMessagesForTesting(10);
+        consumer.flowPermits(FLOW_PERMITS);
+        policies.getMaxUnackedMessagesOnConsumer().updateBrokerValue(19);
+        consumer.reconcileBlockedStateAfterPolicyUpdate();
+        assertThat(consumer.isBlocked()).isTrue();
+        assertThat(consumer.getAvailablePermits()).isZero();
+        assertThat(positiveDispatcherFlowCalls).hasValue(0);
+        acknowledgeEntry(consumer);
+        assertThat(consumer.getUnackedMessages()).isEqualTo(9);
+        assertThat(consumer.isBlocked()).isFalse();
+        assertThat(consumer.getAvailablePermits()).isEqualTo(FLOW_PERMITS);
+        assertThat(positiveDispatcherFlowCalls).hasValue(1);
+    }
+
+    private void enableBatchIndexAcknowledgment() {
+        when(subscription.getTopic().getBrokerService().getPulsar().getConfiguration()
+                .isAcknowledgmentAtBatchIndexLevelEnabled()).thenReturn(true);
+        when(((PersistentSubscription) subscription).getCursor()).thenReturn(mock(ManagedCursor.class));
+    }
+
+    private static CommandAck partialAck(Consumer consumer, int batchSize, long remainingIndexes) {
+        CommandAck ack = new CommandAck().setConsumerId(consumer.consumerId())
+                .setAckType(CommandAck.AckType.Individual);
+        ack.addMessageId().setLedgerId(LEDGER_ID).setEntryId(ENTRY_ID)
+                .setBatchSize(batchSize).addAckSet(remainingIndexes);
+        return ack;
+    }
+
     @Test(timeOut = 30_000)
     public void testAckAboveResumeThresholdDoesNotWaitForBlockStatePublication() throws Exception {
         PausingConsumer consumer = new PausingConsumer(subscription, Key_Shared, cnx);
         Consumer ackConsumer = newConsumer(Key_Shared, 2);
         assertThat(consumer.getPendingAcks().addPendingAckIfAllowed(LEDGER_ID, ENTRY_ID, 1, 0)).isTrue();
+        assertThat(consumer.getPendingAcks()
+                .addPendingAckIfAllowed(LEDGER_ID, ENTRY_ID + 1, MAX_UNACKED_MESSAGES - 1, 0)).isTrue();
         when(subscription.getConsumers()).thenReturn(List.of(consumer, ackConsumer));
         consumer.pauseAt(PausePoint.BLOCK_PUBLICATION);
 
@@ -241,15 +456,15 @@ public class ConsumerBlockedPermitAccountingTest {
         assertThat(zeroDispatcherFlowCalls).hasValue(0);
     }
 
-    @Test(timeOut = 30_000)
-    public void testPolicyUpdateWaitsForBlockStatePublication() throws Exception {
-        PausingConsumer consumer = new PausingConsumer(subscription, Key_Shared, cnx);
+    @Test(dataProvider = "policyUnblockVariants", timeOut = 30_000)
+    public void testPolicyUpdateWaitsForBlockStatePublication(SubType subType, int newLimit) throws Exception {
+        PausingConsumer consumer = new PausingConsumer(subscription, subType, cnx);
         assertThat(consumer.getPendingAcks()
                 .addPendingAckIfAllowed(LEDGER_ID, ENTRY_ID, MAX_UNACKED_MESSAGES, 0)).isTrue();
         consumer.pauseAt(PausePoint.BLOCK_PUBLICATION);
         runRace(consumer, () -> consumer.incrementUnackedMessagesForTesting(MAX_UNACKED_MESSAGES),
                 () -> {
-                    policies.getMaxUnackedMessagesOnConsumer().updateBrokerValue(0);
+                    policies.getMaxUnackedMessagesOnConsumer().updateBrokerValue(newLimit);
                     consumer.reconcileBlockedStateAfterPolicyUpdate();
                 }, RacingActionOutcome.BLOCKED_ON_PAUSED_ACTION);
 
@@ -259,9 +474,9 @@ public class ConsumerBlockedPermitAccountingTest {
     @Test
     public void testTransactionalBatchIndexAckUnblocksAtHalfLimit() {
         Consumer consumer = newConsumer(Shared, 1);
-        setConsumerState(consumer, true, MAX_UNACKED_MESSAGES, 0);
         assertThat(consumer.getPendingAcks()
                 .addPendingAckIfAllowed(LEDGER_ID, ENTRY_ID, MAX_UNACKED_MESSAGES, 0)).isTrue();
+        consumer.incrementUnackedMessagesForTesting(MAX_UNACKED_MESSAGES);
         consumer.flowPermits(FLOW_PERMITS);
 
         CommandAck ack = new CommandAck()
@@ -287,8 +502,11 @@ public class ConsumerBlockedPermitAccountingTest {
     @Test
     public void testUnblockingEmptyBucketPreservesZeroDispatcherNotification() throws Exception {
         Consumer consumer = newConsumer(Shared, 1);
-        setConsumerState(consumer, true, MAX_UNACKED_MESSAGES / 2 + 1, 0);
-        assertThat(consumer.getPendingAcks().addPendingAckIfAllowed(LEDGER_ID, ENTRY_ID, 1, 0)).isTrue();
+        assertThat(consumer.getPendingAcks()
+                .addPendingAckIfAllowed(LEDGER_ID, ENTRY_ID, MAX_UNACKED_MESSAGES / 2, 0)).isTrue();
+        assertThat(consumer.getPendingAcks()
+                .addPendingAckIfAllowed(LEDGER_ID, ENTRY_ID + 1, MAX_UNACKED_MESSAGES / 2, 0)).isTrue();
+        consumer.incrementUnackedMessagesForTesting(MAX_UNACKED_MESSAGES);
         acknowledgeEntry(consumer);
         assertThat(consumer.isBlocked()).isFalse();
         assertThat(consumer.getAvailablePermits()).isZero();
@@ -297,12 +515,14 @@ public class ConsumerBlockedPermitAccountingTest {
     }
 
     @Test
-    public void testBlockedPermitTransferPreservesSignedIntWrap() {
+    public void testBlockedPermitTransferPreservesSignedIntWrap() throws Exception {
         Consumer consumer = newConsumer(Key_Shared, 1);
-        setConsumerState(consumer, true, 0, 0);
+        assertThat(consumer.getPendingAcks()
+                .addPendingAckIfAllowed(LEDGER_ID, ENTRY_ID, MAX_UNACKED_MESSAGES, 0)).isTrue();
+        consumer.incrementUnackedMessagesForTesting(MAX_UNACKED_MESSAGES);
         consumer.flowPermits(Integer.MAX_VALUE);
         consumer.flowPermits(Integer.MAX_VALUE);
-        consumer.updateBlockedConsumerOnUnackedMsgs(consumer);
+        acknowledgeEntry(consumer);
 
         assertThat(consumer.isBlocked()).isFalse();
         assertThat(consumer.getAvailablePermits()).isEqualTo(-2);
@@ -313,15 +533,6 @@ public class ConsumerBlockedPermitAccountingTest {
     private Consumer newConsumer(SubType subType, long consumerId) {
         return new Consumer(subscription, subType, TOPIC, consumerId, 0, "consumer-" + consumerId, true,
                 cnx, "role", emptyMap(), false, new KeySharedMeta(), MessageId.latest, DEFAULT_CONSUMER_EPOCH);
-    }
-
-    private static void setConsumerState(Consumer consumer, boolean blocked, int unackedMessages,
-                                         int availablePermits) {
-        ConsumerStatsImpl stats = new ConsumerStatsImpl();
-        stats.blockedConsumerOnUnackedMsgs = blocked;
-        stats.unackedMessages = unackedMessages;
-        stats.availablePermits = availablePermits;
-        consumer.updateStats(stats);
     }
 
     private static FutureTask<Void> task(ThrowingRunnable action) {

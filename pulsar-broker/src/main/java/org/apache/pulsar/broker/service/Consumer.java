@@ -1045,18 +1045,6 @@ public class Consumer {
         // Test hook for deterministically ordering blocked Flow accounting against unblock.
     }
 
-    /**
-     * Triggers dispatcher to dispatch {@code blockedPermits} number of messages and adds same number of permits to
-     * {@code messagePermits} as it maintains count of actual dispatched message-permits.
-     *
-     * @param consumer:
-     *            Consumer whose blockedPermits needs to be dispatched
-     */
-    void flowConsumerBlockedPermits(Consumer consumer) {
-        int additionalNumberOfPermits = consumer.unblockAndTransferBlockedPermits();
-        consumer.notifyDispatcherOfBlockedPermits(additionalNumberOfPermits);
-    }
-
     private void notifyDispatcherOfBlockedPermits(int additionalNumberOfPermits) {
         log.debug()
                 .attr("additionalNumberOfPermits", additionalNumberOfPermits)
@@ -1178,7 +1166,7 @@ public class Consumer {
 
     private void blockConsumerIfUnackedLimitReached() {
         int maxUnackedMessages = getMaxUnackedMessages();
-        if (Subscription.isIndividualAckMode(subType) && maxUnackedMessages > 0
+        if (!blockedConsumerOnUnackedMsgs && Subscription.isIndividualAckMode(subType) && maxUnackedMessages > 0
                 && UNACKED_MESSAGES_UPDATER.get(this) >= maxUnackedMessages) {
             beforeSettingBlockedConsumerOnUnackedMessages();
             blockedConsumerOnUnackedMsgs = true;
@@ -1343,7 +1331,7 @@ public class Consumer {
 
     public void updateBlockedConsumerOnUnackedMsgs(Consumer ackOwnedConsumer) {
         // ACKs on Shared subscriptions can be sent through a consumer other than the message owner.
-        ackOwnedConsumer.reconcileBlockedConsumerStateAfterAcknowledgment(false);
+        ackOwnedConsumer.reconcileBlockedConsumerState(false);
     }
 
     /**
@@ -1352,7 +1340,7 @@ public class Consumer {
     public void reconcileBlockedStateAfterPolicyUpdate() {
         // Policy reconciliation must serialize with a block-state publication even when the lock-free state still
         // looks unblocked. The policy update itself may have changed whether blocking is enabled.
-        reconcileBlockedConsumerState(false, true);
+        reconcileBlockedConsumerState(true);
     }
 
     /**
@@ -1368,15 +1356,10 @@ public class Consumer {
         boolean crossedResumeThreshold = maxUnackedMessages > 0
                 && previousUnackedMessages > maxUnackedMessages / 2
                 && updatedUnackedMessages <= maxUnackedMessages / 2;
-        reconcileBlockedConsumerStateAfterAcknowledgment(crossedResumeThreshold);
+        reconcileBlockedConsumerState(crossedResumeThreshold);
     }
 
-    private void reconcileBlockedConsumerStateAfterAcknowledgment(boolean crossedResumeThreshold) {
-        reconcileBlockedConsumerState(true, crossedResumeThreshold);
-    }
-
-    private void reconcileBlockedConsumerState(boolean notifyWhenBlockingIsDisabled,
-                                               boolean synchronizeWithBlockStatePublication) {
+    private void reconcileBlockedConsumerState(boolean synchronizeWithBlockStatePublication) {
         boolean trackedPermitAccounting = shouldTrackPendingDispatcherFlowPermits();
         if (trackedPermitAccounting && !synchronizeWithBlockStatePublication) {
             int maxUnackedMessages = getMaxUnackedMessages();
@@ -1386,9 +1369,6 @@ public class Consumer {
             }
             if (!blockedConsumerOnUnackedMsgs
                     && PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.get(this) == 0) {
-                if (notifyWhenBlockingIsDisabled && !blockingEnabled) {
-                    notifyDispatcherOfBlockedPermits(0);
-                }
                 return;
             }
         }
@@ -1396,31 +1376,29 @@ public class Consumer {
         int additionalNumberOfPermits;
         if (trackedPermitAccounting) {
             synchronized (flowPermitAccountingLock) {
-                if (!shouldUnblockConsumer(notifyWhenBlockingIsDisabled)) {
+                if (!shouldUnblockConsumer()) {
                     return;
                 }
                 additionalNumberOfPermits = unblockAndTransferBlockedPermitsLocked();
             }
         } else {
-            if (!shouldUnblockConsumer(notifyWhenBlockingIsDisabled)) {
+            if (!shouldUnblockConsumer()) {
                 return;
             }
             additionalNumberOfPermits = unblockAndTransferBlockedPermits();
         }
+        // A real unblock must wake the dispatcher even if no permits were deferred. Already-active consumers with
+        // an empty deferred bucket do not need another Flow task for each acknowledgment.
         notifyDispatcherOfBlockedPermits(additionalNumberOfPermits);
     }
 
-    private boolean shouldUnblockConsumer(boolean notifyWhenBlockingIsDisabled) {
+    private boolean shouldUnblockConsumer() {
         int maxUnackedMessages = getMaxUnackedMessages();
         boolean blockingEnabled = Subscription.isIndividualAckMode(subType) && maxUnackedMessages > 0;
-        if (blockingEnabled) {
-            if (UNACKED_MESSAGES_UPDATER.get(this) > maxUnackedMessages / 2) {
-                return false;
-            }
-            return blockedConsumerOnUnackedMsgs
-                    || PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.get(this) != 0;
+        if (blockingEnabled && UNACKED_MESSAGES_UPDATER.get(this) > maxUnackedMessages / 2) {
+            return false;
         }
-        return notifyWhenBlockingIsDisabled || blockedConsumerOnUnackedMsgs
+        return blockedConsumerOnUnackedMsgs
                 || PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.get(this) != 0;
     }
 
