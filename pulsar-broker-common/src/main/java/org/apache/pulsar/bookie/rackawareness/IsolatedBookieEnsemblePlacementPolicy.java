@@ -223,6 +223,8 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
         if (isolationGroups != null && isolationGroups.getLeft().contains(PULSAR_SYSTEM_TOPIC_ISOLATION_GROUP)) {
             return excludedBookies;
         }
+        // Keep isolation counts and exclusions on one cluster view while onClusterChanged updates knownBookies.
+        rwLock.readLock().lock();
         try {
             if (bookieMappingCache != null) {
                 bookieMappingCache.get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH)
@@ -315,6 +317,8 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
             }
         } catch (Exception e) {
             log.warn().attr("store", e.getMessage()).log("Error getting bookie isolation info from metadata store");
+        } finally {
+            rwLock.readLock().unlock();
         }
         return excludedBookies;
     }
