@@ -138,6 +138,26 @@ public class RangeEntryCacheImpl implements EntryCache {
     }
 
     /**
+     * Inserts consecutive entries in order, such as the entries of a read from storage, with an inserter of their own,
+     * so that they don't displace the page where the managed ledger adds its entries.
+     *
+     * @param entriesToInsert the entries to cache, in order
+     * @param copy whether to copy the entries' data into cache owned buffers, as {@link #insert(Entry, boolean,
+     *             RangeCache.Inserter)} describes
+     * @return the number of entries that were inserted
+     */
+    public int insert(List<? extends Entry> entriesToInsert, boolean copy) {
+        RangeCache.Inserter inserter = entries.newInserter();
+        int inserted = 0;
+        for (Entry entry : entriesToInsert) {
+            if (insert(entry, copy, inserter)) {
+                inserted++;
+            }
+        }
+        return inserted;
+    }
+
+    /**
      * Inserts the entry, retaining its buffer or, when {@code copy} is set, copying it into a cache owned buffer.
      * Storage reads copy the entries read with the BookKeeper batch read API, whose buffers are slices of a
      * response frame that stays allocated as long as any of its entries is cached.
@@ -596,8 +616,6 @@ public class RangeEntryCacheImpl implements EntryCache {
                                 long totalSize = 0;
                                 int expectedReadCountVal = expectedReadCount.getAsInt();
                                 final List<Entry> entriesToReturn = new ArrayList<>(entriesToRead);
-                                // the entries are consecutive, so they're inserted in order
-                                RangeCache.Inserter inserter = expectedReadCountVal > 0 ? entries.newInserter() : null;
                                 for (LedgerEntry e : ledgerEntries) {
                                     EntryImpl entry = EntryImpl.create(e, interceptor, expectedReadCountVal);
                                     if (ml.getConfig().isPulsarMessageEntries()) {
@@ -605,9 +623,9 @@ public class RangeEntryCacheImpl implements EntryCache {
                                     }
                                     entriesToReturn.add(entry);
                                     totalSize += entry.getLength();
-                                    if (expectedReadCountVal > 0) {
-                                        insert(entry, copyEntries || batchRead, inserter);
-                                    }
+                                }
+                                if (expectedReadCountVal > 0) {
+                                    insert(entriesToReturn, copyEntries || batchRead);
                                 }
 
                                 ml.getMbean().recordReadEntriesOpsCacheMisses(entriesToReturn.size(), totalSize);
