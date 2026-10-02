@@ -29,8 +29,39 @@ workflow (build, test, PR, CI). For the big-picture module map and the Gradle bu
 
 ## Building
 
-**JDK 21, 25 or 26** is required to build `master` (bytecode targets Java 17; `-PskipJavaVersionCheck`
-bypasses the check); `zip` is also needed. Use the bundled wrapper `./gradlew` (Linux/macOS) or
+Standard Pulsar 5 server components and Functions implementations require Java 21 or later.
+Client CLI tools remain Java 17 compatible.
+Client libraries (including V5), their shared dependencies, and Functions/IO public interfaces
+remain Java 17 compatible. Functions compiled on Java 17 can run in a Java 21+ Functions instance.
+The build uses `--release` and publishes the corresponding JVM requirement in Gradle metadata.
+
+`assemble` checks Java 17 client/API bytecode and its compile/runtime dependencies, including shaded
+jars. Run `./gradlew :tests:pulsar-client-java-compatibility:test -PtestRetryCount=0` to compile and run
+consumer examples on an installed JDK 17. Ordinary tests target Java 21 because even client tests
+can depend on broker/Functions fixtures. `-PtestJavaVersion=17` is only suitable for test modules
+whose entire test dependency graph supports Java 17; it does not lower the server baseline.
+
+For custom builds, `-PpulsarJavaVersion=17` targets Java 17 for server code and ordinary test
+sources. `-PpulsarClientJavaVersion=17` controls the client/public API target and consumer test
+toolchain (17 is already the default). For example:
+
+```shell
+./gradlew assemble -PpulsarJavaVersion=17
+PULSAR_MIN_JAVA_VERSION=17 bin/pulsar standalone
+```
+
+Gradle Docker builds bake `pulsarJavaVersion` into the image as `PULSAR_MIN_JAVA_VERSION`.
+Direct Docker builds can set `--build-arg PULSAR_MIN_JAVA_VERSION=17`; both Alpine and Wolfi
+Dockerfiles default to 21. The environment variable can also be overridden when running a container.
+
+`PULSAR_MIN_JAVA_VERSION` overrides the launcher check, which defaults to 21; it does not change
+compiled bytecode or dependency requirements. A custom Java 17 build is only possible while the
+sources and dependencies remain compatible; use of Java 21 features such as virtual threads will
+prevent targeting Java 17. Java 17 server builds are not part of CI. These properties do not change
+Gradle's build-JDK requirement. Use `-PtestJavaVersion=17` as well to run ordinary tests on an installed Java 17 JDK.
+
+**JDK 21, 25 or 26** is required to build `master` (`-PskipJavaVersionCheck` bypasses the check);
+`zip` is also needed. Use the bundled wrapper `./gradlew` (Linux/macOS) or
 `gradlew.bat` (Windows) — no separate Gradle install. See the
 [build-tooling setup guide](https://pulsar.apache.org/contribute/setup-buildtools/) and the
 [IDE setup guide](https://pulsar.apache.org/contribute/setup-ide/).
@@ -106,7 +137,7 @@ entire group. CI splits `pulsar-broker` tests into groups (see
 group are treated as `other` at runtime. `./gradlew verifyTestGroups` reports group assignments and
 flags tests not covered by any CI group.
 
-Other test-related properties: `-PtestJavaVersion=17` (run tests on a different JDK toolchain),
+Other test-related properties: `-PtestJavaVersion=21` (compile and run tests for a different JDK toolchain),
 `-PtestRetryCount=N`, `-PtestFailFast=true|false`, `-PprotobufVersion=4.31.1` (protobuf v4
 compatibility tests).
 
@@ -126,7 +157,7 @@ isolation, such as SASL's one class per worker, takes precedence.
 
 Test JVMs write heap dumps on heap exhaustion to `/tmp/java_pid<PID>.hprof`, collected by CI's
 existing failure artifacts. Set `-PtestHeapDumpPath=<existing-directory>` to use another directory.
-[The performance testing guide](tests/performance/README.md) leads to tools for analyzing them.
+[The Pulsar Performance Testing Framework](tests/performance/README.md) leads to tools for analyzing them.
 
 Failed tests are retried once by default (`testRetryCount=1`; `0` when running inside the IDE). When
 running tests locally, prefer **`-PtestRetryCount=0`** to catch failures (including flakiness) early
@@ -226,18 +257,19 @@ any integration test and without changing it. See
 
 #### Profiling a performance scenario, including off-CPU time
 
-The performance tests' `profile` task profiles a whole scenario — a cluster and its workload
+The performance testing framework's `profile` task profiles a whole scenario — a cluster and its workload
 applications — with three recorders running at the same time in each profiled JVM:
 [async-profiler](https://github.com/async-profiler/async-profiler) samples CPU time and allocations,
 JDK Flight Recorder (JFR) records the JVM's own events, such as monitor contention, thread parking and
 garbage collection, into the same recording, and [jonoffcpu](https://github.com/jonoffcpu/jonoffcpu),
 which bundles async-profiler, records from the kernel every interval in which a thread was blocked.
 Joined to the Java stacks, those intervals give **off-CPU** profiles: where threads wait on locks,
-monitors, queues, I/O or GC, not only where they use CPU. See [Performance tests](#performance-tests).
+monitors, queues, I/O or GC, not only where they use CPU. See
+[Pulsar Performance Testing Framework](#pulsar-performance-testing-framework).
 
 #### Performance recording analysis
 
-[The performance testing guide](tests/performance/README.md) leads to rendering these recordings into
+[The framework's guide](tests/performance/README.md) leads to rendering these recordings into
 flame graphs, opening them in JDK Mission Control or IntelliJ IDEA, analyzing them with an AI agent,
 and investigating memory leaks in heap dumps.
 
@@ -251,17 +283,18 @@ integration tests**, selected with `--tests`, and run the **entire** set with Pe
 [`tests/README.md`](tests/README.md) describes running them, selecting TestNG suites and groups, the test
 images and profiling a test's cluster.
 
-### Performance tests
+### Pulsar Performance Testing Framework
 
-[`tests/performance`](tests/performance/README.md) is for running performance test experiments: it runs
-a Pulsar cluster and its workloads in Docker on one host, as a scenario file describes them, and writes a
-report for every run with throughput, latency, delivery and ordering checks and the host's CPU state.
-Runs can be profiled with async-profiler, JDK Flight Recorder and jonoffcpu's off-CPU recording at the
-same time, and two revisions can be compared. Everything runs from the
-command line and writes its results to files, which makes the experiments automatable, including tuning
-by AI agents. [`tests/performance/README.md`](tests/performance/README.md) is a tutorial for configuring
-a Linux host for consistent results, running a scenario, reading its report, profiling a run and
-comparing revisions.
+The Pulsar Performance Testing Framework, in [`tests/performance`](tests/performance/README.md), is for
+running performance experiments: it runs a Pulsar cluster and its workloads in Docker on one host, as a
+scenario file describes them, and writes a report for every run with throughput, latency, delivery and
+ordering checks and the host's CPU state. Runs can be profiled with async-profiler, JDK Flight Recorder
+and jonoffcpu's off-CPU recording at the same time, and two revisions can be compared, with A/B charts
+of their throughput, backlog and latency. Everything runs from the command line and writes its results
+to files, which makes the experiments automatable, including tuning by AI agents.
+[`tests/performance/README.md`](tests/performance/README.md) is a tutorial for configuring a Linux host
+for consistent results, running a scenario, reading its report, profiling a run and comparing
+revisions.
 
 ### Running the full CI pipeline (Personal CI)
 
@@ -389,5 +422,5 @@ PRs/issues first, then ask via a GitHub issue or dev@pulsar.apache.org.
 If you use an AI coding assistant (Claude Code, Copilot, Cursor, Gemini, Codex, Aider, …), see
 [`AGENTS.md`](AGENTS.md) for the agent-facing guidance — a routing index into this guide,
 [`ARCHITECTURE.md`](ARCHITECTURE.md), [`CODING.md`](CODING.md), and [`SECURITY.md`](SECURITY.md), plus
-the guardrails that apply specifically to AI-made changes. The integration tests, the performance tests
-and the microbenchmarks have agent guides of their own, which `AGENTS.md` links.
+the guardrails that apply specifically to AI-made changes. The integration tests, the Pulsar Performance
+Testing Framework and the microbenchmarks have agent guides of their own, which `AGENTS.md` links.

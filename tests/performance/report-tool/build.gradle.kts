@@ -51,12 +51,54 @@ tasks.withType<JavaCompile>().configureEach {
     options.release.set(21)
 }
 
+// Run the pinned tools directly, without compiling the report tool or starting a cluster.
+// JavaExec's --args passes arbitrary CLI arguments through; paths resolve from the repository root.
+tasks.register<JavaExec>("runJonoffcpuCorrelator") {
+    group = "verification"
+    description = "Run the jonoffcpu correlator CLI; pass its options with --args"
+    classpath = configurations.runtimeClasspath.get()
+    mainClass.set("io.github.jonoffcpu.correlator.OffCpuCorrelator")
+    workingDir(rootProject.projectDir)
+    maxHeapSize = providers.gradleProperty("performance.profile.maxHeapSize").getOrElse("4g")
+}
+
+tasks.register<JavaExec>("runJfrConverter") {
+    group = "verification"
+    description = "Run jonoffcpu's jfr-converter CLI; pass its options with --args"
+    classpath = configurations.runtimeClasspath.get()
+    mainClass.set("one.convert.Main")
+    workingDir(rootProject.projectDir)
+    maxHeapSize = providers.gradleProperty("performance.profile.maxHeapSize").getOrElse("4g")
+}
+
+tasks.register<JavaExec>("summarizeNettyAllocatorEvents") {
+    group = "verification"
+    description = "Summarize the Netty allocator events of a JFR recording into <recording>.netty-allocator.json " +
+        "and print the summary; pass the recording and --messages <measured messages> with --args"
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("org.apache.pulsar.tests.performance.report.NettyAllocatorEvents")
+    workingDir(rootProject.projectDir)
+    maxHeapSize = providers.gradleProperty("performance.profile.maxHeapSize").getOrElse("4g")
+}
+
 tasks.register<JavaExec>("renderHdrHistograms") {
     group = "verification"
     description = "Plot IoT publish and per-application end-to-end latencies by percentile and over time as SVG " +
         "and PNG"
     classpath = sourceSets.main.get().runtimeClasspath
     mainClass.set("org.apache.pulsar.tests.performance.report.HdrHistogramRenderer")
+}
+
+// Charts a baseline run (A) against a comparison run (B) with the same axes for both, combined in one diagram and in
+// separate panels: --args='--baseline <run directory> --comparison <run directory> --output <directory>', and
+// optionally --baseline-label, --comparison-label and --no-labels-in-file-names. Paths resolve from the repository
+// root.
+tasks.register<JavaExec>("compareRuns") {
+    group = "verification"
+    description = "Chart a baseline run (A) against a comparison run (B) with the same axes for both"
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("org.apache.pulsar.tests.performance.report.ComparisonCharts")
+    workingDir(rootProject.projectDir)
 }
 
 // Serves the reports root over HTTP. -Pperformance.reportsDir chooses the root as for the launcher's tasks,

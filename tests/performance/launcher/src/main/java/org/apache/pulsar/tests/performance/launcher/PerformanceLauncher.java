@@ -43,6 +43,7 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -59,6 +60,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -75,6 +77,7 @@ import org.apache.pulsar.tests.performance.common.YamlScenarioLoader;
 import org.apache.pulsar.tests.performance.report.DockerEngine;
 import org.apache.pulsar.tests.performance.report.JfrFlamegraphViews;
 import org.apache.pulsar.tests.performance.report.MarkdownPages;
+import org.apache.pulsar.tests.performance.report.NettyAllocatorEvents;
 import org.apache.pulsar.tests.performance.report.OffCpuFlamegraphs;
 import org.apache.pulsar.tests.performance.report.ProfileReport;
 import org.apache.pulsar.tests.performance.report.ReportsUrl;
@@ -84,6 +87,7 @@ import org.apache.pulsar.tests.performance.tools.IotScenario;
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.startupcheck.OneShotStartupCheckStrategy;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -98,6 +102,13 @@ public class PerformanceLauncher implements Callable<Integer> {
     // The producer's measurement control endpoints, inside its container
     private static final int CONTROL_PORT = 8089;
     private static final String OUTPUT_MOUNT = "/performance-output";
+    // Where the one-off container that merges the JFR configurations sees the .jfc files and its output directory
+    private static final String JFC_MOUNT = "/jfr";
+    private static final String MERGE_OUTPUT_MOUNT = "/jfr-output";
+    // Where PulsarContainer binds a profiled broker's profile directory
+    private static final String BROKER_PROFILE_MOUNT = "/profiles";
+    // The merged JFR configuration of a profiled component, in its profile or output directory
+    static final String JFR_CONFIGURATION_FILE = "jfr-configuration.jfc";
     static final String JAVA_TOOL_OPTIONS = "JAVA_TOOL_OPTIONS";
     static final String PULSAR_MEM = "PULSAR_MEM";
     // The JVM options that Pulsar's scripts put last on a Pulsar component's command line
@@ -161,7 +172,8 @@ public class PerformanceLauncher implements Callable<Integer> {
     @Option(names = "--keep-launcher-log", defaultValue = "${sys:performance.keepLauncherLog:-false}",
             description = "Keep launcher.log when the run succeeds; without it, a successful run deletes it, since the "
                     + "containers' logs make it large. It is written during the run, so that it can be followed, and "
-                    + "a failed run keeps it")
+                    + "a failed run keeps it, as does a run whose applications received duplicates, ordering "
+                    + "violations or invalid messages")
     boolean keepLauncherLog;
 
     @Option(names = "--metrics", negatable = true, defaultValue = "${sys:performance.metrics:-true}",
@@ -169,6 +181,19 @@ public class PerformanceLauncher implements Callable<Integer> {
                     + "bookies and ZooKeeper during the run, the default: the running metrics stack's, or else the "
                     + "stack started for the run. --no-metrics doesn't. See docs/metrics.md")
     boolean metrics;
+
+    @Option(names = "--perf-stat", negatable = true, defaultValue = "${sys:performance.perfStat:-true}",
+            fallbackValue = "true", description = "Count each container's CPU time, context switches, CPU "
+                    + "migrations, cycles and instructions with perf stat in a privileged sidecar container, the "
+                    + "default on Linux; --no-perf-stat doesn't. The containers' CPU use and voluntary and involuntary "
+                    + "context switches are sampled from /proc either way. See docs/run-reports.md")
+    boolean perfStat;
+
+    @Option(names = "--procfs", defaultValue = "/proc", hidden = true)
+    Path procfs;
+
+    @Option(names = "--cgroupfs", defaultValue = "/sys/fs/cgroup", hidden = true)
+    Path cgroupfs;
 
     @Option(names = "--sysfs", defaultValue = "/sys", hidden = true)
     Path sysfs;
@@ -278,6 +303,20 @@ public class PerformanceLauncher implements Callable<Integer> {
         Files.writeString(runOutput.resolve("run-id.txt"), runId + "\n");
         Set<Path> recordingsBeforeRun = JfrRecordingProcessor.findOriginalRecordings(runOutput);
         Path brokerProfileDirectory = runOutput.resolve("broker-profile");
+        if (profilingEnabled) {
+            // Each component's JFR configuration goes beside its recordings: the broker's profile directory is its
+            // /profiles, and a workload's output directory its output mount. The brokers run the cluster's image,
+            // the gateways and the applications the test image.
+            String brokerImage = clusterImage != null ? clusterImage : PulsarContainer.DEFAULT_IMAGE_NAME;
+            profilingSettings = mergeJfrConfigurations(profilingSettings,
+                    runInfo.projectDirectory().resolve(ProfilingSettings.JFR_CONFIGURATIONS_DIRECTORY), Map.of(
+                            ProfilingSettings.BROKER, new JfrOutput(brokerImage, brokerProfileDirectory,
+                                    BROKER_PROFILE_MOUNT),
+                            ProfilingSettings.GATEWAYS, new JfrOutput(PulsarContainer.DEFAULT_IMAGE_NAME,
+                                    runOutput.resolve(GATEWAYS_DIRECTORY), OUTPUT_MOUNT),
+                            ProfilingSettings.APPLICATIONS, new JfrOutput(PulsarContainer.DEFAULT_IMAGE_NAME,
+                                    runOutput.resolve(APPLICATIONS_DIRECTORY), OUTPUT_MOUNT)));
+        }
         if (profilingSettings.broker().profiled()) {
             Files.createDirectories(brokerProfileDirectory);
             System.setProperty("inttest.asyncprofiler.opts", profilingSettings.broker().asyncProfilerOptions());
@@ -341,7 +380,7 @@ public class PerformanceLauncher implements Callable<Integer> {
                 .clusterImage(clusterImage)
                 .brokerEnvs(brokerEnv)
                 .brokerMountFiles(brokerMounts)
-                .bookkeeperEnvs(metricsSettings.withBookieStatsSettings(clusterSettings.bookies().env()))
+                .bookkeeperEnvs(metricsSettings.withBookieStatsSettings(clusterSettings.bookies().containerEnv()))
                 .build();
 
         HostStatsSampler.Sensors sensors = HostStatsSampler.discover(sysfs);
@@ -352,12 +391,24 @@ public class PerformanceLauncher implements Callable<Integer> {
         }
         Thread measurementGate = null;
         PulsarCluster cluster = PulsarCluster.forSpec(spec);
+        // The containers are created, not started yet
+        Map<String, String> journalTmpfsMount = clusterSettings.bookies().journalTmpfsMount();
+        if (!journalTmpfsMount.isEmpty()) {
+            cluster.getBookies().forEach(bookie -> bookie.withTmpFs(journalTmpfsMount));
+        }
         Path applicationsOutput = runOutput.resolve(APPLICATIONS_DIRECTORY);
         GenericContainer<?> consumer = null;
         GenericContainer<?> producer = null;
         TopicStatsSampler topicStatsSampler = null;
         ProgressMonitor progress = null;
         HostStatsSampler hostStatsSampler = startHostStatsSampler(sensors, runOutput);
+        // The sidecar in the Docker engine's host counts the containers' CPU events, and reads the engine host's
+        // counters when that is a VM, such as Docker Desktop's or OrbStack's on macOS
+        PerfStatSidecar perfStatSidecar = perfStat ? startPerfStatSidecar(runOutput) : null;
+        boolean engineOnThisHost = engineOnThisHost(perfStatSidecar);
+        HostIoSampler hostIoSampler = startHostIoSampler(engineOnThisHost || perfStatSidecar == null
+                ? new HostIoSampler.LocalSource(procfs, sysfs) : perfStatSidecar.hostSource(), runOutput);
+        ContainerStatsSampler containerStatsSampler = null;
         HeapDumper heapDumper = heapDumpSettings.any()
                 ? new HeapDumper(runOutput, PulsarContainer.DEFAULT_IMAGE_NAME, heapDumpSettings.gzipLevel()) : null;
         MetricsCollection metricsCollection = null;
@@ -366,8 +417,10 @@ public class PerformanceLauncher implements Callable<Integer> {
                 ReportsUrl.DEFAULT_BIND_ADDRESS);
         ZonedDateTime workloadFinished;
         try {
-            status(String.format(Locale.ROOT, "Starting the Pulsar cluster: %d broker(s), %d bookie(s)",
-                    spec.numBrokers(), spec.numBookies()));
+            String journalTmpfs = clusterSettings.bookies().journalTmpfs();
+            status(String.format(Locale.ROOT, "Starting the Pulsar cluster: %d broker(s), %d bookie(s)%s",
+                    spec.numBrokers(), spec.numBookies(),
+                    journalTmpfs != null ? ", with each bookie's journal on a tmpfs of " + journalTmpfs : ""));
             long clusterStart = System.nanoTime();
             cluster.start();
             status(String.format(Locale.ROOT, "Started the Pulsar cluster in %.0f s",
@@ -428,6 +481,10 @@ public class PerformanceLauncher implements Callable<Integer> {
             startWorkload(producer, ".*CONTROL_READY.*", "The gateways", producerOutput.resolve(CONTAINER_LOG));
             gatewaysStarted = Instant.now();
             GenericContainer<?> runningProducer = producer;
+            List<MeasuredContainer> measured = measuredContainers(cluster, clusterName, producer, consumer);
+            boolean counted = perfStatSidecar != null && countContainers(perfStatSidecar, measured);
+            containerStatsSampler = startContainerStatsSampler(measured, engineOnThisHost,
+                    counted ? perfStatSidecar : null, runOutput);
             if (heapDumper != null) {
                 heapDumper.start(heapDumpTargets(cluster, heapDumpSettings, producer, consumer));
             }
@@ -496,6 +553,23 @@ public class PerformanceLauncher implements Callable<Integer> {
                     hostStatsSampler.close();
                 }
             });
+            shutDown("closing the host I/O sampler", () -> {
+                if (hostIoSampler != null) {
+                    hostIoSampler.close();
+                }
+            });
+            ContainerStatsSampler containerStatsToClose = containerStatsSampler;
+            shutDown("closing the container stats sampler", () -> {
+                if (containerStatsToClose != null) {
+                    containerStatsToClose.close();
+                }
+            });
+            PerfStatSidecar perfStatToClose = perfStatSidecar;
+            shutDown("collecting the perf counts", () -> {
+                if (perfStatToClose != null) {
+                    perfStatToClose.close();
+                }
+            });
             if (gateToStop != null) {
                 gateToStop.interrupt();
             }
@@ -548,6 +622,12 @@ public class PerformanceLauncher implements Callable<Integer> {
             JfrRecordingProcessor.process(recordings, measurementStart, measurementEnd);
             for (Path recording : recordings) {
                 Path source = JfrRecordingProcessor.measurementPath(recording);
+                String component = recordingComponent(runOutput, recording);
+                if (Files.isRegularFile(source) && profilingSettings.component(component).nettyAllocationsReport()) {
+                    System.out.println("Netty allocator events: " + NettyAllocatorEvents.write(source,
+                            Duration.between(measurementStart, measurementEnd),
+                            summary.path("measurementMessages").asLong(), loader.mapper()));
+                }
                 Set<JfrFlamegraphViews.View> views = JfrFlamegraphViews.configuredViews(
                         asyncProfilerOptions(loader.mapper(), recording));
                 if (!views.isEmpty() && Files.isRegularFile(source)) {
@@ -569,9 +649,28 @@ public class PerformanceLauncher implements Callable<Integer> {
                 List.copyOf(cooldowns)), loader.mapper());
         printReport("Run report", MarkdownPages.htmlPage(runReport), reportsRoot);
         if (!keepLauncherLog) {
-            deleteLauncherLog(launcherLog);
+            if (deliveredIncorrectly(loader.mapper(), runOutput, workload, applications)) {
+                System.out.println("Kept " + launcherLog + ", with the containers' logs, since the applications"
+                        + " received duplicates, ordering violations or invalid messages");
+            } else {
+                deleteLauncherLog(launcherLog);
+            }
         }
         return 0;
+    }
+
+    /** Whether an application received duplicates, ordering violations or invalid messages in the run. */
+    static boolean deliveredIncorrectly(ObjectMapper mapper, Path runOutput, JsonNode workload, int applications)
+            throws IOException {
+        for (int application = 0; application < applications; application++) {
+            JsonNode summary = mapper.readTree(applicationOutput(runOutput, workload, application)
+                    .resolve("application-summary.json").toFile());
+            if (summary.path("duplicates").asLong() > 0 || summary.path("orderingViolations").asLong() > 0
+                    || summary.path("invalidMessages").asLong() > 0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -785,6 +884,129 @@ public class PerformanceLauncher implements Callable<Integer> {
         }
     }
 
+    /** A container of the run, by its name in the report. */
+    record MeasuredContainer(String name, GenericContainer<?> container) {
+    }
+
+    /** The cluster's and the workloads' containers, named without the cluster's prefix, such as broker-0. */
+    static List<MeasuredContainer> measuredContainers(PulsarCluster cluster, String clusterName,
+                                                      GenericContainer<?> producer, GenericContainer<?> consumer) {
+        List<MeasuredContainer> containers = new ArrayList<>();
+        List<GenericContainer<?>> clusterContainers = new ArrayList<>();
+        clusterContainers.addAll(cluster.getBrokers());
+        clusterContainers.addAll(cluster.getBookies());
+        if (cluster.getZooKeeper() != null) {
+            clusterContainers.add(cluster.getZooKeeper());
+        }
+        for (GenericContainer<?> container : clusterContainers) {
+            String name = container.getContainerName().replaceFirst("^/", "")
+                    .replaceFirst("^" + Pattern.quote(clusterName) + "-", "")
+                    .replaceFirst("^pulsar-", "");
+            containers.add(new MeasuredContainer(name, container));
+        }
+        containers.add(new MeasuredContainer(GATEWAYS_DIRECTORY, producer));
+        containers.add(new MeasuredContainer(APPLICATIONS_DIRECTORY, consumer));
+        return containers;
+    }
+
+    /** The PID of a container's main process in the Docker engine's host, from Docker's container inspect. */
+    private static Long pid(MeasuredContainer measured) {
+        return measured.container().getContainerInfo().getState().getPidLong();
+    }
+
+    /**
+     * The containers' cgroup directories on this host; empty when the Docker engine runs in a VM, such as Docker
+     * Desktop or OrbStack on macOS, whose processes and cgroups this host doesn't see.
+     */
+    private Map<String, Path> localCgroups(List<MeasuredContainer> containers) {
+        Map<String, Path> cgroups = new LinkedHashMap<>();
+        for (MeasuredContainer measured : containers) {
+            Long pid = pid(measured);
+            Path cgroup = pid != null ? ContainerStatsSampler.cgroupOf(procfs, pid, cgroupfs) : null;
+            if (cgroup != null) {
+                cgroups.put(measured.name(), cgroup);
+            }
+        }
+        return cgroups;
+    }
+
+    /**
+     * Whether the Docker engine runs on this host's kernel, from the kernel's boot ID, which isn't namespaced; assumed
+     * without the sidecar. When it doesn't, such as with Docker Desktop or OrbStack on macOS, this host's files don't
+     * describe the containers' host.
+     */
+    private boolean engineOnThisHost(PerfStatSidecar sidecar) {
+        if (sidecar == null) {
+            return true;
+        }
+        try {
+            String local = Files.readString(procfs.resolve("sys/kernel/random/boot_id")).trim();
+            return local.equals(sidecar.bootId());
+        } catch (IOException | RuntimeException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Starts sampling the containers' CPU use and context switches: from this host's files when the Docker engine
+     * runs on it, else through the sidecar in the engine's host. Sampling is an observation, so a failure to start it
+     * is reported and the run goes on without it.
+     */
+    private ContainerStatsSampler startContainerStatsSampler(List<MeasuredContainer> containers,
+                                                             boolean engineOnThisHost, PerfStatSidecar sidecar,
+                                                             Path runOutput) {
+        try {
+            Map<String, Path> cgroups = engineOnThisHost ? localCgroups(containers) : Map.of();
+            ContainerStatsSampler.Source source = !cgroups.isEmpty()
+                    ? new ContainerStatsSampler.LocalSource(procfs, cgroups)
+                    : sidecar != null ? sidecar.containerSource() : null;
+            if (source == null) {
+                System.out.println("Container stats sampling is off for this run: the containers' cgroups aren't on "
+                        + "this host, and --no-perf-stat turned off the sidecar that reads them in the Docker engine");
+                return null;
+            }
+            return ContainerStatsSampler.start(source, runOutput);
+        } catch (Exception e) {
+            System.out.println("Container stats sampling is off for this run: " + e);
+            return null;
+        }
+    }
+
+    /**
+     * Starts the idle sidecar container in the Docker engine's host. It is an observation, so a failure to start it
+     * is reported and the run goes on without it.
+     */
+    private static PerfStatSidecar startPerfStatSidecar(Path runOutput) {
+        try {
+            return PerfStatSidecar.start(runOutput);
+        } catch (Exception e) {
+            System.out.println("perf stat and the Docker engine host's counters are off for this run: "
+                    + e.getMessage());
+            return null;
+        }
+    }
+
+    /** Has the sidecar count the containers' CPU events; returns whether it found their cgroups. */
+    private static boolean countContainers(PerfStatSidecar sidecar, List<MeasuredContainer> containers) {
+        try {
+            List<PerfStatSidecar.Target> targets = new ArrayList<>();
+            for (MeasuredContainer measured : containers) {
+                Long pid = pid(measured);
+                if (pid != null) {
+                    targets.add(new PerfStatSidecar.Target(measured.name(), pid));
+                }
+            }
+            boolean found = sidecar.count(targets);
+            if (sidecar.counting()) {
+                status("Counting the containers' CPU events with perf stat");
+            }
+            return found;
+        } catch (Exception e) {
+            System.out.println("perf stat is off for this run: " + e.getMessage());
+            return false;
+        }
+    }
+
     /**
      * Starts sampling the host's thermal state for the run report. Sampling is an observation, so a failure to
      * start it is reported and the run goes on without it.
@@ -798,6 +1020,19 @@ public class PerformanceLauncher implements Callable<Integer> {
             return sampler;
         } catch (Exception e) {
             System.out.println("Host stats sampling is off for this run: " + e);
+            return null;
+        }
+    }
+
+    /**
+     * Starts sampling the host's CPU utilization and disk throughput into {@code host-io.csv}. Sampling is an
+     * observation, so a failure to start it is reported and the run goes on without it.
+     */
+    private static HostIoSampler startHostIoSampler(HostIoSampler.Source source, Path runOutput) {
+        try {
+            return HostIoSampler.start(source, runOutput);
+        } catch (Exception e) {
+            System.out.println("Host I/O sampling is off for this run: " + e);
             return null;
         }
     }
@@ -906,6 +1141,94 @@ public class PerformanceLauncher implements Callable<Integer> {
                 return;
             }
         }
+    }
+
+    /** The command of {@code jfr configure} that merges {@code input} and applies the event settings after it. */
+    static String[] jfrConfigureCommand(String input, List<String> eventSettings, String output) {
+        List<String> command = new ArrayList<>(List.of("configure", "--input", input));
+        command.addAll(eventSettings);
+        command.addAll(List.of("--output", output));
+        return command.toArray(String[]::new);
+    }
+
+    /** The profiled component whose recording {@code recording} is, by the directory that it is in. */
+    static String recordingComponent(Path runOutput, Path recording) {
+        Path directory = runOutput.relativize(recording.toAbsolutePath().normalize()).getName(0);
+        return switch (directory.toString()) {
+            case GATEWAYS_DIRECTORY -> ProfilingSettings.GATEWAYS;
+            case APPLICATIONS_DIRECTORY -> ProfilingSettings.APPLICATIONS;
+            default -> ProfilingSettings.BROKER;
+        };
+    }
+
+    /**
+     * Where a component's merged JFR configuration goes: the image that the component runs, and the directory on the
+     * host that its container binds at {@code containerDirectory}.
+     */
+    record JfrOutput(String image, Path directory, String containerDirectory) {
+    }
+
+    /**
+     * Merges each profiled component's {@code jfrConfigurations} with {@code jfr configure} into
+     * {@value #JFR_CONFIGURATION_FILE} in its output directory, and sets its async-profiler {@code jfrsync} to the
+     * file as its container sees it, with its {@code jfrEventConfig} applied after them, or to the JDK's
+     * {@code default} configuration without configurations, as {@code jfr configure} starts from without
+     * {@code --input}. A single configuration of the JDK without {@code jfrEventConfig}, such as the default
+     * {@code profile}, is passed to {@code jfrsync} as it is; without configurations and {@code jfrEventConfig},
+     * {@code jfrsync} is left out, which records only async-profiler's events. The merge runs in a one-off container
+     * of the component's image, so that a configuration of the JDK, such as {@code profile}, is the one of the JVM
+     * that records with it; the {@code .jfc} files come from {@code jfcDirectory}. When the image's JDK can't merge
+     * them, such as a released Pulsar's image whose JDK has no jfr tool, the component records with the JDK's
+     * {@value ProfilingSettings#FALLBACK_JFR_CONFIGURATION} configuration.
+     */
+    static ProfilingSettings mergeJfrConfigurations(ProfilingSettings settings, Path jfcDirectory,
+                                                    Map<String, JfrOutput> outputs) throws IOException {
+        Map<String, String> configurations = new HashMap<>();
+        for (String name : ProfilingSettings.components()) {
+            ProfilingSettings.Component component = settings.component(name);
+            if (!component.profiled() || !component.recordsJfrEvents()) {
+                continue;
+            }
+            List<String> listed = component.jfrConfigurations();
+            // A configuration of the JDK, but not an empty one, which async-profiler doesn't know by name
+            if (component.jfrEventConfig().isEmpty() && listed.size() == 1
+                    && !listed.get(0).endsWith(ProfilingSettings.JFC_SUFFIX)
+                    && !ProfilingSettings.JFR_CONFIGURE_EMPTY_INPUT.equals(listed.get(0))) {
+                configurations.put(name, listed.get(0));
+                continue;
+            }
+            for (String configuration : listed) {
+                if (configuration.endsWith(ProfilingSettings.JFC_SUFFIX)
+                        && !Files.isRegularFile(jfcDirectory.resolve(configuration))) {
+                    throw new IllegalArgumentException("The profiling of " + name + " lists the JFR configuration "
+                            + configuration + ", which isn't a file of " + jfcDirectory);
+                }
+            }
+            JfrOutput output = outputs.get(name);
+            Files.createDirectories(output.directory());
+            String input = component.jfrConfigureInput(JFC_MOUNT);
+            try (GenericContainer<?> merge = new GenericContainer<>(output.image())
+                    .withFileSystemBind(jfcDirectory.toString(), JFC_MOUNT, BindMode.READ_ONLY)
+                    .withFileSystemBind(output.directory().toString(), MERGE_OUTPUT_MOUNT, BindMode.READ_WRITE)
+                    .withCreateContainerCmdModifier(command -> command.withUser("0").withEntrypoint("jfr"))
+                    .withCommand(jfrConfigureCommand(input, component.jfrConfigureEventSettings(),
+                            MERGE_OUTPUT_MOUNT + "/" + JFR_CONFIGURATION_FILE))
+                    .withStartupCheckStrategy(new OneShotStartupCheckStrategy()
+                            .withTimeout(Duration.ofMinutes(1)))) {
+                merge.start();
+                configurations.put(name, output.containerDirectory() + "/" + JFR_CONFIGURATION_FILE);
+                System.out.println("JFR configuration of " + name + ": " + String.join(", ",
+                        component.jfrConfigurations()) + (component.jfrEventConfig().isEmpty() ? ""
+                        : " with " + String.join(" ", component.jfrConfigureEventSettings())) + ", merged into "
+                        + output.directory().resolve(JFR_CONFIGURATION_FILE));
+            } catch (RuntimeException e) {
+                System.out.println("Couldn't merge the JFR configurations " + input + " of " + name + " in the image "
+                        + output.image() + " (" + e.getMessage() + "), so " + name + " records with the JDK's "
+                        + ProfilingSettings.FALLBACK_JFR_CONFIGURATION + " JFR configuration");
+                configurations.put(name, ProfilingSettings.FALLBACK_JFR_CONFIGURATION);
+            }
+        }
+        return settings.withJfrsync(configurations);
     }
 
     /**

@@ -26,14 +26,19 @@
 #   start    checks that the host is on AC power and has disk space, stops daemons that
 #            would throttle or retune the host, activates the performance-testing TuneD
 #            profile and skips the Gradle task that applies the same kernel settings in
-#            ~/.gradle/gradle.properties of the user running sudo
+#            ~/.gradle/gradle.properties of the user running sudo. With
+#            --disable-write-barriers, it also remounts the file system of the containers'
+#            file systems without write barriers, see disable_write_barriers
 #   stop     switches TuneD to a balanced profile that allows power saving, stops TuneD,
-#            starts the daemons stopped by "start" again and removes the Gradle property
-#   validate checks, without root, that the host is ready for performance tests: AC power,
-#            disk space, the active TuneD profile and the settings it applies. It prints each
-#            check to stdout and the reason for each failed check to stderr, and exits with
-#            1 when a check failed, so that scripts and AI agents can check the host before
-#            running tests.
+#            starts the daemons stopped by "start" again, enables the write barriers that
+#            "start" disabled and removes the Gradle property
+#   validate checks that the host is ready for performance tests: on every operating system
+#            that Docker is available and has disk space, and on Linux also AC power, the
+#            active TuneD profile and the settings it applies. It prints each check to stdout
+#            and the reason for each failed check to stderr, so that scripts and AI agents can
+#            check the host before running tests. Its exit code is 0 when every check passed,
+#            and otherwise a bit mask in which each kind of failed check sets its bit:
+#            EXIT_DOCKER_DISK, EXIT_DOCKER_UNAVAILABLE or EXIT_HOST_CONFIGURATION.
 set -euo pipefail
 
 # tuned-adm, sysctl and other administration commands are in the sbin directories, which aren't on the
@@ -54,15 +59,25 @@ DOCKER_LOG_OPTIONS='{"max-size": "100m", "max-file": "3"}'
 # BookKeeper's diskUsageWarnThreshold, bookies switch to read-only mode at 95 % by default. "start"
 # warns and "validate" fails when the disk that holds Docker's data is this full.
 DISK_USAGE_LIMIT_PERCENT=90
+# The image of the container in which the usage of Docker's disk is read
+DISK_CHECK_IMAGE="${DISK_CHECK_IMAGE:-alpine}"
+# The values of bits 1, 2 and 3 of "validate"'s exit code, one bit for each kind of failed check;
+# 1, the value of bit 0, is left for usage and unexpected errors
+EXIT_DOCKER_DISK=2
+EXIT_DOCKER_UNAVAILABLE=4
+EXIT_HOST_CONFIGURATION=8
 # The performance-testing profile applies the kernel settings of the
 # :tests:integration:tuneKernelPerfEvents task, so "start" skips the task in the Gradle
 # properties of the user who runs the tests
 GRADLE_SKIP_PROPERTY="inttest.asyncprofiler.skipPerfEventTuning"
 GRADLE_PROPERTIES_BEGIN="# BEGIN added by configure-perf-test-environment.sh start, removed by stop"
 GRADLE_PROPERTIES_END="# END added by configure-perf-test-environment.sh start"
+# The mount point whose write barriers "start --disable-write-barriers" disabled, for "stop". /run is
+# emptied at boot, when the file system is mounted with its own options again.
+WRITE_BARRIERS_STATE="/run/configure-perf-test-environment/write-barriers-disabled"
 
 usage() {
-    echo "Usage: sudo $0 install|start|stop, or $0 validate" >&2
+    echo "Usage: sudo $0 install|start [--disable-write-barriers]|stop, or $0 validate" >&2
 }
 
 require_root() {
@@ -358,6 +373,96 @@ print_perf_settings() {
     echo
 }
 
+# The directory of a container's writable layer, where the bookies' ledgers are: the upper directory
+# of the overlay mount of a disposable container's root. It is in Docker's data directory with Docker's
+# own storage drivers, and in containerd's, such as /var/lib/containerd, with the containerd image store.
+container_layer_directory() {
+    local id pid upper
+    id="$(docker run --detach --rm "${DISK_CHECK_IMAGE}" sleep 60 2>/dev/null)" || return 1
+    pid="$(docker inspect --format '{{.State.Pid}}' "${id}" 2>/dev/null || true)"
+    # The root's line in mountinfo ends with the overlay's options, which have upperdir=
+    upper="$(awk '$5 == "/" { print $NF }' "/proc/${pid:-0}/mountinfo" 2>/dev/null \
+        | tr ',' '\n' | sed -n 's/^upperdir=//p' || true)"
+    docker rm --force "${id}" >/dev/null 2>&1 || true
+    [[ -n "${upper}" ]] && echo "${upper}"
+}
+
+# The mount point and the type of the file system of the containers' writable layers, where the
+# bookies' ledgers are. Only this file system is changed, when the host has several.
+docker_data_mount() {
+    local directory
+    if ! directory="$(container_layer_directory)"; then
+        # Docker's data directory, when a container's layer can't be found, such as with a storage
+        # driver that doesn't use overlays
+        if ! directory="$(docker info --format '{{.DockerRootDir}}' 2>/dev/null)" || [[ -z "${directory}" ]]; then
+            echo "ERROR: Can't find where Docker keeps the containers' file systems. Start Docker first." >&2
+            return 1
+        fi
+        echo "The containers' layers weren't found, using Docker's data directory ${directory}" >&2
+    fi
+    # The container's layer has been removed with the container, and its parent directory stays
+    while [[ ! -e "${directory}" && "${directory}" != / ]]; do
+        directory="$(dirname "${directory}")"
+    done
+    findmnt --noheadings --output TARGET,FSTYPE --target "${directory}"
+}
+
+# The mount options that turn the write barriers of a file system type off and on, or nothing for a
+# type that doesn't have them. XFS no longer has an option to turn them off.
+write_barrier_options() {
+    case "$1" in
+        ext4) echo "barrier=0 barrier=1" ;;
+        btrfs) echo "nobarrier barrier" ;;
+        *) return 1 ;;
+    esac
+}
+
+write_barriers_disabled() {
+    [[ ",$(findmnt --noheadings --output OPTIONS --mountpoint "$1")," =~ ,(nobarrier|barrier=0), ]]
+}
+
+# Remounts the file system of the containers' file systems without write barriers: an fsync then no longer waits for
+# the disk to write its volatile cache, which BookKeeper's ledger storage does at each flush. The disk
+# may then write the file system's journal out of order, so losing its cache, in a power loss or when
+# the host is powered off without shutting down, can corrupt the file system and any file on it, not
+# only Docker's. "stop" turns them on again.
+disable_write_barriers() {
+    local target fstype options
+    read -r target fstype < <(docker_data_mount) || exit 1
+    if ! options="$(write_barrier_options "${fstype}")"; then
+        echo "WARNING: The containers' file systems are on ${target}, which is ${fstype}, whose write barriers" \
+            "can't be disabled; it's left as it is." >&2
+        return
+    fi
+    if write_barriers_disabled "${target}"; then
+        echo "The write barriers of ${target} are already disabled"
+        return
+    fi
+    echo "Disabling the write barriers of ${target} (${fstype}), where the containers' file systems are"
+    echo "WARNING: Until \"$0 stop\", a power loss or powering the host off without shutting it down can" \
+        "corrupt the file system of ${target} and any file on it." >&2
+    mount -o "remount,${options%% *}" "${target}"
+    mkdir -p "$(dirname "${WRITE_BARRIERS_STATE}")"
+    echo "${target} ${fstype}" >"${WRITE_BARRIERS_STATE}"
+    if ! write_barriers_disabled "${target}"; then
+        echo "ERROR: The write barriers of ${target} are still enabled." >&2
+        exit 1
+    fi
+}
+
+# Enables the write barriers that "start --disable-write-barriers" disabled
+restore_write_barriers() {
+    local target fstype options
+    if [[ ! -f "${WRITE_BARRIERS_STATE}" ]]; then
+        return
+    fi
+    read -r target fstype <"${WRITE_BARRIERS_STATE}"
+    options="$(write_barrier_options "${fstype}")"
+    echo "Enabling the write barriers of ${target} again"
+    mount -o "remount,${options##* }" "${target}"
+    rm -f "${WRITE_BARRIERS_STATE}"
+}
+
 # The Docker logging configuration is updated with jq, which is expected on the host. Checked before
 # install changes anything
 check_jq_for_docker_logging() {
@@ -444,19 +549,23 @@ check_ac_power() {
     fi
 }
 
-# Prints the directory of Docker's data and how full its disk is, in percent
+# Prints how full the disk of Docker's data is, in percent, and Docker's data directory. The usage is
+# read through Docker rather than from the host, whose file system doesn't have Docker's data when
+# Docker runs in a virtual machine, as on macOS: a container's root file system is on the same disk
+# as Docker's data, as the bookies' ledgers are.
 docker_disk_usage() {
-    local docker_root
+    local docker_root usage
     docker_root="$(docker info --format '{{.DockerRootDir}}' 2>/dev/null || true)"
-    docker_root="${docker_root:-/var/lib/docker}"
-    if [[ -d "${docker_root}" ]]; then
-        echo "${docker_root} $(df --output=pcent "${docker_root}" | tail -n 1 | tr -d ' %')"
-    fi
+    docker_root="${docker_root:-Docker data directory}"
+    usage="$(docker run --rm "${DISK_CHECK_IMAGE}" df -P / 2>/dev/null \
+        | awk 'NR == 2 { sub("%", "", $5); print $5 }')" || return 1
+    [[ "${usage}" =~ ^[0-9]+$ ]] || return 1
+    echo "${usage} ${docker_root}"
 }
 
 check_disk_space() {
     local docker_root usage
-    read -r docker_root usage < <(docker_disk_usage) || return 0
+    read -r usage docker_root < <(docker_disk_usage) || return 0
     if ((usage >= DISK_USAGE_LIMIT_PERCENT)); then
         echo "WARNING: The disk of ${docker_root} is ${usage} % full. BookKeeper bookies switch to" \
             "read-only mode when the disk is 95 % full." >&2
@@ -535,12 +644,30 @@ activate_perf_profile() {
 }
 
 start() {
+    local disable_barriers=false
+    while (($# > 0)); do
+        case "$1" in
+            --disable-write-barriers) disable_barriers=true ;;
+            *)
+                usage
+                exit 1
+                ;;
+        esac
+        shift
+    done
+
     check_perf_profile_installed
     check_ac_power
     check_disk_space
     stop_thermald
     stop_distro_specific_services
     activate_perf_profile
+    if [[ "${disable_barriers}" == true ]]; then
+        disable_write_barriers
+    else
+        # A previous "start --disable-write-barriers" disabled them
+        restore_write_barriers
+    fi
     add_gradle_properties
 
     echo
@@ -600,6 +727,7 @@ stop() {
     restore_system_memory_settings
     start_distro_specific_services
     start_thermald
+    restore_write_barriers
     remove_gradle_properties
 
     echo
@@ -609,6 +737,9 @@ stop() {
 # "validate" prints each check to stdout, and the reason for each failed check to stderr
 validation_checks=0
 validation_failures=0
+validation_exit_code=0
+# The value of the bit that a failed check sets in the exit code, which each group of checks sets
+failure_exit_code=${EXIT_HOST_CONFIGURATION}
 
 check_passed() {
     validation_checks=$((validation_checks + 1))
@@ -618,6 +749,7 @@ check_passed() {
 check_failed() {
     validation_checks=$((validation_checks + 1))
     validation_failures=$((validation_failures + 1))
+    validation_exit_code=$((validation_exit_code | failure_exit_code))
     echo "FAILED: $1"
     echo "$1: $2" >&2
 }
@@ -661,14 +793,17 @@ validate_power() {
 
 validate_disk_space() {
     local docker_root usage
+    failure_exit_code=${EXIT_DOCKER_UNAVAILABLE}
     if ! docker info >/dev/null 2>&1; then
         check_failed "Docker is available" "Can't connect to Docker. Start it, or add the user to the docker group."
         return
     fi
-    if ! read -r docker_root usage < <(docker_disk_usage); then
-        check_failed "Docker's disk has space" "Docker's data directory wasn't found."
+    if ! read -r usage docker_root < <(docker_disk_usage); then
+        check_failed "Docker's disk usage can be read" "A container of the ${DISK_CHECK_IMAGE} image couldn't read\
+ the usage of Docker's disk. Check that the image can be pulled, or set DISK_CHECK_IMAGE to an image that has df."
         return
     fi
+    failure_exit_code=${EXIT_DOCKER_DISK}
     if ((usage >= DISK_USAGE_LIMIT_PERCENT)); then
         check_failed "Docker's disk is less than ${DISK_USAGE_LIMIT_PERCENT} % full" "The disk of ${docker_root} is\
  ${usage} % full, and BookKeeper bookies switch to read-only mode when it is 95 % full. Free space, for example with\
@@ -728,8 +863,13 @@ validate_governor() {
 }
 
 validate() {
-    validate_power
     validate_disk_space
+    if [[ "$(uname -s)" != "Linux" ]]; then
+        echo "skipped: the host's configuration, which is checked on Linux only"
+        finish_validation
+    fi
+    failure_exit_code=${EXIT_HOST_CONFIGURATION}
+    validate_power
     validate_tuned_profile
     validate_service_stopped "${THERMALD_SERVICE}"
     if [[ "$(os_id)" == "pop" ]]; then
@@ -743,12 +883,16 @@ validate() {
         /sys/kernel/mm/transparent_hugepage/enabled madvise
     validate_setting "Transparent Huge Pages are compacted when the JVM touches its heap" \
         /sys/kernel/mm/transparent_hugepage/defrag madvise
+    finish_validation
+}
 
+finish_validation() {
     if ((validation_failures > 0)); then
         echo "Validation failed: ${validation_failures} of ${validation_checks} checks failed." >&2
-        exit 1
+        exit "${validation_exit_code}"
     fi
     echo "Validation passed: ${validation_checks} checks."
+    exit 0
 }
 
 case "${1:-}" in
@@ -758,7 +902,7 @@ case "${1:-}" in
         ;;
     start)
         require_root start
-        start
+        start "${@:2}"
         ;;
     stop)
         require_root stop
