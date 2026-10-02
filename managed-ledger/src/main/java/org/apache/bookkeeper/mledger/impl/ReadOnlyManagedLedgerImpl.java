@@ -157,6 +157,13 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
     }
 
     @Override
+    public synchronized void asyncClose(AsyncCallbacks.CloseCallback callback, Object ctx) {
+        // There is no current write handle, so the parent's write-close callback cannot release this cache.
+        ledgerCache.forEach((ledgerId, readHandle) -> invalidateReadHandle(ledgerId));
+        super.asyncClose(callback, ctx);
+    }
+
+    @Override
     public void asyncReadEntry(Position position, AsyncCallbacks.ReadEntryCallback callback, Object ctx) {
             this.getLedgerHandle(position.getLedgerId())
                     .thenAccept((ledger) -> asyncReadEntry(ledger, position, callback, ctx))
