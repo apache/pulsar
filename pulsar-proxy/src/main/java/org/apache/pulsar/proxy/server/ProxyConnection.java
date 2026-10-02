@@ -20,6 +20,7 @@ package org.apache.pulsar.proxy.server;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFutureListener;
@@ -164,6 +165,11 @@ public class ProxyConnection extends PulsarHandler {
         return connectionPool;
     }
 
+    @VisibleForTesting
+    void setStateForTesting(State state) {
+        this.state = state;
+    }
+
     public ProxyConnection(ProxyService proxyService, DnsAddressResolverGroup dnsAddressResolverGroup) {
         super(proxyService.getConfiguration().getKeepAliveIntervalSeconds(), TimeUnit.SECONDS);
         this.service = proxyService;
@@ -225,9 +231,6 @@ public class ProxyConnection extends PulsarHandler {
             directProxyHandler.close();
             directProxyHandler = null;
         }
-
-        ReferenceCountUtil.safeRelease(haProxyMessage);
-        haProxyMessage = null;
 
         if (authRefreshTask != null) {
             authRefreshTask.cancel(false);
@@ -295,6 +298,7 @@ public class ProxyConnection extends PulsarHandler {
     public void channelRead(final ChannelHandlerContext ctx, Object msg) throws Exception {
         if (msg instanceof HAProxyMessage) {
             haProxyMessage = (HAProxyMessage) msg;
+            haProxyMessage.release();
             return;
         }
         switch (state) {

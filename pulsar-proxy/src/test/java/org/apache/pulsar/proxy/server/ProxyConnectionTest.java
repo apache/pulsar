@@ -32,6 +32,7 @@ import io.netty.handler.codec.haproxy.HAProxyCommand;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
 import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
+import io.netty.handler.codec.haproxy.HAProxyTLV;
 import io.netty.util.ReferenceCountUtil;
 import java.util.Collections;
 import java.util.Set;
@@ -153,27 +154,75 @@ public class ProxyConnectionTest {
     }
 
     @Test
-    public void storedHAProxyMessageIsReleasedWhenConnectionCloses() throws Exception {
+    public void droppedInboundMessageIsReleasedWhileConnectingToBroker() throws Exception {
+        ProxyService proxyService = mock(ProxyService.class);
+        doReturn(new ProxyConfiguration()).when(proxyService).getConfiguration();
+        ProxyConnection proxyConnection = new ProxyConnection(proxyService, null);
+        proxyConnection.setStateForTesting(ProxyConnection.State.ProxyConnectingToBroker);
+        ChannelHandlerContext context = mock(ChannelHandlerContext.class);
+        ByteBuf message = Unpooled.directBuffer(1).writeByte(1);
+        try {
+            proxyConnection.channelRead(context, message);
+            assertThat(message.refCnt())
+                    .as("a message dropped while connecting to a broker must be released")
+                    .isZero();
+        } finally {
+            ReferenceCountUtil.safeRelease(message);
+        }
+    }
+
+    @Test
+    public void droppedInboundMessageIsReleasedWhenBrokerHandlerIsMissing() throws Exception {
+        ProxyService proxyService = mock(ProxyService.class);
+        doReturn(new ProxyConfiguration()).when(proxyService).getConfiguration();
+        ProxyConnection proxyConnection = new ProxyConnection(proxyService, null);
+        proxyConnection.setStateForTesting(ProxyConnection.State.ProxyConnectionToBroker);
+        ChannelHandlerContext context = mock(ChannelHandlerContext.class);
+        ByteBuf message = Unpooled.directBuffer(1).writeByte(1);
+        try {
+            proxyConnection.channelRead(context, message);
+            assertThat(message.refCnt())
+                    .as("a message dropped without a broker handler must be released")
+                    .isZero();
+        } finally {
+            ReferenceCountUtil.safeRelease(message);
+        }
+    }
+
+    @Test
+    public void receivedHAProxyMessageIsReleasedAndRetainedMetadataRemainsAvailable() throws Exception {
         ProxyService proxyService = mock(ProxyService.class);
         doReturn(new ProxyConfiguration()).when(proxyService).getConfiguration();
         Set<ProxyConnection> clientConnections = Collections.newSetFromMap(new ConcurrentHashMap<>());
         doReturn(clientConnections).when(proxyService).getClientCnxs();
         ProxyConnection proxyConnection = new ProxyConnection(proxyService, null);
         ChannelHandlerContext context = mock(ChannelHandlerContext.class);
+        ByteBuf tlvContent = Unpooled.directBuffer(3).writeBytes(new byte[] {'h', '2', 'c'});
+        HAProxyTLV tlv = new HAProxyTLV(HAProxyTLV.Type.PP2_TYPE_ALPN, tlvContent);
         HAProxyMessage message = new HAProxyMessage(
-                HAProxyProtocolVersion.V1,
+                HAProxyProtocolVersion.V2,
                 HAProxyCommand.PROXY,
                 HAProxyProxiedProtocol.TCP4,
                 "192.0.2.1",
                 "192.0.2.2",
                 1234,
-                6650);
+                6650,
+                Collections.singletonList(tlv));
         try {
             proxyConnection.channelRead(context, message);
-            proxyConnection.channelInactive(context);
             assertThat(message.refCnt())
-                    .as("the stored HAProxy message must be released when the connection closes")
+                    .as("the HAProxy message must be released as soon as the proxy stores it")
                     .isZero();
+            assertThat(tlvContent.refCnt())
+                    .as("the HAProxy v2 TLV buffer must be released with the message")
+                    .isZero();
+            assertThat(proxyConnection.hasHAProxyMessage()).isTrue();
+            HAProxyMessage retainedMessage = proxyConnection.getHAProxyMessage();
+            assertThat(retainedMessage.sourceAddress()).isEqualTo("192.0.2.1");
+            assertThat(retainedMessage.destinationAddress()).isEqualTo("192.0.2.2");
+            assertThat(retainedMessage.sourcePort()).isEqualTo(1234);
+            assertThat(retainedMessage.destinationPort()).isEqualTo(6650);
+            assertThat(retainedMessage.proxiedProtocol()).isEqualTo(HAProxyProxiedProtocol.TCP4);
         } finally {
             ReferenceCountUtil.safeRelease(message);
         }
