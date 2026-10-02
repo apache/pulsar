@@ -18,8 +18,10 @@
  */
 package org.apache.pulsar.broker.storage;
 
+import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.stats.StatsProvider;
+import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 
 /**
  * ManagedLedgerStorageClass represents a configured instance of ManagedLedgerFactory for managed ledgers.
@@ -32,6 +34,28 @@ public interface BookkeeperManagedLedgerStorageClass extends ManagedLedgerStorag
      * @return the bookkeeper client.
      */
     BookKeeper getBookKeeperClient();
+
+    /**
+     * Return the BookKeeper client for the specified ensemble placement policy.
+     *
+     * <p>The returned client is owned by the storage class and must not be closed by the caller.
+     *
+     * @param ensemblePlacementPolicyConfig the ensemble placement policy configuration
+     * @return a future that completes with the BookKeeper client
+     */
+    default CompletableFuture<BookKeeper> getBookKeeperClient(
+            EnsemblePlacementPolicyConfig ensemblePlacementPolicyConfig) {
+        if (ensemblePlacementPolicyConfig == null
+                || ensemblePlacementPolicyConfig.getPolicyClass() == null) {
+            try {
+                return CompletableFuture.completedFuture(getBookKeeperClient());
+            } catch (RuntimeException e) {
+                return CompletableFuture.failedFuture(e);
+            }
+        }
+        return CompletableFuture.failedFuture(new UnsupportedOperationException(
+                "Custom ensemble placement policies are not supported by this storage class"));
+    }
 
     /**
      * Return the stats provider to expose the stats of the storage implementation.
