@@ -24,6 +24,8 @@ import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCounted;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
 import lombok.CustomLog;
 import lombok.Getter;
 import lombok.Setter;
@@ -56,6 +58,16 @@ public final class EntryImpl extends AbstractCASReferenceCounted
     private Position position;
     ByteBuf data;
     private EntryReadCountHandler readCountHandler;
+    private static final VarHandle READ_COUNT_HANDLER;
+
+    static {
+        try {
+            READ_COUNT_HANDLER = MethodHandles.lookup()
+                    .findVarHandle(EntryImpl.class, "readCountHandler", EntryReadCountHandler.class);
+        } catch (ReflectiveOperationException e) {
+            throw new ExceptionInInitializerError(e);
+        }
+    }
     private boolean decreaseReadCountOnRelease = true;
     // Cache readers publish metadata lazily; entry copies must see a fully initialized instance.
     @Getter @Setter
@@ -313,6 +325,26 @@ public final class EntryImpl extends AbstractCASReferenceCounted
     @Override
     public EntryReadCountHandler getReadCountHandler() {
         return readCountHandler;
+    }
+
+    /**
+     * Takes the expected read count of an entry that was added at this entry's position while this one is cached.
+     * A cached entry is immutable and kept, but the latest addition, such as a read from storage, knows how many
+     * cursors are expected to read the entry. A cached entry without expected reads takes the latest addition's
+     * handler.
+     *
+     * @param latest the read count handler of the latest addition, or null when it has no expected reads
+     */
+    public void updateExpectedReadCount(EntryReadCountHandler latest) {
+        EntryReadCountHandler current = readCountHandler;
+        if (latest == null || latest == current) {
+            return;
+        }
+        if (current instanceof EntryReadCountHandlerImpl currentImpl) {
+            currentImpl.setExpectedReadCount(latest.getExpectedReadCount());
+        } else if (current == null) {
+            READ_COUNT_HANDLER.setRelease(this, latest);
+        }
     }
 
     public void setDecreaseReadCountOnRelease(boolean enabled) {

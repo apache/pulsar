@@ -523,17 +523,22 @@ public class RangeCacheTest {
     }
 
     @Test
-    public void inserterTellsWhetherThePositionIsCached() {
+    public void inserterUpdatesTheCachedEntryAtAPosition() {
         RangeCache cache = new RangeCache(createRemovalQueue());
         RangeCache.Inserter inserter = cache.newInserter();
-        assertFalse(inserter.contains(createPosition(1)));
+        assertFalse(inserter.updateIfCached(createPosition(1), entry -> fail("Not cached")));
         putToCache(cache, 1, "1");
-        // the inserter looks the page up, and then uses it
-        assertTrue(inserter.contains(createPosition(1)));
-        assertFalse(inserter.contains(createPosition(2)));
-        assertFalse(inserter.contains(PositionFactory.create(1, 1)));
+        // the inserter looks the page up, and then uses it; the update gets the cached entry, retained meanwhile
+        List<String> updated = new ArrayList<>();
+        assertTrue(inserter.updateIfCached(createPosition(1), entry -> {
+            assertEquals(entry.refCnt(), 2);
+            updated.add(new String(entry.getData()));
+        }));
+        assertThat(updated).containsExactly("1");
+        assertFalse(inserter.updateIfCached(createPosition(2), entry -> fail("Not cached")));
+        assertFalse(inserter.updateIfCached(PositionFactory.create(1, 1), entry -> fail("Not cached")));
         cache.removeRange(createPosition(1), createPosition(1), true);
-        assertFalse(inserter.contains(createPosition(1)));
+        assertFalse(inserter.updateIfCached(createPosition(1), entry -> fail("Not cached")));
         cache.clear();
     }
 
@@ -618,8 +623,10 @@ public class RangeCacheTest {
             }
         }));
         try {
+            // the managed ledger adds its entries with one inserter, whose remembered page races with the removals
+            RangeCache.Inserter inserter = cache.newInserter();
             for (ReferenceCountedEntry value : values) {
-                cache.put(value.getPosition(), value);
+                inserter.put(value.getPosition(), value, value.getLength());
             }
         } finally {
             done.set(true);

@@ -127,10 +127,12 @@ class RangeCache {
         }
 
         /**
-         * Returns whether the cache has an entry at the position. Cached entries are immutable and never replaced, so
-         * an entry that the cache has doesn't need to be prepared for an insert, such as copied.
+         * Runs the update on the entry that the cache has at the position, if it has one, and returns whether it has.
+         * Cached entries are immutable and never replaced, so an entry that the cache has doesn't need to be prepared
+         * for an insert, such as copied, but its mutable state, its expected read count, can be updated. The update
+         * doesn't count as an access of the entry for the eviction.
          */
-        public boolean contains(Position key) {
+        public boolean updateIfCached(Position key, Consumer<ReferenceCountedEntry> update) {
             long ledgerId = key.getLedgerId();
             long entryId = key.getEntryId();
             long pageIndex = entryId >> PAGE_SHIFT;
@@ -142,7 +144,21 @@ class RangeCache {
                 }
                 page = current;
             }
-            return current.slots.get((int) (entryId & SLOT_MASK)) != null;
+            RangeCacheEntryWrapper wrapper = current.slots.get((int) (entryId & SLOT_MASK));
+            if (wrapper == null) {
+                return false;
+            }
+            ReferenceCountedEntry value =
+                    getRetainedValueMatchingPosition(ledgerId, entryId, wrapper.getValue(ledgerId, entryId, false));
+            if (value == null) {
+                return false;
+            }
+            try {
+                update.accept(value);
+            } finally {
+                value.release();
+            }
+            return true;
         }
 
         /**
@@ -170,19 +186,21 @@ class RangeCache {
             long pageIndex = entryId >> PAGE_SHIFT;
             int slot = (int) (entryId & SLOT_MASK);
             while (true) {
-                if (page == null || !page.covers(ledgerId, pageIndex)) {
-                    page = getOrCreatePage(ledgerId, pageIndex);
+                Page current = page;
+                if (current == null || !current.covers(ledgerId, pageIndex)) {
+                    current = getOrCreatePage(ledgerId, pageIndex);
+                    page = current;
                 }
-                if (!page.reserveSlot()) {
+                if (!current.reserveSlot()) {
                     // the page lost its last entry and is being removed, so the entry goes to a new page
-                    removePage(page);
+                    removePage(current);
                     page = null;
                     continue;
                 }
-                if (page.slots.compareAndSet(slot, null, wrapper)) {
+                if (current.slots.compareAndSet(slot, null, wrapper)) {
                     return true;
                 }
-                releaseSlot(page);
+                releaseSlot(current);
                 return false;
             }
         }
@@ -484,16 +502,20 @@ class RangeCache {
     public Pair<Integer, Long> clear() {
         log.debug().attr("numPages", () -> pages.size()).attr("size", size.get()).log("Clearing the cache");
         RangeCacheRemovalCounters counters = RangeCacheRemovalCounters.create();
-        for (Page page : pages.values()) {
-            if (Thread.currentThread().isInterrupted()) {
-                break;
-            }
-            long ledgerId = page.key.ledgerId();
-            long pageFirstEntryId = page.key.pageIndex() << PAGE_SHIFT;
-            for (int slot = 0; slot < PAGE_SIZE; slot++) {
-                RangeCacheEntryWrapper wrapper = page.slots.get(slot);
-                if (wrapper != null) {
-                    removeEntryWithWriteLock(wrapper, ledgerId, pageFirstEntryId + slot, counters);
+        // Passes over the pages until one finds no entry, so that an entry that a concurrent insert added to a page
+        // that an earlier pass had visited is removed too
+        boolean found = true;
+        while (found && !Thread.currentThread().isInterrupted()) {
+            found = false;
+            for (Page page : pages.values()) {
+                long ledgerId = page.key.ledgerId();
+                long pageFirstEntryId = page.key.pageIndex() << PAGE_SHIFT;
+                for (int slot = 0; slot < PAGE_SIZE; slot++) {
+                    RangeCacheEntryWrapper wrapper = page.slots.get(slot);
+                    if (wrapper != null) {
+                        found = true;
+                        removeEntryWithWriteLock(wrapper, ledgerId, pageFirstEntryId + slot, counters);
+                    }
                 }
             }
         }

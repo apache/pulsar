@@ -89,6 +89,14 @@ class RangeCacheEntryWrapper {
      * holds another position
      */
     ReferenceCountedEntry getValue(long ledgerId, long entryId) {
+        return getValue(ledgerId, entryId, true);
+    }
+
+    /**
+     * Get the value of the entry at the given position, marking the entry accessed for the eviction only when
+     * {@code markAccessed} is set.
+     */
+    ReferenceCountedEntry getValue(long ledgerId, long entryId, boolean markAccessed) {
         long stamp = lock.tryOptimisticRead();
         Position localKey = this.key;
         ReferenceCountedEntry localValue = this.value;
@@ -103,7 +111,9 @@ class RangeCacheEntryWrapper {
         if (localKey == null || localKey.compareTo(ledgerId, entryId) != 0) {
             return null;
         }
-        accessed = true;
+        if (markAccessed) {
+            accessed = true;
+        }
         return localValue;
     }
 

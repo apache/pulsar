@@ -178,18 +178,34 @@ public class RangeEntryCacheImplTest {
 
     @Test
     public void testBatchInsertSkipsCachedEntriesBeforeCopyingThem() {
+        // records the entries that the cache prepares for an insert: it computes their length before copying them
+        List<Long> prepared = new ArrayList<>();
+        rangeEntryCache = new RangeEntryCacheImpl(mockEntryCacheManager, mockManagedLedger, false,
+                mockRangeCacheRemovalQueue, (ml, entry) -> {
+                    prepared.add(entry.getEntryId());
+                    return entry.getLength();
+                }, pendingReadsManager);
         EntryImpl cachedSource = EntryImpl.create(1, 11, "cached".getBytes(StandardCharsets.UTF_8));
         assertThat(rangeEntryCache.insert(cachedSource)).isTrue();
         ReferenceCountedEntry cached = rangeEntryCache.getEntries().get(PositionFactory.create(1, 11));
+        // the cached entry has no expected reads; the read's entries are expected to be read by 3 cursors
+        assertThat(cached.getReadCountHandler()).isNull();
         List<Entry> read = new ArrayList<>();
         for (long entryId = 10; entryId <= 12; entryId++) {
-            read.add(EntryImpl.create(1, entryId, ("read-" + entryId).getBytes(StandardCharsets.UTF_8)));
+            read.add(EntryImpl.create(1, entryId, ("read-" + entryId).getBytes(StandardCharsets.UTF_8), 3));
         }
+        List<Entry> laterRead = List.of(EntryImpl.create(1, 11, "later".getBytes(StandardCharsets.UTF_8), 5));
         try {
             int sourceRefCnt = read.get(1).getDataBuffer().refCnt();
             // a read from storage that overlaps the cached entry inserts the others, copying them
             assertThat(rangeEntryCache.insert(read, true)).isEqualTo(2);
-            // the cached entry is immutable, so it's kept, and the read's entry at its position isn't copied
+            // the cached entry is immutable, so it's kept and the read's entry at its position isn't prepared or
+            // copied, but the cached entry takes the read's expected read count
+            assertThat(prepared).containsExactly(11L, 10L, 12L);
+            assertThat(cached.getReadCountHandler().getExpectedReadCount()).isEqualTo(3);
+            // and a later read's
+            assertThat(rangeEntryCache.insert(laterRead, true)).isZero();
+            assertThat(cached.getReadCountHandler().getExpectedReadCount()).isEqualTo(5);
             ReferenceCountedEntry after = rangeEntryCache.getEntries().get(PositionFactory.create(1, 11));
             try {
                 assertThat(after).isSameAs(cached);
@@ -203,6 +219,7 @@ public class RangeEntryCacheImplTest {
             cached.release();
             cachedSource.release();
             read.forEach(Entry::release);
+            laterRead.forEach(Entry::release);
             rangeEntryCache.clear();
         }
     }

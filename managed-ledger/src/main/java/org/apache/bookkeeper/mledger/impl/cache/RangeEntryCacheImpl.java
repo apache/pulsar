@@ -141,7 +141,7 @@ public class RangeEntryCacheImpl implements EntryCache {
      * Inserts consecutive entries in order, such as the entries of a read from storage, with an inserter of their own,
      * so that they don't displace the page where the managed ledger adds its entries. Cached entries are immutable,
      * so an entry that is already cached, such as one that an overlapping read inserted, is skipped before it's
-     * copied.
+     * copied; the cached entry takes its expected read count.
      *
      * @param entriesToInsert the entries to cache, in order
      * @param copy whether to copy the entries' data into cache owned buffers, always the case when the cache is
@@ -152,7 +152,8 @@ public class RangeEntryCacheImpl implements EntryCache {
         RangeCache.Inserter inserter = entries.newInserter();
         int inserted = 0;
         for (Entry entry : entriesToInsert) {
-            if (!inserter.contains(entry.getPosition()) && insert(entry, copy, inserter)) {
+            if (!inserter.updateIfCached(entry.getPosition(), cached -> takeExpectedReadCount(cached, entry))
+                    && insert(entry, copy, inserter)) {
                 inserted++;
             }
         }
@@ -202,9 +203,19 @@ public class RangeEntryCacheImpl implements EntryCache {
             manager.entryAdded(entryLength);
             return true;
         } else {
-            // entry was not inserted into cache, we need to discard it
+            // the cache already has the entry, which takes the expected read count of this addition
+            inserter.updateIfCached(position, cached -> takeExpectedReadCount(cached, entry));
+            // entry was not inserted into cache, we need to discard it; nobody read the discarded duplicate, so its
+            // release doesn't count as a read of the expected read count that it shares with the added entry
+            cacheEntry.setDecreaseReadCountOnRelease(false);
             cacheEntry.release();
             return false;
+        }
+    }
+
+    private static void takeExpectedReadCount(ReferenceCountedEntry cached, Entry latest) {
+        if (cached instanceof EntryImpl cachedEntry) {
+            cachedEntry.updateExpectedReadCount(latest.getReadCountHandler());
         }
     }
 
