@@ -71,9 +71,11 @@ public class RunReportTest {
         List<JsonNode> consumers = List.of(
                 mapper.readTree("{\"applicationIndex\": 0, \"joinEpochMs\": 0}"),
                 mapper.readTree("{\"applicationIndex\": 1, \"joinEpochMs\": " + (start + 20_000)
-                        + ", \"caughtUpEpochMs\": " + (start + 30_000) + ", \"messagesWhenCaughtUp\": 1500000}"),
+                        + ", \"caughtUpEpochMs\": " + (start + 30_000) + ", \"uniqueMessages\": 4600000,"
+                        + " \"lastMeasurementMessageReceivedEpochMs\": " + (start + 120_000) + "}"),
                 mapper.readTree("{\"applicationIndex\": 2, \"joinEpochMs\": " + (start + 40_000)
-                        + ", \"caughtUpEpochMs\": 0, \"messagesWhenCaughtUp\": 0}"));
+                        + ", \"caughtUpEpochMs\": 0, \"uniqueMessages\": 4600000,"
+                        + " \"lastMeasurementMessageReceivedEpochMs\": " + (start + 140_000) + "}"));
         long[] epochs = {start + 19_000, start + 20_500, start + 39_000};
         RunReport.Samples samples = new RunReport.Samples(epochs, new double[3], Map.of(),
                 Map.of("app-1", new double[] {570_000, 600_000, 0}, "app-2", new double[] {1_100_000, 1_150_000,
@@ -85,8 +87,9 @@ public class RunReportTest {
                 .contains("## Catch-up")
                 .contains("within 500 ms of its publishing")
                 // the backlog of the last sample before the application joined, and its catch-up rate
-                .contains("| `app-1` | 20.0 s | 570,000 | 10.0 s | 1,500,000 | 150,000 msg/s |")
-                .contains("| `app-2` | 40.0 s | 1,170,000 | not caught up | – | – |")
+                .contains("| `app-1` | 20.0 s | 570,000 | 10.0 s | 100.0 s | 46,000 msg/s |")
+                .contains("| `app-2` | 40.0 s | 1,170,000 | not while the gateways published | 100.0 s"
+                        + " | 46,000 msg/s |")
                 .doesNotContain("`app-0`");
         // without late applications, there's no section
         StringBuilder none = new StringBuilder();

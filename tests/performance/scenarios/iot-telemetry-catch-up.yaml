@@ -17,15 +17,16 @@
 
 
 # Consumers joining a live stream: the gateways publish at the high-rate scenario's 30,000 msg/s, and 4 of the 5
-# applications join after the measurement starts, 2 of them at the same time. Each late application had its
-# subscription from the start, so it catches up on the backlog that built up until it joined, while the gateways keep
-# publishing; the report's Catch-up section shows how long each took. The 2 applications that join together read the
-# same backlog, so the entries that the first one reads from storage can be served to the other from the broker's
-# entry cache. The measurement is 120 s, so the last application joins halfway through it.
+# applications join after the measurement starts. Each late application had its subscription from the start, so it
+# catches up on the backlog that built up until it joined, while the gateways keep publishing; the report's Catch-up
+# section shows how long each took. 3 applications join 2 s apart, at 20, 22 and 24 s, as consumers that scale up or
+# restart together do: the entries that the first of them reads from storage stay in the broker's entry cache for the
+# others, which are expected to read them within its time to live. The last one joins alone at 60 s, halfway through
+# the 120 s measurement, and reads its backlog from storage.
 extends: iot-telemetry-high-rate.yaml
 workloads:
   iotTelemetry:
     measurement:
       messages: 3600000
     applications:
-      joinSeconds: [0, 20, 20, 40, 60]
+      joinSeconds: [0, 20, 22, 24, 60]
