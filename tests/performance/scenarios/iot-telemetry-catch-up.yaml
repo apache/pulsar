@@ -1,0 +1,31 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+
+# Consumers joining a live stream: the gateways publish at the high-rate scenario's 30,000 msg/s, and 4 of the 5
+# applications join after the measurement starts, 2 of them at the same time. Each late application had its
+# subscription from the start, so it catches up on the backlog that built up until it joined, while the gateways keep
+# publishing; the report's Catch-up section shows how long each took. The 2 applications that join together read the
+# same backlog, so the entries that the first one reads from storage can be served to the other from the broker's
+# entry cache. The measurement is 120 s, so the last application joins halfway through it.
+extends: iot-telemetry-high-rate.yaml
+workloads:
+  iotTelemetry:
+    measurement:
+      messages: 3600000
+    applications:
+      joinSeconds: [0, 20, 20, 40, 60]

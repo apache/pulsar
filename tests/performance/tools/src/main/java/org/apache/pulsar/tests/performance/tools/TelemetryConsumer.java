@@ -56,6 +56,11 @@ import picocli.CommandLine.Command;
  *
  * <p>Each application checks its own delivery and ordering, and writes its outputs into a directory named after its
  * subscription in {@code --output}, as the run report names it. The progress stream sums the applications' counts.
+ *
+ * <p>An application with {@code applications.joinSeconds} after the measurement's start creates its subscription at
+ * startup, so that the backlog builds up from the start, and opens its pods when it joins. It records when it joined
+ * and when it caught up: when it first received a measured message within {@code applications.caughtUpLatencyMillis}
+ * of its publishing.
  */
 @Command(name = "iot-consume", description = "Run the IoT applications, each consuming and validating its own "
         + "subscription")
@@ -89,11 +94,22 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
             sharedResources = SharedClientResources.create(scenario.applications().client().ioThreads(),
                     scenario.applications().client().listenerThreads());
             openPods(applications, sharedResources);
+            for (Application application : applications) {
+                if (application.joinsLater()) {
+                    // it doesn't take part in the warmup, which the gateways would otherwise wait for
+                    application.skipWarmup(coordinationDirectory(), runId);
+                }
+            }
             phase.set("receiving");
             System.out.println("READY applications=" + applications.size() + " clients="
                     + (long) applications.size() * scenario.podsPerApplication());
+            long deadlineNanos = System.nanoTime() + Duration.ofSeconds(scenario.timeoutSeconds()).toNanos();
             for (Application application : applications) {
-                application.startRestarts(sharedResources);
+                if (application.joinsLater()) {
+                    application.scheduleJoin(sharedResources, coordinationDirectory(), runId, deadlineNanos);
+                } else {
+                    application.startRestarts(sharedResources);
+                }
             }
             boolean succeeded = receive(scenario, applications);
             phase.set("finished");
@@ -129,6 +145,7 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
             for (Iterator<Application> iterator = receiving.iterator(); iterator.hasNext(); ) {
                 Application application = iterator.next();
                 application.checkRestarts();
+                application.checkJoin();
                 application.markWarmupRounds(coordinationDirectory(), runId);
                 if (application.receivedEveryMessage()) {
                     succeeded &= application.finish();
@@ -154,7 +171,8 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
      */
     private static void openPods(List<Application> applications, PulsarClientSharedResources sharedResources)
             throws Exception {
-        long pods = (long) applications.size() * applications.get(0).scenario.podsPerApplication();
+        long pods = applications.stream().filter(application -> !application.joinsLater()).count()
+                * applications.get(0).scenario.podsPerApplication();
         AtomicLong opened = new AtomicLong();
         ExecutorService executor = Executors.newFixedThreadPool(Math.min(applications.size(), MAX_PARALLEL_STARTS),
                 runnable -> {
@@ -174,7 +192,11 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
             List<Future<?>> starts = new ArrayList<>(applications.size());
             for (Application application : applications) {
                 starts.add(executor.submit(() -> {
-                    application.openPods(sharedResources, opened);
+                    if (application.joinsLater()) {
+                        application.createSubscription(sharedResources);
+                    } else {
+                        application.openPods(sharedResources, opened);
+                    }
                     return null;
                 }));
             }
@@ -232,6 +254,12 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
         private final HdrLatencyRecorder receiveLatency;
         private final AtomicLong firstMeasurementReceiptEpochMs = new AtomicLong();
         private final AtomicLong lastMeasurementReceiptEpochMs = new AtomicLong();
+        // For an application that joins later: when it joined, when it caught up and how many messages it had then
+        private final AtomicLong joinEpochMs = new AtomicLong();
+        private final AtomicLong caughtUpEpochMs = new AtomicLong();
+        private final AtomicLong messagesWhenCaughtUp = new AtomicLong();
+        private final AtomicReference<Throwable> joinFailure = new AtomicReference<>();
+        private Thread joiner;
         // Guarded by itself, as the restarts replace pods
         private final List<ClientAndConsumer> pods;
         private final AtomicBoolean stopping = new AtomicBoolean();
@@ -252,6 +280,68 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
 
         HdrLatencyRecorder receiveLatency() {
             return receiveLatency;
+        }
+
+        boolean joinsLater() {
+            return scenario.joinSeconds(index) > 0;
+        }
+
+        /**
+         * Creates the application's subscription on every topic at the earliest position, without keeping a
+         * consumer, so that it keeps the backlog until the application joins.
+         */
+        void createSubscription(PulsarClientSharedResources sharedResources) throws Exception {
+            try (PulsarClient client = PulsarClient.builder()
+                    .serviceUrl(scenario.serviceUrl())
+                    .sharedResources(sharedResources)
+                    .build()) {
+                client.newConsumer(Schema.BYTES)
+                        .topics(scenario.topicNames())
+                        .subscriptionName(scenario.subscriptionName(index))
+                        .subscriptionType(SubscriptionType.Key_Shared)
+                        .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                        .subscribe()
+                        .close();
+            }
+        }
+
+        /** Marks every warmup round received, so that the gateways don't wait for an application that joins later. */
+        void skipWarmup(Path coordinationDirectory, String runId) throws IOException {
+            for (; nextWarmupRound <= scenario.warmupRounds() && scenario.warmupMessageCountPerRound() > 0;
+                 nextWarmupRound++) {
+                WarmupBarrier.markApplicationComplete(coordinationDirectory, runId, nextWarmupRound, index);
+            }
+        }
+
+        /** Opens the application's pods at its join time, counted from the gateways' measurement start. */
+        void scheduleJoin(PulsarClientSharedResources sharedResources, Path coordinationDirectory, String runId,
+                          long deadlineNanos) {
+            joiner = new Thread(() -> {
+                try {
+                    long measurementStart = MeasurementStartMarker.await(coordinationDirectory, runId, deadlineNanos);
+                    long waitMillis = measurementStart + TimeUnit.SECONDS.toMillis(scenario.joinSeconds(index))
+                            - System.currentTimeMillis();
+                    if (waitMillis > 0) {
+                        Thread.sleep(waitMillis);
+                    }
+                    joinEpochMs.set(System.currentTimeMillis());
+                    System.out.println("JOIN application=" + index + " epochMs=" + joinEpochMs.get());
+                    openPods(sharedResources, new AtomicLong());
+                    startRestarts(sharedResources);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                } catch (Throwable error) {
+                    joinFailure.compareAndSet(null, error);
+                }
+            }, "iot-application-join-" + index);
+            joiner.setDaemon(true);
+            joiner.start();
+        }
+
+        void checkJoin() {
+            if (joinFailure.get() != null) {
+                throw new IllegalStateException("Application " + index + " couldn't join", joinFailure.get());
+            }
         }
 
         void openPods(PulsarClientSharedResources sharedResources, AtomicLong opened) throws Exception {
@@ -309,7 +399,11 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
                     + "  \"firstMeasurementMessageReceivedEpochMs\": "
                     + firstMeasurementReceiptEpochMs.get() + ",\n"
                     + "  \"lastMeasurementMessageReceivedEpochMs\": "
-                    + lastMeasurementReceiptEpochMs.get() + "\n}\n");
+                    + lastMeasurementReceiptEpochMs.get() + ",\n"
+                    + "  \"joinSeconds\": " + scenario.joinSeconds(index) + ",\n"
+                    + "  \"joinEpochMs\": " + joinEpochMs.get() + ",\n"
+                    + "  \"caughtUpEpochMs\": " + caughtUpEpochMs.get() + ",\n"
+                    + "  \"messagesWhenCaughtUp\": " + messagesWhenCaughtUp.get() + "\n}\n");
             closePods();
             finished = true;
             return summary.valid() && summary.uniqueMessages() == scenario.messageCount();
@@ -318,6 +412,9 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
         /** Closes the application's pods, when it hasn't finished, such as after a failure. */
         void close() throws Exception {
             stopping.set(true);
+            if (joiner != null) {
+                joiner.interrupt();
+            }
             if (restarter != null) {
                 restarter.interrupt();
             }
@@ -326,6 +423,10 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
 
         private void stopRestarts() throws InterruptedException {
             stopping.set(true);
+            if (joiner != null) {
+                joiner.interrupt();
+                joiner.join(TimeUnit.SECONDS.toMillis(10));
+            }
             if (restarter != null) {
                 restarter.interrupt();
                 restarter.join(TimeUnit.SECONDS.toMillis(10));
@@ -374,6 +475,12 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
                                             (current, received) -> current == 0 ? received
                                                     : Math.min(current, received));
                                     lastMeasurementReceiptEpochMs.accumulateAndGet(receivedEpochMs, Math::max);
+                                    if (joinEpochMs.get() > 0 && caughtUpEpochMs.get() == 0
+                                            && receivedEpochMs - message.getPublishTime()
+                                            <= scenario.applications().caughtUpLatencyMillis()
+                                            && caughtUpEpochMs.compareAndSet(0, receivedEpochMs)) {
+                                        messagesWhenCaughtUp.set(tracker.uniqueMessages());
+                                    }
                                 }
                                 receiveLatency.recordMillis(receivedEpochMs - message.getPublishTime(),
                                         decoded.measurement());

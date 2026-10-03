@@ -143,6 +143,9 @@ report has these sections:
   runs can be compared.
 - **Throughput**: the gateways' throughput, the delivered throughput until the slowest application received the last
   message, the measurement's duration and how long the applications were still receiving after the gateways finished.
+- **Catch-up**, when applications join after the measurement starts (`applications.joinSeconds`): each late
+  application's join time, its subscription's backlog then, how long it took to catch up, and its catch-up rate. The
+  backlog chart shows each subscription's backlog building up until its application joins and falling as it catches up.
 - **Latency**: the publish latency (send to acknowledgment) and each application's end-to-end latency (publish to
   consume) at percentiles from p50 to the maximum, with charts by percentile and over time.
 - **Backlog and rates**: each subscription's backlog and the per-second rates, sampled from the broker's topic

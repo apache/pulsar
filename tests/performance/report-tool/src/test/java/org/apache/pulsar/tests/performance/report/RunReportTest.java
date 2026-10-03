@@ -28,6 +28,7 @@ import java.nio.file.Path;
 import java.time.ZonedDateTime;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 import org.HdrHistogram.Histogram;
 import org.HdrHistogram.HistogramLogWriter;
@@ -60,6 +61,37 @@ public class RunReportTest {
                 Files.delete(path);
             }
         }
+    }
+
+    @Test
+    public void reportsTheCatchUpOfTheApplicationsThatJoinedLater() throws Exception {
+        JsonNode workload = mapper.readTree("{\"applications\": {\"subscriptionPrefix\": \"app-\","
+                + " \"caughtUpLatencyMillis\": 500}}");
+        long start = 1_000_000;
+        List<JsonNode> consumers = List.of(
+                mapper.readTree("{\"applicationIndex\": 0, \"joinEpochMs\": 0}"),
+                mapper.readTree("{\"applicationIndex\": 1, \"joinEpochMs\": " + (start + 20_000)
+                        + ", \"caughtUpEpochMs\": " + (start + 30_000) + ", \"messagesWhenCaughtUp\": 1500000}"),
+                mapper.readTree("{\"applicationIndex\": 2, \"joinEpochMs\": " + (start + 40_000)
+                        + ", \"caughtUpEpochMs\": 0, \"messagesWhenCaughtUp\": 0}"));
+        long[] epochs = {start + 19_000, start + 20_500, start + 39_000};
+        RunReport.Samples samples = new RunReport.Samples(epochs, new double[3], Map.of(),
+                Map.of("app-1", new double[] {570_000, 600_000, 0}, "app-2", new double[] {1_100_000, 1_150_000,
+                        1_170_000}));
+        StringBuilder report = new StringBuilder();
+        RunReport.appendCatchUp(report, workload, consumers, samples, start);
+
+        assertThat(report.toString())
+                .contains("## Catch-up")
+                .contains("within 500 ms of its publishing")
+                // the backlog of the last sample before the application joined, and its catch-up rate
+                .contains("| `app-1` | 20.0 s | 570,000 | 10.0 s | 1,500,000 | 150,000 msg/s |")
+                .contains("| `app-2` | 40.0 s | 1,170,000 | not caught up | – | – |")
+                .doesNotContain("`app-0`");
+        // without late applications, there's no section
+        StringBuilder none = new StringBuilder();
+        RunReport.appendCatchUp(none, workload, consumers.subList(0, 1), samples, start);
+        assertThat(none.toString()).isEmpty();
     }
 
     @Test

@@ -81,6 +81,10 @@ public class PerformanceTool implements Callable<Integer> {
                 throw new IllegalArgumentException(
                         "Warmup requires the same --run-id for the producer and all consumers");
             }
+            if (scenario.hasLateApplications() && (runId == null || runId.isBlank())) {
+                throw new IllegalArgumentException(
+                        "Applications that join later require the same --run-id for the producer and all consumers");
+            }
             return scenario;
         }
 

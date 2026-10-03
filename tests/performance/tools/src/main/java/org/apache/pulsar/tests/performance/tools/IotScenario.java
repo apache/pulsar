@@ -94,9 +94,28 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
      * @param client the client resources that every pod's client shares
      * @param env the environment variables of the applications' container, which the launcher sets, such as
      *            {@code PULSAR_MEM}
+     * @param joinSeconds when each application opens its pods, in seconds after the measurement starts, 0 for at the
+     *                    start; empty for every application at the start. An application that joins later has its
+     *                    subscription from the start, so it catches up on the backlog that builds up until it joins
+     * @param caughtUpLatencyMillis an application that joined later has caught up when it first receives a measured
+     *                              message within this time of its publishing
      */
     public record Applications(int count, int podsPerApplication, String subscriptionPrefix, Client client,
-                               Map<String, String> env) {
+                               Map<String, String> env, List<Integer> joinSeconds, Integer caughtUpLatencyMillis) {
+        /** The default of {@code caughtUpLatencyMillis}. */
+        public static final int DEFAULT_CAUGHT_UP_LATENCY_MILLIS = 1000;
+
+        public Applications {
+            joinSeconds = joinSeconds != null ? List.copyOf(joinSeconds) : List.of();
+            if (caughtUpLatencyMillis == null) {
+                caughtUpLatencyMillis = DEFAULT_CAUGHT_UP_LATENCY_MILLIS;
+            }
+        }
+
+        public Applications(int count, int podsPerApplication, String subscriptionPrefix, Client client,
+                            Map<String, String> env) {
+            this(count, podsPerApplication, subscriptionPrefix, client, env, null, null);
+        }
     }
 
     /** The applications' client resources: the event loop's and the listener thread pool's threads. */
@@ -176,6 +195,13 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
                         && client.listenerThreads() >= 1,
                 "The gateways' and the applications' ioThreads and listenerThreads must be at least 1");
         require(producer.maxOutstanding() >= 1, "gateways.producer.maxOutstanding must be at least 1");
+        require(applications.joinSeconds().isEmpty() || applications.joinSeconds().size() == applications.count(),
+                "applications.joinSeconds must have a value for each of the " + applications.count()
+                        + " applications, or none");
+        require(applications.joinSeconds().stream().allMatch(seconds -> seconds != null && seconds >= 0
+                        && seconds < timeoutSeconds),
+                "applications.joinSeconds must be at least 0 and less than timeoutSeconds");
+        require(applications.caughtUpLatencyMillis() >= 1, "applications.caughtUpLatencyMillis must be at least 1");
         if (timeoutSeconds < minimumRuntimeSeconds) {
             long warmupTotalSeconds = minimumRuntimeSeconds - durationSeconds;
             throw new IllegalArgumentException(String.format(Locale.ROOT, "Invalid IoT scenario: timeoutSeconds is %d,"
@@ -237,6 +263,16 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
 
     public int podsPerApplication() {
         return applications.podsPerApplication();
+    }
+
+    /** When the application opens its pods, in seconds after the measurement starts; 0 for at the start. */
+    public int joinSeconds(int applicationIndex) {
+        return applications.joinSeconds().isEmpty() ? 0 : applications.joinSeconds().get(applicationIndex);
+    }
+
+    /** Whether any application joins after the measurement starts. */
+    public boolean hasLateApplications() {
+        return applications.joinSeconds().stream().anyMatch(seconds -> seconds > 0);
     }
 
     public long messageCount() {

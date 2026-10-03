@@ -43,6 +43,13 @@ application-visible order across Key_Shared hash-range reassignment.
   workstation whose CPU runs at a fixed base frequency: without a rate limit, the gateways publish faster than the
   applications receive, and an application that falls behind can stall for tens of seconds. It uses the high-memory
   configuration.
+- [`iot-telemetry-catch-up.yaml`](../iot-telemetry-catch-up.yaml) measures how quickly consumers that join a live
+  stream catch up. The gateways publish at the high-rate scenario's 30,000 messages per second for 120 s, and 4 of
+  the 5 applications join after the measurement starts: 2 at 20 s, and 1 each at 40 s and 60 s. Each late
+  application has its subscription from the start, so its backlog builds up until it joins, and it then reads the
+  backlog while the gateways keep publishing. The report's Catch-up section shows each application's backlog when it
+  joined and how long it took to catch up. The 2 applications that join together read the same backlog, so the
+  entries that one of them reads from storage can be served to the other from the broker's entry cache.
 - [`iot-telemetry-max-rate.yaml`](../iot-telemetry-max-rate.yaml) runs the high-rate scenario's 500 gateways at the
   maximum rate: `rate: 0` removes the rate limit, so the gateways publish four million unbatched 128-byte messages
   as fast as the cluster takes them, with at most 100,000 in flight. One application consumes them with twenty pods
@@ -162,11 +169,21 @@ workloads:
         listenerThreads: 16
       env:                     # the applications' container, which runs every application; from the memory configuration
         PULSAR_MEM: -Xms1536m -Xmx1536m -XX:MaxDirectMemorySize=256m -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch
+      joinSeconds: []          # each application's join, in seconds after the measurement starts; empty: all at 0
+      caughtUpLatencyMillis: 1000  # a late application has caught up within this end-to-end latency
     behaviors:
       podRestarts:             # each application restarts this fraction of its pods every intervalSeconds
         intervalSeconds: 0
         fraction: 0.0
 ```
+
+`applications.joinSeconds` has each application join after the measurement starts: a list with a value for each
+application, in seconds, where 0 joins at the start, as every application does without the setting. An application
+that joins later creates its subscription at the earliest position when the applications start, before the gateways
+publish, so that the subscription keeps the backlog until the application opens its pods; it doesn't take part in
+the warmup. It has caught up when it first receives a measured message within `applications.caughtUpLatencyMillis` of
+its publishing, and the report's Catch-up section shows when each late application joined, its subscription's backlog
+then, and how long it took to catch up. The timeout has to leave room for the last application to join and catch up.
 
 `timeoutSeconds` bounds the whole workload: the applications stop waiting for messages after it and the run fails,
 the gateways give up waiting for a warmup round or the measurement's start, and the launcher waits for the containers

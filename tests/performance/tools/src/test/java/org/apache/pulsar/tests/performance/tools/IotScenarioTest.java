@@ -98,6 +98,33 @@ public class IotScenarioTest {
     }
 
     @Test
+    public void joinsApplicationsLater() {
+        IotScenario scenario = scenario(new IotScenario.Applications(3, 2, "app-", new IotScenario.Client(2, 2), null,
+                List.of(0, 20, 20), null));
+        assertThat(scenario.joinSeconds(0)).isZero();
+        assertThat(scenario.joinSeconds(1)).isEqualTo(20);
+        assertThat(scenario.hasLateApplications()).isTrue();
+        assertThat(scenario.applications().caughtUpLatencyMillis())
+                .isEqualTo(IotScenario.Applications.DEFAULT_CAUGHT_UP_LATENCY_MILLIS);
+        // without the setting, every application joins at the start
+        IotScenario atStart = scenario(new IotScenario.Applications(3, 2, "app-", new IotScenario.Client(2, 2), null));
+        assertThat(atStart.joinSeconds(2)).isZero();
+        assertThat(atStart.hasLateApplications()).isFalse();
+    }
+
+    @Test
+    public void rejectsInvalidJoinSettings() {
+        assertThatThrownBy(() -> scenario(new IotScenario.Applications(3, 2, "app-", new IotScenario.Client(2, 2),
+                null, List.of(0, 20), null))).hasMessageContaining("a value for each of the 3 applications");
+        assertThatThrownBy(() -> scenario(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, List.of(0, -1), null))).hasMessageContaining("at least 0 and less than timeoutSeconds");
+        assertThatThrownBy(() -> scenario(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, List.of(0, 300), null))).hasMessageContaining("at least 0 and less than timeoutSeconds");
+        assertThatThrownBy(() -> scenario(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, List.of(0, 20), 0))).hasMessageContaining("caughtUpLatencyMillis must be at least 1");
+    }
+
+    @Test
     public void rejectsTimeBasedWarmupWithoutRateLimit() {
         assertThatThrownBy(() -> scenario(20, 0, 0, 5_000_000))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -127,6 +154,13 @@ public class IotScenarioTest {
                                         int warmupRoundDelaySeconds, int rate, long numberOfMessages) {
         return scenario(warmupSeconds, warmupMessages, warmupRounds, warmupRoundDelaySeconds, rate, numberOfMessages,
                 300);
+    }
+
+    private static IotScenario scenario(IotScenario.Applications applications) {
+        return new IotScenario("pulsar://localhost:6650", new IotScenario.Warmup(0, 0, 1, 0),
+                new IotScenario.Measurement(120, 1_000), 0, new IotScenario.Payload(64), new IotScenario.Devices(1_000),
+                new IotScenario.Gateways(10, new IotScenario.Producer(2, 2, 100, true, true), null),
+                new IotScenario.Topics(2, "persistent://public/default/iot-"), applications, null, 300);
     }
 
     private static IotScenario scenario(int warmupSeconds, long warmupMessages, int warmupRounds,

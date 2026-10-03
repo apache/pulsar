@@ -322,10 +322,12 @@ public final class RunReport {
         appendProfiles(report, runDirectory, mapper);
         appendCorrectness(report, run.workload(), consumers);
         appendThroughput(report, producer, consumers);
-        appendLatency(report, runDirectory, run, consumerHistograms, measurementStart);
         Path stats = runDirectory.resolve(TOPIC_STATS_FILE);
-        if (Files.isRegularFile(stats)) {
-            appendTopicStats(report, runDirectory, readSamples(stats), measurementStart, measurementEnd,
+        Samples samples = Files.isRegularFile(stats) ? readSamples(stats) : null;
+        appendCatchUp(report, run.workload(), consumers, samples, measurementStart);
+        appendLatency(report, runDirectory, run, consumerHistograms, measurementStart);
+        if (samples != null) {
+            appendTopicStats(report, runDirectory, samples, measurementStart, measurementEnd,
                     run.cooldowns(), chartFooter(run.info(), run.finished()));
         }
         if (hostSamples != null) {
@@ -640,6 +642,51 @@ public final class RunReport {
                         producer.path("measurementElapsedSeconds").asDouble())))
                 .append(row("Applications still receiving after the gateways finished",
                         String.format(Locale.ROOT, "%.1f s", Math.max(0, lastReceived - end) / 1000.0)));
+    }
+
+    /**
+     * The applications that joined after the measurement started ({@code applications.joinSeconds}): when each
+     * joined, its subscription's backlog then, from the sampled topic stats, and how long it took to catch up.
+     */
+    static void appendCatchUp(StringBuilder report, JsonNode workload, List<JsonNode> consumers, Samples samples,
+                              long measurementStart) {
+        List<JsonNode> late = consumers.stream().filter(consumer -> consumer.path("joinEpochMs").asLong() > 0)
+                .toList();
+        if (late.isEmpty()) {
+            return;
+        }
+        int caughtUpLatency = workload.path("applications").path("caughtUpLatencyMillis").asInt(1000);
+        report.append("\n## Catch-up\n\nThe applications that joined after the measurement started. Each had its"
+                        + " subscription from the start, so its backlog built up until it joined. An application has"
+                        + " caught up when it first received a measured message within ")
+                .append(String.format(Locale.ROOT, "%,d", caughtUpLatency))
+                .append(" ms of its publishing; its catch-up rate is the messages that it received until then, per"
+                        + " second since it joined. The backlog is the sampled topic stats' last sample before the"
+                        + " application joined.\n\n| Application | Joined | Backlog when it joined | Caught up after"
+                        + " | Messages received until then | Catch-up rate |\n|---|---:|---:|---:|---:|---:|\n");
+        for (JsonNode consumer : late) {
+            String application = applicationName(workload, consumer.path("applicationIndex").asInt());
+            long joined = consumer.path("joinEpochMs").asLong();
+            long caughtUp = consumer.path("caughtUpEpochMs").asLong();
+            long messages = consumer.path("messagesWhenCaughtUp").asLong();
+            String backlog = "–";
+            double[] backlogs = samples != null ? samples.backlog().get(application) : null;
+            if (backlogs != null) {
+                for (int round = samples.epochMillis().length - 1; round >= 0; round--) {
+                    if (samples.epochMillis()[round] <= joined && !Double.isNaN(backlogs[round])) {
+                        backlog = String.format(Locale.ROOT, "%,.0f", backlogs[round]);
+                        break;
+                    }
+                }
+            }
+            report.append(String.format(Locale.ROOT, "| `%s` | %.1f s | %s | %s | %s | %s |%n", application,
+                    (joined - measurementStart) / 1000.0, backlog,
+                    caughtUp > 0 ? String.format(Locale.ROOT, "%.1f s", (caughtUp - joined) / 1000.0)
+                            : "not caught up",
+                    caughtUp > 0 ? String.format(Locale.ROOT, "%,d", messages) : "–",
+                    caughtUp > joined ? String.format(Locale.ROOT, "%,.0f msg/s",
+                            messages * 1000.0 / (caughtUp - joined)) : "–"));
+        }
     }
 
     /**
