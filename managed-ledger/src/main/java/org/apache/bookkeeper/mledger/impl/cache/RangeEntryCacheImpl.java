@@ -379,7 +379,15 @@ public class RangeEntryCacheImpl implements EntryCache {
                         }
                     };
                     for (Entry entry : entries) {
-                        ((EntryImpl) entry).onDeallocate(releasePermits);
+                        if (entry != null) {
+                            ((EntryImpl) entry).onDeallocate(releasePermits);
+                        } else {
+                            // A null slot has no entry that will ever deallocate: return its share of
+                            // the permits immediately. The batch is still delivered to the original
+                            // callback, whose null-slot guard fails the read explicitly and releases
+                            // the valid entries (whose hooks then return the remaining permits).
+                            releasePermits.run();
+                        }
                     }
                 } else {
                     pendingReadsLimiter.release(handle);
