@@ -51,6 +51,7 @@ import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
@@ -450,6 +451,49 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(idsAndKeys.get(0).getMiddle(), "key2");
             m2.close();
             Assert.assertEquals(m1.getHeadersAndPayload().refCnt(), 1);
+        } finally {
+            reader.closeAsync().get();
+        }
+    }
+
+    @Test
+    public void testBatchingRebatchWithHighlyCompressedPartitionKeys() throws Exception {
+        String topic = "persistent://my-property/my-ns/" + BrokerTestUtil.newUniqueName("reader");
+        int batchSize = 1000;
+        String repeatedKeyPart = "k".repeat(120);
+
+        try (Producer<byte[]> producer = pulsarClient.newProducer()
+            .topic(topic)
+            .enableBatching(true)
+            .batchingMaxMessages(batchSize)
+            .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+            .compressionType(CompressionType.ZSTD)
+            .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .maxPendingMessages(batchSize * 5)
+            .create()) {
+            for (int i = 0; i < batchSize * 5; i++) {
+                String key = String.format("%08d/%s", i, repeatedKeyPart);
+                producer.newMessage().key(key).value(("payload-" + i).getBytes()).sendAsync();
+            }
+            producer.flush();
+        }
+
+        RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
+        try (RawMessage rawMessage = reader.readNextAsync().get(10, TimeUnit.SECONDS)) {
+            ByteBuf metadataAndPayload = rawMessage.getHeadersAndPayload().duplicate();
+            MessageMetadata metadata = Commands.parseMessageMetadata(metadataAndPayload);
+            Assert.assertEquals(metadata.getCompression().name(), CompressionType.ZSTD.name());
+            Assert.assertEquals(metadata.getNumMessagesInBatch(), batchSize);
+            Assert.assertTrue(metadata.getUncompressedSize() > metadataAndPayload.readableBytes());
+
+            try (RawMessage rebatch = RawBatchConverter.rebatchMessage(rawMessage, (key, id) -> true)
+                    .orElseThrow()) {
+                List<ImmutableTriple<MessageId, String, Integer>> keys =
+                        RawBatchConverter.extractIdsAndKeysAndSize(rebatch);
+                Assert.assertEquals(keys.size(), batchSize);
+                Assert.assertEquals(keys.get(0).getMiddle(), "00000000/" + repeatedKeyPart);
+                Assert.assertEquals(keys.get(batchSize - 1).getMiddle(), "00000999/" + repeatedKeyPart);
+            }
         } finally {
             reader.closeAsync().get();
         }
