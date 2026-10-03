@@ -125,6 +125,9 @@ public class SimpleTextOutputStream {
 
     public SimpleTextOutputStream write(double d) {
         long i = (long) d;
+        if (d < 0 && i == 0) {
+            write('-');
+        }
         write(i);
 
         long r = Math.abs((long) (1000 * (d - i)));
