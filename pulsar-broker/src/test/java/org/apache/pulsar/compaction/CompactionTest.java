@@ -21,6 +21,7 @@ package org.apache.pulsar.compaction;
 import static org.apache.pulsar.broker.BrokerTestUtil.newUniqueName;
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithoutRecordingInvocations;
 import static org.apache.pulsar.compaction.Compactor.COMPACTION_SUBSCRIPTION;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.anyLong;
@@ -44,7 +45,6 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -69,7 +69,6 @@ import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.api.OpenBuilder;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
-import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
@@ -2933,8 +2932,8 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
      * snapshot, which may still reference a compacted ledger that a newer compaction has already
      * deleted (the snapshot only advances on rollover or graceful close, while the previous
      * compacted ledger is deleted as soon as the compactor subscription's mark-delete is persisted
-     * in the cursor ledger). readCompacted reads must then fall back to the original topic data
-     * instead of failing at or before the stale compaction horizon.
+     * in the cursor ledger). Keep this as an explicit failure: the original entries are not
+     * guaranteed to exist, so recovery must not silently serve an incomplete uncompacted view.
      */
     @Test
     public void testReadCompactedAfterRecoveryRestoredDeletedCompactedLedger() throws Exception {
@@ -2943,8 +2942,8 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         // Roll the cursor ledger over on every persist, so the metadata-store snapshot carries the
         // compactor subscription's mark-delete position and properties. The infinite retention
-        // keeps the consumed data ledgers around: their entries are the fallback data for the
-        // readCompacted reads after the recovery below.
+        // keeps the consumed data ledgers around so that the recovered position is not clamped
+        // to a newer ledger. MissingCompactedLedgerTest also covers real retention trimming.
         PersistentTopic setupTopic = (PersistentTopic)
                 pulsar.getBrokerService().getTopic(topic, true).get().orElseThrow();
         setupTopic.getManagedLedger().getConfig()
@@ -3006,72 +3005,12 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         assertEquals(compactionCursor.getProperties().get(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY),
                 (Long) compactedLedger1);
 
-        // The stale compacted ledger must not stay registered: no compaction horizon is served
-        // and readCompacted falls back to reading the original entries instead of failing.
-        Awaitility.await().until(() ->
-                persistentTopic.getTopicCompactionService().getLastCompactedPosition().get() == null);
-        try (Reader<byte[]> reader = pulsarClient.newReader().topic(topic).readCompacted(true)
-                .startMessageId(MessageId.earliest).create()) {
-            List<String> received = new ArrayList<>();
-            while (reader.hasMessageAvailable()) {
-                Message<byte[]> m = reader.readNext(2, TimeUnit.SECONDS);
-                received.add(m.getKey() + "=" + new String(m.getData()));
-            }
-            assertEquals(received, List.of("k1=v1a", "k2=v2a", "k1=v1b", "k2=v2b"));
-        }
-
-        // a new compaction restores the compacted view
-        try (Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topic).enableBatching(false).create()) {
-            producer.newMessage().key("k3").value("v3".getBytes()).send();
-        }
-        compact(topic);
-        try (Reader<byte[]> reader = pulsarClient.newReader().topic(topic).readCompacted(true)
-                .startMessageId(MessageId.earliest).create()) {
-            Set<String> compacted = new HashSet<>();
-            while (reader.hasMessageAvailable()) {
-                Message<byte[]> m = reader.readNext(2, TimeUnit.SECONDS);
-                compacted.add(m.getKey() + "=" + new String(m.getData()));
-            }
-            assertEquals(compacted, Set.of("k1=v1b", "k2=v2b", "k3=v3"));
-        }
-    }
-
-    /**
-     * A read overlapping the missing-ledger reset must complete through the returned future instead
-     * of throwing a synchronous NullPointerException from a torn null check of the context field:
-     * the last-entry read passes the check while the open is still pending, and the missing-ledger
-     * callback clears the field before the composition dereferences it again.
-     */
-    @Test
-    public void testReadLastEntryOverlappingMissingCompactedLedgerReset() throws Exception {
-        CompactedTopicImpl compactedTopic = new CompactedTopicImpl(bk);
-        long missingLedgerId = 1234567890L;
-        // Hold the failed open so the last-entry read below overlaps the reset callback.
-        pulsarTestContext.getMockBookKeeper().delay(300);
-
-        CompletableFuture<CompactedTopicContext> registration =
-                compactedTopic.newCompactedLedger(PositionFactory.create(1, 1), missingLedgerId);
-
-        // The read must return a future rather than throw while the open is still pending, and it
-        // must complete through that future (exceptionally here) instead of hanging or throwing.
-        CompletableFuture<Entry> lastEntry = compactedTopic.readLastEntryOfCompactedLedger();
-        assertNotNull(lastEntry);
-        try {
-            assertNull(lastEntry.get(5, TimeUnit.SECONDS));
-        } catch (ExecutionException e) {
-            // acceptable: the read observed the failed open
-        }
-
-        // the registration failed with the missing ledger and the state was reset
-        try {
-            registration.get(5, TimeUnit.SECONDS);
-            fail("registration of a missing compacted ledger should have failed");
-        } catch (ExecutionException e) {
-            assertTrue(e.getCause() instanceof BKException);
-        }
-        assertTrue(compactedTopic.getCompactionHorizon().isEmpty());
-        // after the reset, reads answer "no compacted data" again
-        assertNull(compactedTopic.readLastEntryOfCompactedLedger().get(5, TimeUnit.SECONDS));
+        // A persisted reference to a missing compacted ledger must remain distinguishable from
+        // a topic with no compacted data, even when the original entries happen to be retained.
+        TopicCompactionService service = persistentTopic.getTopicCompactionService();
+        assertThatThrownBy(() -> service.getLastCompactedPosition().get(5, TimeUnit.SECONDS))
+                .isInstanceOf(ExecutionException.class).hasCauseInstanceOf(BKException.class);
+        assertThatThrownBy(() -> service.getLastMessagePosition().get(5, TimeUnit.SECONDS))
+                .isInstanceOf(ExecutionException.class).hasCauseInstanceOf(BKException.class);
     }
 }
