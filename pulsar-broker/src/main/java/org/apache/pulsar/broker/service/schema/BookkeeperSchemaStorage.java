@@ -575,13 +575,27 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     ) {
         log.debug().attr("position", position).log("Reading schema entry from");
 
-        return openLedger(position.getLedgerId())
-            .thenCompose((ledger) ->
-                Functions.getLedgerEntry(ledger, position.getEntryId(), config.isSchemaLedgerForceRecovery())
-                    .thenCompose(entry -> closeLedger(ledger)
-                        .thenApply(ignore -> entry)
-                    )
-            ).thenCompose(Functions::parseSchemaEntry);
+        return openLedger(position.getLedgerId()).thenCompose(ledger ->
+                FutureUtil.supplySafely(() -> Functions.getLedgerEntry(ledger, position.getEntryId(),
+                                config.isSchemaLedgerForceRecovery()).thenCompose(Functions::parseSchemaEntry))
+                        .handle((entry, readError) -> FutureUtil.supplySafely(() -> closeLedger(ledger))
+                                .handle((ignored, closeError) -> {
+                                    if (readError != null) {
+                                        Throwable cause = FutureUtil.unwrapCompletionException(readError);
+                                        if (closeError != null) {
+                                            Throwable closeCause = FutureUtil.unwrapCompletionException(closeError);
+                                            if (closeCause != cause) {
+                                                cause.addSuppressed(closeCause);
+                                            }
+                                        }
+                                        throw FutureUtil.wrapToCompletionException(cause);
+                                    }
+                                    if (closeError != null) {
+                                        throw FutureUtil.wrapToCompletionException(closeError);
+                                    }
+                                    return entry;
+                                }))
+                        .thenCompose(Function.identity()));
     }
 
     @NonNull
