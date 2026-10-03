@@ -182,6 +182,52 @@ public class MessageDuplicationTest extends BrokerTestBase {
     }
 
     @Test
+    public void testSnapshotKeepsTheLatestSequenceIdsOfUpToMaxProducers() {
+        MessageDeduplication messageDeduplication = messageDeduplication(BROKER_DEDUPLICATION_MAX_NUMBER_PRODUCERS);
+        for (int i = 0; i < 15; i++) {
+            messageDeduplication.setHighestSequencedPersisted("producer" + i, i);
+        }
+        // updated in place
+        for (int i = 0; i < 15; i++) {
+            messageDeduplication.setHighestSequencedPersisted("producer" + i, 100 + i);
+        }
+        Map<String, Long> snapshot = messageDeduplication.snapshotPersistedSequenceIds();
+        assertEquals(snapshot.size(), BROKER_DEDUPLICATION_MAX_NUMBER_PRODUCERS);
+        snapshot.forEach((producerName, sequenceId) ->
+                assertEquals((long) sequenceId, 100 + Long.parseLong(producerName.substring("producer".length()))));
+
+        for (int maxNumberOfProducers : new int[] {0, -1, -10}) {
+            MessageDeduplication capped = messageDeduplication(maxNumberOfProducers);
+            capped.setHighestSequencedPersisted("producer", 1);
+            assertTrue(capped.snapshotPersistedSequenceIds().isEmpty());
+        }
+    }
+
+    @Test
+    public void testRecordingAPurgedProducerAddsItBack() {
+        MessageDeduplication messageDeduplication = messageDeduplication(BROKER_DEDUPLICATION_MAX_NUMBER_PRODUCERS);
+        messageDeduplication.setHighestSequencedPersisted("producer", 1);
+        MessageDeduplication.PersistedSequenceId persisted =
+                messageDeduplication.highestSequencedPersisted.get("producer");
+        // a purge of inactive producers removes the entry
+        messageDeduplication.highestSequencedPersisted.remove("producer");
+        messageDeduplication.setHighestSequencedPersisted("producer", 2);
+        assertEquals(messageDeduplication.highestSequencedPersisted.get("producer").value, 2L);
+        assertEquals(persisted.value, 1L);
+        assertEquals(messageDeduplication.snapshotPersistedSequenceIds(), Map.of("producer", 2L));
+    }
+
+    private static MessageDeduplication messageDeduplication(int maxNumberOfProducers) {
+        PulsarService pulsarService = mock(PulsarService.class);
+        ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
+        serviceConfiguration.setBrokerDeduplicationEntriesInterval(BROKER_DEDUPLICATION_ENTRIES_INTERVAL);
+        serviceConfiguration.setBrokerDeduplicationMaxNumberOfProducers(maxNumberOfProducers);
+        serviceConfiguration.setReplicatorPrefix(REPLICATOR_PREFIX);
+        doReturn(serviceConfiguration).when(pulsarService).getConfiguration();
+        return new MessageDeduplication(pulsarService, mock(PersistentTopic.class), mock(ManagedLedger.class));
+    }
+
+    @Test
     public void testConcurrentDuplicateCheckForSameProducer() throws Exception {
         PulsarService pulsarService = mock(PulsarService.class);
         ServiceConfiguration serviceConfiguration = new ServiceConfiguration();

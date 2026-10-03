@@ -628,14 +628,7 @@ public class MessageDeduplication {
             return CompletableFuture.completedFuture(null);
         }
 
-        // the cursor's properties don't need an order, so the snapshot doesn't sort the producers' names
-        Map<String, Long> snapshot =
-                new HashMap<>(Math.min(highestSequencedPersisted.size(), maxNumberOfProducers) * 4 / 3 + 1);
-        highestSequencedPersisted.forEach((producerName, persisted) -> {
-            if (snapshot.size() < maxNumberOfProducers) {
-                snapshot.put(producerName, persisted.value);
-            }
-        });
+        Map<String, Long> snapshot = snapshotPersistedSequenceIds();
 
         final var cursor = managedCursor;
         if (cursor == null) {
@@ -724,22 +717,40 @@ public class MessageDeduplication {
     }
 
     /**
-     * Records the highest sequence ID persisted for a producer, updating its entry in place.
+     * The highest persisted sequence IDs of up to {@code maxNumberOfProducers} producers, to store in the cursor's
+     * properties. The properties don't need an order, so the producers' names aren't sorted.
      */
     @VisibleForTesting
+    Map<String, Long> snapshotPersistedSequenceIds() {
+        Map<String, Long> snapshot = new HashMap<>(
+                Math.max(0, Math.min(highestSequencedPersisted.size(), maxNumberOfProducers)) * 4 / 3 + 1);
+        highestSequencedPersisted.forEach((producerName, persisted) -> {
+            if (snapshot.size() < maxNumberOfProducers) {
+                snapshot.put(producerName, persisted.value);
+            }
+        });
+        return snapshot;
+    }
+
+    /**
+     * Records the highest sequence ID persisted for a producer, updating its entry in place.
+     */
     void setHighestSequencedPersisted(String producerName, long sequenceId) {
         PersistedSequenceId persisted = highestSequencedPersisted.get(producerName);
         if (persisted != null) {
             persisted.value = sequenceId;
-        } else {
-            highestSequencedPersisted.put(producerName, new PersistedSequenceId(sequenceId));
+            // A purge of inactive producers or a clear can remove the entry meanwhile, for example when an expired
+            // producer reconnects during a purge; the entry is then put back, as a put of the value would
+            if (highestSequencedPersisted.get(producerName) == persisted) {
+                return;
+            }
         }
+        highestSequencedPersisted.put(producerName, new PersistedSequenceId(sequenceId));
     }
 
     /**
      * Returns the highest sequence ID persisted for a producer, or null when there's none.
      */
-    @VisibleForTesting
     Long getHighestSequencedPersisted(String producerName) {
         PersistedSequenceId persisted = highestSequencedPersisted.get(producerName);
         return persisted != null ? persisted.value : null;
