@@ -518,9 +518,7 @@ public class RangeEntryCacheImplTest {
         Entry sourceEntry = readEntries.get(0);
 
         // unlike the write path, the read path parses the metadata of the entry it returns before inserting it,
-        // so this is the case where insert receives an entry that already carries a MessageMetadata. Only the
-        // eagerly decoded sequenceId is read from it here, since reading a string field would decode it from
-        // the buffer and keep the decoded value, hiding the very problem this test is about
+        // so this is the case where insert receives an entry that already carries a MessageMetadata
         MessageMetadata sourceMetadata = sourceEntry.getMessageMetadata();
         assertThat(sourceMetadata).isNotNull();
         assertThat(sourceMetadata.getSequenceId()).isEqualTo(7);
@@ -535,9 +533,9 @@ public class RangeEntryCacheImplTest {
         // overwritten once it has been recycled. This turns a leftover dependency on the source buffer into a
         // wrong value rather than into a read that only fails when the released memory happens to be reused
         headersAndPayload.setZero(headersAndPayload.readerIndex(), headersAndPayload.readableBytes());
-        // metadata parsed from the source buffer does decode the overwritten bytes, which keeps the assertions
-        // below from turning vacuous should MessageMetadata ever stop decoding these fields lazily
-        assertThat(sourceMetadata.getProducerName()).isNotEqualTo("producer");
+        // the metadata parsed from the source buffer was decoded when it was parsed, since copies of an entry share
+        // it across threads, so it doesn't depend on the overwritten bytes either
+        assertThat(sourceMetadata.getProducerName()).isEqualTo("producer");
 
         // the read path releases the entries it returned once dispatch is done, while the cached copy stays
         sourceEntry.release();
@@ -546,8 +544,7 @@ public class RangeEntryCacheImplTest {
         ledgerEntry.close();
         assertThat(headersAndPayload.refCnt()).isZero();
 
-        // MessageMetadata decodes its string and bytes fields lazily from the buffer it was parsed from, so the
-        // cached entry stays readable only because its metadata is parsed from the buffer the cache owns
+        // the cached entry parses its own metadata from the buffer the cache owns
         Entry readBack = readSingleEntryFromCache(copyingCache, 1, 0);
         assertThat(readBack.getMessageMetadata()).isNotNull().isNotSameAs(sourceMetadata);
         readBack.release();
