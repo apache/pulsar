@@ -156,6 +156,9 @@ public class ProxyStats {
                             "Client is not authorized to perform operation");
                 }
             } catch (ExecutionException | TimeoutException | InterruptedException e) {
+                if (e instanceof InterruptedException) {
+                    Thread.currentThread().interrupt();
+                }
                 log.warn()
                         .attr("timeoutSeconds", 30)
                         .attr("authParams", authParams.getClientRole())

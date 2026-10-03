@@ -139,6 +139,9 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
             }
             updateRacksWithHost(racksWithHost);
         } catch (ExecutionException | InterruptedException e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
             log.error().exception(e).log("Failed to update rack info");
             throw new RuntimeException(e);
         }

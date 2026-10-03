@@ -375,6 +375,7 @@ public class FutureUtil {
             try {
                 future.get();
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 return Optional.ofNullable(e);
             } catch (ExecutionException e) {
                 return Optional.ofNullable(e.getCause());
@@ -441,6 +442,7 @@ public class FutureUtil {
         try {
             return future.get();
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             future.thenAccept(cleanupAction);
             throw e;
         }

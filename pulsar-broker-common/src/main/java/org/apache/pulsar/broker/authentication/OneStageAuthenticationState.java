@@ -112,6 +112,9 @@ public class OneStageAuthenticationState implements AuthenticationState {
         try {
             return authenticateAsync(authData).get();
         } catch (InterruptedException | ExecutionException e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
             throw new RuntimeException(e);
         }
     }
