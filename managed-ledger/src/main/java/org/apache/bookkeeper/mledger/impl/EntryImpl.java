@@ -329,19 +329,19 @@ public final class EntryImpl extends AbstractCASReferenceCounted
 
     /**
      * Takes the expected read count of an entry that was added at this entry's position while this one is cached.
-     * A cached entry is immutable and kept, but the latest addition, such as a read from storage, knows how many
-     * cursors are expected to read the entry. A cached entry without expected reads takes the latest addition's
-     * handler.
+     * A cached entry's data is immutable and kept, but its expected read count is the latest addition's, such as a
+     * read from storage, which knows how many cursors are expected to read the entry; it overrides the count, also
+     * when it has no expected reads. A cached entry without expected reads takes the latest addition's handler.
      *
      * @param latest the read count handler of the latest addition, or null when it has no expected reads
      */
     public void updateExpectedReadCount(EntryReadCountHandler latest) {
         EntryReadCountHandler current = readCountHandler;
-        if (latest == null || latest == current) {
+        if (latest == current) {
             return;
         }
         if (current instanceof EntryReadCountHandlerImpl currentImpl) {
-            currentImpl.setExpectedReadCount(latest.getExpectedReadCount());
+            currentImpl.setExpectedReadCount(latest != null ? latest.getExpectedReadCount() : 0);
         } else if (current == null) {
             READ_COUNT_HANDLER.setRelease(this, latest);
         }

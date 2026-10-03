@@ -177,6 +177,35 @@ public class RangeEntryCacheImplTest {
     }
 
     @Test
+    public void testTheLatestAdditionsExpectedReadCountOverridesTheCachedEntrys() {
+        EntryImpl first = EntryImpl.create(1, 20, "first".getBytes(StandardCharsets.UTF_8), 2);
+        EntryImpl second = EntryImpl.create(1, 20, "second".getBytes(StandardCharsets.UTF_8), 4);
+        EntryImpl third = EntryImpl.create(1, 20, "third".getBytes(StandardCharsets.UTF_8), 0);
+        ReferenceCountedEntry cached = null;
+        try {
+            assertThat(rangeEntryCache.insert(first)).isTrue();
+            cached = rangeEntryCache.getEntries().get(PositionFactory.create(1, 20));
+            // a later addition at the same position, as when two inserts race, isn't cached, but overrides the count
+            assertThat(rangeEntryCache.insert(second)).isFalse();
+            assertThat(new String(cached.getData(), StandardCharsets.UTF_8)).isEqualTo("first");
+            assertThat(cached.getReadCountHandler().getExpectedReadCount()).isEqualTo(4);
+            // also when it has no expected reads
+            assertThat(rangeEntryCache.insert(third)).isFalse();
+            assertThat(cached.getReadCountHandler().getExpectedReadCount()).isZero();
+            // and the discarded duplicates' releases didn't count as reads of the additions' counts
+            assertThat(second.getReadCountHandler().getExpectedReadCount()).isEqualTo(4);
+        } finally {
+            if (cached != null) {
+                cached.release();
+            }
+            first.release();
+            second.release();
+            third.release();
+            rangeEntryCache.clear();
+        }
+    }
+
+    @Test
     public void testBatchInsertSkipsCachedEntriesBeforeCopyingThem() {
         // records the entries that the cache prepares for an insert: it computes their length before copying them
         List<Long> prepared = new ArrayList<>();
