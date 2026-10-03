@@ -324,7 +324,7 @@ public final class RunReport {
         appendThroughput(report, producer, consumers);
         Path stats = runDirectory.resolve(TOPIC_STATS_FILE);
         Samples samples = Files.isRegularFile(stats) ? readSamples(stats) : null;
-        appendCatchUp(report, run.workload(), consumers, samples, measurementStart);
+        appendCatchUp(report, run.workload(), consumers, samples, measurementStart, measurementEnd);
         appendLatency(report, runDirectory, run, consumerHistograms, measurementStart);
         if (samples != null) {
             appendTopicStats(report, runDirectory, samples, measurementStart, measurementEnd,
@@ -642,36 +642,42 @@ public final class RunReport {
                         producer.path("measurementElapsedSeconds").asDouble())))
                 .append(row("Applications still receiving after the gateways finished",
                         String.format(Locale.ROOT, "%.1f s", Math.max(0, lastReceived - end) / 1000.0)));
+        if (consumers.stream().anyMatch(consumer -> consumer.path("joinEpochMs").asLong() > 0)) {
+            report.append("\nSome applications joined after the measurement started, so the delivered throughput and"
+                    + " the time the applications were still receiving are mostly those of the last one to catch up;"
+                    + " the Catch-up section has each one's.\n");
+        }
     }
 
     /**
      * The applications that joined after the measurement started ({@code applications.joinSeconds}): when each
-     * joined, its subscription's backlog then, from the sampled topic stats, and how long it took to catch up.
+     * joined, its subscription's backlog then, from the sampled topic stats, how long it took to catch up, and its
+     * catch-up rate.
      */
     static void appendCatchUp(StringBuilder report, JsonNode workload, List<JsonNode> consumers, Samples samples,
-                              long measurementStart) {
+                              long measurementStart, long measurementEnd) {
         List<JsonNode> late = consumers.stream().filter(consumer -> consumer.path("joinEpochMs").asLong() > 0)
                 .toList();
         if (late.isEmpty()) {
             return;
         }
-        int caughtUpLatency = workload.path("applications").path("caughtUpLatencyMillis").asInt(1000);
+        int caughtUpLatency = late.get(0).path("caughtUpLatencyMillis")
+                .asInt(workload.path("applications").path("caughtUpLatencyMillis").asInt(1000));
         report.append("\n## Catch-up\n\nThe applications that joined after the measurement started. Each had its"
                         + " subscription from the start, so its backlog built up until it joined. An application has"
-                        + " caught up when it first received a measured message within ")
+                        + " caught up when each of its topics delivered a measured message within ")
                 .append(String.format(Locale.ROOT, "%,d", caughtUpLatency))
-                .append(" ms of its publishing, which it may not do before the gateways finish. Its read rate is"
-                        + " every message that it received, warmup included, per second from when it joined until it"
-                        + " received its last message. The backlog is the sampled topic stats' last sample before"
-                        + " the application joined.\n\n| Application | Joined | Backlog when it joined"
-                        + " | Caught up after | Received its last message after | Read rate since joining |\n"
-                        + "|---|---:|---:|---:|---:|---:|\n");
+                .append(" ms of its publishing; the time includes opening its pods. Its catch-up rate is the messages"
+                        + " that it received until then, warmup included, per second since it joined; for an"
+                        + " application that didn't catch up, it is the rate until its last message. The backlog is"
+                        + " the sampled topic stats' last sample before the application joined.\n\n"
+                        + "| Application | Joined | Backlog when it joined | Caught up after | Catch-up rate"
+                        + " | Received its last message after |\n|---|---:|---:|---:|---:|---:|\n");
         for (JsonNode consumer : late) {
             String application = applicationName(workload, consumer.path("applicationIndex").asInt());
             long joined = consumer.path("joinEpochMs").asLong();
             long caughtUp = consumer.path("caughtUpEpochMs").asLong();
             long lastReceived = consumer.path("lastMeasurementMessageReceivedEpochMs").asLong();
-            long messages = consumer.path("uniqueMessages").asLong();
             String backlog = "–";
             double[] backlogs = samples != null ? samples.backlog().get(application) : null;
             if (backlogs != null) {
@@ -682,14 +688,22 @@ public final class RunReport {
                     }
                 }
             }
+            String caughtUpAfter;
+            String rate;
+            if (caughtUp > joined) {
+                caughtUpAfter = String.format(Locale.ROOT, "%.1f s", (caughtUp - joined) / 1000.0)
+                        + (caughtUp > measurementEnd ? ", after the gateways finished" : "");
+                rate = String.format(Locale.ROOT, "%,.0f msg/s",
+                        consumer.path("messagesWhenCaughtUp").asLong() * 1000.0 / (caughtUp - joined));
+            } else {
+                caughtUpAfter = "not caught up";
+                rate = lastReceived > joined ? String.format(Locale.ROOT, "%,.0f msg/s until its last message",
+                        consumer.path("uniqueMessages").asLong() * 1000.0 / (lastReceived - joined)) : "–";
+            }
             report.append(String.format(Locale.ROOT, "| `%s` | %.1f s | %s | %s | %s | %s |%n", application,
-                    (joined - measurementStart) / 1000.0, backlog,
-                    caughtUp > 0 ? String.format(Locale.ROOT, "%.1f s", (caughtUp - joined) / 1000.0)
-                            : "not while the gateways published",
+                    (joined - measurementStart) / 1000.0, backlog, caughtUpAfter, rate,
                     lastReceived > joined ? String.format(Locale.ROOT, "%.1f s", (lastReceived - joined) / 1000.0)
-                            : "–",
-                    lastReceived > joined ? String.format(Locale.ROOT, "%,.0f msg/s",
-                            messages * 1000.0 / (lastReceived - joined)) : "–"));
+                            : "–"));
         }
     }
 

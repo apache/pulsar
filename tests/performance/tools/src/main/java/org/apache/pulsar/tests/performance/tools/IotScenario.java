@@ -19,6 +19,7 @@
 package org.apache.pulsar.tests.performance.tools;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -106,7 +107,8 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
         public static final int DEFAULT_CAUGHT_UP_LATENCY_MILLIS = 1000;
 
         public Applications {
-            joinSeconds = joinSeconds != null ? List.copyOf(joinSeconds) : List.of();
+            // kept with any nulls, which the scenario's validation rejects with its message
+            joinSeconds = joinSeconds != null ? Collections.unmodifiableList(new ArrayList<>(joinSeconds)) : List.of();
             if (caughtUpLatencyMillis == null) {
                 caughtUpLatencyMillis = DEFAULT_CAUGHT_UP_LATENCY_MILLIS;
             }
@@ -198,12 +200,14 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
         require(applications.joinSeconds().isEmpty() || applications.joinSeconds().size() == applications.count(),
                 "applications.joinSeconds must have a value for each of the " + applications.count()
                         + " applications, or none");
+        // the joins count from the measurement's start, after the warmup
+        long warmupTotalSeconds = minimumRuntimeSeconds - durationSeconds;
         require(applications.joinSeconds().stream().allMatch(seconds -> seconds != null && seconds >= 0
-                        && seconds < timeoutSeconds),
-                "applications.joinSeconds must be at least 0 and less than timeoutSeconds");
+                        && warmupTotalSeconds + seconds < timeoutSeconds),
+                "applications.joinSeconds must be at least 0, and the warmup (" + warmupTotalSeconds
+                        + " s) and the latest join must be within timeoutSeconds");
         require(applications.caughtUpLatencyMillis() >= 1, "applications.caughtUpLatencyMillis must be at least 1");
         if (timeoutSeconds < minimumRuntimeSeconds) {
-            long warmupTotalSeconds = minimumRuntimeSeconds - durationSeconds;
             throw new IllegalArgumentException(String.format(Locale.ROOT, "Invalid IoT scenario: timeoutSeconds is %d,"
                             + " but the workload needs %d s: %d s of warmup (%d round(s) of %d s%s) and %d s of"
                             + " measurement%s. The applications stop waiting at the timeout, so set timeoutSeconds to"

@@ -65,36 +65,51 @@ public class RunReportTest {
 
     @Test
     public void reportsTheCatchUpOfTheApplicationsThatJoinedLater() throws Exception {
-        JsonNode workload = mapper.readTree("{\"applications\": {\"subscriptionPrefix\": \"app-\","
-                + " \"caughtUpLatencyMillis\": 500}}");
+        JsonNode workload = mapper.readTree("{\"applications\": {\"subscriptionPrefix\": \"app-\"}}");
         long start = 1_000_000;
+        long end = start + 120_000;
         List<JsonNode> consumers = List.of(
                 mapper.readTree("{\"applicationIndex\": 0, \"joinEpochMs\": 0}"),
-                mapper.readTree("{\"applicationIndex\": 1, \"joinEpochMs\": " + (start + 20_000)
-                        + ", \"caughtUpEpochMs\": " + (start + 30_000) + ", \"uniqueMessages\": 4600000,"
-                        + " \"lastMeasurementMessageReceivedEpochMs\": " + (start + 120_000) + "}"),
-                mapper.readTree("{\"applicationIndex\": 2, \"joinEpochMs\": " + (start + 40_000)
-                        + ", \"caughtUpEpochMs\": 0, \"uniqueMessages\": 4600000,"
-                        + " \"lastMeasurementMessageReceivedEpochMs\": " + (start + 140_000) + "}"));
-        long[] epochs = {start + 19_000, start + 20_500, start + 39_000};
+                // caught up while the gateways published
+                late(1, start + 20_000, start + 30_000, 1_500_000, start + 120_000),
+                // caught up after the gateways finished
+                late(2, start + 40_000, start + 130_000, 4_000_000, start + 140_000),
+                // never caught up, with no sample before it joined
+                late(3, start + 500, 0, 4_600_000, start + 150_000),
+                // joined but never received a measured message
+                late(4, start + 60_000, 0, 0, 0));
+        long[] epochs = {start + 1_000, start + 19_000, start + 39_000};
         RunReport.Samples samples = new RunReport.Samples(epochs, new double[3], Map.of(),
-                Map.of("app-1", new double[] {570_000, 600_000, 0}, "app-2", new double[] {1_100_000, 1_150_000,
-                        1_170_000}));
+                Map.of("app-1", new double[] {0, 570_000, 0}, "app-2", new double[] {0, 0, 1_170_000},
+                        "app-3", new double[] {0, 0, 0}));
         StringBuilder report = new StringBuilder();
-        RunReport.appendCatchUp(report, workload, consumers, samples, start);
+        RunReport.appendCatchUp(report, workload, consumers, samples, start, end);
 
         assertThat(report.toString())
                 .contains("## Catch-up")
+                // the threshold that the application wrote
                 .contains("within 500 ms of its publishing")
-                // the backlog of the last sample before the application joined, and its catch-up rate
-                .contains("| `app-1` | 20.0 s | 570,000 | 10.0 s | 100.0 s | 46,000 msg/s |")
-                .contains("| `app-2` | 40.0 s | 1,170,000 | not while the gateways published | 100.0 s"
-                        + " | 46,000 msg/s |")
+                .contains("| `app-1` | 20.0 s | 570,000 | 10.0 s | 150,000 msg/s | 100.0 s |")
+                .contains("| `app-2` | 40.0 s | 1,170,000 | 90.0 s, after the gateways finished | 44,444 msg/s"
+                        + " | 100.0 s |")
+                .contains("| `app-3` | 0.5 s | – | not caught up | 30,769 msg/s until its last message | 149.5 s |")
+                .contains("| `app-4` | 60.0 s | – | not caught up | – | – |")
                 .doesNotContain("`app-0`");
+        // without topic stats
+        StringBuilder withoutSamples = new StringBuilder();
+        RunReport.appendCatchUp(withoutSamples, workload, consumers.subList(0, 2), null, start, end);
+        assertThat(withoutSamples.toString()).contains("| `app-1` | 20.0 s | – | 10.0 s |");
         // without late applications, there's no section
         StringBuilder none = new StringBuilder();
-        RunReport.appendCatchUp(none, workload, consumers.subList(0, 1), samples, start);
+        RunReport.appendCatchUp(none, workload, consumers.subList(0, 1), samples, start, end);
         assertThat(none.toString()).isEmpty();
+    }
+
+    private JsonNode late(int index, long joined, long caughtUp, long messages, long lastReceived) throws Exception {
+        return mapper.readTree("{\"applicationIndex\": " + index + ", \"joinEpochMs\": " + joined
+                + ", \"caughtUpLatencyMillis\": 500, \"caughtUpEpochMs\": " + caughtUp
+                + ", \"messagesWhenCaughtUp\": " + messages + ", \"uniqueMessages\": 4600000"
+                + ", \"lastMeasurementMessageReceivedEpochMs\": " + lastReceived + "}");
     }
 
     @Test

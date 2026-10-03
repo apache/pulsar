@@ -101,8 +101,10 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
                 }
             }
             phase.set("receiving");
+            // The clients open now; the late applications' pods open when they join
             System.out.println("READY applications=" + applications.size() + " clients="
-                    + (long) applications.size() * scenario.podsPerApplication());
+                    + applications.stream().filter(application -> !application.joinsLater()).count()
+                    * scenario.podsPerApplication());
             long deadlineNanos = System.nanoTime() + Duration.ofSeconds(scenario.timeoutSeconds()).toNanos();
             for (Application application : applications) {
                 if (application.joinsLater()) {
@@ -159,6 +161,7 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
         // The applications that timed out write what they received too
         for (Application application : receiving) {
             application.checkRestarts();
+            application.checkJoin();
             succeeded &= application.finish();
         }
         return succeeded;
@@ -254,17 +257,15 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
         private final HdrLatencyRecorder receiveLatency;
         private final AtomicLong firstMeasurementReceiptEpochMs = new AtomicLong();
         private final AtomicLong lastMeasurementReceiptEpochMs = new AtomicLong();
-        // For an application that joins later: when it joined, when it caught up and how many messages it had then
-        private final AtomicLong joinEpochMs = new AtomicLong();
-        private final AtomicLong caughtUpEpochMs = new AtomicLong();
-        private final AtomicLong messagesWhenCaughtUp = new AtomicLong();
+        // For an application that joins later: when it joined and when it caught up
+        private final CatchUpTracker catchUp;
         private final AtomicReference<Throwable> joinFailure = new AtomicReference<>();
-        private Thread joiner;
+        private volatile Thread joiner;
         // Guarded by itself, as the restarts replace pods
         private final List<ClientAndConsumer> pods;
         private final AtomicBoolean stopping = new AtomicBoolean();
         private final AtomicReference<Throwable> restartFailure = new AtomicReference<>();
-        private Thread restarter;
+        private volatile Thread restarter;
         private int nextWarmupRound = 1;
         private volatile boolean finished;
 
@@ -273,6 +274,7 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
             this.index = index;
             this.output = output;
             tracker = new DeviceSequenceTracker(scenario.deviceCount());
+            catchUp = new CatchUpTracker(scenario.topicCount(), scenario.applications().caughtUpLatencyMillis());
             pods = new ArrayList<>(scenario.podsPerApplication());
             receiveLatency = new HdrLatencyRecorder(output.resolve("application-latency.hdr"),
                     PerformanceTool.MAX_LATENCY_MICROS);
@@ -324,8 +326,10 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
                     if (waitMillis > 0) {
                         Thread.sleep(waitMillis);
                     }
-                    joinEpochMs.set(System.currentTimeMillis());
-                    System.out.println("JOIN application=" + index + " epochMs=" + joinEpochMs.get());
+                    // when it starts to open its pods, so the catch-up includes connecting them
+                    long joinEpochMs = System.currentTimeMillis();
+                    catchUp.joined(joinEpochMs);
+                    System.out.println("JOIN application=" + index + " epochMs=" + joinEpochMs);
                     openPods(sharedResources, new AtomicLong());
                     startRestarts(sharedResources);
                 } catch (InterruptedException interrupted) {
@@ -348,6 +352,11 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
             for (int pod = 0; pod < scenario.podsPerApplication(); pod++) {
                 ClientAndConsumer created = createPod(sharedResources, pod);
                 synchronized (pods) {
+                    // a late application's joiner can open a pod after the application stopped
+                    if (stopping.get()) {
+                        created.close();
+                        return;
+                    }
                     pods.add(created);
                 }
                 opened.incrementAndGet();
@@ -355,9 +364,10 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
         }
 
         void startRestarts(PulsarClientSharedResources sharedResources) {
-            if (scenario.behaviors().podRestarts().enabled()) {
-                restarter = new Thread(() -> restartPods(sharedResources), "iot-client-restarter-" + index);
-                restarter.start();
+            if (scenario.behaviors().podRestarts().enabled() && !stopping.get()) {
+                Thread thread = new Thread(() -> restartPods(sharedResources), "iot-client-restarter-" + index);
+                restarter = thread;
+                thread.start();
             }
         }
 
@@ -401,9 +411,10 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
                     + "  \"lastMeasurementMessageReceivedEpochMs\": "
                     + lastMeasurementReceiptEpochMs.get() + ",\n"
                     + "  \"joinSeconds\": " + scenario.joinSeconds(index) + ",\n"
-                    + "  \"joinEpochMs\": " + joinEpochMs.get() + ",\n"
-                    + "  \"caughtUpEpochMs\": " + caughtUpEpochMs.get() + ",\n"
-                    + "  \"messagesWhenCaughtUp\": " + messagesWhenCaughtUp.get() + "\n}\n");
+                    + "  \"joinEpochMs\": " + catchUp.joinEpochMs() + ",\n"
+                    + "  \"caughtUpLatencyMillis\": " + catchUp.thresholdMillis() + ",\n"
+                    + "  \"caughtUpEpochMs\": " + catchUp.caughtUpEpochMs() + ",\n"
+                    + "  \"messagesWhenCaughtUp\": " + catchUp.messagesWhenCaughtUp() + "\n}\n");
             closePods();
             finished = true;
             return summary.valid() && summary.uniqueMessages() == scenario.messageCount();
@@ -412,24 +423,30 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
         /** Closes the application's pods, when it hasn't finished, such as after a failure. */
         void close() throws Exception {
             stopping.set(true);
-            if (joiner != null) {
-                joiner.interrupt();
+            Thread joining = joiner;
+            if (joining != null) {
+                joining.interrupt();
+                // so that it doesn't open pods after they're closed, or use the shared resources after they are
+                joining.join(TimeUnit.SECONDS.toMillis(10));
             }
-            if (restarter != null) {
-                restarter.interrupt();
+            Thread restarting = restarter;
+            if (restarting != null) {
+                restarting.interrupt();
             }
             closePods();
         }
 
         private void stopRestarts() throws InterruptedException {
             stopping.set(true);
-            if (joiner != null) {
-                joiner.interrupt();
-                joiner.join(TimeUnit.SECONDS.toMillis(10));
+            Thread joining = joiner;
+            if (joining != null) {
+                joining.interrupt();
+                joining.join(TimeUnit.SECONDS.toMillis(10));
             }
-            if (restarter != null) {
-                restarter.interrupt();
-                restarter.join(TimeUnit.SECONDS.toMillis(10));
+            Thread restarting = restarter;
+            if (restarting != null) {
+                restarting.interrupt();
+                restarting.join(TimeUnit.SECONDS.toMillis(10));
             }
         }
 
@@ -475,12 +492,8 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
                                             (current, received) -> current == 0 ? received
                                                     : Math.min(current, received));
                                     lastMeasurementReceiptEpochMs.accumulateAndGet(receivedEpochMs, Math::max);
-                                    if (joinEpochMs.get() > 0 && caughtUpEpochMs.get() == 0
-                                            && receivedEpochMs - message.getPublishTime()
-                                            <= scenario.applications().caughtUpLatencyMillis()
-                                            && caughtUpEpochMs.compareAndSet(0, receivedEpochMs)) {
-                                        messagesWhenCaughtUp.set(tracker.uniqueMessages());
-                                    }
+                                    catchUp.received(message.getTopicName(), message.getPublishTime(),
+                                            receivedEpochMs, tracker::uniqueMessages);
                                 }
                                 receiveLatency.recordMillis(receivedEpochMs - message.getPublishTime(),
                                         decoded.measurement());

@@ -21,12 +21,13 @@
 # catches up on the backlog that built up until it joined, while the gateways keep publishing; the report's Catch-up
 # section shows how long each took. 3 applications join 2 s apart, at 20, 22 and 24 s, as consumers that scale up or
 # restart together do: the entries that the first of them reads from storage stay in the broker's entry cache for the
-# others, which are expected to read them within its time to live. The last one joins alone at 60 s, halfway through
-# the 120 s measurement, and reads its backlog from storage.
+# others, which are expected to read them within its time to live. The last one joins alone at 60 s and reads its
+# backlog from storage. The measurement is 180 s, so that the applications that join at 20 to 24 s catch up while the
+# gateways publish.
 extends: iot-telemetry-high-rate.yaml
 workloads:
   iotTelemetry:
     measurement:
-      messages: 3600000
+      messages: 5400000
     applications:
       joinSeconds: [0, 20, 22, 24, 60]

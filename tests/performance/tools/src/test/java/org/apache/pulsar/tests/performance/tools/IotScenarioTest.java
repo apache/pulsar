@@ -23,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import org.apache.pulsar.tests.performance.common.YamlScenarioLoader;
@@ -98,6 +99,29 @@ public class IotScenarioTest {
     }
 
     @Test
+    public void applicationsThatJoinLaterRequireARunId() throws Exception {
+        Path config = Files.createTempFile("iot-scenario", ".yaml");
+        try {
+            YamlScenarioLoader loader = new YamlScenarioLoader();
+            loader.mapper().writeValue(config.toFile(), Map.of("workloads", Map.of("iotTelemetry",
+                    scenario(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2), null,
+                            List.of(0, 20), null)))));
+            List<String> arguments = new ArrayList<>(List.of("iot-consume", "--config", config.toString(),
+                    "--output", "results"));
+            var parsed = new CommandLine(new PerformanceTool()).parseArgs(arguments.toArray(String[]::new));
+            var tool = (PerformanceTool.ScenarioCommand) parsed.subcommand().commandSpec().userObject();
+            assertThatThrownBy(tool::scenario).isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("join later require the same --run-id");
+            arguments.addAll(List.of("--run-id", "shared-run"));
+            parsed = new CommandLine(new PerformanceTool()).parseArgs(arguments.toArray(String[]::new));
+            tool = (PerformanceTool.ScenarioCommand) parsed.subcommand().commandSpec().userObject();
+            assertThat(tool.scenario().joinSeconds(1)).isEqualTo(20);
+        } finally {
+            Files.deleteIfExists(config);
+        }
+    }
+
+    @Test
     public void joinsApplicationsLater() {
         IotScenario scenario = scenario(new IotScenario.Applications(3, 2, "app-", new IotScenario.Client(2, 2), null,
                 List.of(0, 20, 20), null));
@@ -117,9 +141,11 @@ public class IotScenarioTest {
         assertThatThrownBy(() -> scenario(new IotScenario.Applications(3, 2, "app-", new IotScenario.Client(2, 2),
                 null, List.of(0, 20), null))).hasMessageContaining("a value for each of the 3 applications");
         assertThatThrownBy(() -> scenario(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
-                null, List.of(0, -1), null))).hasMessageContaining("at least 0 and less than timeoutSeconds");
+                null, List.of(0, -1), null))).hasMessageContaining("must be at least 0");
         assertThatThrownBy(() -> scenario(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
-                null, List.of(0, 300), null))).hasMessageContaining("at least 0 and less than timeoutSeconds");
+                null, List.of(0, 300), null))).hasMessageContaining("the latest join must be within timeoutSeconds");
+        assertThatThrownBy(() -> scenario(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, Arrays.asList(0, null), null))).hasMessageContaining("applications.joinSeconds must be");
         assertThatThrownBy(() -> scenario(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
                 null, List.of(0, 20), 0))).hasMessageContaining("caughtUpLatencyMillis must be at least 1");
     }
