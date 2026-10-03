@@ -1077,6 +1077,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
      * not seen by the application.
      */
     private void clearReceiverQueue(boolean updateStartMessageId) {
+        MessageIdAdv rejectedMessageId = (MessageIdAdv) clearListenerRetry();
         List<Message<?>> currentMessageQueue = new ArrayList<>(incomingMessages.size());
         incomingMessages.drainTo(currentMessageQueue);
         resetIncomingMessageSize();
@@ -1096,8 +1097,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return;
         }
 
-        if (!currentMessageQueue.isEmpty()) {
-            MessageIdAdv nextMessageInQueue = (MessageIdAdv) currentMessageQueue.get(0).getMessageId();
+        if (rejectedMessageId != null || !currentMessageQueue.isEmpty()) {
+            MessageIdAdv nextMessageInQueue = rejectedMessageId != null ? rejectedMessageId
+                    : (MessageIdAdv) currentMessageQueue.get(0).getMessageId();
             MessageIdAdv previousMessage;
             if (MessageIdAdvUtils.isBatch(nextMessageInQueue)) {
                 // Get on the previous message within the current batch
@@ -1254,6 +1256,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     private void closeConsumerTasks() {
+        clearListenerRetry();
         unAckedMessageTracker.close();
         if (possibleSendToDeadLetterTopicMessages != null) {
             possibleSendToDeadLetterTopicMessages.clear();
@@ -2665,6 +2668,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
                 lastDequeuedMessageId = MessageId.earliest;
 
+                clearListenerRetry();
                 clearIncomingMessages();
                 CompletableFuture<Void> future = null;
                 synchronized (this) {
