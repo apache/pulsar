@@ -63,6 +63,12 @@ public interface Transaction {
     AsyncTransaction async();
 
     /**
+     * Get TxnID of the transaction.
+     *  @return {@link TxnID} the txnID.
+     */
+    TxnID getTxnID();
+
+    /**
      * The current state of this transaction.
      *
      * @return the current {@link State} of this transaction

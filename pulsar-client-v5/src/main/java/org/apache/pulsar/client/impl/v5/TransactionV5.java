@@ -20,6 +20,8 @@ package org.apache.pulsar.client.impl.v5;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.api.v5.PulsarClientException;
 import org.apache.pulsar.client.api.v5.Transaction;
 import org.apache.pulsar.client.api.v5.async.AsyncTransaction;
@@ -71,6 +73,15 @@ final class TransactionV5 implements Transaction {
     @Override
     public AsyncTransaction async() {
         return asyncView;
+    }
+
+    @Override
+    public org.apache.pulsar.client.api.v5.TxnID getTxnID() {
+        return toV5(v4Transaction.getTxnID());
+    }
+
+    private org.apache.pulsar.client.api.v5.TxnID toV5(TxnID txnID) {
+        return new org.apache.pulsar.client.api.v5.TxnID(txnID.getMostSigBits(), txnID.getLeastSigBits());
     }
 
     @Override
