@@ -1545,6 +1545,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         .log("Ignoring message from before the startMessageId");
 
                 uncompressedPayload.release();
+                // This message is dropped instead of being delivered to the application, so its
+                // outstanding flow-control permit is never returned via messageProcessed(). Return
+                // it here to avoid leaking a permit for the boundary message that a seek/startMessageId
+                // caused to be re-dispatched. Refund numMessages : the broker charges
+                // one permit per message in the entry, so an undecryptable batch (which can also reach
+                // this block) is repaid exactly what it consumed. For the plain and chunked cases numMessages is 1.
+                increaseAvailablePermits(cnx, numMessages);
                 return;
             }
 
