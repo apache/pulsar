@@ -44,6 +44,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -201,6 +202,46 @@ public class MessageDuplicationTest extends BrokerTestBase {
             capped.setHighestSequencedPersisted("producer", 1);
             assertTrue(capped.snapshotPersistedSequenceIds().isEmpty());
         }
+    }
+
+    @Test
+    public void testAnEntryRemovedDuringAnUpdateIsPutBackUnlessANewerOneWasPut() {
+        // a purge removes the entry after the update looked it up, before the update checks that it's still there
+        ConcurrentMap<String, MessageDeduplication.PersistedSequenceId> purged = new ConcurrentHashMap<>() {
+            private boolean removed;
+
+            @Override
+            public MessageDeduplication.PersistedSequenceId get(Object key) {
+                MessageDeduplication.PersistedSequenceId value = super.get(key);
+                if (!removed) {
+                    removed = true;
+                    super.remove(key);
+                }
+                return value;
+            }
+        };
+        purged.put("producer", new MessageDeduplication.PersistedSequenceId(1));
+        MessageDeduplication.setHighestSequencedPersisted(purged, "producer", 2);
+        assertEquals(purged.get("producer").value, 2L);
+
+        // the same, with a later update putting a newer entry before the check, which is kept
+        ConcurrentMap<String, MessageDeduplication.PersistedSequenceId> replaced = new ConcurrentHashMap<>() {
+            private boolean replacedOnce;
+
+            @Override
+            public MessageDeduplication.PersistedSequenceId get(Object key) {
+                MessageDeduplication.PersistedSequenceId value = super.get(key);
+                if (!replacedOnce) {
+                    replacedOnce = true;
+                    super.remove(key);
+                    super.put((String) key, new MessageDeduplication.PersistedSequenceId(3));
+                }
+                return value;
+            }
+        };
+        replaced.put("producer", new MessageDeduplication.PersistedSequenceId(1));
+        MessageDeduplication.setHighestSequencedPersisted(replaced, "producer", 2);
+        assertEquals(replaced.get("producer").value, 3L);
     }
 
     @Test

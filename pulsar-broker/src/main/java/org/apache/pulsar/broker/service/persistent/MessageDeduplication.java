@@ -720,7 +720,6 @@ public class MessageDeduplication {
      * The highest persisted sequence IDs of up to {@code maxNumberOfProducers} producers, to store in the cursor's
      * properties. The properties don't need an order, so the producers' names aren't sorted.
      */
-    @VisibleForTesting
     Map<String, Long> snapshotPersistedSequenceIds() {
         Map<String, Long> snapshot = new HashMap<>(
                 Math.max(0, Math.min(highestSequencedPersisted.size(), maxNumberOfProducers)) * 4 / 3 + 1);
@@ -736,16 +735,23 @@ public class MessageDeduplication {
      * Records the highest sequence ID persisted for a producer, updating its entry in place.
      */
     void setHighestSequencedPersisted(String producerName, long sequenceId) {
+        setHighestSequencedPersisted(highestSequencedPersisted, producerName, sequenceId);
+    }
+
+    static void setHighestSequencedPersisted(ConcurrentMap<String, PersistedSequenceId> highestSequencedPersisted,
+                                             String producerName, long sequenceId) {
         PersistedSequenceId persisted = highestSequencedPersisted.get(producerName);
-        if (persisted != null) {
-            persisted.value = sequenceId;
-            // A purge of inactive producers or a clear can remove the entry meanwhile, for example when an expired
-            // producer reconnects during a purge; the entry is then put back, as a put of the value would
-            if (highestSequencedPersisted.get(producerName) == persisted) {
-                return;
-            }
+        if (persisted == null) {
+            highestSequencedPersisted.put(producerName, new PersistedSequenceId(sequenceId));
+            return;
         }
-        highestSequencedPersisted.put(producerName, new PersistedSequenceId(sequenceId));
+        persisted.value = sequenceId;
+        // A purge of inactive producers or a clear can remove the entry meanwhile, for example when an expired
+        // producer reconnects during a purge. The entry is then put back, as a put of the value would, unless a later
+        // update has already put a newer one.
+        if (highestSequencedPersisted.get(producerName) != persisted) {
+            highestSequencedPersisted.putIfAbsent(producerName, new PersistedSequenceId(sequenceId));
+        }
     }
 
     /**
