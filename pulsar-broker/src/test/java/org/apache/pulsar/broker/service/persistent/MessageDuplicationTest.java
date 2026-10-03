@@ -44,6 +44,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -149,7 +150,7 @@ public class MessageDuplicationTest extends BrokerTestBase {
         assertEquals(lastSequenceIdPushed.longValue(), 5);
 
         // update highest sequence persisted
-        messageDeduplication.highestSequencedPersisted.put(producerName1, 0L);
+        messageDeduplication.setHighestSequencedPersisted(producerName1, 0L);
 
         byteBuf1 = getMessage(producerName1, 0);
         publishContext1 = getPublishContext(producerName1, 0);
@@ -163,7 +164,7 @@ public class MessageDuplicationTest extends BrokerTestBase {
 
         // update highest sequence persisted
         messageDeduplication.highestSequencedPushed.put(producerName1, 0L);
-        messageDeduplication.highestSequencedPersisted.put(producerName1, 0L);
+        messageDeduplication.setHighestSequencedPersisted(producerName1, 0L);
         byteBuf1 = getMessage(producerName1, 0);
         publishContext1 = getPublishContext(producerName1, 1, 5);
         status = messageDeduplication.isDuplicate(publishContext1, byteBuf1);
@@ -179,6 +180,92 @@ public class MessageDuplicationTest extends BrokerTestBase {
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
         assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 5);
+    }
+
+    @Test
+    public void testSnapshotKeepsTheLatestSequenceIdsOfUpToMaxProducers() {
+        MessageDeduplication messageDeduplication = messageDeduplication(BROKER_DEDUPLICATION_MAX_NUMBER_PRODUCERS);
+        for (int i = 0; i < 15; i++) {
+            messageDeduplication.setHighestSequencedPersisted("producer" + i, i);
+        }
+        // updated in place
+        for (int i = 0; i < 15; i++) {
+            messageDeduplication.setHighestSequencedPersisted("producer" + i, 100 + i);
+        }
+        Map<String, Long> snapshot = messageDeduplication.snapshotPersistedSequenceIds();
+        assertEquals(snapshot.size(), BROKER_DEDUPLICATION_MAX_NUMBER_PRODUCERS);
+        snapshot.forEach((producerName, sequenceId) ->
+                assertEquals((long) sequenceId, 100 + Long.parseLong(producerName.substring("producer".length()))));
+
+        for (int maxNumberOfProducers : new int[] {0, -1, -10}) {
+            MessageDeduplication capped = messageDeduplication(maxNumberOfProducers);
+            capped.setHighestSequencedPersisted("producer", 1);
+            assertTrue(capped.snapshotPersistedSequenceIds().isEmpty());
+        }
+    }
+
+    @Test
+    public void testAnEntryRemovedDuringAnUpdateIsPutBackUnlessANewerOneWasPut() {
+        // a purge removes the entry after the update looked it up, before the update checks that it's still there
+        ConcurrentMap<String, MessageDeduplication.PersistedSequenceId> purged = new ConcurrentHashMap<>() {
+            private boolean removed;
+
+            @Override
+            public MessageDeduplication.PersistedSequenceId get(Object key) {
+                MessageDeduplication.PersistedSequenceId value = super.get(key);
+                if (!removed) {
+                    removed = true;
+                    super.remove(key);
+                }
+                return value;
+            }
+        };
+        purged.put("producer", new MessageDeduplication.PersistedSequenceId(1));
+        MessageDeduplication.setHighestSequencedPersisted(purged, "producer", 2);
+        assertEquals(purged.get("producer").value, 2L);
+
+        // the same, with a later update putting a newer entry before the check, which is kept
+        ConcurrentMap<String, MessageDeduplication.PersistedSequenceId> replaced = new ConcurrentHashMap<>() {
+            private boolean replacedOnce;
+
+            @Override
+            public MessageDeduplication.PersistedSequenceId get(Object key) {
+                MessageDeduplication.PersistedSequenceId value = super.get(key);
+                if (!replacedOnce) {
+                    replacedOnce = true;
+                    super.remove(key);
+                    super.put((String) key, new MessageDeduplication.PersistedSequenceId(3));
+                }
+                return value;
+            }
+        };
+        replaced.put("producer", new MessageDeduplication.PersistedSequenceId(1));
+        MessageDeduplication.setHighestSequencedPersisted(replaced, "producer", 2);
+        assertEquals(replaced.get("producer").value, 3L);
+    }
+
+    @Test
+    public void testRecordingAPurgedProducerAddsItBack() {
+        MessageDeduplication messageDeduplication = messageDeduplication(BROKER_DEDUPLICATION_MAX_NUMBER_PRODUCERS);
+        messageDeduplication.setHighestSequencedPersisted("producer", 1);
+        MessageDeduplication.PersistedSequenceId persisted =
+                messageDeduplication.highestSequencedPersisted.get("producer");
+        // a purge of inactive producers removes the entry
+        messageDeduplication.highestSequencedPersisted.remove("producer");
+        messageDeduplication.setHighestSequencedPersisted("producer", 2);
+        assertEquals(messageDeduplication.highestSequencedPersisted.get("producer").value, 2L);
+        assertEquals(persisted.value, 1L);
+        assertEquals(messageDeduplication.snapshotPersistedSequenceIds(), Map.of("producer", 2L));
+    }
+
+    private static MessageDeduplication messageDeduplication(int maxNumberOfProducers) {
+        PulsarService pulsarService = mock(PulsarService.class);
+        ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
+        serviceConfiguration.setBrokerDeduplicationEntriesInterval(BROKER_DEDUPLICATION_ENTRIES_INTERVAL);
+        serviceConfiguration.setBrokerDeduplicationMaxNumberOfProducers(maxNumberOfProducers);
+        serviceConfiguration.setReplicatorPrefix(REPLICATOR_PREFIX);
+        doReturn(serviceConfiguration).when(pulsarService).getConfiguration();
+        return new MessageDeduplication(pulsarService, mock(PersistentTopic.class), mock(ManagedLedger.class));
     }
 
     @Test
@@ -350,7 +437,7 @@ public class MessageDuplicationTest extends BrokerTestBase {
         Long lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
         assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 0);
-        lastSequenceIdPushed = messageDeduplication.highestSequencedPersisted.get(producerName1);
+        lastSequenceIdPushed = messageDeduplication.getHighestSequencedPersisted(producerName1);
         assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 0);
 
@@ -362,7 +449,7 @@ public class MessageDuplicationTest extends BrokerTestBase {
         assertEquals(lastSequenceIdPushed.longValue(), 1);
         byteBuf2.release();
 
-        lastSequenceIdPushed = messageDeduplication.highestSequencedPersisted.get(producerName2);
+        lastSequenceIdPushed = messageDeduplication.getHighestSequencedPersisted(producerName2);
         assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 1);
         byteBuf1.release();
@@ -375,7 +462,7 @@ public class MessageDuplicationTest extends BrokerTestBase {
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
         assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 1);
-        lastSequenceIdPushed = messageDeduplication.highestSequencedPersisted.get(producerName1);
+        lastSequenceIdPushed = messageDeduplication.getHighestSequencedPersisted(producerName1);
         assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 1);
         byteBuf1.release();
@@ -388,7 +475,7 @@ public class MessageDuplicationTest extends BrokerTestBase {
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
         assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 5);
-        lastSequenceIdPushed = messageDeduplication.highestSequencedPersisted.get(producerName1);
+        lastSequenceIdPushed = messageDeduplication.getHighestSequencedPersisted(producerName1);
         assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 5);
         byteBuf1.release();
@@ -413,7 +500,7 @@ public class MessageDuplicationTest extends BrokerTestBase {
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
         assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 6);
-        lastSequenceIdPushed = messageDeduplication.highestSequencedPersisted.get(producerName1);
+        lastSequenceIdPushed = messageDeduplication.getHighestSequencedPersisted(producerName1);
         assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 5);
         byteBuf1.release();
@@ -442,11 +529,11 @@ public class MessageDuplicationTest extends BrokerTestBase {
         assertEquals(messageDeduplication.highestSequencedPersisted.size(), 2);
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
         assertEquals(lastSequenceIdPushed.longValue(), 6);
-        lastSequenceIdPushed = messageDeduplication.highestSequencedPersisted.get(producerName1);
+        lastSequenceIdPushed = messageDeduplication.getHighestSequencedPersisted(producerName1);
         assertEquals(lastSequenceIdPushed.longValue(), 6);
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName2);
         assertEquals(lastSequenceIdPushed.longValue(), 1);
-        lastSequenceIdPushed = messageDeduplication.highestSequencedPersisted.get(producerName2);
+        lastSequenceIdPushed = messageDeduplication.getHighestSequencedPersisted(producerName2);
         assertEquals(lastSequenceIdPushed.longValue(), 1);
         verify(messageDeduplication, times(1)).resetHighestSequenceIdPushed();
         byteBuf1.release();
@@ -471,7 +558,7 @@ public class MessageDuplicationTest extends BrokerTestBase {
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
         assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 8);
-        lastSequenceIdPushed = messageDeduplication.highestSequencedPersisted.get(producerName1);
+        lastSequenceIdPushed = messageDeduplication.getHighestSequencedPersisted(producerName1);
         assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 8);
         byteBuf1.release();
