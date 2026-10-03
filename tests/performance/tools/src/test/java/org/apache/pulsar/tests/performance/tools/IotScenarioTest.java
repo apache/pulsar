@@ -148,6 +148,13 @@ public class IotScenarioTest {
                 null, Arrays.asList(0, null), null))).hasMessageContaining("applications.joinSeconds must be");
         assertThatThrownBy(() -> scenario(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
                 null, List.of(0, 20), 0))).hasMessageContaining("caughtUpLatencyMillis must be at least 1");
+        // the joins count from the measurement's start, after 2 warmup rounds of 20 s with 2 s after each
+        IotScenario.Warmup warmup = new IotScenario.Warmup(20, 0, 2, 2);
+        assertThat(scenario(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2), null,
+                List.of(0, 255), null), warmup).joinSeconds(1)).isEqualTo(255);
+        assertThatThrownBy(() -> scenario(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, List.of(0, 256), null), warmup))
+                .hasMessageContaining("the warmup (44 s) and the latest join must be within timeoutSeconds");
     }
 
     @Test
@@ -183,8 +190,13 @@ public class IotScenarioTest {
     }
 
     private static IotScenario scenario(IotScenario.Applications applications) {
-        return new IotScenario("pulsar://localhost:6650", new IotScenario.Warmup(0, 0, 1, 0),
-                new IotScenario.Measurement(120, 1_000), 0, new IotScenario.Payload(64), new IotScenario.Devices(1_000),
+        return scenario(applications, new IotScenario.Warmup(0, 0, 1, 0));
+    }
+
+    private static IotScenario scenario(IotScenario.Applications applications, IotScenario.Warmup warmup) {
+        // a time-based warmup needs a rate
+        return new IotScenario("pulsar://localhost:6650", warmup, new IotScenario.Measurement(120, 1_000),
+                warmup.seconds() > 0 ? 100 : 0, new IotScenario.Payload(64), new IotScenario.Devices(1_000),
                 new IotScenario.Gateways(10, new IotScenario.Producer(2, 2, 100, true, true), null),
                 new IotScenario.Topics(2, "persistent://public/default/iot-"), applications, null, 300);
     }

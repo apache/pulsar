@@ -354,7 +354,8 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
                 synchronized (pods) {
                     // a late application's joiner can open a pod after the application stopped
                     if (stopping.get()) {
-                        created.close();
+                        // uninterruptibly, so that the client is closed before the shared resources are
+                        created.closeAsync().exceptionally(failure -> null).join();
                         return;
                     }
                     pods.add(created);
@@ -423,30 +424,27 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
         /** Closes the application's pods, when it hasn't finished, such as after a failure. */
         void close() throws Exception {
             stopping.set(true);
-            Thread joining = joiner;
-            if (joining != null) {
-                joining.interrupt();
-                // so that it doesn't open pods after they're closed, or use the shared resources after they are
-                joining.join(TimeUnit.SECONDS.toMillis(10));
-            }
-            Thread restarting = restarter;
-            if (restarting != null) {
-                restarting.interrupt();
-            }
+            // so that they don't open pods after they're closed, or use the shared resources after they are
+            interruptAndAwait(joiner);
+            interruptAndAwait(restarter);
             closePods();
         }
 
         private void stopRestarts() throws InterruptedException {
             stopping.set(true);
-            Thread joining = joiner;
-            if (joining != null) {
-                joining.interrupt();
-                joining.join(TimeUnit.SECONDS.toMillis(10));
+            interruptAndAwait(joiner);
+            interruptAndAwait(restarter);
+        }
+
+        /** Interrupts the thread and waits for it, which takes up to a client's close timeout when it opens a pod. */
+        private static void interruptAndAwait(Thread thread) throws InterruptedException {
+            if (thread == null) {
+                return;
             }
-            Thread restarting = restarter;
-            if (restarting != null) {
-                restarting.interrupt();
-                restarting.join(TimeUnit.SECONDS.toMillis(10));
+            thread.interrupt();
+            thread.join(TimeUnit.SECONDS.toMillis(90));
+            if (thread.isAlive()) {
+                System.err.println("WARN " + thread.getName() + " didn't stop within 90 s");
             }
         }
 
@@ -492,14 +490,17 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
                                             (current, received) -> current == 0 ? received
                                                     : Math.min(current, received));
                                     lastMeasurementReceiptEpochMs.accumulateAndGet(receivedEpochMs, Math::max);
-                                    catchUp.received(message.getTopicName(), message.getPublishTime(),
-                                            receivedEpochMs, tracker::uniqueMessages);
                                 }
                                 receiveLatency.recordMillis(receivedEpochMs - message.getPublishTime(),
                                         decoded.measurement());
                                 tracker.received(decoded.deviceId(), decoded.sequence(), message.getMessageId(),
                                         decoded.sentNanos(), message.getTopicName(),
                                         Thread.currentThread().getName());
+                                if (decoded.measurement()) {
+                                    // after counting the message, which then counts for the catch-up
+                                    catchUp.received(message.getTopicName(), message.getPublishTime(),
+                                            receivedEpochMs, tracker::uniqueMessages);
+                                }
                                 currentConsumer.acknowledgeAsync(message);
                             } catch (RuntimeException error) {
                                 tracker.invalidMessage();
@@ -509,7 +510,8 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
                         .subscribe();
                 return new ClientAndConsumer(client, consumer);
             } catch (Throwable error) {
-                client.close();
+                // uninterruptibly: an interrupted subscription would otherwise leave the client closing
+                client.closeAsync().exceptionally(failure -> null).join();
                 throw error;
             }
         }
@@ -541,8 +543,11 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
     private record ClientAndConsumer(PulsarClient client, Consumer<byte[]> consumer) implements AutoCloseable {
         @Override
         public void close() throws Exception {
-            consumer.close();
-            client.close();
+            try {
+                consumer.close();
+            } finally {
+                client.close();
+            }
         }
 
         /** Closes the consumer, then the client, also when closing the consumer failed. */

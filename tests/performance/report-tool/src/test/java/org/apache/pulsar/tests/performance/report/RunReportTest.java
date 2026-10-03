@@ -72,12 +72,14 @@ public class RunReportTest {
                 mapper.readTree("{\"applicationIndex\": 0, \"joinEpochMs\": 0}"),
                 // caught up while the gateways published
                 late(1, start + 20_000, start + 30_000, 1_500_000, start + 120_000),
-                // caught up after the gateways finished
-                late(2, start + 40_000, start + 130_000, 4_000_000, start + 140_000),
+                // caught up with the gateways' last messages, within the threshold after they finished
+                late(2, start + 40_000, start + 120_400, 4_000_000, start + 140_000),
                 // never caught up, with no sample before it joined
                 late(3, start + 500, 0, 4_600_000, start + 150_000),
                 // joined but never received a measured message
-                late(4, start + 60_000, 0, 0, 0));
+                late(4, start + 60_000, 0, 0, 0),
+                // caught up in the millisecond that it joined
+                late(5, start + 70_000, start + 70_000, 10, start + 80_000));
         long[] epochs = {start + 1_000, start + 19_000, start + 39_000};
         RunReport.Samples samples = new RunReport.Samples(epochs, new double[3], Map.of(),
                 Map.of("app-1", new double[] {0, 570_000, 0}, "app-2", new double[] {0, 0, 1_170_000},
@@ -90,10 +92,11 @@ public class RunReportTest {
                 // the threshold that the application wrote
                 .contains("within 500 ms of its publishing")
                 .contains("| `app-1` | 20.0 s | 570,000 | 10.0 s | 150,000 msg/s | 100.0 s |")
-                .contains("| `app-2` | 40.0 s | 1,170,000 | 90.0 s, after the gateways finished | 44,444 msg/s"
+                .contains("| `app-2` | 40.0 s | 1,170,000 | 80.4 s, after the gateways finished | 49,751 msg/s"
                         + " | 100.0 s |")
                 .contains("| `app-3` | 0.5 s | – | not caught up | 30,769 msg/s until its last message | 149.5 s |")
                 .contains("| `app-4` | 60.0 s | – | not caught up | – | – |")
+                .contains("| `app-5` | 70.0 s | – | 0.0 s | – | 10.0 s |")
                 .doesNotContain("`app-0`");
         // without topic stats
         StringBuilder withoutSamples = new StringBuilder();

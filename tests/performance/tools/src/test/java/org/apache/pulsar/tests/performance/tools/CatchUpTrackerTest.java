@@ -46,6 +46,16 @@ public class CatchUpTrackerTest {
     }
 
     @Test
+    public void catchesUpAtTheLatestTopicsReceiptWhenListenersRecordOutOfOrder() {
+        CatchUpTracker tracker = new CatchUpTracker(2, 1_000);
+        tracker.joined(20_000);
+        // concurrent listeners: t1's receipt at 23,000 is recorded before t0's earlier one at 22,000
+        tracker.received("t1", 22_900, 23_000, () -> 10);
+        tracker.received("t0", 21_900, 22_000, () -> 11);
+        assertThat(tracker.caughtUpEpochMs()).isEqualTo(23_000);
+    }
+
+    @Test
     public void anApplicationThatJoinedAtTheStartDoesntCatchUp() {
         CatchUpTracker tracker = new CatchUpTracker(1, 1_000);
         tracker.received("t0", 1_000, 1_010, () -> 1);

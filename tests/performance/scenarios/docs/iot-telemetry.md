@@ -48,7 +48,8 @@ application-visible order across Key_Shared hash-range reassignment.
   the 5 applications join after the measurement starts, 3 of them 2 s apart, at 20, 22 and 24 s, and the last one at
   60 s. Each late application has its subscription from the start, so its backlog builds up until it joins, and it
   then reads the backlog while the gateways keep publishing. The report's Catch-up section shows each application's
-  backlog when it joined and how long it took to catch up; the last one may only catch up after the gateways finish.
+  backlog when it joined and how long it took to catch up. An application that is still behind when the gateways
+  finish can't catch up, since no newer message comes; the report then shows when it received its last message.
   - **The broker's entry cache:** a subscription without consumers isn't an active cursor, so nothing keeps the
     entries for a late application before it joins. Once the 3 that join 2 s apart are reading, the entries that the
     first of them reads from storage are expected to be read by the others behind it, so they stay in the cache for

@@ -18,7 +18,8 @@
  */
 package org.apache.pulsar.tests.performance.tools;
 
-import java.util.Set;
+import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.LongSupplier;
@@ -31,7 +32,8 @@ import java.util.function.LongSupplier;
 final class CatchUpTracker {
     private final int topicCount;
     private final long thresholdMillis;
-    private final Set<String> caughtUpTopics = ConcurrentHashMap.newKeySet();
+    // each topic's first receipt of a message within the threshold
+    private final Map<String, Long> caughtUpTopics = new ConcurrentHashMap<>();
     private final AtomicLong joinEpochMs = new AtomicLong();
     private final AtomicLong caughtUpEpochMs = new AtomicLong();
     private final AtomicLong messagesWhenCaughtUp = new AtomicLong();
@@ -55,9 +57,12 @@ final class CatchUpTracker {
                 || receivedEpochMs - publishEpochMs > thresholdMillis) {
             return;
         }
-        if (caughtUpTopics.add(topic) && caughtUpTopics.size() >= topicCount
-                && caughtUpEpochMs.compareAndSet(0, receivedEpochMs)) {
-            messagesWhenCaughtUp.set(messages.getAsLong());
+        if (caughtUpTopics.putIfAbsent(topic, receivedEpochMs) == null && caughtUpTopics.size() >= topicCount) {
+            // the last topic's receipt, which another listener may have recorded after this one
+            long caughtUp = Collections.max(caughtUpTopics.values());
+            if (caughtUpEpochMs.compareAndSet(0, caughtUp)) {
+                messagesWhenCaughtUp.set(messages.getAsLong());
+            }
         }
     }
 

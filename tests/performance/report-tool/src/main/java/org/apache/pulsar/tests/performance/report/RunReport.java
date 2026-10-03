@@ -644,7 +644,7 @@ public final class RunReport {
                         String.format(Locale.ROOT, "%.1f s", Math.max(0, lastReceived - end) / 1000.0)));
         if (consumers.stream().anyMatch(consumer -> consumer.path("joinEpochMs").asLong() > 0)) {
             report.append("\nSome applications joined after the measurement started, so the delivered throughput and"
-                    + " the time the applications were still receiving are mostly those of the last one to catch up;"
+                    + " the time the applications were still receiving are mostly those of the last one to finish;"
                     + " the Catch-up section has each one's.\n");
         }
     }
@@ -690,11 +690,11 @@ public final class RunReport {
             }
             String caughtUpAfter;
             String rate;
-            if (caughtUp > joined) {
+            if (caughtUp > 0 && caughtUp >= joined) {
                 caughtUpAfter = String.format(Locale.ROOT, "%.1f s", (caughtUp - joined) / 1000.0)
                         + (caughtUp > measurementEnd ? ", after the gateways finished" : "");
-                rate = String.format(Locale.ROOT, "%,.0f msg/s",
-                        consumer.path("messagesWhenCaughtUp").asLong() * 1000.0 / (caughtUp - joined));
+                rate = caughtUp > joined ? String.format(Locale.ROOT, "%,.0f msg/s",
+                        consumer.path("messagesWhenCaughtUp").asLong() * 1000.0 / (caughtUp - joined)) : "–";
             } else {
                 caughtUpAfter = "not caught up";
                 rate = lastReceived > joined ? String.format(Locale.ROOT, "%,.0f msg/s until its last message",

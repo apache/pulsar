@@ -204,8 +204,8 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
         long warmupTotalSeconds = minimumRuntimeSeconds - durationSeconds;
         require(applications.joinSeconds().stream().allMatch(seconds -> seconds != null && seconds >= 0
                         && warmupTotalSeconds + seconds < timeoutSeconds),
-                "applications.joinSeconds must be at least 0, and the warmup (" + warmupTotalSeconds
-                        + " s) and the latest join must be within timeoutSeconds");
+                "applications.joinSeconds must be at least 0 with no null value, and the warmup ("
+                        + warmupTotalSeconds + " s) and the latest join must be within timeoutSeconds");
         require(applications.caughtUpLatencyMillis() >= 1, "applications.caughtUpLatencyMillis must be at least 1");
         if (timeoutSeconds < minimumRuntimeSeconds) {
             throw new IllegalArgumentException(String.format(Locale.ROOT, "Invalid IoT scenario: timeoutSeconds is %d,"
