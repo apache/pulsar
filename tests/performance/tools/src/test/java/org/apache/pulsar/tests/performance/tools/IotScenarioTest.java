@@ -164,6 +164,23 @@ public class IotScenarioTest {
     }
 
     @Test
+    public void defaultsAnOmittedPrecreateConcurrency() {
+        assertThat(new IotScenario.Producer(2, 2, 100, true, true, null).precreateConcurrency())
+                .isEqualTo(IotScenario.Producer.DEFAULT_PRECREATE_CONCURRENCY);
+    }
+
+    @Test
+    public void rejectsPrecreateConcurrencyBelowOne() {
+        assertThatThrownBy(() -> new IotScenario("pulsar://localhost:6650", new IotScenario.Warmup(0, 0, 1, 0),
+                new IotScenario.Measurement(120, 1_000), 0, new IotScenario.Payload(64), new IotScenario.Devices(1_000),
+                new IotScenario.Gateways(10, new IotScenario.Producer(2, 2, 100, true, true, 0), null),
+                new IotScenario.Topics(2, "persistent://public/default/iot-"),
+                new IotScenario.Applications(1, 2, "app-", new IotScenario.Client(2, 2), null), null, 300))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("gateways.producer.precreateConcurrency must be at least 1");
+    }
+
+    @Test
     public void rejectsTwoWarmupLimits() {
         assertThatThrownBy(() -> scenario(20, 1_000, 1000, 0))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -197,7 +214,7 @@ public class IotScenarioTest {
         // a time-based warmup needs a rate
         return new IotScenario("pulsar://localhost:6650", warmup, new IotScenario.Measurement(120, 1_000),
                 warmup.seconds() > 0 ? 100 : 0, new IotScenario.Payload(64), new IotScenario.Devices(1_000),
-                new IotScenario.Gateways(10, new IotScenario.Producer(2, 2, 100, true, true), null),
+                new IotScenario.Gateways(10, new IotScenario.Producer(2, 2, 100, true, true, null), null),
                 new IotScenario.Topics(2, "persistent://public/default/iot-"), applications, null, 300);
     }
 
@@ -208,7 +225,7 @@ public class IotScenarioTest {
                 new IotScenario.Warmup(warmupSeconds, warmupMessages, warmupRounds, warmupRoundDelaySeconds),
                 new IotScenario.Measurement(120, numberOfMessages), rate, new IotScenario.Payload(64),
                 new IotScenario.Devices(1_000),
-                new IotScenario.Gateways(10, new IotScenario.Producer(2, 2, 100, true, true), null),
+                new IotScenario.Gateways(10, new IotScenario.Producer(2, 2, 100, true, true, 32), null),
                 new IotScenario.Topics(2, "persistent://public/default/iot-"),
                 new IotScenario.Applications(1, 2, "app-", new IotScenario.Client(2, 2), null), null, timeoutSeconds);
     }

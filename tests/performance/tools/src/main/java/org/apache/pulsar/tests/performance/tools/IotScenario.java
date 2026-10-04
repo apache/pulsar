@@ -77,9 +77,20 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
      *
      * @param maxOutstanding the most messages in flight across the gateways
      * @param precreate open every gateway's producer of every topic before the first message
+     * @param precreateConcurrency with {@code precreate}, the most producers that the gateways create at the same
+     *                             time, in a random order of the gateways and topics; 1 creates them one at a time in
+     *                             order
      */
     public record Producer(int ioThreads, int listenerThreads, int maxOutstanding, boolean batchingEnabled,
-                           boolean precreate) {
+                           boolean precreate, Integer precreateConcurrency) {
+        /** The default of {@code precreateConcurrency}, for scenarios written before it existed. */
+        public static final int DEFAULT_PRECREATE_CONCURRENCY = 32;
+
+        public Producer {
+            if (precreateConcurrency == null) {
+                precreateConcurrency = DEFAULT_PRECREATE_CONCURRENCY;
+            }
+        }
     }
 
     /** The telemetry topics, named {@code <prefix><index>}. */
@@ -207,6 +218,7 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
                 "applications.joinSeconds must be at least 0 with no null value, and the warmup ("
                         + warmupTotalSeconds + " s) and the latest join must be within timeoutSeconds");
         require(applications.caughtUpLatencyMillis() >= 1, "applications.caughtUpLatencyMillis must be at least 1");
+        require(producer.precreateConcurrency() >= 1, "gateways.producer.precreateConcurrency must be at least 1");
         if (timeoutSeconds < minimumRuntimeSeconds) {
             throw new IllegalArgumentException(String.format(Locale.ROOT, "Invalid IoT scenario: timeoutSeconds is %d,"
                             + " but the workload needs %d s: %d s of warmup (%d round(s) of %d s%s) and %d s of"
