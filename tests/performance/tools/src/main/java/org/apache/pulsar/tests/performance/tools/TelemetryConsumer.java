@@ -37,7 +37,9 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.client.api.Consumer;
@@ -260,6 +262,7 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
         // For an application that joins later: when it joined and when it caught up
         private final CatchUpTracker catchUp;
         private final AtomicReference<Throwable> joinFailure = new AtomicReference<>();
+        private final AtomicInteger listenersInFlight = new AtomicInteger();
         private volatile Thread joiner;
         // Guarded by itself, as the restarts replace pods
         private final List<ClientAndConsumer> pods;
@@ -334,6 +337,9 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
                     startRestarts(sharedResources);
                 } catch (InterruptedException interrupted) {
                     Thread.currentThread().interrupt();
+                } catch (TimeoutException measurementDidNotStart) {
+                    // the receive loop's timeout reports the run as failed and writes the applications' summaries
+                    System.out.println("JOIN application=" + index + " didn't join: the measurement didn't start");
                 } catch (Throwable error) {
                     joinFailure.compareAndSet(null, error);
                 }
@@ -397,6 +403,7 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
          */
         boolean finish() throws Exception {
             stopRestarts();
+            awaitListeners();
             DeviceSequenceTracker.Summary summary = tracker.summary();
             receiveLatency.close();
             tracker.writeState(output.resolve("application-state.bin"));
@@ -434,6 +441,17 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
             stopping.set(true);
             interruptAndAwait(joiner);
             interruptAndAwait(restarter);
+        }
+
+        /**
+         * Waits briefly for the listeners that are handling a message, such as the one that received the last message
+         * and may record the catch-up with it, so that the summary includes what they record.
+         */
+        private void awaitListeners() throws InterruptedException {
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(1);
+            while (listenersInFlight.get() > 0 && deadline - System.nanoTime() > 0) {
+                Thread.sleep(1);
+            }
         }
 
         /** Interrupts the thread and waits for it, which takes up to a client's close timeout when it opens a pod. */
@@ -477,6 +495,7 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
                         .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                         .messageListener((currentConsumer, message) -> {
                             long receivedEpochMs = System.currentTimeMillis();
+                            listenersInFlight.incrementAndGet();
                             try {
                                 TelemetryMessage.Decoded decoded = TelemetryMessage.decode(message.getData());
                                 byte[] key = message.getKeyBytes();
@@ -505,6 +524,8 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
                             } catch (RuntimeException error) {
                                 tracker.invalidMessage();
                                 currentConsumer.negativeAcknowledge(message);
+                            } finally {
+                                listenersInFlight.decrementAndGet();
                             }
                         })
                         .subscribe();

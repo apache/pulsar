@@ -178,8 +178,8 @@ workloads:
         listenerThreads: 16
       env:                     # the applications' container, which runs every application; from the memory configuration
         PULSAR_MEM: -Xms1536m -Xmx1536m -XX:MaxDirectMemorySize=256m -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch
-      joinSeconds: []          # each application's join, in seconds after the measurement starts; empty: all at 0
-      caughtUpLatencyMillis: 1000  # a late application has caught up within this end-to-end latency
+      joinSeconds: []          # not set in the base file: each application's join after the measurement starts, in s
+      caughtUpLatencyMillis: 1000  # not set in the base file: a late application has caught up within this latency
     behaviors:
       podRestarts:             # each application restarts this fraction of its pods every intervalSeconds
         intervalSeconds: 0

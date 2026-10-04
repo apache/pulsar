@@ -24,6 +24,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.testng.annotations.Test;
 
 public class MeasurementStartMarkerTest {
@@ -45,6 +46,7 @@ public class MeasurementStartMarkerTest {
         // another run's marker isn't this run's
         assertThatThrownBy(() -> MeasurementStartMarker.await(directory, "run-2",
                 System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(100)))
+                .isInstanceOf(TimeoutException.class)
                 .hasMessageContaining("Timed out waiting for the measurement to start");
     }
 }

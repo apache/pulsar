@@ -24,6 +24,7 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.concurrent.TimeoutException;
 
 /**
  * The gateways' measurement start, for the applications that join after it: a file in the coordination directory
@@ -43,7 +44,11 @@ final class MeasurementStartMarker {
         Files.move(temporary, marker, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
     }
 
-    /** Waits for the measurement to start, and returns its epoch milliseconds. */
+    /**
+     * Waits for the measurement to start, and returns its epoch milliseconds.
+     *
+     * @throws TimeoutException when the measurement doesn't start before the deadline
+     */
     static long await(Path directory, String runId, long deadlineNanos) throws Exception {
         Path marker = marker(directory, runId);
         while (deadlineNanos - System.nanoTime() > 0) {
@@ -53,7 +58,7 @@ final class MeasurementStartMarker {
                 Thread.sleep(POLL_INTERVAL_MILLIS);
             }
         }
-        throw new IllegalStateException("Timed out waiting for the measurement to start");
+        throw new TimeoutException("Timed out waiting for the measurement to start");
     }
 
     private static Path marker(Path directory, String runId) {

@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.LongSupplier;
 
 /**
@@ -35,8 +36,11 @@ final class CatchUpTracker {
     // each topic's first receipt of a message within the threshold
     private final Map<String, Long> caughtUpTopics = new ConcurrentHashMap<>();
     private final AtomicLong joinEpochMs = new AtomicLong();
-    private final AtomicLong caughtUpEpochMs = new AtomicLong();
-    private final AtomicLong messagesWhenCaughtUp = new AtomicLong();
+    // when it caught up and its received messages then, published together
+    private final AtomicReference<Result> caughtUp = new AtomicReference<>();
+
+    private record Result(long epochMs, long messages) {
+    }
 
     CatchUpTracker(int topicCount, long thresholdMillis) {
         this.topicCount = topicCount;
@@ -53,16 +57,13 @@ final class CatchUpTracker {
      * @param messages the application's received messages, read when it has caught up
      */
     void received(String topic, long publishEpochMs, long receivedEpochMs, LongSupplier messages) {
-        if (joinEpochMs.get() == 0 || caughtUpEpochMs.get() != 0
+        if (joinEpochMs.get() == 0 || caughtUp.get() != null
                 || receivedEpochMs - publishEpochMs > thresholdMillis) {
             return;
         }
         if (caughtUpTopics.putIfAbsent(topic, receivedEpochMs) == null && caughtUpTopics.size() >= topicCount) {
             // the last topic's receipt, which another listener may have recorded after this one
-            long caughtUp = Collections.max(caughtUpTopics.values());
-            if (caughtUpEpochMs.compareAndSet(0, caughtUp)) {
-                messagesWhenCaughtUp.set(messages.getAsLong());
-            }
+            caughtUp.compareAndSet(null, new Result(Collections.max(caughtUpTopics.values()), messages.getAsLong()));
         }
     }
 
@@ -71,11 +72,13 @@ final class CatchUpTracker {
     }
 
     long caughtUpEpochMs() {
-        return caughtUpEpochMs.get();
+        Result result = caughtUp.get();
+        return result != null ? result.epochMs() : 0;
     }
 
     long messagesWhenCaughtUp() {
-        return messagesWhenCaughtUp.get();
+        Result result = caughtUp.get();
+        return result != null ? result.messages() : 0;
     }
 
     long thresholdMillis() {
