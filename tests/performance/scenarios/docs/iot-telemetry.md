@@ -43,6 +43,22 @@ application-visible order across Key_Shared hash-range reassignment.
   workstation whose CPU runs at a fixed base frequency: without a rate limit, the gateways publish faster than the
   applications receive, and an application that falls behind can stall for tens of seconds. It uses the high-memory
   configuration.
+- [`iot-telemetry-catch-up.yaml`](../iot-telemetry-catch-up.yaml) measures how quickly consumers that join a live
+  stream catch up. The gateways publish at the high-rate scenario's 30,000 messages per second for 180 s, and 4 of
+  the 5 applications join after the measurement starts, 3 of them 2 s apart, at 20, 22 and 24 s, and the last one at
+  60 s. Each late application has its subscription from the start, so its backlog builds up until it joins, and it
+  then reads the backlog while the gateways keep publishing. The report's Catch-up section shows each application's
+  backlog when it joined and how long it took to catch up. An application that is still behind when the gateways
+  finish can't catch up, since no newer message comes; the report then shows when it received its last message.
+  - **The broker's entry cache:** a subscription without consumers isn't an active cursor, so nothing keeps the
+    entries for a late application before it joins. Once the 3 that join 2 s apart are reading, the entries that the
+    first of them reads from storage are expected to be read by the others behind it, so they stay in the cache for
+    its time to live, `managedLedgerCacheEvictionTimeThresholdMillis` (1 s), extended up to
+    `managedLedgerCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes` (5) times, about 6 s, which the
+    2 s spacing is within. The others then read them from the cache. The last application is too far behind for that,
+    and reads its backlog from storage.
+  - **Where reads come from:** the managed ledger's cache hit and miss rates (`pulsar_ml_cache_hits_rate`,
+    `pulsar_ml_cache_misses_rate`) in the metrics show which reads the cache served.
 - [`iot-telemetry-max-rate.yaml`](../iot-telemetry-max-rate.yaml) runs the high-rate scenario's 500 gateways at the
   maximum rate: `rate: 0` removes the rate limit, so the gateways publish four million unbatched 128-byte messages
   as fast as the cluster takes them, with at most 100,000 in flight. One application consumes them with twenty pods
@@ -162,11 +178,23 @@ workloads:
         listenerThreads: 16
       env:                     # the applications' container, which runs every application; from the memory configuration
         PULSAR_MEM: -Xms1536m -Xmx1536m -XX:MaxDirectMemorySize=256m -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch
+      joinSeconds: []          # not set in the base file: each application's join after the measurement starts, in s
+      caughtUpLatencyMillis: 1000  # not set in the base file: a late application has caught up within this latency
     behaviors:
       podRestarts:             # each application restarts this fraction of its pods every intervalSeconds
         intervalSeconds: 0
         fraction: 0.0
 ```
+
+`applications.joinSeconds` has each application join after the measurement starts: a list with a value for each
+application, in seconds, where 0 joins at the start, as every application does without the setting. An application
+that joins later creates its subscription at the earliest position when the applications start, before the gateways
+publish, so that the subscription keeps the backlog until the application opens its pods; it doesn't take part in
+the warmup. It has caught up when each of its topics has delivered a measured message within
+`applications.caughtUpLatencyMillis` of its publishing; the time includes opening its pods, and with Key_Shared
+redeliveries a few older messages may still arrive after it. The report's Catch-up section shows when each late
+application joined, its subscription's backlog then, and how long it took to catch up. The warmup and the latest join
+have to be within the timeout, which also has to leave room for the last application to catch up.
 
 `timeoutSeconds` bounds the whole workload: the applications stop waiting for messages after it and the run fails,
 the gateways give up waiting for a warmup round or the measurement's start, and the launcher waits for the containers

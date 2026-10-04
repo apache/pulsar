@@ -118,7 +118,7 @@ didn't receive every message, and the launcher fails a run when an application's
 ├── heap-dumps/                        the heap dumps, when the scenario asks for them, see heap-dumps.md
 ├── metrics.json                       the run's metrics in VictoriaMetrics and Grafana, see metrics.md
 ├── grafana-panels/                    panels of Grafana's dashboards over the run, as PNG images
-└── coordination/                      the warmup barrier markers of the gateways and the applications
+└── coordination/                      the warmup barrier and measurement start markers of the workloads
 ```
 
 A profiled run adds the recordings, their flame graphs and a profile report to each profiled component's directory,
@@ -143,6 +143,13 @@ report has these sections:
   runs can be compared.
 - **Throughput**: the gateways' throughput, the delivered throughput until the slowest application received the last
   message, the measurement's duration and how long the applications were still receiving after the gateways finished.
+- **Catch-up**, when applications join after the measurement starts (`applications.joinSeconds`): each late
+  application's join time, its subscription's backlog then, how long it took to catch up, its catch-up rate and when it
+  received its last message. An application that didn't catch up shows its rate until its last message instead. When
+  applications join later, the Throughput section's delivered throughput is mostly the last one's. The backlog chart
+  shows each subscription's backlog building up until its application joins and falling as it catches up. A late
+  application's end-to-end latency includes the time its messages waited in the backlog, so its lines dominate the
+  Latency section's charts.
 - **Latency**: the publish latency (send to acknowledgment) and each application's end-to-end latency (publish to
   consume) at percentiles from p50 to the maximum, with charts by percentile and over time.
 - **Backlog and rates**: each subscription's backlog and the per-second rates, sampled from the broker's topic
@@ -191,12 +198,12 @@ beside it, rendered with [commonmark-java](https://github.com/commonmark/commonm
 | `gateways/gateways-summary.json` | The gateways' counts and throughput, and the epoch-millisecond boundaries of the measurement |
 | `gateways/gateways-latency.hdr`, `.hgrm` | The publish latency log, and its percentile distribution in milliseconds, see [Latency logs](#latency-logs) |
 | `gateways/gateways-state.bin` | The gateways' next sequence number for each device. The launcher compares it with each application's `application-state.bin` and fails the run when they differ, which catches messages missing at the end, where no gap shows |
-| `applications/<application>/application-summary.json` | The application's unique messages, duplicates, ordering violations and invalid messages, and its first and last measured-message receipt |
+| `applications/<application>/application-summary.json` | The application's unique messages, duplicates, ordering violations and invalid messages, and its first and last measured-message receipt. Its join setting (`joinSeconds`), and for an application that joined after the measurement started, its join time (`joinEpochMs`), when it caught up (`caughtUpEpochMs`) within `caughtUpLatencyMillis`, and its received messages then (`messagesWhenCaughtUp`); `joinEpochMs` is 0 for an application that joined at the start, and `caughtUpEpochMs` and `messagesWhenCaughtUp` are 0 for one that didn't catch up |
 | `applications/<application>/application-latency.hdr`, `.hgrm` | The application's end-to-end latency log, and its percentile distribution in milliseconds |
 | `applications/<application>/application-state.bin` | The application's next expected sequence number for each device |
 | `applications/<application>/ordering-violations.txt` | Samples of the ordering violations, with the message ID, topic and receiving thread; empty in a valid run |
 | `gateways/container.log.txt`, `applications/container.log.txt` | The container's log, named `.txt` so that HTTP servers show it as text |
-| `coordination/` | The markers with which the applications tell the gateways that they received a warmup round |
+| `coordination/` | The markers with which the applications tell the gateways that they received a warmup round, and the gateways' measurement start, from which the applications that join later count their join time |
 
 ## Latency logs
 
