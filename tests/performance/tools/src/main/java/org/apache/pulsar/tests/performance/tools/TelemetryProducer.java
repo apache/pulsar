@@ -155,6 +155,10 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
                     this.measurementStartEpochMs = measurementStartEpochMs;
                     phase = "measurement";
                     System.out.println("MEASUREMENT_START epochMs=" + measurementStartEpochMs);
+                    if (scenario.hasLateApplications()) {
+                        // the applications that join later count their join time from it
+                        MeasurementStartMarker.mark(coordinationDirectory(), runId, measurementStartEpochMs);
+                    }
                 }
                 long deviceSequence = deviceSequences[device]++;
                 long producerSequence = producerSequences[producerIndex]++;
