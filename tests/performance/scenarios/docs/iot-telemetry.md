@@ -112,9 +112,20 @@ separate scenario with normal or deliberately short limits when measuring rollov
 or long-running storage behavior. BookKeeper entry-log flushing and disk-space checks remain enabled.
 
 Set `rate: 0` together with a positive `measurement.messages` to remove producer pacing. Set
-`gateways.producer.precreate: true` to open every gateway/topic producer before throughput timing begins. The gateways'
-summary, `gateways-summary.json`, reports `messagesPerSecond` only for the post-warmup measurement phase and retains
-`wholeRunMessagesPerSecond` as startup and warmup context.
+`gateways.producer.precreate: true` to open every gateway/topic producer before throughput timing begins.
+
+With `precreate: true`, the gateways create their producers in a random order, up to
+`gateways.producer.precreateConcurrency` (32) at a time, as independent gateways connect. Each gateway's client opens a
+connection for its lookup and then one to the topic's broker, and a broker assigns the connections that it accepts to
+its I/O threads in turn: in this test topology, where the service URL and the topics' owner are the same broker,
+gateways that connected one at a time put every data connection on every other I/O thread, so half of the broker's
+I/O threads served the traffic. Concurrent connections spread the data connections over the I/O threads on average,
+not evenly. Runs made before this setting existed created the producers one at a time in the order of the gateways;
+`precreateConcurrency: 1` reproduces that, and a scenario without the setting gets 32. With `precreate: false`, the
+gateways create each producer when they first send to its topic, one at a time, so the pattern remains.
+
+The gateways' summary, `gateways-summary.json`, reports `messagesPerSecond` only for the post-warmup measurement phase
+and retains `wholeRunMessagesPerSecond` as startup and warmup context.
 
 ## Settings
 
@@ -148,6 +159,7 @@ workloads:
         maxOutstanding: 20000  # messages in flight across the gateways
         batchingEnabled: true
         precreate: false       # open every producer before the first message
+        precreateConcurrency: 32  # with precreate, producers created at the same time, in a random order
       env:                     # the gateways' container, which runs every gateway; from the memory configuration
         PULSAR_MEM: -Xms512m -Xmx512m -XX:MaxDirectMemorySize=256m -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch
     topics:
