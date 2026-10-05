@@ -24,6 +24,8 @@ import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCounted;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
 import lombok.CustomLog;
 import lombok.Getter;
 import lombok.Setter;
@@ -56,6 +58,16 @@ public final class EntryImpl extends AbstractCASReferenceCounted
     private Position position;
     ByteBuf data;
     private EntryReadCountHandler readCountHandler;
+    private static final VarHandle READ_COUNT_HANDLER;
+
+    static {
+        try {
+            READ_COUNT_HANDLER = MethodHandles.lookup()
+                    .findVarHandle(EntryImpl.class, "readCountHandler", EntryReadCountHandler.class);
+        } catch (ReflectiveOperationException e) {
+            throw new ExceptionInInitializerError(e);
+        }
+    }
     private boolean decreaseReadCountOnRelease = true;
     // Cache readers publish metadata lazily; entry copies must see a fully initialized instance.
     @Getter @Setter
@@ -181,7 +193,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted
         entry.ledgerId = other.ledgerId;
         entry.entryId = other.entryId;
         entry.data = other.data.retainedDuplicate();
-        entry.readCountHandler = other.readCountHandler;
+        entry.readCountHandler = other.getReadCountHandler();
         entry.messageMetadata = other.messageMetadata;
         entry.setRefCnt(1);
         return entry;
@@ -282,8 +294,9 @@ public final class EntryImpl extends AbstractCASReferenceCounted
 
     @Override
     protected void deallocate() {
-        if (decreaseReadCountOnRelease && readCountHandler != null) {
-            readCountHandler.markRead();
+        EntryReadCountHandler handler = getReadCountHandler();
+        if (decreaseReadCountOnRelease && handler != null) {
+            handler.markRead();
         }
         // This method is called whenever the ref-count of the EntryImpl reaches 0, so that now we can recycle it
         if (onDeallocate != null) {
@@ -312,7 +325,21 @@ public final class EntryImpl extends AbstractCASReferenceCounted
 
     @Override
     public EntryReadCountHandler getReadCountHandler() {
-        return readCountHandler;
+        // a cached entry can take a later addition's handler, see updateExpectedReadCount
+        return (EntryReadCountHandler) READ_COUNT_HANDLER.getAcquire(this);
+    }
+
+    /**
+     * Takes the read count handler of an entry that was added at this entry's position while this one is cached.
+     * A cached entry's data is immutable and kept, but its expected read count is the latest addition's, such as a
+     * read from storage, which knows how many cursors are expected to read the entry, also when it has none. The
+     * cached entry shares the latest addition's handler, as an inserted entry does, so that the reads of the entries
+     * that the addition returned, counted when they're released, count for the cached entry too.
+     *
+     * @param latest the read count handler of the latest addition, or null when it has no expected reads
+     */
+    public void updateExpectedReadCount(EntryReadCountHandler latest) {
+        READ_COUNT_HANDLER.setRelease(this, latest);
     }
 
     public void setDecreaseReadCountOnRelease(boolean enabled) {

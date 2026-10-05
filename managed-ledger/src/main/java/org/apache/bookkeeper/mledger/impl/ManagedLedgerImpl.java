@@ -53,6 +53,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.Semaphore;
@@ -375,6 +376,19 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     // Executor service for executing ledger deletion tasks
     private ExecutorService deleteLedgerExecutor = null;
 
+    // Adds are handed over to the executor in batches. Publishing threads append to the add entry handover queue; the
+    // thread that finds no handover batch scheduled submits one, and that task runs the adds queued by then. The
+    // executor's own queue then sees one task per batch rather than one per add, so concurrent publishers contend on
+    // it once per batch, and other executor work (add completions, cursor notifications) does not wait behind a task
+    // per published message. A handover batch runs at most addEntryHandoverMaxBatchItems adds, and stops taking more
+    // once their entries add up to addEntryHandoverMaxBatchBytesSize bytes, so that a ledger with large entries does
+    // not hold the executor thread from the ledgers that share it for long. Both are captured when the ledger is
+    // opened; a max batch items of 0 or 1 disables batching, and each add is then handed over to the executor as a
+    // task of its own.
+    private final Executor addEntryBatchingExecutor;
+    // Chunk size of the add entry handover queue; the queue grows by linking chunks of this size when a batch backs up.
+    private static final int ADD_ENTRY_HANDOVER_QUEUE_CHUNK_SIZE = 512;
+
     public ManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
             ManagedLedgerConfig config, OrderedScheduler scheduledExecutor,
             final String name) {
@@ -405,6 +419,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         // withOrderingKey, so their processing can run inline with executeOrRun() instead of re-queueing.
         this.executor = (ThreadBoundExecutor) bookKeeper.getMainWorkerPool().chooseThread(name);
         this.readEntriesCallbackInline = config.isReadEntriesCallbackInline();
+        this.addEntryBatchingExecutor = config.getAddEntryHandoverMaxBatchItems() > 1
+                ? new BatchingExecutorWrapper(executor, ADD_ENTRY_HANDOVER_QUEUE_CHUNK_SIZE,
+                        config.getAddEntryHandoverMaxBatchItems(),
+                        config.getAddEntryHandoverMaxBatchBytesSize() > 0
+                                ? config.getAddEntryHandoverMaxBatchBytesSize() : Long.MAX_VALUE,
+                        t -> log.error().exception(t).log("Failed to process an add entry request"),
+                        (add, rejection) -> ((AddEntryHandover) add).rejected(rejection))
+                : this.executor;
         TOTAL_SIZE_UPDATER.set(this, 0);
         NUMBER_OF_ENTRIES_UPDATER.set(this, 0);
         ENTRIES_ADDED_COUNTER_UPDATER.set(this, 0);
@@ -881,12 +903,58 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         // retain buffer in this thread
         buffer.retain();
 
-        // Jump to specific thread to avoid contention from writers writing from different threads
-        executor.execute(() -> {
-            OpAddEntry addOperation = OpAddEntry.createNoRetainBuffer(this, buffer, numberOfMessages, callback, ctx,
-                    currentLedgerTimeoutTriggered);
+        // Jump to specific thread to avoid contention from writers writing from different threads, handing the adds
+        // over in batches unless batching is disabled.
+        try {
+            addEntryBatchingExecutor.execute(new AddEntryHandover(buffer, numberOfMessages, callback, ctx));
+        } catch (RuntimeException e) {
+            // The add will not run: release the buffer retained for it, and fail the caller as before.
+            buffer.release();
+            throw e;
+        }
+    }
+
+    @VisibleForTesting
+    Executor getAddEntryBatchingExecutor() {
+        return addEntryBatchingExecutor;
+    }
+
+    /**
+     * An add handed over to the executor, weighing the size of its entry in the handover batch that runs it.
+     */
+    private final class AddEntryHandover implements BatchingExecutorWrapper.WeightedRunnable {
+        private final ByteBuf buffer;
+        private final int numberOfMessages;
+        private final AddEntryCallback callback;
+        private final Object ctx;
+
+        AddEntryHandover(ByteBuf buffer, int numberOfMessages, AddEntryCallback callback, Object ctx) {
+            this.buffer = buffer;
+            this.numberOfMessages = numberOfMessages;
+            this.callback = callback;
+            this.ctx = ctx;
+        }
+
+        @Override
+        public long getWeight() {
+            return buffer.readableBytes();
+        }
+
+        @Override
+        public void run() {
+            OpAddEntry addOperation = OpAddEntry.createNoRetainBuffer(ManagedLedgerImpl.this, buffer, numberOfMessages,
+                    callback, ctx, currentLedgerTimeoutTriggered);
             internalAsyncAddEntry(addOperation);
-        });
+        }
+
+        /**
+         * Fails this add, which will not run because the executor rejected its handover batch.
+         */
+        void rejected(RuntimeException rejection) {
+            buffer.release();
+            callback.addFailed(new ManagedLedgerException("Failed to hand the add entry over to the executor",
+                    rejection), ctx);
+        }
     }
 
     protected synchronized void internalAsyncAddEntry(OpAddEntry addOperation) {
@@ -2116,6 +2184,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         for (ManagedCursor managedCursor : cursors) {
             managedCursor.skipNonRecoverableLedger(ledgerId);
         }
+        if (config.getNonRecoverableDataMetricsCallback() != null) {
+            config.getNonRecoverableDataMetricsCallback().onSkipNonRecoverableLedger(ledgerId);
+        }
     }
 
     synchronized void createLedgerAfterClosed() {
@@ -2414,6 +2485,41 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         });
     }
 
+    /**
+     * Returns whether the entries of the given ledger are currently read from tiered storage, i.e. whether its opened
+     * read handle is an {@link OffloadedLedgerHandle}. Returns false if no read handle is opened for the ledger.
+     */
+    public boolean isReadFromOffloadedLedgerHandle(long ledgerId) {
+        CompletableFuture<ReadHandle> handleFuture = ledgerCache.get(ledgerId);
+        return handleFuture != null && handleFuture.isDone() && !handleFuture.isCompletedExceptionally()
+                && handleFuture.getNow(null) instanceof OffloadedLedgerHandle;
+    }
+
+    /**
+     * Returns the entry ids around {@code position}, in its ledger, that the read handle of an offloaded ledger can
+     * read without scanning previous entries, see {@link OffloadedLedgerHandle#getIndexedEntryIdFloor(long)}: the
+     * greatest one lower than or equal to the entry id of {@code position}, and the lowest one greater than or equal
+     * to it, each one -1 when there is none. Completes with null if the ledger is not offloaded, or not read through
+     * an {@link OffloadedLedgerHandle}.
+     *
+     * <p>The read handle of an offloaded ledger is opened if needed, as reading an entry of the ledger would do, so
+     * that the result does not depend on which ledgers were read before. Completes exceptionally if opening it fails.
+     */
+    CompletableFuture<long[]> getIndexedEntryIdsAround(Position position) {
+        long ledgerId = position.getLedgerId();
+        LedgerInfo info = ledgers.get(ledgerId);
+        if (info == null || !info.hasOffloadContext() || !info.getOffloadContext().isComplete()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return getLedgerHandle(ledgerId).thenApply(handle -> {
+            if (!(handle instanceof OffloadedLedgerHandle offloadedLedgerHandle)) {
+                return null;
+            }
+            return new long[] {offloadedLedgerHandle.getIndexedEntryIdFloor(position.getEntryId()),
+                    offloadedLedgerHandle.getIndexedEntryIdCeiling(position.getEntryId())};
+        });
+    }
+
     void invalidateReadHandle(long ledgerId) {
         CompletableFuture<ReadHandle> rhf = ledgerCache.remove(ledgerId);
         if (rhf != null) {
@@ -2525,6 +2631,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 opReadEntry.updateReadPosition(opReadEntry.readPosition);
             }
 
+            opReadEntry.readUpToLastConfirmedEntry = ledger.getId() == lastPosition.getLedgerId();
             opReadEntry.checkReadCompletion();
             return;
         }
@@ -2570,6 +2677,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 .attr("firstEntry", firstEntry)
                 .attr("lastEntry", lastEntry)
                 .log("Reading entries from ledger");
+        opReadEntry.readUpToLastConfirmedEntry =
+                ledger.getId() == lastPosition.getLedgerId() && lastEntry == lastPosition.getEntryId();
         asyncReadEntry(ledger, firstEntry, lastEntry, opReadEntry, opReadEntry.ctx);
     }
 
@@ -3006,6 +3115,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     private void maybeOffload(long offloadThresholdInBytes, long offloadThresholdInSeconds,
                               CompletableFuture<Position> finalPromise, OffloadRequestSource source) {
+        if (!ownsLedgerData()) {
+            if (source == OffloadRequestSource.AUTOMATIC) {
+                finalPromise.complete(PositionFactory.LATEST);
+            } else {
+                finalPromise.completeExceptionally(new ManagedLedgerException(
+                        "Offload is not supported for a managed ledger that does not own its ledgers"));
+            }
+            return;
+        }
         if (getOffloadPoliciesIfAppendable().isEmpty()) {
             String msg = String.format("[%s] Nothing to offload due to offloader or offloadPolicies is NULL", name);
             finalPromise.completeExceptionally(new IllegalArgumentException(msg));
@@ -3605,7 +3723,24 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return asyncDeleteLedger(ledgerId, DEFAULT_LEDGER_DELETE_RETRIES);
     }
 
+    /**
+     * Returns whether the BookKeeper ledgers and offloaded ledger data listed by this managed ledger belong to it.
+     * When this returns false, trimming or deleting this managed ledger only updates its own metadata and never
+     * deletes the underlying ledger data, and offloading is not performed.
+     *
+     * <p>A managed ledger that is configured with a shadow source, or whose stored properties contain the shadow
+     * source property, lists ledgers of another managed ledger and does not own them.
+     */
+    protected boolean ownsLedgerData() {
+        return config.getShadowSource() == null
+                && !propertiesMap.containsKey(ManagedLedgerConfig.PROPERTY_SOURCE_TOPIC_KEY);
+    }
+
     private void asyncDeleteLedger(long ledgerId, LedgerInfo info) {
+        if (!ownsLedgerData()) {
+            log.debug().attr("ledgerId", ledgerId).log("Skipping deletion of ledger not owned by this managed ledger");
+            return;
+        }
         if (!info.getOffloadContext().isBookkeeperDeleted()) {
             // only delete if it hasn't been previously deleted for offload
             asyncDeleteLedger(ledgerId, DEFAULT_LEDGER_DELETE_RETRIES);
@@ -3657,6 +3792,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private void asyncDeleteLedgerWithConcurrencyLimit(long ledgerId,
                                                        org.apache.bookkeeper.client.AsyncCallback.DeleteCallback cb,
                                                        Object ctx) {
+        if (!ownsLedgerData()) {
+            log.debug().attr("ledgerId", ledgerId).log("Skipping deletion of ledger not owned by this managed ledger");
+            cb.deleteComplete(BKException.Code.OK, ctx);
+            return;
+        }
         if (deleteLedgerSemaphore != null) {
             AsyncCallback.DeleteCallback cbWrapper = (rc, ctx1) -> {
                 deleteLedgerSemaphore.release();
@@ -3761,6 +3901,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @Override
     public void asyncOffloadPrefix(Position pos, OffloadCallback callback, Object ctx) {
+        if (!ownsLedgerData()) {
+            callback.offloadFailed(new ManagedLedgerException(
+                    "Offload is not supported for a managed ledger that does not own its ledgers"), ctx);
+            return;
+        }
         LedgerOffloader ledgerOffloader = config.getLedgerOffloader();
         if (ledgerOffloader != null && !ledgerOffloader.isAppendable()) {
             String msg = String.format("[%s] does not support offload", ledgerOffloader.getClass().getSimpleName());
@@ -5045,6 +5190,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     private void asyncUpdateProperties(Map<String, String> properties, boolean isDelete,
         String deleteKey, final UpdatePropertiesCallback callback, Object ctx) {
+        if (isDelete && ManagedLedgerConfig.PROPERTY_SOURCE_TOPIC_KEY.equals(deleteKey)) {
+            // The property marks that the ledgers listed by this managed ledger belong to another managed ledger.
+            callback.updatePropertiesFailed(new ManagedLedgerException(
+                    "Property " + deleteKey + " cannot be removed"), ctx);
+            return;
+        }
         if (!metadataMutex.tryLock()) {
             // Defer update for later
             scheduledExecutor.schedule(() -> asyncUpdateProperties(properties, isDelete, deleteKey,

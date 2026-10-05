@@ -20,7 +20,9 @@ package org.apache.pulsar.functions.instance;
 
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import org.apache.logging.log4j.core.Appender;
 import org.apache.logging.log4j.core.ErrorHandler;
 import org.apache.logging.log4j.core.Layout;
@@ -29,6 +31,11 @@ import org.apache.logging.log4j.core.appender.DefaultErrorHandler;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.v5.config.BatchingPolicy;
+import org.apache.pulsar.client.api.v5.config.CompressionPolicy;
+import org.apache.pulsar.client.impl.v5.V5Interop;
+import org.apache.pulsar.functions.instance.v5.V5ProducerAdapter;
 
 /**
  * LogAppender class that is used to send log statements from Pulsar Functions logger
@@ -41,6 +48,7 @@ public class LogAppender implements Appender {
     private static final String FQN = "fqn";
 
     private PulsarClient pulsarClient;
+    private Supplier<org.apache.pulsar.client.api.v5.PulsarClient> pulsarClientV5;
     private String logTopic;
     private String fqn;
     private String instance;
@@ -54,6 +62,15 @@ public class LogAppender implements Appender {
         this.fqn = fqn;
         this.instance = instance;
         this.errorHandler = new DefaultErrorHandler(this);
+    }
+
+    /**
+     * Creates an appender that publishes to the log topic with the V5 client.
+     */
+    public LogAppender(Supplier<org.apache.pulsar.client.api.v5.PulsarClient> pulsarClientV5, String logTopic,
+                       String fqn, String instance) {
+        this((PulsarClient) null, logTopic, fqn, instance);
+        this.pulsarClientV5 = pulsarClientV5;
     }
 
     @Override
@@ -111,6 +128,11 @@ public class LogAppender implements Appender {
     public void start() {
         this.state = State.STARTING;
         try {
+            if (pulsarClientV5 != null) {
+                producer = createProducerV5();
+                this.state = State.STARTED;
+                return;
+            }
             producer = pulsarClient.newProducer()
                     .topic(logTopic)
                     .blockIfQueueFull(false)
@@ -123,6 +145,18 @@ public class LogAppender implements Appender {
             throw new RuntimeException("Error starting LogTopic Producer for function " + fqn, e);
         }
         this.state = State.STARTED;
+    }
+
+    private Producer<byte[]> createProducerV5() throws Exception {
+        // the same settings as the v4 producer
+        return new V5ProducerAdapter<>(pulsarClientV5.get()
+                .newProducer(V5Interop.toV5Schema(Schema.BYTES))
+                .topic(logTopic)
+                .blockIfQueueFull(false)
+                .batchingPolicy(BatchingPolicy.builder().maxPublishDelay(Duration.ofMillis(100)).build())
+                .compressionPolicy(CompressionPolicy.of(org.apache.pulsar.client.api.v5.config.CompressionType.LZ4))
+                .property("function", fqn)
+                .create(), Schema.BYTES);
     }
 
     @Override
