@@ -72,6 +72,8 @@ public class RangeEntryCacheImpl implements EntryCache {
     private final Logger log;
     private ManagedLedgerInterceptor interceptor;
     private final RangeCache entries;
+    // inserts the managed ledger's added entries, which come in order on the managed ledger's executor
+    private final RangeCache.Inserter addedEntriesInserter;
     private final boolean copyEntries;
     private final PendingReadsManager pendingReadsManager;
 
@@ -99,6 +101,7 @@ public class RangeEntryCacheImpl implements EntryCache {
         this.entryLengthFunction = entryLengthFunction;
         this.interceptor = ml.getManagedLedgerInterceptor();
         this.entries = new RangeCache(rangeCacheRemovalQueue);
+        this.addedEntriesInserter = entries.newInserter();
         this.copyEntries = copyEntries;
 
         log.debug("Initialized managed-ledger entry cache");
@@ -131,7 +134,30 @@ public class RangeEntryCacheImpl implements EntryCache {
 
     @Override
     public boolean insert(Entry entry) {
-        return insert(entry, copyEntries);
+        return insert(entry, copyEntries, addedEntriesInserter);
+    }
+
+    /**
+     * Inserts consecutive entries in order, such as the entries of a read from storage, with an inserter of their own,
+     * so that they don't displace the page where the managed ledger adds its entries. Cached entries are immutable,
+     * so an entry that is already cached, such as one that an overlapping read inserted, is skipped before it's
+     * copied; the cached entry takes its expected read count.
+     *
+     * @param entriesToInsert the entries to cache, in order
+     * @param copy whether to copy the entries' data into cache owned buffers, always the case when the cache is
+     *             configured to copy entries
+     * @return the number of entries that were inserted
+     */
+    public int insert(List<? extends Entry> entriesToInsert, boolean copy) {
+        RangeCache.Inserter inserter = entries.newInserter();
+        int inserted = 0;
+        for (Entry entry : entriesToInsert) {
+            if (!inserter.updateIfCached(entry.getPosition(), cached -> takeExpectedReadCount(cached, entry))
+                    && insert(entry, copy, inserter)) {
+                inserted++;
+            }
+        }
+        return inserted;
     }
 
     /**
@@ -142,9 +168,10 @@ public class RangeEntryCacheImpl implements EntryCache {
      * @param entry the entry to cache
      * @param copy whether to copy the entry data into a cache owned buffer, always the case when the cache is
      *             configured to copy entries
+     * @param inserter the inserter of the entries that this entry is inserted in order with
      * @return whether the entry was inserted
      */
-    public boolean insert(Entry entry, boolean copy) {
+    private boolean insert(Entry entry, boolean copy, RangeCache.Inserter inserter) {
         int entryLength = entryLengthFunction.getEntryLength(ml, entry);
 
         log.debug().attr("position", entry.getPosition())
@@ -170,15 +197,25 @@ public class RangeEntryCacheImpl implements EntryCache {
                 EntryImpl.createWithRetainedDuplicate(position, cachedData, entry.getReadCountHandler(),
                             copy ? null : entry.getMessageMetadata());
         cachedData.release();
-        if (entries.put(position, cacheEntry, entryLength)) {
+        if (inserter.put(position, cacheEntry, entryLength)) {
             totalAddedEntriesSize.add(entryLength);
             totalAddedEntriesCount.increment();
             manager.entryAdded(entryLength);
             return true;
         } else {
-            // entry was not inserted into cache, we need to discard it
+            // the cache already has the entry, which takes the expected read count of this addition
+            inserter.updateIfCached(position, cached -> takeExpectedReadCount(cached, entry));
+            // entry was not inserted into cache, we need to discard it; nobody read the discarded duplicate, so its
+            // release doesn't count as a read of the expected read count that it shares with the added entry
+            cacheEntry.setDecreaseReadCountOnRelease(false);
             cacheEntry.release();
             return false;
+        }
+    }
+
+    private static void takeExpectedReadCount(ReferenceCountedEntry cached, Entry latest) {
+        if (cached instanceof EntryImpl cachedEntry) {
+            cachedEntry.updateExpectedReadCount(latest.getReadCountHandler());
         }
     }
 
@@ -599,9 +636,9 @@ public class RangeEntryCacheImpl implements EntryCache {
                                     }
                                     entriesToReturn.add(entry);
                                     totalSize += entry.getLength();
-                                    if (expectedReadCountVal > 0) {
-                                        insert(entry, copyEntries || batchRead);
-                                    }
+                                }
+                                if (expectedReadCountVal > 0) {
+                                    insert(entriesToReturn, copyEntries || batchRead);
                                 }
 
                                 ml.getMbean().recordReadEntriesOpsCacheMisses(entriesToReturn.size(), totalSize);
