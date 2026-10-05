@@ -321,6 +321,11 @@ public final class EntryImpl extends AbstractCASReferenceCounted
             try {
                 MessageMetadata msgMetadata = new MessageMetadata();
                 Commands.parseMessageMetadata(data.duplicate(), msgMetadata);
+                // Copies of this entry share the instance across threads. Decode its lazily decoded fields now, so
+                // that readers don't decode them concurrently: a lazily decoded field is cached in a plain field, and
+                // LightProto creates an ASCII string without a constructor, so another thread could see the cached
+                // string before its contents. The volatile write below publishes the decoded fields.
+                msgMetadata.materialize();
                 this.messageMetadata = msgMetadata;
             } catch (Throwable t) {
                 log.warn("[{}] Failed to parse message metadata for entry {}:{}", managedLedgerName, ledgerId, entryId,
