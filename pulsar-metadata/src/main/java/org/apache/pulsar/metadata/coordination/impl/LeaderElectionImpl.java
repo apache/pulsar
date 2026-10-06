@@ -36,6 +36,7 @@ import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyClosedException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
+import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.coordination.LeaderElection;
@@ -53,7 +54,6 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
     private final Consumer<LeaderElectionState> stateChangesListener;
 
     private LeaderElectionState leaderElectionState;
-    private Optional<Long> version = Optional.empty();
     private Optional<T> proposedValue;
 
     // The leader value as known by the election cycle (the leader can only change through an
@@ -295,12 +295,29 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
             return CompletableFuture.completedFuture(null);
         }
 
-        return store.delete(path, version)
+        // Only delete the leader node if it is still ours: if our session expired, the node we
+        // created is already gone and the node at the path, if any, belongs to the participant
+        // that won the re-election. An unconditional delete would remove that node and make the
+        // new leader lose leadership for no reason.
+        return store.get(path)
+                .thenCompose(optRes -> {
+                    if (optRes.isEmpty() || !optRes.get().getStat().isCreatedBySelf()) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    return store.delete(path, Optional.empty())
+                            .exceptionally(ex -> {
+                                if (FutureUtil.unwrapCompletionException(ex) instanceof NotFoundException) {
+                                    // The node was deleted between our get and this delete
+                                    return null;
+                                }
+                                throw FutureUtil.wrapToCompletionException(ex);
+                            });
+                })
                 .thenAccept(__ -> {
                             synchronized (LeaderElectionImpl.this) {
                                 leaderElectionState = LeaderElectionState.NoLeader;
-                                // The deleted leader node was ours and a closed instance no longer
-                                // observes elections; don't keep reporting ourselves as leader.
+                                // Whether or not we deleted the node, a closed instance no longer observes
+                                // elections; don't keep reporting ourselves as leader.
                                 currentLeaderFuture = CompletableFuture.completedFuture(Optional.empty());
                             }
                         }
