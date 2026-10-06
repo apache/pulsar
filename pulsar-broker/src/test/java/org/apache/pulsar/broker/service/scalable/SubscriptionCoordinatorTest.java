@@ -511,6 +511,43 @@ public class SubscriptionCoordinatorTest {
         assertEquals(sharers, 4);
     }
 
+    @Test
+    public void testCheckpointGroupNeverSharesSegment() throws Exception {
+        // One segment with N=4 entry-buckets and three members of a CHECKPOINT group. A member reads
+        // the segment through its own Reader, so instead of fanning out by entry-bucket the segment
+        // goes whole to one member and the surplus members stay idle.
+        SubscriptionCoordinator c = bucketedCoordinator();
+        c.markCheckpointGroup();
+        c.registerConsumer("consumer-1", 1L, mock(TransportCnx.class)).get();
+        c.registerConsumer("consumer-2", 2L, mock(TransportCnx.class)).get();
+        Map<ConsumerSession, ConsumerAssignment> result =
+                c.registerConsumer("consumer-3", 3L, mock(TransportCnx.class)).get();
+
+        assertEquals(result.size(), 3);
+        ConsumerAssignment owner = findByName(result, "consumer-1");
+        assertEquals(owner.assignedSegments().size(), 1);
+        assertTrue(owner.assignedSegments().get(0).bucketRanges().isEmpty());
+        assertTrue(findByName(result, "consumer-2").assignedSegments().isEmpty());
+        assertTrue(findByName(result, "consumer-3").assignedSegments().isEmpty());
+    }
+
+    @Test
+    public void testRestoredCheckpointGroupNeverSharesSegmentOnReconnect() throws Exception {
+        // Controller failover: the restored coordinator doesn't know its consumer type. The
+        // controller marks the CHECKPOINT group before the first member's reconnect computes the
+        // assignment it sends.
+        SubscriptionCoordinator c = bucketedCoordinator();
+        c.restoreConsumers(List.of("consumer-1", "consumer-2", "consumer-3"));
+        c.markCheckpointGroup();
+        Map<ConsumerSession, ConsumerAssignment> result =
+                c.registerConsumer("consumer-2", 2L, mock(TransportCnx.class)).get();
+
+        assertEquals(findByName(result, "consumer-1").assignedSegments().size(), 1);
+        assertTrue(findByName(result, "consumer-1").assignedSegments().get(0).bucketRanges().isEmpty());
+        assertTrue(findByName(result, "consumer-2").assignedSegments().isEmpty());
+        assertTrue(findByName(result, "consumer-3").assignedSegments().isEmpty());
+    }
+
     private SubscriptionCoordinator bucketedCoordinator() {
         // One segment carrying the whole default budget: N = 4 entry-buckets.
         return new SubscriptionCoordinator("test-sub", topicName,
