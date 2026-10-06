@@ -76,6 +76,8 @@ Pass these with `-P` on the command line, or set them in `~/.gradle/gradle.prope
 | `performance.reportsServer.baseUrl` | The URL of the reports server, such as `http://192.168.1.123:8000/`, with which the launcher prints each report's URL. Default: `http://<bind address>:<port>/`, see [Browsing the reports over HTTP](run-reports.md#browsing-the-reports-over-http). |
 | `performance.profile.maxHeapSize` | The heap of the `profile`, `runJonoffcpuCorrelator` and `runJfrConverter` tasks. Default: `4g`. |
 | `performance.clusterPulsarImage` | A released Pulsar image for the cluster, such as `apachepulsar/pulsar:4.0.13` or `apachepulsar/pulsar:latest`, to test that release instead of the checkout. The tasks build the test image on it, which needs an Alpine-based Pulsar image, and use it for ZooKeeper, the bookies and the brokers; the workloads, and so the Pulsar client, stay on the checkout's image. See [Comparing with a released Pulsar](comparing-revisions.md#comparing-with-a-released-pulsar). |
+| `performance.compare.baselineImage`, `performance.compare.candidateImage` | For `compareImages` and `compareImageWithCheckout`, the Pulsar images that the comparison's clusters run, see [Comparing two Pulsar images](comparing-revisions.md#comparing-two-pulsar-images). `compareImageWithCheckout` takes only the baseline image. |
+| `performance.compare.repetitions`, `performance.compare.medianBy` | For the comparison tasks, the runs per side, 3 by default, and the measure that picks each side's median run: `throughput` (default), `publish-p99`, `e2e-p99` or `broker-cpu` |
 | `docker.tag` | The tag of the Docker images the tasks build and run, `latest` by default. Separate tags keep the images of two revisions apart, see [Comparing revisions](comparing-revisions.md). |
 | `docker.organization` | The organization of the Docker images, `apachepulsar` by default. |
 | `inttest.testImageVariant` | `alpine` (the default, as the unprofiled runs and Pulsar's default image) or `wolfi`, the glibc-based image: the image that profiled runs use, see [Profiling](profiling.md#requirements). |
@@ -113,6 +115,9 @@ Every run gets a directory of its own, in a hierarchy by day, git branch and nam
 - The run directory is named by the run's start in local time. Two runs of the same name started within the same
   second would share it.
 - `--output <dir>` writes the run to exactly that directory instead, outside the hierarchy.
+- The `compareImages` and `compareImageWithCheckout` tasks write their runs as above, and the comparison of them to
+  `<reports root>/<yyyy-MM-dd>/comparisons/<name>/<MM-dd-HH-mm-ss>/`, see
+  [Comparing two Pulsar images](comparing-revisions.md#comparing-two-pulsar-images).
 
 The launcher prints the run directory when it starts, and the run report when it has finished.
 [Finding the results of a run](run-reports.md#finding-the-results-of-a-run) describes finding a run later, and
