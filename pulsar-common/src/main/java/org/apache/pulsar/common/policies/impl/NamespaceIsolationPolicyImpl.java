@@ -54,9 +54,13 @@ public class NamespaceIsolationPolicyImpl implements NamespaceIsolationPolicy {
     private List<URL> getMatchedBrokers(List<String> brkRegexList, List<URL> availableBrokers) {
         List<URL> matchedBrokers = new ArrayList<URL>();
         for (URL brokerUrl : availableBrokers) {
-            String broker = brokerUrl.getPort() == -1
-                    ? brokerUrl.getHost() : brokerUrl.getHost() + ":" + brokerUrl.getPort();
-            if (this.matchesBrokerRegex(brkRegexList, broker)) {
+            // URL#getHost returns IPv6 literals in brackets, while broker ids use the bare address,
+            // so match the bare form and keep matching the bracketed form for backward compatibility
+            String host = brokerUrl.getHost();
+            String bareHost = host.startsWith("[") && host.endsWith("]") ? host.substring(1, host.length() - 1) : host;
+            String port = brokerUrl.getPort() == -1 ? "" : ":" + brokerUrl.getPort();
+            if (this.matchesBrokerRegex(brkRegexList, bareHost + port)
+                    || (!bareHost.equals(host) && this.matchesBrokerRegex(brkRegexList, host + port))) {
                 matchedBrokers.add(brokerUrl);
             }
         }

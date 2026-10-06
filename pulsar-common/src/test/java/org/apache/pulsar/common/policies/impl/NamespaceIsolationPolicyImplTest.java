@@ -147,6 +147,23 @@ public class NamespaceIsolationPolicyImplTest {
         assertTrue(ipv6Policy.isPrimaryBroker("fe80::1"));
         assertTrue(ipv6Policy.isPrimaryBroker("fe80::1:8080"));
         assertFalse(ipv6Policy.isPrimaryBroker("fe80::2:8080"));
+        List<URL> ipv6Brokers = List.of(new URL("http://[fe80::1]:8080"), new URL("http://[fe80::2]:8080"));
+        assertEquals(ipv6Policy.findPrimaryBrokers(ipv6Brokers, ns), List.of(new URL("http://[fe80::1]:8080")));
+
+        // policy copied from a broker id (bare IPv6 address with port)
+        NamespaceIsolationPolicyImpl ipv6PortPolicy = new NamespaceIsolationPolicyImpl(
+                NamespaceIsolationData.builder()
+                        .namespaces(Collections.singletonList("pulsar/test.*"))
+                        .primary(Collections.singletonList("fe80::1:8080"))
+                        .secondary(Collections.singletonList("\\[fe80::2\\]"))
+                        .autoFailoverPolicy(AutoFailoverPolicyData.builder()
+                                .policyType(AutoFailoverPolicyType.min_available)
+                                .parameters(Map.of("min_limit", "1", "usage_threshold", "100"))
+                                .build())
+                        .build());
+        assertEquals(ipv6PortPolicy.findPrimaryBrokers(ipv6Brokers, ns), List.of(new URL("http://[fe80::1]:8080")));
+        // the bracketed form is still matched for backward compatibility
+        assertEquals(ipv6PortPolicy.findSecondaryBrokers(ipv6Brokers, ns), List.of(new URL("http://[fe80::2]:8080")));
     }
 
     @Test
