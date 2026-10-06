@@ -122,6 +122,33 @@ public class BrokerIsolationPoliciesFilterTest {
     }
 
     @Test
+    public void testFilterWithNamespaceIsolationPoliciesUsingBrokerIds()
+            throws IllegalAccessException, BrokerFilterException, ExecutionException, InterruptedException {
+        var namespace = "my-tenant/my-ns";
+        NamespaceName namespaceName = NamespaceName.get(namespace);
+
+        var policies = mock(SimpleResourceAllocationPolicies.class);
+
+        // policies reference brokers by broker id (host:port), as listed by `pulsar-admin brokers list`
+        setIsolationPolicies(policies, namespaceName, Set.of("broker1:8080"), Set.of("broker2:8080"),
+                Set.of("broker3:8080"), 1);
+        IsolationPoliciesHelper isolationPoliciesHelper = new IsolationPoliciesHelper(policies);
+
+        BrokerIsolationPoliciesFilter filter = new BrokerIsolationPoliciesFilter(isolationPoliciesHelper);
+
+        Map<String, BrokerLookupData> result = filter.filterAsync(new HashMap<>(Map.of(
+                "broker1:8080", getLookupData(),
+                "broker2:8080", getLookupData(),
+                "broker3:8080", getLookupData())), namespaceName, getContext()).get();
+        assertEquals(result.keySet(), Set.of("broker1:8080"));
+
+        result = filter.filterAsync(new HashMap<>(Map.of(
+                "broker2:8080", getLookupData(),
+                "broker3:8080", getLookupData())), namespaceName, getContext()).get();
+        assertEquals(result.keySet(), Set.of("broker2:8080"));
+    }
+
+    @Test
     public void testFilterWithPersistentOrNonPersistentDisabled()
             throws IllegalAccessException, BrokerFilterException, ExecutionException, InterruptedException {
         var namespace = "my-tenant/my-ns";
