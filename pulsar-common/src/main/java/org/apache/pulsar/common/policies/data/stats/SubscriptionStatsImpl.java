@@ -21,7 +21,6 @@ package org.apache.pulsar.common.policies.data.stats;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -139,9 +138,6 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     /** Whether the Key_Shared subscription mode is AUTO_SPLIT or STICKY. */
     public String keySharedMode;
 
-    /** This is for Key_Shared subscription to get the recentJoinedConsumers in the Key_Shared subscription. */
-    public Map<String, String> consumersAfterMarkDeletePosition;
-
     /**
      * For Key_Shared AUTO_SPLIT ordered subscriptions: The current number of hashes in the draining state.
      */
@@ -201,7 +197,6 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
 
     public SubscriptionStatsImpl() {
         this.consumers = new ArrayList<>();
-        this.consumersAfterMarkDeletePosition = new LinkedHashMap<>();
         this.subscriptionProperties = new HashMap<>();
         this.bucketDelayedIndexStats = new HashMap<>();
     }
@@ -227,7 +222,6 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         lastExpireTimestamp = 0L;
         lastMarkDeleteAdvancedTimestamp = 0L;
         consumers.clear();
-        consumersAfterMarkDeletePosition.clear();
         drainingHashesCount = 0;
         drainingHashesClearedTotal = 0L;
         drainingHashesUnackedMessages = 0;
@@ -284,7 +278,6 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
             }
         }
         this.allowOutOfOrderDelivery |= stats.allowOutOfOrderDelivery;
-        this.consumersAfterMarkDeletePosition.putAll(stats.consumersAfterMarkDeletePosition);
         this.drainingHashesCount += stats.drainingHashesCount;
         this.drainingHashesClearedTotal += stats.drainingHashesClearedTotal;
         this.drainingHashesUnackedMessages += stats.drainingHashesUnackedMessages;

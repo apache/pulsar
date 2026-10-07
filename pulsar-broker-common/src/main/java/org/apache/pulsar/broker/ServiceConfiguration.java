@@ -69,6 +69,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
      * within a Pulsar cluster.
      */
     public static final String DEFAULT_INTERNAL_LISTENER_NAME = "internal";
+    public static final int DEFAULT_NUMBER_OF_NAMESPACE_BUNDLES = 32;
+    public static final int DEFAULT_NUMBER_OF_SYSTEM_NAMESPACE_BUNDLES = 64;
 
     @Category
     private static final String CATEGORY_SERVER = "Server";
@@ -620,6 +622,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
+            dynamic = true,
             doc = "Amount of seconds to timeout when loading a topic. In situations with many geo-replicated clusters, "
                     + "this may need raised."
     )
@@ -964,22 +967,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int subscriptionKeySharedConsistentHashingReplicaPoints = 100;
 
     @FieldContext(
-            category = CATEGORY_POLICIES,
-            doc = "For persistent Key_Shared subscriptions, enables the use of the classic implementation of the "
-                    + "Key_Shared subscription that was used before Pulsar 4.0.0 and PIP-379.",
-            dynamic = true
-    )
-    private boolean subscriptionKeySharedUseClassicPersistentImplementation = false;
-
-    @FieldContext(
-            category = CATEGORY_POLICIES,
-            doc = "For persistent Shared subscriptions, enables the use of the classic implementation of the Shared "
-                    + "subscription that was used before Pulsar 4.0.0.",
-            dynamic = true
-    )
-    private boolean subscriptionSharedUseClassicPersistentImplementation = false;
-
-    @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "Set the default behavior for message deduplication in the broker.\n\n"
             + "This can be overridden per-namespace. If enabled, broker will reject"
@@ -1025,9 +1012,29 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_POLICIES,
         dynamic = true,
-        doc = "When a namespace is created without specifying the number of bundle, this"
-            + " value will be used as the default")
-    private int defaultNumberOfNamespaceBundles = 4;
+        doc = "When a namespace is created without specifying the number of bundles, this"
+            + " value will be used as the default.\n\n"
+            + "Bundles are the unit of assignment of topics to brokers, so a namespace needs more bundles"
+            + " than there are brokers for its topics to spread across the cluster. Bundles can be split"
+            + " but never merged. Only bundles that have been looked up cost anything (an ownership entry,"
+            + " an entry in the load report and one unload step at broker shutdown); the unused bundles"
+            + " of a small namespace are free. Default is 32 since 5.0.0 (was 4).")
+    private int defaultNumberOfNamespaceBundles = DEFAULT_NUMBER_OF_NAMESPACE_BUNDLES;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "Number of bundles for the pulsar/system namespace when the broker creates it (the extensible"
+            + " load manager creates it on start-up if it is missing) or when pulsar standalone creates it."
+            + " The system namespace holds a small, fixed set of topics (the transaction coordinator"
+            + " partitions, the load balancer's internal topics and the resource usage topic), so it does"
+            + " not follow defaultNumberOfNamespaceBundles. A transaction coordinator is owned by whichever"
+            + " broker owns the bundle of its transaction_coordinator_assign partition, so the bundles decide"
+            + " how far the coordinators can spread: with the default 16 coordinators, 64 is the smallest"
+            + " number of bundles at which every coordinator hashes into its own bundle (16 bundles put them"
+            + " into 8), and bundles that never own a topic cost nothing. The initialize-cluster-metadata and"
+            + " initialize-transaction-coordinator-metadata tools create the namespace with their"
+            + " --system-namespace-bundle-number option, which has the same default.")
+    private int defaultNumberOfSystemNamespaceBundles = DEFAULT_NUMBER_OF_SYSTEM_NAMESPACE_BUNDLES;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
@@ -1408,7 +1415,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_POLICIES,
             doc = "Enables the scalable-topics V5 API on this broker. When disabled, "
                     + "the broker advertises supports_scalable_topics=false in CommandConnected "
-                    + "feature flags and rejects scalable-topic commands from clients."
+                    + "feature flags, rejects scalable-topic commands and topic/segment lookups and loads, "
+                    + "and does not start scalable-topic services or expose the scalable-topic admin API. "
+                    + "Disable before migrating from 4.x to preserve the option to roll back without using "
+                    + "scalable topics. Existing scalable-topic data is retained but inaccessible while disabled. "
+                    + "Changing this setting requires a broker restart."
     )
     private boolean scalableTopicsEnabled = true;
 
@@ -1617,9 +1628,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         dynamic = true,
         category = CATEGORY_SERVER,
-        doc = "Max number of entries to read from bookkeeper. By default it is 100 entries."
+        doc = "Max number of entries to read from bookkeeper. By default it is 500 entries."
     )
-    private int dispatcherMaxReadBatchSize = 100;
+    private int dispatcherMaxReadBatchSize = 500;
 
     @FieldContext(
             dynamic = true,
@@ -1804,6 +1815,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Enable broker to load persistent topics"
     )
     private boolean enablePersistentTopics = true;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Enable shadow topic creation, loading and replication. Requires a broker restart."
+    )
+    private boolean enableShadowTopics = false;
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -2533,9 +2550,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_STORAGE_BK,
-            doc = "Use separated IO threads for BookKeeper client. Default is false, which will use Pulsar IO threads"
+            doc = "Use separated IO threads for BookKeeper client. Default is true, which will use dedicated "
+                    + "BookKeeper IO threads"
     )
-    private boolean bookkeeperClientSeparatedIoThreadsEnabled = false;
+    private boolean bookkeeperClientSeparatedIoThreadsEnabled = true;
 
     /**** --- Managed Ledger. --- ****/
     @FieldContext(
@@ -2693,9 +2711,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "When disabled:\n"
                     + " - Cache behaves more like a FIFO queue with time-based and size-based eviction\n"
                     + " - Minimum eviction time is managedLedgerCacheEvictionTimeThresholdMillis\n"
-                    + "Default is true, to behave like a LRU cache."
+                    + "Default is false, to avoid extending cache retention for entries that have already been read."
     )
-    private boolean managedLedgerCacheEvictionExtendTTLOfRecentlyAccessed = true;
+    private boolean managedLedgerCacheEvictionExtendTTLOfRecentlyAccessed = false;
 
     @FieldContext(category = CATEGORY_STORAGE_ML, dynamic = true,
             doc = "Enable the BookKeeper batch read API when reading entries from bookkeeper: a single RPC "
@@ -2710,6 +2728,52 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "data is split into sequential batch read requests. Entries read this way are copied when "
                     + "inserted in the entry cache.")
     private boolean managedLedgerBatchReadEnabled = true;
+
+    @FieldContext(category = CATEGORY_STORAGE_ML,
+            doc = "Allow successful ordinary multi-entry managed-ledger read callbacks to complete on the current "
+                    + "thread. Fully cached reads may complete before the read method returns. Set false to restore "
+                    + "ledger-executor affinity, including bounded inline completion when already on that executor. "
+                    + "False also restores the Exclusive/Failover cache-hit handoff used before PR #26619. "
+                    + "The JVM-wide property pulsar.managedLedger.maxReadCompletionDepth limits nested inline "
+                    + "callbacks in both modes when callbacks issue another read before returning "
+                    + "(default 10, values below 1 use 1); set it at JVM startup. "
+                    + "The depth accepts Integer.decode syntax, including hexadecimal and leading-zero octal. "
+                    + "At the limit, enabled mode queues to the JVM common ForkJoinPool; disabled mode queues to "
+                    + "the ledger executor. If common-pool parallelism is at most 1, both use the ledger executor. "
+                    + "Common-pool parallelism normally uses available processors minus one (at least one); "
+                    + "override it with -Djava.util.concurrent.ForkJoinPool.common.parallelism. "
+                    + "A limit of 1 queues every subsequent completion in a nested cached-read chain. "
+                    + "This is not a dynamic setting: the completion policy is captured when a managed "
+                    + "ledger opens and does not change for already loaded topics. Failure callbacks, single-entry "
+                    + "reads, and replay callbacks are unaffected.")
+    private boolean managedLedgerReadEntriesCallbackInline = true;
+
+    @FieldContext(category = CATEGORY_STORAGE_ML,
+            dynamic = true,
+            doc = "Maximum number of add entry requests handed over to the managed ledger's executor thread in one "
+                    + "batch. Publishing threads queue adds for the ledger's executor, which takes them over in "
+                    + "batches of up to this many adds and processes each batch before other tasks on that thread can "
+                    + "run. A batch also stops taking adds once their entries add up to "
+                    + "managedLedgerAddEntryHandoverMaxBatchBytesSize bytes. "
+                    + "A larger value reduces scheduling overhead and contention between publishing threads under "
+                    + "high publish rates, but keeps the executor thread occupied for longer per batch, which can "
+                    + "delay add completions, reads and cursor notifications for the ledgers that share the thread. "
+                    + "A smaller value favors those tasks over add throughput. Set to 0 or 1 to disable batching, so "
+                    + "that each add is handed over to the executor as a task of its own. Updates apply to managed "
+                    + "ledgers opened after the change; ledgers that are already open keep the value they opened with.")
+    private int managedLedgerAddEntryHandoverMaxBatchItems = 1024;
+
+    @FieldContext(category = CATEGORY_STORAGE_ML,
+            dynamic = true,
+            doc = "Total size in bytes of the entries after which a batch of add entry requests handed over to the "
+                    + "managed ledger's executor thread stops taking more. This keeps a ledger with large entries "
+                    + "from occupying the executor thread for as long as a full batch of "
+                    + "managedLedgerAddEntryHandoverMaxBatchItems adds would, which would delay add completions, "
+                    + "reads and cursor notifications for the ledgers that share the thread. A batch always takes at "
+                    + "least one add, even one whose entry is larger than this. Set to 0 to limit batches only by "
+                    + "their number of adds. Updates apply to managed ledgers opened after the change; ledgers that "
+                    + "are already open keep the value they opened with.")
+    private long managedLedgerAddEntryHandoverMaxBatchBytesSize = 5 * 1024 * 1024;
 
     @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "Configure the threshold (in number of entries) from where a cursor should be considered 'backlogged'"
@@ -3672,6 +3736,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
                 + "When dynamically modified, it only takes effect for the newly added replicators"
     )
     private int replicationProducerQueueSize = 1000;
+    @FieldContext(
+        category = CATEGORY_REPLICATION,
+        minValue = 1,
+        doc = "Maximum read-processing steps per persistent replicator before yielding to the broker executor. "
+                + "A step initiates a read, processes a completed batch, or handles cancellation or rewind; "
+                + "it is not a message limit. Lower values improve fairness between tasks; higher values reduce "
+                + "scheduling overhead. Must be at least 1. Requires a broker restart."
+    )
+    private int replicationMaxReadProcessingStepsPerTurn = 64;
     @FieldContext(
             category = CATEGORY_REPLICATION,
             doc = "Duration to check replication policy to avoid replicator "

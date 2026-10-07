@@ -45,6 +45,9 @@ import io.netty.resolver.dns.DefaultDnsServerAddressStreamProvider;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.lang.reflect.Field;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.ArrayList;
@@ -53,10 +56,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.PulsarClientSharedResources;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
@@ -215,6 +220,37 @@ public class PulsarClientImplTest {
 
         verify(failingResolver).close();
         verify(timer).stop();
+    }
+
+    @Test(timeOut = 30_000)
+    public void testClosingClientLeavesSharedDnsResolverOpenForOtherClients() throws Exception {
+        // A DNS server that never answers: it only shows whether a resolver still sends queries
+        @Cleanup
+        DatagramSocket dnsServer = new DatagramSocket(0, InetAddress.getLoopbackAddress());
+        dnsServer.setSoTimeout(10_000);
+        @Cleanup
+        PulsarClientSharedResources sharedResources = PulsarClientSharedResources.builder()
+                // One event loop, so that both clients get the group's same resolver
+                .configureEventLoop(config -> config.numberOfThreads(1))
+                .configureDnsResolver(config -> config
+                        .serverAddresses(List.of((InetSocketAddress) dnsServer.getLocalSocketAddress()))
+                        .searchDomains(List.of())
+                        .queryTimeoutMillis(TimeUnit.SECONDS.toMillis(20)))
+                .build();
+        PulsarClientImpl closedClient = (PulsarClientImpl) PulsarClient.builder()
+                .serviceUrl("pulsar://localhost:6650").sharedResources(sharedResources).build();
+        @Cleanup
+        PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
+                .serviceUrl("pulsar://localhost:6650").sharedResources(sharedResources).build();
+        assertSame(client.getAddressResolver(), closedClient.getAddressResolver());
+
+        closedClient.close();
+
+        // A closed resolver would fail the lookup without querying the DNS server
+        client.getAddressResolver().resolve(InetSocketAddress.createUnresolved("broker.pulsar.invalid", 6650));
+        DatagramPacket query = new DatagramPacket(new byte[512], 512);
+        dnsServer.receive(query);
+        assertTrue(query.getLength() > 0);
     }
 
     @Test

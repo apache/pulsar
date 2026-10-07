@@ -22,6 +22,7 @@
 <suite name="Pulsar Standalone Tests" verbose="2" annotations="JDK">
     <test name="pulsar-standalone-suite" preserve-order="true" >
         <classes>
+            <class name="org.apache.pulsar.tests.integration.containers.NettyLeakDetectionTest" />
             <class name="org.apache.pulsar.tests.integration.standalone.SmokeTest" />
         </classes>
     </test>

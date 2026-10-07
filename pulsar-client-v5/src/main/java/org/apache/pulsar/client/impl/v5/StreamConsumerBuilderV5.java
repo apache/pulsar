@@ -168,12 +168,6 @@ final class StreamConsumerBuilderV5<T> implements StreamConsumerBuilder<T> {
     }
 
     @Override
-    public StreamConsumerBuilderV5<T> replicateSubscriptionState(boolean replicate) {
-        conf.setReplicateSubscriptionState(replicate);
-        return this;
-    }
-
-    @Override
     public StreamConsumerBuilderV5<T> encryptionPolicy(ConsumerEncryptionPolicy policy) {
         if (policy.privateKeyProvider() != null) {
             conf.setCryptoKeyReader(CryptoKeyReaderAdapter.forConsumer(policy.privateKeyProvider()));

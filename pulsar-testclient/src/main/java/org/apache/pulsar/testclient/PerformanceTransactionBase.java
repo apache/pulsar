@@ -28,7 +28,6 @@ import io.github.merlimat.slog.Logger;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
@@ -46,16 +45,16 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
-import picocli.CommandLine.Option;
 
 /**
  * Client-agnostic implementation of the {@code pulsar-perf} transaction benchmark.
  *
  * <p>Each test thread owns a set of producers and consumers and repeats one unit of work: consume
  * and acknowledge {@code -nmc} messages, produce {@code -nmp} messages, then end the transaction and
- * open the next one. That loop, the CLI options, the send/ack latency accounting and the reports
- * live here. Concrete subclasses bind the client types: {@link PerformanceTransaction} against the
- * V5 client and {@link PerformanceTransactionV4} against the v4 client.
+ * open the next one. That loop, the send/ack latency accounting and the reports live here; the options
+ * come from the {@link PerformanceTransaction} command. Concrete subclasses bind the client types:
+ * {@link PerformanceTransactionV5} against the V5 client and {@link PerformanceTransactionV4} against
+ * the v4 client.
  *
  * @param <ClientT> the client type ({@code PulsarClient} of the respective API generation)
  * @param <ProducerT> the producer handle
@@ -63,22 +62,13 @@ import picocli.CommandLine.Option;
  * @param <MessageT> the received message type
  * @param <TxnT> the transaction type
  */
-public abstract class PerformanceTransactionBase<ClientT, ProducerT, ConsumerT, MessageT, TxnT>
-        extends PerformanceBaseArguments {
+public abstract class PerformanceTransactionBase<ClientT, ProducerT, ConsumerT, MessageT, TxnT> {
 
     /**
-     * Logger named after the <em>concrete</em> command class rather than this base, so that the
-     * report lines keep identifying the subcommand that produced them.
+     * Logger named after the {@code transaction} command rather than the runner, so that the report
+     * lines read the same whichever client runs the benchmark.
      */
-    protected final Logger log = Logger.get(getClass());
-
-    /** Same v4-compat subscription-type flag as {@link PerformanceConsumerBase.SubscriptionType}. */
-    public enum SubscriptionType {
-        Exclusive,
-        Shared,
-        Failover,
-        Key_Shared
-    }
+    protected final Logger log = Logger.get(PerformanceTransaction.class);
 
     private final LongAdder totalNumEndTxnOpFailed = new LongAdder();
     private final LongAdder totalNumEndTxnOpSuccess = new LongAdder();
@@ -105,82 +95,11 @@ public abstract class PerformanceTransactionBase<ClientT, ProducerT, ConsumerT, 
     private final Recorder messageSendRCumulativeRecorder =
             new Recorder(MAX_LATENCY_MICROS, LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
 
-    @Option(names = "--topics-c", description = "All topics that need ack for a transaction", required =
-            true)
-    public List<String> consumerTopic = Collections.singletonList("test-consume");
+    /** The parsed {@code transaction} command line. */
+    protected final PerformanceTransaction arguments;
 
-    @Option(names = "--topics-p", description = "All topics that need produce for a transaction",
-            required = true)
-    public List<String> producerTopic = Collections.singletonList("test-produce");
-
-    @Option(names = {"-threads", "--num-test-threads"}, description = "Number of test threads."
-            + "This thread is for a new transaction to ack messages from consumer topics and produce message to "
-            + "producer topics, and then commit or abort this transaction. "
-            + "Increasing the number of threads increases the parallelism of the performance test, "
-            + "thereby increasing the intensity of the stress test.")
-    public int numTestThreads = 1;
-
-    @Option(names = {"-au", "--admin-url"}, description = "Pulsar Admin URL", descriptionKey = "webServiceUrl")
-    public String adminURL;
-
-    @Option(names = {"-np",
-            "--partitions"}, description = "Create partitioned topics with a given number of partitions, 0 means"
-            + "not trying to create a topic")
-    public Integer partitions = null;
-
-    @Option(names = {"-time",
-            "--test-duration"}, description = "Test duration (in second). 0 means keeping publishing")
-    public long testTime = 0;
-
-    @Option(names = {"-ss",
-            "--subscriptions"}, description = "A list of subscriptions to consume (for example, sub1,sub2)")
-    public List<String> subscriptions = Collections.singletonList("sub");
-
-    @Option(names = {"-ns", "--num-subscriptions"}, description = "Number of subscriptions (per topic)")
-    public int numSubscriptions = 1;
-
-    @Option(names = {"-st", "--subscription-type"}, description = "Subscription type")
-    public SubscriptionType subscriptionType = SubscriptionType.Shared;
-
-    @Option(names = {"-rs", "--replicated" },
-            description = "Whether the subscription status should be replicated")
-    protected boolean replicatedSubscription = false;
-
-    @Option(names = {"-q", "--receiver-queue-size"}, description = "Size of the receiver queue")
-    public int receiverQueueSize = 1000;
-
-    @Option(names = {"-tto", "--txn-timeout"}, description = "Set the time value of transaction timeout,"
-            + " and the time unit is second. (After --txn-enable setting to true, --txn-timeout takes effect)")
-    public long transactionTimeout = 5;
-
-    @Option(names = {"-ntxn",
-            "--number-txn"}, description = "Set the number of transaction. 0 means keeping open."
-            + "If transaction disabled, it means the number of tasks. The task or transaction produces or "
-            + "consumes a specified number of messages.")
-    public long numTransactions = 0;
-
-    @Option(names = {"-nmp", "--numMessage-perTransaction-produce"},
-            description = "Set the number of messages produced in  a transaction."
-                    + "If transaction disabled, it means the number of messages produced in a task.")
-    public int numMessagesProducedPerTransaction = 1;
-
-    @Option(names = {"-nmc", "--numMessage-perTransaction-consume"},
-            description = "Set the number of messages consumed in a transaction."
-                    + "If transaction disabled, it means the number of messages consumed in a task.")
-    public int numMessagesReceivedPerTransaction = 1;
-
-    @Option(names = {"--txn-disable"}, description = "Disable transaction")
-    public boolean isDisableTransaction = false;
-
-    @Option(names = {"-abort"}, description = "Abort the transaction. (After --txn-disEnable "
-            + "setting to false, -abort takes effect)")
-    public boolean isAbortTransaction = false;
-
-    @Option(names = "-txnRate", description = "Set the rate of opened transaction or task. 0 means no limit")
-    public int openTxnRate = 0;
-
-    protected PerformanceTransactionBase(String cmdName) {
-        super(cmdName);
+    protected PerformanceTransactionBase(PerformanceTransaction arguments) {
+        this.arguments = arguments;
     }
 
     // ------------------------------------------------------------------------------------------
@@ -246,29 +165,29 @@ public abstract class PerformanceTransactionBase<ClientT, ProducerT, ConsumerT, 
      * admin API; subclasses may add their own topic kinds before delegating.
      */
     protected void createTopicsIfNeeded() throws Exception {
-        if (this.partitions == null) {
+        if (arguments.partitions == null) {
             return;
         }
         final PulsarAdminBuilder adminBuilder = PerfClientUtils
-                .createAdminBuilderFromArguments(this, this.adminURL);
+                .createAdminBuilderFromArguments(arguments, arguments.adminURL);
 
         try (PulsarAdmin adminClient = adminBuilder.build()) {
-            for (String topic : this.producerTopic) {
+            for (String topic : arguments.producerTopic) {
                 log.info()
                         .attr("topic", topic)
-                        .attr("partitions", this.partitions)
+                        .attr("partitions", arguments.partitions)
                         .log("Creating produce partitioned topic with partitions");
                 try {
-                    adminClient.topics().createPartitionedTopic(topic, this.partitions);
+                    adminClient.topics().createPartitionedTopic(topic, arguments.partitions);
                 } catch (PulsarAdminException.ConflictException alreadyExists) {
                     log.debug().attr("topic", topic).attr("exists", alreadyExists).log("Topic already exists");
                     PartitionedTopicMetadata partitionedTopicMetadata =
                             adminClient.topics().getPartitionedTopicMetadata(topic);
-                    if (partitionedTopicMetadata.partitions != this.partitions) {
+                    if (partitionedTopicMetadata.partitions != arguments.partitions) {
                         log.error()
                                 .attr("topic", topic)
                                 .attr("partitions", partitionedTopicMetadata.partitions)
-                                .attr("expecting", this.partitions)
+                                .attr("expecting", arguments.partitions)
                                 .log("Topic already exists but it has a wrong number of partitions: , expecting");
                         PerfClientUtils.exit(1);
                     }
@@ -279,15 +198,14 @@ public abstract class PerformanceTransactionBase<ClientT, ProducerT, ConsumerT, 
 
     // ------------------------------------------------------------------------------------------
 
-    @Override
     public void run() throws Exception {
-        super.parseCLI();
 
         // Dump config variables
         PerfClientUtils.printJVMInformation(log);
         ObjectMapper m = new ObjectMapper();
         ObjectWriter w = m.writerWithDefaultPrettyPrinter();
-        log.info().attr("config", w.writeValueAsString(this)).log("Starting Pulsar perf transaction with config");
+        log.info().attr("config", w.writeValueAsString(arguments))
+                .log("Starting Pulsar perf transaction with config");
 
         final byte[] payloadBytes = new byte[1024];
         Random random = new Random(0);
@@ -300,15 +218,15 @@ public abstract class PerformanceTransactionBase<ClientT, ProducerT, ConsumerT, 
 
         ClientT client = createClient();
         try {
-            ExecutorService executorService = new ThreadPoolExecutor(this.numTestThreads,
-                    this.numTestThreads,
+            ExecutorService executorService = new ThreadPoolExecutor(arguments.numTestThreads,
+                    arguments.numTestThreads,
                     0L, TimeUnit.MILLISECONDS,
                     new LinkedBlockingQueue<>());
 
             long startTime = System.nanoTime();
-            long testEndTime = startTime + (long) (this.testTime * 1e9);
+            long testEndTime = startTime + (long) (arguments.testTime * 1e9);
             Thread shutdownHookThread = addShutdownHook(() -> {
-                if (!this.isDisableTransaction) {
+                if (!arguments.isDisableTransaction) {
                     printTxnAggregatedThroughput(startTime);
                 } else {
                     printAggregatedThroughput(startTime);
@@ -319,10 +237,10 @@ public abstract class PerformanceTransactionBase<ClientT, ProducerT, ConsumerT, 
             // start perf test
             AtomicBoolean executing = new AtomicBoolean(true);
 
-            RateLimiter rateLimiter = this.openTxnRate > 0
-                    ? RateLimiter.create(this.openTxnRate)
+            RateLimiter rateLimiter = arguments.openTxnRate > 0
+                    ? RateLimiter.create(arguments.openTxnRate)
                     : null;
-            for (int i = 0; i < this.numTestThreads; i++) {
+            for (int i = 0; i < arguments.numTestThreads; i++) {
                 executorService.submit(() -> runWorker(client, payloadBytes, executorService, executing,
                         rateLimiter, testEndTime));
             }
@@ -356,7 +274,7 @@ public abstract class PerformanceTransactionBase<ClientT, ProducerT, ConsumerT, 
                 double rate = numTxnOpSuccess.sumThenReset() / elapsed;
                 reportSendHistogram = messageSendRecorder.getIntervalHistogram(reportSendHistogram);
                 reportAckHistogram = messageAckRecorder.getIntervalHistogram(reportAckHistogram);
-                String label = !this.isDisableTransaction
+                String label = !arguments.isDisableTransaction
                         ? "Throughput transaction" : "Throughput task";
                 log.infof("%s: %7d --- %7.3f/s"
                                 + " --- SendLatency: mean: %7.3f ms - med: %7.3f"
@@ -410,7 +328,7 @@ public abstract class PerformanceTransactionBase<ClientT, ProducerT, ConsumerT, 
         try {
             producers = buildProducers(client);
             consumers = buildConsumers(client);
-            if (!this.isDisableTransaction) {
+            if (!arguments.isDisableTransaction) {
                 atomicReference = new AtomicReference<>(newTransaction(client));
             } else {
                 atomicReference = new AtomicReference<>(null);
@@ -427,11 +345,11 @@ public abstract class PerformanceTransactionBase<ClientT, ProducerT, ConsumerT, 
         }
 
         while (!Thread.currentThread().isInterrupted()) {
-            if (this.numTransactions > 0) {
+            if (arguments.numTransactions > 0) {
                 if (totalNumTxnOpenTxnFail.sum()
-                        + totalNumTxnOpenTxnSuccess.sum() >= this.numTransactions) {
+                        + totalNumTxnOpenTxnSuccess.sum() >= arguments.numTransactions) {
                     if (totalNumEndTxnOpFailed.sum()
-                            + totalNumEndTxnOpSuccess.sum() < this.numTransactions) {
+                            + totalNumEndTxnOpSuccess.sum() < arguments.numTransactions) {
                         continue;
                     }
                     log.info("------------------- DONE -----------------------");
@@ -441,7 +359,7 @@ public abstract class PerformanceTransactionBase<ClientT, ProducerT, ConsumerT, 
                     break;
                 }
             }
-            if (this.testTime > 0) {
+            if (arguments.testTime > 0) {
                 if (System.nanoTime() > testEndTime) {
                     log.info("------------------- DONE -----------------------");
                     executing.compareAndSet(true, false);
@@ -453,7 +371,7 @@ public abstract class PerformanceTransactionBase<ClientT, ProducerT, ConsumerT, 
             TxnT transaction = atomicReference.get();
             for (List<ConsumerT> subscriptions : consumers) {
                 for (ConsumerT consumer : subscriptions) {
-                    for (int j = 0; j < this.numMessagesReceivedPerTransaction; j++) {
+                    for (int j = 0; j < arguments.numMessagesReceivedPerTransaction; j++) {
                         MessageT message;
                         try {
                             message = receive(consumer);
@@ -476,7 +394,7 @@ public abstract class PerformanceTransactionBase<ClientT, ProducerT, ConsumerT, 
             // awaitSendsBeforeEndingTransaction() is on, so the commit never races the sends.
             List<CompletableFuture<?>> pendingSends = new ArrayList<>();
             for (ProducerT producer : producers) {
-                for (int j = 0; j < this.numMessagesProducedPerTransaction; j++) {
+                for (int j = 0; j < arguments.numMessagesProducedPerTransaction; j++) {
                     pendingSends.add(sendAndRecord(producer, payloadBytes, transaction));
                 }
             }
@@ -498,7 +416,7 @@ public abstract class PerformanceTransactionBase<ClientT, ProducerT, ConsumerT, 
             if (rateLimiter != null) {
                 rateLimiter.tryAcquire();
             }
-            if (!this.isDisableTransaction) {
+            if (!arguments.isDisableTransaction) {
                 endTransaction(transaction);
                 openNextTransaction(client, atomicReference, transaction);
             } else {
@@ -567,7 +485,7 @@ public abstract class PerformanceTransactionBase<ClientT, ProducerT, ConsumerT, 
 
     /** End the transaction according to {@code -abort}, counting the outcome. */
     private void endTransaction(TxnT transaction) {
-        final boolean abort = this.isAbortTransaction;
+        final boolean abort = arguments.isAbortTransaction;
         final Thread workerThread = Thread.currentThread();
         CompletableFuture<Void> endFuture = abort ? abortTransaction(transaction) : commitTransaction(transaction);
         endFuture.thenRun(() -> {
@@ -608,13 +526,13 @@ public abstract class PerformanceTransactionBase<ClientT, ProducerT, ConsumerT, 
     }
 
     private List<List<ConsumerT>> buildConsumers(ClientT client) throws Exception {
-        List<List<ConsumerT>> consumers = new ArrayList<>(this.consumerTopic.size());
-        for (String topic : this.consumerTopic) {
+        List<List<ConsumerT>> consumers = new ArrayList<>(arguments.consumerTopic.size());
+        for (String topic : arguments.consumerTopic) {
             final List<CompletableFuture<ConsumerT>> subscriptionFutures =
-                    new ArrayList<>(this.numSubscriptions);
+                    new ArrayList<>(arguments.numSubscriptions);
             log.info().attr("topic", topic).log("Create subscriptions for topic");
-            for (int j = 0; j < this.numSubscriptions; j++) {
-                subscriptionFutures.add(subscribeAsync(client, topic, this.subscriptions.get(j)));
+            for (int j = 0; j < arguments.numSubscriptions; j++) {
+                subscriptionFutures.add(subscribeAsync(client, topic, arguments.subscriptions.get(j)));
             }
             final List<ConsumerT> subscriptions = new ArrayList<>(subscriptionFutures.size());
             for (CompletableFuture<ConsumerT> future : subscriptionFutures) {
@@ -627,7 +545,7 @@ public abstract class PerformanceTransactionBase<ClientT, ProducerT, ConsumerT, 
 
     private List<ProducerT> buildProducers(ClientT client) throws Exception {
         final List<CompletableFuture<ProducerT>> producerFutures = new ArrayList<>();
-        for (String topic : this.producerTopic) {
+        for (String topic : arguments.producerTopic) {
             log.info().attr("topic", topic).log("Create producer for topic");
             producerFutures.add(createProducerAsync(client, topic));
         }

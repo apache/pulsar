@@ -46,16 +46,12 @@ public class PulsarPerfTestTool {
 
     @VisibleForTesting
     String[] initCommander(String[] args) throws Exception {
+        // produce, consume, transaction and read pick the v4 or the V5 client from the topic domain
+        // (topic:// means V5), and --client-api overrides that choice.
         commandMap.put("produce", PerformanceProducer.class);
         commandMap.put("consume", PerformanceConsumer.class);
         commandMap.put("transaction", PerformanceTransaction.class);
         commandMap.put("read", PerformanceReader.class);
-        // The same benchmarks driven by the v4 (pulsar-client-original) client, for measuring the v4
-        // client and non-scalable topics without the V5 SDK in the path.
-        commandMap.put("produce-v4", PerformanceProducerV4.class);
-        commandMap.put("consume-v4", PerformanceConsumerV4.class);
-        commandMap.put("transaction-v4", PerformanceTransactionV4.class);
-        commandMap.put("read-v4", PerformanceReaderV4.class);
         commandMap.put("monitor-brokers", BrokerMonitor.class);
         commandMap.put("websocket-producer", PerformanceClient.class);
         commandMap.put("managed-ledger", ManagedLedgerWriter.class);

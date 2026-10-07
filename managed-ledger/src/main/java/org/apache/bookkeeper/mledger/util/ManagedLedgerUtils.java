@@ -37,6 +37,12 @@ import org.jspecify.annotations.Nullable;
  * API, if any exception is thrown in future's callback (e.g. `thenApply`), the future will eventually be completed
  * exceptionally. In addition, future-based API is easier for users to switch a different executor to execute the
  * callback (e.g. `thenApplyAsync`).
+ *
+ * <p>The read adapters complete their futures directly from {@link AsyncCallbacks.ReadEntriesCallback}, without
+ * an executor handoff. Non-async continuations may run on the completing thread, or on the attaching thread when the
+ * future is already complete. Use an async continuation with an explicit executor when thread affinity is required;
+ * do not block a read-completion thread. Adapting a cursor read to a future does not serialize overlapping reads or
+ * transfer responsibility for releasing the returned entries away from the caller.
  */
 @InterfaceStability.Evolving
 public class ManagedLedgerUtils {

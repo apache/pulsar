@@ -109,6 +109,13 @@ OPTS="-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager $OPTS"
 if [[ $JAVA_MAJOR_VERSION -ge 23 ]]; then
   OPTS="--sun-misc-unsafe-memory-access=allow $OPTS"
 fi
+# Use compact object headers (JEP 519, https://openjdk.org/jeps/519), which shrink object headers from 12 to 8 bytes
+# and so reduce heap usage and improve cache locality. They are a product feature since JDK 25 and the default from
+# JDK 27 on (JEP 534, https://openjdk.org/jeps/534). The option is prepended so that the configured options can
+# override it with -XX:-UseCompactObjectHeaders.
+if [[ $JAVA_MAJOR_VERSION -eq 25 || $JAVA_MAJOR_VERSION -eq 26 ]]; then
+  OPTS="-XX:+UseCompactObjectHeaders $OPTS"
+fi
 
 # Allow Netty to use reflection access
 OPTS="$OPTS -Dio.netty.tryReflectionSetAccessible=true"
@@ -157,6 +164,10 @@ OPTS="-XX:+ExitOnOutOfMemoryError -Dpulsar.allocator.exit_on_oom=true $OPTS"
 # Thus, increasing io.netty.allocator.maxOrder to 10 to ensure that a single message is larger
 # than chunk size (8MB) and can reuse Netty's memory pool.
 OPTS="-Dio.netty.recycler.maxCapacityPerThread=4096 -Dio.netty.allocator.maxOrder=10 $OPTS"
+
+# Disable Netty's leak detection by default, as bin/pulsar does, since it costs CPU on the hot paths;
+# -Dio.netty.leakDetection.level in PULSAR_EXTRA_OPTS, which comes later on the command line, overrides it.
+OPTS="-Dio.netty.leakDetection.level=disabled $OPTS"
 
 OPTS="-cp $PULSAR_CLASSPATH $OPTS"
 # Apply PULSAR_MEM and PULSAR_GC when the caller set them. Unlike conf/pulsar_tools_env.sh, which

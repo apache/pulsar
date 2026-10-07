@@ -32,6 +32,7 @@ import org.apache.bookkeeper.stream.storage.impl.cluster.ZkClusterInitializer;
 import org.apache.bookkeeper.util.BookKeeperConstants;
 import org.apache.commons.configuration2.convert.DisabledListDelimiterHandler;
 import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.TenantResources;
@@ -67,7 +68,20 @@ import picocli.CommandLine.ScopeType;
 @CustomLog
 public class PulsarClusterMetadataSetup {
 
-    private static final int DEFAULT_BUNDLE_NUMBER = 16;
+    /**
+     * Number of bundles for the namespaces this tool creates when none is given (public/default and the namespaces
+     * of {@code initialize-namespace}). It is the default of {@code defaultNumberOfNamespaceBundles} in the broker
+     * configuration so that a namespace gets the same number of bundles whichever way it is created.
+     */
+    public static final int DEFAULT_BUNDLE_NUMBER = ServiceConfiguration.DEFAULT_NUMBER_OF_NAMESPACE_BUNDLES;
+
+    /**
+     * Number of bundles for the {@code pulsar/system} namespace when none is given. It is the default of
+     * {@code defaultNumberOfSystemNamespaceBundles} in the broker configuration, which applies when the broker or
+     * pulsar standalone creates the namespace instead of this tool.
+     */
+    public static final int SYSTEM_NAMESPACE_BUNDLE_NUMBER =
+            ServiceConfiguration.DEFAULT_NUMBER_OF_SYSTEM_NAMESPACE_BUNDLES;
 
     @Command(name = "initialize-cluster-metadata", showDefaultValues = true, scope = ScopeType.INHERIT)
     private static class Arguments {
@@ -76,9 +90,17 @@ public class PulsarClusterMetadataSetup {
 
         @Option(names = {"-bn",
                 "--default-namespace-bundle-number"},
-                description = "The bundle numbers for the default namespaces(public/default), default is 16",
+                description = "The bundle numbers for the default namespaces(public/default), default is "
+                        + DEFAULT_BUNDLE_NUMBER,
                 required = false)
         private int numberOfDefaultNamespaceBundles;
+
+        @Option(names = {"-sbn",
+                "--system-namespace-bundle-number"},
+                description = "The bundle numbers for the system namespace (pulsar/system), default is "
+                        + SYSTEM_NAMESPACE_BUNDLE_NUMBER,
+                required = false)
+        private int numberOfSystemNamespaceBundles;
 
         @Option(names = {"-uw",
                 "--web-service-url"}, description = "Web-service URL for new cluster", required = true)
@@ -284,15 +306,19 @@ public class PulsarClusterMetadataSetup {
         int bundleNumberForDefaultNamespace =
                 arguments.numberOfDefaultNamespaceBundles > 0 ? arguments.numberOfDefaultNamespaceBundles
                         : DEFAULT_BUNDLE_NUMBER;
+        int bundleNumberForSystemNamespace =
+                arguments.numberOfSystemNamespaceBundles > 0 ? arguments.numberOfSystemNamespaceBundles
+                        : SYSTEM_NAMESPACE_BUNDLE_NUMBER;
         try {
-            initializeCluster(arguments, bundleNumberForDefaultNamespace);
+            initializeCluster(arguments, bundleNumberForDefaultNamespace, bundleNumberForSystemNamespace);
         } catch (Exception e) {
             log.error().exception(e).log("Unexpected error during cluster metadata initialization");
             throw e;
         }
     }
 
-    private static void initializeCluster(Arguments arguments, int bundleNumberForDefaultNamespace) throws Exception {
+    private static void initializeCluster(Arguments arguments, int bundleNumberForDefaultNamespace,
+                                          int bundleNumberForSystemNamespace) throws Exception {
         log.info()
                 .attr("cluster", arguments.cluster)
                 .attr("metadataStoreUrl", arguments.metadataStoreUrl)
@@ -394,7 +420,8 @@ public class PulsarClusterMetadataSetup {
                 arguments.cluster, bundleNumberForDefaultNamespace);
 
         // Create system namespace
-        createNamespaceIfAbsent(resources, NamespaceName.SYSTEM_NAMESPACE, arguments.cluster);
+        createNamespaceIfAbsent(resources, NamespaceName.SYSTEM_NAMESPACE, arguments.cluster,
+                bundleNumberForSystemNamespace);
 
         // Create transaction coordinator assign partitioned topic
         createPartitionedTopic(configStore, SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,

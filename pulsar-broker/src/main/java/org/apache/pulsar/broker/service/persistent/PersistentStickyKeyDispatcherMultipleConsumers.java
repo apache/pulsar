@@ -30,7 +30,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import lombok.Getter;
 import org.apache.bookkeeper.mledger.Entry;
@@ -80,7 +79,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     PersistentStickyKeyDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor,
             Subscription subscription, ServiceConfiguration conf, KeySharedMeta ksm) {
         this(topic, cursor, subscription, conf, ksm, createSelector(ksm, conf),
-                // recent joined consumer tracking is required only for AUTO_SPLIT mode when
+                // per-hash draining tracking is required only for AUTO_SPLIT mode when
                 // out-of-order delivery is disabled
                 ksm.getKeySharedMode() == KeySharedMode.AUTO_SPLIT && !ksm.isAllowOutOfOrderDelivery());
     }
@@ -314,7 +313,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         final Map<Consumer, List<Entry>> entriesByConsumerForDispatching =
                 filterAndGroupEntriesForDispatching(entries, readType, triggerLookAhead);
 
-        AtomicInteger remainingConsumersToFinishSending = new AtomicInteger(entriesByConsumerForDispatching.size());
         for (Map.Entry<Consumer, List<Entry>> current : entriesByConsumerForDispatching.entrySet()) {
             Consumer consumer = current.getKey();
             List<Entry> entriesForConsumer = current.getValue();
@@ -336,17 +334,19 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             totalEntries += filterEntriesForConsumer(entriesForConsumer, batchSizes, sendMessageInfo,
                     batchIndexesAcks, cursor, readType == ReadType.Replay, consumer);
             totalEntriesProcessed += entriesForConsumer.size();
+            // read before sendMessages: it hands batchIndexesAcks to the consumer's event loop, which recycles it
+            int totalAckedIndexCount = batchIndexesAcks.getTotalAckedIndexCount();
             consumer.sendMessages(entriesForConsumer, batchSizes, batchIndexesAcks,
                     sendMessageInfo.getTotalMessages(),
                     sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
                     getRedeliveryTracker()).addListener(future -> {
-                if (future.isDone() && remainingConsumersToFinishSending.decrementAndGet() == 0) {
-                    readMoreEntriesAsync();
-                }
+                // One blocked socket must not hold up consumers whose writes have completed.
+                // The conflated read loop rechecks writability and permits before selecting a consumer.
+                readMoreEntriesAsync();
             });
 
             TOTAL_AVAILABLE_PERMITS_UPDATER.getAndAdd(this,
-                    -(sendMessageInfo.getTotalMessages() - batchIndexesAcks.getTotalAckedIndexCount()));
+                    -(sendMessageInfo.getTotalMessages() - totalAckedIndexCount));
             totalMessagesSent += sendMessageInfo.getTotalMessages();
             totalBytesSent += sendMessageInfo.getTotalBytes();
         }
@@ -722,8 +722,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     }
 
     private int getAvailablePermits(Consumer c) {
-        // skip consumers that are currently closing
-        if (!c.cnx().isActive()) {
+        // A writable notification resumes dispatch when this consumer can accept another batch.
+        if (!c.cnx().isActive() || !c.isWritable()) {
             return 0;
         }
         int availablePermits = Math.max(c.getAvailablePermits(), 0);
