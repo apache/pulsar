@@ -304,10 +304,13 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
                     if (optRes.isEmpty() || !optRes.get().getStat().isCreatedBySelf()) {
                         return CompletableFuture.completedFuture(null);
                     }
-                    return store.delete(path, Optional.empty())
+                    return store.delete(path, Optional.of(optRes.get().getStat().getVersion()))
                             .exceptionally(ex -> {
-                                if (FutureUtil.unwrapCompletionException(ex) instanceof NotFoundException) {
-                                    // The node was deleted between our get and this delete
+                                Throwable t = FutureUtil.unwrapCompletionException(ex);
+                                if (t instanceof NotFoundException || t instanceof BadVersionException) {
+                                    // The node is no longer the one we read: it was deleted, or re-created
+                                    // by another participant with a higher version, between our get() and
+                                    // this delete().
                                     return null;
                                 }
                                 throw FutureUtil.wrapToCompletionException(ex);
