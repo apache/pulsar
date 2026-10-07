@@ -360,6 +360,16 @@ public class SubscriptionCoordinator {
     }
 
     /**
+     * Whether this subscription's consumers can share a segment by entry-bucket: it is a STREAM
+     * subscription (it has a drain checker, installed at creation or on its first STREAM register)
+     * and not a checkpoint group. False on the controller-failover restore path until the first
+     * member registers, since the consumer type is not persisted and it may be a checkpoint group.
+     */
+    synchronized boolean canShareSegmentsByEntryBucket() {
+        return drainChecker != null && !checkpointGroup;
+    }
+
+    /**
      * Stop the periodic drain-status poller. Called by the controller on close. Idempotent.
      * Also flips a {@code closed} flag so any {@link #pollDrainStatus()} iteration that's
      * mid-flight aborts its rearm step instead of leaking a task into the executor.

@@ -24,6 +24,7 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.apache.pulsar.common.scalable.SegmentInfo;
 import org.apache.pulsar.common.scalable.SegmentLoadStats;
 import org.testng.annotations.Test;
@@ -89,12 +90,21 @@ public class AutoScalePolicyEvaluatorTest {
         return Duration.ofMinutes(10).toMillis();
     }
 
+    /** Every subscription in {@code consumers} is a stream one, able to share segments by bucket. */
     private static AutoScaleDecision decide(SegmentLayout layout,
                                             Map<Long, SegmentLoadSample> load,
                                             Map<String, Integer> consumers,
                                             AutoScaleConfig config) {
-        return AutoScalePolicyEvaluator.decide(layout, load, consumers, config, NOW,
-                NO_PRIOR, NO_PRIOR, NO_PRIOR);
+        return decide(layout, load, consumers, consumers.keySet(), config);
+    }
+
+    private static AutoScaleDecision decide(SegmentLayout layout,
+                                            Map<Long, SegmentLoadSample> load,
+                                            Map<String, Integer> consumers,
+                                            Set<String> bucketSharingSubscriptions,
+                                            AutoScaleConfig config) {
+        return AutoScalePolicyEvaluator.decide(layout, load, consumers, bucketSharingSubscriptions,
+                config, NOW, NO_PRIOR, NO_PRIOR, NO_PRIOR);
     }
 
     // --- enable switch ---
@@ -162,7 +172,7 @@ public class AutoScalePolicyEvaluatorTest {
                 0L, sample(1_500, 0, 0, 0, 0), 1L, sample(2_000, 0, 0, 0, 0));
         long recentSplit = NOW - Duration.ofSeconds(30).toMillis(); // < 1m cooldown
         AutoScaleDecision d = AutoScalePolicyEvaluator.decide(layout, load, Map.of("sub", 3),
-                baseConfig().build(), NOW, recentSplit, NO_PRIOR, NO_PRIOR);
+                Set.of("sub"), baseConfig().build(), NOW, recentSplit, NO_PRIOR, NO_PRIOR);
         assertTrue(d instanceof AutoScaleDecision.NoAction, "within split cooldown, no split");
     }
 
@@ -198,7 +208,7 @@ public class AutoScalePolicyEvaluatorTest {
         Map<Long, SegmentLoadSample> load = Map.of(0L, cold(0));
         long recentRebucket = NOW - Duration.ofSeconds(30).toMillis(); // < 1m cooldown
         AutoScaleDecision d = AutoScalePolicyEvaluator.decide(layout, load, Map.of("sub", 5),
-                baseConfig().build(), NOW, NO_PRIOR, NO_PRIOR, recentRebucket);
+                Set.of("sub"), baseConfig().build(), NOW, NO_PRIOR, NO_PRIOR, recentRebucket);
         assertTrue(d instanceof AutoScaleDecision.NoAction, "within rebucket cooldown");
     }
 
@@ -256,6 +266,53 @@ public class AutoScalePolicyEvaluatorTest {
         assertEquals(r.segmentIds(), List.of(1L, 2L, 3L),
                 "only the below-target segments roll; the already-at-target one is untouched");
         assertEquals(r.newBucketCount(), 4);
+    }
+
+    // --- consumer-driven scale-up for checkpoint groups (whole segments only) ---
+
+    @Test
+    public void testCheckpointGroupSurplusNeverRebuckets() {
+        // A checkpoint group's members each read whole segments, so more buckets would add no
+        // parallelism for it. Its surplus must not roll a segment over below the split floor…
+        SegmentLayout layout = initialLayout(1); // 1 segment × 4 buckets
+        Map<Long, SegmentLoadSample> load = Map.of(0L, cold(0));
+        AutoScaleDecision d = decide(layout, load, Map.of("group", 5), Set.of(),
+                baseConfig().build());
+        assertTrue(d instanceof AutoScaleDecision.NoAction, d.toString());
+
+        // …nor at the segment cap.
+        SegmentLayout atCap = initialLayout(2); // 2 segments × 2 buckets
+        Map<Long, SegmentLoadSample> atCapLoad = Map.of(0L, cold(0), 1L, cold(0));
+        AutoScaleDecision none = decide(atCap, atCapLoad, Map.of("group", 5), Set.of(),
+                baseConfig().maxSegments(2).build());
+        assertTrue(none instanceof AutoScaleDecision.NoAction, none.toString());
+    }
+
+    @Test
+    public void testCheckpointGroupSurplusStillSplits() {
+        // Above the split floor a new segment is one more member the group can keep busy.
+        SegmentLayout layout = initialLayout(2);
+        Map<Long, SegmentLoadSample> load = Map.of(
+                0L, sample(1_500, 0, 0, 0, old()),
+                1L, sample(2_000, 0, 0, 0, old()));
+        AutoScaleDecision d = decide(layout, load, Map.of("group", 3), Set.of(),
+                baseConfig().build());
+        assertTrue(d instanceof AutoScaleDecision.Split, d.toString());
+        AutoScaleDecision.Split s = (AutoScaleDecision.Split) d;
+        assertEquals(s.segmentId(), 1L);
+        assertEquals(s.reason(), "consumer-count");
+    }
+
+    @Test
+    public void testRebucketTargetIgnoresCheckpointGroups() {
+        // A stream subscription of 5 beside a checkpoint group of 9 on one cold N=4 segment: the
+        // rollover is sized to the stream consumers (5 → 8), not to the group (9 → 16).
+        SegmentLayout layout = initialLayout(1);
+        Map<Long, SegmentLoadSample> load = Map.of(0L, cold(0));
+        AutoScaleDecision d = decide(layout, load, Map.of("group", 9, "sub", 5), Set.of("sub"),
+                baseConfig().build());
+        assertTrue(d instanceof AutoScaleDecision.Rebucket, d.toString());
+        assertEquals(((AutoScaleDecision.Rebucket) d).newBucketCount(), 8);
     }
 
     // --- load-driven split ---
@@ -355,9 +412,22 @@ public class AutoScalePolicyEvaluatorTest {
         Map<Long, SegmentLoadSample> load = Map.of(0L, cold(old()), 1L, cold(old()));
         long recentRebucket = NOW - Duration.ofSeconds(30).toMillis(); // < 1m rebucketCooldown
         AutoScaleDecision d = AutoScalePolicyEvaluator.decide(layout, load, Map.of("sub", 20),
-                baseConfig().maxEntryBucketsPerSegment(8).build(), NOW, NO_PRIOR, NO_PRIOR,
-                recentRebucket);
+                Set.of("sub"), baseConfig().maxEntryBucketsPerSegment(8).build(), NOW, NO_PRIOR,
+                NO_PRIOR, recentRebucket);
         assertTrue(d instanceof AutoScaleDecision.Merge, d.toString());
+    }
+
+    @Test
+    public void testMergeGuardAlsoCountsSubscriptionsThatCannotShareBuckets() {
+        // The at-ceiling pair of testMergeSkippedWhenClampWouldCutLiveParallelism, with a
+        // subscription outside the bucket-sharing set: it still vetoes the merge, because a
+        // subscription restored on failover may turn out to be a stream one once its type is known.
+        SegmentLayout layout = SegmentLayout.fromMetadata(
+                ScalableTopicController.createInitialMetadata(2, 16, Map.of()));
+        Map<Long, SegmentLoadSample> load = Map.of(0L, cold(old()), 1L, cold(old()));
+        AutoScaleDecision d = decide(layout, load, Map.of("sub", 12), Set.of(),
+                baseConfig().maxEntryBucketsPerSegment(8).build());
+        assertTrue(d instanceof AutoScaleDecision.NoAction, d.toString());
     }
 
     @Test
@@ -374,7 +444,7 @@ public class AutoScalePolicyEvaluatorTest {
         Map<Long, SegmentLoadSample> load = Map.of(0L, cold(old()), 1L, cold(old()));
         long recentMerge = NOW - Duration.ofMinutes(1).toMillis(); // < 5m cooldown
         AutoScaleDecision d = AutoScalePolicyEvaluator.decide(layout, load, Map.of(),
-                baseConfig().build(), NOW, NO_PRIOR, recentMerge, NO_PRIOR);
+                Set.of(), baseConfig().build(), NOW, NO_PRIOR, recentMerge, NO_PRIOR);
         assertTrue(d instanceof AutoScaleDecision.NoAction, "within merge cooldown, no merge");
     }
 

@@ -23,10 +23,12 @@ import io.github.merlimat.slog.Logger;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
@@ -390,10 +392,11 @@ public class ScalableTopicController {
                         if (!config.enabled()) {
                             return CompletableFuture.<Void>completedFuture(null);
                         }
+                        Set<String> bucketSharing = bucketSharingSubscriptions();
                         return collectConsumerCounts()
                                 .thenCombine(collectLoadSamples(), (consumers, load) ->
                                         AutoScalePolicyEvaluator.decide(currentLayout, load,
-                                                consumers, config, clock.millis(),
+                                                consumers, bucketSharing, config, clock.millis(),
                                                 lastSplitAtMs, lastMergeAtMs, lastRebucketAtMs))
                                 .thenCompose(decision -> dispatch(decision, config, trigger));
                     })
@@ -525,6 +528,22 @@ public class ScalableTopicController {
         subscriptions.forEach((name, coordinator) ->
                 counts.put(name, coordinator.getConsumers().size()));
         return CompletableFuture.completedFuture(counts);
+    }
+
+    /**
+     * The controller-managed subscriptions whose consumers can share a segment by entry-bucket
+     * (see {@link SubscriptionCoordinator#canShareSegmentsByEntryBucket}). Only these count toward
+     * a rebucket rollover; a checkpoint group, or a subscription restored on failover whose
+     * consumer type is not known yet, counts toward a split only.
+     */
+    private Set<String> bucketSharingSubscriptions() {
+        Set<String> names = new HashSet<>();
+        subscriptions.forEach((name, coordinator) -> {
+            if (coordinator.canShareSegmentsByEntryBucket()) {
+                names.add(name);
+            }
+        });
+        return names;
     }
 
     /** Read the load record (value + Stat modified time) for every active segment. */

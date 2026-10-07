@@ -548,6 +548,19 @@ public class SubscriptionCoordinatorTest {
         assertTrue(findByName(result, "consumer-3").assignedSegments().isEmpty());
     }
 
+    @Test
+    public void testOnlyAStreamSubscriptionCanShareSegmentsByEntryBucket() {
+        // No drain checker: the consumer type is unknown (e.g. restored on failover), and the
+        // subscription may be a checkpoint group.
+        assertFalse(coordinator.canShareSegmentsByEntryBucket());
+        // A STREAM register installs the drain checker.
+        coordinator.installDrainChecker((segment, sub) -> CompletableFuture.completedFuture(true));
+        assertTrue(coordinator.canShareSegmentsByEntryBucket());
+        // Once marked as a checkpoint group, the subscription gets whole segments only.
+        coordinator.markCheckpointGroup();
+        assertFalse(coordinator.canShareSegmentsByEntryBucket());
+    }
+
     private SubscriptionCoordinator bucketedCoordinator() {
         // One segment carrying the whole default budget: N = 4 entry-buckets.
         return new SubscriptionCoordinator("test-sub", topicName,
