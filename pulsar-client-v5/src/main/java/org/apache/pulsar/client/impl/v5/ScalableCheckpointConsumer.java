@@ -358,7 +358,7 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
      * Replace a latest start position with the segment's last message id, looked up through a reader
      * opened only for that. A reader attached at latest starts after the segment's last message at that
      * moment, which a lookup made once it is attached can't tell apart from a message published in
-     * between, and it starts after the new latest if it reconnects before reading anything. A reader
+     * between, and it starts after the new latest if it reconnects before receiving anything. A reader
      * attached after a known position starts exactly there.
      */
     private CompletableFuture<Void> resolveLatestStartAsync(ReaderConfigurationData<T> segConf) {
