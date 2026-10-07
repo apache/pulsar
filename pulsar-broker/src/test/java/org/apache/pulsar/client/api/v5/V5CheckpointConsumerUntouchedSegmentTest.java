@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api.v5;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -68,8 +69,9 @@ public class V5CheckpointConsumerUntouchedSegmentTest extends V5ClientBaseTest {
         first.close();
 
         // Another group, so the restored consumer is assigned every segment right away.
+        String resumedGroup = group != null ? group + "-resumed" : null;
         @Cleanup
-        CheckpointConsumer<String> resumed = newConsumer(topic, checkpoint, group != null ? group + "-resumed" : null);
+        CheckpointConsumer<String> resumed = newConsumer(topic, stored(checkpoint), resumedGroup);
         assertThat(drain(resumed)).as("messages from before the checkpoint").isEmpty();
     }
 
@@ -86,14 +88,14 @@ public class V5CheckpointConsumerUntouchedSegmentTest extends V5ClientBaseTest {
         first.close();
 
         // Restored from the first checkpoint, the second consumer receives from one segment only.
-        CheckpointConsumer<String> second = newConsumer(topic, afterHistory, null);
+        CheckpointConsumer<String> second = newConsumer(topic, stored(afterHistory), null);
         publish(producer, "new", 1);
         assertThat(second.receive(Duration.ofSeconds(5))).extracting(Message::value).isEqualTo("new-0");
         Checkpoint chained = second.checkpoint();
         second.close();
 
         @Cleanup
-        CheckpointConsumer<String> resumed = newConsumer(topic, chained, null);
+        CheckpointConsumer<String> resumed = newConsumer(topic, stored(chained), null);
         assertThat(drain(resumed)).as("messages from before the checkpoint").isEmpty();
     }
 
@@ -113,14 +115,14 @@ public class V5CheckpointConsumerUntouchedSegmentTest extends V5ClientBaseTest {
         Awaitility.await().untilAsserted(() -> assertThat(activeSegmentIds(topic)).hasSize(2));
 
         // Restored at the end of the now sealed parent, the second consumer receives nothing from it.
-        CheckpointConsumer<String> second = newConsumer(topic, atParentEnd, null);
+        CheckpointConsumer<String> second = newConsumer(topic, stored(atParentEnd), null);
         publish(producer, "new", 1);
         assertThat(second.receive(Duration.ofSeconds(5))).extracting(Message::value).isEqualTo("new-0");
         Checkpoint chained = second.checkpoint();
         second.close();
 
         @Cleanup
-        CheckpointConsumer<String> resumed = newConsumer(topic, chained, null);
+        CheckpointConsumer<String> resumed = newConsumer(topic, stored(chained), null);
         assertThat(drain(resumed)).as("messages from before the checkpoint").isEmpty();
     }
 
@@ -163,6 +165,7 @@ public class V5CheckpointConsumerUntouchedSegmentTest extends V5ClientBaseTest {
         List<String> delivered = drain(live);
         live.close();
 
+        // Restored from the checkpoint object itself; the other tests restore from its serialized form.
         @Cleanup
         CheckpointConsumer<String> resumed = newConsumer(topic, atStart, null);
         List<String> restored = drain(resumed);
@@ -200,6 +203,11 @@ public class V5CheckpointConsumerUntouchedSegmentTest extends V5ClientBaseTest {
             builder.consumerGroup(group);
         }
         return builder.create();
+    }
+
+    /** The checkpoint as an application restores it from its external storage. */
+    private static Checkpoint stored(Checkpoint checkpoint) throws IOException {
+        return Checkpoint.fromByteArray(checkpoint.toByteArray());
     }
 
     /** Publish {@code count} messages with distinct keys, so they spread over the segments. */
