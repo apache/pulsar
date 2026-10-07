@@ -183,7 +183,7 @@ public class V5CheckpointConsumerUntouchedSegmentTest extends V5ClientBaseTest {
 
     private String newTopic(int segments) throws Exception {
         String topic = newScalableTopic(segments);
-        // Only the admin split below may change the layout.
+        // No auto-scaling: only an explicit admin split changes the layout.
         admin.scalableTopics().setAutoScalePolicy(topic,
                 AutoScalePolicyOverride.builder().enabled(false).build());
         return topic;
