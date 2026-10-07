@@ -125,6 +125,14 @@ public class SubscriptionCoordinator {
      * Once non-null it stays non-null (we don't downgrade to no-ordering mid-flight).
      */
     private SegmentDrainChecker drainChecker;
+    /**
+     * Whether this coordinator serves a CHECKPOINT consumer group. Its members read each segment
+     * through their own Reader, with no shared subscription the broker could split entry-buckets
+     * on, so a segment is only ever assigned whole, to a single member. Unknown (false) on the
+     * controller-failover restore path until the first member registers, which happens before any
+     * assignment is sent.
+     */
+    private boolean checkpointGroup;
 
     public SubscriptionCoordinator(String subscriptionName,
                                    TopicName topicName,
@@ -341,6 +349,24 @@ public class SubscriptionCoordinator {
             rebalanceAndNotify();
         }
         resetAndRearmDrainPoll();
+    }
+
+    /**
+     * Mark this coordinator as serving a CHECKPOINT consumer group (see {@link #checkpointGroup}).
+     * Called on every CHECKPOINT register, before the registration computes the assignment.
+     */
+    synchronized void markCheckpointGroup() {
+        checkpointGroup = true;
+    }
+
+    /**
+     * Whether this subscription's consumers can share a segment by entry-bucket: it is a STREAM
+     * subscription (it has a drain checker, installed at creation or on its first STREAM register)
+     * and not a checkpoint group. False on the controller-failover restore path until the first
+     * member registers, since the consumer type is not persisted and it may be a checkpoint group.
+     */
+    synchronized boolean canShareSegmentsByEntryBucket() {
+        return drainChecker != null && !checkpointGroup;
     }
 
     /**
@@ -623,9 +649,11 @@ public class SubscriptionCoordinator {
         // segments out by entry-bucket: each owner of a shared segment takes a contiguous slice of its
         // buckets and subscribes Key_Shared STICKY declaring exactly those ranges. A segment absorbs at
         // most bucketCount() consumers; consumers beyond the topic's total bucket capacity stay idle.
+        // A CHECKPOINT group never fans out: each member reads a segment through its own Reader, so a
+        // shared segment would be read in full by every sharer. Its surplus members stay idle.
         int segmentCount = sortedSegments.size();
         int consumerCount = sortedConsumers.size();
-        if (consumerCount <= segmentCount) {
+        if (consumerCount <= segmentCount || checkpointGroup) {
             int consumerIndex = 0;
             for (SegmentInfo segment : sortedSegments) {
                 TopicName segmentTopic = SegmentTopicName.fromParent(topicName, segment.hashRange(),
