@@ -298,7 +298,7 @@ flexible messaging model and an intuitive client API.</description>
     <jetcd.version>0.7.7</jetcd.version>
     <oxia.version>0.9.5</oxia.version>
     <oxia-testcontainers.version>0.7.4</oxia-testcontainers.version>
-    <slog.version>0.10.0</slog.version>
+    <slog.version>0.10.1</slog.version>
     <snakeyaml.version>2.0</snakeyaml.version>
     <ant.version>1.10.12</ant.version>
     <seancfoley.ipaddress.version>5.5.0</seancfoley.ipaddress.version>
