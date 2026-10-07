@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service.scalable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.apache.pulsar.common.scalable.SegmentInfo;
 import org.apache.pulsar.common.scalable.SegmentLoadStats;
 
@@ -57,6 +58,10 @@ public final class AutoScalePolicyEvaluator {
      *                            as zero load with no age (never merge-eligible)
      * @param streamConsumerCount per-subscription count of STREAM/CHECKPOINT (controller-managed)
      *                            consumers; QUEUE subscriptions are excluded by the caller
+     * @param bucketSharingSubscriptions the subscriptions in {@code streamConsumerCount} whose
+     *                            consumers can share a segment by entry-bucket (STREAM). The
+     *                            others (CHECKPOINT groups, and subscriptions whose consumer type
+     *                            is not known yet) count toward a consumer-driven split only
      * @param config              the resolved policy
      * @param nowMs               current wall-clock time, epoch millis
      * @param lastSplitAtMs       epoch millis of the last split on this topic (manual or auto),
@@ -69,6 +74,7 @@ public final class AutoScalePolicyEvaluator {
             SegmentLayout layout,
             Map<Long, SegmentLoadSample> loadBySegment,
             Map<String, Integer> streamConsumerCount,
+            Set<String> bucketSharingSubscriptions,
             AutoScaleConfig config,
             long nowMs,
             long lastSplitAtMs,
@@ -82,7 +88,8 @@ public final class AutoScalePolicyEvaluator {
         List<SegmentInfo> active = new ArrayList<>(layout.getActiveSegments().values());
 
         AutoScaleDecision consumerScale = tryConsumerScale(active, loadBySegment,
-                streamConsumerCount, config, nowMs, lastSplitAtMs, lastRebucketAtMs);
+                streamConsumerCount, bucketSharingSubscriptions, config, nowMs, lastSplitAtMs,
+                lastRebucketAtMs);
         if (!(consumerScale instanceof AutoScaleDecision.NoAction)) {
             return consumerScale;
         }
@@ -110,13 +117,16 @@ public final class AutoScalePolicyEvaluator {
      *       roll the smallest-bucketed segment over to the smallest power of two that lets
      *       every consumer own a bucket, capped at {@code maxEntryBucketsPerSegment}.
      *       Raising is fast (one rollover sized to the surplus); lowering is deliberately
-     *       not automated here — spiky consumer counts must not flap the bucketing.</li>
+     *       not automated here — spiky consumer counts must not flap the bucketing. Only
+     *       bucket-sharing subscriptions count here: a checkpoint group's members each read
+     *       whole segments, so more buckets add no parallelism for it, only smaller batches.</li>
      * </ul>
      */
     private static AutoScaleDecision tryConsumerScale(
             List<SegmentInfo> active,
             Map<Long, SegmentLoadSample> loadBySegment,
             Map<String, Integer> streamConsumerCount,
+            Set<String> bucketSharingSubscriptions,
             AutoScaleConfig config,
             long nowMs,
             long lastSplitAtMs,
@@ -145,12 +155,15 @@ public final class AutoScalePolicyEvaluator {
             return new AutoScaleDecision.Split(busiest.segmentId(), "consumer-count");
         }
 
-        // Bucket lane: absorb the surplus with entry-buckets.
+        // Bucket lane: absorb the bucket-sharing subscriptions' surplus with entry-buckets.
+        int bucketConsumers = streamConsumerCount.entrySet().stream()
+                .filter(e -> bucketSharingSubscriptions.contains(e.getKey()))
+                .mapToInt(Map.Entry::getValue).max().orElse(0);
         long capacity = 0;
         for (SegmentInfo segment : active) {
             capacity += segment.bucketCount();
         }
-        if (consumers <= capacity) {
+        if (bucketConsumers <= capacity) {
             // The existing buckets already absorb the surplus (broker-side fan-out).
             return AutoScaleDecision.NONE;
         }
@@ -160,7 +173,7 @@ public final class AutoScalePolicyEvaluator {
         // One shot: bring every segment below the common per-segment target up to it in a
         // single decision, so the topic converges to a uniform bucketing in one evaluation —
         // never one segment per cooldown, and no arrival-history-dependent skew.
-        int target = Math.min(nextPowerOfTwo(ceilDiv(consumers, segments)),
+        int target = Math.min(nextPowerOfTwo(ceilDiv(bucketConsumers, segments)),
                 config.maxEntryBucketsPerSegment());
         List<Long> below = new ArrayList<>();
         for (SegmentInfo segment : active) {
@@ -253,7 +266,9 @@ public final class AutoScalePolicyEvaluator {
         // and the rebucket lane cannot grow past the ceiling to recover it. Skip any pair
         // whose merge would leave less capacity than the parallelism consumers get today:
         // min(consumers, capacity), so an already over-subscribed topic can still take a
-        // capacity-preserving merge, and an idle one can always consolidate.
+        // capacity-preserving merge, and an idle one can always consolidate. Every subscription
+        // counts, not only the bucket-sharing ones: the guard can only veto a merge, and one whose
+        // consumer type is not known yet (restored on failover) may turn out to share buckets.
         int consumers = streamConsumerCount.values().stream()
                 .mapToInt(Integer::intValue).max().orElse(0);
         long totalCapacity = 0;
