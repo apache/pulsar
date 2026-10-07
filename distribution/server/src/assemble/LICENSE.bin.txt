@@ -277,7 +277,7 @@ The Apache Software License, Version 2.0
  * Netty Reactive Streams -- com.typesafe.netty-netty-reactive-streams-2.0.19.jar
  * Swagger
     - io.swagger.core.v3-swagger-annotations-jakarta-2.2.53.jar
- * slog -- io.github.merlimat.slog-slog-0.10.0.jar
+ * slog -- io.github.merlimat.slog-slog-0.10.1.jar
  * DataSketches
     - org.apache.datasketches-datasketches-java-7.0.1.jar
     - org.apache.datasketches-datasketches-memory-4.1.0.jar

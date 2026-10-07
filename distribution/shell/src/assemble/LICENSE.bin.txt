@@ -395,7 +395,7 @@ The Apache Software License, Version 2.0
     - opentelemetry-common-1.65.0.jar
     - opentelemetry-context-1.65.0.jar
   * Slog
-    - slog-0.10.0.jar
+    - slog-0.10.1.jar
 
  * BookKeeper
     - bookkeeper-common-allocator-4.18.1.jar
