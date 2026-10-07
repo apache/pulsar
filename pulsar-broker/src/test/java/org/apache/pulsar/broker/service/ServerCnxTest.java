@@ -60,6 +60,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -77,6 +78,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -120,6 +122,9 @@ import org.apache.pulsar.broker.namespace.TopicExistsInfo;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.ServerCnx.State;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.scalable.ConsumerAssignment;
+import org.apache.pulsar.broker.service.scalable.ConsumerSession;
+import org.apache.pulsar.broker.service.scalable.ScalableTopicService;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.utils.ClientChannelHelper;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
@@ -150,6 +155,7 @@ import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse;
 import org.apache.pulsar.common.api.proto.CommandPing;
 import org.apache.pulsar.common.api.proto.CommandProducerSuccess;
+import org.apache.pulsar.common.api.proto.CommandScalableTopicAssignmentUpdate;
 import org.apache.pulsar.common.api.proto.CommandScalableTopicSubscribeResponse;
 import org.apache.pulsar.common.api.proto.CommandScalableTopicUpdate;
 import org.apache.pulsar.common.api.proto.CommandSendError;
@@ -180,6 +186,7 @@ import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.protocol.schema.EmptyVersion;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
+import org.apache.pulsar.common.scalable.HashRange;
 import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
@@ -1721,6 +1728,65 @@ public class ServerCnxTest {
         verify(scalableTopicService, times(2)).unregisterConsumer(any(), anyString(), anyString(), anyLong());
 
         channel.finish();
+    }
+
+    /**
+     * A scalable subscribe is answered with the assignment the coordinator pushes the consumer while
+     * registering it, so a rebalance pushed before the registration completes (another member
+     * registering) follows the response instead of overtaking it. Both carry the same layout epoch:
+     * a client that got the older response last would keep it.
+     */
+    @Test(timeOut = 30000)
+    public void testScalableTopicSubscribeAnsweredInCoordinatorOrder() throws Exception {
+        ScalableTopicService scalableTopicService = mock(ScalableTopicService.class);
+        when(brokerService.getScalableTopicService()).thenReturn(scalableTopicService);
+        CompletableFuture<ConsumerAssignment> registration = new CompletableFuture<>();
+        AtomicReference<ConsumerSession> session = new AtomicReference<>();
+        // As the coordinator does: push the registering consumer its assignment, and complete the
+        // registration afterwards.
+        when(scalableTopicService.registerConsumer(any(), anyString(), anyString(), anyLong(), any(), any()))
+                .thenAnswer(invocation -> {
+                    session.set(new ConsumerSession("c1", 7L, invocation.getArgument(5),
+                            Duration.ofMinutes(1), mock(ScheduledExecutorService.class), () -> {}, log));
+                    session.get().sendAssignmentUpdate(scalableAssignment(0L, 1L));
+                    return registration;
+                });
+
+        resetChannel();
+        channel.writeInbound(Commands.newConnect("none", "", null));
+        assertTrue(getResponse() instanceof CommandConnected);
+
+        channel.writeInbound(Commands.newScalableTopicSubscribe(500L,
+                "persistent://public/default/scalable-order", "group", "c1", 7L,
+                ScalableConsumerType.CHECKPOINT));
+        Awaitility.await().until(() -> session.get() != null);
+        // A second member registers before this registration completes: c1 keeps only segment 0.
+        session.get().sendAssignmentUpdate(scalableAssignment(0L));
+        registration.complete(scalableAssignment(0L, 1L));
+
+        Object first = getResponse();
+        assertTrue(first instanceof CommandScalableTopicSubscribeResponse, String.valueOf(first));
+        assertEquals(((CommandScalableTopicSubscribeResponse) first).getRequestId(), 500L);
+        assertEquals(((CommandScalableTopicSubscribeResponse) first).getAssignment().getSegmentsCount(), 2);
+        Object second = getResponse();
+        assertTrue(second instanceof CommandScalableTopicAssignmentUpdate, String.valueOf(second));
+        assertEquals(((CommandScalableTopicAssignmentUpdate) second).getConsumerId(), 7L);
+        assertEquals(((CommandScalableTopicAssignmentUpdate) second).getAssignment().getSegmentsCount(), 1);
+        channel.runPendingTasks();
+        assertTrue(channel.outboundMessages().isEmpty(),
+                "the completed registration must not answer the subscribe again");
+
+        channel.finish();
+    }
+
+    private static ConsumerAssignment scalableAssignment(long... segmentIds) {
+        List<ConsumerAssignment.AssignedSegment> segments = new ArrayList<>();
+        for (long segmentId : segmentIds) {
+            int start = (int) segmentId * 0x8000;
+            segments.add(new ConsumerAssignment.AssignedSegment(segmentId, HashRange.of(start, start + 0x7FFF),
+                    "segment://public/default/scalable-order/" + segmentId, List.of()));
+        }
+        return new ConsumerAssignment(1L, segments);
     }
 
     @Test

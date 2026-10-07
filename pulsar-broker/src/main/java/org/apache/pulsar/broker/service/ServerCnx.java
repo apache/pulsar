@@ -101,8 +101,10 @@ import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionNotFo
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicNotFoundException;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.scalable.ConsumerAssignment;
 import org.apache.pulsar.broker.service.scalable.ConsumerSession;
 import org.apache.pulsar.broker.service.scalable.DagWatchSession;
+import org.apache.pulsar.broker.service.scalable.ScalableTopicService;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicsWatcherSession;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
@@ -164,6 +166,7 @@ import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ProducerAccessMode;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
+import org.apache.pulsar.common.api.proto.ScalableConsumerAssignment;
 import org.apache.pulsar.common.api.proto.ScalableConsumerType;
 import org.apache.pulsar.common.api.proto.Schema;
 import org.apache.pulsar.common.api.proto.ServerError;
@@ -1159,6 +1162,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             String consumerName,
             CompletableFuture<?> registration) {}
 
+    /**
+     * Scalable-topic subscribes on this connection that are not answered yet: consumer id to
+     * request id. See {@link #sendScalableConsumerAssignment}.
+     */
+    private final ConcurrentHashMap<Long, Long> unansweredScalableSubscribes = new ConcurrentHashMap<>();
+
     @Override
     protected void handleCommandScalableTopicSubscribe(
             CommandScalableTopicSubscribe
@@ -1212,17 +1221,25 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 ServerError.AuthorizationError, msg);
                         return;
                     }
-                    // Record the registration BEFORE it resolves, carrying its future: an
+                    // Record the registration BEFORE starting it, carrying its future: an
                     // unsubscribe (or the channelInactive sweep) arriving mid-registration
                     // chains behind it instead of silently missing it. The client's subscribe
                     // can time out while the broker-side registration is still in flight, so
-                    // this ordering must not depend on how long the client was able to wait.
-                    var registration = scalableTopicService.registerConsumer(topicName,
-                            subscription, consumerName, consumerId, consumerType, this);
+                    // this ordering must not depend on how long the client was able to wait;
+                    // and the subscribe can be answered before registerScalableConsumer even
+                    // returns (see sendScalableConsumerAssignment).
+                    var registration = new CompletableFuture<ConsumerAssignment>();
                     var ref = new ScalableConsumerRegistrationRef(
                             topicName, subscription, consumerName, registration);
                     scalableConsumerRegistrations.put(consumerId, ref);
+                    unansweredScalableSubscribes.put(consumerId, requestId);
+                    FutureUtil.completeAfter(registration, FutureUtil.supplySafely(() ->
+                            registerScalableConsumer(scalableTopicService, topicName, subscription,
+                                    consumerName, consumerId, consumerType)));
                     registration.whenCompleteAsync((assignment, ex) -> {
+                        // Normally answered already, by the push of the consumer's assignment
+                        // the coordinator makes while registering it.
+                        boolean unanswered = unansweredScalableSubscribes.remove(consumerId, requestId);
                         if (ex != null) {
                             Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
                             log.warn().attr("topic", topicName).attr("subscription", subscription)
@@ -1235,8 +1252,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                     ServerError.UnknownError, cause.getMessage());
                             return;
                         }
-                        getCommandSender().sendScalableTopicSubscribeResponse(requestId,
-                                ConsumerSession.toProto(assignment));
+                        if (unanswered) {
+                            getCommandSender().sendScalableTopicSubscribeResponse(requestId,
+                                    ConsumerSession.toProto(assignment));
+                        }
                     }, ctx.executor());
                 })
                 .exceptionally(ex -> {
@@ -1247,6 +1266,39 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             "Exception occurred while trying to authorize ScalableTopicSubscribe");
                     return null;
                 });
+    }
+
+    /**
+     * Register a scalable-topic consumer with the controller leader. Tests override it to hold
+     * the registration, as this connection sees it, while other members of the subscription
+     * register.
+     */
+    @VisibleForTesting
+    protected CompletableFuture<ConsumerAssignment> registerScalableConsumer(
+            ScalableTopicService scalableTopicService, TopicName topicName, String subscription,
+            String consumerName, long consumerId, ScalableConsumerType consumerType) {
+        return scalableTopicService.registerConsumer(topicName, subscription, consumerName,
+                consumerId, consumerType, this);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>The coordinator pushes a registering consumer its assignment while holding its monitor,
+     * as part of the registration (of a new session and of a reconnect), so answering the
+     * subscribe with that push orders the response with every later push. Answering only when the
+     * registration future completes would let a rebalance pushed in between, by another member
+     * registering, reach the client first: both carry the same layout epoch, so the client would
+     * apply the older response last and keep it until the next rebalance.
+     */
+    @Override
+    public void sendScalableConsumerAssignment(long consumerId, ScalableConsumerAssignment assignment) {
+        Long requestId = unansweredScalableSubscribes.remove(consumerId);
+        if (requestId != null) {
+            getCommandSender().sendScalableTopicSubscribeResponse(requestId, assignment);
+        } else {
+            getCommandSender().sendScalableTopicAssignmentUpdate(consumerId, assignment);
+        }
     }
 
     @Override
