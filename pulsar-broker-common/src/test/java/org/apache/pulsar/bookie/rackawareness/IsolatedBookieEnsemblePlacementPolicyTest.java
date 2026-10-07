@@ -36,6 +36,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -635,6 +636,109 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
             isolationPolicy.uninitalize();
             assertThat(updateThread.isAlive()).as("cluster update thread stopped").isFalse();
             assertThat(placementThread.isAlive()).as("placement thread stopped").isFalse();
+        }
+    }
+
+    @DataProvider
+    public Object[][] placementClusterChanges() {
+        return new Object[][]{{false, false}, {true, false}, {false, true}, {true, true}};
+    }
+
+    @Test(dataProvider = "placementClusterChanges")
+    public void testClusterChangeAfterIsolationExclusions(boolean replaceBookie, boolean primaryBookieLeaves)
+            throws Exception {
+        BookieId primaryBookie = BookieId.parse(BOOKIE1);
+        BookieId changingPrimaryBookie = BookieId.parse(BOOKIE2);
+        BookieId ungroupedBookie = BookieId.parse(BOOKIE3);
+        BookieId offlinePrimaryBookie = BookieId.parse(BOOKIE4);
+        Map<String, Map<String, BookieInfo>> bookieMapping = Map.of("group1", Map.of(
+                BOOKIE1, BookieInfo.builder().rack("rack0").build(),
+                BOOKIE2, BookieInfo.builder().rack("rack1").build(),
+                BOOKIE4, BookieInfo.builder().rack("rack1").build()));
+        store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(bookieMapping),
+                Optional.empty()).join();
+        ClientConfiguration bkClientConf = new ClientConfiguration();
+        bkClientConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
+        bkClientConf.setProperty(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, "group1");
+        IsolatedBookieEnsemblePlacementPolicy isolationPolicy = createIsolationPolicy(bkClientConf);
+        Set<BookieId> initialBookies = primaryBookieLeaves
+                ? Set.of(primaryBookie, changingPrimaryBookie, ungroupedBookie)
+                : Set.of(primaryBookie, changingPrimaryBookie);
+        isolationPolicy.onClusterChanged(initialBookies, Set.of());
+
+        CountDownLatch exclusionsCalculated = new CountDownLatch(1);
+        CountDownLatch finishPlacement = new CountDownLatch(1);
+        Set<BookieId> excludedBookies = new HashSet<>() {
+            private boolean paused;
+
+            @Override
+            public boolean addAll(Collection<? extends BookieId> bookies) {
+                boolean changed = super.addAll(bookies);
+                if (!paused) {
+                    paused = true;
+                    // The caller's exclusion set is updated after isolation calculation and before BK selection.
+                    exclusionsCalculated.countDown();
+                    try {
+                        if (!finishPlacement.await(30, TimeUnit.SECONDS)) {
+                            throw new IllegalStateException("Timed out waiting to finish placement");
+                        }
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new IllegalStateException("Interrupted while waiting to finish placement", e);
+                    }
+                }
+                return changed;
+            }
+        };
+        if (!primaryBookieLeaves) {
+            // Caller exclusions do not relax isolation: the joining ungrouped bookie must remain ineligible.
+            excludedBookies.add(changingPrimaryBookie);
+        }
+        BookieId bookieToReplace = primaryBookieLeaves ? offlinePrimaryBookie : changingPrimaryBookie;
+        FutureTask<List<BookieId>> placement = new FutureTask<>(() -> {
+            if (replaceBookie) {
+                return List.of(isolationPolicy.replaceBookie(2, 2, 2, Map.of(),
+                        List.of(primaryBookie, bookieToReplace), bookieToReplace, excludedBookies).getResult());
+            }
+            return isolationPolicy.newEnsemble(2, 2, 2, Map.of(), excludedBookies).getResult();
+        });
+        Set<BookieId> updatedBookies = primaryBookieLeaves
+                ? Set.of(primaryBookie, ungroupedBookie)
+                : Set.of(primaryBookie, changingPrimaryBookie, ungroupedBookie);
+        FutureTask<Set<BookieId>> clusterChange = new FutureTask<>(
+                () -> isolationPolicy.onClusterChanged(updatedBookies, Set.of()));
+        Thread placementThread = new Thread(placement, "isolation-placement-before-selection");
+        Thread updateThread = new Thread(clusterChange, "isolation-cluster-change-before-selection");
+        try {
+            placementThread.start();
+            assertThat(exclusionsCalculated.await(10, TimeUnit.SECONDS)).as("isolation exclusions calculated")
+                    .isTrue();
+            updateThread.start();
+            // With the fix the writer queues behind placement. Before the fix the update completes in the gap.
+            Awaitility.await().atMost(Duration.ofSeconds(10))
+                    .until(() -> clusterChange.isDone() || updateThread.getState() == Thread.State.WAITING);
+            finishPlacement.countDown();
+            if (primaryBookieLeaves) {
+                List<BookieId> result = placement.get(10, TimeUnit.SECONDS);
+                if (replaceBookie) {
+                    assertThat(result).containsExactly(changingPrimaryBookie);
+                } else {
+                    assertThat(result).containsExactlyInAnyOrder(primaryBookie, changingPrimaryBookie);
+                }
+            } else {
+                assertThatThrownBy(() -> placement.get(10, TimeUnit.SECONDS))
+                        .isInstanceOf(ExecutionException.class).hasCauseInstanceOf(BKNotEnoughBookiesException.class);
+            }
+            Set<BookieId> expectedDeadBookies = primaryBookieLeaves ? Set.of(changingPrimaryBookie) : Set.of();
+            assertThat(clusterChange.get(10, TimeUnit.SECONDS))
+                    .containsExactlyInAnyOrderElementsOf(expectedDeadBookies);
+        } finally {
+            finishPlacement.countDown();
+            placementThread.join(TimeUnit.SECONDS.toMillis(10));
+            updateThread.join(TimeUnit.SECONDS.toMillis(10));
+            isolationPolicy.uninitalize();
+            assertThat(placementThread.isAlive()).as("placement thread stopped").isFalse();
+            assertThat(updateThread.isAlive()).as("cluster update thread stopped").isFalse();
         }
     }
 
