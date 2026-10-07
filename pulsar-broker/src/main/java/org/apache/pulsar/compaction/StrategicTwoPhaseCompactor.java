@@ -118,7 +118,8 @@ public class StrategicTwoPhaseCompactor extends PublishingOrderCompactor {
                     }
                 });
         return compaction.whenCompleteAsync((__, exception) -> {
-            // Serialize failure cleanup with the phase-two loop. Queued loop tasks check their
+            // This requires a single-threaded scheduler, as provided by PulsarService.getCompactorExecutor(),
+            // to serialize failure cleanup with the phase-two loop. Queued loop tasks check their
             // terminal future before touching this container.
             if (exception != null) {
                 batchMessageContainer.discard(new PulsarClientException(exception));

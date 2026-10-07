@@ -46,6 +46,7 @@ public class StrategicCompactorBkTest extends SharedPulsarBaseTest {
         String topic = newTopicName();
         BookKeeper bookKeeper = getPulsar().getBookKeeperClient();
         AtomicReference<LedgerHandle> failedLedger = new AtomicReference<>();
+        AtomicReference<RawBatchMessageContainerImpl> failedBatch = new AtomicReference<>();
         StrategicTwoPhaseCompactor compactor = new StrategicTwoPhaseCompactor(
                 getConfig(), pulsarClient, bookKeeper, getPulsar().getCompactorExecutor()) {
             @Override
@@ -67,6 +68,7 @@ public class StrategicCompactorBkTest extends SharedPulsarBaseTest {
                 CompletableFuture<Boolean> write =
                         super.addToCompactedLedger(ledger, message, topic, outstanding, batchMessageContainer);
                 if (ledger == failedLedger.get()) {
+                    failedBatch.set(batchMessageContainer);
                     // Observe the real BK callback before advancing the loop, leaving the next batch buffered.
                     // This wait only controls the failure interleaving in this test.
                     write.handle((__, error) -> null).orTimeout(10, TimeUnit.SECONDS).join();
@@ -81,6 +83,8 @@ public class StrategicCompactorBkTest extends SharedPulsarBaseTest {
 
             assertThatThrownBy(() -> compactor.compact(topic, strategy).get(15, TimeUnit.SECONDS))
                     .hasRootCauseInstanceOf(BKException.BKLedgerClosedException.class);
+            assertThat(failedBatch.get()).as("batch container from the failed compaction").isNotNull();
+            assertThat(failedBatch.get().isEmpty()).as("failed compaction must discard its buffered batch").isTrue();
 
             producer.newMessage().key("deleted").value(null).send();
             long ledgerId = compactor.compact(topic, strategy).get(15, TimeUnit.SECONDS);
