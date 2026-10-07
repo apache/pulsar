@@ -72,7 +72,8 @@ public class PerformanceTool implements Callable<Integer> {
         Integer controlPort;
 
         @Option(names = "--run-id",
-                description = "Shared correlation ID, required when warmup is enabled; use a new ID per run")
+                description = "Shared correlation ID, required when warmup is enabled or applications join"
+                        + " later; use a new ID per run")
         String runId;
 
         IotScenario scenario() throws Exception {
@@ -80,6 +81,10 @@ public class PerformanceTool implements Callable<Integer> {
             if (scenario.warmupMessageCount() > 0 && (runId == null || runId.isBlank())) {
                 throw new IllegalArgumentException(
                         "Warmup requires the same --run-id for the producer and all consumers");
+            }
+            if (scenario.hasLateApplications() && (runId == null || runId.isBlank())) {
+                throw new IllegalArgumentException(
+                        "Applications that join later require the same --run-id for the producer and all consumers");
             }
             return scenario;
         }

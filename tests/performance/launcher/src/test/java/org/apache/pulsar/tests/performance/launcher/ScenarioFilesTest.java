@@ -103,6 +103,14 @@ public class ScenarioFilesTest {
     }
 
     @Test
+    public void theCatchUpScenarioJoinsApplicationsAfterTheMeasurementStarts() {
+        ObjectNode applications = (ObjectNode) resolve(SCENARIOS.resolve("iot-telemetry-catch-up.yaml"), List.of())
+                .path("workloads").path("iotTelemetry").path("applications");
+        assertThat(applications.path("joinSeconds").toString()).isEqualTo("[0,20,22,24,60]");
+        assertThat(applications.path("count").asInt()).isEqualTo(5);
+    }
+
+    @Test
     public void theMemoryConfigurationsSetTheirOwnMemory() {
         // The configuration that a scenario extends last sets the memory, over the default of iot-telemetry-base.yaml
         String defaultMemory = brokerMemory(resolve(SCENARIOS.resolve("iot-telemetry.yaml"), List.of()));
