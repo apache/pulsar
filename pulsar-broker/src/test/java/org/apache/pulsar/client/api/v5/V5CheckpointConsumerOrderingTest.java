@@ -21,6 +21,7 @@ package org.apache.pulsar.client.api.v5;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -29,7 +30,10 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.v5.schema.Schema;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
+import org.apache.pulsar.common.scalable.HashRange;
+import org.apache.pulsar.common.scalable.SegmentTopicName;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
@@ -55,6 +59,8 @@ public class V5CheckpointConsumerOrderingTest extends V5ClientBaseTest {
         // it prefetches, so part of it is still unread on the parent segment.
         publish(producer, "pre", 250, sent);
         split(topic, activeSegmentIds(topic).get(0), 2);
+        // Receive only once the consumer has seen the split, while the parent still has unread backlog.
+        awaitReadersOn(topic, activeSegmentIds(topic));
         publish(producer, "post", 50, sent);
 
         assertPerKeyOrder(receive(consumer, total(sent)), sent);
@@ -73,6 +79,7 @@ public class V5CheckpointConsumerOrderingTest extends V5ClientBaseTest {
         List<Long> parents = activeSegmentIds(topic);
         admin.scalableTopics().mergeSegments(topic, parents.get(0), parents.get(1));
         Awaitility.await().untilAsserted(() -> assertEquals(activeSegmentIds(topic).size(), 1));
+        awaitReadersOn(topic, activeSegmentIds(topic));
         publish(producer, "post", 50, sent);
 
         assertPerKeyOrder(receive(consumer, total(sent)), sent);
@@ -147,6 +154,36 @@ public class V5CheckpointConsumerOrderingTest extends V5ClientBaseTest {
         assertNull(resumed.receive(Duration.ofMillis(500)), "nothing past the produced messages");
     }
 
+    @Test
+    public void testDeletedParentDoesNotHoldChildren() throws Exception {
+        String topic = newTopic(1);
+        // Bytes: deleting a segment topic also deletes the topic's schema, which would keep typed
+        // readers off the children.
+        @Cleanup
+        Producer<byte[]> producer = v5Client.newProducer(Schema.bytes())
+                .topic(topic)
+                .create();
+        producer.newMessage().key("key").value("pre".getBytes()).send();
+        long parent = activeSegmentIds(topic).get(0);
+        split(topic, parent, 2);
+        int postSplit = 20;
+        for (int i = 0; i < postSplit; i++) {
+            producer.newMessage().key("key-" + i).value(("post-" + i).getBytes()).send();
+        }
+        // The parent's backing topic is gone while the layout still lists it, as when the controller's
+        // GC deletes it: its data is gone, so its children must not wait for it.
+        admin.scalableTopics().deleteSegment(segmentTopicName(topic, parent), true);
+
+        @Cleanup
+        CheckpointConsumer<byte[]> consumer = v5Client.newCheckpointConsumer(Schema.bytes())
+                .topic(topic)
+                .startPosition(Checkpoint.earliest())
+                .create();
+        for (int i = 0; i < postSplit; i++) {
+            assertNotNull(consumer.receive(Duration.ofSeconds(10)), "missed child message #" + i);
+        }
+    }
+
     // --- Helpers ---
 
     private String newTopic(int segments) throws Exception {
@@ -205,6 +242,25 @@ public class V5CheckpointConsumerOrderingTest extends V5ClientBaseTest {
             assertEquals(received.getOrDefault(entry.getKey(), List.of()), entry.getValue(),
                     "per-key order for " + entry.getKey());
         }
+    }
+
+    /** Wait until the consumer has a reader attached to each of the segments. */
+    private void awaitReadersOn(String topic, List<Long> segmentIds) {
+        Awaitility.await().untilAsserted(() -> {
+            var subscriptions = admin.scalableTopics().getStats(topic).getSubscriptions().values();
+            for (long segmentId : segmentIds) {
+                assertTrue(subscriptions.stream().anyMatch(sub -> {
+                    var onSegment = sub.getSegments().get(segmentId);
+                    return onSegment != null && onSegment.getConsumerCount() > 0;
+                }), "no reader on segment " + segmentId);
+            }
+        });
+    }
+
+    private String segmentTopicName(String topic, long segmentId) throws Exception {
+        var range = admin.scalableTopics().getMetadata(topic).getSegments().get(segmentId).getHashRange();
+        return SegmentTopicName.fromParent(TopicName.get(topic),
+                HashRange.of(range.getStart(), range.getEnd()), segmentId).toString();
     }
 
     private void split(String topic, long segmentId, int expectedActive) throws Exception {

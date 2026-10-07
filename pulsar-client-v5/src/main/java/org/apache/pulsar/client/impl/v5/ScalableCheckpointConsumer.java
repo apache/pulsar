@@ -31,6 +31,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.pulsar.client.api.PulsarClientException.AlreadyClosedException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.v5.Checkpoint;
@@ -42,6 +43,7 @@ import org.apache.pulsar.client.api.v5.async.AsyncCheckpointConsumer;
 import org.apache.pulsar.client.api.v5.schema.Schema;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.v5.SegmentRouter.ActiveSegment;
+import org.apache.pulsar.common.util.Backoff;
 
 /**
  * V5 CheckpointConsumer implementation for scalable topics.
@@ -102,6 +104,19 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
     private final Map<Long, Reader<T>> heldReaders = new HashMap<>();
     /** Sealed segments found read to their end while their read loop waited for a message. */
     private final Set<Long> exhaustedSegments = ConcurrentHashMap.newKeySet();
+
+    /** A segment assignment, with the layout it comes from for the unmanaged consumer (else null). */
+    private record Assignment(List<ActiveSegment> segments, ClientSegmentLayout layout) {
+    }
+
+    /** The latest assignment update, which {@link #reconcile()} converges the readers onto. */
+    private volatile Assignment latestAssignment;
+    /** Coalesces concurrent reconcile attempts; only one runs at a time. */
+    private final AtomicBoolean reconcileInProgress = new AtomicBoolean(false);
+    private final Backoff reconcileBackoff = Backoff.builder()
+            .initialDelay(Duration.ofMillis(100))
+            .maxBackoff(Duration.ofSeconds(30))
+            .build();
 
     private volatile boolean closed = false;
     private final AsyncCheckpointConsumerV5<T> asyncView;
@@ -289,10 +304,49 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
 
     private void onAssignmentChange(List<ActiveSegment> newSegments, ClientSegmentLayout layout) {
         // Fully async: safe to run on the netty IO thread that delivered the update.
-        applyAssignment(newSegments, layout).exceptionally(ex -> {
-            log.warn().exceptionMessage(ex).log("Failed to apply segment assignment");
-            return null;
+        latestAssignment = new Assignment(newSegments, layout);
+        reconcile();
+    }
+
+    /**
+     * Converge the per-segment readers onto {@link #latestAssignment}, retrying with backoff. A
+     * reader that fails to attach is evicted and retried: otherwise its segment, and every segment
+     * held back on it, would never be read.
+     */
+    private void reconcile() {
+        if (closed || !reconcileInProgress.compareAndSet(false, true)) {
+            return;
+        }
+        Assignment target = latestAssignment;
+        applyAssignment(target.segments(), target.layout()).whenComplete((__, ex) -> {
+            reconcileInProgress.set(false);
+            if (closed) {
+                return;
+            }
+            if (ex == null) {
+                reconcileBackoff.reset();
+                // If a newer assignment arrived during this one, run again to converge.
+                if (latestAssignment != target) {
+                    reconcile();
+                }
+                return;
+            }
+            evictFailedSegmentReaders();
+            Duration delay = reconcileBackoff.next();
+            log.warn().attr("delayMs", delay.toMillis()).exceptionMessage(ex)
+                    .log("Failed to apply segment assignment, retrying after backoff");
+            client.v4Client().timer().newTimeout(timeout -> reconcile(),
+                    delay.toMillis(), TimeUnit.MILLISECONDS);
         });
+    }
+
+    private void evictFailedSegmentReaders() {
+        for (var entry : segmentReaders.entrySet()) {
+            var future = entry.getValue();
+            if (future.isCompletedExceptionally()) {
+                segmentReaders.remove(entry.getKey(), future);
+            }
+        }
     }
 
     /**
@@ -424,15 +478,27 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
     private void onSegmentDrained(Reader<T> reader, long segmentId) {
         reader.closeAsync();
         exhaustedSegments.remove(segmentId);
+        if (markDrained(segmentId)) {
+            log.info().attr("segmentId", segmentId).log("Sealed segment drained, closing reader");
+        }
+    }
+
+    /**
+     * Record that nothing more will be read from the segment — it was read to its end, or its
+     * backing topic was deleted — and start the segments held back on it.
+     *
+     * @return false if the segment was already recorded
+     */
+    private boolean markDrained(long segmentId) {
         List<Map.Entry<Long, Reader<T>>> released;
         synchronized (this) {
             if (!drainedSegments.add(segmentId)) {
-                return;
+                return false;
             }
             released = releaseHeldReaders();
         }
-        log.info().attr("segmentId", segmentId).log("Sealed segment drained, closing reader");
         released.forEach(held -> startReadLoop(held.getValue(), held.getKey()));
+        return true;
     }
 
     private CompletableFuture<Reader<T>> createSegmentReaderAsync(ActiveSegment segment) {
@@ -476,6 +542,8 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
                                 .log("Segment backing topic deleted (retention expired); skipping");
                         segmentReaders.remove(segment.segmentId());
                         lastReceivedPositions.remove(segment.segmentId());
+                        // Its data is gone: the segments held back on it have nothing to wait for.
+                        markDrained(segment.segmentId());
                         return null;
                     }
                     throw ex instanceof CompletionException
@@ -581,6 +649,7 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
                 segmentReaders.remove(segmentId);
                 lastReceivedPositions.remove(segmentId);
                 reader.closeAsync();
+                markDrained(segmentId);
                 return null;
             }
             log.warn().attr("segmentId", segmentId)
