@@ -1295,8 +1295,11 @@ public class ScalableTopicController {
                     long now = clock.millis();
                     List<SegmentInfo> candidates = new ArrayList<>();
                     for (SegmentInfo seg : layout.getAllSegments().values()) {
+                        // Ancestors first: a segment whose parent is still in the DAG stays until
+                        // the parent is pruned (see pruneEligibleAsync).
                         if (seg.isSealed() && seg.sealedAtMs() > 0
-                                && (now - seg.sealedAtMs()) >= retentionMs) {
+                                && (now - seg.sealedAtMs()) >= retentionMs
+                                && layout.getParents(seg.segmentId()).isEmpty()) {
                             candidates.add(seg);
                         }
                     }
@@ -1321,12 +1324,13 @@ public class ScalableTopicController {
      * {@code isSegmentDrained} reports {@code false} — the segment is treated as
      * "still in use" and never pruned while a CHECKPOINT subscription is registered.
      *
-     * <p><b>Parent-vs-child ordering.</b> Sealed segments form a DAG; pruning is allowed
-     * in any order because the active leaves always cover the full hash range, and the
-     * managed-ledger storage of each segment is independent. {@link SegmentLayout#pruneSegment}
-     * rewrites the parent/child edges, so consumers using the post-prune layout see the
-     * pruned segment as "no longer present" — equivalent to "drained" for parent-drain
-     * ordering.
+     * <p><b>Parent-vs-child ordering.</b> {@link SegmentLayout#pruneSegment} drops the
+     * pruned segment from its children's parent lists, so consumers using the post-prune
+     * layout see it as "no longer present" — equivalent to "drained" for parent-drain
+     * ordering. That only holds if none of its own ancestors are still present: otherwise
+     * its children would lose their link to an ancestor that may still hold older messages
+     * of their keys, and be read before it. So only segments with no parent left in the
+     * DAG are candidates: ancestors are pruned first, one generation per tick.
      */
     private CompletableFuture<Void> pruneEligibleAsync(List<SegmentInfo> candidates) {
         return resources.listSubscriptionsAsync(topicName)

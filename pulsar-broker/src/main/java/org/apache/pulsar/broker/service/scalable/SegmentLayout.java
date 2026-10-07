@@ -291,9 +291,9 @@ public class SegmentLayout {
     }
 
     /**
-     * Prune an expired segment from the DAG. The segment must be sealed and have no
-     * children that are still in the DAG (i.e., children have already been pruned or
-     * the segment is a leaf that was sealed).
+     * Prune an expired segment from the DAG. The segment must be sealed. It is dropped from
+     * its children's parent lists without linking them to its own parents, so callers prune
+     * a segment only once none of its parents are left in the DAG (ancestors first).
      *
      * @param segmentId the segment to prune
      * @return a new SegmentLayout with the segment removed
