@@ -128,6 +128,12 @@ public class V5NamespaceConsumerTopicAttachTest extends V5ClientBaseTest {
             attachAllowed.complete(null);
         }
 
+        /** Fail the segment subscriptions held back so far, and any later one to a held topic. */
+        void failHeldAttaches() {
+            attachAllowed.completeExceptionally(
+                    new PulsarClientException.ConnectException("Injected segment subscribe failure"));
+        }
+
         /** How many segment subscriptions to the topic were requested, whether held, failed or not. */
         int attachRequests(String topic) {
             return count(attachRequests, topic);
@@ -330,14 +336,14 @@ public class V5NamespaceConsumerTopicAttachTest extends V5ClientBaseTest {
         String deleted = holdAttachOfNewTopic(faulty, Map.of());
         admin.scalableTopics().deleteScalableTopic(deleted, true);
         awaitRemovedFromMatchingSet(faulty, deleted);
-        int lookupsBeforeRemoval = faulty.lookups(deleted);
+        int lookupsAtRemoval = faulty.lookups(deleted);
         faulty.allowAttach();
         Awaitility.await().until(() -> faulty.settledAttaches(deleted) > 0);
 
         Awaitility.await().atMost(15, SECONDS).during(3, SECONDS).untilAsserted(() -> {
             assertThat(faulty.lookups(deleted))
                     .as("lookups of the deleted topic since it was removed")
-                    .isEqualTo(lookupsBeforeRemoval);
+                    .isEqualTo(lookupsAtRemoval);
             assertThat(namespaceConsumer.attachedTopicsForTesting())
                     .as("topics the consumer is attached to")
                     .containsExactly(kept);
@@ -351,34 +357,32 @@ public class V5NamespaceConsumerTopicAttachTest extends V5ClientBaseTest {
     }
 
     @Test
-    public void testStreamConsumerStopsAttachingTopicDeletedWhileAttaching() throws Exception {
-        String kept = newScalableTopic(1);
+    public void testStreamConsumerDoesNotRetryTopicThatLeftTheFilterWhileAttaching() throws Exception {
+        Map<String, String> filter = Map.of("team", "a");
+        String kept = newScalableTopic(filter);
         PulsarClientV5 client = newFaultyClient();
         FaultyClient faulty = (FaultyClient) client.v4Client();
         @Cleanup
         StreamConsumer<String> consumer = client.newStreamConsumer(Schema.string())
-                .namespace(getNamespace())
+                .namespace(getNamespace(), filter)
                 .subscriptionName("sub")
                 .subscribe();
 
-        String deleted = holdAttachOfNewTopic(faulty, Map.of());
-        admin.scalableTopics().deleteScalableTopic(deleted, true);
-        awaitRemovedFromMatchingSet(faulty, deleted);
-        int lookupsBeforeRemoval = faulty.lookups(deleted);
-        faulty.allowAttach();
-        Awaitility.await().until(() -> faulty.settledAttaches(deleted) > 0);
+        String leaving = holdAttachOfNewTopic(faulty, filter);
+        setProperties(leaving, Map.of("team", "b"));
+        awaitRemovedFromMatchingSet(faulty, leaving);
+        int lookupsAtRemoval = faulty.lookups(leaving);
+        faulty.failHeldAttaches();
+        Awaitility.await().until(() -> faulty.settledAttaches(leaving) > 0);
 
         Awaitility.await().atMost(15, SECONDS).during(3, SECONDS).untilAsserted(() -> {
-            assertThat(faulty.lookups(deleted))
-                    .as("lookups of the deleted topic since it was removed")
-                    .isEqualTo(lookupsBeforeRemoval);
+            assertThat(faulty.lookups(leaving))
+                    .as("lookups of the topic since it left the matching set")
+                    .isEqualTo(lookupsAtRemoval);
             assertThat(faulty.attachedTopics())
                     .as("topics with a segment subscription open")
                     .containsExactly(kept);
         });
-        assertThatThrownBy(() -> admin.scalableTopics().getMetadata(deleted))
-                .as("the deleted topic stays deleted")
-                .isInstanceOf(PulsarAdminException.NotFoundException.class);
     }
 
     // --- Helpers ---
