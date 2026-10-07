@@ -38,6 +38,7 @@ import org.apache.pulsar.client.api.v5.PulsarClientException;
 import org.apache.pulsar.client.api.v5.async.AsyncCheckpointConsumer;
 import org.apache.pulsar.client.api.v5.schema.Schema;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.apache.pulsar.client.impl.v5.SegmentRouter.ActiveSegment;
 
 /**
@@ -80,6 +81,10 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
      * can chain on in-flight reader creation without racing against completion.
      */
     private final ConcurrentHashMap<Long, CompletableFuture<Reader<T>>> segmentReaders = new ConcurrentHashMap<>();
+    /**
+     * Per-segment checkpoint positions: the last message the application received from the segment, or the
+     * position the segment's reader starts after until a message from it is received.
+     */
     private final ConcurrentHashMap<Long, org.apache.pulsar.client.api.MessageId> lastReceivedPositions =
             new ConcurrentHashMap<>();
     private final V5ReceiveQueue<T> receiveQueue;
@@ -310,7 +315,7 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
         PulsarClientImpl v4Client = client.v4Client();
         org.apache.pulsar.client.api.MessageId startMsgId = resolveStartPosition(segment.segmentId());
 
-        var segConf = new org.apache.pulsar.client.impl.conf.ReaderConfigurationData<T>();
+        var segConf = new ReaderConfigurationData<T>();
         // Legacy segments wrap an externally managed persistent:// topic; regular ones use the
         // computed segment:// URI. attachTopicName() collapses both into the right URI.
         segConf.getTopicNames().add(segment.attachTopicName());
@@ -319,7 +324,13 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
             segConf.setReaderName(consumerName + "-seg-" + segment.segmentId());
         }
 
-        return v4Client.createSegmentReaderAsync(segConf, v4Schema)
+        return resolveLatestStartAsync(segConf)
+                .thenCompose(__ -> {
+                    // Until the application receives a message from the segment, a checkpoint resumes
+                    // the segment where its reader starts.
+                    lastReceivedPositions.put(segment.segmentId(), segConf.getStartMessageId());
+                    return v4Client.createSegmentReaderAsync(segConf, v4Schema);
+                })
                 .thenApply(reader -> {
                     startReadLoop(reader, segment.segmentId());
                     return reader;
@@ -341,6 +352,23 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
                     throw ex instanceof CompletionException
                             ? (CompletionException) ex : new CompletionException(ex);
                 });
+    }
+
+    /**
+     * Replace a latest start position with the segment's last message id, looked up through a reader
+     * opened only for that. A reader attached at latest starts after the segment's last message at that
+     * moment, which a lookup made once it is attached can't tell apart from a message published in
+     * between, and it starts after the new latest if it reconnects before reading anything. A reader
+     * attached after a known position starts exactly there.
+     */
+    private CompletableFuture<Void> resolveLatestStartAsync(ReaderConfigurationData<T> segConf) {
+        if (!org.apache.pulsar.client.api.MessageId.latest.equals(segConf.getStartMessageId())) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return client.v4Client().createSegmentReaderAsync(segConf.clone(), v4Schema)
+                .thenCompose(lookupReader -> lookupReader.getLastMessageIdsAsync()
+                        .whenComplete((__, ___) -> lookupReader.closeAsync()))
+                .thenAccept(lastMessageIds -> segConf.setStartMessageId(lastMessageIds.get(0)));
     }
 
     /**
