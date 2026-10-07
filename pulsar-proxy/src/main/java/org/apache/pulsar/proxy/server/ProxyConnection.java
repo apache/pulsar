@@ -19,6 +19,7 @@
 package org.apache.pulsar.proxy.server;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFutureListener;
@@ -29,6 +30,7 @@ import io.netty.channel.epoll.EpollSocketChannel;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.resolver.dns.DnsAddressResolverGroup;
+import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.ScheduledFuture;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -161,6 +163,11 @@ public class ProxyConnection extends PulsarHandler {
         return connectionPool;
     }
 
+    @VisibleForTesting
+    void setStateForTesting(State state) {
+        this.state = state;
+    }
+
     public ProxyConnection(ProxyService proxyService, DnsAddressResolverGroup dnsAddressResolverGroup) {
         super(proxyService.getConfiguration().getKeepAliveIntervalSeconds(), TimeUnit.SECONDS);
         this.service = proxyService;
@@ -278,6 +285,7 @@ public class ProxyConnection extends PulsarHandler {
     public void channelRead(final ChannelHandlerContext ctx, Object msg) throws Exception {
         if (msg instanceof HAProxyMessage) {
             haProxyMessage = (HAProxyMessage) msg;
+            haProxyMessage.release();
             return;
         }
         switch (state) {
@@ -317,14 +325,17 @@ public class ProxyConnection extends PulsarHandler {
                 LOG.warn("Received message of type {} while connection to broker is missing in state {}. "
                                 + "Dropping the input message (readable bytes={}).", msg.getClass(), state,
                         msg instanceof ByteBuf ? ((ByteBuf) msg).readableBytes() : -1);
+                ReferenceCountUtil.safeRelease(msg);
             }
             break;
         case ProxyConnectingToBroker:
             LOG.warn("Received message of type {} while connecting to broker. "
                             + "Dropping the input message (readable bytes={}).", msg.getClass(),
                     msg instanceof ByteBuf ? ((ByteBuf) msg).readableBytes() : -1);
+            ReferenceCountUtil.safeRelease(msg);
             break;
         default:
+            ReferenceCountUtil.safeRelease(msg);
             break;
         }
     }
