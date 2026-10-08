@@ -55,7 +55,8 @@ public class ProtobufNativeSchemaDeserializationTest {
     }
 
     @Test(dataProvider = "javaFeatureScopes")
-    public void testJavaUtf8OverrideSurvivesDeserialization(Edition edition, boolean fieldOverride) throws Exception {
+    public void testTypedJavaFeatureMetadataSurvivesDeserialization(Edition edition, boolean fieldOverride)
+            throws Exception {
         DescriptorProtos.getDescriptor();
         FeatureSet javaFeatures = FeatureSet.newBuilder()
                 .setExtension(JavaFeaturesProto.java_, JavaFeatures.newBuilder()
@@ -84,6 +85,12 @@ public class ProtobufNativeSchemaDeserializationTest {
         Descriptor restored = schema.getProtobufNativeSchema();
         assertThat(restored.getFullName()).isEqualTo("example.Order");
         assertThat(restored.getFile().toProto().getEdition()).isEqualTo(edition);
+        // Descriptor resolution already reinterprets unknown Java features in Protobuf 4.35.1.
+        // Registration preserves typed extension metadata in the reconstructed descriptor proto.
+        assertThat(restored.getFile().toProto().getOptions().getFeatures())
+                .isEqualTo(original.getFile().toProto().getOptions().getFeatures());
+        assertThat(restored.findFieldByName("name").toProto().getOptions().getFeatures())
+                .isEqualTo(original.findFieldByName("name").toProto().getOptions().getFeatures());
         assertThat(restored.findFieldByName("name").needsUtf8Check()).isTrue();
         byte[] invalidUtf8 = new byte[]{0x0a, 0x01, (byte) 0xff};
         assertThatThrownBy(() -> schema.decode(invalidUtf8)).isInstanceOf(SchemaSerializationException.class);
@@ -91,6 +98,11 @@ public class ProtobufNativeSchemaDeserializationTest {
                 ? restored.findFieldByName("name").toProto().getOptions().getFeatures()
                 : restored.getFile().toProto().getOptions().getFeatures();
         assertThat(restoredFeatures.hasExtension(JavaFeaturesProto.java_)).isTrue();
+        FeatureSet originalFeatures = fieldOverride
+                ? original.findFieldByName("name").toProto().getOptions().getFeatures()
+                : original.getFile().toProto().getOptions().getFeatures();
+        assertThat(restoredFeatures.getExtension(JavaFeaturesProto.java_))
+                .isEqualTo(originalFeatures.getExtension(JavaFeaturesProto.java_));
 
         byte[] valid = DynamicMessage.newBuilder(original)
                 .setField(original.findFieldByName("name"), "valid").build().toByteArray();

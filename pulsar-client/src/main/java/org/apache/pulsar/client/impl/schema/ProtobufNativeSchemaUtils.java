@@ -92,6 +92,7 @@ public class ProtobufNativeSchemaUtils {
 
     private static final ObjectReader PROTOBUF_NATIVE_SCHEMADATA_READER = ObjectMapperFactory.getMapper().reader()
             .forType(ProtobufNativeSchemaData.class);
+    private static volatile ExtensionRegistry nativeSchemaExtensionRegistry;
 
     @SuppressWarnings("deprecation")
     public static Descriptors.Descriptor deserialize(byte[] schemaDataBytes) {
@@ -121,13 +122,18 @@ public class ProtobufNativeSchemaUtils {
             if (rootName == null || rootName.isEmpty()) {
                 throw new SchemaSerializationException("Missing root message name");
             }
-            descriptor = findRootMessage(fileDescriptor,
-                    rootName.startsWith(packagePrefix) ? rootName.substring(packagePrefix.length()) : rootName);
-            if (descriptor == null) {
-                // Keep previously accepted root aliases readable for stored and reconnecting schemas.
-                // Canonical lookup above also fixes nested roots in files without a package.
-                descriptor = findRootMessage(fileDescriptor,
-                        StringUtils.removeFirst(rootName, fileDescriptor.getPackage()).replaceFirst("\\.", ""));
+            if (!fileDescriptor.getPackage().isEmpty() && !rootName.startsWith(packagePrefix)) {
+                // Preserve which message a previously accepted non-canonical alias selected.
+                descriptor = findLegacyRootMessage(fileDescriptor, rootName);
+                if (descriptor == null) {
+                    descriptor = findRootMessage(fileDescriptor, rootName);
+                }
+            } else {
+                // Full names and no-package nested roots use their exact relative path first.
+                descriptor = findRootMessage(fileDescriptor, rootName.substring(packagePrefix.length()));
+                if (descriptor == null) {
+                    descriptor = findLegacyRootMessage(fileDescriptor, rootName);
+                }
             }
             if (descriptor == null) {
                 throw new SchemaSerializationException("Root message was not found");
@@ -154,7 +160,27 @@ public class ProtobufNativeSchemaUtils {
         return descriptor;
     }
 
+    private static Descriptors.Descriptor findLegacyRootMessage(Descriptors.FileDescriptor file, String name) {
+        return findRootMessage(file, StringUtils.removeFirst(name, file.getPackage()).replaceFirst("\\.", ""));
+    }
+
     private static ExtensionRegistry nativeSchemaExtensions() throws ReflectiveOperationException {
+        ExtensionRegistry registry = nativeSchemaExtensionRegistry;
+        if (registry == null) {
+            synchronized (ProtobufNativeSchemaUtils.class) {
+                registry = nativeSchemaExtensionRegistry;
+                if (registry == null) {
+                    // Initialize in the caller rather than a static holder: failures keep the deserialize
+                    // exception contract and do not poison class initialization for later calls.
+                    registry = createNativeSchemaExtensions().getUnmodifiable();
+                    nativeSchemaExtensionRegistry = registry;
+                }
+            }
+        }
+        return registry;
+    }
+
+    private static ExtensionRegistry createNativeSchemaExtensions() throws ReflectiveOperationException {
         // Initialize descriptor.proto before registering its Java feature extension.
         DescriptorProtos.getDescriptor();
         ExtensionRegistry registry = ExtensionRegistry.newInstance();

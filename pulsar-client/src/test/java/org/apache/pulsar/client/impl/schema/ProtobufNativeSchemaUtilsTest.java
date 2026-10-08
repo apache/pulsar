@@ -26,7 +26,13 @@ import com.google.protobuf.DescriptorProtos.FileDescriptorProto;
 import com.google.protobuf.DescriptorProtos.FileDescriptorSet;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.impl.schema.generic.GenericProtobufNativeSchema;
 import org.apache.pulsar.client.schema.proto.Test.SubMessage.NestedMessage;
@@ -66,6 +72,66 @@ public class ProtobufNativeSchemaUtilsTest {
                     .rootFileDescriptorName(file.getName()).rootMessageTypeName(rootName).build();
             byte[] bytes = ObjectMapperFactory.getMapperWithIncludeAlways().writer().writeValueAsBytes(data);
             Assert.assertEquals(ProtobufNativeSchemaUtils.deserialize(bytes).getFullName(), "a.b.Order", rootName);
+        }
+    }
+
+    @Test
+    public void testLegacyRootResolutionPrecedesRelativeNamesInDottedPackage() throws Exception {
+        FileDescriptorProto dottedPackage = FileDescriptorProto.newBuilder().setName("dotted.proto")
+                .setPackage("a.b")
+                .addMessageType(DescriptorProto.newBuilder().setName("Order"))
+                .addMessageType(DescriptorProto.newBuilder().setName("aXb")
+                        .addNestedType(DescriptorProto.newBuilder().setName("Order")))
+                .addMessageType(DescriptorProto.newBuilder().setName("Outer")
+                        .addNestedType(DescriptorProto.newBuilder().setName("Inner"))).build();
+        assertThat(ProtobufNativeSchemaUtils.deserialize(envelope("aXb.Order", dottedPackage)).getFullName())
+                .isEqualTo("a.b.Order");
+        assertThat(ProtobufNativeSchemaUtils.deserialize(envelope("a.b.aXb.Order", dottedPackage)).getFullName())
+                .isEqualTo("a.b.aXb.Order");
+        // The old regex lookup fails here; the relative nested path remains a fallback.
+        assertThat(ProtobufNativeSchemaUtils.deserialize(envelope("Outer.Inner", dottedPackage)).getFullName())
+                .isEqualTo("a.b.Outer.Inner");
+    }
+
+    @Test
+    public void testLegacyRootResolutionPrecedesRelativeNamesInSinglePackage() throws Exception {
+        FileDescriptorProto singlePackage = FileDescriptorProto.newBuilder().setName("single.proto")
+                .setPackage("a")
+                .addMessageType(DescriptorProto.newBuilder().setName("Cat"))
+                .addMessageType(DescriptorProto.newBuilder().setName("Ct"))
+                .addMessageType(DescriptorProto.newBuilder().setName("Data")).build();
+        assertThat(ProtobufNativeSchemaUtils.deserialize(envelope("Cat", singlePackage)).getFullName())
+                .isEqualTo("a.Ct");
+        assertThat(ProtobufNativeSchemaUtils.deserialize(envelope("a.Cat", singlePackage)).getFullName())
+                .isEqualTo("a.Cat");
+        assertThat(ProtobufNativeSchemaUtils.deserialize(envelope("Data", singlePackage)).getFullName())
+                .isEqualTo("a.Data");
+    }
+
+    @Test
+    public void testConcurrentRepeatedDeserialization() throws Exception {
+        byte[] data = ProtobufNativeSchemaUtils.serialize(TestMessage.getDescriptor());
+        ExecutorService executor = Executors.newFixedThreadPool(4);
+        CountDownLatch start = new CountDownLatch(1);
+        try {
+            List<Future<?>> futures = new ArrayList<>();
+            for (int i = 0; i < 16; i++) {
+                futures.add(executor.submit(() -> {
+                    start.await();
+                    for (int attempt = 0; attempt < 20; attempt++) {
+                        Descriptors.Descriptor restored = ProtobufNativeSchemaUtils.deserialize(data);
+                        assertThat(restored.toProto()).isEqualTo(TestMessage.getDescriptor().toProto());
+                        assertThat(restored.findFieldByName("externalMessage").getMessageType()).isNotNull();
+                    }
+                    return null;
+                }));
+            }
+            start.countDown();
+            for (Future<?> future : futures) {
+                future.get(10, TimeUnit.SECONDS);
+            }
+        } finally {
+            executor.shutdownNow();
         }
     }
 
@@ -138,6 +204,13 @@ public class ProtobufNativeSchemaUtilsTest {
                 .fileDescriptorSet(FileDescriptorSet.newBuilder().addAllFile(List.of(files))
                         .build().toByteArray())
                 .rootFileDescriptorName("a.proto").rootMessageTypeName("example.Order").build();
+        return ObjectMapperFactory.getMapperWithIncludeAlways().writer().writeValueAsBytes(data);
+    }
+
+    private static byte[] envelope(String rootName, FileDescriptorProto file) throws Exception {
+        ProtobufNativeSchemaData data = ProtobufNativeSchemaData.builder()
+                .fileDescriptorSet(FileDescriptorSet.newBuilder().addFile(file).build().toByteArray())
+                .rootFileDescriptorName(file.getName()).rootMessageTypeName(rootName).build();
         return ObjectMapperFactory.getMapperWithIncludeAlways().writer().writeValueAsBytes(data);
     }
 
