@@ -65,6 +65,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import org.apache.pulsar.broker.service.schema.ProtobufNativeSchemaCompatibility.WorkSummary;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.impl.schema.ProtobufNativeSchemaUtils;
@@ -506,6 +507,86 @@ public class ProtobufNativeSchemaCompatibilityTest {
         fails(writer, reader, "TYPE_CHANGED");
     }
 
+    @Test
+    public void testSharedDiamondChargesReferencesButMemoizesMessagePairs() throws Exception {
+        Descriptor shared = budgetDiamond(true, false);
+        assertThat(work(shared, shared)).isEqualTo(new WorkSummary(38, 57, 608));
+        Descriptor distinct = budgetDiamond(false, false);
+        assertThat(work(distinct, distinct)).isEqualTo(new WorkSummary(46, 69, 736));
+    }
+
+    @Test
+    public void testRepeatedEnumReferencesChargeFieldsButMemoizeEnumPairs() throws Exception {
+        Descriptor shared = budgetEnumReferences(true);
+        assertThat(work(shared, shared)).isEqualTo(new WorkSummary(24, 43, 384));
+        Descriptor distinct = budgetEnumReferences(false);
+        assertThat(work(distinct, distinct)).isEqualTo(new WorkSummary(36, 73, 576));
+    }
+
+    @Test
+    public void testOneofPreparationAndScanCharges() throws Exception {
+        DescriptorProto message = DescriptorProto.newBuilder().setName("Order")
+                .addOneofDecl(OneofDescriptorProto.newBuilder().setName("choice"))
+                .addOneofDecl(OneofDescriptorProto.newBuilder().setName("_c"))
+                .addField(field("a", 1, TYPE_INT32, LABEL_OPTIONAL).toBuilder().setOneofIndex(0))
+                .addField(field("b", 2, TYPE_INT32, LABEL_OPTIONAL).toBuilder().setOneofIndex(0))
+                .addField(field("c", 3, TYPE_INT32, LABEL_OPTIONAL).toBuilder()
+                        .setOneofIndex(1).setProto3Optional(true)).build();
+        Descriptor descriptor = proto3Root(message);
+        assertThat(work(descriptor, descriptor)).isEqualTo(new WorkSummary(32, 48, 512));
+    }
+
+    @Test
+    public void testFieldDeclarationOrderDoesNotChangeWork() throws Exception {
+        Descriptor original = budgetDiamond(true, false);
+        Descriptor reordered = budgetDiamond(true, true);
+        assertThat(work(original, reordered)).isEqualTo(new WorkSummary(38, 57, 608));
+        assertThat(work(reordered, original)).isEqualTo(work(original, reordered));
+    }
+
+    @Test
+    public void testRelativeWorkLimitAllowsEqualityAndRejectsExcess() throws Exception {
+        Descriptor writer = nestedCycle(25);
+        Descriptor equal = nestedCycle(39);
+        // G = 4 * (25 + 39) + 4; 975 directed pairs cost four units each, including the field scans.
+        assertThat(work(writer, equal)).isEqualTo(new WorkSummary(260, 4160, 4160));
+        assertThatThrownBy(() -> accepts(writer, nestedCycle(41)))
+                .isInstanceOf(IncompatibleSchemaException.class)
+                .hasMessageContaining("COMPARISON_LIMIT_EXCEEDED")
+                .hasMessageContaining("limit=4288");
+        assertThat(work(writer, equal)).isEqualTo(new WorkSummary(260, 4160, 4160));
+    }
+
+    @Test(timeOut = 30000)
+    public void testAbsoluteWorkLimitAllowsEqualityAndRejectsExcess() throws Exception {
+        Descriptor equal = budgetCapRoot(14280);
+        // Seven real-oneof members give total work 40 + 7 * fieldCount, with the absolute cap active.
+        assertThat(work(equal, equal)).isEqualTo(new WorkSummary(57144, 100000, 100000));
+        Descriptor excess = budgetCapRoot(14281);
+        assertThatThrownBy(() -> accepts(excess, excess))
+                .isInstanceOf(IncompatibleSchemaException.class)
+                .hasMessageContaining("COMPARISON_LIMIT_EXCEEDED")
+                .hasMessageContaining("work=100007")
+                .hasMessageContaining("limit=100000");
+    }
+
+    @Test
+    public void testWorkStateIsIsolatedAcrossCallsHistoryAndDirections() throws Exception {
+        Descriptor writer = nestedCycle(25);
+        Descriptor reader = nestedCycle(39);
+        for (int attempt = 0; attempt < 2; attempt++) {
+            assertThat(work(writer, reader)).isEqualTo(new WorkSummary(260, 4160, 4160));
+            assertThat(work(reader, writer)).isEqualTo(new WorkSummary(260, 4160, 4160));
+        }
+        SchemaData existing = schema(writer);
+        SchemaData proposed = schema(reader);
+        checker.checkCompatible(existing, proposed, SchemaCompatibilityStrategy.FULL);
+        for (SchemaCompatibilityStrategy strategy : List.of(SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE,
+                SchemaCompatibilityStrategy.FORWARD_TRANSITIVE, SchemaCompatibilityStrategy.FULL_TRANSITIVE)) {
+            checker.checkCompatible(List.of(existing, differentEncoding(existing)), proposed, strategy);
+        }
+    }
+
     @Test(timeOut = 10000)
     public void testCoprimeMessageCyclesHaveBoundedWork() throws Exception {
         accepts(cycle(101), cycle(101));
@@ -560,6 +641,74 @@ public class ProtobufNativeSchemaCompatibilityTest {
         assertThatThrownBy(() -> checker.checkCompatible(unsupported, differentEncoding(unsupported),
                 SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE))
                 .hasMessageContaining("UNSUPPORTED_FEATURE");
+    }
+
+    private static Descriptor budgetDiamond(boolean sharedLeaf, boolean reverseFields) throws Exception {
+        FieldDescriptorProto left = field("left", 1, TYPE_MESSAGE, LABEL_OPTIONAL).toBuilder()
+                .setTypeName(".example.Left").build();
+        FieldDescriptorProto right = field("right", 2, TYPE_MESSAGE, LABEL_OPTIONAL).toBuilder()
+                .setTypeName(".example.Right").build();
+        FileDescriptorProto.Builder file = FileDescriptorProto.newBuilder().setName("budget-diamond.proto")
+                .setPackage("example").setSyntax("proto2")
+                .addMessageType(reverseFields ? message("Order", right, left) : message("Order", left, right))
+                .addMessageType(message("Left", field("leaf", 1, TYPE_MESSAGE, LABEL_OPTIONAL).toBuilder()
+                        .setTypeName(sharedLeaf ? ".example.Leaf" : ".example.LeftLeaf").build()))
+                .addMessageType(message("Right", field("leaf", 1, TYPE_MESSAGE, LABEL_OPTIONAL).toBuilder()
+                        .setTypeName(sharedLeaf ? ".example.Leaf" : ".example.RightLeaf").build()));
+        for (String name : sharedLeaf ? List.of("Leaf") : List.of("LeftLeaf", "RightLeaf")) {
+            file.addMessageType(message(name, field("value", 1, TYPE_INT32, LABEL_OPTIONAL)));
+        }
+        return FileDescriptor.buildFrom(file.build(), new FileDescriptor[0]).findMessageTypeByName("Order");
+    }
+
+    private static Descriptor budgetEnumReferences(boolean sharedEnum) throws Exception {
+        FileDescriptorProto.Builder file = FileDescriptorProto.newBuilder().setName("budget-enum.proto")
+                .setPackage("example").setSyntax("proto2");
+        DescriptorProto.Builder message = DescriptorProto.newBuilder().setName("Order");
+        for (int index = 1; index <= 3; index++) {
+            String name = sharedEnum ? "State" : "State" + index;
+            message.addField(field("state" + index, index, TYPE_ENUM, LABEL_OPTIONAL).toBuilder()
+                    .setTypeName(".example." + name));
+            if (!sharedEnum || index == 1) {
+                file.addEnumType(EnumDescriptorProto.newBuilder().setName(name)
+                        .addValue(EnumValueDescriptorProto.newBuilder().setName("A").setNumber(0))
+                        .addValue(EnumValueDescriptorProto.newBuilder().setName("B").setNumber(1)));
+            }
+        }
+        file.addMessageType(message);
+        return FileDescriptor.buildFrom(file.build(), new FileDescriptor[0]).findMessageTypeByName("Order");
+    }
+
+    private static Descriptor nestedCycle(int length) throws Exception {
+        DescriptorProto.Builder outer = DescriptorProto.newBuilder().setName("Outer");
+        for (int index = 0; index < length; index++) {
+            String name = index == 0 ? "Order" : "Node" + index;
+            String next = index + 1 == length ? "Order" : "Node" + (index + 1);
+            outer.addNestedType(message(name, field("next", 1, TYPE_MESSAGE, LABEL_OPTIONAL).toBuilder()
+                    .setTypeName(".example.Outer." + next).build()));
+        }
+        FileDescriptorProto file = FileDescriptorProto.newBuilder().setName("budget-cycle.proto")
+                .setPackage("example").setSyntax("proto2").addMessageType(outer).build();
+        return FileDescriptor.buildFrom(file, new FileDescriptor[0])
+                .findMessageTypeByName("Outer").findNestedTypeByName("Order");
+    }
+
+    private static Descriptor budgetCapRoot(int fieldCount) throws Exception {
+        DescriptorProto.Builder message = DescriptorProto.newBuilder().setName("Order")
+                .addOneofDecl(OneofDescriptorProto.newBuilder().setName("choice"));
+        for (int number = 1; number <= fieldCount; number++) {
+            FieldDescriptorProto.Builder field = field("value" + number, number, TYPE_INT32, LABEL_OPTIONAL)
+                    .toBuilder();
+            if (number <= 7) {
+                field.setOneofIndex(0);
+            }
+            message.addField(field);
+        }
+        return root(message.build());
+    }
+
+    private static WorkSummary work(Descriptor writer, Descriptor reader) throws Exception {
+        return ProtobufNativeSchemaCompatibility.comparisonWork(roundTrip(writer), roundTrip(reader));
     }
 
     private static Descriptor cycle(int length) throws Exception {

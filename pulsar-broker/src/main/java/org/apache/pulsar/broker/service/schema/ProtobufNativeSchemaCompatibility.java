@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.DescriptorProtos.Edition;
 import com.google.protobuf.DescriptorProtos.FeatureSet;
@@ -47,12 +48,22 @@ final class ProtobufNativeSchemaCompatibility {
     private static final int MAX_PATH_LENGTH = 768;
     private static final int MAX_DETAIL_LENGTH = 256;
     private static final long MAX_COMPARISON_WORK = 100_000;
-    private static final long WORK_PER_GRAPH_ELEMENT = 16;
+    private static final long GRAPH_WORK_MULTIPLIER = 16;
 
     private ProtobufNativeSchemaCompatibility() {
     }
 
     static void canRead(Descriptor writer, Descriptor reader) throws IncompatibleSchemaException {
+        compareGraphs(writer, reader);
+    }
+
+    @VisibleForTesting
+    static WorkSummary comparisonWork(Descriptor writer, Descriptor reader) throws IncompatibleSchemaException {
+        Comparison comparison = compareGraphs(writer, reader);
+        return new WorkSummary(comparison.graphWork, comparison.work, comparison.limit);
+    }
+
+    private static Comparison compareGraphs(Descriptor writer, Descriptor reader) throws IncompatibleSchemaException {
         if (!writer.getFullName().equals(reader.getFullName())) {
             throw incompatible("ROOT_MESSAGE_CHANGED", writer.getFullName(), 0,
                     writer.getFullName(), reader.getFullName());
@@ -60,11 +71,13 @@ final class ProtobufNativeSchemaCompatibility {
         Comparison comparison = new Comparison();
         checkSupportedGraph(writer, "writer", comparison);
         checkSupportedGraph(reader, "reader", comparison);
-        comparison.limit = Math.min(MAX_COMPARISON_WORK, comparison.work * WORK_PER_GRAPH_ELEMENT);
+        comparison.graphWork = comparison.work;
+        comparison.limit = Math.min(MAX_COMPARISON_WORK, comparison.graphWork * GRAPH_WORK_MULTIPLIER);
         comparison.enqueue(writer, reader, writer.getFullName());
         while (!comparison.queue.isEmpty()) {
             compareMessagePair(comparison.queue.removeFirst(), comparison);
         }
+        return comparison;
     }
 
     private static void checkSupportedGraph(Descriptor root, String side, Comparison comparison)
@@ -77,6 +90,7 @@ final class ProtobufNativeSchemaCompatibility {
         while (!queue.isEmpty()) {
             Descriptor message = queue.removeFirst();
             String path = message.getFullName();
+            // Reachable messages are visited once per side; sharing does not skip their referring fields below.
             comparison.charge(1, path);
             comparison.checkFile(message.getFile(), side, path);
             if (message.toProto().getExtensionRangeCount() != 0
@@ -85,6 +99,7 @@ final class ProtobufNativeSchemaCompatibility {
             }
             comparison.checkContainingFeatures(message);
             for (FieldDescriptor field : comparison.sortedFields(message)) {
+                // Every reference field is charged, including references to an already visited message or enum.
                 comparison.charge(1, path);
                 String fieldPath = append(path, field.getName());
                 checkFeatures(field.toProto().getOptions().getFeatures(), fieldPath);
@@ -188,6 +203,7 @@ final class ProtobufNativeSchemaCompatibility {
         Descriptor writer = pair.writer;
         Descriptor reader = pair.reader;
         List<FieldDescriptor> readerFields = comparison.sortedFields(reader);
+        // Reserve three complete reader-field scans, independently of pair or preparation cache hits.
         comparison.charge(3L * readerFields.size(), pair.path);
         for (FieldDescriptor readerField : readerFields) {
             FieldDescriptor sameName = writer.findFieldByName(readerField.getName());
@@ -224,6 +240,7 @@ final class ProtobufNativeSchemaCompatibility {
             }
             List<FieldDescriptor> matchingWriterFields = new ArrayList<>();
             List<FieldDescriptor> oneofFields = comparison.oneofFields.get(oneof);
+            // Two logical passes per real-oneof member; synthetic oneofs only pay the body charge above.
             comparison.charge(2L * oneofFields.size(), pair.path);
             for (FieldDescriptor readerField : oneofFields) {
                 FieldDescriptor writerField = pair.writer.findFieldByNumber(readerField.getNumber());
@@ -283,6 +300,7 @@ final class ProtobufNativeSchemaCompatibility {
         if (!readers.add(reader)) {
             return;
         }
+        // Only the first directed enum pair reserves both name and numeric-value passes.
         comparison.charge(1L + 2L * writer.getValues().size() + 2L * reader.getValues().size(), path);
         Map<String, Integer> writerNames = new HashMap<>();
         for (EnumValueDescriptor value : writer.getValues()) {
@@ -346,7 +364,20 @@ final class ProtobufNativeSchemaCompatibility {
         return field.legacyEnumFieldTreatedAsClosed();
     }
 
-    /** All traversal state and work accounting belongs to one direction of one historical pair. */
+    /**
+     * Logical work accounting for one direction of one historical schema pair. No cache crosses that boundary.
+     * Support traversal deduplicates reachable messages and enums on each side, but charges every examined field
+     * and oneof. Each message, field and oneof visit costs one unit; a first enum visit costs 1 + valueCount.
+     * File checks and containing-feature scopes each cost one unit on their first identity visit within this
+     * comparison. Field/oneof sorting preparation is also cached by identity and costs one unit per field, oneof
+     * and member, including synthetic-oneof members.
+     * The accumulated support work G remains part of the total; the final limit is min(100000, 16 * G).
+     * A first directed message pair costs one unit, followed by the reader-field/oneof scans. A memoization hit
+     * skips the pair and its subgraph, while the parent field scans still cost their usual units. A first enum pair
+     * costs 1 + 2 * writerValues + 2 * readerValues; later references skip that enum-pair cost only.
+     * Every message pair reserves 3 * readerFieldCount, one per reader oneof, and two per non-synthetic member.
+     * These are logical charges, not elapsed CPU time or counts of collection implementation operations.
+     */
     private static final class Comparison {
         private final ArrayDeque<MessagePair> queue = new ArrayDeque<>();
         private final IdentityHashMap<Descriptor, Set<Descriptor>> messagePairs = new IdentityHashMap<>();
@@ -357,9 +388,11 @@ final class ProtobufNativeSchemaCompatibility {
         private final Set<FileDescriptor> checkedFiles = Collections.newSetFromMap(new IdentityHashMap<>());
         private final Set<Descriptor> checkedScopes = Collections.newSetFromMap(new IdentityHashMap<>());
         private long work;
+        private long graphWork;
         private long limit = MAX_COMPARISON_WORK;
 
         private void charge(long amount, String path) throws IncompatibleSchemaException {
+            // Equality is allowed. Support scanning uses the absolute cap until G establishes the final limit.
             if (amount > limit - work) {
                 throw incompatible("COMPARISON_LIMIT_EXCEEDED", path, 0,
                         "work=" + (work + amount), "limit=" + limit);
@@ -438,5 +471,8 @@ final class ProtobufNativeSchemaCompatibility {
     }
 
     private record MessagePair(Descriptor writer, Descriptor reader, String path) {
+    }
+
+    record WorkSummary(long graphWork, long chargedWork, long limit) {
     }
 }
