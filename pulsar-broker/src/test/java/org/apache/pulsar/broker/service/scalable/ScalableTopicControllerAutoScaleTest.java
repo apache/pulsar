@@ -493,6 +493,10 @@ public class ScalableTopicControllerAutoScaleTest {
         // …so another consumer-driven rollover is blocked by the seeded rebucket cooldown…
         controller.registerConsumer("sub", "c9", 9L, ScalableConsumerType.STREAM,
                 mock(TransportCnx.class)).get();
+        // registerConsumer fires an asynchronous consumer-change evaluation; a manual one
+        // issued while it runs would be coalesced into it and return without evaluating.
+        Awaitility.await().atMost(Duration.ofSeconds(10))
+                .until(() -> !controller.isAutoScaleEvaluationInFlight());
         controller.evaluateAutoScaleForTest().get();
         assertEquals(soleActiveBucketCount(), 8,
                 "the seeded rebucket cooldown must block an immediate second rollover");
