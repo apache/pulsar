@@ -20,9 +20,12 @@ package org.apache.pulsar.metadata.impl;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.nio.ByteBuffer;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -77,10 +80,18 @@ public class DualMetadataStore implements MetadataStoreExtended {
     volatile MetadataStoreExtended targetStore = null;
 
     private volatile MigrationState migrationState = MigrationState.NOT_STARTED;
+    private final Object migrationLock = new Object();
 
     private final MetadataStoreConfig config;
     private String participantId;
     private final Set<String> localEphemeralPaths = ConcurrentHashMap.newKeySet();
+    private final Map<EphemeralAcquisition, CompletableFuture<Void>> targetEphemeralCopies = new ConcurrentHashMap<>();
+
+    private record EphemeralAcquisition(String path, ByteBuffer value) {
+        private EphemeralAcquisition(String path, byte[] value) {
+            this(path, ByteBuffer.wrap(value.clone()).asReadOnlyBuffer());
+        }
+    }
 
     private final ScheduledExecutorService executor;
 
@@ -164,10 +175,13 @@ public class DualMetadataStore implements MetadataStoreExtended {
             }
 
             migrationStateCache.get(MigrationState.MIGRATION_FLAG_PATH)
-                    .thenAccept(migrationState -> {
-                        this.migrationState = migrationState.orElse(MigrationState.NOT_STARTED);
+                    .thenAccept(state -> {
+                        MigrationState newState = state.orElse(MigrationState.NOT_STARTED);
+                        synchronized (migrationLock) {
+                            this.migrationState = newState;
+                        }
 
-                        switch (this.migrationState.getPhase()) {
+                        switch (newState.getPhase()) {
                             case PREPARATION -> executor.execute(this::handleMigrationStart);
                             case COMPLETED -> executor.execute(this::handleMigrationComplete);
                             case FAILED -> executor.execute(this::handleMigrationFailed);
@@ -275,14 +289,43 @@ public class DualMetadataStore implements MetadataStoreExtended {
                 .map(path ->
                         sourceStore.get(path)
                                 .thenCompose(ogr ->
-                                        ogr.map(gr -> targetStore.put(path, gr.getValue(), Optional.empty(),
-                                                        EnumSet.of(CreateOption.Ephemeral)))
+                                        ogr.map(gr -> copyEphemeralToTarget(path, gr))
                                                 .orElse(
                                                         CompletableFuture.completedFuture(null))
                                 )
                 ).toList();
 
         FutureUtil.waitForAll(futures).get();
+    }
+
+    private CompletableFuture<Void> copyEphemeralToTarget(String path, GetResult source) {
+        if (!source.getStat().isEphemeral() || !source.getStat().isCreatedBySelf()) {
+            // A path retained after source session expiration may now belong to another store session.
+            return CompletableFuture.completedFuture(null);
+        }
+        byte[] value = source.getValue().clone();
+        EphemeralAcquisition acquisition = new EphemeralAcquisition(path, value);
+        CompletableFuture<Void> copy = new CompletableFuture<>();
+        synchronized (migrationLock) {
+            MigrationPhase phase = migrationState.getPhase();
+            if (phase != MigrationPhase.PREPARATION && phase != MigrationPhase.COPYING) {
+                return CompletableFuture.completedFuture(null);
+            }
+            // Register the acquisition before submitting the write, including ambiguous failures.
+            // FAILED cleanup waits for every submitted copy of this acquisition, but not other acquisitions.
+            targetEphemeralCopies.compute(acquisition, (key, previous) -> previous == null ? copy
+                    : previous.handle((ignored, error) -> null).thenCompose(ignored -> copy));
+        }
+        FutureUtil.supplySafely(() -> targetStore.put(path, value, Optional.empty(),
+                        EnumSet.of(CreateOption.Ephemeral)))
+                .whenComplete((ignored, error) -> {
+                    if (error == null) {
+                        copy.complete(null);
+                    } else {
+                        copy.completeExceptionally(FutureUtil.unwrapCompletionException(error));
+                    }
+                });
+        return copy;
     }
 
     @Override
@@ -406,6 +449,78 @@ public class DualMetadataStore implements MetadataStoreExtended {
 
             default -> throw new IllegalStateException("Invalid phase " + migrationState.getPhase());
         }
+    }
+
+    /**
+     * Deletes an ephemeral acquisition, including its owned target-store copy after a failed migration.
+     * The caller must supply the acquisition's value and, if the source is still owned, its current version.
+     * An empty source version cleans only the target copy, preserving any replacement in the source.
+     * Target ownership is checked before a version-conditional delete; this does not atomically fence node
+     * recreation on backends that reuse versions.
+     */
+    public CompletableFuture<Void> deleteEphemeral(String path, byte[] expectedValue, Optional<Long> sourceVersion) {
+        if (expectedValue == null || sourceVersion == null) {
+            return CompletableFuture.failedFuture(new IllegalArgumentException("Acquisition value/version is null"));
+        }
+        MigrationState state = migrationState;
+        if (state.getPhase() != MigrationPhase.FAILED) {
+            if (sourceVersion.isEmpty()) {
+                return CompletableFuture.failedFuture(
+                        new MetadataStoreException("Metadata migration changed during ephemeral cleanup; retry"));
+            }
+            return FutureUtil.supplySafely(() -> delete(path, sourceVersion));
+        }
+
+        // Migration preparation must wait until both copies have been cleaned up before recreating ephemerals.
+        pendingSourceWrites.incrementAndGet();
+        CompletableFuture<Void> cleanup = FutureUtil.supplySafely(() -> {
+            if (migrationState != state) {
+                return CompletableFuture.<Void>failedFuture(
+                        new MetadataStoreException("Metadata migration changed during ephemeral cleanup; retry"));
+            }
+            EphemeralAcquisition acquisition = new EphemeralAcquisition(path, expectedValue);
+            CompletableFuture<Void> copied = targetEphemeralCopies.get(acquisition);
+            if (copied == null) {
+                // A source-only acquisition must remain releasable when the failed target is unavailable.
+                return CompletableFuture.<Void>completedFuture(null);
+            }
+            MetadataStoreExtended target = targetStore;
+            if (target == null) {
+                return CompletableFuture.<Void>failedFuture(
+                        new MetadataStoreException("Target unavailable for copied acquisition; retry cleanup"));
+            }
+            return copied.handle((ignored, error) -> null).thenCompose(ignored -> target.get(path))
+                    .thenCompose(existing -> {
+                        if (existing.isEmpty() || !existing.get().getStat().isEphemeral()
+                                || !existing.get().getStat().isCreatedBySelf()
+                                || !Arrays.equals(existing.get().getValue(), expectedValue)) {
+                            return CompletableFuture.<Void>completedFuture(null);
+                        }
+                        return target.delete(path, Optional.of(existing.get().getStat().getVersion()))
+                                .exceptionallyCompose(error -> {
+                                    Throwable cause = FutureUtil.unwrapCompletionException(error);
+                                    return cause instanceof MetadataStoreException.NotFoundException
+                                            ? CompletableFuture.completedFuture(null)
+                                            : CompletableFuture.failedFuture(cause);
+                                });
+                    }).thenRun(() -> targetEphemeralCopies.remove(acquisition, copied));
+        }).thenCompose(ignored -> {
+            if (sourceVersion.isEmpty()) {
+                return CompletableFuture.completedFuture(null);
+            }
+            // Remove tracking before submitting the source delete so a later acquisition can register the path.
+            localEphemeralPaths.remove(path);
+            return sourceStore.delete(path, sourceVersion);
+        });
+        return cleanup.whenComplete((ignored, error) -> {
+            Throwable cause = error == null ? null : FutureUtil.unwrapCompletionException(error);
+            if (sourceVersion.isPresent() && cause != null
+                    && !(cause instanceof MetadataStoreException.NotFoundException)) {
+                // Preparation after a failed delete must still recreate the surviving source acquisition.
+                localEphemeralPaths.add(path);
+            }
+            pendingSourceWrites.decrementAndGet();
+        });
     }
 
     @Override

@@ -65,6 +65,7 @@ import org.apache.pulsar.common.migration.MigrationPhase;
 import org.apache.pulsar.common.migration.MigrationState;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.BaseMetadataStoreTest;
+import org.apache.pulsar.metadata.TestZKServer;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -75,7 +76,9 @@ import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.impl.DualMetadataStore;
+import org.apache.pulsar.metadata.impl.MetadataStoreFactoryImpl;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
+import org.apache.pulsar.metadata.impl.batching.MetadataOp;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.DataProvider;
@@ -344,6 +347,542 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
             }
         }
         return false;
+    }
+
+    @DataProvider(name = "failedMigrationCleanup")
+    public Object[][] failedMigrationCleanup() {
+        List<Object[]> cases = new ArrayList<>(List.of(new Object[]{false, false}, new Object[]{false, true}));
+        if (isOxiaEnabled()) {
+            cases.addAll(List.of(new Object[]{true, false}, new Object[]{true, true}));
+        }
+        return cases.toArray(Object[][]::new);
+    }
+
+    @DataProvider(name = "failedMigrationExpiredSource")
+    public Object[][] failedMigrationExpiredSource() {
+        List<Object[]> cases = new ArrayList<>();
+        for (Object[] entry : failedMigrationCleanup()) {
+            cases.add(new Object[]{entry[0], entry[1], false});
+            cases.add(new Object[]{entry[0], entry[1], true});
+        }
+        return cases.toArray(Object[][]::new);
+    }
+
+    private void cleanupLock(LedgerUnderreplicationManager manager, long ledgerId, boolean close)
+            throws UnavailableException {
+        if (close) {
+            manager.close();
+        } else {
+            manager.releaseUnderreplicatedLedger(ledgerId);
+        }
+    }
+
+    private String ledgerLockPath(long ledgerId) {
+        return PulsarLedgerUnderreplicationManager.getUrLedgerLockPath(
+                PulsarLedgerUnderreplicationManager.getUrLockPath(ledgersRoot), ledgerId);
+    }
+
+    private void setMigrationPhase(MetadataStoreExtended source, MigrationPhase phase, String targetUrl)
+            throws Exception {
+        source.put(MigrationState.MIGRATION_FLAG_PATH, ObjectMapperFactory.getMapper().writer().writeValueAsBytes(
+                new MigrationState(phase, targetUrl)), Optional.empty()).join();
+    }
+
+    private void prepareLockMigration(MetadataStoreExtended source, MetadataStoreExtended target, String targetUrl,
+                                      String lockPath, BlockingQueue<SessionEvent> sessionEvents) throws Exception {
+        setMigrationPhase(source, MigrationPhase.PREPARATION, targetUrl);
+        Awaitility.await().untilAsserted(() -> {
+            assertThat(target.get(lockPath).join()).isPresent();
+            assertThat(source.getChildren(MigrationState.PARTICIPANTS_PATH).join()).isEmpty();
+        });
+        assertThat(sessionEvents.poll(10, TimeUnit.SECONDS)).isEqualTo(SessionEvent.SessionLost);
+    }
+
+    private void failMigration(MetadataStoreExtended source, String targetUrl,
+                               BlockingQueue<SessionEvent> sessionEvents) throws Exception {
+        setMigrationPhase(source, MigrationPhase.FAILED, targetUrl);
+        assertThat(sessionEvents.poll(10, TimeUnit.SECONDS)).isEqualTo(SessionEvent.SessionReestablished);
+    }
+
+    private void resetMigration(MetadataStoreExtended source, DualMetadataStore dualStore) throws Exception {
+        source.delete(MigrationState.MIGRATION_FLAG_PATH, Optional.empty()).join();
+        Awaitility.await().until(() -> dualStore.getMigrationPhase() == MigrationPhase.NOT_STARTED);
+    }
+
+    private void expireSourceSession(ZKMetadataStore source) throws Exception {
+        CountDownLatch reestablished = new CountDownLatch(1);
+        source.registerSessionListener(event -> {
+            if (event == SessionEvent.SessionReestablished) {
+                reestablished.countDown();
+            }
+        });
+        zks.expireSession(source.getZkSessionId());
+        assertThat(reestablished.await(20, TimeUnit.SECONDS)).isTrue();
+    }
+
+    @Test(timeOut = 60000, dataProvider = "cleanupMethods")
+    public void testFailedMigrationDoesNotCopyLaterAcquisition(boolean close) throws Exception {
+        AtomicReference<String> delayedPath = new AtomicReference<>();
+        AtomicBoolean delayFirstRead = new AtomicBoolean(true);
+        CountDownLatch readReady = new CountDownLatch(1);
+        CompletableFuture<Void> resumeRead = new CompletableFuture<>();
+        ZKMetadataStore source = new ZKMetadataStore(zks.getConnectionString(),
+                MetadataStoreConfig.builder().build(), true) {
+            @Override
+            protected void batchOperation(List<MetadataOp> operations) {
+                List<MetadataOp> immediate = new ArrayList<>();
+                for (MetadataOp operation : operations) {
+                    if (operation.getType() == MetadataOp.Type.GET && operation.getPath().equals(delayedPath.get())
+                            && delayFirstRead.compareAndSet(true, false)) {
+                        readReady.countDown();
+                        resumeRead.thenRun(() -> super.batchOperation(List.of(operation)));
+                    } else {
+                        immediate.add(operation);
+                    }
+                }
+                if (!immediate.isEmpty()) {
+                    super.batchOperation(immediate);
+                }
+            }
+        };
+        DualMetadataStore dualStore = new DualMetadataStore(source, MetadataStoreConfig.builder().build());
+        methodSetup(dualStore);
+        long ledgerId = 123L;
+        lum.acquireUnderreplicatedLedger(ledgerId);
+        String lockPath = ledgerLockPath(ledgerId);
+        GetResult acquired = source.get(lockPath).join().orElseThrow();
+        BlockingQueue<SessionEvent> sessionEvents = new LinkedBlockingQueue<>();
+        store.registerSessionListener(sessionEvents::add);
+        try (TestZKServer targetServer = new TestZKServer()) {
+            String targetUrl = targetServer.getConnectionString();
+            try (MetadataStoreExtended target = MetadataStoreExtended.create(targetUrl,
+                    MetadataStoreConfig.builder().build())) {
+                delayedPath.set(lockPath);
+                setMigrationPhase(source, MigrationPhase.PREPARATION, targetUrl);
+                assertThat(readReady.await(10, TimeUnit.SECONDS)).isTrue();
+                assertThat(sessionEvents.poll(10, TimeUnit.SECONDS)).isEqualTo(SessionEvent.SessionLost);
+                setMigrationPhase(source, MigrationPhase.FAILED, targetUrl);
+                Awaitility.await().until(() -> dualStore.getMigrationPhase() == MigrationPhase.FAILED);
+                source.delete(lockPath, Optional.of(acquired.getStat().getVersion())).join();
+                try (var other = lmf.newLedgerUnderreplicationManager()) {
+                    other.acquireUnderreplicatedLedger(ledgerId);
+                    // Resume the actual source read after FAILED and acquisition of a different lock incarnation.
+                    resumeRead.complete(null);
+                    assertThat(sessionEvents.poll(10, TimeUnit.SECONDS)).isEqualTo(SessionEvent.SessionReestablished);
+                    assertThat(target.get(lockPath).join()).as("The old preparation must not copy the new lock")
+                            .isEmpty();
+                    targetServer.stop();
+                    Future<?> cleanup = executor.submit(() -> {
+                        cleanupLock(other, ledgerId, close);
+                        return null;
+                    });
+                    try {
+                        cleanup.get(3, TimeUnit.SECONDS);
+                        assertThat(source.get(lockPath).join()).isEmpty();
+                    } finally {
+                        targetServer.start();
+                        cleanup.get(20, TimeUnit.SECONDS);
+                    }
+                }
+            } finally {
+                resumeRead.complete(null);
+                resetMigration(source, dualStore);
+                try {
+                    lum.close();
+                } finally {
+                    store.close();
+                }
+            }
+        }
+    }
+
+    @Test(timeOut = 60000, dataProvider = "lockCleanup")
+    public void testNewLockCleanupWithFailedMigrationTarget(boolean samePath, boolean close) throws Exception {
+        methodSetup(zks::getConnectionString);
+        long originalLedgerId = 123L;
+        lum.acquireUnderreplicatedLedger(originalLedgerId);
+        String originalPath = ledgerLockPath(originalLedgerId);
+        DualMetadataStore dualStore = (DualMetadataStore) store;
+        ZKMetadataStore source = (ZKMetadataStore) dualStore.getSourceStore();
+        BlockingQueue<SessionEvent> sessionEvents = new LinkedBlockingQueue<>();
+        store.registerSessionListener(sessionEvents::add);
+        try (TestZKServer targetServer = new TestZKServer()) {
+            String targetUrl = targetServer.getConnectionString();
+            try (MetadataStoreExtended target = MetadataStoreExtended.create(targetUrl,
+                    MetadataStoreConfig.builder().build())) {
+                prepareLockMigration(source, target, targetUrl, originalPath, sessionEvents);
+                failMigration(source, targetUrl, sessionEvents);
+                long ledgerId = samePath ? originalLedgerId : 124L;
+                if (samePath) {
+                    expireSourceSession(source);
+                }
+                try (var other = lmf.newLedgerUnderreplicationManager()) {
+                    other.acquireUnderreplicatedLedger(ledgerId);
+                    String lockPath = ledgerLockPath(ledgerId);
+                    assertThat(source.get(lockPath).join().orElseThrow().getStat().isCreatedBySelf()).isTrue();
+                    if (samePath) {
+                        assertThat(target.get(lockPath).join().orElseThrow().getValue())
+                                .isNotEqualTo(source.get(lockPath).join().orElseThrow().getValue());
+                    } else {
+                        assertThat(target.get(lockPath).join()).isEmpty();
+                    }
+                    // A real target outage must not delay deletion of an acquisition never copied there.
+                    targetServer.stop();
+                    Future<?> cleanup = executor.submit(() -> {
+                        cleanupLock(other, ledgerId, close);
+                        return null;
+                    });
+                    try {
+                        cleanup.get(3, TimeUnit.SECONDS);
+                        assertThat(source.get(lockPath).join()).isEmpty();
+                    } finally {
+                        targetServer.start();
+                        cleanup.get(20, TimeUnit.SECONDS);
+                    }
+                }
+            } finally {
+                resetMigration(source, dualStore);
+                try {
+                    lum.close();
+                } finally {
+                    store.close();
+                }
+            }
+        }
+    }
+
+    @Test(timeOut = 60000, dataProvider = "cleanupMethods")
+    public void testLockCleanupAfterStartingWithFailedMigration(boolean close) throws Exception {
+        ZKMetadataStore source = new ZKMetadataStore(zks.getConnectionString(),
+                MetadataStoreConfig.builder().build(), true);
+        setMigrationPhase(source, MigrationPhase.FAILED, "memory:" + UUID.randomUUID());
+        DualMetadataStore dualStore = new DualMetadataStore(source, MetadataStoreConfig.builder().build());
+        methodSetup(dualStore);
+        long ledgerId = 123L;
+        lum.acquireUnderreplicatedLedger(ledgerId);
+        String lockPath = ledgerLockPath(ledgerId);
+        CountDownLatch reestablished = new CountDownLatch(1);
+        source.registerSessionListener(event -> {
+            if (event == SessionEvent.SessionReestablished) {
+                reestablished.countDown();
+            }
+        });
+        try {
+            zks.expireSession(source.getZkSessionId());
+            assertThat(reestablished.await(20, TimeUnit.SECONDS)).isTrue();
+            assertThat(source.get(lockPath).join()).isEmpty();
+            cleanupLock(lum, ledgerId, close);
+            lum.close();
+        } finally {
+            resetMigration(source, dualStore);
+        }
+    }
+
+    @SuppressWarnings("deprecation")
+    @Test(timeOut = 60000, dataProvider = "cleanupMethods")
+    public void testFailedMigrationCleanupPreservesForeignSourceOwnership(boolean close) throws Exception {
+        AtomicReference<String> participantPath = new AtomicReference<>();
+        AtomicBoolean retryPreparation = new AtomicBoolean();
+        CountDownLatch originalPreparationFinished = new CountDownLatch(1);
+        ZKMetadataStore source = new ZKMetadataStore(zks.getConnectionString(),
+                MetadataStoreConfig.builder().build(), true) {
+            @Override
+            protected void batchOperation(List<MetadataOp> operations) {
+                if (retryPreparation.get() && operations.stream().anyMatch(operation ->
+                        operation.getType() == MetadataOp.Type.DELETE
+                                && operation.getPath().equals(participantPath.get()))) {
+                    // The participant delete is submitted only after all copy operations complete.
+                    originalPreparationFinished.countDown();
+                }
+                super.batchOperation(operations);
+            }
+        };
+        DualMetadataStore dualStore = new DualMetadataStore(source, MetadataStoreConfig.builder().build());
+        methodSetup(dualStore);
+        participantPath.set(MigrationState.PARTICIPANTS_PATH + '/'
+                + source.getChildren(MigrationState.PARTICIPANTS_PATH).join().get(0));
+        long ledgerId = 123L;
+        lum.acquireUnderreplicatedLedger(ledgerId);
+        String lockPath = ledgerLockPath(ledgerId);
+        BlockingQueue<SessionEvent> sessionEvents = new LinkedBlockingQueue<>();
+        store.registerSessionListener(sessionEvents::add);
+        CompletableFuture<Void> resumeForeignRead = new CompletableFuture<>();
+        try (TestZKServer targetServer = new TestZKServer()) {
+            String targetUrl = targetServer.getConnectionString();
+            try (MetadataStoreExtended target = MetadataStoreExtended.create(targetUrl,
+                    MetadataStoreConfig.builder().build())) {
+                prepareLockMigration(source, target, targetUrl, lockPath, sessionEvents);
+                failMigration(source, targetUrl, sessionEvents);
+                expireSourceSession(source);
+                AtomicBoolean delayForeignRead = new AtomicBoolean();
+                CountDownLatch foreignReadReady = new CountDownLatch(1);
+                ZKMetadataStore foreignSource = new ZKMetadataStore(zks.getConnectionString(),
+                        MetadataStoreConfig.builder().build(), true) {
+                    @Override
+                    protected void batchOperation(List<MetadataOp> operations) {
+                        List<MetadataOp> immediate = new ArrayList<>();
+                        for (MetadataOp operation : operations) {
+                            if (operation.getType() == MetadataOp.Type.GET && operation.getPath().equals(lockPath)
+                                    && delayForeignRead.compareAndSet(true, false)) {
+                                foreignReadReady.countDown();
+                                resumeForeignRead.thenRun(() -> super.batchOperation(List.of(operation)));
+                            } else {
+                                immediate.add(operation);
+                            }
+                        }
+                        if (!immediate.isEmpty()) {
+                            super.batchOperation(immediate);
+                        }
+                    }
+                };
+                try (DualMetadataStore foreignStore = new DualMetadataStore(foreignSource,
+                        MetadataStoreConfig.builder().build())) {
+                    @Cleanup
+                    PulsarLedgerManagerFactory foreignFactory = new PulsarLedgerManagerFactory();
+                    ClientConfiguration conf = new ClientConfiguration();
+                    conf.setZkLedgersRootPath(ledgersRoot);
+                    foreignFactory.initialize(conf, new PulsarLayoutManager(foreignStore, ledgersRoot), 1);
+                    try (var other = foreignFactory.newLedgerUnderreplicationManager()) {
+                        other.acquireUnderreplicatedLedger(ledgerId);
+                        assertThat(source.get(lockPath).join().orElseThrow().getStat().isCreatedBySelf()).isFalse();
+                        cleanupLock(lum, ledgerId, close);
+                        assertThat(target.get(lockPath).join()).isEmpty();
+                        retryPreparation.set(true);
+                        delayForeignRead.set(true);
+                        setMigrationPhase(source, MigrationPhase.PREPARATION, targetUrl);
+                        try {
+                            assertThat(foreignReadReady.await(10, TimeUnit.SECONDS)).isTrue();
+                            assertThat(originalPreparationFinished.await(10, TimeUnit.SECONDS)).isTrue();
+                            assertThat(target.get(lockPath).join())
+                                    .as("A stale source path must not copy another source session's acquisition")
+                                    .isEmpty();
+                        } finally {
+                            resumeForeignRead.complete(null);
+                        }
+                        Awaitility.await().untilAsserted(() -> {
+                            assertThat(target.get(lockPath).join()).isPresent();
+                            assertThat(source.getChildren(MigrationState.PARTICIPANTS_PATH).join()).isEmpty();
+                        });
+                        setMigrationPhase(source, MigrationPhase.COMPLETED, targetUrl);
+                        Awaitility.await().until(() -> foreignStore.getMigrationPhase() == MigrationPhase.COMPLETED);
+                        cleanupLock(other, ledgerId, close);
+                        assertThat(target.get(lockPath).join()).isEmpty();
+                    }
+                }
+            } finally {
+                resumeForeignRead.complete(null);
+                resetMigration(source, dualStore);
+                try {
+                    lum.close();
+                } finally {
+                    store.close();
+                }
+            }
+        }
+    }
+
+    @Test(timeOut = 60000, dataProvider = "failedMigrationExpiredSource")
+    public void testFailedMigrationCleanupAfterSourceExpiration(boolean oxia, boolean close, boolean replaceSource)
+            throws Exception {
+        methodSetup(zks::getConnectionString);
+        long ledgerId = 123L;
+        lum.acquireUnderreplicatedLedger(ledgerId);
+        String lockPath = ledgerLockPath(ledgerId);
+        DualMetadataStore dualStore = (DualMetadataStore) store;
+        ZKMetadataStore source = (ZKMetadataStore) dualStore.getSourceStore();
+        String targetUrl = oxia ? "oxia://" + getOxiaServerConnectString() : "memory:" + UUID.randomUUID();
+        BlockingQueue<SessionEvent> sessionEvents = new LinkedBlockingQueue<>();
+        store.registerSessionListener(sessionEvents::add);
+        try (MetadataStoreExtended target = MetadataStoreExtended.create(targetUrl,
+                MetadataStoreConfig.builder().build())) {
+            prepareLockMigration(source, target, targetUrl, lockPath, sessionEvents);
+            failMigration(source, targetUrl, sessionEvents);
+            expireSourceSession(source);
+            assertThat(source.get(lockPath).join()).isEmpty();
+            assertThat(target.get(lockPath).join()).isPresent();
+            try (var other = replaceSource ? lmf.newLedgerUnderreplicationManager() : null) {
+                GetResult replacement = null;
+                if (replaceSource) {
+                    other.acquireUnderreplicatedLedger(ledgerId);
+                    replacement = source.get(lockPath).join().orElseThrow();
+                }
+                cleanupLock(lum, ledgerId, close);
+                assertThat(target.get(lockPath).join()).isEmpty();
+                if (replaceSource) {
+                    assertThat(source.get(lockPath).join()).isPresent().get()
+                            .extracting(GetResult::getValue).isEqualTo(replacement.getValue());
+                    setMigrationPhase(source, MigrationPhase.PREPARATION, targetUrl);
+                    byte[] replacementData = replacement.getValue();
+                    Awaitility.await().untilAsserted(() -> assertThat(target.get(lockPath).join()).isPresent().get()
+                            .extracting(GetResult::getValue).isEqualTo(replacementData));
+                    setMigrationPhase(source, MigrationPhase.COMPLETED, targetUrl);
+                    Awaitility.await().until(() -> dualStore.getMigrationPhase() == MigrationPhase.COMPLETED);
+                    cleanupLock(other, ledgerId, close);
+                    assertThat(target.get(lockPath).join()).isEmpty();
+                }
+            }
+        } finally {
+            resetMigration(source, dualStore);
+        }
+    }
+
+    @Test(timeOut = 60000, dataProvider = "failedMigrationCleanup")
+    public void testLockCleanupDuringFailedMetadataMigration(boolean oxia, boolean close) throws Exception {
+        methodSetup(zks::getConnectionString);
+        long ledgerId = 123L;
+        lum.acquireUnderreplicatedLedger(ledgerId);
+        String lockPath = ledgerLockPath(ledgerId);
+        MetadataStoreExtended source = ((DualMetadataStore) store).getSourceStore();
+        String targetUrl = oxia ? "oxia://" + getOxiaServerConnectString() : "memory:" + UUID.randomUUID();
+        BlockingQueue<SessionEvent> sessionEvents = new LinkedBlockingQueue<>();
+        store.registerSessionListener(sessionEvents::add);
+        try (MetadataStoreExtended target = MetadataStoreExtended.create(targetUrl,
+                MetadataStoreConfig.builder().build())) {
+            prepareLockMigration(source, target, targetUrl, lockPath, sessionEvents);
+            failMigration(source, targetUrl, sessionEvents);
+            assertThat(source.get(lockPath).join().orElseThrow().getStat().isCreatedBySelf()).isTrue();
+
+            if (close) {
+                lum.close();
+            } else {
+                lum.releaseUnderreplicatedLedger(ledgerId);
+            }
+            assertThat(source.get(lockPath).join()).isEmpty();
+            assertThat(target.get(lockPath).join())
+                    .as("Cleanup during FAILED must also release the owned target-store copy").isEmpty();
+
+            setMigrationPhase(source, MigrationPhase.PREPARATION, targetUrl);
+            assertThat(sessionEvents.poll(10, TimeUnit.SECONDS)).isEqualTo(SessionEvent.SessionLost);
+            setMigrationPhase(source, MigrationPhase.COMPLETED, targetUrl);
+            assertThat(sessionEvents.poll(10, TimeUnit.SECONDS)).isEqualTo(SessionEvent.SessionReestablished);
+            assertThat(lum.isLedgerBeingReplicated(ledgerId))
+                    .as("A migration retry must not resurrect an already released acquisition").isFalse();
+        } finally {
+            source.delete(MigrationState.MIGRATION_FLAG_PATH, Optional.empty()).join();
+        }
+    }
+
+    @Test(timeOut = 60000, dataProvider = "cleanupMethods")
+    public void testFailedMigrationCleanupPreservesTargetReplacement(boolean close) throws Exception {
+        methodSetup(zks::getConnectionString);
+        long ledgerId = 123L;
+        lum.acquireUnderreplicatedLedger(ledgerId);
+        String lockPath = ledgerLockPath(ledgerId);
+        MetadataStoreExtended source = ((DualMetadataStore) store).getSourceStore();
+        BlockingQueue<SessionEvent> sessionEvents = new LinkedBlockingQueue<>();
+        store.registerSessionListener(sessionEvents::add);
+        try (TestZKServer targetServer = new TestZKServer()) {
+            String targetUrl = targetServer.getConnectionString();
+            try (MetadataStoreExtended target = MetadataStoreExtended.create(targetUrl,
+                    MetadataStoreConfig.builder().build())) {
+                prepareLockMigration(source, target, targetUrl, lockPath, sessionEvents);
+                failMigration(source, targetUrl, sessionEvents);
+
+                GetResult copied = target.get(lockPath).join().orElseThrow();
+                target.delete(lockPath, Optional.of(copied.getStat().getVersion())).join();
+                target.put(lockPath, copied.getValue(), Optional.of(-1L), EnumSet.of(CreateOption.Ephemeral)).join();
+                GetResult replacement = target.get(lockPath).join().orElseThrow();
+                assertThat(replacement.getStat().isCreatedBySelf()).isTrue();
+                assertThat(replacement.getStat().getVersion()).isEqualTo(copied.getStat().getVersion());
+
+                if (close) {
+                    lum.close();
+                } else {
+                    lum.releaseUnderreplicatedLedger(ledgerId);
+                }
+                assertThat(source.get(lockPath).join()).isEmpty();
+                assertThat(target.get(lockPath).join()).as("A matching value does not imply target session ownership")
+                        .isPresent().get().extracting(GetResult::getValue).isEqualTo(replacement.getValue());
+            } finally {
+                source.delete(MigrationState.MIGRATION_FLAG_PATH, Optional.empty()).join();
+                try {
+                    lum.close();
+                } finally {
+                    store.close();
+                }
+            }
+        }
+    }
+
+    @Test(timeOut = 60000, dataProvider = "failedMigrationCleanup")
+    public void testLockCleanupRetriesSourceFailureAfterFailedMigration(boolean oxia, boolean close) throws Exception {
+        AtomicReference<String> delayedPath = new AtomicReference<>();
+        AtomicBoolean delayFirstDeletion = new AtomicBoolean(true);
+        CountDownLatch deletionReady = new CountDownLatch(1);
+        CompletableFuture<Void> resumeDeletion = new CompletableFuture<>();
+        // Delay the real source delete after target cleanup; all reads and writes still use the real stores.
+        ZKMetadataStore source = new ZKMetadataStore(zks.getConnectionString(),
+                MetadataStoreConfig.builder().build(), true) {
+            @Override
+            protected void batchOperation(List<MetadataOp> operations) {
+                List<MetadataOp> immediate = new ArrayList<>();
+                for (MetadataOp operation : operations) {
+                    if (operation.getType() == MetadataOp.Type.DELETE && operation.getPath().equals(delayedPath.get())
+                            && delayFirstDeletion.compareAndSet(true, false)) {
+                        deletionReady.countDown();
+                        resumeDeletion.thenRun(() -> super.batchOperation(List.of(operation)));
+                    } else {
+                        immediate.add(operation);
+                    }
+                }
+                if (!immediate.isEmpty()) {
+                    super.batchOperation(immediate);
+                }
+            }
+        };
+        methodSetup(new DualMetadataStore(source, MetadataStoreConfig.builder().build()));
+        long ledgerId = 123L;
+        lum.acquireUnderreplicatedLedger(ledgerId);
+        String lockPath = ledgerLockPath(ledgerId);
+        GetResult acquired = source.get(lockPath).join().orElseThrow();
+        String targetUrl = oxia ? "oxia://" + getOxiaServerConnectString() : "memory:" + UUID.randomUUID();
+        BlockingQueue<SessionEvent> sessionEvents = new LinkedBlockingQueue<>();
+        store.registerSessionListener(sessionEvents::add);
+        try (MetadataStoreExtended target = MetadataStoreExtended.create(targetUrl,
+                MetadataStoreConfig.builder().build())) {
+            prepareLockMigration(source, target, targetUrl, lockPath, sessionEvents);
+            failMigration(source, targetUrl, sessionEvents);
+            delayedPath.set(lockPath);
+            Future<UnavailableException> cleanup = executor.submit(() -> {
+                try {
+                    if (close) {
+                        lum.close();
+                    } else {
+                        lum.releaseUnderreplicatedLedger(ledgerId);
+                    }
+                    return null;
+                } catch (UnavailableException error) {
+                    return error;
+                }
+            });
+            try {
+                assertThat(deletionReady.await(10, TimeUnit.SECONDS)).isTrue();
+                assertThat(target.get(lockPath).join()).as("Target cleanup precedes the source delete").isEmpty();
+                source.put(lockPath, acquired.getValue(), Optional.of(acquired.getStat().getVersion()),
+                        EnumSet.of(CreateOption.Ephemeral)).join();
+            } finally {
+                resumeDeletion.complete(null);
+            }
+            UnavailableException failure = cleanup.get(10, TimeUnit.SECONDS);
+            assertThat(failure).isNotNull();
+            assertThat(failure.getCause().getCause()).isInstanceOf(MetadataStoreException.BadVersionException.class);
+            assertThat(source.get(lockPath).join()).isPresent();
+
+            setMigrationPhase(source, MigrationPhase.PREPARATION, targetUrl);
+            assertThat(sessionEvents.poll(10, TimeUnit.SECONDS)).isEqualTo(SessionEvent.SessionLost);
+            Awaitility.await().untilAsserted(() -> assertThat(target.get(lockPath).join()).isPresent());
+            setMigrationPhase(source, MigrationPhase.COMPLETED, targetUrl);
+            assertThat(sessionEvents.poll(10, TimeUnit.SECONDS)).isEqualTo(SessionEvent.SessionReestablished);
+            if (close) {
+                lum.close();
+            } else {
+                lum.releaseUnderreplicatedLedger(ledgerId);
+            }
+            assertThat(target.get(lockPath).join()).as("Source failure must leave the acquisition retryable").isEmpty();
+        } finally {
+            resumeDeletion.complete(null);
+            source.delete(MigrationState.MIGRATION_FLAG_PATH, Optional.empty()).join();
+        }
     }
 
     @DataProvider(name = "cleanupVersionConflict")
@@ -706,6 +1245,89 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
             lum.close();
             assertThat(other.isLedgerBeingReplicated(ledgerId))
                     .as("Store session ownership must not conflate separate lock acquisitions").isTrue();
+        }
+    }
+
+    @Test(timeOut = 60000, dataProvider = "impl")
+    public void testLockCleanupVersionFenceAcrossReplacement(String provider, Supplier<String> urlSupplier)
+            throws Exception {
+        AtomicReference<String> delayedPath = new AtomicReference<>();
+        AtomicBoolean delayFirstDeletion = new AtomicBoolean(true);
+        AtomicReference<Optional<Long>> submittedVersion = new AtomicReference<>();
+        CountDownLatch deletionReady = new CountDownLatch(1);
+        CompletableFuture<Void> resumeDeletion = new CompletableFuture<>();
+        MetadataStoreConfig config = MetadataStoreConfig.builder().fsyncEnable(false).build();
+        MetadataStoreExtended source = "ZooKeeper".equals(provider)
+                ? new ZKMetadataStore(urlSupplier.get(), config, true)
+                : MetadataStoreFactoryImpl.createExtended(urlSupplier.get(), config);
+        // Gate only submission: the ownership read, replacement and resumed delete use the real backend.
+        methodSetup(new DualMetadataStore(source, MetadataStoreConfig.builder().build()) {
+            @Override
+            public CompletableFuture<Void> delete(String path, Optional<Long> expectedVersion, Set<Option> options) {
+                if (path.equals(delayedPath.get()) && delayFirstDeletion.compareAndSet(true, false)) {
+                    submittedVersion.set(expectedVersion);
+                    deletionReady.countDown();
+                    return resumeDeletion.thenCompose(ignored -> super.delete(path, expectedVersion, options));
+                }
+                return super.delete(path, expectedVersion, options);
+            }
+        });
+        long ledgerId = 123L;
+        lum.acquireUnderreplicatedLedger(ledgerId);
+        String lockPath = PulsarLedgerUnderreplicationManager.getUrLedgerLockPath(
+                PulsarLedgerUnderreplicationManager.getUrLockPath(ledgersRoot), ledgerId);
+        delayedPath.set(lockPath);
+        GetResult acquired = source.get(lockPath).join().orElseThrow();
+        Future<UnavailableException> cleanup = executor.submit(() -> {
+            try {
+                lum.releaseUnderreplicatedLedger(ledgerId);
+                return null;
+            } catch (UnavailableException error) {
+                return error;
+            }
+        });
+        try (var other = lmf.newLedgerUnderreplicationManager()) {
+            try {
+                assertThat(deletionReady.await(10, TimeUnit.SECONDS)).isTrue();
+                assertThat(submittedVersion.get()).contains(acquired.getStat().getVersion());
+                if ("ZooKeeper".equals(provider)) {
+                    CountDownLatch reestablished = new CountDownLatch(1);
+                    source.registerSessionListener(event -> {
+                        if (event == SessionEvent.SessionReestablished) {
+                            reestablished.countDown();
+                        }
+                    });
+                    zks.expireSession(((ZKMetadataStore) source).getZkSessionId());
+                    assertThat(reestablished.await(20, TimeUnit.SECONDS)).isTrue();
+                } else {
+                    source.delete(lockPath, Optional.of(acquired.getStat().getVersion())).join();
+                }
+                other.acquireUnderreplicatedLedger(ledgerId);
+                GetResult replacement = source.get(lockPath).join().orElseThrow();
+                assertThat(replacement.getValue()).isNotEqualTo(acquired.getValue());
+                if ("Oxia".equals(provider)) {
+                    assertThat(replacement.getStat().getVersion()).isNotEqualTo(acquired.getStat().getVersion());
+                } else {
+                    assertThat(replacement.getStat().getVersion()).isEqualTo(acquired.getStat().getVersion());
+                }
+            } finally {
+                resumeDeletion.complete(null);
+            }
+            UnavailableException failure = cleanup.get(10, TimeUnit.SECONDS);
+            if ("Oxia".equals(provider)) {
+                assertThat(failure).isNotNull();
+                assertThat(failure.getCause().getCause())
+                        .isInstanceOf(MetadataStoreException.BadVersionException.class);
+                lum.releaseUnderreplicatedLedger(ledgerId);
+                assertThat(other.isLedgerBeingReplicated(ledgerId)).isTrue();
+            } else {
+                // These backends reuse the version after recreation, so the conditional delete cannot fence
+                // a replacement made after the ownership read. This test pins the documented boundary.
+                assertThat(failure).isNull();
+                assertThat(other.isLedgerBeingReplicated(ledgerId)).isFalse();
+            }
+        } finally {
+            resumeDeletion.complete(null);
         }
     }
 

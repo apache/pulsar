@@ -729,14 +729,20 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
                                 new MetadataStoreException("Metadata migration changed during lock cleanup; retry"));
                     }
                     if (existing.isEmpty() || !ownsLock(ledgerId, lock, existing.get())) {
-                        if (migrationPhase == MigrationPhase.FAILED) {
-                            // A failed migration may still retain this acquisition in the inactive target.
-                            return CompletableFuture.<Void>failedFuture(
-                                    new MetadataStoreException("Lock ownership is uncertain after failed migration"));
+                        if (migrationPhase == MigrationPhase.FAILED && store instanceof DualMetadataStore dualStore) {
+                            // Only the target copy may still belong to this acquisition. Preserve the current source.
+                            return dualStore.deleteEphemeral(lock.getLockPath(), lock.lockData, Optional.empty());
                         }
                         return CompletableFuture.<Void>completedFuture(null);
                     }
-                    return store.delete(lock.getLockPath(), Optional.of(existing.get().getStat().getVersion()));
+                    // Ownership is checked by the read, not atomically by the delete. ZooKeeper, Memory and
+                    // RocksDB reuse versions when nodes are recreated, so a replacement between these two
+                    // operations can still be deleted. Oxia's unique versions fence that replacement.
+                    long version = existing.get().getStat().getVersion();
+                    if (store instanceof DualMetadataStore dualStore) {
+                        return dualStore.deleteEphemeral(lock.getLockPath(), lock.lockData, Optional.of(version));
+                    }
+                    return store.delete(lock.getLockPath(), Optional.of(version));
                 })
                 .whenComplete((ignored, error) -> {
                     Throwable cause = error == null ? null : FutureUtil.unwrapCompletionException(error);
