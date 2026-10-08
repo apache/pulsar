@@ -36,6 +36,8 @@ import org.apache.pulsar.common.policies.data.ScalableTopicStats;
 import org.apache.pulsar.common.scalable.SegmentInfo;
 import org.apache.pulsar.common.scalable.SegmentTopicName;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.metadata.api.Notification;
+import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
 
 /**
@@ -83,7 +85,31 @@ public class ScalableTopicService {
     // --- Lifecycle ---
 
     public void start() {
+        resources.getStore().registerListener(this::handleMetadataNotification);
         log.info("ScalableTopicService started");
+    }
+
+    /**
+     * Release the controller of a scalable topic whose record was deleted. The admin delete stops
+     * the controller on the broker serving it, but other brokers can hold one for the topic too;
+     * left running, a controller keeps serving consumers from the deleted layout and its leader
+     * election re-acquires the controller lock under the deleted path.
+     */
+    private void handleMetadataNotification(Notification notification) {
+        if (notification.getType() != NotificationType.Deleted || controllers.isEmpty()) {
+            return;
+        }
+        resources.topicNameFromPath(notification.getPath()).ifPresent(topic -> {
+            if (!controllers.containsKey(topic.toString())) {
+                return;
+            }
+            log.info().attr("topic", topic).log("Scalable topic deleted, releasing its controller");
+            releaseController(topic).exceptionally(ex -> {
+                log.warn().attr("topic", topic).exceptionMessage(ex)
+                        .log("Failed to release the controller of a deleted scalable topic");
+                return null;
+            });
+        });
     }
 
     public void close() {

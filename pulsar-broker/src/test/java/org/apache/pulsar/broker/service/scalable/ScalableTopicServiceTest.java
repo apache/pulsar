@@ -31,6 +31,7 @@ import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -59,6 +60,7 @@ import org.apache.pulsar.metadata.api.coordination.CoordinationService;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
 import org.apache.pulsar.metadata.impl.LocalMemoryMetadataStore;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -358,6 +360,30 @@ public class ScalableTopicServiceTest {
                 "topic delete must remove segment load records");
         verify(scalableTopicsAdmin, org.mockito.Mockito.atLeast(2))
                 .deleteSegmentAsync(anyString(), anyBoolean());
+    }
+
+    @Test
+    public void testControllerReleasedWhenTopicRecordDeleted() throws Exception {
+        TopicName tn = scalableTopic("t-deleted-elsewhere");
+        service.createScalableTopic(tn, 1).get();
+        service.getOrCreateController(tn).get();
+        String lockPath = resources.controllerLockPath(tn);
+        assertTrue(store.exists(lockPath).get());
+
+        // Delete the metadata the way an admin delete served by another broker does, without
+        // releasing the controller held here first.
+        resources.deleteScalableTopicAsync(tn).get();
+
+        Awaitility.await().during(Duration.ofSeconds(2)).atMost(Duration.ofSeconds(10))
+                .untilAsserted(() -> assertFalse(store.exists(lockPath).get(),
+                        "the controller lock must not be re-acquired under the deleted topic"));
+        try {
+            service.getOrCreateController(tn).get();
+            fail("the deleted topic must not be served by its old controller");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause().getMessage().contains("Failed to initialize controller"),
+                    "got: " + e.getCause().getMessage());
+        }
     }
 
     // --- concurrent topic isolation ---

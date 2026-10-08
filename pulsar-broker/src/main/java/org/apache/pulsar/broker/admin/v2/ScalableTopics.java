@@ -647,6 +647,8 @@ public class ScalableTopics extends AdminResource {
     @Operation(summary = "Delete a scalable topic and all its segments.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Scalable topic deleted successfully"),
+            @ApiResponse(responseCode = "307",
+                    description = "Current broker is not the controller leader for this topic"),
             @ApiResponse(responseCode = "401",
                     description = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(responseCode = "403", description = "Don't have admin permission on the namespace"),
@@ -665,15 +667,22 @@ public class ScalableTopics extends AdminResource {
         validateNamespaceName(tenant, namespace);
         TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
 
+        // Served by the controller leader, so the broker holding the elected controller is the
+        // one that stops it below.
         validateNamespaceOperationAsync(namespaceName, NamespaceOperation.DELETE_TOPIC)
+                .thenCompose(__ -> redirectToControllerLeaderIfNeeded(tn))
                 .thenCompose(__ -> resources().getScalableTopicMetadataAsync(tn))
                 .thenCompose(optMd -> {
                     if (optMd.isEmpty()) {
                         throw new RestException(Response.Status.NOT_FOUND,
                                 "Scalable topic not found: " + tn);
                     }
-                    // Delete metadata first, then best-effort clean up segment topics
-                    return resources().deleteScalableTopicAsync(tn)
+                    // Stop the controller before deleting the metadata: still running, its
+                    // leader election re-acquires the lock the delete removes, under the deleted
+                    // path, and it keeps serving consumers from the deleted layout. Then delete
+                    // metadata, then best-effort clean up segment topics.
+                    return releaseController(tn)
+                            .thenCompose(__ -> resources().deleteScalableTopicAsync(tn))
                             .thenCompose(__ -> deleteSegmentTopics(tn, optMd.get(), force));
                 })
                 .thenAccept(__ -> {
@@ -682,8 +691,10 @@ public class ScalableTopics extends AdminResource {
                     asyncResponse.resume(Response.noContent().build());
                 })
                 .exceptionally(ex -> {
-                    log.error().attr("clientAppId", clientAppId()).attr("topic", tn)
-                            .exception(ex).log("Failed to delete scalable topic");
+                    if (!isRedirectException(ex)) {
+                        log.error().attr("clientAppId", clientAppId()).attr("topic", tn)
+                                .exception(ex).log("Failed to delete scalable topic");
+                    }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -1212,6 +1223,22 @@ public class ScalableTopics extends AdminResource {
             throw new RuntimeException(
                     "Invalid controller-leader znode value: " + new String(bytes), e);
         }
+    }
+
+    /**
+     * Stop this broker's controller for {@code tn}, if it holds one, closing its leader election.
+     * Best-effort: a failure is logged and the delete goes on.
+     */
+    private CompletableFuture<Void> releaseController(TopicName tn) {
+        ScalableTopicService svc = pulsar().getBrokerService().getScalableTopicService();
+        if (svc == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return svc.releaseController(tn).exceptionally(ex -> {
+            log.warn().attr("topic", tn).exceptionMessage(ex)
+                    .log("Failed to release the controller of the scalable topic being deleted");
+            return null;
+        });
     }
 
     /**
