@@ -493,6 +493,10 @@ public class ScalableTopicControllerAutoScaleTest {
         // …so another consumer-driven rollover is blocked by the seeded rebucket cooldown…
         controller.registerConsumer("sub", "c9", 9L, ScalableConsumerType.STREAM,
                 mock(TransportCnx.class)).get();
+        // registerConsumer fires an asynchronous consumer-change evaluation; a manual one
+        // issued while it runs would be coalesced into it and return without evaluating.
+        Awaitility.await().atMost(Duration.ofSeconds(10))
+                .until(() -> !controller.isAutoScaleEvaluationInFlight());
         controller.evaluateAutoScaleForTest().get();
         assertEquals(soleActiveBucketCount(), 8,
                 "the seeded rebucket cooldown must block an immediate second rollover");
@@ -506,6 +510,63 @@ public class ScalableTopicControllerAutoScaleTest {
         controller.evaluateAutoScaleForTest().get();
         assertEquals(activeSegmentCount(), 2,
                 "a hot-segment split must fire — the rollover is not a split");
+    }
+
+    /**
+     * A checkpoint group never shares a segment by entry-bucket (each member reads whole
+     * segments through its own Readers), so on a cold topic its surplus members must not trigger
+     * a rebucket rollover: more buckets add no parallelism for the group, they only shrink
+     * producer batches. A stream subscription on the same topic still gets a rollover, sized to
+     * its own consumers rather than to the larger group.
+     */
+    @Test
+    public void testCheckpointGroupSurplusDoesNotRebucket() throws Exception {
+        startController(1); // one segment, N=4
+
+        // Nine members against 4 buckets; every registration runs the event-driven evaluation.
+        for (int i = 1; i <= 9; i++) {
+            controller.registerConsumer("group", "m" + i, i, ScalableConsumerType.CHECKPOINT,
+                    mock(TransportCnx.class)).get();
+        }
+        Awaitility.await().during(Duration.ofSeconds(2)).atMost(Duration.ofSeconds(5))
+                .untilAsserted(() -> assertEquals(soleActiveBucketCount(), 4,
+                        "a checkpoint group's surplus must not roll the segment over"));
+
+        for (int i = 1; i <= 5; i++) {
+            controller.registerConsumer("sub", "c" + i, 100 + i, ScalableConsumerType.STREAM,
+                    mock(TransportCnx.class)).get();
+        }
+        Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(
+                () -> assertEquals(soleActiveBucketCount(), 8,
+                        "five stream consumers roll the segment to 8, ignoring the 9-member group"));
+    }
+
+    /**
+     * The consumer type is not persisted, so after a leader failover a restored subscription's
+     * type is unknown until one of its members registers again. It may be a checkpoint group, so
+     * it must not trigger a rebucket rollover until a stream member registers.
+     */
+    @Test
+    public void testRestoredSubscriptionRebucketsOnlyOnceKnownToBeStream() throws Exception {
+        resources.createScalableTopicAsync(topicName,
+                ScalableTopicController.createInitialMetadata(1, 4, Map.of())).get(); // N=4
+        // Registrations persisted under a previous leader.
+        for (int i = 1; i <= 5; i++) {
+            resources.registerConsumerAsync(topicName, "sub", "c" + i).get();
+        }
+        controller = new ScalableTopicController(topicName, resources, brokerService,
+                coordinationService);
+        controller.initialize().get();
+
+        controller.evaluateAutoScaleForTest().get();
+        assertEquals(soleActiveBucketCount(), 4,
+                "a restored subscription of unknown type must not roll the segment over");
+
+        controller.registerConsumer("sub", "c1", 1L, ScalableConsumerType.STREAM,
+                mock(TransportCnx.class)).get();
+        Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(
+                () -> assertEquals(soleActiveBucketCount(), 8,
+                        "once a stream member registers, its surplus is served by a rollover"));
     }
 
     @Test

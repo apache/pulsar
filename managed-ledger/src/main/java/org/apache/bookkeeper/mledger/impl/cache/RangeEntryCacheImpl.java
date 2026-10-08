@@ -562,7 +562,7 @@ public class RangeEntryCacheImpl implements EntryCache {
                 }
             }
             // The visitor retains the cached entry while parsing. Initialize on the shared cached entry
-            // before copying, so fanout readers reuse one instance backed by the cache-owned buffer.
+            // before copying, so fanout readers reuse one instance, which is decoded when it's parsed.
             if (managedLedgerName != null && entry.getMessageMetadata() == null) {
                 ((EntryImpl) entry).initializeMessageMetadataIfNeeded(managedLedgerName);
             }
