@@ -574,6 +574,17 @@ public class ScalableTopicController {
     }
 
     /**
+     * Whether an auto split/merge evaluation is running or a coalesced re-run is pending, for
+     * tests. {@link #evaluateAutoScaleForTest()} is folded into a running evaluation, so tests
+     * that trigger an event-driven evaluation (e.g. {@link #registerConsumer}) must wait for
+     * this to clear before evaluating.
+     */
+    @VisibleForTesting
+    boolean isAutoScaleEvaluationInFlight() {
+        return autoScaleInFlight.get() || autoScaleReEvaluate.get();
+    }
+
+    /**
      * Load persisted subscriptions and consumer registrations from the metadata store and
      * install them into per-subscription {@link SubscriptionCoordinator} instances. Called
      * on successful leader election so the newly-elected leader can resume servicing
