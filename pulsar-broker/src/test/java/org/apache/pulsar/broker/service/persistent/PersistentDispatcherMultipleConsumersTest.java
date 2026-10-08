@@ -46,7 +46,6 @@ import org.awaitility.reflect.WhiteboxImpl;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @CustomLog
@@ -71,10 +70,10 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
         }
     }
 
-    @Test(timeOut = 30_000, dataProvider = "readConflationDispatcherTypes")
-    public void testReadMoreEntriesConflatesConcurrentRequests(boolean classic) throws Exception {
+    @Test(timeOut = 30_000)
+    public void testReadMoreEntriesConflatesConcurrentRequests() throws Exception {
         ManagedCursor cursor = ownMock(ManagedCursor.class);
-        AbstractPersistentDispatcherMultipleConsumers dispatcher = createReadConflationDispatcher(cursor, classic);
+        AbstractPersistentDispatcherMultipleConsumers dispatcher = createReadConflationDispatcher(cursor);
         CountDownLatch[] passStarted = {new CountDownLatch(1), new CountDownLatch(1)};
         CountDownLatch[] releasePass = {new CountDownLatch(1), new CountDownLatch(1)};
         AtomicInteger passes = new AtomicInteger();
@@ -115,10 +114,10 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
         }
     }
 
-    @Test(timeOut = 30_000, dataProvider = "readConflationDispatcherTypes")
-    public void testReadMoreEntriesConflatesReentrantRequests(boolean classic) throws Exception {
+    @Test(timeOut = 30_000)
+    public void testReadMoreEntriesConflatesReentrantRequests() throws Exception {
         ManagedCursor cursor = ownMock(ManagedCursor.class);
-        AbstractPersistentDispatcherMultipleConsumers dispatcher = createReadConflationDispatcher(cursor, classic);
+        AbstractPersistentDispatcherMultipleConsumers dispatcher = createReadConflationDispatcher(cursor);
         AtomicInteger passes = new AtomicInteger();
         AtomicInteger depth = new AtomicInteger();
         Mockito.doAnswer(inv -> {
@@ -138,10 +137,10 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
         assertThat(passes.get()).isEqualTo(1000);
     }
 
-    @Test(timeOut = 30_000, dataProvider = "readConflationDispatcherTypes")
-    public void testReadMoreEntriesRecoversAfterFailure(boolean classic) throws Exception {
+    @Test(timeOut = 30_000)
+    public void testReadMoreEntriesRecoversAfterFailure() throws Exception {
         ManagedCursor cursor = ownMock(ManagedCursor.class);
-        AbstractPersistentDispatcherMultipleConsumers dispatcher = createReadConflationDispatcher(cursor, classic);
+        AbstractPersistentDispatcherMultipleConsumers dispatcher = createReadConflationDispatcher(cursor);
         IllegalStateException failure = new IllegalStateException("read failed");
         Mockito.doThrow(failure).when(cursor).isClosed();
         assertThatThrownBy(dispatcher::readMoreEntries).isSameAs(failure);
@@ -152,10 +151,10 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
         Mockito.verify(cursor).isClosed();
     }
 
-    @Test(timeOut = 30_000, dataProvider = "readConflationDispatcherTypes")
-    public void testReadMoreEntriesRunsReentrantRequestsAfterFailure(boolean classic) throws Exception {
+    @Test(timeOut = 30_000)
+    public void testReadMoreEntriesRunsReentrantRequestsAfterFailure() throws Exception {
         ManagedCursor cursor = ownMock(ManagedCursor.class);
-        AbstractPersistentDispatcherMultipleConsumers dispatcher = createReadConflationDispatcher(cursor, classic);
+        AbstractPersistentDispatcherMultipleConsumers dispatcher = createReadConflationDispatcher(cursor);
         IllegalStateException failure = new IllegalStateException("read failed");
         IllegalStateException followUpFailure = new IllegalStateException("follow-up read failed");
         AtomicInteger passes = new AtomicInteger();
@@ -176,10 +175,10 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
         assertThat(passes.get()).isEqualTo(5);
     }
 
-    @Test(timeOut = 30_000, dataProvider = "readConflationDispatcherTypes")
-    public void testReadMoreEntriesRunsConcurrentRequestAfterFailure(boolean classic) throws Exception {
+    @Test(timeOut = 30_000)
+    public void testReadMoreEntriesRunsConcurrentRequestAfterFailure() throws Exception {
         ManagedCursor cursor = ownMock(ManagedCursor.class);
-        AbstractPersistentDispatcherMultipleConsumers dispatcher = createReadConflationDispatcher(cursor, classic);
+        AbstractPersistentDispatcherMultipleConsumers dispatcher = createReadConflationDispatcher(cursor);
         IllegalStateException failure = new IllegalStateException("read failed");
         CountDownLatch passStarted = new CountDownLatch(1);
         CountDownLatch releasePass = new CountDownLatch(1);
@@ -210,13 +209,7 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
         }
     }
 
-    @DataProvider
-    public Object[][] readConflationDispatcherTypes() {
-        return new Object[][] {{false}, {true}};
-    }
-
-    private AbstractPersistentDispatcherMultipleConsumers createReadConflationDispatcher(ManagedCursor cursor,
-                                                                                       boolean classic)
+    private AbstractPersistentDispatcherMultipleConsumers createReadConflationDispatcher(ManagedCursor cursor)
             throws Exception {
         String topicName = newTopicName();
         admin.topics().createNonPartitionedTopic(topicName);
@@ -225,8 +218,7 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
         Mockito.doReturn("s1").when(cursor).getName();
         Subscription subscription = ownMock(PersistentSubscription.class);
         Mockito.doReturn(topic).when(subscription).getTopic();
-        return classic ? new PersistentDispatcherMultipleConsumersClassic(topic, cursor, subscription)
-                : new PersistentDispatcherMultipleConsumers(topic, cursor, subscription);
+        return new PersistentDispatcherMultipleConsumers(topic, cursor, subscription);
     }
 
     @Test(timeOut = 30 * 1000)

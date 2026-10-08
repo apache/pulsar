@@ -22,6 +22,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultConfig;
 import static org.apache.bookkeeper.mledger.util.ManagedLedgerUtils.NO_MAX_SIZE_LIMIT;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -51,6 +52,7 @@ import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
+import io.netty.buffer.Unpooled;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.lang.reflect.Field;
 import java.nio.ReadOnlyBufferException;
@@ -112,6 +114,7 @@ import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.api.WriteHandle;
 import org.apache.bookkeeper.common.util.BoundedScheduledExecutorService;
+import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -597,6 +600,143 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                 "It is expected that the cache evicts entries to the earliest read position");
 
         ledger.close();
+    }
+
+    @DataProvider
+    public Object[][] addEntryHandoverBatchingDisabledSizes() {
+        return new Object[][] {{0}, {1}};
+    }
+
+    @Test(timeOut = 20000, dataProvider = "addEntryHandoverBatchingDisabledSizes")
+    public void testAddEntryWithAddEntryHandoverBatchingDisabled(int maxBatchItems) throws Exception {
+        ManagedLedger ledger = factory.open("add_entry_handover_disabled_" + maxBatchItems,
+                initManagedLedgerConfig(defaultConfig().setAddEntryHandoverMaxBatchItems(maxBatchItems)));
+
+        Position position = ledger.addEntry("entry".getBytes(Encoding));
+
+        assertEquals(ledger.getLastConfirmedEntry(), position);
+        ledger.close();
+    }
+
+    @Test(timeOut = 20000)
+    public void testAsyncAddEntriesWithSmallAddEntryHandoverMaxBatchBytesSize() throws Exception {
+        // Each entry reaches the byte limit on its own, so every handover batch runs a single add.
+        ManagedLedger ledger = factory.open("add_entry_handover_small_bytes_size",
+                initManagedLedgerConfig(defaultConfig().setAddEntryHandoverMaxBatchBytesSize(1)));
+        int entries = 100;
+        List<CompletableFuture<Position>> positions = new ArrayList<>();
+        for (int i = 0; i < entries; i++) {
+            CompletableFuture<Position> position = new CompletableFuture<>();
+            positions.add(position);
+            ledger.asyncAddEntry(("entry-" + i).getBytes(Encoding), new AddEntryCallback() {
+                @Override
+                public void addComplete(Position addedPosition, ByteBuf entryData, Object ctx) {
+                    position.complete(addedPosition);
+                }
+
+                @Override
+                public void addFailed(ManagedLedgerException exception, Object ctx) {
+                    position.completeExceptionally(exception);
+                }
+            }, null);
+        }
+
+        List<Position> added = new ArrayList<>();
+        for (CompletableFuture<Position> position : positions) {
+            added.add(position.get(10, TimeUnit.SECONDS));
+        }
+        assertThat(added).isSorted().doesNotHaveDuplicates();
+        assertEquals(ledger.getNumberOfEntries(), entries);
+        ledger.close();
+    }
+
+    @Test(timeOut = 20000)
+    public void testAddEntryHandoverLimitsAreCapturedWhenOpened() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("add_entry_handover_limits",
+                initManagedLedgerConfig(defaultConfig().setAddEntryHandoverMaxBatchItems(16)
+                        .setAddEntryHandoverMaxBatchBytesSize(4096)));
+        Executor addEntryExecutor = ledger.getAddEntryBatchingExecutor();
+        assertThat(addEntryExecutor).isInstanceOfSatisfying(BatchingExecutorWrapper.class, wrapper -> {
+            assertEquals(wrapper.getMaxItems(), 16);
+            assertEquals(wrapper.getMaxWeight(), 4096);
+        });
+
+        ledger.setConfig(initManagedLedgerConfig(defaultConfig().setAddEntryHandoverMaxBatchItems(0)
+                .setAddEntryHandoverMaxBatchBytesSize(0)));
+
+        assertThat(ledger.getAddEntryBatchingExecutor()).isSameAs(addEntryExecutor);
+        ledger.close();
+    }
+
+    @Test(timeOut = 20000)
+    public void testAddEntryHandoverWithoutByteLimit() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("add_entry_handover_no_byte_limit",
+                initManagedLedgerConfig(defaultConfig().setAddEntryHandoverMaxBatchBytesSize(0)));
+
+        assertThat(ledger.getAddEntryBatchingExecutor()).isInstanceOfSatisfying(BatchingExecutorWrapper.class,
+                wrapper -> assertEquals(wrapper.getMaxWeight(), Long.MAX_VALUE));
+        ledger.close();
+    }
+
+    @Test(timeOut = 20000, dataProvider = "addEntryHandoverBatchingDisabledSizes")
+    public void testAddEntryHandoverBatchingDisabledUsesTheExecutor(int maxBatchItems) throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("add_entry_handover_executor_" + maxBatchItems,
+                initManagedLedgerConfig(defaultConfig().setAddEntryHandoverMaxBatchItems(maxBatchItems)));
+
+        assertThat(ledger.getAddEntryBatchingExecutor()).isSameAs(ledger.getExecutor());
+        ledger.close();
+    }
+
+    @DataProvider
+    public Object[][] addEntryHandoverMaxBatchItems() {
+        return new Object[][] {{0}, {1024}};
+    }
+
+    @Test(timeOut = 30000, dataProvider = "addEntryHandoverMaxBatchItems")
+    public void testRejectedAddEntryReleasesTheRetainedBuffer(int maxBatchItems) throws Exception {
+        OrderedExecutor workerPool = OrderedExecutor.newBuilder().numThreads(1).name("rejecting-bk").build();
+        BookKeeper bookKeeper = spy(bkc);
+        doReturn(workerPool).when(bookKeeper).getMainWorkerPool();
+        ManagedLedgerFactoryImpl rejectingFactory = new ManagedLedgerFactoryImpl(metadataStore, bookKeeper);
+        ByteBuf buffer = Unpooled.buffer();
+        buffer.writeBytes("entry".getBytes(Encoding));
+        try {
+            ManagedLedger ledger = rejectingFactory.open("add_entry_rejected_" + maxBatchItems,
+                    initManagedLedgerConfig(defaultConfig().setAddEntryHandoverMaxBatchItems(maxBatchItems)));
+            workerPool.shutdown();
+
+            assertThatThrownBy(() -> ledger.asyncAddEntry(buffer, new AddEntryCallback() {
+                @Override
+                public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                }
+
+                @Override
+                public void addFailed(ManagedLedgerException exception, Object ctx) {
+                }
+            }, null)).isInstanceOf(RejectedExecutionException.class);
+
+            // Only the caller's reference is left: the one the managed ledger retained for the add was released.
+            assertEquals(buffer.refCnt(), 1);
+        } finally {
+            buffer.release();
+            workerPool.shutdownNow();
+            try {
+                rejectingFactory.shutdownAsync().get(5, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                // The ledger cannot close on its shut down executor.
+            }
+        }
+    }
+
+    @Test
+    public void testAddEntryHandoverMaxBatchLimitsRejectNegativeValues() {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        assertEquals(config.getAddEntryHandoverMaxBatchItems(), 1024);
+        assertEquals(config.getAddEntryHandoverMaxBatchBytesSize(), 5 * 1024 * 1024);
+        assertThatThrownBy(() -> config.setAddEntryHandoverMaxBatchItems(-1))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> config.setAddEntryHandoverMaxBatchBytesSize(-1))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test(timeOut = 20000)
@@ -1984,6 +2124,71 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ledger.waitForPendingCacheEvictions();
         assertEquals(entryCache.getSize(), 0);
         assertEquals(cacheManager.getSize(), entryCache.getSize());
+    }
+
+    @Test
+    public void testContinueCachingAddedEntriesWithoutActiveCursors() throws Exception {
+        ManagedLedgerConfig config = defaultConfig();
+        initManagedLedgerConfig(config);
+        config.setCacheEvictionByExpectedReadCount(true);
+        config.setContinueCachingAddedEntriesAfterLastActiveCursorLeavesMillis(TimeUnit.SECONDS.toMillis(5));
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "my_test_ledger_for_testContinueCachingAddedEntriesWithoutActiveCursors", config);
+        ledger.entryCache.clear();
+
+        ledger.addEntry("entry-1".getBytes());
+
+        assertThat(ledger.entryCache.getSize()).isEqualTo(7);
+    }
+
+    @Test
+    public void testNoCachingOfAddedEntriesWithoutActiveCursorsWhenContinueCachingDisabled() throws Exception {
+        ManagedLedgerConfig config = defaultConfig();
+        initManagedLedgerConfig(config);
+        config.setCacheEvictionByExpectedReadCount(true);
+        config.setContinueCachingAddedEntriesAfterLastActiveCursorLeavesMillis(0);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "my_test_ledger_for_testNoCachingOfAddedEntriesWithoutActiveCursorsWhenContinueCachingDisabled",
+                config);
+        ledger.entryCache.clear();
+
+        ledger.addEntry("entry-1".getBytes());
+
+        assertThat(ledger.entryCache.getSize()).isZero();
+    }
+
+    @Test
+    public void testContinueCachingAddedEntriesStartsWhenLastActiveCursorLeaves() throws Exception {
+        long continueCachingMillis = TimeUnit.SECONDS.toMillis(5);
+        ManagedLedgerConfig config = defaultConfig();
+        initManagedLedgerConfig(config);
+        config.setCacheEvictionByExpectedReadCount(true);
+        config.setContinueCachingAddedEntriesAfterLastActiveCursorLeavesMillis(continueCachingMillis);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "my_test_ledger_for_testContinueCachingAddedEntriesStartsWhenLastActiveCursorLeaves", config);
+        ManagedCursor c1 = ledger.openCursor("c1");
+        ManagedCursor c2 = ledger.openCursor("c2");
+
+        // one active cursor leaving while another one remains doesn't affect caching
+        c2.setInactive();
+        assertThat(ledger.getActiveCursors().isEmpty()).isFalse();
+        assertThat(ledger.shouldCacheAddedEntry()).isTrue();
+
+        // the last active cursor leaving starts the window
+        c1.setInactive();
+        assertThat(ledger.getActiveCursors().isEmpty()).isTrue();
+        assertThat(ledger.shouldCacheAddedEntry()).isTrue();
+
+        // added entries stop being cached once the window has passed
+        Awaitility.await().atMost(continueCachingMillis * 2, TimeUnit.MILLISECONDS)
+                .until(() -> !ledger.shouldCacheAddedEntry());
+
+        // an active cursor leaving again starts a new window
+        c1.setActive();
+        assertThat(ledger.shouldCacheAddedEntry()).isTrue();
+        c1.setInactive();
+        assertThat(ledger.getActiveCursors().isEmpty()).isTrue();
+        assertThat(ledger.shouldCacheAddedEntry()).isTrue();
     }
 
     @Test

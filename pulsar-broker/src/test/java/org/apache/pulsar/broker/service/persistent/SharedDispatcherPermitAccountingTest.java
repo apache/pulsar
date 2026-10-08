@@ -33,6 +33,9 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.DefaultChannelPromise;
 import io.netty.channel.EventLoopGroup;
@@ -41,13 +44,16 @@ import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.concurrent.ImmediateEventExecutor;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -71,7 +77,9 @@ import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
+import org.apache.pulsar.common.protocol.Commands;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
@@ -123,18 +131,11 @@ public class SharedDispatcherPermitAccountingTest extends SharedPulsarBaseTest {
         }
     }
 
-    @DataProvider(name = "dispatcherImplementations")
-    public Object[][] dispatcherImplementations() {
-        return new Object[][] {{false}, {true}};
-    }
-
     @DataProvider(name = "flowRaceDispatcherVariants")
     public Object[][] flowRaceDispatcherVariants() {
         return new Object[][] {
-                {false, Shared},
-                {true, Shared},
-                {false, Key_Shared},
-                {true, Key_Shared}
+                {Shared},
+                {Key_Shared}
         };
     }
 
@@ -145,6 +146,16 @@ public class SharedDispatcherPermitAccountingTest extends SharedPulsarBaseTest {
                 {true, Failover},
                 {false, Shared},
                 {false, Key_Shared}
+        };
+    }
+
+    @DataProvider(name = "partiallyAckedBatchDispatchPaths")
+    public Object[][] partiallyAckedBatchDispatchPaths() {
+        return new Object[][] {
+                {Shared, false},
+                // A chunk in the read routes the whole read through the Shared chunked-message dispatch path
+                {Shared, true},
+                {Key_Shared, false}
         };
     }
 
@@ -175,9 +186,8 @@ public class SharedDispatcherPermitAccountingTest extends SharedPulsarBaseTest {
     }
 
     @Test(dataProvider = "flowRaceDispatcherVariants", timeOut = 30_000)
-    public void testFlowCommandRaceWithConsumerRemovalDoesNotLosePermits(boolean classic, SubType subType)
-            throws Exception {
-        TestContext context = createTestContext(classic, subType);
+    public void testFlowCommandRaceWithConsumerRemovalDoesNotLosePermits(SubType subType) throws Exception {
+        TestContext context = createTestContext(subType);
         Consumer remainingConsumer = context.remainingConsumer();
         Consumer removedConsumer = context.removedConsumer();
 
@@ -200,9 +210,8 @@ public class SharedDispatcherPermitAccountingTest extends SharedPulsarBaseTest {
     }
 
     @Test(dataProvider = "flowRaceDispatcherVariants", timeOut = 30_000)
-    public void testQueuedFlowDoesNotApplyToEqualReplacementConsumer(boolean classic, SubType subType)
-            throws Exception {
-        TestContext context = createTestContext(classic, subType);
+    public void testQueuedFlowDoesNotApplyToEqualReplacementConsumer(SubType subType) throws Exception {
+        TestContext context = createTestContext(subType);
         Consumer original = context.removedConsumer();
         Consumer replacement = new Consumer(original.getSubscription(), original.subType(), context.topic().getName(),
                 original.consumerId(), 0, original.consumerName(), true, original.cnx(), "role", emptyMap(), false,
@@ -229,8 +238,36 @@ public class SharedDispatcherPermitAccountingTest extends SharedPulsarBaseTest {
         assertThat(totalAvailablePermits(context.dispatcher())).isZero();
     }
 
-    @Test(dataProvider = "dispatcherImplementations", timeOut = 30_000)
-    public void testRejectedFlowStaysPendingAndIsExcludedFromRemoval(boolean classic) throws Exception {
+    @Test(dataProvider = "flowRaceDispatcherVariants", timeOut = 30_000)
+    public void testUnblockedPermitsQueuedDuringRemovalDoNotDebitRemainingConsumer(SubType subType) throws Exception {
+        admin.namespaces().setMaxUnackedMessagesPerConsumer(getNamespace(), 1);
+        TestContext context = createTestContext(subType);
+        Consumer remaining = context.remainingConsumer();
+        Consumer removed = context.removedConsumer();
+        Awaitility.await().untilAsserted(() -> assertThat(removed.getMaxUnackedMessages()).isOne());
+        remaining.flowPermits(10);
+        removed.flowPermits(20);
+        drainBrokerWorkerGroup(context.topic());
+
+        synchronized (context.dispatcher()) {
+            simulateDispatch(context.dispatcher(), removed, 1);
+            assertThat(removed.isBlocked()).isTrue();
+            removed.flowPermits(100);
+            assertThat(removed.getAvailablePermits()).isEqualTo(19);
+            removed.redeliverUnacknowledgedMessages(DEFAULT_CONSUMER_EPOCH);
+            assertThat(removed.isBlocked()).isFalse();
+            assertThat(removed.getAvailablePermits()).isEqualTo(119);
+            assertThat(removed.getAvailablePermitsForDispatcherRemoval()).isEqualTo(19);
+            context.dispatcher().removeConsumer(removed);
+            assertThat(totalAvailablePermits(context.dispatcher())).isEqualTo(10);
+        }
+        drainBrokerWorkerGroup(context.topic());
+        assertThat(totalAvailablePermits(context.dispatcher())).isEqualTo(remaining.getAvailablePermits());
+        assertThat(totalAvailablePermits(context.dispatcher())).isEqualTo(10);
+    }
+
+    @Test(timeOut = 30_000)
+    public void testRejectedFlowStaysPendingAndIsExcludedFromRemoval() throws Exception {
         try (MockScope mocks = new MockScope()) {
             String topicName = newTopicName();
             String subscriptionName = "shared-sub";
@@ -252,9 +289,8 @@ public class SharedDispatcherPermitAccountingTest extends SharedPulsarBaseTest {
             Subscription subscription = mocks.mock(PersistentSubscription.class);
             when(subscription.getName()).thenReturn(subscriptionName);
             when(subscription.getTopic()).thenReturn(isolatedTopic);
-            Dispatcher dispatcher = classic
-                    ? new PersistentDispatcherMultipleConsumersClassic(isolatedTopic, cursor, subscription)
-                    : new PersistentDispatcherMultipleConsumers(isolatedTopic, cursor, subscription);
+            Dispatcher dispatcher =
+                    new PersistentDispatcherMultipleConsumers(isolatedTopic, cursor, subscription);
             doAnswer(invocation -> {
                 dispatcher.consumerFlow(invocation.getArgument(0), invocation.getArgument(1));
                 return null;
@@ -307,8 +343,8 @@ public class SharedDispatcherPermitAccountingTest extends SharedPulsarBaseTest {
     }
 
     @Test(dataProvider = "flowRaceDispatcherVariants", timeOut = 30_000)
-    public void testRemovalAppliesNegativeAccountedPermitBalance(boolean classic, SubType subType) throws Exception {
-        TestContext context = createTestContext(classic, subType);
+    public void testRemovalAppliesNegativeAccountedPermitBalance(SubType subType) throws Exception {
+        TestContext context = createTestContext(subType);
         Consumer remainingConsumer = context.remainingConsumer();
         Consumer removedConsumer = context.removedConsumer();
         Consumer secondRemainingConsumer = createConsumer(
@@ -345,9 +381,8 @@ public class SharedDispatcherPermitAccountingTest extends SharedPulsarBaseTest {
     }
 
     @Test(dataProvider = "flowRaceDispatcherVariants", timeOut = 30_000)
-    public void testBlockedFlowCommandRaceWithConsumerRemovalDoesNotLosePermits(
-            boolean classic, SubType subType) throws Exception {
-        TestContext context = createTestContext(classic, subType);
+    public void testBlockedFlowCommandRaceWithConsumerRemovalDoesNotLosePermits(SubType subType) throws Exception {
+        TestContext context = createTestContext(subType);
         Consumer remainingConsumer = context.remainingConsumer();
         Consumer removedConsumer = context.removedConsumer();
 
@@ -376,115 +411,151 @@ public class SharedDispatcherPermitAccountingTest extends SharedPulsarBaseTest {
                 .isEqualTo(remainingConsumer.getAvailablePermits());
     }
 
-    @Test(dataProvider = "dispatcherImplementations", timeOut = 30_000)
-    public void testRemainingConsumerCanContinueAfterFlowAndCloseRace(boolean classic) throws Exception {
+    @Test(timeOut = 30_000)
+    public void testRemainingConsumerCanContinueAfterFlowAndCloseRace() throws Exception {
         int receiverQueueSize = 10;
         int messagesToConsume = receiverQueueSize * 2;
         int pendingFlowPermits = 1_000;
         String topicName = newTopicName();
         String subscriptionName = "shared-sub";
-        boolean previousClassicSetting = getConfig().isSubscriptionSharedUseClassicPersistentImplementation();
-        getConfig().setSubscriptionSharedUseClassicPersistentImplementation(classic);
-        try {
-            admin.topics().createNonPartitionedTopic(topicName);
+        admin.topics().createNonPartitionedTopic(topicName);
 
-            try (Producer<byte[]> producer = pulsarClient.newProducer()
-                         .topic(topicName)
-                         .enableBatching(false)
-                         .create();
-                 org.apache.pulsar.client.api.Consumer<byte[]> remainingClient = pulsarClient.newConsumer()
-                         .topic(topicName)
-                         .subscriptionName(subscriptionName)
-                         .subscriptionType(SubscriptionType.Shared)
-                         .consumerName("remaining-consumer")
-                         .receiverQueueSize(receiverQueueSize)
-                         .subscribe();
-                 org.apache.pulsar.client.api.Consumer<byte[]> removedClient = pulsarClient.newConsumer()
-                         .topic(topicName)
-                         .subscriptionName(subscriptionName)
-                         .subscriptionType(SubscriptionType.Shared)
-                         .consumerName("removed-consumer")
-                         .receiverQueueSize(receiverQueueSize)
-                         .subscribe()) {
-                PersistentTopic topic = (PersistentTopic) getTopic(topicName, false).join().orElseThrow();
-                PersistentSubscription subscription =
-                        (PersistentSubscription) topic.getSubscription(subscriptionName);
-                Dispatcher dispatcher = subscription.getDispatcher();
-                assertThat(dispatcher).isInstanceOf(classic
-                        ? PersistentDispatcherMultipleConsumersClassic.class
-                        : PersistentDispatcherMultipleConsumers.class);
-                Consumer remainingBrokerConsumer = findConsumer(dispatcher, "remaining-consumer");
-                Consumer removedBrokerConsumer = findConsumer(dispatcher, "removed-consumer");
-                ServerCnx removedConsumerCnx = (ServerCnx) removedBrokerConsumer.cnx();
+        try (Producer<byte[]> producer = pulsarClient.newProducer()
+                     .topic(topicName)
+                     .enableBatching(false)
+                     .create();
+             org.apache.pulsar.client.api.Consumer<byte[]> remainingClient = pulsarClient.newConsumer()
+                     .topic(topicName)
+                     .subscriptionName(subscriptionName)
+                     .subscriptionType(SubscriptionType.Shared)
+                     .consumerName("remaining-consumer")
+                     .receiverQueueSize(receiverQueueSize)
+                     .subscribe();
+             org.apache.pulsar.client.api.Consumer<byte[]> removedClient = pulsarClient.newConsumer()
+                     .topic(topicName)
+                     .subscriptionName(subscriptionName)
+                     .subscriptionType(SubscriptionType.Shared)
+                     .consumerName("removed-consumer")
+                     .receiverQueueSize(receiverQueueSize)
+                     .subscribe()) {
+            PersistentTopic topic = (PersistentTopic) getTopic(topicName, false).join().orElseThrow();
+            PersistentSubscription subscription =
+                    (PersistentSubscription) topic.getSubscription(subscriptionName);
+            Dispatcher dispatcher = subscription.getDispatcher();
+            assertThat(dispatcher).isInstanceOf(PersistentDispatcherMultipleConsumers.class);
+            Consumer remainingBrokerConsumer = findConsumer(dispatcher, "remaining-consumer");
+            Consumer removedBrokerConsumer = findConsumer(dispatcher, "removed-consumer");
+            ServerCnx removedConsumerCnx = (ServerCnx) removedBrokerConsumer.cnx();
 
-                Awaitility.await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
-                    assertThat(remainingBrokerConsumer.getAvailablePermits()).isEqualTo(receiverQueueSize);
-                    assertThat(removedBrokerConsumer.getAvailablePermits()).isEqualTo(receiverQueueSize);
-                });
-                drainBrokerWorkerGroup(topic);
-                assertThat(totalAvailablePermits(dispatcher)).isEqualTo(receiverQueueSize * 2);
+            Awaitility.await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
+                assertThat(remainingBrokerConsumer.getAvailablePermits()).isEqualTo(receiverQueueSize);
+                assertThat(removedBrokerConsumer.getAvailablePermits()).isEqualTo(receiverQueueSize);
+            });
+            drainBrokerWorkerGroup(topic);
+            assertThat(totalAvailablePermits(dispatcher)).isEqualTo(receiverQueueSize * 2);
 
-                // Follow the production subscription -> dispatcher lock order and hold the dispatcher monitor so the
-                // asynchronous Flow task cannot run before Consumer.close removes the consumer.
-                synchronized (subscription) {
-                    synchronized (dispatcher) {
-                        removedBrokerConsumer.flowPermits(pendingFlowPermits);
-                        assertThat(removedBrokerConsumer.getAvailablePermits())
-                                .isEqualTo(receiverQueueSize + pendingFlowPermits);
-                        assertThat(totalAvailablePermits(dispatcher)).isEqualTo(receiverQueueSize * 2);
-                        removedBrokerConsumer.close();
-                    }
-                }
-                // Wait for the broker-side close to remove the consumer from the connection map. The client close is
-                // then handled idempotently instead of attempting a second dispatcher removal.
-                Awaitility.await().atMost(Duration.ofSeconds(5)).untilAsserted(() ->
-                        assertThat(removedConsumerCnx.getConsumers()
-                                .containsKey(removedBrokerConsumer.consumerId())).isFalse());
-                removedClient.close();
-                drainBrokerWorkerGroup(topic);
-
-                assertThat(dispatcher.getConsumers()).containsExactly(remainingBrokerConsumer);
-                assertThat(totalAvailablePermits(dispatcher))
-                        .isEqualTo(remainingBrokerConsumer.getAvailablePermits());
-
-                for (int i = 0; i < messagesToConsume; i++) {
-                    producer.send(new byte[] {(byte) i});
-                }
-                for (int i = 0; i < messagesToConsume; i++) {
-                    Message<byte[]> message = remainingClient.receive(5, TimeUnit.SECONDS);
-                    assertThat(message).isNotNull();
-                    remainingClient.acknowledge(message);
+            // Follow the production subscription -> dispatcher lock order and hold the dispatcher monitor so the
+            // asynchronous Flow task cannot run before Consumer.close removes the consumer.
+            synchronized (subscription) {
+                synchronized (dispatcher) {
+                    removedBrokerConsumer.flowPermits(pendingFlowPermits);
+                    assertThat(removedBrokerConsumer.getAvailablePermits())
+                            .isEqualTo(receiverQueueSize + pendingFlowPermits);
+                    assertThat(totalAvailablePermits(dispatcher)).isEqualTo(receiverQueueSize * 2);
+                    removedBrokerConsumer.close();
                 }
             }
-        } finally {
-            getConfig().setSubscriptionSharedUseClassicPersistentImplementation(previousClassicSetting);
+            // Wait for the broker-side close to remove the consumer from the connection map. The client close is
+            // then handled idempotently instead of attempting a second dispatcher removal.
+            Awaitility.await().atMost(Duration.ofSeconds(5)).untilAsserted(() ->
+                    assertThat(removedConsumerCnx.getConsumers()
+                            .containsKey(removedBrokerConsumer.consumerId())).isFalse());
+            removedClient.close();
+            drainBrokerWorkerGroup(topic);
+
+            assertThat(dispatcher.getConsumers()).containsExactly(remainingBrokerConsumer);
+            assertThat(totalAvailablePermits(dispatcher))
+                    .isEqualTo(remainingBrokerConsumer.getAvailablePermits());
+
+            for (int i = 0; i < messagesToConsume; i++) {
+                producer.send(new byte[] {(byte) i});
+            }
+            for (int i = 0; i < messagesToConsume; i++) {
+                Message<byte[]> message = remainingClient.receive(5, TimeUnit.SECONDS);
+                assertThat(message).isNotNull();
+                remainingClient.acknowledge(message);
+            }
         }
     }
 
-    private TestContext createTestContext(boolean classic) throws Exception {
-        return createTestContext(classic, Shared);
+    @Test(dataProvider = "partiallyAckedBatchDispatchPaths", timeOut = 30_000)
+    public void testRedeliveredPartiallyAckedBatchDoesNotLosePermits(SubType subType, boolean readHasChunk)
+            throws Exception {
+        int batchSize = 10;
+        int ackedIndexes = 4;
+        int permitsPerConsumer = 100;
+        String topicName = newTopicName();
+        admin.topics().createNonPartitionedTopic(topicName);
+        PersistentTopic topic = (PersistentTopic) getTopic(topicName, false).join().orElseThrow();
+        byte[] batch = serializeEntry(new MessageMetadata().setNumMessagesInBatch(batchSize));
+        byte[] chunk = serializeEntry(new MessageMetadata()
+                .setUuid("chunked-message")
+                .setChunkId(0)
+                .setNumChunksFromMsg(2));
+        Position batchPosition = topic.getManagedLedger().addEntry(batch);
+        Position chunkPosition = topic.getManagedLedger().addEntry(chunk);
+
+        // Ack the first batch indexes, as a consumer did before the batch was redelivered.
+        BitSet unackedIndexes = new BitSet(batchSize);
+        unackedIndexes.set(ackedIndexes, batchSize);
+        ManagedCursor cursor = topic.getManagedLedger().newNonDurableCursor(PositionFactory.EARLIEST);
+        cursor.delete(AckSetStateUtil.createPositionWithAckSet(batchPosition.getLedgerId(),
+                batchPosition.getEntryId(), unackedIndexes.toLongArray()));
+        cursor.close();
+        PersistentDispatcherMultipleConsumers dispatcher =
+                (PersistentDispatcherMultipleConsumers) createTestContext(subType, topic, cursor).dispatcher();
+        int initialPermits = permitsPerConsumer * dispatcher.getConsumers().size();
+        for (Consumer consumer : dispatcher.getConsumers()) {
+            consumer.flowPermits(permitsPerConsumer);
+        }
+        drainBrokerWorkerGroup(topic);
+        assertThat(totalAvailablePermits(dispatcher)).isEqualTo(initialPermits);
+
+        List<Entry> entries = new ArrayList<>();
+        entries.add(EntryImpl.create(batchPosition.getLedgerId(), batchPosition.getEntryId(), batch));
+        if (readHasChunk) {
+            entries.add(EntryImpl.create(chunkPosition.getLedgerId(), chunkPosition.getEntryId(), chunk));
+        }
+        // The command sender from createConsumer recycles batchIndexesAcks before sendMessages returns, like a
+        // consumer event loop that runs the send task before the dispatcher thread continues.
+        dispatcher.sendMessagesToConsumers(PersistentDispatcherMultipleConsumers.ReadType.Replay, entries, true);
+
+        int deliveredMessages = batchSize - ackedIndexes + (readHasChunk ? 1 : 0);
+        assertThat(totalAvailablePermits(dispatcher)).isEqualTo(initialPermits - deliveredMessages);
+        assertThat(totalAvailablePermits(dispatcher)).isEqualTo(
+                dispatcher.getConsumers().stream().mapToInt(Consumer::getAvailablePermits).sum());
     }
 
-    private TestContext createTestContext(boolean classic, SubType subType) throws Exception {
+    private TestContext createTestContext(SubType subType) throws Exception {
         String topicName = newTopicName();
-        String subscriptionName = "shared-sub";
         admin.topics().createNonPartitionedTopic(topicName);
 
         PersistentTopic topic = (PersistentTopic) getTopic(topicName, false).join().get();
         ManagedCursor cursor = topic.getManagedLedger().newNonDurableCursor(PositionFactory.EARLIEST);
         cursor.close();
+        return createTestContext(subType, topic, cursor);
+    }
+
+    private TestContext createTestContext(SubType subType, PersistentTopic topic, ManagedCursor cursor) {
+        String topicName = topic.getName();
+        String subscriptionName = "shared-sub";
         PersistentSubscription subscription = new PersistentSubscription(topic, subscriptionName, cursor, false);
         Dispatcher dispatcher;
         if (subType == Key_Shared) {
-            dispatcher = classic
-                    ? new PersistentStickyKeyDispatcherMultipleConsumersClassic(
-                            topic, cursor, subscription, getConfig(), new KeySharedMeta().setKeySharedMode(AUTO_SPLIT))
-                    : new PersistentStickyKeyDispatcherMultipleConsumers(
-                            topic, cursor, subscription, getConfig(), new KeySharedMeta().setKeySharedMode(AUTO_SPLIT));
+            dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(
+                    topic, cursor, subscription, getConfig(), new KeySharedMeta().setKeySharedMode(AUTO_SPLIT));
         } else {
-            dispatcher = classic
-                    ? new PersistentDispatcherMultipleConsumersClassic(topic, cursor, subscription)
-                    : new PersistentDispatcherMultipleConsumers(topic, cursor, subscription);
+            dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursor, subscription);
         }
         subscription.dispatcher = dispatcher;
 
@@ -563,12 +634,21 @@ public class SharedDispatcherPermitAccountingTest extends SharedPulsarBaseTest {
         decrementTotalAvailablePermits(dispatcher, permits);
     }
 
-    private static void decrementTotalAvailablePermits(Dispatcher dispatcher, int permits) {
-        if (dispatcher instanceof PersistentDispatcherMultipleConsumers pip379Dispatcher) {
-            pip379Dispatcher.totalAvailablePermits -= permits;
-        } else {
-            ((PersistentDispatcherMultipleConsumersClassic) dispatcher).totalAvailablePermits -= permits;
+    private static byte[] serializeEntry(MessageMetadata metadata) {
+        metadata.setProducerName("producer")
+                .setSequenceId(0)
+                .setPublishTime(System.currentTimeMillis());
+        ByteBuf entry = Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, metadata,
+                Unpooled.EMPTY_BUFFER);
+        try {
+            return ByteBufUtil.getBytes(entry);
+        } finally {
+            entry.release();
         }
+    }
+
+    private static void decrementTotalAvailablePermits(Dispatcher dispatcher, int permits) {
+        ((PersistentDispatcherMultipleConsumers) dispatcher).totalAvailablePermits -= permits;
     }
 
     private static void drainBrokerWorkerGroup(PersistentTopic topic) throws Exception {
@@ -578,10 +658,7 @@ public class SharedDispatcherPermitAccountingTest extends SharedPulsarBaseTest {
     }
 
     private static int totalAvailablePermits(Dispatcher dispatcher) {
-        if (dispatcher instanceof PersistentDispatcherMultipleConsumers pip379Dispatcher) {
-            return pip379Dispatcher.totalAvailablePermits;
-        }
-        return ((PersistentDispatcherMultipleConsumersClassic) dispatcher).totalAvailablePermits;
+        return ((PersistentDispatcherMultipleConsumers) dispatcher).totalAvailablePermits;
     }
 
     private static Consumer findConsumer(Dispatcher dispatcher, String consumerName) {

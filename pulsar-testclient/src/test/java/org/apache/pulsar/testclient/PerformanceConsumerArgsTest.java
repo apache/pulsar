@@ -33,21 +33,21 @@ public class PerformanceConsumerArgsTest {
     @Test
     public void testScalableConsumerTypeDefaultsToQueue() {
         PerformanceConsumer consumer = parse("my-topic");
-        assertEquals(consumer.scalableConsumerType,
+        assertEquals(consumer.v5.scalableConsumerType,
                 PerformanceConsumer.ScalableConsumerType.Queue);
     }
 
     @Test
     public void testScalableConsumerTypeStreamLongOption() {
         PerformanceConsumer consumer = parse("--scalable-consumer-type", "Stream", "my-topic");
-        assertEquals(consumer.scalableConsumerType,
+        assertEquals(consumer.v5.scalableConsumerType,
                 PerformanceConsumer.ScalableConsumerType.Stream);
     }
 
     @Test
     public void testScalableConsumerTypeShortOption() {
         PerformanceConsumer consumer = parse("-sct", "Queue", "my-topic");
-        assertEquals(consumer.scalableConsumerType,
+        assertEquals(consumer.v5.scalableConsumerType,
                 PerformanceConsumer.ScalableConsumerType.Queue);
     }
 }

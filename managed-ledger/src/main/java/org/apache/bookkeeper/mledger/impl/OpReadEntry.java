@@ -98,6 +98,12 @@ class OpReadEntry implements ReadEntriesCallback {
 
     Predicate<Position> skipCondition;
     boolean skipOpenLedgerFullyAcked = false;
+    /**
+     * Whether the last ledger read of this operation ended at the managed ledger's last confirmed entry. Such a read
+     * completes with the entries it has instead of reading the entries confirmed since then, so that a read that
+     * catches up with the tail is not extended on the managed ledger's executor.
+     */
+    boolean readUpToLastConfirmedEntry = false;
 
     public static OpReadEntry create(ManagedCursorImpl cursor, Position readPositionRef, int count,
                                      long maxSizeBytes, ReadEntriesCallback callback, Object ctx, Position maxPosition,
@@ -117,6 +123,7 @@ class OpReadEntry implements ReadEntriesCallback {
         op.maxPosition = maxPosition;
         op.skipCondition = skipCondition;
         op.skipOpenLedgerFullyAcked = skipOpenLedgerFullyAcked;
+        op.readUpToLastConfirmedEntry = false;
         op.ctx = ctx;
         op.nextReadPosition = PositionFactory.create(op.readPosition);
         return op;
@@ -240,9 +247,10 @@ class OpReadEntry implements ReadEntriesCallback {
     }
 
     void checkReadCompletion() {
-        // op readPosition is smaller or equals maxPosition then can read again
-        if (entries.size() < count && cursor.hasMoreEntries()
-                && maxPosition.compareTo(readPosition) > 0) {
+        // op readPosition is smaller or equals maxPosition then can read again. A read that returned entries up to
+        // the last confirmed entry completes with them, and the entries confirmed since then are left for the next read
+        if (entries.size() < count && !(readUpToLastConfirmedEntry && !entries.isEmpty())
+                && cursor.hasMoreEntries() && maxPosition.compareTo(readPosition) > 0) {
 
             // We still have more entries to read from the next ledger, schedule a new async operation
             cursor.ledger.getExecutor().execute(() -> {
@@ -309,6 +317,7 @@ class OpReadEntry implements ReadEntriesCallback {
         maxPosition = null;
         skipCondition = null;
         skipOpenLedgerFullyAcked = false;
+        readUpToLastConfirmedEntry = false;
         recyclerHandle.recycle(this);
     }
 

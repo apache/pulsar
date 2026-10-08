@@ -60,6 +60,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.commons.lang3.reflect.FieldUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
@@ -283,6 +284,21 @@ public class ProducerImplTest {
             assertEquals(memoryLimitController.currentUsage(), 0,
                     "The memory reserved for the message must be released exactly once in state " + state);
         }
+    }
+
+    @Test
+    public void testConnectionOpenedAfterProducerCloseReleasesConnection() {
+        PulsarClientImpl client = mockedPulsarClient();
+        CompletableFuture<Pair<ClientCnx, Boolean>> connectionFuture = new CompletableFuture<>();
+        when(client.getConnection(Mockito.anyString(), Mockito.anyInt())).thenReturn(connectionFuture);
+        ProducerImpl<byte[]> producer = constructProducer(client, new ProducerConfigurationData());
+        ClientCnx clientCnx = mock(ClientCnx.class, Mockito.RETURNS_DEEP_STUBS);
+
+        producer.setState(ProducerImpl.State.Closed);
+        producer.connectionOpened(clientCnx).join();
+
+        verify(client.getCnxPool()).releaseConnection(clientCnx);
+        connectionFuture.completeExceptionally(new PulsarClientException("producer closed during connect"));
     }
 
     private ProducerConfigurationData encryptedProducerConf() {

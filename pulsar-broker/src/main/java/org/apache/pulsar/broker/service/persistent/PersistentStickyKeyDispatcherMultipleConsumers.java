@@ -79,7 +79,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     PersistentStickyKeyDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor,
             Subscription subscription, ServiceConfiguration conf, KeySharedMeta ksm) {
         this(topic, cursor, subscription, conf, ksm, createSelector(ksm, conf),
-                // recent joined consumer tracking is required only for AUTO_SPLIT mode when
+                // per-hash draining tracking is required only for AUTO_SPLIT mode when
                 // out-of-order delivery is disabled
                 ksm.getKeySharedMode() == KeySharedMode.AUTO_SPLIT && !ksm.isAllowOutOfOrderDelivery());
     }
@@ -334,6 +334,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             totalEntries += filterEntriesForConsumer(entriesForConsumer, batchSizes, sendMessageInfo,
                     batchIndexesAcks, cursor, readType == ReadType.Replay, consumer);
             totalEntriesProcessed += entriesForConsumer.size();
+            // read before sendMessages: it hands batchIndexesAcks to the consumer's event loop, which recycles it
+            int totalAckedIndexCount = batchIndexesAcks.getTotalAckedIndexCount();
             consumer.sendMessages(entriesForConsumer, batchSizes, batchIndexesAcks,
                     sendMessageInfo.getTotalMessages(),
                     sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
@@ -344,7 +346,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             });
 
             TOTAL_AVAILABLE_PERMITS_UPDATER.getAndAdd(this,
-                    -(sendMessageInfo.getTotalMessages() - batchIndexesAcks.getTotalAckedIndexCount()));
+                    -(sendMessageInfo.getTotalMessages() - totalAckedIndexCount));
             totalMessagesSent += sendMessageInfo.getTotalMessages();
             totalBytesSent += sendMessageInfo.getTotalBytes();
         }

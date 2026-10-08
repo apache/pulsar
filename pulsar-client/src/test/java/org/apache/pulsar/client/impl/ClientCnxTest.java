@@ -333,6 +333,26 @@ public class ClientCnxTest {
     }
 
     @Test
+    public void testScalableTopicSupportRequiresExplicitFeatureFlag() {
+        // Older brokers either omit feature flags entirely or advertise only older flags.
+        for (int mode = 0; mode < 4; mode++) {
+            CommandConnected connected = new CommandConnected()
+                    .setServerVersion("test")
+                    .setProtocolVersion(21);
+            if (mode == 1) {
+                connected.setFeatureFlags().setSupportsTopicWatchers(true);
+            } else if (mode >= 2) {
+                connected.setFeatureFlags().setSupportsScalableTopics(mode == 3);
+            }
+            boolean expectedSupport = mode == 3;
+            withConnection("testScalableTopicSupportRequiresExplicitFeatureFlag", cnx -> {
+                cnx.handleConnected(connected);
+                assertThat(cnx.isSupportsScalableTopics()).isEqualTo(expectedSupport);
+            });
+        }
+    }
+
+    @Test
     public void testNoWatchersWhenNoServerSupport() {
         withConnection("testNoWatchersWhenNoServerSupport", cnx -> {
             cnx.handleConnected(new CommandConnected()
