@@ -115,6 +115,15 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
     static <T> CompletableFuture<CheckpointConsumer<T>> createUnmanagedAsync(
             PulsarClientV5 client, Schema<T> v5Schema, DagWatchClient dagWatch,
             ClientSegmentLayout initialLayout, Checkpoint startPosition, String consumerName) {
+        if (startPosition == CheckpointV5.LATEST) {
+            // A segment that a split or merge creates later holds only messages published after the
+            // consumer started, so start at the end of the segments in the layout now instead: like
+            // a restored checkpoint, this has no position for a later segment, which is then read
+            // from the earliest.
+            startPosition = CheckpointV5.latestOf(allSegmentsOf(initialLayout).stream()
+                    .map(ActiveSegment::segmentId)
+                    .toList());
+        }
         ScalableCheckpointConsumer<T> consumer = new ScalableCheckpointConsumer<>(
                 client, v5Schema, dagWatch.topicName().toString(), dagWatch, startPosition, consumerName);
         return consumer.applyAssignment(allSegmentsOf(initialLayout))
@@ -370,7 +379,9 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
         if (startPosition == CheckpointV5.EARLIEST) {
             return org.apache.pulsar.client.api.MessageId.earliest;
         }
-        // CheckpointV5.LATEST and anything else: latest.
+        // CheckpointV5.LATEST and anything else: latest. Only a managed consumer still has LATEST
+        // here (createUnmanagedAsync resolves it against the initial layout): its assignment can't
+        // tell a segment created after the consumer started from one moved to it by a rebalance.
         return org.apache.pulsar.client.api.MessageId.latest;
     }
 
