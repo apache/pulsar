@@ -53,6 +53,7 @@ workloads:
         maxOutstanding: 20000
         batchingEnabled: true
         precreate: false
+        precreateConcurrency: 32
     topics:
       count: 30
       prefix: persistent://public/default/iot-telemetry-
