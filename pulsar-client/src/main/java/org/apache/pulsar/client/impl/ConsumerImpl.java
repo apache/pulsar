@@ -1546,12 +1546,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
                 uncompressedPayload.release();
                 // This message is dropped instead of being delivered to the application, so its
-                // outstanding flow-control permit is never returned via messageProcessed(). Return
-                // it here to avoid leaking a permit for the boundary message that a seek/startMessageId
-                // caused to be re-dispatched. Refund numMessages : the broker charges
-                // one permit per message in the entry, so an undecryptable batch (which can also reach
-                // this block) is repaid exactly what it consumed. For the plain and chunked cases numMessages is 1.
-                increaseAvailablePermits(cnx, numMessages);
+                // outstanding flow-control permit is never returned via messageProcessed(). Refund
+                // exactly what the broker charged for this entry: one
+                // permit per message, minus the batch indexes it reports as already acked via ackSet (set
+                // bits are the still-unacked indexes). An undecryptable batch can also reach this block;
+                // for the plain and chunked cases there is no ackSet and numMessages is 1.
+                final int chargedPermits = ackSet.length > 0 ? BitSet.valueOf(ackSet).cardinality() : numMessages;
+                increaseAvailablePermits(cnx, chargedPermits);
                 return;
             }
 

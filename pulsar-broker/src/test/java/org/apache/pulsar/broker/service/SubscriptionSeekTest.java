@@ -30,7 +30,10 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import java.io.IOException;
 import java.lang.reflect.Field;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -59,6 +62,9 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
+import org.apache.pulsar.client.api.CryptoKeyReader;
+import org.apache.pulsar.client.api.EncryptionKeyInfo;
 import org.apache.pulsar.client.api.InjectedClientCnxClientBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -73,6 +79,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.ClientCnx;
+import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
@@ -1265,5 +1272,108 @@ public class SubscriptionSeekTest extends BrokerTestBase {
                 + "a flow-control permit and the receiverQueueSize=1 budget was exhausted");
         assertEquals(msg.getMessageId(), ids.get(1));
         consumer.acknowledge(msg);
+    }
+
+    /**
+     * Seeking to a batch message id makes the broker redeliver that entry with only the not-yet-acked
+     * batch indexes, and it charges the consumer one permit per such index (not per message in the
+     * batch). If the consumer then drops the entry (here an undecryptable batch consumed with
+     * ConsumerCryptoFailureAction.CONSUME), it must refund exactly the permits that were charged.
+     */
+    @Test
+    public void testSeekBoundaryDropRefundsOnlyChargedPermitsForPartiallyAckedBatch() throws Exception {
+        final String topicName = "persistent://prop/ns-abc/seekBoundaryPermitPartialAckSet";
+        final String subName = "my-sub";
+        final int batchSize = 10;
+        final int seekBatchIndex = 7;       // broker redelivers indexes 7..9 -> charges 3 of 10 permits
+        final int receiverQueueSize = 8;    // refund flush threshold is 4: a full 10 refund would flush
+
+        class TestKeyReader implements CryptoKeyReader {
+            private EncryptionKeyInfo read(String prefix, String keyName) {
+                try {
+                    EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
+                    keyInfo.setKey(Files.readAllBytes(Paths.get("./src/test/resources/certificate/" + prefix
+                            + keyName)));
+                    keyInfo.setMetadata(new HashMap<>());
+                    return keyInfo;
+                } catch (IOException e) {
+                    throw new IllegalStateException(e);
+                }
+            }
+
+            @Override
+            public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
+                return read("public-key.", keyName);
+            }
+
+            @Override
+            public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
+                return read("private-key.", keyName);
+            }
+        }
+
+        // No key reader on the consumer + CONSUME: the encrypted batch is delivered undecryptable and
+        // is never expanded into individual messages.
+        @Cleanup
+        org.apache.pulsar.client.api.Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName(subName)
+                .cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)
+                .receiverQueueSize(receiverQueueSize)
+                .subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+                .addEncryptionKey("client-rsa.pem")
+                .cryptoKeyReader(new TestKeyReader())
+                .enableBatching(true)
+                .batchingMaxMessages(batchSize)
+                // long delay so that all messages end up in a single entry
+                .batchingMaxPublishDelay(10, TimeUnit.SECONDS)
+                .create();
+
+        List<CompletableFuture<MessageId>> futures = new ArrayList<>();
+        for (int i = 0; i < batchSize; i++) {
+            futures.add(producer.sendAsync(("batch-msg-" + i).getBytes()));
+        }
+        List<MessageId> ids = new ArrayList<>();
+        for (CompletableFuture<MessageId> future : futures) {
+            ids.add(future.get());
+        }
+        assertTrue(ids.get(seekBatchIndex) instanceof BatchMessageIdImpl);
+        BatchMessageIdImpl producedId = (BatchMessageIdImpl) ids.get(seekBatchIndex);
+        assertEquals(producedId.getBatchIndex(), seekBatchIndex);
+        // Ids returned by the producer do not carry the batch size, but the seek's ackSet is built from
+        // it, so supply it explicitly.
+        BatchMessageIdImpl seekId = new BatchMessageIdImpl(producedId.getLedgerId(), producedId.getEntryId(),
+                producedId.getPartitionIndex(), seekBatchIndex, batchSize, null);
+
+        // Consume the initial dispatch of the undecryptable batch.
+        assertNotNull(consumer.receive(10, TimeUnit.SECONDS));
+
+        // Exclusive seek into the batch: the broker redelivers the entry with ackSet = indexes 7..9
+        // and the client drops it as the seek boundary.
+        consumer.seek(seekId);
+        Awaitility.await().until(consumer::isConnected);
+
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        PersistentSubscription sub = topicRef.getSubscription(subName);
+        // The (reconnected) broker-side consumer has dispatched the redelivered entry.
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertFalse(sub.getConsumers().isEmpty());
+            assertTrue(sub.getConsumers().get(0).getMsgOutCounter() > 0);
+        });
+
+        // Nothing is queued for the application, so every permit must be accounted for: those the broker
+        // still holds plus those the client has refunded but not yet flushed. A missing refund leaves the
+        // total below receiverQueueSize (budget leaked); an over-refund pushes it above (over-credit).
+        ConsumerImpl<byte[]> consumerImpl = (ConsumerImpl<byte[]>) consumer;
+        Awaitility.await().during(2, TimeUnit.SECONDS).atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+            int brokerPermits = sub.getConsumers().get(0).getAvailablePermits();
+            int clientUnflushed = consumerImpl.getAvailablePermits();
+            assertEquals(brokerPermits + clientUnflushed, receiverQueueSize,
+                    "permit accounting is off after dropping a partially-acked batch (broker permits "
+                            + brokerPermits + ", client unflushed " + clientUnflushed + ")");
+        });
     }
 }
