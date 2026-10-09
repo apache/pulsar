@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl.v5;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.github.merlimat.slog.Logger;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -30,6 +31,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import org.apache.pulsar.client.api.PulsarClientException.AlreadyClosedException;
 import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.api.v5.Checkpoint;
 import org.apache.pulsar.client.api.v5.CheckpointConsumer;
 import org.apache.pulsar.client.api.v5.Message;
@@ -366,9 +368,25 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
             return CompletableFuture.completedFuture(null);
         }
         return client.v4Client().createSegmentReaderAsync(segConf.clone(), v4Schema)
-                .thenCompose(lookupReader -> lookupReader.getLastMessageIdsAsync()
-                        .whenComplete((__, ___) -> lookupReader.closeAsync()))
+                .thenCompose(ScalableCheckpointConsumer::lastMessageIdsThenCloseAsync)
                 .thenAccept(lastMessageIds -> segConf.setStartMessageId(lastMessageIds.get(0)));
+    }
+
+    /**
+     * The reader's last message ids, available once the reader is closed. The lookup reader is not in
+     * {@link #segmentReaders}, so a consumer close doesn't wait for it: the reader creation goes on only
+     * after it is closed, also when the lookup failed, whose error is kept. A failed close is only logged.
+     */
+    @VisibleForTesting
+    static CompletableFuture<List<TopicMessageId>> lastMessageIdsThenCloseAsync(Reader<?> lookupReader) {
+        CompletableFuture<List<TopicMessageId>> lookup = lookupReader.getLastMessageIdsAsync();
+        return lookup.handle((__, ___) -> lookupReader.closeAsync())
+                .thenCompose(closing -> closing.exceptionally(ex -> {
+                    LOG.warn().attr("topic", lookupReader.getTopic()).exceptionMessage(ex)
+                            .log("Failed to close the lookup reader");
+                    return null;
+                }))
+                .thenCompose(__ -> lookup);
     }
 
     /**
