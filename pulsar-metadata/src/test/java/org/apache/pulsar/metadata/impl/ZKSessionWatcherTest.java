@@ -152,36 +152,48 @@ public class ZKSessionWatcherTest {
     }
 
     @Test
-    public void testConnectedReadOnlyShouldNotBecomeSessionLostWithoutExpiredEvent() throws Exception {
+    public void testReadOnlyProbesAcrossTimeoutWaitForWritableConnectionWithoutSessionLoss() throws Exception {
         List<SessionEvent> events = new CopyOnWriteArrayList<>();
         ZooKeeper zk = newSessionZooKeeper(120);
-        when(zk.getState()).thenReturn(States.CONNECTEDREADONLY);
+        when(zk.getState()).thenReturn(States.CONNECTEDREADONLY, States.CONNECTEDREADONLY, States.CONNECTED);
+        completeExistsWith(zk, KeeperException.Code.OK);
 
         ZKSessionWatcher watcher = newSessionWatcher(zk, events);
         watcher.close();
-        watcher.process(new WatchedEvent(EventType.None, KeeperState.Disconnected, null));
+        watcher.checkConnectionStatus();
         long timeoutDeadline = System.nanoTime() + Duration.ofMillis(120).toNanos();
         Awaitility.await().atMost(Duration.ofSeconds(1))
                 .until(() -> System.nanoTime() >= timeoutDeadline);
-        watcher.process(new WatchedEvent(EventType.None, KeeperState.ConnectedReadOnly, null));
+        watcher.checkConnectionStatus();
 
         assertThat(events).containsExactly(SessionEvent.ConnectionLost);
+
+        watcher.checkConnectionStatus();
+        watcher.process(new WatchedEvent(EventType.None, KeeperState.SyncConnected, null));
+
+        assertThat(events).containsExactly(SessionEvent.ConnectionLost, SessionEvent.Reconnected);
     }
 
     @Test
-    public void testClosedProbeWaitsForWritableConnectionBeforeReestablishingSession() throws Exception {
+    public void testClosedHandleAfterExpirationWaitsForWritableConnectionAndDeduplicatesRecovery() throws Exception {
         List<SessionEvent> events = new CopyOnWriteArrayList<>();
         ZooKeeper zk = newSessionZooKeeper();
-        when(zk.getState()).thenReturn(States.CLOSED, States.CONNECTED);
+        when(zk.getState()).thenReturn(States.CLOSED, States.CONNECTED, States.CONNECTED);
         completeExistsWith(zk, KeeperException.Code.OK);
 
         try (ZKSessionWatcher watcher = newSessionWatcher(zk, events)) {
-            watcher.setSessionInvalid();
+            watcher.process(new WatchedEvent(EventType.None, KeeperState.Expired, null));
+            watcher.process(new WatchedEvent(EventType.None, KeeperState.Closed, null));
+            watcher.process(new WatchedEvent(EventType.None, KeeperState.Closed, null));
             watcher.checkConnectionStatus();
-            assertThat(events).isEmpty();
+            assertThat(events).containsExactly(SessionEvent.SessionLost);
 
             watcher.checkConnectionStatus();
-            assertThat(events).containsExactly(SessionEvent.Reconnected, SessionEvent.SessionReestablished);
+            watcher.process(new WatchedEvent(EventType.None, KeeperState.SyncConnected, null));
+            watcher.checkConnectionStatus();
+
+            assertThat(events).containsExactly(
+                    SessionEvent.SessionLost, SessionEvent.Reconnected, SessionEvent.SessionReestablished);
         }
     }
 
