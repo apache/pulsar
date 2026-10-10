@@ -30,6 +30,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.bookkeeper.client.BKException.BKNotEnoughBookiesException;
@@ -68,17 +71,7 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
 
     private volatile BookiesRackConfiguration cachedRackConfiguration = null;
 
-    /**
-     * Completes once the rack configuration load started by
-     * {@link #initialize(ClientConfiguration, Optional, HashedWheelTimer, FeatureProvider, StatsLogger,
-     * BookieAddressResolver)} has been applied to {@link #cachedRackConfiguration}, and completes exceptionally
-     * when that load failed. Until it completes no isolation is applied at all, so tests must wait for this future
-     * before asserting on placement decisions.
-     *
-     * <p>It deliberately excludes the {@code exceptionally} stage that keeps initialization going on a failed
-     * load: a test awaiting this future must see the real failure rather than proceed against a still-null
-     * {@link #cachedRackConfiguration}, which looks exactly like the race this future exists to close.
-     */
+    /** Completes when the initial rack configuration has been applied. */
     @Getter
     @VisibleForTesting
     private volatile CompletableFuture<Void> initialRackConfigurationLoadFuture =
@@ -108,16 +101,21 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
             }
             // Only add the bookieMappingCache if we have defined an isolation group
             bookieMappingCache = store.getMetadataCache(BookiesRackConfiguration.class);
-            CompletableFuture<Void> rackConfigurationLoad = bookieMappingCache
-                    .get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH).thenAccept(opt -> opt.ifPresent(
-                            bookiesRackConfiguration -> cachedRackConfiguration = bookiesRackConfiguration));
-            // Initialization continues when the load fails; isolation is simply not applied until a later refresh.
-            rackConfigurationLoad.exceptionally(e -> {
-                log.warn().exception(e)
-                        .log("Failed to load bookies rack configuration while initialize the PlacementPolicy.");
-                return null;
-            });
-            initialRackConfigurationLoadFuture = rackConfigurationLoad;
+            initialRackConfigurationLoadFuture = bookieMappingCache
+                    .get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH)
+                    .thenAccept(opt -> cachedRackConfiguration =
+                            opt.orElseGet(BookiesRackConfiguration::new));
+            // A wildcard disables isolation for the default groups, so it must not make initialization depend on
+            // rack metadata. Keep loading the metadata because a ledger can still provide non-wildcard groups.
+            if (primaryIsolationGroups.contains(PULSAR_SYSTEM_TOPIC_ISOLATION_GROUP)) {
+                initialRackConfigurationLoadFuture.exceptionally(e -> {
+                    log.warn().exception(e)
+                            .log("Failed to asynchronously load the initial bookies rack configuration");
+                    return null;
+                });
+            } else {
+                waitForInitialRackConfigurationLoad(conf);
+            }
         }
         if (conf.getProperty(SECONDARY_ISOLATION_BOOKIE_GROUPS) != null) {
             String secondaryIsolationGroupsString = ConfigurationStringUtil
@@ -128,6 +126,19 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
         }
         defaultIsolationGroups = ImmutablePair.of(primaryIsolationGroups, secondaryIsolationGroups);
         return super.initialize(conf, optionalDnsResolver, timer, featureProvider, statsLogger, bookieAddressResolver);
+    }
+
+    private void waitForInitialRackConfigurationLoad(ClientConfiguration conf) {
+        try {
+            initialRackConfigurationLoadFuture.get(conf.getZkTimeout(), TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Interrupted while loading the initial bookies rack configuration", e);
+        } catch (ExecutionException e) {
+            throw new RuntimeException("Failed to load the initial bookies rack configuration", e.getCause());
+        } catch (TimeoutException e) {
+            throw new RuntimeException("Timed out while loading the initial bookies rack configuration", e);
+        }
     }
 
     @Override
@@ -226,14 +237,16 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
         try {
             if (bookieMappingCache != null) {
                 bookieMappingCache.get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH)
-                        .thenAccept(opt -> cachedRackConfiguration = opt.orElse(null)).exceptionally(e -> {
-                            log.warn("Failed to update the newest bookies rack config.");
+                        .thenAccept(opt -> cachedRackConfiguration =
+                                opt.orElseGet(BookiesRackConfiguration::new)).exceptionally(e -> {
+                            log.warn().exception(e).log("Failed to update the newest bookies rack config.");
                             return null;
                         });
 
                 BookiesRackConfiguration allGroupsBookieMapping = cachedRackConfiguration;
                 if (allGroupsBookieMapping == null) {
-                    log.debug("The bookies rack config is not available at now.");
+                    log.debug("The bookies rack config is unavailable; excluding all known bookies.");
+                    excludedBookies.addAll(knownBookies.keySet());
                     return excludedBookies;
                 }
                 Set<String> allGroups = allGroupsBookieMapping.keySet();
