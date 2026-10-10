@@ -68,6 +68,7 @@ public class Backoff {
     private Duration next;
     @Getter
     private Instant firstBackoffTime;
+    private boolean firstBackoffTimeSet;
     @Getter
     private boolean mandatoryStopMade;
 
@@ -79,6 +80,7 @@ public class Backoff {
         this.next = initial;
         this.clock = clock;
         this.firstBackoffTime = Instant.EPOCH;
+        this.firstBackoffTimeSet = false;
         if (initial.isZero() && max.isZero() && mandatoryStop.isZero()) {
             this.mandatoryStopMade = true;
         }
@@ -124,8 +126,9 @@ public class Backoff {
         if (!mandatoryStopMade) {
             Instant now = clock.instant();
             Duration timeElapsedSinceFirstBackoff = Duration.ZERO;
-            if (initial.equals(current)) {
+            if (!firstBackoffTimeSet) {
                 firstBackoffTime = now;
+                firstBackoffTimeSet = true;
             } else {
                 timeElapsedSinceFirstBackoff = Duration.between(firstBackoffTime, now);
             }
@@ -163,6 +166,8 @@ public class Backoff {
      */
     public void reset() {
         this.next = this.initial;
+        this.firstBackoffTime = Instant.EPOCH;
+        this.firstBackoffTimeSet = false;
         this.mandatoryStopMade = initial.isZero() && max.isZero() && mandatoryStop.isZero();
     }
 
