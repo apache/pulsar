@@ -3883,7 +3883,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_SCHEMA,
-        doc = "The list compatibility checkers to be used in schema registry"
+        doc = "The compatibility checker classes used by the schema registry. For opt-in PROTOBUF_NATIVE field "
+            + "checks, replace ProtobufNativeSchemaCompatibilityCheck with "
+            + "org.apache.pulsar.broker.service.schema.ProtobufNativeSchemaAdvancedCompatibilityCheck. "
+            + "Configure only one PROTOBUF_NATIVE checker and use the same selection on all brokers that can own "
+            + "a topic. Changes require a broker restart. Review retained history and consumer schemas before "
+            + "activation: reconnecting consumers can be rejected, even with an unchanged schema, when another "
+            + "selected historical version is incompatible or unsupported. A configured checker that cannot be "
+            + "instantiated fails broker startup. Restore the default entry before downgrading broker binaries."
     )
     private Set<String> schemaRegistryCompatibilityCheckers = Sets.newHashSet(
             "org.apache.pulsar.broker.service.schema.JsonSchemaCompatibilityCheck",
