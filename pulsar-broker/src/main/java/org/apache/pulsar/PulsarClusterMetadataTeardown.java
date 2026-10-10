@@ -220,6 +220,9 @@ public class PulsarClusterMetadataTeardown {
             bookKeeper.deleteLedger(ledgerId);
                 log.debug().attr("ledgerId", ledgerId).log("Deleted ledger");
                     } catch (InterruptedException | BKException ex) {
+            if (ex instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
             if (ex instanceof BKException bkException) {
                 switch (bkException.getCode()) {
                     case BKException.Code.NoSuchLedgerExistsException:
@@ -247,6 +250,9 @@ public class PulsarClusterMetadataTeardown {
                     try {
                         managedLedgerFactory.delete(topicName.getPersistenceNamingEncoding());
                     } catch (InterruptedException | ManagedLedgerException e) {
+                        if (e instanceof InterruptedException) {
+                            Thread.currentThread().interrupt();
+                        }
                         log.error().attr("topic", topicName).exceptionMessage(e)
                                 .log("Failed to delete ledgers for topic");
                         throw new RuntimeException(e);

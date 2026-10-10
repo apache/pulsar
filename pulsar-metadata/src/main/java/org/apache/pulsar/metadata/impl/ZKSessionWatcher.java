@@ -115,6 +115,9 @@ public class ZKSessionWatcher implements AutoCloseable, Watcher {
 
             checkStateIfSameSession(checkedSessionId, zkClientState);
         } catch (RejectedExecutionException | InterruptedException e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
             task.cancel(true);
         } catch (Throwable t) {
             log.warn().exception(t).log("Error while checking ZK connection status");
