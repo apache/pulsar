@@ -228,6 +228,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     // it will be used to manage N outstanding chunked message buffers
     private final BlockingQueue<String> pendingChunkedMessageUuidQueue;
 
+    @VisibleForTesting
+    int getPendingChunkedMessageUuidQueueSizeForTest() {
+        return pendingChunkedMessageUuidQueue.size();
+    }
+
     private final boolean createTopicIfDoesNotExist;
     private final boolean poolMessages;
 
@@ -1535,6 +1540,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 // add chunked messageId to unack-message tracker, and reduce pending-chunked-message count
                 unAckedChunkedMessageIdSequenceMap.put(msgId, chunkedMsgCtx.chunkedMessageIds);
                 pendingChunkedMessageCount--;
+                // The completed message's uuid was added to pendingChunkedMessageUuidQueue when its
+                // first chunk arrived, but is only ever removed by the eviction/expiry paths. On the
+                // normal completion path it was never removed, so the queue accumulated one entry per
+                // completed chunked message unboundedly (a memory leak for long-running consumers).
+                // Remove it here to keep the queue in sync with chunkedMessagesMap.
+                pendingChunkedMessageUuidQueue.remove(msgMetadata.getUuid());
                 chunkedMsgCtx.recycle();
             }
 
@@ -3191,15 +3202,24 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (expireTimeOfIncompleteChunkedMessageMillis <= 0) {
             return;
         }
-        ChunkedMessageCtx chunkedMsgCtx = null;
+        ChunkedMessageCtx chunkedMsgCtx;
         String messageUUID;
         while ((messageUUID = pendingChunkedMessageUuidQueue.peek()) != null) {
             chunkedMsgCtx = StringUtils.isNotBlank(messageUUID) ? chunkedMessagesMap.get(messageUUID) : null;
-            if (chunkedMsgCtx != null && System
-                    .currentTimeMillis() > (chunkedMsgCtx.receivedTime + expireTimeOfIncompleteChunkedMessageMillis)) {
+            if (chunkedMsgCtx == null) {
+                // Stale queue head with no backing context (e.g. the message already completed, or a
+                // discard path left the uuid behind). Like removeOldestPendingChunkedMessage(), skip
+                // it by polling and continue, so a ghost head cannot block expiry of live entries
+                // queued behind it.
+                pendingChunkedMessageUuidQueue.poll();
+                continue;
+            }
+            if (System.currentTimeMillis() > (chunkedMsgCtx.receivedTime + expireTimeOfIncompleteChunkedMessageMillis)) {
                 pendingChunkedMessageUuidQueue.remove(messageUUID);
                 removeChunkMessage(messageUUID, chunkedMsgCtx, true);
             } else {
+                // Head is a live, not-yet-expired context. Entries are queued in arrival order, so
+                // nothing behind it can be older; stop here.
                 return;
             }
         }
