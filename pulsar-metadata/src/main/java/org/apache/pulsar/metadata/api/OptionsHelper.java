@@ -20,6 +20,7 @@ package org.apache.pulsar.metadata.api;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -53,6 +54,33 @@ public final class OptionsHelper {
             }
         }
         return null;
+    }
+
+    /**
+     * Return {@code opts} with a concrete {@link Option.PartitionKey} added when a
+     * {@link Option.PartitionKeyResolver} can derive one from {@code path}. Existing fixed
+     * partition keys are preserved.
+     */
+    public static Set<Option> withResolvedPartitionKey(Set<Option> opts, String path) {
+        if (opts == null || opts.isEmpty()) {
+            return Set.of();
+        }
+        if (partitionKey(opts) != null) {
+            return opts;
+        }
+        for (Option o : opts) {
+            if (o instanceof Option.PartitionKeyResolver resolver) {
+                String partitionKey = resolver.resolver().apply(path);
+                if (partitionKey == null) {
+                    throw new IllegalStateException(
+                            "Partition key resolver returned null for primary path " + path);
+                }
+                HashSet<Option> result = new HashSet<>(opts);
+                result.add(new Option.PartitionKey(partitionKey));
+                return result;
+            }
+        }
+        return opts;
     }
 
     /**

@@ -60,6 +60,10 @@ public class TxnMetadataStore {
     /** Sequence-keys delta used by all append-only streams in this layout. */
     private static final Option.SequenceKeysDeltas APPEND_DELTAS =
             new Option.SequenceKeysDeltas(List.of(1L));
+    private static final Option.PartitionKeyResolver TXN_OP_PARTITION_KEY =
+            new Option.PartitionKeyResolver(TxnPaths::txnIdFromOpPath);
+    private static final Option.PartitionKeyResolver TXN_HEADER_PARTITION_KEY =
+            new Option.PartitionKeyResolver(TxnPaths::txnIdFromHeaderPath);
 
     private final MetadataStore store;
 
@@ -147,7 +151,7 @@ public class TxnMetadataStore {
                     TxnOp op = fromJson(gr.getValue(), TxnOp.class);
                     return op.getKind() == TxnOpKind.WRITE && segment.equals(op.getSegment());
                 },
-                consumer);
+                consumer, Set.of(TXN_OP_PARTITION_KEY));
     }
 
     /** Stream all ack ops targeting {@code (segment, subscription)}. */
@@ -162,7 +166,7 @@ public class TxnMetadataStore {
                             && segment.equals(op.getSegment())
                             && subscription.equals(op.getSubscription());
                 },
-                consumer);
+                consumer, Set.of(TXN_OP_PARTITION_KEY));
     }
 
     /**
@@ -174,7 +178,7 @@ public class TxnMetadataStore {
         return store.scanByIndex(TxnPaths.TXN_OP_PREFIX, TxnPaths.IDX_OPS_BY_TXN,
                 txnId, txnId,
                 gr -> txnId.equals(TxnPaths.txnIdFromOpPath(gr.getStat().getPath())),
-                consumer);
+                consumer, Set.of(new Option.PartitionKey(txnId)));
     }
 
     /**
@@ -255,7 +259,7 @@ public class TxnMetadataStore {
                     return (fromMsInclusive == null || deadline >= fromMsInclusive)
                             && (toMsInclusive == null || deadline <= toMsInclusive);
                 },
-                consumer);
+                consumer, Set.of(TXN_HEADER_PARTITION_KEY));
     }
 
     /**
@@ -283,7 +287,7 @@ public class TxnMetadataStore {
                     return (fromMsInclusive == null || finalized >= fromMsInclusive)
                             && (toMsInclusive == null || finalized <= toMsInclusive);
                 },
-                consumer);
+                consumer, Set.of(TXN_HEADER_PARTITION_KEY));
     }
 
     // ---- Event publishing & subscription ----------------------------------
@@ -380,7 +384,7 @@ public class TxnMetadataStore {
                     // of TXN_SEGMENT_ABORTED_PREFIX named "<segKey>:<txnId>" — match by segKey.
                     return segKey.equals(TxnPaths.segmentKeyFromAbortedPath(gr.getStat().getPath()));
                 },
-                consumer);
+                consumer, Set.of(new Option.PartitionKey(segKey)));
     }
 
     /**
