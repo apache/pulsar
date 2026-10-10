@@ -36,18 +36,28 @@ import java.io.IOException;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
 import javax.naming.AuthenticationException;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.AuthenticationDataAnonymous;
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
+import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authentication.AuthenticationState;
+import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
+import org.apache.pulsar.broker.authorization.AuthorizationProvider;
+import org.apache.pulsar.broker.authorization.MultiRolesTokenAuthorizationProvider;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.common.api.AuthData;
+import org.mockito.ArgumentCaptor;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class AuthenticationServiceTest {
@@ -176,8 +186,42 @@ public class AuthenticationServiceTest {
         doFilter = service.authenticateHttpRequest(requestCustomAuthProvider, (HttpServletResponse) null);
         assertTrue(doFilter, "Authentication should have succeeded");
         verify(requestCustomAuthProvider).setAttribute(AuthenticatedRoleAttributeName, anonRole);
+        verify(requestCustomAuthProvider).setAttribute(AuthenticatedDataAttributeName,
+                AuthenticationDataAnonymous.INSTANCE);
 
         service.close();
+    }
+
+    @DataProvider
+    public Object[][] anonymousHttpHeaders() {
+        return new Object[][]{{null}, {"Bearer not-a-token"}};
+    }
+
+    @Test(dataProvider = "anonymousHttpHeaders")
+    public void testAnonymousHttpRoleAuthorization(String authorizationHeader) throws Exception {
+        SecretKey key = KeyGenerator.getInstance("HmacSHA256").generateKey();
+        ServiceConfiguration config = new ServiceConfiguration();
+        config.setAuthenticationEnabled(true);
+        config.setAuthorizationEnabled(true);
+        config.setAnonymousUserRole("anon");
+        config.setAuthenticationProviders(Set.of(AuthenticationProviderToken.class.getName()));
+        config.getProperties().setProperty("tokenSecretKey", AuthTokenUtils.encodeKeyBase64(key));
+        try (AuthenticationService service = new AuthenticationService(config);
+                MultiRolesTokenAuthorizationProvider authorization = new MultiRolesTokenAuthorizationProvider()) {
+            authorization.initialize(new AuthorizationProvider.InitialContext(config, mock(PulsarResources.class),
+                    service));
+            HttpServletRequest request = mock(HttpServletRequest.class);
+            when(request.getHeader("Authorization")).thenReturn(authorizationHeader);
+            when(request.getRemoteAddr()).thenReturn("127.0.0.1");
+            assertThat(service.authenticateHttpRequest(request, (HttpServletResponse) null)).isTrue();
+            verify(request).setAttribute(AuthenticatedRoleAttributeName, "anon");
+            ArgumentCaptor<AuthenticationDataSource> data = ArgumentCaptor.forClass(AuthenticationDataSource.class);
+            verify(request).setAttribute(eq(AuthenticatedDataAttributeName), data.capture());
+            assertThat(authorization.authorize("anon", data.getValue(),
+                    role -> CompletableFuture.completedFuture("anon".equals(role))).get()).isTrue();
+            assertThat(authorization.authorize("anon", data.getValue(),
+                    role -> CompletableFuture.completedFuture("other".equals(role))).get()).isFalse();
+        }
     }
 
     @SuppressWarnings("deprecation")

@@ -54,6 +54,18 @@ public class FunctionConfig {
         GO
     }
 
+    /**
+     * Pulsar client API that the Java runtime uses for a component's own topics.
+     *
+     * <p>When it is not set, the runtime uses the V5 client if any of the component's topics is a
+     * {@code topic://} (scalable) topic, and the v4 client otherwise. Setting {@link #V5} lets the V5 client
+     * drive {@code persistent://} topics.
+     */
+    public enum ClientApi {
+        V4,
+        V5
+    }
+
     // Any flags that you want to pass to the runtime.
     // note that in thread mode, these flags will have no impact
     private String runtimeFlags;
@@ -133,6 +145,8 @@ public class FunctionConfig {
     private Boolean exposePulsarAdminClientEnabled;
     // Whether the consumer should skip to latest position in case of failure recovery
     private Boolean skipToLatest;
+    // Pulsar client API for the function's own topics; null picks it from the topic domains
+    private ClientApi clientApi;
 
     @Builder.Default
     private SubscriptionInitialPosition subscriptionPosition = SubscriptionInitialPosition.Latest;

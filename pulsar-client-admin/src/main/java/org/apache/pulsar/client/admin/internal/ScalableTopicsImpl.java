@@ -35,6 +35,8 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
 import org.apache.pulsar.common.policies.data.ScalableTopicMetadata;
 import org.apache.pulsar.common.policies.data.ScalableTopicStats;
+import org.apache.pulsar.common.policies.data.SegmentTopicStats;
+import org.apache.pulsar.common.scalable.SegmentTopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 
 public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
@@ -215,6 +217,40 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
         return asyncGetRequest(topicPath(tn).path("stats"), ScalableTopicStats.class);
     }
 
+    @Override
+    public SegmentTopicStats getSegmentStats(String topic, long segmentId) throws PulsarAdminException {
+        return sync(() -> getSegmentStatsAsync(topic, segmentId));
+    }
+
+    @Override
+    public CompletableFuture<SegmentTopicStats> getSegmentStatsAsync(String topic, long segmentId) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn).path("segments").path(String.valueOf(segmentId)).path("stats");
+        return asyncGetRequest(path, SegmentTopicStats.class);
+    }
+
+    @Override
+    public SegmentTopicStats getSegmentStats(String segmentTopic) throws PulsarAdminException {
+        return sync(() -> getSegmentStatsAsync(segmentTopic));
+    }
+
+    @Override
+    public CompletableFuture<SegmentTopicStats> getSegmentStatsAsync(String segmentTopic) {
+        final TopicName tn;
+        try {
+            tn = TopicName.get(segmentTopic);
+        } catch (IllegalArgumentException e) {
+            return FutureUtil.failedFuture(e);
+        }
+        if (!tn.isSegment()) {
+            return FutureUtil.failedFuture(new IllegalArgumentException(
+                    "Expected a segment name (segment://tenant/namespace/topic/<descriptor>), got: "
+                            + segmentTopic));
+        }
+        // The name encodes the parent topic and the segment ID; the endpoint is keyed by those.
+        return getSegmentStatsAsync(SegmentTopicName.getParentTopicName(tn).toString(), tn.getSegmentId());
+    }
+
     // --- Subscription operations ---
 
     @Override
@@ -283,6 +319,20 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
     public CompletableFuture<Void> splitSegmentAsync(String topic, long segmentId) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn).path("split").path(String.valueOf(segmentId));
+        return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void rebucketSegment(String topic, long segmentId, int bucketCount)
+            throws PulsarAdminException {
+        sync(() -> rebucketSegmentAsync(topic, segmentId, bucketCount));
+    }
+
+    @Override
+    public CompletableFuture<Void> rebucketSegmentAsync(String topic, long segmentId, int bucketCount) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn).path("rebucket").path(String.valueOf(segmentId))
+                .queryParam("bucketCount", bucketCount);
         return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
 

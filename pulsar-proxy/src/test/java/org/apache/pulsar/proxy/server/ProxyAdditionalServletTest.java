@@ -44,6 +44,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlet;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithClassLoader;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlets;
+import org.apache.pulsar.broker.web.plugin.servlet.LegacyJavaxAdditionalServlet;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
@@ -59,6 +60,7 @@ import org.testng.annotations.Test;
 public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
 
     private static final String BASE_PATH = "/metrics/broker";
+    private static final String JAVAX_BASE_PATH = "/metrics/javax";
     private static final String QUERY_PARAM = "param";
 
     private ProxyService proxyService;
@@ -188,6 +190,8 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
         AdditionalServlets proxyAdditionalServlets = Mockito.mock(AdditionalServlets.class);
         Map<String, AdditionalServletWithClassLoader> map = new HashMap<>();
         map.put("prometheus-proxy-servlet", new AdditionalServletWithClassLoader(proxyAdditionalServlet, null));
+        map.put("javax-proxy-servlet", new AdditionalServletWithClassLoader(
+                new LegacyJavaxAdditionalServlet(JAVAX_BASE_PATH), null));
         Mockito.when(proxyAdditionalServlets.getServlets()).thenReturn(map);
 
         Mockito.when(proxyService.getProxyAdditionalServlets()).thenReturn(proxyAdditionalServlets);
@@ -219,6 +223,16 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(response, paramValue);
         String headerKey = "header1";
         Assert.assertEquals(headers.get(headerKey), responseHeaders.get(headerKey));
+
+        // A servlet written against the legacy javax.servlet API is adapted to jakarta.servlet and serves
+        // requests through the same Jetty environment, and therefore the same filters, as the jakarta ones
+        String javaxParamValue = "value - " + RandomUtils.nextInt();
+        final Map<String, String> javaxHeaders = new HashMap<>();
+        String javaxResponse = httpGet("http://localhost:" + httpPort + JAVAX_BASE_PATH
+                + "?" + QUERY_PARAM + "=" + javaxParamValue, javaxHeaders);
+        Assert.assertEquals(javaxResponse.trim(),
+                LegacyJavaxAdditionalServlet.expectedResponse(JAVAX_BASE_PATH, javaxParamValue));
+        Assert.assertEquals(javaxHeaders.get(headerKey), responseHeaders.get(headerKey));
     }
 
     String httpGet(String url, Map<String, String> headers) throws IOException {

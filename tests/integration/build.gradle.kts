@@ -23,6 +23,7 @@ plugins {
 
 dependencies {
     implementation(libs.slog)
+    testImplementation(project(":tests:performance:common"))
     testImplementation(libs.gson)
     testImplementation(project(":pulsar-functions:pulsar-functions-api-examples"))
     testImplementation(project(":pulsar-broker"))
@@ -93,6 +94,39 @@ val integrationTestSuiteFile = integrationTestSuiteFileProperty.getOrElse("pulsa
 val integrationTestSuiteFileExplicit = integrationTestSuiteFileProperty.isPresent
 val integrationTestGroups = providers.gradleProperty("testGroups").orNull
 val integrationTestExcludedGroups = providers.gradleProperty("excludedTestGroups").orNull
+val integrationTestAsyncProfilerDir = providers.gradleProperty("inttest.asyncprofiler.dir")
+    .getOrElse(layout.buildDirectory.get().asFile.absolutePath)
+// Stamped into the async-profiler output file names so that profiles recorded from different
+// revisions can be told apart when they are compared. Resolved by the build rather than left to the
+// caller: a value nobody passes only produces empty segments in the file name. `git rev-parse` is
+// best-effort — a tree built without git, or without a .git directory, simply leaves the commit id
+// out of the name — and -Pgit.commit.id.abbrev overrides it. Nothing has to pass a timestamp in;
+// the profiler expands the run timestamp itself.
+// Kept as a provider that only a task action reads: a process output obtained while configuring
+// becomes a configuration cache input, and the cache would then be discarded on every commit,
+// cherry-pick or rebase.
+val gitCommitIdAbbrev = providers.gradleProperty("git.commit.id.abbrev")
+    .orElse(providers.exec {
+        commandLine("git", "rev-parse", "--short", "HEAD")
+        isIgnoreExitValue = true
+    }.standardOutput.asText.map { it.trim() })
+// Must match the image that :tests:java-test-image:dockerBuildWithAsyncProfiler tags.
+val dockerOrganization = providers.gradleProperty("docker.organization").getOrElse("apachepulsar")
+val dockerTag = providers.gradleProperty("docker.tag").getOrElse("latest")
+// The image that integrationTest runs against: PULSAR_TEST_IMAGE_NAME, or else the image that
+// :tests:latest-version-image:dockerBuild builds. integrationTest depends on the task that builds the
+// image, which Gradle skips when nothing that goes into the image has changed, so that the tests don't
+// run against a stale image. -Pinttest.skipDockerBuild skips building it, for CI jobs that load an image
+// that an earlier job built.
+val integrationTestImage = providers.environmentVariable("PULSAR_TEST_IMAGE_NAME")
+    .getOrElse("${dockerOrganization}/pulsar-test-latest-version:${dockerTag}")
+val integrationTestImageBuild = mapOf(
+    "${dockerOrganization}/pulsar-test-latest-version:${dockerTag}" to ":tests:latest-version-image:dockerBuild",
+    "${dockerOrganization}/java-test-image:${dockerTag}" to ":tests:java-test-image:dockerBuild",
+)[integrationTestImage]
+val skipDockerBuild = providers.gradleProperty("inttest.skipDockerBuild")
+    .map { it.isEmpty() || it.toBoolean() }
+    .getOrElse(false)
 val ideaActive = providers.systemProperty("idea.active").map { it.toBoolean() }.getOrElse(false)
 // When `--tests` is passed on the CLI, let TestNG discover tests directly from the classpath
 // instead of restricting discovery to the suite XML — unless -PintegrationTestSuiteFile was
@@ -100,9 +134,68 @@ val ideaActive = providers.systemProperty("idea.active").map { it.toBoolean() }.
 val hasCliTestsFilter = gradle.startParameter.taskRequests
     .flatMap { it.args }
     .any { it == "--tests" }
-val integrationTest = tasks.register<Test>("integrationTest") {
+// Shared by `integrationTest` and `profilingIntegrationTest`: everything that is a property of
+// running this module's tests at all, rather than of how a particular task selects them.
+// `defaultProfiledComponents` is what the task profiles unless -Pinttest.asyncprofiler.components
+// says otherwise: nothing for `integrationTest`, the broker for the task that exists to profile.
+fun Test.configureIntegrationTestDefaults(defaultProfiledComponents: String = "") {
     testClassesDirs = sourceSets.test.get().output.classesDirs
     classpath = sourceSets.test.get().runtimeClasspath
+
+    systemProperty("currentVersion", project.version.toString())
+    systemProperty("buildDirectory", layout.buildDirectory.get().asFile.absolutePath)
+    systemProperty("inttest.asyncprofiler.dir", integrationTestAsyncProfilerDir)
+    providers.gradleProperty("inttest.asyncprofiler.opts").orNull?.let {
+        systemProperty("inttest.asyncprofiler.opts", it)
+    }
+    providers.gradleProperty("inttest.asyncprofiler.outputformat").orNull?.let {
+        systemProperty("inttest.asyncprofiler.outputformat", it)
+    }
+    // Copied into a local so the action does not capture the script object (see tuneKernelPerfEvents).
+    val commitId = gitCommitIdAbbrev
+    doFirst {
+        val test = this as Test
+        // Obtaining the output fails on a tree built without git; the name then carries no commit id.
+        test.systemProperty("git.commit.id.abbrev", runCatching { commitId.get() }.getOrDefault(""))
+    }
+
+    // Cluster components to attach async-profiler to, which is also what decides whether this run
+    // counts as a profiling run.
+    val profiledComponents = providers.gradleProperty("inttest.asyncprofiler.components")
+        .getOrElse(defaultProfiledComponents)
+    systemProperty("inttest.asyncprofiler.components", profiledComponents)
+    if (profiledComponents.isNotEmpty()) {
+        // Profiling a cluster is exactly what the manual tests exist for, and asking for a profile
+        // only to have the test skip itself is a poor way to discover the flag. This is keyed on
+        // profiling rather than on the task, so it also covers `integrationTest` run with
+        // -Pinttest.asyncprofiler.components. See ManualTestUtil.
+        systemProperty("pulsar.test.enableManualTest", "true")
+    }
+
+    jvmArgs(
+        "-XX:+ExitOnOutOfMemoryError",
+        "-Xmx1G",
+        "-XX:MaxDirectMemorySize=1G",
+    )
+
+    maxParallelForks = 1
+    forkEvery = 0
+
+    testLogging {
+        events("passed", "skipped", "failed")
+        showExceptions = true
+        showStackTraces = true
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+    }
+}
+
+val integrationTest = tasks.register<Test>("integrationTest") {
+    configureIntegrationTestDefaults()
+
+    environment("PULSAR_TEST_IMAGE_NAME", integrationTestImage)
+    if (integrationTestImageBuild != null && !skipDockerBuild) {
+        dependsOn(integrationTestImageBuild)
+    }
 
     if (!ideaActive && (!hasCliTestsFilter || integrationTestSuiteFileExplicit)) {
         useTestNG {
@@ -121,23 +214,109 @@ val integrationTest = tasks.register<Test>("integrationTest") {
     val defaultTestRetryCount = if (ideaActive) "0" else "1"
     systemProperty("testRetryCount", providers.gradleProperty("testRetryCount").getOrElse(defaultTestRetryCount))
     systemProperty("testFailFast", failFastValue.toString())
+}
 
-    systemProperty("currentVersion", project.version.toString())
-    systemProperty("buildDirectory", layout.buildDirectory.get().asFile.absolutePath)
+// Profiling an integration test used to take a documented sequence of image builds, exported
+// environment variables and a privileged container run. `profilingIntegrationTest` below does all of
+// it, so profiling a cluster is one command. See CONTRIBUTING.md.
 
-    jvmArgs(
-        "-XX:+ExitOnOutOfMemoryError",
-        "-Xmx1G",
-        "-XX:MaxDirectMemorySize=1G",
+// The async-profiler `cpu` engine samples through perf_events, which the kernel gates. These are the
+// settings from https://github.com/async-profiler/async-profiler/blob/master/docs/Troubleshooting.md,
+// applied to the kernel that runs the containers (the Docker VM on macOS, the host on Linux) by a
+// privileged throwaway container. Skip it with -Pinttest.asyncprofiler.skipPerfEventTuning when the
+// values are already set, when the Docker setup disallows privileged containers, or when profiling
+// with an engine that does not need perf_events. The property skips it when it is empty or true, so
+// that a later skipPerfEventTuning=false in gradle.properties can override an earlier true.
+// tests/performance/environment/scripts/configure-perf-test-environment.sh sets it while the TuneD
+// profile that applies these settings is active.
+val skipPerfEventTuning = providers.gradleProperty("inttest.asyncprofiler.skipPerfEventTuning")
+    .map { it.isEmpty() || it.toBoolean() }
+    .getOrElse(false)
+val tuneKernelPerfEvents = tasks.register<Exec>("tuneKernelPerfEvents") {
+    description = "Relax the kernel perf_event and BPF limits that the profilers need"
+    // Copied into a local: a task action that captured the script-level val would capture the
+    // script object with it, which the configuration cache cannot serialize.
+    val skip = skipPerfEventTuning
+    onlyIf { !skip }
+    // Same image as PulsarContainer.ALPINE_IMAGE_NAME
+    commandLine(
+        "docker", "run", "--rm", "--privileged",
+        "--cap-add", "SYS_ADMIN", "--security-opt", "seccomp=unconfined",
+        "alpine:3.24", "sh", "-c",
+        // The BPF syscall gate that jonoffcpu's collector needs, written first and separated by ';' rather
+        // than chained: on a kernel where the value already reads 1 the write fails with EPERM, and 1 is a
+        // one-way latch until the next boot, so chaining would fail everything below over a setting that is
+        // out of reach anyway.
+        "echo 0 > /proc/sys/kernel/unprivileged_bpf_disabled; "
+            + "echo 1 > /proc/sys/kernel/perf_event_paranoid "
+            + "&& echo 0 > /proc/sys/kernel/kptr_restrict "
+            + "&& echo 1024 > /proc/sys/kernel/perf_event_max_stack "
+            + "&& echo 2048 > /proc/sys/kernel/perf_event_mlock_kb "
+            // also optimize for -XX:+UseTransparentHugePages. With defrag=madvise, the madvised heap is
+            // compacted into huge pages when it is touched, so -XX:+AlwaysPreTouch gets them at startup
+            // instead of depending on memory fragmentation and khugepaged collapsing them later.
+            + "&& echo madvise > /sys/kernel/mm/transparent_hugepage/enabled "
+            + "&& echo advise > /sys/kernel/mm/transparent_hugepage/shmem_enabled "
+            + "&& echo madvise > /sys/kernel/mm/transparent_hugepage/defrag "
+            + "&& echo 1 > /sys/kernel/mm/transparent_hugepage/khugepaged/defrag"
     )
+    // Best effort: profiling still works without it, only with less accurate native stacks, so a
+    // Docker setup that refuses privileged containers must not fail the whole profiling run.
+    isIgnoreExitValue = true
+    doLast {
+        if ((this as Exec).executionResult.get().exitValue != 0) {
+            logger.warn("Could not relax the kernel perf_event limits. Profiling continues, but the "
+                + "cpu engine may produce incomplete stacks. Set the values manually, or pass "
+                + "-Pinttest.asyncprofiler.skipPerfEventTuning to skip this step.")
+        }
+    }
+}
 
-    maxParallelForks = 1
-    forkEvery = 0
+val profilingTestClass = "org.apache.pulsar.tests.integration.profiling.PulsarProfilingTest"
+tasks.register<Test>("profilingIntegrationTest") {
+    group = "verification"
+    description = "Run $profilingTestClass with async-profiler enabled in the cluster containers. " +
+        "Pass --tests to profile a different integration test."
 
-    testLogging {
-        events("passed", "skipped", "failed")
-        showExceptions = true
-        showStackTraces = true
-        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+    // Unlike `integrationTest`, this task exists to profile, so it profiles the broker unless
+    // -Pinttest.asyncprofiler.components says otherwise. PulsarProfilingTest sets the spec flags
+    // itself and does not depend on this; every other integration test does, since they default off.
+    configureIntegrationTestDefaults(defaultProfiledComponents = "broker")
+
+    // Resolve the harness environment through a Provider so configuration-cache reuse tracks scenario
+    // and output overrides instead of retaining an earlier profiling invocation's environment.
+    environment(providers.environmentVariablesPrefixedBy("PULSAR_PROFILING_").get() +
+        providers.environmentVariablesPrefixedBy("pulsar_profiling_").get())
+
+    // Build the test image that carries the profiler, and prepare the kernel for it.
+    dependsOn(":tests:java-test-image:dockerBuildWithAsyncProfiler", tuneKernelPerfEvents)
+
+    // Target the test directly rather than through a suite XML, so that --tests can point this at
+    // any other integration test without a suite file having to exist for it.
+    if (!hasCliTestsFilter) {
+        filter {
+            includeTestsMatching(profilingTestClass)
+        }
+    }
+
+    environment("PULSAR_TEST_IMAGE_NAME",
+        "${dockerOrganization}/java-test-image:${dockerTag}-asyncprofiler")
+    // Leak detection is paranoid by default and would distort the allocation profile.
+    environment("NETTY_LEAK_DETECTION", "off")
+    systemProperties.remove("io.netty.customResourceLeakDetector")
+    systemProperty("io.netty.leakDetection.level", "disabled")
+
+    // A retried test would profile the cluster twice into the same run.
+    systemProperty("testRetryCount", "0")
+    systemProperty("testFailFast", "true")
+    failFast = true
+
+    // A profiling run always has to run, and its result must never come from the build cache.
+    outputs.upToDateWhen { false }
+    outputs.cacheIf("profiling runs are never cached") { false }
+
+    val profileDir = integrationTestAsyncProfilerDir
+    doFirst {
+        logger.lifecycle("Profiling with async-profiler into {}", profileDir)
     }
 }

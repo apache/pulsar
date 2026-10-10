@@ -279,8 +279,23 @@ public class AuthenticationOAuth2
      * @return the CLIENT_OAUTH2 policy, or empty
      */
     public Optional<TlsPolicy> idpTlsPolicy() {
+        return idpTlsPolicy(null, null);
+    }
+
+    /**
+     * As {@link #idpTlsPolicy()}, but pinning the security providers used for the IdP connection (PIP-478). On
+     * each axis independently the flow's own {@code jsseProvider} / {@code jcaProvider} OAuth2 parameter wins,
+     * else the value passed in here (the owning client's {@code CLIENT_DEFAULT} providers), else unset — the JVM
+     * provider search order, i.e. today's behaviour.
+     *
+     * @param jsseProvider the owning client's JSSE provider name, or {@code null} when none applies
+     * @param jcaProvider  the owning client's JCA provider name, or {@code null} when none applies
+     * @return the CLIENT_OAUTH2 policy, or empty
+     */
+    public Optional<TlsPolicy> idpTlsPolicy(String jsseProvider, String jcaProvider) {
         Flow currentFlow = this.flow;
-        return currentFlow instanceof FlowBase flowBase ? flowBase.idpTlsPolicy() : Optional.empty();
+        return currentFlow instanceof FlowBase flowBase
+                ? flowBase.idpTlsPolicy(jsseProvider, jcaProvider) : Optional.empty();
     }
 
     @Override

@@ -43,6 +43,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.admin.v2.ScalableTopics;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.intercept.BrokerInterceptors;
 import org.apache.pulsar.broker.tls.DefaultBrokerTlsFactory;
@@ -51,6 +52,7 @@ import org.apache.pulsar.broker.validator.BindAddressValidator;
 import org.apache.pulsar.common.configuration.BindAddress;
 import org.apache.pulsar.jetty.metrics.JettyStatisticsCollector;
 import org.apache.pulsar.jetty.tls.JettyTlsFactory;
+import org.apache.pulsar.jetty.tls.PulsarSslConnectionFactory;
 import org.apache.pulsar.tls.PulsarTlsFactory;
 import org.apache.pulsar.tls.TlsFactoryInitContext;
 import org.apache.pulsar.tls.TlsPurpose;
@@ -73,7 +75,6 @@ import org.eclipse.jetty.server.RequestLog;
 import org.eclipse.jetty.server.SecureRequestCustomizer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
-import org.eclipse.jetty.server.SslConnectionFactory;
 import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.DefaultHandler;
@@ -186,7 +187,8 @@ public class WebService implements AutoCloseable {
                 connectionFactories.add(new ProxyConnectionFactory());
             }
             if (isTls) {
-                connectionFactories.add(new SslConnectionFactory(sslCtxFactory, httpConnectionFactory.getProtocol()));
+                connectionFactories.add(
+                        new PulsarSslConnectionFactory(sslCtxFactory, httpConnectionFactory.getProtocol()));
             }
             connectionFactories.add(httpConnectionFactory);
             ServerConnector connector = new ServerConnector(server,
@@ -227,6 +229,10 @@ public class WebService implements AutoCloseable {
         ResourceConfig config = new ResourceConfig();
         for (String javaPackage : javaPackages) {
             config.packages(false, javaPackage);
+        }
+        if (!pulsar.getConfiguration().isScalableTopicsEnabled()) {
+            config = new ResourceConfig(config.getClasses().stream()
+                    .filter(resource -> resource != ScalableTopics.class).toArray(Class<?>[]::new));
         }
         addResourceServlet(basePath, requiresAuthentication, attributeMap, config, useSharedJsonMapperProvider);
     }
@@ -285,7 +291,7 @@ public class WebService implements AutoCloseable {
                 // hold all interceptors, instead we need to create a `ProcessHandlerFilter` for each `interceptor`.
                 if (pulsarService.getBrokerInterceptor() instanceof BrokerInterceptors) {
                     for (BrokerInterceptor interceptor: ((BrokerInterceptors) pulsarService.getBrokerInterceptor())
-                            .getInterceptors().values()) {
+                            .getInterceptors()) {
                         filterHolders.add(new FilterHolder(new ProcessHandlerFilter(interceptor)));
                     }
                 } else {
@@ -411,28 +417,6 @@ public class WebService implements AutoCloseable {
 
         // The ee10 ServletContextHandler is itself an org.eclipse.jetty.server.Handler
         handlers.add(servletContextHandler);
-    }
-
-    /**
-     * Registers a legacy {@code javax.servlet}-based servlet in Jetty's ee8 environment. This path exists
-     * solely to keep existing {@code AdditionalServlet} plugins that report
-     * {@link org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlet.AdditionalServletType#JAVAX_SERVLET}
-     * working without recompilation (PIP-472). Pulsar's own servlets and {@code jakarta.servlet} additional
-     * servlets use {@link #addServlet} (ee10). The broker filter chain is jakarta-typed (ee10) and is therefore
-     * not applied to the ee8 environment; legacy javax additional servlets run without the broker filter chain.
-     */
-    public void addServletEe8(String path, org.eclipse.jetty.ee8.servlet.ServletHolder servletHolder,
-                              boolean requiresAuthentication, Map<String, Object> attributeMap) {
-        org.eclipse.jetty.ee8.servlet.ServletContextHandler servletContextHandler =
-                new org.eclipse.jetty.ee8.servlet.ServletContextHandler(
-                        org.eclipse.jetty.ee8.servlet.ServletContextHandler.SESSIONS);
-        servletContextHandler.setContextPath(path);
-        servletContextHandler.addServlet(servletHolder, MATCH_ALL);
-        if (attributeMap != null) {
-            attributeMap.forEach(servletContextHandler::setAttribute);
-        }
-        // The ee8 ServletContextHandler.get() bridges the ee8 context to a core org.eclipse.jetty.server.Handler
-        handlers.add(servletContextHandler.get());
     }
 
     public void addWebSocketServlet(String path, JettyWebSocketServlet webSocketServlet,

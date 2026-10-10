@@ -27,7 +27,6 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.Cleanup;
-import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.v5.schema.Schema;
 import org.apache.pulsar.common.naming.TopicName;
@@ -331,50 +330,6 @@ public class V5MultiBrokerScalableTopicTest extends V5MultiBrokerClientBaseTest 
     }
 
     // --- Helpers ---
-
-    /**
-     * Returns the brokerId of the controller leader for {@code topic}. Forces the controller
-     * to materialize on every broker (so leader election runs), then waits until every
-     * broker's metadata store reflects the elected leader. The latter wait is what makes the
-     * subsequent V5 subscribe deterministic: the DAG-watch lookup from any broker reads the
-     * controller znode via its own metadata store, and we need that read to return the
-     * leader URL — not the empty fallback that pushes the client onto a non-leader broker.
-     */
-    private String findControllerLeader(String topic) throws Exception {
-        TopicName tn = TopicName.get(topic);
-        // Step 1: force controller materialization + leader election on every broker.
-        for (PulsarService broker : brokers) {
-            broker.getBrokerService().getScalableTopicService().getOrCreateController(tn)
-                    .get(5, java.util.concurrent.TimeUnit.SECONDS);
-        }
-        // Step 2: wait until each broker's metadata store sees the controller-lock znode.
-        // Without this, a lookup against a follower can return an empty controller URL —
-        // the watch hasn't propagated yet — and the client subscribes to the wrong broker.
-        Awaitility.await().untilAsserted(() -> {
-            for (PulsarService broker : brokers) {
-                var resources = broker.getPulsarResources().getScalableTopicResources();
-                var optValue = resources.getStore().get(resources.controllerLockPath(tn))
-                        .get(5, java.util.concurrent.TimeUnit.SECONDS);
-                assertTrue(optValue.isPresent(),
-                        "broker " + broker.getBrokerId()
-                                + " must see controller lock for " + topic);
-            }
-        });
-        var controller = brokers.get(0).getBrokerService().getScalableTopicService()
-                .getOrCreateController(tn).get();
-        return controller.getLeaderBrokerId().get().orElseThrow();
-    }
-
-    private int findControllerLeaderIndex(String topic) throws Exception {
-        String leaderBrokerId = findControllerLeader(topic);
-        for (int i = 0; i < brokers.size(); i++) {
-            if (brokers.get(i).getBrokerId().equals(leaderBrokerId)) {
-                return i;
-            }
-        }
-        throw new AssertionError("controller leader '" + leaderBrokerId
-                + "' does not match any broker in cluster");
-    }
 
     /**
      * Returns the segment id of the (single) active segment of {@code topic}. Convenience

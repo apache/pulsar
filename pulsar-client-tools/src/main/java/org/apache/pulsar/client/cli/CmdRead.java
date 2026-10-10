@@ -18,191 +18,195 @@
  */
 package org.apache.pulsar.client.cli;
 
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.RateLimiter;
 import java.io.IOException;
 import java.net.URI;
-import java.time.Duration;
 import java.util.Base64;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+import org.apache.pulsar.cli.ClientApi;
+import org.apache.pulsar.cli.ClientApiOptionGroups;
+import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
-import org.apache.pulsar.client.api.v5.Checkpoint;
-import org.apache.pulsar.client.api.v5.CheckpointConsumer;
-import org.apache.pulsar.client.api.v5.CheckpointConsumerBuilder;
-import org.apache.pulsar.client.api.v5.Message;
-import org.apache.pulsar.client.api.v5.PulsarClient;
-import org.apache.pulsar.client.api.v5.PulsarClientException;
-import org.apache.pulsar.client.api.v5.auth.ConsumerCryptoFailureAction;
-import org.apache.pulsar.client.api.v5.config.ConsumerEncryptionPolicy;
-import org.apache.pulsar.client.api.v5.schema.Schema;
+import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
+import org.apache.pulsar.client.api.v5.PulsarClientBuilder;
 import org.apache.pulsar.common.naming.TopicName;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
+import picocli.CommandLine;
+import picocli.CommandLine.ArgGroup;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
+import picocli.CommandLine.Spec;
 
 /**
- * pulsar-client read command implementation.
+ * The {@code pulsar-client read} command: the CLI options, the argument validation and the
+ * WebSocket reading path (which speaks HTTP and has no client generation of its own). Reading over
+ * the binary protocol is delegated to {@link ReadV5}, which drives a V5 {@code CheckpointConsumer},
+ * or {@link ReadV4}, which drives a v4 {@code Reader}, picked from the topic domain or
+ * {@code --client-api}.
  */
-@Command(description = "Read messages from a specified topic")
+@Command(name = "read", description = {"Read messages from a specified topic", "",
+        AbstractCmd.CLIENT_API_DESCRIPTION},
+        sortOptions = false, optionListHeading = "%nCommon options:%n")
 public class CmdRead extends AbstractCmdConsume {
 
+    protected static final String START_EARLIEST = "earliest";
+    protected static final String START_LATEST = "latest";
+
     @Parameters(description = "TopicName", arity = "1")
-    private String topic;
+    protected String topic;
+
+    @Option(names = ClientApi.OPTION_NAME, description = ClientApi.OPTION_DESCRIPTION)
+    protected ClientApi clientApi;
 
     @Option(names = { "-m", "--start-message-id" },
-            description = "Initial reader position, it can be 'latest' or 'earliest'")
-    private String startMessageId = "latest";
-
-    @Option(names = { "-i", "--start-message-id-inclusive" },
-            description = "Whether to include the position specified by -m option.")
-    private boolean startMessageIdInclusive = false;
+            description = "Initial reader position, it can be 'latest', 'earliest' or '<ledgerId>:<entryId>' "
+                    + "(the last form requires the v4 client)")
+    protected String startMessageId = START_LATEST;
 
     @Option(names = { "-n",
             "--num-messages" }, description = "Number of messages to read, 0 means to read forever.")
-    private int numMessagesToRead = 1;
+    protected int numMessagesToRead = 1;
 
     @Option(names = { "--hex" }, description = "Display binary messages in hex.")
-    private boolean displayHex = false;
+    protected boolean displayHex = false;
 
     @Option(names = { "--hide-content" }, description = "Do not write the message to console.")
-    private boolean hideContent = false;
+    protected boolean hideContent = false;
 
     @Option(names = { "-r", "--rate" }, description = "Rate (in msg/sec) at which to read, "
             + "value 0 means to read messages as fast as possible.")
-    private double readRate = 0;
-
-    @Option(names = { "-q", "--queue-size" }, description = "Reader receiver queue size.")
-    private int receiverQueueSize = 0;
-
-    @Option(names = { "-mc", "--max_chunked_msg" }, description = "Max pending chunk messages")
-    private int maxPendingChunkedMessage = 0;
-
-    @Option(names = { "-ac",
-            "--auto_ack_chunk_q_full" }, description = "Auto ack for oldest message on queue is full")
-    private boolean autoAckOldestChunkedMessageOnQueueFull = false;
+    protected double readRate = 0;
 
     @Option(names = { "-ekv",
             "--encryption-key-value" }, description = "The URI of private key to decrypt payload, for example "
-            + "file:///path/to/private.key or data:application/x-pem-file;base64,*****")
-    private String encKeyValue;
+            + "file:///path/to/private.key or data:application/x-pem-file;base64,***** (data: URIs require the "
+            + "v4 client)")
+    protected String encKeyValue;
+
+    @Option(names = { "-ca", "--crypto-failure-action" }, description = "Crypto Failure Action")
+    protected ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
 
     @Option(names = { "-st", "--schema-type" },
             description = "Set a schema type on the reader, it can be 'bytes' or 'auto_consume'")
-    private String schemaType = "bytes";
-
-    @Option(names = { "-pm", "--pool-messages" }, description = "Use the pooled message", arity = "1")
-    private boolean poolMessages = true;
-
-    @Option(names = { "-ca", "--crypto-failure-action" }, description = "Crypto Failure Action")
-    private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
-
-    private static final String START_EARLIEST = "earliest";
-    private static final String START_LATEST = "latest";
+    protected String schemaType = "bytes";
 
     @Option(names = { "-mp", "--print-metadata" }, description = "Message metadata")
-    private boolean printMetadata = false;
+    protected boolean printMetadata = false;
+
+    @ArgGroup(exclusive = false, validate = false, order = 1, heading = ClientApiOptionGroups.V4_HEADING)
+    protected V4Options v4 = new V4Options();
+
+    /** Options that only the v4 client supports. */
+    public static class V4Options implements ClientApiOptionGroups.V4ClientOptions {
+        @Option(names = { "-i", "--start-message-id-inclusive" },
+                description = "Whether to include the position specified by -m option.")
+        protected boolean startMessageIdInclusive = false;
+
+        @Option(names = { "-q", "--queue-size" }, description = "Reader receiver queue size.")
+        protected int receiverQueueSize = 0;
+
+        @Option(names = { "-mc", "--max_chunked_msg" }, description = "Max pending chunk messages")
+        protected int maxPendingChunkedMessage = 0;
+
+        @Option(names = { "-ac",
+                "--auto_ack_chunk_q_full" }, description = "Auto ack for oldest message on queue is full")
+        protected boolean autoAckOldestChunkedMessageOnQueueFull = false;
+
+        @Option(names = { "-pm", "--pool-messages" }, description = "Use the pooled message", arity = "1")
+        protected boolean poolMessages = true;
+    }
+
+    private PulsarClientBuilder clientBuilder;
+    private Supplier<ClientBuilder> v4ClientBuilder;
+
+    @Spec
+    protected CommandSpec commandSpec;
 
     public CmdRead() {
-        // Do nothing
         super();
+    }
+
+    /**
+     * Set the V5 client configuration, and the settings shared by both clients.
+     */
+    public void updateConfig(PulsarClientBuilder clientBuilder, Authentication authentication, String serviceURL) {
+        this.clientBuilder = clientBuilder;
+        updateSharedConfig(authentication, serviceURL);
+    }
+
+    /**
+     * Set the v4 client configuration. The builder is supplied lazily so that constructing it —
+     * which validates the service URL and parses the whole {@code client.conf} — only happens when
+     * the v4 client is actually used, not on every {@code pulsar-client} invocation.
+     */
+    public void updateV4Config(Supplier<ClientBuilder> clientBuilder) {
+        this.v4ClientBuilder = clientBuilder;
     }
 
     /**
      * Run the read command.
      *
-     * @return 0 for success, < 0 otherwise
+     * @return 0 for success, &lt; 0 otherwise
      */
-    public int run() throws PulsarClientException, IOException {
+    public int run() throws IOException {
         if (this.numMessagesToRead < 0) {
             throw (new IllegalArgumentException("Number of messages should be zero or positive."));
         }
-        if (!START_LATEST.equals(startMessageId) && !START_EARLIEST.equals(startMessageId)) {
-            throw new IllegalArgumentException("--start-message-id must be 'latest' or 'earliest'; the "
-                    + "'<ledgerId>:<entryId>' form is not supported by this version of pulsar-client.");
+        ClientApi resolvedClientApi = resolveClientApi(commandSpec, clientApi, topic, serviceURL);
+        validateStartMessageId(resolvedClientApi);
+        if (resolvedClientApi == ClientApi.V5) {
+            validateV5EncryptionKeyUri(commandSpec, encKeyValue);
         }
 
-        if (this.serviceURL.startsWith("ws")) {
+        if (isWebSocketUrl(this.serviceURL)) {
             return readFromWebSocket(topic);
+        }
+        LOG.info("Using the {} for topic {}", resolvedClientApi.displayName(), topic);
+        if (resolvedClientApi == ClientApi.V5) {
+            return new ReadV5(this, clientBuilder).read(topic);
         } else {
-            return read(topic);
+            return new ReadV4(this, v4ClientBuilder.get()).read(topic);
         }
     }
 
-    private int read(String topic) {
-        int numMessagesRead = 0;
-        int returnCode = 0;
-
-        final Schema<?> schema;
-        if ("auto_consume".equals(schemaType)) {
-            schema = Schema.autoConsume();
-        } else if ("bytes".equals(schemaType)) {
-            schema = Schema.bytes();
-        } else {
-            throw new IllegalArgumentException("schema type must be 'bytes' or 'auto_consume'");
+    /**
+     * The V5 client can only start at {@code latest} or {@code earliest}; the v4 client also takes
+     * a {@code <ledgerId>:<entryId>}, which is checked here to fail fast on a malformed id.
+     */
+    @VisibleForTesting
+    void validateStartMessageId(ClientApi resolvedClientApi) {
+        if (START_LATEST.equals(startMessageId) || START_EARLIEST.equals(startMessageId)) {
+            return;
         }
-        if (!poolMessages) {
-            LOG.info("--pool-messages has no effect on this version of pulsar-client.");
+        if (resolvedClientApi == ClientApi.V5) {
+            throw new CommandLine.ParameterException(commandSpec.commandLine(), "--start-message-id must be "
+                    + "'latest' or 'earliest' with the V5 client; for a '<ledgerId>:<entryId>' start position, "
+                    + USE_V4_CLIENT_HINT + ".");
         }
-        if (this.startMessageIdInclusive) {
-            LOG.warn("--start-message-id-inclusive has no effect on this version of pulsar-client.");
+        try {
+            ReadV4.parseMessageId(startMessageId);
+        } catch (IllegalArgumentException e) {
+            throw new CommandLine.ParameterException(commandSpec.commandLine(), e.getMessage(), e);
         }
-        if (maxPendingChunkedMessage > 0 || autoAckOldestChunkedMessageOnQueueFull) {
-            LOG.warn("Chunked-message knobs (--max_chunked_msg / --auto_ack_chunk_q_full) have no effect "
-                    + "on this version of pulsar-client.");
-        }
-
-        Checkpoint startPosition = START_EARLIEST.equals(startMessageId)
-                ? Checkpoint.earliest() : Checkpoint.latest();
-
-        try (PulsarClient client = clientBuilder.build()) {
-            CheckpointConsumerBuilder<?> builder = client.newCheckpointConsumer(schema)
-                    .topic(topic)
-                    .startPosition(startPosition);
-            if (isNotBlank(this.encKeyValue)) {
-                builder.encryptionPolicy(buildConsumerEncryptionPolicy());
-            }
-
-            try (CheckpointConsumer<?> reader = builder.create()) {
-                RateLimiter limiter = (this.readRate > 0) ? RateLimiter.create(this.readRate) : null;
-                while (this.numMessagesToRead == 0 || numMessagesRead < this.numMessagesToRead) {
-                    if (limiter != null) {
-                        limiter.acquire();
-                    }
-
-                    Message<?> msg = reader.receive(Duration.ofSeconds(5));
-                    if (msg == null) {
-                        LOG.debug("No message to read after waiting for 5 seconds.");
-                    } else {
-                        numMessagesRead += 1;
-                        if (!hideContent) {
-                            System.out.println(MESSAGE_BOUNDARY);
-                            System.out.println(this.interpretMessage(msg, displayHex, printMetadata));
-                        } else if (numMessagesRead % 1000 == 0) {
-                            System.out.println("Received " + numMessagesRead + " messages");
-                        }
-                    }
-                }
-            }
-        } catch (Exception e) {
-            LOG.error("Error while reading messages");
-            LOG.error(e.getMessage(), e);
-            returnCode = -1;
-        } finally {
-            LOG.info("{} messages successfully read", numMessagesRead);
-        }
-
-        return returnCode;
     }
 
-    private ConsumerEncryptionPolicy buildConsumerEncryptionPolicy() {
-        return buildFileDecryptionPolicy(this.encKeyValue, cryptoFailureAction);
+    /** The {@code messageId} query parameter of the WebSocket reader URI. */
+    @VisibleForTesting
+    String webSocketStartMessageId() {
+        if (START_LATEST.equals(startMessageId) || START_EARLIEST.equals(startMessageId)) {
+            return startMessageId;
+        }
+        return Base64.getEncoder().encodeToString(ReadV4.parseMessageId(startMessageId).toByteArray());
     }
 
     @VisibleForTesting
@@ -214,9 +218,8 @@ public class CmdRead extends AbstractCmdConsume {
         String wsTopic = String.format("%s/%s/%s/%s", topicName.getDomain(), topicName.getTenant(),
                 topicName.getNamespacePortion(), topicName.getLocalName());
 
-        // Only 'latest' / 'earliest' are accepted (validated in run()).
         return String.format("%s/ws/v2/reader/%s?messageId=%s", serviceURLWithoutTrailingSlash, wsTopic,
-                startMessageId);
+                webSocketStartMessageId());
     }
 
     @SuppressWarnings("deprecation")
@@ -303,5 +306,4 @@ public class CmdRead extends AbstractCmdConsume {
 
         return returnCode;
     }
-
 }

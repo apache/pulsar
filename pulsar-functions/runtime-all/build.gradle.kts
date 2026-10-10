@@ -36,6 +36,16 @@ dependencies {
     implementation(libs.log4j.slf4j2.impl)
     implementation(libs.log4j.api)
     implementation(libs.log4j.core)
+    // log4j-jul is needed to support the JUL-to-Log4j2 bridge in function instance JVMs
+    implementation(libs.log4j.jul)
+}
+
+// The V5 client API (through pulsar-functions-api) brings the OpenTelemetry API with its TLS factory SPI.
+// Keep it out of java-instance.jar, which is the parent classloader of user code, as with the v4 client
+// API: the API modules only name OpenTelemetry types in method signatures and never run OpenTelemetry
+// code; the client implementations that do are loaded by the instance classloader, which has it.
+configurations.named("runtimeClasspath") {
+    exclude(group = "io.opentelemetry")
 }
 
 // Build a fat JAR as java-instance.jar using the Shadow plugin.

@@ -67,7 +67,8 @@ public class ClusterMetadataTearDownTest extends TestRetrySupport {
 
     private final PulsarClusterSpec spec = PulsarClusterSpec.builder()
             .clusterName("ClusterMetadataTearDownTest-" + UUID.randomUUID().toString().substring(0, 8))
-            .numProxies(0)
+            // The client and the admin connect through the proxy
+            .numProxies(1)
             .numFunctionWorkers(0)
             .build();
 

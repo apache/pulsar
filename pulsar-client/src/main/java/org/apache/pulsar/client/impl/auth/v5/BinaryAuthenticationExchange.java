@@ -24,20 +24,20 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.internal.AsyncAuthenticationDriver.AuthenticationExchange;
 import org.apache.pulsar.client.api.v5.auth.AuthChallenge;
 import org.apache.pulsar.client.api.v5.auth.Authentication;
 import org.apache.pulsar.client.api.v5.auth.AuthenticationCallContext;
 import org.apache.pulsar.client.api.v5.auth.BinaryAuthChallengeHandler;
 import org.apache.pulsar.client.api.v5.auth.BinaryAuthDataProvider;
+import org.apache.pulsar.client.impl.auth.v5.BinaryAuthenticationDriver.AuthenticationExchange;
 import org.apache.pulsar.common.api.AuthData;
 
 /**
- * The single, shared binary-transport {@link AuthenticationExchange} that both v5→v4 adapters drive
- * (PIP-478). Consolidating the routing here guarantees the two adapters —
- * {@link V5BinaryAuthenticationDriver} (built-in shims, in this module) and
- * {@code V5ToV4AuthenticationAdapter} (application plugins, in {@code pulsar-client-v5}) — cannot drift
- * on the normative rules below.
+ * The single binary-transport {@link AuthenticationExchange} (PIP-478), created by
+ * {@link V5BinaryAuthenticationDriver} — the one driver the client builds for every binary connection,
+ * whatever kind of plugin is configured. It was shared with a second, v5&rarr;v4 adapter until the
+ * inversion deleted that one; keeping the routing consolidated here is still what makes the normative
+ * rules below hold for built-in shims and bridged v4 plugins alike.
  *
  * <p>One exchange owns one {@link AuthenticationCallContext} (and its state slot); multi-round conversation
  * state survives across the (non-refresh) challenge rounds that one exchange services. A broker REFRESH

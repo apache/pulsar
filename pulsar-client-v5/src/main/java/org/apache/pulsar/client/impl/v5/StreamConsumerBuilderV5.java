@@ -97,7 +97,17 @@ final class StreamConsumerBuilderV5<T> implements StreamConsumerBuilder<T> {
 
         return session.start()
                 .thenCompose(initialAssignment -> ScalableStreamConsumer.createAsync(
-                        client, v5Schema, conf, session, topic.toString(), initialAssignment));
+                        client, v5Schema, conf, session, topic.toString(), initialAssignment))
+                .whenComplete((consumer, ex) -> {
+                    if (ex != null) {
+                        // An abandoned subscribe must not leave a controller registration
+                        // behind: close() sends the clean unsubscribe once the in-flight
+                        // attempt settles — covering a registration the broker completed
+                        // after the client's subscribe timed out. Idempotent if the consumer
+                        // path already closed the session.
+                        session.close();
+                    }
+                });
     }
 
     @Override
@@ -154,12 +164,6 @@ final class StreamConsumerBuilderV5<T> implements StreamConsumerBuilder<T> {
     @Override
     public StreamConsumerBuilderV5<T> readCompacted(boolean readCompacted) {
         conf.setReadCompacted(readCompacted);
-        return this;
-    }
-
-    @Override
-    public StreamConsumerBuilderV5<T> replicateSubscriptionState(boolean replicate) {
-        conf.setReplicateSubscriptionState(replicate);
         return this;
     }
 

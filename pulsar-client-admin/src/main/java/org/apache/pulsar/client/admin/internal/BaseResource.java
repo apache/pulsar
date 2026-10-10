@@ -39,6 +39,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
@@ -58,6 +59,7 @@ import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.auth.v5.AsyncHttpAuthenticationProvider;
 import org.apache.pulsar.client.impl.auth.v5.HttpAuthenticationDriver;
+import org.apache.pulsar.client.impl.auth.v5.V5AuthContexts;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
@@ -69,10 +71,40 @@ public abstract class BaseResource {
 
     protected final Authentication auth;
     protected final long requestTimeoutMs;
+    // PIP-478: the owning admin's bounded blocking executor, where the deprecated v4 credential composition
+    // runs. Lent by PulsarAdminImpl right after construction rather than threaded through the constructors
+    // of all 23 resource classes, and never mutated afterwards. Null for a resource built outside a
+    // PulsarAdmin (tests, embedders), which has no admin pool to borrow and falls back to the framework's
+    // shared one — still off the caller thread.
+    private volatile Executor blockingAuthExecutor;
 
     protected BaseResource(Authentication auth, long requestTimeoutMs) {
         this.auth = auth;
         this.requestTimeoutMs = requestTimeoutMs;
+    }
+
+    /**
+     * Lend this resource the owning admin's bounded blocking authentication executor (PIP-478), so a
+     * stalled identity provider reached through this admin's plugin cannot occupy the process-wide shared
+     * pool that every other client in the JVM depends on. Called once by {@link PulsarAdminImpl}, before
+     * the resource is published.
+     *
+     * @param blockingAuthExecutor the owning admin's blocking authentication executor
+     */
+    void setBlockingAuthExecutor(Executor blockingAuthExecutor) {
+        this.blockingAuthExecutor = blockingAuthExecutor;
+    }
+
+    /**
+     * The executor lent by {@link PulsarAdminImpl}, or {@code null} when none was (VisibleForTesting). The
+     * lending is opt-in per construction site, and a resource that misses it still works — it just falls
+     * back to the shared pool — so the only thing that can catch a resource added without it is a test that
+     * reads this.
+     *
+     * @return the lent blocking authentication executor, or {@code null}
+     */
+    Executor blockingAuthExecutorForTest() {
+        return blockingAuthExecutor;
     }
 
     public Builder request(final WebTarget target) throws PulsarAdminException {
@@ -123,7 +155,7 @@ public abstract class BaseResource {
      * {@code GET} to the original URI each round, exactly what the v4 {@code authenticationStage(...)} does
      * today — and yields the validated role-token headers. Otherwise the deprecated v4
      * {@code authenticationStage(...)} / {@code newRequestHeader(...)} hooks run verbatim, preserving
-     * behaviour for third-party plugins and single-pass built-ins.
+     * behaviour for third-party plugins and single-pass built-ins — but off the calling thread.
      */
     protected CompletableFuture<Map<String, String>> computeAuthHeaders(URI uri) {
         try {
@@ -137,13 +169,50 @@ public abstract class BaseResource {
                             .thenApply(headers -> (headers == null || headers.isEmpty()) ? null : headers.asMap());
                 }
             }
+            // The deprecated v4 hooks may block — an OAuth2 or Athenz shim's getAuthData() refreshes its
+            // credential with a synchronous HTTP exchange — and this method runs on whatever thread issued the
+            // admin call, which for a broker calling its own admin client is a request-handling thread.
+            // HttpClient.computeAuthHeaders off-loads the identical composition for the lookup path and names
+            // the self-deadlock it avoids; this was the last caller-thread credential resolution left, and the
+            // one place PIP-478's "every synchronous v4 plugin call is off-loaded" was still an overstatement.
+            //
+            // It runs on the owning admin's own bounded pool, the same one a services-aware plugin is lent, so
+            // the work that can actually stall — a KDC or IdP round trip inside the plugin — stays isolated
+            // per admin: were this the framework's process-wide shared pool, one admin's stalled provider
+            // would throttle authentication for every other client in the JVM. A resource built outside a
+            // PulsarAdmin has no pool to borrow and falls back to that shared one, which is still off the
+            // caller thread.
+            Executor executor = V5AuthContexts.blockingExecutorOrShared(blockingAuthExecutor);
+            return V5AuthContexts.supplyBlocking(executor, () -> v4AuthHeaders(uri, executor))
+                    .thenCompose(headers -> headers);
+        } catch (Throwable t) {
+            return CompletableFuture.failedFuture(t);
+        }
+    }
+
+    /**
+     * The deprecated v4 HTTP authentication composition, run on a blocking executor by
+     * {@link #computeAuthHeaders(URI)}.
+     *
+     * @param uri the request URI
+     * @param blockingExecutor the executor this composition runs on, for the continuation below
+     * @return a future of the headers, or of {@code null} when the plugin contributes none
+     */
+    private CompletableFuture<Map<String, String>> v4AuthHeaders(URI uri, Executor blockingExecutor) {
+        try {
             AuthenticationDataProvider authData = auth.getAuthData(uri.getHost());
             if (!authData.hasDataForHttp()) {
                 return CompletableFuture.completedFuture(null);
             }
             CompletableFuture<Map<String, String>> stage = new CompletableFuture<>();
             auth.authenticationStage(uri.toString(), authData, null, stage);
-            return stage.thenApply(respHeaders -> {
+            // thenApplyAsync, not thenApply: newRequestHeader is the second synchronous v4 hook, and a plugin
+            // that completes the stage asynchronously — the multi-round challenge shape — completes it from
+            // its own HTTP callback thread. A plain continuation would run that hook there, which off-loading
+            // the resolution alone would not cover. In-tree that path now belongs to the v5 driver above, so
+            // this is for third-party v4 plugins; where the stage completes inline (the single-pass default)
+            // the hop is to a sibling task on this same executor.
+            return stage.thenApplyAsync(respHeaders -> {
                 try {
                     Set<Entry<String, String>> headers = auth.newRequestHeader(uri.toString(), authData, respHeaders);
                     if (headers == null) {
@@ -155,7 +224,7 @@ public abstract class BaseResource {
                 } catch (Exception e) {
                     throw new CompletionException(e);
                 }
-            });
+            }, blockingExecutor);
         } catch (Throwable t) {
             return CompletableFuture.failedFuture(t);
         }

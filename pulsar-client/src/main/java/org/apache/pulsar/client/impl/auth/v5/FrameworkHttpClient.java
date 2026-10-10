@@ -24,7 +24,9 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.CustomLog;
 import org.apache.pulsar.http.HttpRequest;
@@ -36,6 +38,8 @@ import org.asynchttpclient.AsyncCompletionHandlerBase;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.HttpResponseBodyPart;
 import org.asynchttpclient.HttpResponseStatus;
+import org.asynchttpclient.ListenableFuture;
+import org.asynchttpclient.Request;
 import org.asynchttpclient.RequestBuilder;
 import org.asynchttpclient.Response;
 
@@ -69,6 +73,7 @@ public final class FrameworkHttpClient implements PulsarHttpClient {
     // Deregisters this client from its factory on close(), or null for the legacy fallback (no factory).
     private final Runnable onClose;
     private final AtomicBoolean closed = new AtomicBoolean();
+    private final Set<ListenableFuture<Response>> pendingRequests = ConcurrentHashMap.newKeySet();
 
     public FrameworkHttpClient(AsyncHttpClient asyncHttpClient, PulsarHttpClientConfig config,
             NameResolver<InetAddress> nameResolver, TlsHandle<?> tlsSubscription, Runnable onClose) {
@@ -81,17 +86,25 @@ public final class FrameworkHttpClient implements PulsarHttpClient {
 
     @Override
     public CompletableFuture<HttpResponse> execute(HttpRequest request) {
-        // A CompletableFuture-returning method must not throw synchronously (CODING.md): convert any
-        // request-building error into an exceptionally-completed future.
-        final org.asynchttpclient.Request ahcRequest;
         try {
-            ahcRequest = toAhcRequest(request);
+            if (closed.get()) {
+                return CompletableFuture.failedFuture(new IOException("HTTP client is closed"));
+            }
+            ListenableFuture<Response> pending =
+                    asyncHttpClient.executeRequest(toAhcRequest(request), new BoundedResponseHandler());
+            pendingRequests.add(pending);
+            CompletableFuture<Response> response = pending.toCompletableFuture();
+            response.whenComplete((__, error) -> pendingRequests.remove(pending));
+            // close() may have run between submission and registration. In that case this request
+            // may have been missed by close() and must be cancelled here.
+            if (closed.get()) {
+                pending.cancel(true);
+            }
+            return response.thenCompose(this::toHttpResponse);
         } catch (Throwable t) {
+            // Request construction and submission can both fail synchronously.
             return CompletableFuture.failedFuture(t);
         }
-        return asyncHttpClient.executeRequest(ahcRequest, new BoundedResponseHandler())
-                .toCompletableFuture()
-                .thenCompose(this::toHttpResponse);
     }
 
     /**
@@ -122,7 +135,7 @@ public final class FrameworkHttpClient implements PulsarHttpClient {
         }
     }
 
-    private org.asynchttpclient.Request toAhcRequest(HttpRequest request) {
+    private Request toAhcRequest(HttpRequest request) {
         RequestBuilder builder = new RequestBuilder(request.method().name())
                 .setUrl(request.uri().toString());
         if (nameResolver != null) {
@@ -164,6 +177,10 @@ public final class FrameworkHttpClient implements PulsarHttpClient {
         if (!closed.compareAndSet(false, true)) {
             return;
         }
+        // AsyncHttpClient.close() closes channels but can leave their request futures pending.
+        // Cancel explicitly before the owning client stops the shared event loop and timeout timer.
+        pendingRequests.forEach(pending -> pending.cancel(true));
+        pendingRequests.clear();
         if (onClose != null) {
             try {
                 onClose.run();

@@ -101,6 +101,7 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
 
         // Step 2: Run Pulsar Proxy without forwarding authData - expect Exception
         ProxyConfiguration proxyConfig = new ProxyConfiguration();
+        proxyConfig.setForwardAuthorizationCredentials(false);
         proxyConfig.setAuthenticationEnabled(true);
 
         proxyConfig.setServicePort(Optional.of(0));

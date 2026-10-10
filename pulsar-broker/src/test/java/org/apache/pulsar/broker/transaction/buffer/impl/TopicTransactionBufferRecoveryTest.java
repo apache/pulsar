@@ -18,21 +18,44 @@
  */
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doCallRealMethod;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -64,12 +87,87 @@ public class TopicTransactionBufferRecoveryTest extends ProducerConsumerBase {
         return new Object[][] { { false }, { true } };
     }
 
+    @Test(dataProvider = "snapshotExists", timeOut = 30_000)
+    public void testRecoveryNotifiesLastPositionQueryOutsideBufferLock(boolean snapshotExists) throws Exception {
+        String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/tb-recovery-last-position");
+        CompletableFuture<Position> recoveryFuture = new CompletableFuture<>();
+        AbortedTxnProcessor processor = mock(AbortedTxnProcessor.class);
+        when(processor.recoverFromSnapshot()).thenReturn(recoveryFuture);
+        when(processor.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
+        TransactionBufferProvider originalProvider = pulsar.getTransactionBufferProvider();
+        pulsar.setTransactionBufferProvider(topic -> new TopicTransactionBuffer(
+                (PersistentTopic) topic, processor, AbortedTxnProcessor.SnapshotType.Single));
+        try {
+            PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService()
+                    .getTopic(topicName, true).get(5, TimeUnit.SECONDS).orElseThrow();
+            Position lastConfirmedEntry = topic.getManagedLedger().getLastConfirmedEntry();
+            assertThat(lastConfirmedEntry.getEntryId()).isEqualTo(-1);
+
+            // GetLastMessageId registers this continuation; an empty ledger's lookup can take the topic lock inline.
+            CompletableFuture<Position> lastPositionFuture = topic.checkIfTransactionBufferRecoverCompletely()
+                    .thenCompose(__ -> {
+                        assertThat(Thread.holdsLock(topic.getTransactionBuffer()))
+                                .as("recovery callbacks must run outside the buffer monitor")
+                                .isFalse();
+                        return topic.getLastDispatchablePosition();
+                    });
+
+            recoveryFuture.complete(snapshotExists ? PositionFactory.EARLIEST : null);
+            assertThat(lastPositionFuture.get(5, TimeUnit.SECONDS)).isEqualTo(lastConfirmedEntry);
+        } finally {
+            recoveryFuture.complete(null);
+            pulsar.setTransactionBufferProvider(originalProvider);
+        }
+    }
+
+    @Test(dataProvider = "snapshotExists", timeOut = 30_000)
+    public void testRecoveryCompletesAfterDeletionFails(boolean snapshotExists) throws Exception {
+        String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/tb-recovery-delete-failure");
+        TopicName parsedTopicName = TopicName.get(topicName);
+        CompletableFuture<Position> recoveryFuture = new CompletableFuture<>();
+        CompletableFuture<SchemaVersion> schemaDeleteFuture = new CompletableFuture<>();
+        SchemaRegistryService schemaRegistryService = spy(pulsar.getSchemaRegistryService());
+        doReturn(schemaDeleteFuture).when(schemaRegistryService).deleteSchemaStorage(parsedTopicName.getSchemaName());
+        AbortedTxnProcessor processor = mock(AbortedTxnProcessor.class);
+        when(processor.recoverFromSnapshot()).thenReturn(recoveryFuture);
+        when(processor.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
+        TransactionBufferProvider originalProvider = pulsar.getTransactionBufferProvider();
+        pulsar.setTransactionBufferProvider(topic -> new TopicTransactionBuffer(
+                (PersistentTopic) topic, processor, AbortedTxnProcessor.SnapshotType.Single));
+        doReturn(schemaRegistryService).when(pulsar).getSchemaRegistryService();
+        try {
+            PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService()
+                    .getTopic(topicName, true).get(5, TimeUnit.SECONDS).orElseThrow();
+            ExecutorService transactionExecutor =
+                    pulsar.getTransactionExecutorProvider().getExecutor(topic.getTransactionBuffer());
+            // Ensure the recovery continuation is registered before completing its future.
+            transactionExecutor.submit(() -> { }).get(5, TimeUnit.SECONDS);
+            CompletableFuture<Void> deleteFuture = topic.delete();
+            verify(schemaRegistryService, timeout(5_000)).deleteSchemaStorage(parsedTopicName.getSchemaName());
+            assertThat(topic.isClosingOrDeleting()).isTrue();
+
+            recoveryFuture.complete(snapshotExists ? PositionFactory.EARLIEST : null);
+            // Let replay run while deletion is pending, regardless of which executor dispatches it.
+            transactionExecutor.submit(() -> { }).get(5, TimeUnit.SECONDS);
+            pulsar.getTransactionSnapshotRecoverExecutorProvider().chooseThread(parsedTopicName.getNamespace())
+                    .submit(() -> { }).get(5, TimeUnit.SECONDS);
+
+            schemaDeleteFuture.completeExceptionally(new IllegalStateException("schema deletion failed"));
+            assertThatThrownBy(() -> deleteFuture.get(5, TimeUnit.SECONDS))
+                    .hasCauseInstanceOf(IllegalStateException.class);
+            assertThat(topic.isClosingOrDeleting()).isFalse();
+            topic.getTransactionBuffer().checkIfTBRecoverCompletely().get(5, TimeUnit.SECONDS);
+        } finally {
+            schemaDeleteFuture.completeExceptionally(new IllegalStateException("test finished"));
+            doCallRealMethod().when(pulsar).getSchemaRegistryService();
+            pulsar.setTransactionBufferProvider(originalProvider);
+        }
+    }
+
     /**
-     * While the transaction buffer is recovering, normal publishes don't move the max read position, so they
-     * don't update the topic's lastMaxReadPositionMovedForwardTimestamp either. When recovery completes, the
-     * transaction buffer must account for the messages published during recovery and trigger the
-     * maxReadPositionMovedForward callback; otherwise ReplicatedSubscriptionsController would consider the topic
-     * to have no new data and never start a subscription snapshot until further traffic arrives.
+     * While the transaction buffer is recovering, normal publishes don't move the max read position. Recovery
+     * must account for those messages when it completes. Without a replicated-subscription controller, handling
+     * the resulting callback must leave the snapshot timestamp disabled.
      */
     @Test(dataProvider = "snapshotExists")
     public void testMaxReadPositionMovedForwardForMessagesPublishedDuringRecovery(boolean snapshotExists)
@@ -101,13 +199,88 @@ public class TopicTransactionBufferRecoveryTest extends ProducerConsumerBase {
             recoverFuture.complete(snapshotExists ? PositionFactory.EARLIEST : null);
 
             Awaitility.await().untilAsserted(() -> {
-                assertTrue(persistentTopic.getLastMaxReadPositionMovedForwardTimestamp() > 0,
-                        "Completed recovery should move the max read position forward for the messages"
-                                + " published during recovery");
                 assertEquals(persistentTopic.getTransactionBuffer().getMaxReadPosition(),
                         persistentTopic.getManagedLedger().getLastConfirmedEntry());
+                assertEquals(persistentTopic.getLastMaxReadPositionMovedForwardTimestamp(), 0L,
+                        "Topics without a replicated-subscription controller should not maintain"
+                                + " the snapshot timestamp");
             });
         } finally {
+            pulsar.setTransactionBufferProvider(originalProvider);
+        }
+    }
+
+    @SuppressWarnings("deprecation")
+    @Test(dataProvider = "snapshotExists", timeOut = 60_000)
+    public void testRecoveryUpdatesTimestampWithReplicatedSubscription(boolean snapshotExists) throws Exception {
+        conf.setEnableReplicatedSubscriptions(true);
+        String remoteCluster = BrokerTestUtil.newUniqueName("tb-recovery-remote");
+        String tenant = BrokerTestUtil.newUniqueName("tb-recovery");
+        String namespace = tenant + "/ns";
+        String topicName = "persistent://" + namespace + "/topic";
+        admin.clusters().createCluster(remoteCluster, ClusterData.builder()
+                .serviceUrl(pulsar.getWebServiceAddress()).brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
+        admin.tenants().createTenant(tenant, new TenantInfoImpl(Set.of(), Set.of("test", remoteCluster)));
+        admin.namespaces().createNamespace(namespace);
+        admin.namespaces().setNamespaceReplicationClusters(namespace, Set.of("test", remoteCluster), false);
+
+        CountDownLatch recoveryStarted = new CountDownLatch(1);
+        CountDownLatch allowRecovery = new CountDownLatch(1);
+        AtomicReference<SingleSnapshotAbortedTxnProcessorImpl> processorRef = new AtomicReference<>();
+        AtomicReference<Position> recoveredPosition = new AtomicReference<>();
+        TransactionBufferProvider originalProvider = pulsar.getTransactionBufferProvider();
+        pulsar.setTransactionBufferProvider(originTopic -> {
+            if (!originTopic.getName().equals(topicName)) {
+                return originalProvider.newTransactionBuffer(originTopic);
+            }
+            // Pause the real snapshot processor before its storage read, then delegate to normal recovery.
+            // Both the snapshot and the user messages are persisted through the broker/client path.
+            SingleSnapshotAbortedTxnProcessorImpl processor =
+                    new SingleSnapshotAbortedTxnProcessorImpl((PersistentTopic) originTopic) {
+                        @Override
+                        Position doRecoverFromSnapshot(ScheduledExecutorService executor) throws Exception {
+                            recoveryStarted.countDown();
+                            if (!allowRecovery.await(30, TimeUnit.SECONDS)) {
+                                throw new IllegalStateException("Timed out waiting to resume snapshot recovery");
+                            }
+                            Position position = super.doRecoverFromSnapshot(executor);
+                            recoveredPosition.set(position);
+                            return position;
+                        }
+                    };
+            processorRef.set(processor);
+            return new TopicTransactionBuffer((PersistentTopic) originTopic, processor,
+                    AbortedTxnProcessor.SnapshotType.Single);
+        });
+        try {
+            @Cleanup
+            Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("sub")
+                    .replicateSubscriptionState(true).subscribe();
+            PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService()
+                    .getTopicIfExists(topicName).get().orElseThrow();
+            assertThat(recoveryStarted.await(10, TimeUnit.SECONDS)).isTrue();
+            assertThat(topic.getReplicatedSubscriptionController()).isPresent();
+            assertThat(topic.getLastMaxReadPositionMovedForwardTimestamp()).isZero();
+            Position snapshotPosition = topic.getManagedLedger().getLastConfirmedEntry();
+            if (snapshotExists) {
+                processorRef.get().takeAbortedTxnsSnapshot(snapshotPosition).get(10, TimeUnit.SECONDS);
+            }
+
+            @Cleanup
+            Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).enableBatching(false).create();
+            for (int i = 0; i < 3; i++) {
+                producer.newMessage().replicationClusters(List.of("test"))
+                        .value(("during-recovery-" + i).getBytes(StandardCharsets.UTF_8)).send();
+            }
+            assertThat(topic.getLastMaxReadPositionMovedForwardTimestamp()).isZero();
+            allowRecovery.countDown();
+            topic.checkIfTransactionBufferRecoverCompletely().get(10, TimeUnit.SECONDS);
+            assertThat(recoveredPosition.get()).isEqualTo(snapshotExists ? snapshotPosition : null);
+            assertThat(topic.getTransactionBuffer().getMaxReadPosition())
+                    .isEqualTo(topic.getManagedLedger().getLastConfirmedEntry());
+            assertThat(topic.getLastMaxReadPositionMovedForwardTimestamp()).isPositive();
+        } finally {
+            allowRecovery.countDown();
             pulsar.setTransactionBufferProvider(originalProvider);
         }
     }
@@ -137,6 +310,48 @@ public class TopicTransactionBufferRecoveryTest extends ProducerConsumerBase {
                             persistentTopic.getManagedLedger().getLastConfirmedEntry()));
             assertEquals(persistentTopic.getLastMaxReadPositionMovedForwardTimestamp(), 0L,
                     "Recovery of an idle topic should not move the max read position forward");
+        } finally {
+            pulsar.setTransactionBufferProvider(originalProvider);
+        }
+    }
+
+    /**
+     * Deleting the aborted txn snapshot writes a tombstone to the namespace's __transaction_buffer_snapshot
+     * system topic, which can fail permanently. Topic deletion must not depend on it: a caller that treats the
+     * failure as retriable, such as PersistentTopic#checkReplication after the local cluster has been removed
+     * from the namespace replication clusters, would otherwise retry the deletion forever. The transaction
+     * buffer must still be closed so the snapshot writer reference isn't leaked.
+     */
+    @Test
+    public void testTopicDeletionSucceedsWhenClearingAbortedTxnSnapshotFails() throws Exception {
+        String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp-tb-clear-snapshot-fails");
+        AtomicReference<AbortedTxnProcessor> processorRef = new AtomicReference<>();
+        TransactionBufferProvider originalProvider = pulsar.getTransactionBufferProvider();
+        pulsar.setTransactionBufferProvider(originTopic -> {
+            AbortedTxnProcessor processor = mock(AbortedTxnProcessor.class);
+            when(processor.recoverFromSnapshot()).thenReturn(CompletableFuture.completedFuture(null));
+            when(processor.takeAbortedTxnsSnapshot(any()))
+                    .thenReturn(CompletableFuture.completedFuture(null));
+            when(processor.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
+            when(processor.clearAbortedTxnSnapshot()).thenReturn(CompletableFuture.failedFuture(
+                    new PulsarClientException.AlreadyClosedException("Producer already closed")));
+            processorRef.set(processor);
+            return new TopicTransactionBuffer(
+                    (PersistentTopic) originTopic, processor, AbortedTxnProcessor.SnapshotType.Single);
+        });
+        try {
+            Producer<byte[]> producer = pulsarClient.newProducer().topic(tpName).create();
+            producer.send("msg".getBytes(StandardCharsets.UTF_8));
+            producer.close();
+            AbortedTxnProcessor processor = processorRef.get();
+            assertNotNull(processor, "The test transaction buffer provider should have been used");
+
+            admin.topics().delete(tpName, true);
+
+            assertFalse(pulsar.getBrokerService().getTopicIfExists(tpName).get().isPresent(),
+                    "The topic should have been deleted despite the failing aborted txn snapshot cleanup");
+            verify(processor).clearAbortedTxnSnapshot();
+            verify(processor).closeAsync();
         } finally {
             pulsar.setTransactionBufferProvider(originalProvider);
         }

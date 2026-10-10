@@ -92,7 +92,7 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
             return FutureUtil.failedFuture(new ConsumerBusyException("Subscription reached max consumers limit"));
         }
 
-        consumerList.add(consumer);
+        addConsumerToList(consumer);
         consumerSet.add(consumer);
         return CompletableFuture.completedFuture(null);
     }
@@ -105,7 +105,7 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
     @Override
     public synchronized void removeConsumer(Consumer consumer) throws BrokerServiceException {
         if (consumerSet.removeAll(consumer) == 1) {
-            consumerList.remove(consumer);
+            removeConsumerFromList(consumer);
             log.info().attr("consumer", consumer).log("Removed consumer");
             if (consumerList.isEmpty()) {
                 if (closeFuture != null) {

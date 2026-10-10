@@ -20,6 +20,9 @@ package org.apache.pulsar.client.impl.auth.v5;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.spy;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import io.netty.channel.EventLoopGroup;
@@ -32,6 +35,8 @@ import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -40,6 +45,11 @@ import org.apache.pulsar.http.HttpResponse;
 import org.apache.pulsar.http.PulsarHttpClient;
 import org.apache.pulsar.http.PulsarHttpClientConfig;
 import org.apache.pulsar.tls.TlsPurpose;
+import org.asynchttpclient.AsyncHandler;
+import org.asynchttpclient.AsyncHttpClient;
+import org.asynchttpclient.DefaultAsyncHttpClient;
+import org.asynchttpclient.DefaultAsyncHttpClientConfig;
+import org.asynchttpclient.Request;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -228,6 +238,58 @@ public class FrameworkHttpClientFactoryTest {
                     .hasCauseInstanceOf(IOException.class)
                     .cause().hasMessageContaining("exceeds the configured maximum");
             client.close();
+        }
+    }
+
+    @Test
+    public void testFactoryCloseCompletesPendingRequest() throws Exception {
+        CompletableFuture<Void> requestReceived = new CompletableFuture<>();
+        // Leave the response pending until the client closes the connection.
+        server.createContext("/pending", exchange -> requestReceived.complete(null));
+        try (FrameworkHttpClientFactory factory = newFactory()) {
+            PulsarHttpClient client = factory.newHttpClient(genericConfig().build());
+            HttpRequest request = HttpRequest.builder(
+                    HttpRequest.Method.GET, URI.create(baseUrl + "/pending")).build();
+            CompletableFuture<HttpResponse> response = client.execute(request);
+            requestReceived.get(10, TimeUnit.SECONDS);
+            factory.close();
+            // The owning PulsarClient stops the shared timer after closing the factory.
+            timer.stop();
+            assertThatThrownBy(() -> response.get(5, TimeUnit.SECONDS))
+                    .isInstanceOf(ExecutionException.class)
+                    .hasCauseInstanceOf(CancellationException.class);
+        }
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testCloseWhileRequestIsBeingSubmitted() throws Exception {
+        CompletableFuture<Void> requestReceived = new CompletableFuture<>();
+        CompletableFuture<Void> releaseSubmission = new CompletableFuture<>();
+        server.createContext("/pending", exchange -> requestReceived.complete(null));
+        AsyncHttpClient transport = spy(new DefaultAsyncHttpClient(new DefaultAsyncHttpClientConfig.Builder()
+                .setEventLoopGroup(eventLoopGroup).setNettyTimer(timer).build()));
+        try (FrameworkHttpClient client = new FrameworkHttpClient(
+                transport, genericConfig().build(), null, null, null)) {
+            doAnswer(invocation -> {
+                Object pending = invocation.callRealMethod();
+                releaseSubmission.get(10, TimeUnit.SECONDS);
+                return pending;
+            }).when(transport).executeRequest(any(Request.class), any(AsyncHandler.class));
+            HttpRequest request = HttpRequest.builder(
+                    HttpRequest.Method.GET, URI.create(baseUrl + "/pending")).build();
+            CompletableFuture<HttpResponse> response = CompletableFuture
+                    .supplyAsync(() -> client.execute(request)).thenCompose(future -> future);
+            try {
+                requestReceived.get(10, TimeUnit.SECONDS);
+                // The transport has accepted the request, but execute() has not registered its future yet.
+                client.close();
+            } finally {
+                releaseSubmission.complete(null);
+            }
+            assertThatThrownBy(() -> response.get(5, TimeUnit.SECONDS))
+                    .isInstanceOf(ExecutionException.class)
+                    .hasCauseInstanceOf(CancellationException.class);
         }
     }
 

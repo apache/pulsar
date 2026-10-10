@@ -337,6 +337,6 @@ public class Functions extends AdminResource {
     })
     @Path("/connectors")
     public List<ConnectorDefinition> getConnectorsList() throws IOException {
-        return functions().getListOfConnectors();
+        return validateAndGetWorkerService().getWorkers().getListOfConnectors(authParams());
     }
 }

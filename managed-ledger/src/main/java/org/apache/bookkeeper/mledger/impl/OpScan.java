@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerUtils.NO_MAX_SIZE_LIMIT;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -121,7 +122,7 @@ class OpScan implements ReadEntriesCallback {
             return;
         }
         if (cursor.hasMoreEntries(searchPosition)) {
-            OpReadEntry opReadEntry = OpReadEntry.create(cursor, searchPosition, batchSize,
+            OpReadEntry opReadEntry = OpReadEntry.create(cursor, searchPosition, batchSize, NO_MAX_SIZE_LIMIT,
             this, OpScan.this.ctx, null, null, false);
             ledger.asyncReadEntries(opReadEntry);
         } else {

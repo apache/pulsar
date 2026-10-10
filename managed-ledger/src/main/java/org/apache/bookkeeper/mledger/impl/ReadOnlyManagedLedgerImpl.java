@@ -74,9 +74,14 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
                     long lastLedgerId = ledgers.lastKey();
 
                     // Fetch last add confirmed for last ledger
-                    bookKeeper.newOpenLedgerOp().withRecovery(false).withLedgerId(lastLedgerId)
-                            .withDigestType(config.getDigestType()).withPassword(config.getPassword())
-                            .withLoggerContext(log).execute()
+                    bookKeeper.newOpenLedgerOp()
+                            .withRecovery(false)
+                            .withLedgerId(lastLedgerId)
+                            .withDigestType(config.getDigestType())
+                            .withPassword(config.getPassword())
+                            .withLoggerContext(log)
+                            .withOrderingKey(name)
+                            .execute()
                             .thenAccept(readHandle -> {
                                 readHandle.readLastAddConfirmedAsync().thenAccept(lastAddConfirmed -> {
                                     LedgerInfo info = new LedgerInfo().setLedgerId(lastLedgerId)

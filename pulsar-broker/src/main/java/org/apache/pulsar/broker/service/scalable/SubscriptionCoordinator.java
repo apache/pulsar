@@ -125,6 +125,14 @@ public class SubscriptionCoordinator {
      * Once non-null it stays non-null (we don't downgrade to no-ordering mid-flight).
      */
     private SegmentDrainChecker drainChecker;
+    /**
+     * Whether this coordinator serves a CHECKPOINT consumer group. Its members read each segment
+     * through their own Reader, with no shared subscription the broker could split entry-buckets
+     * on, so a segment is only ever assigned whole, to a single member. Unknown (false) on the
+     * controller-failover restore path until the first member registers, which happens before any
+     * assignment is sent.
+     */
+    private boolean checkpointGroup;
 
     public SubscriptionCoordinator(String subscriptionName,
                                    TopicName topicName,
@@ -214,19 +222,49 @@ public class SubscriptionCoordinator {
     }
 
     /**
-     * Explicit unregister (consumer asked to leave the subscription). Cancels any pending
-     * grace timer, deletes the persisted registration, and rebalances.
+     * Explicit unregister (consumer asked to leave the subscription). Deletes the persisted
+     * registration first, and only on success removes the in-memory session, cancels its
+     * grace timer, and rebalances. A failed delete therefore changes nothing: the session
+     * stays registered and connected, so the channelInactive → grace-period fallback still
+     * works, and a retried unregister actually retries the deletion instead of short-
+     * circuiting on an already-removed session.
+     *
+     * <p>{@code expectedConsumerId} guards the removal against a same-name rejoin racing the
+     * in-flight delete: a re-register attaches a new consumer id to the session, so if the
+     * id no longer matches when the delete completes, the departed consumer's leave must not
+     * take the rejoined consumer down with it — the session is kept and the persisted
+     * registration the delete just erased is restored.
      */
     public synchronized CompletableFuture<Map<ConsumerSession, ConsumerAssignment>> unregisterConsumer(
-            String consumerName) {
-        ConsumerSession removed = sessions.remove(consumerName);
-        if (removed == null) {
+            String consumerName, long expectedConsumerId) {
+        ConsumerSession session = sessions.get(consumerName);
+        if (session == null || session.getConsumerId() != expectedConsumerId) {
             return CompletableFuture.completedFuture(snapshotAssignments());
         }
-        removed.cancelGraceTimer();
         return resources.unregisterConsumerAsync(topicName, subscriptionName, consumerName)
                 .thenApply(__ -> {
                     synchronized (this) {
+                        ConsumerSession current = sessions.get(consumerName);
+                        if (current != null && current.getConsumerId() != expectedConsumerId) {
+                            // A same-name consumer rejoined while the delete was in flight
+                            // (the reconnect branch attached a new id). Keep it, and restore
+                            // the persisted registration the delete just erased so a
+                            // controller failover still knows this member.
+                            resources.registerConsumerAsync(topicName, subscriptionName,
+                                            consumerName)
+                                    .exceptionally(ex -> {
+                                        log.warn().attr("consumer", consumerName)
+                                                .exceptionMessage(ex)
+                                                .log("Failed to restore the rejoined consumer's "
+                                                        + "persisted registration");
+                                        return null;
+                                    });
+                            return snapshotAssignments();
+                        }
+                        ConsumerSession removed = sessions.remove(consumerName);
+                        if (removed != null) {
+                            removed.cancelGraceTimer();
+                        }
                         if (sessions.isEmpty()) {
                             segmentAssignments.clear();
                             return Map.of();
@@ -314,6 +352,24 @@ public class SubscriptionCoordinator {
     }
 
     /**
+     * Mark this coordinator as serving a CHECKPOINT consumer group (see {@link #checkpointGroup}).
+     * Called on every CHECKPOINT register, before the registration computes the assignment.
+     */
+    synchronized void markCheckpointGroup() {
+        checkpointGroup = true;
+    }
+
+    /**
+     * Whether this subscription's consumers can share a segment by entry-bucket: it is a STREAM
+     * subscription (it has a drain checker, installed at creation or on its first STREAM register)
+     * and not a checkpoint group. False on the controller-failover restore path until the first
+     * member registers, since the consumer type is not persisted and it may be a checkpoint group.
+     */
+    synchronized boolean canShareSegmentsByEntryBucket() {
+        return drainChecker != null && !checkpointGroup;
+    }
+
+    /**
      * Stop the periodic drain-status poller. Called by the controller on close. Idempotent.
      * Also flips a {@code closed} flag so any {@link #pollDrainStatus()} iteration that's
      * mid-flight aborts its rearm step instead of leaking a task into the executor.
@@ -344,8 +400,15 @@ public class SubscriptionCoordinator {
      * as assignable.
      */
     private boolean isAssignable(SegmentInfo segment, SegmentLayout layout) {
-        if (drainChecker == null || !segment.isActive()) {
+        if (drainChecker == null) {
             return true;
+        }
+        if (!segment.isActive()) {
+            // A sealed segment is assignable only while it still has backlog to drain. Once
+            // fully drained it carries no traffic, and keeping it assignable would pin
+            // consumers to a dead segment forever (the drain rebalance would spread the
+            // group across it and its successor).
+            return !drainedSegmentIds.contains(segment.segmentId());
         }
         for (long parentId : segment.parentIds()) {
             // A parent that's no longer in the DAG has been pruned (its data is gone), so
@@ -586,9 +649,11 @@ public class SubscriptionCoordinator {
         // segments out by entry-bucket: each owner of a shared segment takes a contiguous slice of its
         // buckets and subscribes Key_Shared STICKY declaring exactly those ranges. A segment absorbs at
         // most bucketCount() consumers; consumers beyond the topic's total bucket capacity stay idle.
+        // A CHECKPOINT group never fans out: each member reads a segment through its own Reader, so a
+        // shared segment would be read in full by every sharer. Its surplus members stay idle.
         int segmentCount = sortedSegments.size();
         int consumerCount = sortedConsumers.size();
-        if (consumerCount <= segmentCount) {
+        if (consumerCount <= segmentCount || checkpointGroup) {
             int consumerIndex = 0;
             for (SegmentInfo segment : sortedSegments) {
                 TopicName segmentTopic = SegmentTopicName.fromParent(topicName, segment.hashRange(),
@@ -678,8 +743,9 @@ public class SubscriptionCoordinator {
     }
 
     /**
-     * Test hook: return the assignment that would be sent right now, computed against the
-     * current layout and connected consumers. Visible for unit tests.
+     * The assignment that would be sent right now, computed against the current layout and
+     * the registered consumers (connected or within their grace period). Used by the
+     * controller's stats snapshot and by unit tests.
      */
     synchronized Map<ConsumerSession, ConsumerAssignment> currentAssignment() {
         return computeAssignment(currentLayout, sessions.values());

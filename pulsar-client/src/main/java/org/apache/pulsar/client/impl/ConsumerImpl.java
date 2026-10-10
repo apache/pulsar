@@ -399,6 +399,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         } else {
             this.acknowledgmentsGroupingTracker =
                     NonPersistentAcknowledgmentGroupingTracker.of();
+            if (conf.getAckTimeoutMillis() > 0) {
+                log.warn().attr("topic", topic).attr("ackTimeoutMillis", conf.getAckTimeoutMillis())
+                        .log("Ignoring the configured ack timeout: a non-persistent topic keeps nothing to"
+                                + " replay, so unacknowledged messages can never be redelivered");
+            }
         }
 
         if (conf.getDeadLetterPolicy() != null) {
@@ -881,6 +886,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             deregisterFromClientCnx();
             client.cleanupConsumer(this);
             clearReceiverQueue(false);
+            client.getCnxPool().releaseConnection(cnx);
             return CompletableFuture.completedFuture(null);
         }
 
@@ -1690,6 +1696,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
             chunkedMessagesMap.remove(msgMetadata.getUuid());
             compressedPayload.release();
+            // This discarded chunk consumed a broker flow-control permit. Non-last chunks already
+            // had their permit returned at the top of this method (increaseAvailablePermits when
+            // chunkId != last); the last chunk did not. Return it here so that tearing a chunked
+            // message apart (expiry/eviction/orphaned last chunk) does not leak permits, which would
+            // otherwise drain the consumer's available permits to zero and stall dispatch.
+            if (msgMetadata.getChunkId() == (msgMetadata.getNumChunksFromMsg() - 1)) {
+                increaseAvailablePermits(cnx);
+            }
             if (expireTimeOfIncompleteChunkedMessageMillis > 0
                     && System.currentTimeMillis() > (msgMetadata.getPublishTime()
                             + expireTimeOfIncompleteChunkedMessageMillis)) {
@@ -1916,8 +1930,20 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             trackMessage(messageId, 0);
     }
 
+    /**
+     * Never track on a non-persistent topic. The broker stores nothing to replay there, so an ack timeout can
+     * never produce a redelivery, and an ack does not clear the tracker either: the consumer installs
+     * {@link NonPersistentAcknowledgmentGroupingTracker}, whose {@code addAcknowledgment} is a no-op, while the
+     * tracker is only cleared from the persistent one. Tracking would therefore fill up even for an application
+     * that acks everything, and the resulting timeout clears the receive queue, destroying messages for good.
+     */
+    @Override
+    protected boolean isAckTimeoutTrackingEnabled() {
+        return super.isAckTimeoutTrackingEnabled() && topicName.isPersistent();
+    }
+
     protected void trackMessage(MessageId messageId, int redeliveryCount) {
-        if (conf.getAckTimeoutMillis() > 0 && messageId instanceof MessageIdImpl) {
+        if (isAckTimeoutTrackingEnabled() && messageId instanceof MessageIdImpl) {
             MessageId id = MessageIdAdvUtils.discardBatch(messageId);
             if (hasParentConsumer) {
                 //TODO: check parent consumer here
@@ -2101,7 +2127,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         .log("Message delivery failed since unable to decrypt incoming message");
             }
             MessageId m = new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), partitionIndex);
-            unAckedMessageTracker.add(m, redeliveryCount);
+            if (isAckTimeoutTrackingEnabled()) {
+                unAckedMessageTracker.add(m, redeliveryCount);
+            }
             return DecryptResult.discard();
         default:
             log.warn("Invalid crypto failure state found, continue message consumption.");
@@ -2350,9 +2378,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     @SuppressWarnings("unchecked")
     private CompletableFuture<Boolean> processPossibleToDLQ(MessageIdAdv messageId) {
+        // The map is always keyed by the entry-level message id, while messageId may still carry a batch index
+        final MessageIdAdv deadLetterMessagesKey = MessageIdAdvUtils.discardBatch(messageId);
         List<MessageImpl<T>> deadLetterMessages = null;
         if (possibleSendToDeadLetterTopicMessages != null) {
-            deadLetterMessages = possibleSendToDeadLetterTopicMessages.get(MessageIdAdvUtils.discardBatch(messageId));
+            deadLetterMessages = possibleSendToDeadLetterTopicMessages.get(deadLetterMessagesKey);
         }
         CompletableFuture<Boolean> result = new CompletableFuture<>();
         if (deadLetterMessages != null) {
@@ -2373,7 +2403,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         copyMessageEventTime(message, typedMessageBuilderNew);
                         typedMessageBuilderNew.sendAsync()
                                 .thenAccept(messageIdInDLQ -> {
-                                    possibleSendToDeadLetterTopicMessages.remove(messageId);
+                                    possibleSendToDeadLetterTopicMessages.remove(deadLetterMessagesKey);
                                     acknowledgeAsync(messageId).whenComplete((v, ex) -> {
                                         if (ex != null) {
                                             log.warn().attr("messageId", messageId)

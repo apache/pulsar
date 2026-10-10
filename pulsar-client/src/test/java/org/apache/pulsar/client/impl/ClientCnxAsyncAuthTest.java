@@ -49,10 +49,10 @@ import java.util.function.Supplier;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.internal.AsyncAuthenticationDriver;
-import org.apache.pulsar.client.api.internal.AsyncAuthenticationDriver.AuthenticationExchange;
 import org.apache.pulsar.client.api.v5.internal.V5AuthenticationProvider;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
+import org.apache.pulsar.client.impl.auth.v5.BinaryAuthenticationDriver;
+import org.apache.pulsar.client.impl.auth.v5.BinaryAuthenticationDriver.AuthenticationExchange;
 import org.apache.pulsar.client.impl.auth.v5.V5AuthenticationLoader;
 import org.apache.pulsar.client.impl.auth.v5.V5BinaryAuthenticationDriver;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -67,7 +67,7 @@ import org.testng.annotations.Test;
 
 /**
  * PIP-478: verifies the {@code ClientCnx} async authentication carve-out against an
- * {@link AsyncAuthenticationDriver}-capable plugin. Guards the acceptance invariants of the
+ * {@link BinaryAuthenticationDriver}-capable plugin. Guards the acceptance invariants of the
  * single-continuation refactor — the connection's {@code authenticationDataProvider} observable
  * ({@code getCommandData()}) reflects the freshly-resolved credential on connect and on a broker-pushed
  * REFRESH, a REFRESH does not disconnect ({@code getLastDisconnectedTimestamp()} unchanged), and a
@@ -126,7 +126,7 @@ public class ClientCnxAsyncAuthTest {
         conf.setAuthentication(auth);
         // PIP-478: the client drives the v5 model, so ClientCnx takes its exchanges from the resolved
         // authentication driver rather than from the v4 plugin in conf.
-        conf.setV5AuthenticationDriver(auth instanceof AsyncAuthenticationDriver driver ? driver
+        conf.setV5AuthenticationDriver(auth instanceof BinaryAuthenticationDriver driver ? driver
                 : new V5BinaryAuthenticationDriver(V5AuthenticationLoader.forStartedV4Plugin(auth)));
         ClientCnx cnx = new ClientCnx(InstrumentProvider.NOOP, conf, eventLoop);
         cnx.setRemoteHostName("localhost");
@@ -465,13 +465,13 @@ public class ClientCnxAsyncAuthTest {
     }
 
     /**
-     * A minimal {@link AsyncAuthenticationDriver}-capable v4 {@link Authentication} whose exchanges hand
+     * A minimal {@link BinaryAuthenticationDriver}-capable v4 {@link Authentication} whose exchanges hand
      * back futures the test completes explicitly (from an off-event-loop thread), so the harness can drive
      * the pending / stale / post-close continuation paths deterministically.
      */
     // Implements the deprecated v4 Authentication SPI (configure(Map)) by design, like the real plugins.
     @SuppressWarnings("deprecation")
-    private static final class ControllableAuthDriver implements Authentication, AsyncAuthenticationDriver {
+    private static final class ControllableAuthDriver implements Authentication, BinaryAuthenticationDriver {
 
         private static final long serialVersionUID = 1L;
 
@@ -526,13 +526,13 @@ public class ClientCnxAsyncAuthTest {
     }
 
     /**
-     * An {@link AsyncAuthenticationDriver} whose exchanges always resolve inline with a non-terminal
+     * An {@link BinaryAuthenticationDriver} whose exchanges always resolve inline with a non-terminal
      * credential — so it answers every challenge and never completes the handshake. Used to drive the
      * challenge-round cap deterministically (each round resolves synchronously, so rounds are not dropped by
      * the serialize-or-drop guard).
      */
     @SuppressWarnings("deprecation")
-    private static final class AlwaysRespondingDriver implements Authentication, AsyncAuthenticationDriver {
+    private static final class AlwaysRespondingDriver implements Authentication, BinaryAuthenticationDriver {
 
         private static final long serialVersionUID = 1L;
 

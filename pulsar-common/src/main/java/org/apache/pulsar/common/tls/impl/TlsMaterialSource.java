@@ -223,7 +223,18 @@ final class TlsMaterialSource implements MaterialSource {
         if (StringUtils.isNotBlank(policy.trustCertsFilePath())) {
             X509Certificate[] certs =
                     PemReader.loadCertificatesFromPemFile(policy.trustCertsFilePath(), jcaProvider);
-            return certs == null ? List.of() : List.of(certs);
+            if (certs == null || certs.length == 0) {
+                // Unlike the keystore axis above, the PEM axis keeps 4.x behaviour and falls back to the
+                // platform trust store rather than failing, so existing deployments are not broken. That
+                // fallback silently trusts every public CA, so a truncated, mis-mounted or empty file is
+                // logged: it is the only signal an operator gets that their pinned private CA is no longer
+                // in effect.
+                log.warn().attr("trustCertsFilePath", policy.trustCertsFilePath())
+                        .log("Configured PEM trust file holds no X.509 certificates; falling back to the "
+                                + "platform default trust store, which trusts every public CA");
+                return List.of();
+            }
+            return List.of(certs);
         }
         return List.of();
     }

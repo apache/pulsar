@@ -22,12 +22,13 @@ import org.gradle.api.attributes.Bundling
 import org.gradle.api.attributes.Category
 import org.gradle.api.attributes.LibraryElements
 import org.gradle.api.attributes.Usage
+import org.gradle.api.attributes.java.TargetJvmVersion
 import org.gradle.api.component.AdhocComponentWithVariants
 import org.gradle.api.tasks.PathSensitivity
 import java.util.zip.ZipFile
 
 // Convention plugin for Pulsar client shaded modules (pulsar-client-shaded,
-// pulsar-client-admin-shaded, pulsar-client-all). Configures the shadow jar
+// pulsar-client-admin-shaded, pulsar-client-all, pulsar-client-v5-shaded). Configures the shadow jar
 // with the shared dependency includes, file excludes, relocations, and
 // filesMatching blocks. Modules only need to define their project dependencies.
 
@@ -37,6 +38,7 @@ plugins {
 
 val shadePrefix = "org.apache.pulsar.shade"
 extra["shadePrefix"] = shadePrefix
+val targetJavaVersion = extensions.getByType<JavaPluginExtension>().targetCompatibility.majorVersion.toInt()
 
 // ---- Published dependency scopes for non-bundled dependencies ----
 // The Shadow plugin publishes the `shadow` configuration's dependencies as the dependency-reduced
@@ -54,6 +56,10 @@ val shadowApi = configurations.dependencyScope("shadowApi") {
     description = "Non-bundled dependencies published with compile (api) scope in the shaded " +
         "artifact's dependency-reduced POM and Gradle Module Metadata."
 }
+// Compile-scope dependencies are also required at runtime by consumers of the published variant.
+configurations.named("shadowRuntimeElements") {
+    extendsFrom(shadowApi.get())
+}
 val shadowApiElements = configurations.consumable("shadowApiElements") {
     description = "API elements (compile scope) of the shaded artifact, mirroring shadowRuntimeElements."
     extendsFrom(shadowApi.get())
@@ -62,6 +68,7 @@ val shadowApiElements = configurations.consumable("shadowApiElements") {
         attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category.LIBRARY))
         attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements.JAR))
         attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling.SHADOWED))
+        attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, targetJavaVersion)
     }
     // Carry the shaded jar so this variant is a complete API variant (like apiElements does for the
     // standard java-library component).
@@ -77,6 +84,7 @@ tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJ
     // ---- Dependency includes ----
     dependencies {
         include(project(":pulsar-client-original"))
+        include(project(":pulsar-client-v5"))
         include(project(":pulsar-client-admin-original"))
         include(project(":pulsar-common"))
         include(project(":pulsar-client-messagecrypto-bc"))
@@ -176,6 +184,11 @@ tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJ
         exclude("org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData")
     }
     relocateWithPrefix(shadePrefix, "com.github.benmanes")
+    // Circe's checksum adapters expose ByteBuf and must follow Netty's relocation. Keep
+    // NarSystem and the JNI implementation at their native names (they do not expose Netty).
+    relocate("com.scurrilous.circe.checksum", "$shadePrefix.com.scurrilous.circe.checksum") {
+        exclude("com.scurrilous.circe.checksum.NarSystem")
+    }
     relocateWithPrefix(shadePrefix, "com.spotify.futures")
     relocateWithPrefix(shadePrefix, "com.squareup")
     relocateWithPrefix(shadePrefix, "org.eclipse.angus")
@@ -212,6 +225,24 @@ tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJ
     relocateWithPrefix(shadePrefix, "org.roaringbitmap")
     relocateWithPrefix(shadePrefix, "org.tukaani")
     relocateWithPrefix(shadePrefix, "org.yaml")
+    // Keep the types owned by the API modules at their public names. All bundled Pulsar
+    // implementations must be relocated too: rewriting only their Netty/Jackson dependencies
+    // leaves incompatible classes with identical names beside pulsar-client-v5.
+    val publicPulsarTypes = objects.setProperty<String>()
+    listOf(
+        "pulsar-client-api", "pulsar-client-admin-api", "pulsar-client-api-v5",
+        "pulsar-tls-factory-api", "pulsar-http-client-api",
+    ).forEach { module ->
+        val sourceRoot = rootProject.file("$module/src/main/java")
+        publicPulsarTypes.addAll(fileTree(sourceRoot) { include("**/*.java") }.elements.map { sources ->
+            sources.map { source ->
+                source.asFile.relativeTo(sourceRoot).invariantSeparatorsPath.removeSuffix(".java")
+            }
+        })
+    }
+    // Resolve once when the task inputs are queried, retaining a set lookup per class reference.
+    publicPulsarTypes.finalizeValueOnRead()
+    relocate(PulsarImplementationRelocator(publicPulsarTypes))
     // NOTE: Do NOT shade log4j, otherwise logging won't work
 
     // ---- File content transformations ----

@@ -186,6 +186,7 @@ public class ReflectionsTest {
             Boolean.class,
             boolean.class,
             Void.class,
+            void.class,
             Reflections.class,
             Integer[].class,
             int[].class

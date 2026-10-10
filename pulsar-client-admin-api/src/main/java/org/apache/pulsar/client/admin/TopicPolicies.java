@@ -2005,6 +2005,12 @@ public interface TopicPolicies {
 
     /**
      * Get the dispatcherPauseOnAckStatePersistentEnabled policy for a given topic asynchronously.
+     * When {@code applied} is true and the policy is not set for the selected local or global topic-policy scope,
+     * the namespace policy and then the broker configuration are used.
+     *
+     * @param topic topic name
+     * @param applied whether to return the applied policy including namespace and broker inheritance
+     * @return a future that completes with the policy value
      */
     CompletableFuture<Boolean> getDispatcherPauseOnAckStatePersistent(String topic, boolean applied);
 

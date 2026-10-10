@@ -26,6 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
@@ -81,6 +82,21 @@ public final class V5AuthContexts {
     }
 
     /**
+     * Resolve the executor that potentially-blocking authentication work must run on: the one the owning
+     * component lent, or the shared fallback pool when it lent none. Never the caller thread.
+     *
+     * <p>Exposed for a caller that has to run more than one step on the same executor — the deprecated v4
+     * HTTP composition runs the credential resolution and the {@code newRequestHeader} continuation there —
+     * and so needs the resolved instance rather than only {@link #supplyBlocking}'s internal choice.
+     *
+     * @param blockingExecutor the bound blocking executor, or {@code null} if none was bound
+     * @return the executor to run the blocking work on; never {@code null}
+     */
+    public static Executor blockingExecutorOrShared(Executor blockingExecutor) {
+        return blockingExecutor != null ? blockingExecutor : sharedBlockingExecutor();
+    }
+
+    /**
      * @param brokerHost the broker host
      * @return a new binary-protocol call context with a fresh state slot
      */
@@ -108,7 +124,7 @@ public final class V5AuthContexts {
      * @return a future of the result; never throws synchronously
      */
     public static <T> CompletableFuture<T> supplyBlocking(Executor blockingExecutor, Supplier<T> task) {
-        Executor executor = blockingExecutor != null ? blockingExecutor : sharedBlockingExecutor();
+        Executor executor = blockingExecutorOrShared(blockingExecutor);
         try {
             return CompletableFuture.supplyAsync(task, executor);
         } catch (Throwable t) {
@@ -156,6 +172,29 @@ public final class V5AuthContexts {
         }
     }
 
+    /**
+     * The scheduler handed to a plugin when no client bound services. Like the blocking pool it is a
+     * process-lifetime daemon pool, so a plugin that schedules a credential refresh outside a client gets a
+     * working scheduler rather than an NPE. One thread is enough: the SPI's contract is that scheduled work
+     * hands the actual blocking off to {@code blockingExecutor()}.
+     */
+    static final class SharedScheduler {
+        static final ScheduledExecutorService INSTANCE = create();
+
+        private static ScheduledExecutorService create() {
+            ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1, runnable -> {
+                Thread thread = new Thread(runnable, "pulsar-auth-scheduler-shared");
+                thread.setDaemon(true);
+                return thread;
+            });
+            executor.setRemoveOnCancelPolicy(true);
+            // Nothing owns this pool, so an idle one must not hold a thread for the life of the process.
+            executor.setKeepAliveTime(60L, TimeUnit.SECONDS);
+            executor.allowCoreThreadTimeOut(true);
+            return executor;
+        }
+    }
+
     private static final class InitContext implements AuthenticationInitContext {
         private final String clientInstanceId;
 
@@ -165,17 +204,27 @@ public final class V5AuthContexts {
 
         @Override
         public PulsarHttpClientFactory httpClientFactory() {
+            // The one accessor that stays null when no client bound services, and the SPI says so: an HTTP
+            // client factory cannot be conjured without the client's TLS configuration and lifecycle, and
+            // handing back a bare one would give a plugin an HTTP client that ignores the deployment's trust
+            // settings. A plugin needing HTTP outside a client supplies its own.
             return null;
         }
 
         @Override
         public ScheduledExecutorService scheduler() {
-            return null;
+            // Never null, for the same reason as blockingExecutor(): the SPI invites a plugin to schedule
+            // credential refresh here, so null makes every third-party plugin NPE or roll its own pool.
+            return SharedScheduler.INSTANCE;
         }
 
         @Override
         public Executor blockingExecutor() {
-            return null;
+            // Never null: the SPI tells a plugin to off-load its blocking work here, so handing it null
+            // would make every third-party plugin either NPE or defensively do the one thing the contract
+            // forbids — run credential I/O on the calling thread. The built-ins are only safe from that
+            // because they funnel through supplyBlocking, which substitutes this same pool.
+            return sharedBlockingExecutor();
         }
 
         @Override
@@ -208,12 +257,19 @@ public final class V5AuthContexts {
 
         @Override
         public ScheduledExecutorService scheduler() {
-            return services.scheduler();
+            // Same fallback as the unbound context, and for the same reason: a component may bind services
+            // while leaving an accessor it has no use for null — the admin binds no scheduler, because
+            // nothing on its own path schedules periodic authentication work. Without this, binding
+            // *partial* services would be worse for a plugin than binding none at all, since the unbound
+            // context guarantees non-null. The SPI's "never null" contract now holds on every path.
+            ScheduledExecutorService scheduler = services.scheduler();
+            return scheduler == null ? SharedScheduler.INSTANCE : scheduler;
         }
 
         @Override
         public Executor blockingExecutor() {
-            return services.blockingExecutor();
+            Executor executor = services.blockingExecutor();
+            return executor == null ? sharedBlockingExecutor() : executor;
         }
 
         @Override

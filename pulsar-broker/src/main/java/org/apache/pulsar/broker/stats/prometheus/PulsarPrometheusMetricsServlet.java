@@ -48,12 +48,19 @@ public class PulsarPrometheusMetricsServlet extends PrometheusMetricsServlet {
     public PulsarPrometheusMetricsServlet(PulsarService pulsar, boolean includeTopicMetrics,
                                           boolean includeConsumerMetrics, boolean includeProducerMetrics,
                                           boolean splitTopicAndPartitionLabel) {
+        this(pulsar, new PrometheusMetricsGenerator(pulsar, includeTopicMetrics, includeConsumerMetrics,
+                includeProducerMetrics, splitTopicAndPartitionLabel, Clock.systemUTC()));
+    }
+
+    public PulsarPrometheusMetricsServlet(PulsarService pulsar) {
+        this(pulsar, new PrometheusMetricsGenerator(pulsar, Clock.systemUTC()));
+    }
+
+    private PulsarPrometheusMetricsServlet(PulsarService pulsar, PrometheusMetricsGenerator metricsGenerator) {
         super(pulsar.getConfiguration().getMetricsServletTimeoutMs(), pulsar.getConfiguration().getClusterName(),
                 EXECUTOR_MAX_THREADS);
         MetricsExports.initialize();
-        prometheusMetricsGenerator =
-                new PrometheusMetricsGenerator(pulsar, includeTopicMetrics, includeConsumerMetrics,
-                        includeProducerMetrics, splitTopicAndPartitionLabel, Clock.systemUTC());
+        prometheusMetricsGenerator = metricsGenerator;
         gzipCompressionEnabledForMetrics = isGzipCompressionEnabledForEndpoint(
                 pulsar.getConfiguration().getHttpServerGzipCompressionExcludedPaths(), DEFAULT_METRICS_PATH);
     }

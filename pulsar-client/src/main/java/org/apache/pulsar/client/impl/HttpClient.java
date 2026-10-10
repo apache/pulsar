@@ -387,7 +387,12 @@ public class HttpClient implements Closeable {
             // and newRequestHeader returns their static HTTP headers.
             CompletableFuture<Map<String, String>> stage = new CompletableFuture<>();
             authentication.authenticationStage(uri.toString(), authData, null, stage);
-            return stage.thenApply(respHeaders -> {
+            // thenApplyAsync, not thenApply: newRequestHeader is the second synchronous v4 hook, and a plugin
+            // that completes the stage asynchronously completes it from its own HTTP callback thread — so a
+            // plain continuation would run that hook there, which off-loading the resolution alone does not
+            // cover. Where the stage completes inline (the single-pass default) the hop is to a sibling task
+            // on this same executor, and where no executor was supplied it is a direct call as before.
+            return stage.thenApplyAsync(respHeaders -> {
                 try {
                     Set<Entry<String, String>> headers =
                             authentication.newRequestHeader(uri.toString(), authData, respHeaders);
@@ -400,7 +405,7 @@ public class HttpClient implements Closeable {
                 } catch (Exception e) {
                     throw new CompletionException(e);
                 }
-            });
+            }, blockingAuthExecutor);
         } catch (Throwable t) {
             return CompletableFuture.failedFuture(t);
         }

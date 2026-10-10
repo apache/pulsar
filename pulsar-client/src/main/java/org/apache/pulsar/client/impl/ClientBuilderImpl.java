@@ -72,7 +72,14 @@ public class ClientBuilderImpl implements ClientBuilder {
             setAuthenticationFromPropsIfAvailable(conf);
         }
         PulsarClientImpl.PulsarClientImplBuilder instanceBuilder = PulsarClientImpl.builder();
-        instanceBuilder.conf(conf);
+        // PIP-478: hand the client its own configuration object. The client stores the TLS factory it
+        // composes back onto this object (PulsarClientImpl.setupClientTlsFactory), so sharing the
+        // builder's instance would make a second build() adopt — and re-initialize — the first client's
+        // live factory, and closing either client would then close TLS for the other. Building more than
+        // one client from a builder is ordinary usage, so the configuration must not be shared state.
+        // Callers that mutate the builder's configuration (BrokerService, WorkerUtils, CompactorTool,
+        // NamespaceService) all do so before build(), so the copy carries their changes.
+        instanceBuilder.conf(conf.clone());
         if (sharedResources != null) {
             sharedResources.applyTo(instanceBuilder);
         }

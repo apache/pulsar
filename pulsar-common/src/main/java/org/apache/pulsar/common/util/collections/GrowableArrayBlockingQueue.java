@@ -49,6 +49,7 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
     private final Condition isNotEmpty = headLock.newCondition();
 
     private T[] data;
+    private volatile int capacity;
 
     @SuppressWarnings("rawtypes")
     private static final AtomicIntegerFieldUpdater<GrowableArrayBlockingQueue> SIZE_UPDATER = AtomicIntegerFieldUpdater
@@ -70,6 +71,7 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
 
         int capacity = io.netty.util.internal.MathUtil.findNextPositivePowerOfTwo(initialCapacity);
         data = (T[]) new Object[capacity];
+        this.capacity = capacity;
     }
 
     @Override
@@ -373,6 +375,16 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
     }
 
     @Override
+    public Object[] toArray() {
+        return toList().toArray();
+    }
+
+    @Override
+    public <R> R[] toArray(R[] array) {
+        return toList().toArray(array);
+    }
+
+    @Override
     public void forEach(Consumer<? super T> action) {
         long stamp = tailLock.writeLock();
         headLock.lock();
@@ -457,30 +469,78 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
         return terminated;
     }
 
-    @SuppressWarnings("unchecked")
     private void expandArray() {
         // We already hold the tailLock
         headLock.lock();
 
         try {
-            int size = SIZE_UPDATER.get(this);
-            int newCapacity = data.length * 2;
-            T[] newData = (T[]) new Object[newCapacity];
-
-            int oldHeadIndex = headIndex.value;
-            int newTailIndex = 0;
-
-            for (int i = 0; i < size; i++) {
-                newData[newTailIndex++] = data[oldHeadIndex];
-                oldHeadIndex = (oldHeadIndex + 1) & (data.length - 1);
-            }
-
-            data = newData;
-            headIndex.value = 0;
-            tailIndex.value = size;
+            resizeArray(data.length * 2);
         } finally {
             headLock.unlock();
         }
+    }
+
+    /** Returns the current backing-array capacity, which can change concurrently. */
+    public int capacity() {
+        return capacity;
+    }
+
+    /**
+     * Attempts to shrink a queue that is at most one-quarter full, leaving room for twice its size
+     * and at least 64 elements. Does not wait for busy queue locks. No elements are discarded.
+     *
+     * @return the number of backing-array slots released, or zero if no shrink was performed
+     */
+    public int trim() {
+        long stamp = tailLock.tryWriteLock();
+        if (stamp == 0) {
+            return 0;
+        }
+        try {
+            if (!headLock.tryLock()) {
+                return 0;
+            }
+            try {
+                int oldCapacity = data.length;
+                if (oldCapacity <= 64 || size > oldCapacity / 4) {
+                    return 0;
+                }
+                // The occupancy check bounds size * 2 below the current capacity, avoiding overflow.
+                int newCapacity = 64;
+                while (newCapacity < size * 2) {
+                    newCapacity *= 2;
+                }
+                resizeArray(newCapacity);
+                return oldCapacity - newCapacity;
+            } finally {
+                headLock.unlock();
+            }
+        } finally {
+            tailLock.unlockWrite(stamp);
+        }
+    }
+
+    /**
+     * Called with both queue locks held after resizing. Overrides must not throw or acquire other
+     * queue locks. Intended for infrequent capacity accounting, not per-element notifications.
+     */
+    protected void capacityChanged(int newCapacity) {
+    }
+
+    @SuppressWarnings("unchecked")
+    private void resizeArray(int newCapacity) {
+        int size = this.size;
+        T[] newData = (T[]) new Object[newCapacity];
+        int oldHeadIndex = headIndex.value;
+        for (int i = 0; i < size; i++) {
+            newData[i] = data[oldHeadIndex];
+            oldHeadIndex = (oldHeadIndex + 1) & (data.length - 1);
+        }
+        data = newData;
+        headIndex.value = 0;
+        tailIndex.value = size;
+        capacity = newCapacity;
+        capacityChanged(newCapacity);
     }
 
     static final class PaddedInt {
