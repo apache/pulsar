@@ -36,6 +36,7 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -46,6 +47,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.ConsumerRegistration;
@@ -67,6 +69,7 @@ import org.apache.pulsar.common.policies.data.ScalableSubscriptionType;
 import org.apache.pulsar.common.policies.data.ScalableTopicStats;
 import org.apache.pulsar.common.policies.data.SegmentTopicStats;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
+import org.apache.pulsar.common.scalable.SegmentInfo;
 import org.apache.pulsar.common.scalable.SegmentTopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -888,6 +891,52 @@ public class ScalableTopicControllerTest {
         controller.runGcTickAsync().get();
         assertTrue(controller.getLayout().get().getAllSegments().containsKey(0L),
                 "negative retention must keep sealed segments forever");
+    }
+
+    /**
+     * Ancestors first: a sealed segment that every subscription has drained stays in the DAG while
+     * its parent is still there. Pruning it would drop it from its children's parent lists, and a
+     * consumer could then read its children before the parent's remaining messages.
+     */
+    @Test
+    public void testGcTickPrunesAncestorsFirst() throws Exception {
+        installGcMocks(/* nsRetentionMinutes */ 1);
+        long startMs = 1_700_000_000_000L;
+        AdjustableClock clock = new AdjustableClock(startMs);
+        if (controller != null) {
+            controller.close().join();
+        }
+        controller = newControllerWithClock(topicName, clock, Duration.ofHours(1));
+        controller.initialize().get();
+        resources.createSubscriptionAsync(topicName, "sub-a", SubscriptionType.STREAM).get();
+
+        // Split 0, then split one of its children: that child is now a sealed intermediate segment.
+        controller.splitSegment(0).get();
+        long intermediate = controller.getLayout().get().getAllSegments().get(0L).childIds().get(1);
+        controller.splitSegment(intermediate).get();
+        SegmentInfo root = controller.getLayout().get().getAllSegments().get(0L);
+        String rootTopic = SegmentTopicName.fromParent(topicName, root.hashRange(), 0L).toString();
+        // sub-a still has backlog on segment 0 and has drained everything else.
+        long[] rootBacklog = {5};
+        when(scalableTopics.getSegmentSubscriptionBacklogAsync(anyString(), eq("sub-a")))
+                .thenAnswer(invocation -> CompletableFuture.completedFuture(
+                        rootTopic.equals(invocation.getArgument(0)) ? rootBacklog[0] : 0L));
+
+        clock.set(startMs + TimeUnit.MINUTES.toMillis(1) + 1_000L);
+        controller.runGcTickAsync().get();
+        Map<Long, SegmentInfo> segments = controller.getLayout().get().getAllSegments();
+        assertTrue(segments.containsKey(0L), "segment 0 still has backlog");
+        assertTrue(segments.containsKey(intermediate),
+                "a drained segment must not be pruned while its parent is still in the DAG");
+
+        // Once segment 0 drains it is pruned, and its child goes on the next tick.
+        rootBacklog[0] = 0;
+        controller.runGcTickAsync().get();
+        segments = controller.getLayout().get().getAllSegments();
+        assertFalse(segments.containsKey(0L));
+        assertTrue(segments.containsKey(intermediate), "pruned one generation per tick");
+        controller.runGcTickAsync().get();
+        assertFalse(controller.getLayout().get().getAllSegments().containsKey(intermediate));
     }
 
     /** Settable {@link java.time.Clock} for the GC tick tests. */
