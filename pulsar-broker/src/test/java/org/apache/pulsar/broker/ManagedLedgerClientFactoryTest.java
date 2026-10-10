@@ -20,18 +20,24 @@ package org.apache.pulsar.broker;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import io.netty.channel.EventLoopGroup;
 import io.opentelemetry.api.OpenTelemetry;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
+import org.apache.pulsar.bookie.rackawareness.IsolatedBookieEnsemblePlacementPolicy;
+import org.apache.pulsar.broker.storage.BookkeeperManagedLedgerStorageClass;
+import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.mockito.ArgumentCaptor;
 import org.testng.annotations.DataProvider;
@@ -70,6 +76,37 @@ public class ManagedLedgerClientFactoryTest {
                     .isEqualTo(Boolean.TRUE.equals(extendRecentlyAccessed));
             assertThat(config.getValue().getCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes())
                     .isEqualTo(maxExtensions);
+        }
+    }
+
+    @Test
+    public void testPlacementPolicyClientIsSharedByEquivalentConfigurations() throws Exception {
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setBookkeeperClientExposeStatsToPrometheus(false);
+        BookKeeper defaultClient = mock(BookKeeper.class);
+        BookKeeper policyClient = mock(BookKeeper.class);
+        BookKeeperClientFactory bookkeeperProvider = mock(BookKeeperClientFactory.class);
+        when(bookkeeperProvider.create(any(), any(), any(), any(), isNull(), any()))
+                .thenReturn(CompletableFuture.completedFuture(defaultClient));
+        when(bookkeeperProvider.create(any(), any(), any(), any(), anyMap(), any()))
+                .thenReturn(CompletableFuture.completedFuture(policyClient));
+
+        try (ManagedLedgerClientFactory factory = spy(new ManagedLedgerClientFactory())) {
+            doReturn(mock(ManagedLedgerFactoryImpl.class)).when(factory)
+                    .createManagedLedgerFactory(any(), any(), any(), any(), any());
+            factory.initialize(conf, mock(MetadataStoreExtended.class), bookkeeperProvider,
+                    mock(EventLoopGroup.class), OpenTelemetry.noop());
+            BookkeeperManagedLedgerStorageClass storageClass =
+                    (BookkeeperManagedLedgerStorageClass) factory.getDefaultStorageClass();
+            EnsemblePlacementPolicyConfig firstConfig = new EnsemblePlacementPolicyConfig(
+                    IsolatedBookieEnsemblePlacementPolicy.class, Map.of("group", "primary"));
+            EnsemblePlacementPolicyConfig equivalentConfig = new EnsemblePlacementPolicyConfig(
+                    IsolatedBookieEnsemblePlacementPolicy.class, Map.of("group", "primary"));
+
+            assertThat(storageClass.getBookKeeperClient(firstConfig).join()).isSameAs(policyClient);
+            assertThat(storageClass.getBookKeeperClient(equivalentConfig).join()).isSameAs(policyClient);
+            assertThat(factory.getBkEnsemblePolicyToBookKeeperMap()).hasSize(1);
+            verify(bookkeeperProvider, times(2)).create(any(), any(), any(), any(), any(), any());
         }
     }
 }

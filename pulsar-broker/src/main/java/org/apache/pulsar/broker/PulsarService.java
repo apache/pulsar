@@ -130,6 +130,8 @@ import org.apache.pulsar.broker.stats.PulsarBrokerOpenTelemetry;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
 import org.apache.pulsar.broker.stats.prometheus.PulsarPrometheusMetricsServlet;
+import org.apache.pulsar.broker.storage.BookKeeperClientContext;
+import org.apache.pulsar.broker.storage.BookKeeperPlacementPolicyConfigResolver;
 import org.apache.pulsar.broker.storage.BookkeeperManagedLedgerStorageClass;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorageClass;
@@ -172,6 +174,8 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
+import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig.ParseEnsemblePlacementPolicyConfigException;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.protocol.schema.SchemaStorage;
@@ -1662,6 +1666,64 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         }
     }
 
+    /**
+     * Resolve the namespace placement policy for an auxiliary ledger using the broker's default BookKeeper storage.
+     * The topic's managed-ledger storage class is not used to select the client.
+     *
+     * @param topicName the topic that owns the ledger
+     * @return a future that completes with the BookKeeper client and matching placement metadata
+     */
+    public CompletableFuture<BookKeeperClientContext> getBookKeeperClientContext(TopicName topicName) {
+        return getBookKeeperClientContext(topicName, this::getBookKeeperClient);
+    }
+
+    /**
+     * Resolve the namespace placement policy for an auxiliary ledger, using the caller's BookKeeper client when there
+     * is no custom policy. A custom policy uses the broker's default BookKeeper storage class, not the topic's
+     * managed-ledger storage class. The caller's client must access the same BookKeeper backend for later reads and
+     * deletion.
+     *
+     * @param topicName the topic that owns the ledger
+     * @param fallbackDefaultClient the caller's existing BookKeeper client, used only when there is no custom policy
+     * @return a future that completes with the BookKeeper client and matching placement metadata
+     */
+    public CompletableFuture<BookKeeperClientContext> getBookKeeperClientContext(
+            TopicName topicName, Supplier<BookKeeper> fallbackDefaultClient) {
+        return CompletableFuture.completedFuture(topicName)
+                .thenCompose(name -> {
+                    Objects.requireNonNull(name, "topicName");
+                    return getPulsarResources().getLocalPolicies()
+                            .getLocalPoliciesAsync(name.getNamespaceObject());
+                }).thenCompose(localPolicies -> {
+                    EnsemblePlacementPolicyConfig placementPolicyConfig =
+                            BookKeeperPlacementPolicyConfigResolver.resolve(getConfig(), topicName, localPolicies)
+                                    .orElse(null);
+                    if (placementPolicyConfig == null) {
+                        try {
+                            return CompletableFuture.completedFuture(
+                                    BookKeeperClientContext.create(fallbackDefaultClient.get(), null));
+                        } catch (ParseEnsemblePlacementPolicyConfigException e) {
+                            return CompletableFuture.failedFuture(e);
+                        }
+                    }
+                    ManagedLedgerStorageClass defaultStorageClass =
+                            getManagedLedgerStorage().getDefaultStorageClass();
+                    if (!(defaultStorageClass instanceof BookkeeperManagedLedgerStorageClass bkStorageClass)) {
+                        return CompletableFuture.failedFuture(
+                                new UnsupportedOperationException("BookKeeper client is not available"));
+                    }
+                    return bkStorageClass.getBookKeeperClient(placementPolicyConfig)
+                            .thenCompose(bookKeeper -> {
+                                try {
+                                    return CompletableFuture.completedFuture(
+                                            BookKeeperClientContext.create(bookKeeper, placementPolicyConfig));
+                                } catch (ParseEnsemblePlacementPolicyConfigException e) {
+                                    return CompletableFuture.failedFuture(e);
+                                }
+                            });
+                });
+    }
+
     public ManagedLedgerFactory getDefaultManagedLedgerFactory() {
         return getManagedLedgerStorage().getDefaultStorageClass().getManagedLedgerFactory();
     }
@@ -1779,7 +1841,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     public StrategicTwoPhaseCompactor newStrategicCompactor() throws PulsarServerException {
         return new StrategicTwoPhaseCompactor(this.getConfiguration(),
                 getClient(), getBookKeeperClient(),
-                getCompactorExecutor());
+                getCompactorExecutor(), this::getBookKeeperClientContext);
     }
 
     public synchronized StrategicTwoPhaseCompactor getStrategicCompactor() throws PulsarServerException {

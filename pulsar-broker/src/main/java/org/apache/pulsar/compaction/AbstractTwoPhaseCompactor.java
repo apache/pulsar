@@ -31,6 +31,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
+import java.util.function.Function;
 import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
@@ -38,6 +39,7 @@ import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.impl.LedgerMetadataUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.storage.BookKeeperClientContext;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -46,6 +48,7 @@ import org.apache.pulsar.client.api.RawReader;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.RawBatchConverter;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.util.Backoff;
@@ -76,7 +79,15 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
       PulsarClient pulsar,
       BookKeeper bk,
       ScheduledExecutorService scheduler) {
-    super(conf, pulsar, bk, scheduler);
+    this(conf, pulsar, bk, scheduler, null);
+  }
+
+  public AbstractTwoPhaseCompactor(ServiceConfiguration conf,
+      PulsarClient pulsar,
+      BookKeeper bk,
+      ScheduledExecutorService scheduler,
+      Function<TopicName, CompletableFuture<BookKeeperClientContext>> bookKeeperClientContextProvider) {
+    super(conf, pulsar, bk, scheduler, bookKeeperClientContextProvider);
     phaseOneLoopReadTimeout = Duration.ofSeconds(
         conf.getBrokerServiceCompactionPhaseOneLoopTimeInSeconds());
     topicCompactionRetainNullKey = conf.isTopicCompactionRetainNullKey();
@@ -384,6 +395,18 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
   }
 
   protected CompletableFuture<LedgerHandle> createLedger(BookKeeper bk,
+      Map<String, byte[]> metadata, String topic) {
+    if (bookKeeperClientContextProvider == null) {
+      return createLedgerWithBookKeeper(bk, metadata, topic);
+    }
+    return CompletableFuture.completedFuture(topic)
+        .thenApply(TopicName::get)
+        .thenCompose(bookKeeperClientContextProvider)
+        .thenCompose(clientContext -> createLedgerWithBookKeeper(
+            clientContext.getBookKeeper(), clientContext.withPlacementMetadata(metadata), topic));
+  }
+
+  private CompletableFuture<LedgerHandle> createLedgerWithBookKeeper(BookKeeper bk,
       Map<String, byte[]> metadata, String topic) {
     CompletableFuture<LedgerHandle> bkf = new CompletableFuture<>();
 

@@ -21,11 +21,14 @@ package org.apache.pulsar.compaction;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.Function;
 import lombok.CustomLog;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.storage.BookKeeperClientContext;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.RawReader;
+import org.apache.pulsar.common.naming.TopicName;
 
 /**
  * Compactor for Pulsar topics.
@@ -41,16 +44,27 @@ public abstract class Compactor {
     protected final ScheduledExecutorService scheduler;
     protected final PulsarClient pulsar;
     protected final BookKeeper bk;
+    protected final Function<TopicName, CompletableFuture<BookKeeperClientContext>> bookKeeperClientContextProvider;
     protected final CompactorMXBeanImpl mxBean;
 
     public Compactor(ServiceConfiguration conf,
                      PulsarClient pulsar,
                      BookKeeper bk,
                      ScheduledExecutorService scheduler) {
+        this(conf, pulsar, bk, scheduler, null);
+    }
+
+    public Compactor(ServiceConfiguration conf,
+                     PulsarClient pulsar,
+                     BookKeeper bk,
+                     ScheduledExecutorService scheduler,
+                     Function<TopicName, CompletableFuture<BookKeeperClientContext>>
+                             bookKeeperClientContextProvider) {
         this.conf = conf;
         this.scheduler = scheduler;
         this.pulsar = pulsar;
         this.bk = bk;
+        this.bookKeeperClientContextProvider = bookKeeperClientContextProvider;
         this.mxBean = new CompactorMXBeanImpl();
     }
 
@@ -90,4 +104,3 @@ public abstract class Compactor {
         return this.mxBean;
     }
 }
-
