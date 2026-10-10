@@ -25,16 +25,23 @@ import static org.apache.bookkeeper.util.BookKeeperConstants.COOKIE_NODE;
 import static org.apache.bookkeeper.util.BookKeeperConstants.INSTANCEID;
 import static org.apache.bookkeeper.util.BookKeeperConstants.READONLY;
 import static org.apache.pulsar.metadata.bookkeeper.AbstractMetadataDriver.BLOCKING_CALL_TIMEOUT;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.bookkeeper.bookie.BookieException;
@@ -58,13 +65,41 @@ import org.apache.pulsar.metadata.api.coordination.ResourceLock;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
 
+/**
+ * Registration manager for bookies on top of the pulsar metadata store.
+ *
+ * <p>Registrations are held as ephemeral resource locks, which the coordination layer
+ * revalidates and re-establishes on its own after a metadata store session loss: when the
+ * session is re-established, every tracked lock is revalidated, a lock whose record was swept
+ * is re-created on the live session, and a record still owned by an expired session is
+ * re-written and re-bound. This manager therefore carries no re-registration loop of its own:
+ * it maps the expiry of a registration lock — the point where the lock layer concludes the
+ * registration cannot be held — to the bookkeeper
+ * {@link RegistrationListener#onRegistrationExpired()} contract, so that the consumer can
+ * attempt a fresh registration.
+ *
+ * <p>The bookkeeper {@code ZKRegistrationManager} reports a registration expiry on every
+ * session loss and relies on the surrounding zk client stack to keep re-issuing its
+ * operations against the rebuilt session. The metadata store stack used here does not retry
+ * store operations across a session loss; the lock layer's revalidation is what converges the
+ * registration instead, and the expiry notification fires only when the registration was
+ * genuinely lost to another owner — a same-value record of this bookie, including a stale
+ * copy left by an expired session, is re-adopted or re-created rather than waited out. A
+ * genuine conflict still ends in the same terminal state: the consumer's re-registration
+ * fails and the bookie exits.
+ */
 @CustomLog
 public class PulsarRegistrationManager implements RegistrationManager {
+
+    private static final long MUTATION_EXECUTOR_SHUTDOWN_TIMEOUT_MS = 5000;
 
     private final MetadataStoreExtended store;
     private final CoordinationService coordinationService;
     private final LockManager<BookieServiceInfo> lockManager;
     private final AbstractConfiguration<?> conf;
+
+    /** Timeout of the blocking store calls of the registration mutations. */
+    private final long blockingCallTimeout;
 
     private final String ledgersRootPath;
     private final String cookiePath;
@@ -73,9 +108,49 @@ public class PulsarRegistrationManager implements RegistrationManager {
 
     private final Map<BookieId, ResourceLock<BookieServiceInfo>> bookieRegistration = new ConcurrentHashMap<>();
     private final Map<BookieId, ResourceLock<BookieServiceInfo>> bookieRegistrationReadOnly = new ConcurrentHashMap<>();
-    private final List<RegistrationListener> listeners = new ArrayList<>();
+    private final List<RegistrationListener> listeners = new CopyOnWriteArrayList<>();
+
+    /**
+     * Handles whose release was initiated by a voluntary unregister. The completion of such
+     * a release also completes the lock's expired future, so a release that completes late —
+     * after the synchronous wait of the unregister already timed out — would otherwise look
+     * like a genuine expiry of a still-tracked registration and drive the bookie into a
+     * re-registration of what was just torn down.
+     */
+    private final Set<ResourceLock<BookieServiceInfo>> voluntaryReleases = ConcurrentHashMap.newKeySet();
+
+    /**
+     * Single-threaded executor that serializes all the registration mutations and the
+     * registration-expiry bookkeeping. Public registration calls submit here and block until
+     * completion, because the bookkeeper state machine invokes them synchronously and expects
+     * failures to propagate to the calling thread. A plain single-thread executor — not a
+     * scheduled one — so that close() can reach the discarded queued mutations through the
+     * task list returned by shutdownNow() and fail their callers promptly.
+     */
+    private final ExecutorService mutationExecutor = Executors.newSingleThreadExecutor(
+            new DefaultThreadFactory("bookie-registration-mutation"));
+
+    /**
+     * The registration-expired listeners are notified from this dedicated executor instead of
+     * inline on the mutation executor or on a store event thread: the listeners are third-party
+     * code and must stay isolated, so that a slow or failing listener can neither hold up the
+     * mutation executor nor break the notification of the other listeners.
+     */
+    private final ExecutorService listenerExecutor = Executors.newSingleThreadExecutor(
+            new DefaultThreadFactory("bookie-registration-listener"));
+
+    private final AtomicBoolean closed = new AtomicBoolean(false);
 
     PulsarRegistrationManager(MetadataStoreExtended store, String ledgersRootPath, AbstractConfiguration<?> conf) {
+        this(store, ledgersRootPath, conf, BLOCKING_CALL_TIMEOUT);
+    }
+
+    /**
+     * Visible for testing: allows shortening the timeout of the blocking store calls, so
+     * that the tests can exercise the timeout paths of the registration mutations.
+     */
+    PulsarRegistrationManager(MetadataStoreExtended store, String ledgersRootPath, AbstractConfiguration<?> conf,
+                              long blockingCallTimeout) {
         this.store = store;
         this.conf = conf;
         this.coordinationService = new CoordinationServiceImpl(store);
@@ -84,29 +159,50 @@ public class PulsarRegistrationManager implements RegistrationManager {
         this.cookiePath = ledgersRootPath + "/" + COOKIE_NODE;
         this.bookieRegistrationPath = ledgersRootPath + "/" + AVAILABLE_NODE;
         this.bookieReadonlyRegistrationPath = this.bookieRegistrationPath + "/" + READONLY;
+        this.blockingCallTimeout = blockingCallTimeout;
     }
 
     @Override
     public void close() {
-        for (ResourceLock<BookieServiceInfo> rwBookie : bookieRegistration.values()) {
-            try {
-                rwBookie.release().get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
-            } catch (ExecutionException | TimeoutException ignore) {
-                log.error().attr("lock", rwBookie).exception(ignore.getCause()).log("Cannot release correctly");
-            } catch (InterruptedException ignore) {
-                log.error().attr("lock", rwBookie).exception(ignore).log("Cannot release correctly");
-                Thread.currentThread().interrupt();
-            }
+        if (!closed.compareAndSet(false, true)) {
+            return;
         }
 
-        for (ResourceLock<BookieServiceInfo> roBookie : bookieRegistrationReadOnly.values()) {
-            try {
-                roBookie.release().get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
-            } catch (ExecutionException | TimeoutException ignore) {
-                log.error().attr("lock", roBookie).exception(ignore.getCause()).log("Cannot release correctly");
-            } catch (InterruptedException ignore) {
-                log.error().attr("lock", roBookie).exception(ignore).log("Cannot release correctly");
-                Thread.currentThread().interrupt();
+        // Stop accepting mutations, and fail promptly the callers whose mutations were
+        // accepted but are still queued: shutdownNow() discards them without running, and a
+        // discarded mutation would otherwise leave its caller waiting out the whole mutation
+        // budget. Store operations that were already in flight may still complete after this:
+        // their results are discarded silently by the completion handlers.
+        for (Runnable discarded : mutationExecutor.shutdownNow()) {
+            if (discarded instanceof MutationTask) {
+                ((MutationTask) discarded).failClosed();
+            }
+        }
+        listenerExecutor.shutdown();
+        try {
+            mutationExecutor.awaitTermination(MUTATION_EXECUTOR_SHUTDOWN_TIMEOUT_MS, MILLISECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        for (Map<BookieId, ResourceLock<BookieServiceInfo>> registrations :
+                List.of(bookieRegistration, bookieRegistrationReadOnly)) {
+            for (ResourceLock<BookieServiceInfo> lock : registrations.values()) {
+                try {
+                    lock.release().get(blockingCallTimeout, MILLISECONDS);
+                } catch (ExecutionException | TimeoutException e) {
+                    log.error().attr("lock", lock).exception(e.getCause()).log("Cannot release correctly");
+                    try {
+                        removeOwnRegistrationRecord(lock.getPath());
+                    } catch (BookieException cleanupFailure) {
+                        log.warn().attr("lock", lock).exception(cleanupFailure)
+                                .log("Cannot remove the registration record directly");
+                    }
+                    discardUnreleasableLock(lock);
+                } catch (InterruptedException ignore) {
+                    log.error().attr("lock", lock).exception(ignore).log("Cannot release correctly");
+                    Thread.currentThread().interrupt();
+                }
             }
         }
         try {
@@ -132,34 +228,29 @@ public class PulsarRegistrationManager implements RegistrationManager {
     @Override
     public void registerBookie(BookieId bookieId, boolean readOnly, BookieServiceInfo bookieServiceInfo)
             throws BookieException {
-        String regPath = bookieRegistrationPath + "/" + bookieId;
-        String regPathReadOnly = bookieReadonlyRegistrationPath + "/" + bookieId;
         log.info().attr("bookieId", bookieId).attr("readOnly", readOnly).attr("info", bookieServiceInfo)
                 .log("RegisterBookie");
+        runBlockingMutation(() -> doRegisterBookie(bookieId, readOnly, bookieServiceInfo));
+    }
 
+    /**
+     * Internal registration path, to be run only on the mutation executor. It is only ever
+     * called through the public {@link #registerBookie(BookieId, boolean, BookieServiceInfo)}
+     * adapter, which blocks on the same single-thread executor.
+     */
+    private void doRegisterBookie(BookieId bookieId, boolean readOnly, BookieServiceInfo bookieServiceInfo)
+            throws BookieException {
         try {
             if (readOnly) {
-                ResourceLock<BookieServiceInfo> rwRegistration = bookieRegistration.remove(bookieId);
-                if (rwRegistration != null) {
-                    log.info().attr("bookieId", bookieId)
-                            .log("Bookie was already registered as writable, unregistering");
-                    rwRegistration.release().get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
-                }
+                unregisterTrackedRegistration(bookieId, false);
 
                 bookieRegistrationReadOnly.put(bookieId,
-                        lockManager.acquireLock(regPathReadOnly, bookieServiceInfo)
-                                .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS));
+                        acquireRegistrationLock(bookieId, true, bookieServiceInfo));
             } else {
-                ResourceLock<BookieServiceInfo> roRegistration = bookieRegistrationReadOnly.remove(bookieId);
-                if (roRegistration != null) {
-                    log.info().attr("bookieId", bookieId)
-                            .log("Bookie was already registered as read-only, unregistering");
-                    roRegistration.release().get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
-                }
+                unregisterTrackedRegistration(bookieId, true);
 
                 bookieRegistration.put(bookieId,
-                        lockManager.acquireLock(regPath, bookieServiceInfo)
-                                .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS));
+                        acquireRegistrationLock(bookieId, false, bookieServiceInfo));
             }
         } catch (ExecutionException | TimeoutException ee) {
             log.error().exception(ee).log("Exception registering ephemeral node for Bookie");
@@ -179,22 +270,96 @@ public class PulsarRegistrationManager implements RegistrationManager {
 
     @Override
     public void unregisterBookie(BookieId bookieId, boolean readOnly) throws BookieException {
+        runBlockingMutation(() -> doUnregisterBookie(bookieId, readOnly));
+    }
+
+    private void doUnregisterBookie(BookieId bookieId, boolean readOnly) throws BookieException {
+        unregisterTrackedRegistration(bookieId, readOnly);
+    }
+
+    /**
+     * Releases the tracked registration of the bookie. The handle stays tracked until its
+     * release succeeded, so that a failed unregister, for example on a transient store
+     * failure, can be retried: a retry that finds no handle would silently succeed without
+     * deleting anything. Must run on the mutation executor.
+     */
+    private void unregisterTrackedRegistration(BookieId bookieId, boolean readOnly) throws BookieException {
+        ResourceLock<BookieServiceInfo> registration = registrationMap(readOnly).get(bookieId);
+        if (registration == null) {
+            return;
+        }
+        releaseRegistrationLock(bookieId, readOnly, registration);
+        registrationMap(readOnly).remove(bookieId, registration);
+    }
+
+    /**
+     * Acquires the registration lock and watches its expiry: the expiry of a tracked
+     * registration, the point where the lock layer concludes the registration cannot be held,
+     * is what drives the bookkeeper registration-expired contract.
+     */
+    private ResourceLock<BookieServiceInfo> acquireRegistrationLock(
+            BookieId bookieId, boolean readOnly, BookieServiceInfo bookieServiceInfo)
+            throws InterruptedException, ExecutionException, TimeoutException {
+        ResourceLock<BookieServiceInfo> lock = lockManager
+                .acquireLock(registrationPath(bookieId, readOnly), bookieServiceInfo)
+                .get(blockingCallTimeout, MILLISECONDS);
+        lock.getLockExpiredFuture().thenRun(() -> scheduleOnMutationExecutor(
+                () -> handleRegistrationExpired(bookieId, readOnly, lock)));
+        return lock;
+    }
+
+    /**
+     * The lock of a tracked registration expired. Only the still-tracked handle owns the
+     * notification, and only when the expiry was not the completion of its own voluntary
+     * release: a voluntary unregister removes the handle only after its release succeeded,
+     * and the completion of that release — possibly late, after the synchronous wait of the
+     * unregister already timed out — must not drive the bookie into a re-registration of
+     * what was just torn down.
+     */
+    private void handleRegistrationExpired(BookieId bookieId, boolean readOnly,
+            ResourceLock<BookieServiceInfo> lock) {
+        if (closed.get()) {
+            return;
+        }
+        if (voluntaryReleases.remove(lock)) {
+            // The expiry is the completion of this registration's own voluntary release.
+            registrationMap(readOnly).remove(bookieId, lock);
+            return;
+        }
+        if (registrationMap(readOnly).remove(bookieId, lock)) {
+            log.warn().attr("bookieId", bookieId)
+                    .log("The bookie registration expired, notifying the listeners");
+            notifyRegistrationExpired();
+        }
+    }
+
+    /**
+     * Releases a registration lock, tolerating a BadVersion caused by a revalidation of the
+     * same lock still in flight (its version expectation was reset): in that case the record
+     * is removed directly, when it belongs to this store identity, and the unreleasable
+     * handle is discarded, because the registration it represented is torn down anyway.
+     */
+    private void releaseRegistrationLock(BookieId bookieId, boolean readOnly,
+            ResourceLock<BookieServiceInfo> registration) throws BookieException {
+        // Mark the release as voluntary before it starts: its completion — possibly late,
+        // after the synchronous wait below already timed out — must not be mistaken for a
+        // genuine expiry of the registration.
+        voluntaryReleases.add(registration);
         try {
-            if (readOnly) {
-                ResourceLock<BookieServiceInfo> roRegistration = bookieRegistrationReadOnly.get(bookieId);
-                if (roRegistration != null) {
-                    roRegistration.release().get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
-                }
-            } else {
-                ResourceLock<BookieServiceInfo> rwRegistration = bookieRegistration.get(bookieId);
-                if (rwRegistration != null) {
-                    rwRegistration.release().get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
-                }
-            }
+            registration.release().get(blockingCallTimeout, MILLISECONDS);
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
             throw new BookieException.MetadataStoreException(ie);
         } catch (ExecutionException | TimeoutException e) {
+            if (e instanceof ExecutionException
+                    && e.getCause() instanceof MetadataStoreException.BadVersionException) {
+                log.warn().attr("bookieId", bookieId)
+                        .log("Cannot release the registration lock through its handle,"
+                                + " removing the registration record directly");
+                removeOwnRegistrationRecord(registrationPath(bookieId, readOnly));
+                discardUnreleasableLock(registration);
+                return;
+            }
             throw new BookieException.MetadataStoreException(e);
         }
     }
@@ -366,7 +531,7 @@ public class PulsarRegistrationManager implements RegistrationManager {
                 instanceId.getBytes(StandardCharsets.UTF_8), Optional.of(-1L))
                 .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
 
-        log.info("Successfully formatted BookKeeper metadata");
+        log.info().log("Successfully formatted BookKeeper metadata");
         return true;
     }
 
@@ -406,6 +571,170 @@ public class PulsarRegistrationManager implements RegistrationManager {
 
     @Override
     public void addRegistrationListener(RegistrationListener listener) {
-        // Not implemented. Does not seem to map into MetadataStoreExtended.
+        listeners.add(listener);
+    }
+
+    /**
+     * Runs a registration mutation on the mutation executor, blocking the calling thread until
+     * the mutation completes and propagating its failure, to preserve the synchronous contract
+     * of the bookkeeper registration calls.
+     */
+    private void runBlockingMutation(RegistrationMutation mutation) throws BookieException {
+        // The budget covers the worst-case internal blocking sequence of a mutation: a mode
+        // switch releases the previous registration — a blocking release, plus the get and
+        // the delete of the BadVersion direct-record cleanup — before acquiring the new one,
+        // each step bounded by blockingCallTimeout, plus margin for queueing behind other
+        // work on the single-thread executor.
+        long deadline = System.currentTimeMillis() + 4 * blockingCallTimeout + 5_000;
+        MutationTask task = new MutationTask(mutation);
+        try {
+            mutationExecutor.execute(task);
+        } catch (RejectedExecutionException e) {
+            throw new BookieException.MetadataStoreException(e);
+        }
+
+        try {
+            task.future.get(deadline - System.currentTimeMillis(), MILLISECONDS);
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof BookieException) {
+                throw (BookieException) e.getCause();
+            }
+            throw new BookieException.MetadataStoreException(e.getCause());
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            throw new BookieException.MetadataStoreException(ie);
+        } catch (TimeoutException te) {
+            log.warn().log("The registration mutation did not complete within the waiting"
+                    + " budget; it may still be running in the background");
+            throw new BookieException.MetadataStoreException(te);
+        }
+    }
+
+    private interface RegistrationMutation {
+
+        void run() throws BookieException;
+    }
+
+    /**
+     * A mutation submitted to the mutation executor together with the future its caller
+     * blocks on, so that close() can fail promptly the callers of the mutations that were
+     * accepted but discarded before they ran.
+     */
+    private class MutationTask implements Runnable {
+
+        private final RegistrationMutation mutation;
+        private final CompletableFuture<Void> future = new CompletableFuture<>();
+
+        MutationTask(RegistrationMutation mutation) {
+            this.mutation = mutation;
+        }
+
+        @Override
+        public void run() {
+            if (closed.get()) {
+                failClosed();
+                return;
+            }
+            try {
+                mutation.run();
+                future.complete(null);
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
+            }
+        }
+
+        void failClosed() {
+            future.completeExceptionally(new BookieException.MetadataStoreException(
+                    "The registration manager is closed", new RejectedExecutionException()));
+        }
+    }
+
+    private void scheduleOnMutationExecutor(Runnable task) {
+        try {
+            mutationExecutor.execute(task);
+        } catch (RejectedExecutionException ignore) {
+            // The executor rejects only after close. Run the continuation inline: after close
+            // there is no mutation left to race with, and the continuations only do terminal
+            // bookkeeping, like the cleanup of a stale in-flight registration write. A task
+            // accepted between close()'s closed-CAS and the shutdownNow() that follows is
+            // dropped instead; what it could have cleaned up is a leftover bound to the dying
+            // session, which the store's own shutdown clears.
+            if (closed.get()) {
+                task.run();
+            }
+        }
+    }
+
+    private void notifyRegistrationExpired() {
+        try {
+            listenerExecutor.execute(() -> {
+                for (RegistrationListener listener : listeners) {
+                    try {
+                        listener.onRegistrationExpired();
+                    } catch (Throwable t) {
+                        log.error().exception(t).log("Failed to notify the registration listener");
+                    }
+                }
+            });
+        } catch (RejectedExecutionException ignore) {
+            // The registration manager was closed
+        }
+    }
+
+    /**
+     * Removes the registration record directly, completing inside the current mutation: a
+     * cleanup that only issues the get/delete and returns could race a subsequent registration
+     * that adopted the record — an adoption does not change the version — and delete the
+     * fresh record with the version this cleanup read. Only a record created by this store
+     * identity is removed.
+     */
+    private void removeOwnRegistrationRecord(String path) throws BookieException {
+        Optional<GetResult> result;
+        try {
+            result = store.get(path).get(blockingCallTimeout, MILLISECONDS);
+        } catch (ExecutionException | TimeoutException e) {
+            throw new BookieException.MetadataStoreException(e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new BookieException.MetadataStoreException(e);
+        }
+        if (result.isEmpty() || !result.get().getStat().isCreatedBySelf()) {
+            return;
+        }
+        try {
+            store.delete(path, Optional.of(result.get().getStat().getVersion()))
+                    .get(blockingCallTimeout, MILLISECONDS);
+        } catch (ExecutionException e) {
+            if (!(e.getCause() instanceof MetadataStoreException.NotFoundException)
+                    && !(e.getCause() instanceof MetadataStoreException.BadVersionException)) {
+                throw new BookieException.MetadataStoreException(e);
+            }
+            // The record is already gone, or was rewritten in the meantime by a writer we
+            // cannot attribute to this registration: nothing of it remains to clean up.
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new BookieException.MetadataStoreException(e);
+        } catch (TimeoutException e) {
+            throw new BookieException.MetadataStoreException(e);
+        }
+    }
+
+    /**
+     * Marks a lock that could not be released, for example because it was lost to another
+     * owner, as expired, so that it is discarded by the lock manager instead of failing its
+     * own close path.
+     */
+    private void discardUnreleasableLock(ResourceLock<BookieServiceInfo> lock) {
+        lock.getLockExpiredFuture().complete(null);
+    }
+
+    private Map<BookieId, ResourceLock<BookieServiceInfo>> registrationMap(boolean readOnly) {
+        return readOnly ? bookieRegistrationReadOnly : bookieRegistration;
+    }
+
+    private String registrationPath(BookieId bookieId, boolean readOnly) {
+        return readOnly
+                ? bookieReadonlyRegistrationPath + "/" + bookieId
+                : bookieRegistrationPath + "/" + bookieId;
     }
 }
