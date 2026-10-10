@@ -21,6 +21,7 @@ package pf
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"math"
 	"strconv"
@@ -447,8 +448,21 @@ func (gi *goInstance) processResult(msgInput pulsar.Message, output []byte) {
 	// If the function had an output and the user has specified an output topic, the output needs to be sent to the
 	// assigned output topic.
 	if output != nil && gi.context.instanceConf.funcDetails.Sink.Topic != "" {
+		properties := make(map[string]string)
+		sinkSpec := gi.context.instanceConf.funcDetails.Sink
+		if sinkSpec.ForwardSourceMessageProperty {
+			for key, value := range msgInput.Properties() {
+				properties[key] = value
+			}
+		}
+		if messageID := msgInput.ID(); messageID != nil {
+			properties["__pfn_input_topic__"] = msgInput.Topic()
+			properties["__pfn_input_msg_id__"] = base64.StdEncoding.EncodeToString(messageID.Serialize())
+		}
+
 		asyncMsg := pulsar.ProducerMessage{
-			Payload: output,
+			Payload:    output,
+			Properties: properties,
 		}
 		// Dispatch an async send for the message with callback in case of error.
 		gi.producer.SendAsync(context.Background(), &asyncMsg,

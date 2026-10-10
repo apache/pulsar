@@ -30,10 +30,11 @@ type MockMessage struct {
 	properties map[string]string
 	messageID  *MockMessageID
 	payload    []byte
+	topic      string
 }
 
 func (m *MockMessage) Topic() string {
-	return ""
+	return m.topic
 }
 
 func (m *MockMessage) ProducerName() string {
@@ -136,7 +137,9 @@ func (m *MockMessageID) String() string {
 	return "mock-message-id"
 }
 
-type MockPulsarProducer struct{}
+type MockPulsarProducer struct {
+	sentMessage *pulsar.ProducerMessage
+}
 
 func (producer *MockPulsarProducer) Topic() string {
 	return "publish-topic"
@@ -150,8 +153,9 @@ func (producer *MockPulsarProducer) Send(context.Context, *pulsar.ProducerMessag
 	return nil, nil
 }
 
-func (producer *MockPulsarProducer) SendAsync(context.Context, *pulsar.ProducerMessage,
-	func(pulsar.MessageID, *pulsar.ProducerMessage, error)) {
+func (producer *MockPulsarProducer) SendAsync(_ context.Context, message *pulsar.ProducerMessage,
+	_ func(pulsar.MessageID, *pulsar.ProducerMessage, error)) {
+	producer.sentMessage = message
 }
 
 func (producer *MockPulsarProducer) LastSequenceID() int64 {

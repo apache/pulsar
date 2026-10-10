@@ -21,6 +21,7 @@ package pf
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"strconv"
 	"testing"
@@ -144,6 +145,66 @@ func TestShouldNackInputOnFailure(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			instance := newTestGoInstance(tt.guarantee)
 			assert.Equal(t, tt.want, instance.shouldNackInputOnFailure())
+		})
+	}
+}
+
+func TestProcessResultForwardsSourceMessageProperties(t *testing.T) {
+	tests := []struct {
+		name                    string
+		forwardSourceProperties bool
+		inputProperties         map[string]string
+		wantProperties          map[string]string
+	}{
+		{
+			name:                    "forwards source properties when enabled",
+			forwardSourceProperties: true,
+			inputProperties: map[string]string{
+				"custom-key":           "custom-value",
+				"__pfn_input_topic__":  "spoofed-topic",
+				"__pfn_input_msg_id__": "spoofed-message-id",
+			},
+			wantProperties: map[string]string{
+				"custom-key":           "custom-value",
+				"__pfn_input_topic__":  "input-topic",
+				"__pfn_input_msg_id__": base64.StdEncoding.EncodeToString([]byte("message-id")),
+			},
+		},
+		{
+			name:                    "does not forward source properties when disabled",
+			forwardSourceProperties: false,
+			inputProperties: map[string]string{
+				"custom-key": "custom-value",
+			},
+			wantProperties: map[string]string{
+				"__pfn_input_topic__":  "input-topic",
+				"__pfn_input_msg_id__": base64.StdEncoding.EncodeToString([]byte("message-id")),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			instance := newTestGoInstance(pb.ProcessingGuarantees_ATMOST_ONCE)
+			instance.context.instanceConf.funcDetails.Sink = &pb.SinkSpec{
+				Topic:                        "output-topic",
+				ForwardSourceMessageProperty: tt.forwardSourceProperties,
+			}
+			producer := &MockPulsarProducer{}
+			instance.producer = producer
+			input := &MockMessage{
+				properties: tt.inputProperties,
+				messageID:  &MockMessageID{},
+				payload:    []byte("input"),
+				topic:      "input-topic",
+			}
+
+			instance.processResult(input, []byte("output"))
+
+			if assert.NotNil(t, producer.sentMessage) {
+				assert.Equal(t, tt.wantProperties, producer.sentMessage.Properties)
+			}
+			assert.Equal(t, tt.inputProperties, input.Properties())
 		})
 	}
 }
