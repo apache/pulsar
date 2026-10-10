@@ -129,11 +129,23 @@ class OpReadEntry implements ReadEntriesCallback {
         return op;
     }
 
-    private void internalReadEntriesComplete(List<Entry> returnedEntries) {
+    private void internalReadEntriesComplete(List<Entry> returnedEntries) throws ManagedLedgerException {
         if (returnedEntries.isEmpty()) {
             log.warn().attr("op", this).log("Read no entries unexpectedly");
             checkReadCompletion();
             return;
+        }
+        // The size loop below dereferences every slot. A null slot (e.g. a mixed range-cache
+        // read whose storage leg answers short of the missing range leaves the slot unfilled)
+        // would throw a bare NPE whose fallback path leaks the whole batch's buffers. Fail the
+        // read explicitly instead: discard the batch and surface a proper read failure.
+        for (int i = 0; i < returnedEntries.size(); i++) {
+            if (returnedEntries.get(i) == null) {
+                log.warn().attr("op", this).attr("slot", i)
+                        .log("Delivered entry batch contains a null slot");
+                returnedEntries.forEach(EntryImpl::releaseDiscarded);
+                throw new ManagedLedgerException("Delivered entry batch contains a null slot at index " + i);
+            }
         }
         // Filter the returned entries for individual deleted messages
         int entriesCount = returnedEntries.size();
