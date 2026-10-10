@@ -111,8 +111,13 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
 
     /** The latest assignment update, which {@link #reconcile()} converges the readers onto. */
     private volatile Assignment latestAssignment;
-    /** Coalesces concurrent reconcile attempts; only one runs at a time. */
+    /** Set when the readers must be converged onto {@link #latestAssignment} again. */
+    private final AtomicBoolean reconcileRequested = new AtomicBoolean(false);
+    /** Held while an assignment is applied, so only one is applied at a time. */
     private final AtomicBoolean reconcileInProgress = new AtomicBoolean(false);
+    /** Whether a retry of the readers that failed to attach is scheduled. Guarded by {@code this}. */
+    private boolean retryScheduled = false;
+    /** Paces the retries. Guarded by {@code this}. */
     private final Backoff reconcileBackoff = Backoff.builder()
             .initialDelay(Duration.ofMillis(100))
             .maxBackoff(Duration.ofSeconds(30))
@@ -309,35 +314,50 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
     }
 
     /**
-     * Converge the per-segment readers onto {@link #latestAssignment}, retrying with backoff. A
-     * reader that fails to attach is evicted and retried: otherwise its segment, and every segment
+     * Converge the per-segment readers onto {@link #latestAssignment}. An assignment is applied as
+     * soon as it arrives, not after the readers of the previous one have attached: a reader that
+     * keeps reconnecting must not delay closing a segment that was rebalanced away. A reader that
+     * fails to attach is evicted and retried with backoff: otherwise its segment, and every segment
      * held back on it, would never be read.
      */
     private void reconcile() {
-        if (closed || !reconcileInProgress.compareAndSet(false, true)) {
-            return;
-        }
-        Assignment target = latestAssignment;
-        applyAssignment(target.segments(), target.layout()).whenComplete((__, ex) -> {
-            reconcileInProgress.set(false);
-            if (closed) {
-                return;
-            }
-            if (ex == null) {
-                reconcileBackoff.reset();
-                // If a newer assignment arrived during this one, run again to converge.
-                if (latestAssignment != target) {
-                    reconcile();
-                }
-                return;
-            }
+        reconcileRequested.set(true);
+        // One thread applies at a time, and applies again if asked to meanwhile.
+        while (!closed && reconcileRequested.get() && reconcileInProgress.compareAndSet(false, true)) {
+            reconcileRequested.set(false);
             evictFailedSegmentReaders();
-            Duration delay = reconcileBackoff.next();
-            log.warn().attr("delayMs", delay.toMillis()).exceptionMessage(ex)
-                    .log("Failed to apply segment assignment, retrying after backoff");
-            client.v4Client().timer().newTimeout(timeout -> reconcile(),
-                    delay.toMillis(), TimeUnit.MILLISECONDS);
-        });
+            Assignment target = latestAssignment;
+            applyAssignment(target.segments(), target.layout()).whenComplete((__, ex) -> {
+                if (ex == null) {
+                    synchronized (this) {
+                        reconcileBackoff.reset();
+                    }
+                } else if (!closed) {
+                    scheduleRetry(ex);
+                }
+            });
+            reconcileInProgress.set(false);
+        }
+    }
+
+    /** Retry the readers that failed to attach after a backoff, with at most one retry scheduled. */
+    private void scheduleRetry(Throwable ex) {
+        Duration delay;
+        synchronized (this) {
+            if (retryScheduled) {
+                return;
+            }
+            retryScheduled = true;
+            delay = reconcileBackoff.next();
+        }
+        log.warn().attr("delayMs", delay.toMillis()).exceptionMessage(ex)
+                .log("Failed to apply segment assignment, retrying after backoff");
+        client.v4Client().timer().newTimeout(timeout -> {
+            synchronized (this) {
+                retryScheduled = false;
+            }
+            reconcile();
+        }, delay.toMillis(), TimeUnit.MILLISECONDS);
     }
 
     private void evictFailedSegmentReaders() {
