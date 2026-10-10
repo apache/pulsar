@@ -91,6 +91,47 @@ several times, so that a drift of the host, such as its temperature, affects bot
 Keep the scenario, its settings and the profiler options identical for both revisions. Profiling has a measurement
 cost, so compare profiled runs only with profiled runs.
 
+## Comparing two Pulsar images
+
+Two tasks run a whole comparison of two Pulsar clusters in one command:
+
+- **`compareImages`** compares two released Pulsar images, such as two releases.
+- **`compareImageWithCheckout`** compares a released Pulsar image with this checkout.
+
+```bash
+# Two releases
+./gradlew :tests:performance:launcher:compareImages \
+  -Pperformance.compare.baselineImage=apachepulsar/pulsar:4.0.14 \
+  -Pperformance.compare.candidateImage=apachepulsar/pulsar:5.0.0 \
+  --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --name release-ab'
+# A release and the checkout
+./gradlew :tests:performance:launcher:compareImageWithCheckout \
+  -Pperformance.compare.baselineImage=apachepulsar/pulsar:5.0.0 \
+  --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --name release-ab'
+```
+
+- **Clusters:** each side's ZooKeeper, bookies and brokers run its Pulsar: a released image in the test image built on
+  it, as [Comparing with a released Pulsar](#comparing-with-a-released-pulsar) describes, or the checkout's test image.
+  The gateways and the applications always run the checkout's test image, and with it its Pulsar client, so that only
+  the clusters differ.
+- **Runs:** the task runs the scenario `-Pperformance.compare.repetitions` times on each side, 3 by default, alternating
+  which side runs first (A B, B A, A B, ...), so that a drift of the host affects both sides alike. The arguments are
+  the launcher's; each run gets a run directory of its own, as with `run`, so `--output` isn't allowed.
+- **Median runs:** the task leaves out a run that fails, and a run whose applications received messages out of order or
+  invalid messages, since it measured a bug. Of each side's other runs, it takes the median by
+  `-Pperformance.compare.medianBy`: `throughput`, the default, `publish-p99`, `e2e-p99` or `broker-cpu`; for an even
+  count, the lower of the middle two. For a scenario with a rate limit, where the throughput is the same on both sides,
+  take the median by a latency or by the broker's CPU. The latencies are the 99th percentiles of the runs' latency
+  logs.
+- **Results:** the task writes the comparison to `<reports root>/<yyyy-MM-dd>/comparisons/<name>/<MM-dd-HH-mm-ss>/` and
+  prints its path. Its `README.md` compares the median runs' throughput, publish p99, end-to-end p99 of the slowest
+  application, and broker CPU per million messages, with the change from A to B, and lists every run with its result
+  and a link to its report, or to its console log when it failed. Beside it are the [comparison charts](#comparison-charts) of the median runs, labeled with the images'
+  tags, or `checkout`.
+
+Prepare the host as for any comparison, and keep the comparison's runs and conclusions together, as the next sections
+describe.
+
 ## Comparing with a released Pulsar
 
 To compare a released Pulsar with the checkout, run the baseline with `-Pperformance.clusterPulsarImage=<image>`,
