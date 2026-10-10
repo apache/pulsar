@@ -208,18 +208,20 @@ final class ScalableTopicsWatcher implements ScalableTopicsWatcherSession, AutoC
         }
         log.info().attr("added", added.size()).attr("removed", removed.size())
                 .log("Diff received");
-        // Apply removed before added — covers rapid remove-then-add of the same name.
+        // Apply removed before added — covers rapid remove-then-add of the same name. Only
+        // what changes the set is a change for the listener: the broker can report a topic of
+        // the initial snapshot as added again.
         synchronized (currentSet) {
-            currentSet.removeAll(removed);
-            currentSet.addAll(added);
-            if (!pendingSnapshot) {
-                for (String topic : removed) {
-                    // A topic added since the listener was last notified: it never hears of it.
-                    if (!pendingAdded.remove(topic)) {
-                        pendingRemoved.add(topic);
-                    }
+            for (String topic : removed) {
+                // A topic added since the listener was last notified: it never hears of it.
+                if (currentSet.remove(topic) && !pendingSnapshot && !pendingAdded.remove(topic)) {
+                    pendingRemoved.add(topic);
                 }
-                pendingAdded.addAll(added);
+            }
+            for (String topic : added) {
+                if (currentSet.add(topic) && !pendingSnapshot) {
+                    pendingAdded.add(topic);
+                }
             }
         }
         notifyListener();

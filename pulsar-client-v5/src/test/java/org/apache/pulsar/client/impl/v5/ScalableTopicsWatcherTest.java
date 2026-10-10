@@ -116,6 +116,19 @@ public class ScalableTopicsWatcherTest {
     }
 
     @Test
+    public void testTopicOfSnapshotAddedAgainThenRemovedBeforeSetListenerIsDeliveredAsRemoved() {
+        ScalableTopicsWatcher watcher = watcherWithSnapshot();
+        // The broker can report a topic of the initial snapshot as added again; B is then deleted.
+        watcher.onDiff(List.of(B), List.of());
+        watcher.onDiff(List.of(), List.of(B));
+        RecordingListener listener = new RecordingListener();
+
+        watcher.setListener(listener);
+
+        assertThat(listener.calls).containsExactly("added [] removed [" + B + "]");
+    }
+
+    @Test
     public void testSnapshotBeforeSetListenerIsDeliveredWhole() {
         ScalableTopicsWatcher watcher = watcherWithSnapshot();
         watcher.onDiff(List.of(C), List.of());
@@ -146,15 +159,18 @@ public class ScalableTopicsWatcherTest {
         };
         Thread caller = new Thread(() -> watcher.setListener(listener));
         caller.start();
-        assertThat(delivering.await(10, TimeUnit.SECONDS)).isTrue();
+        try {
+            assertThat(delivering.await(10, TimeUnit.SECONDS)).isTrue();
 
-        // B is deleted, on the I/O thread, while the caller's thread is still delivering C: the I/O thread
-        // must neither wait for that delivery nor call the listener alongside it.
-        watcher.onDiff(List.of(), List.of(B));
-        assertThat(listener.calls).containsExactly("added [" + C + "] removed []");
-
-        resume.countDown();
-        caller.join();
+            // B is deleted, on the I/O thread, while the caller's thread is still delivering C: the I/O
+            // thread must neither wait for that delivery nor call the listener alongside it.
+            watcher.onDiff(List.of(), List.of(B));
+            assertThat(listener.calls).containsExactly("added [" + C + "] removed []");
+        } finally {
+            // Let the caller's thread finish even if an assertion failed.
+            resume.countDown();
+            caller.join();
+        }
         assertThat(listener.calls).containsExactly(
                 "added [" + C + "] removed []",
                 "added [] removed [" + B + "]");
