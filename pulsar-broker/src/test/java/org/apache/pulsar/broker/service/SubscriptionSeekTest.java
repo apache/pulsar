@@ -63,6 +63,7 @@ import org.apache.pulsar.client.api.InjectedClientCnxClientBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
+import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -649,13 +650,15 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         Reader<String> reader =
             pulsarClient.newReader(Schema.STRING).topic(topicName).startMessageId(MessageId.earliest).create();
         while (reader.hasMessageAvailable()) {
-            Message<String> message = reader.readNext();
-            log.info().attr("message", message.getMessageId()).attr("publishTime", message.getPublishTime())
-                    .log("message:");
-            timestampToMessageId.put(message.getPublishTime(), (MessageIdImpl) message.getMessageId());
-            long ledgerId = ((MessageIdImpl) message.getMessageId()).getLedgerId();
-            if (!ledgerIds.contains(ledgerId)) {
-                ledgerIds.add(ledgerId);
+            Messages<String> messages = reader.batchReadNext();
+            for (Message<String> message : messages) {
+                log.info().attr("message", message.getMessageId()).attr("publishTime", message.getPublishTime())
+                        .log("message:");
+                timestampToMessageId.put(message.getPublishTime(), (MessageIdImpl) message.getMessageId());
+                long ledgerId = ((MessageIdImpl) message.getMessageId()).getLedgerId();
+                if (!ledgerIds.contains(ledgerId)) {
+                    ledgerIds.add(ledgerId);
+                }
             }
         }
 
