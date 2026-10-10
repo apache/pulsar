@@ -139,9 +139,20 @@ public class PulsarLedgerManager implements LedgerManager {
         store.put(getLedgerPath(ledgerId), data, Optional.of(-1L))
                 .whenComplete((stat, ex) -> {
                     if (ex != null) {
-                        log.error().attr("ledgerId", ledgerId).exceptionMessage(ex)
-                                .log("Failed to create ledger");
-                        promise.completeExceptionally(mapToBkException(ex));
+                        Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                        if (cause instanceof MetadataStoreException.BadVersionException
+                                || cause instanceof MetadataStoreException.AlreadyExistsException) {
+                            log.debug().attr("ledgerId", ledgerId).exceptionMessage(cause)
+                                    .log("Ledger metadata already exists");
+                            // A create-if-absent conflict means the ledger already exists.
+                            BKException bke = BKException.create(BKException.Code.LedgerExistException);
+                            bke.initCause(cause);
+                            promise.completeExceptionally(bke);
+                        } else {
+                            log.error().attr("ledgerId", ledgerId).exceptionMessage(cause)
+                                    .log("Failed to create ledger");
+                            promise.completeExceptionally(mapToBkException(cause));
+                        }
                         return;
                     }
 
