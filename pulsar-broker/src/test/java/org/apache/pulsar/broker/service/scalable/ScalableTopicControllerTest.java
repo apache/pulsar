@@ -334,6 +334,32 @@ public class ScalableTopicControllerTest {
     }
 
     @Test
+    public void testRestoredCheckpointGroupGetsWholeSegments() throws Exception {
+        // One segment with N = 4 entry-buckets and three persisted members of a checkpoint group.
+        // After a controller failover the members are restored without their consumer type, which
+        // isn't persisted: the first one to reconnect must still get the segment whole.
+        TopicName oneSegment = TopicName.get("topic://tenant/ns/one-segment");
+        resources.createScalableTopicAsync(oneSegment,
+                ScalableTopicController.createInitialMetadata(1, 4, Map.of())).get();
+        resources.createSubscriptionAsync(oneSegment, "group", SubscriptionType.STREAM).get();
+        for (String member : List.of("member-1", "member-2", "member-3")) {
+            resources.registerConsumerAsync(oneSegment, "group", member).get();
+        }
+        ScalableTopicController restored = newController(oneSegment);
+        try {
+            restored.initialize().get();
+            ConsumerAssignment assignment = restored.registerConsumer("group", "member-1", 1L,
+                    ScalableConsumerType.CHECKPOINT, mock(TransportCnx.class)).get();
+
+            assertEquals(assignment.assignedSegments().size(), 1);
+            assertTrue(assignment.assignedSegments().get(0).bucketRanges().isEmpty(),
+                    "a checkpoint member must get the segment whole, not a share of its buckets");
+        } finally {
+            restored.close().join();
+        }
+    }
+
+    @Test
     public void testUnregisterConsumerDeletesPersistedEntry() throws Exception {
         controller.initialize().get();
         controller.registerConsumer("sub-a", "c1", 1L, ScalableConsumerType.STREAM, mock(TransportCnx.class)).get();
