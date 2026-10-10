@@ -18,21 +18,35 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions;
 
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Free;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Owned;
+import static org.assertj.core.api.Assertions.assertThat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannel;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateMetadataStoreTableViewImpl;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateTableViewImpl;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
@@ -45,6 +59,7 @@ import org.testng.annotations.Test;
 public class ExtensibleLoadManagerCloseTest {
 
     private static final String clusterName = "test";
+    private static final Map<String, AssignmentRace> assignmentRaces = new ConcurrentHashMap<>();
     private final List<PulsarService> brokers = new ArrayList<>();
     private LocalBookkeeperEnsemble bk;
 
@@ -55,8 +70,14 @@ public class ExtensibleLoadManagerCloseTest {
     }
 
     private void setupBrokers(int numBrokers, boolean topicPoliciesEnabled) throws Exception {
+        setupBrokers(numBrokers, topicPoliciesEnabled, ServiceUnitStateTableViewImpl.class.getName());
+    }
+
+    private void setupBrokers(int numBrokers, boolean topicPoliciesEnabled, String tableViewClass) throws Exception {
         for (int i = 0; i < numBrokers; i++) {
-            final var broker = new PulsarService(brokerConfig(topicPoliciesEnabled));
+            var config = brokerConfig(topicPoliciesEnabled);
+            config.setLoadManagerServiceUnitStateTableViewClassName(tableViewClass);
+            final var broker = new PulsarService(config);
             brokers.add(broker);
             broker.start();
         }
@@ -156,5 +177,119 @@ public class ExtensibleLoadManagerCloseTest {
         final var closeTimeMs = System.currentTimeMillis() - start;
         log.info().attr("closeTimeMs", closeTimeMs).log("Broker close time");
         Assert.assertTrue(closeTimeMs < 5000L);
+    }
+
+    @DataProvider
+    public Object[][] systemBundleCleanup() {
+        return new Object[][]{
+                {DelayedSystemTopicTableView.class.getName(), false},
+                {DelayedSystemTopicTableView.class.getName(), true},
+                {DelayedMetadataStoreTableView.class.getName(), false},
+                {DelayedMetadataStoreTableView.class.getName(), true}
+        };
+    }
+
+    @Test(dataProvider = "systemBundleCleanup", timeOut = 60000)
+    public void testCleanupRetriesConcurrentSystemAssignment(String tableViewClass, boolean hasDestination)
+            throws Exception {
+        setupBrokers(hasDestination ? 2 : 1, false, tableViewClass);
+        var broker = brokers.get(0);
+        var channel = ServiceUnitStateChannelImpl.get(broker);
+        // Do not unload the ownership channel itself while checking the result of system-bundle cleanup.
+        var internalBundles = new ArrayList<String>();
+        for (var internalTopic : ExtensibleLoadManagerImpl.INTERNAL_TOPICS) {
+            internalBundles.add(broker.getNamespaceService().getBundleAsync(TopicName.get(internalTopic))
+                    .get(10, TimeUnit.SECONDS).toString());
+        }
+        String topic;
+        String bundle;
+        do {
+            topic = "persistent://pulsar/system/cleanup-" + UUID.randomUUID();
+            bundle = broker.getNamespaceService().getBundleAsync(TopicName.get(topic))
+                    .get(10, TimeUnit.SECONDS).toString();
+        } while (internalBundles.contains(bundle) || ownership(channel, bundle) != null);
+
+        var race = new AssignmentRace();
+        assignmentRaces.put(bundle, race);
+        CompletableFuture<String> lookup = null;
+        try {
+            // Exercise real lookup, broker selection, state handlers and persistent conflict resolution.
+            // The table views below only delay the normal Owned write until cleanup publishes its override.
+            lookup = broker.getAdminClient().lookups().lookupTopicAsync(topic);
+            var owned = race.pendingOwned.get(10, TimeUnit.SECONDS);
+            var owner = brokers.stream().filter(b -> b.getBrokerId().equals(owned.dstBroker()))
+                    .findFirst().orElseThrow();
+            var replacement = brokers.stream().filter(b -> b != owner).findFirst();
+            var ownerChannel = ServiceUnitStateChannelImpl.get(owner);
+            ownerChannel.cleanOwnerships();
+            assertThat(race.conflictingOverride.get(10, TimeUnit.SECONDS).versionId())
+                    .as("Cleanup must encounter the same-version conflict")
+                    .isEqualTo(owned.versionId());
+            String serviceUnit = bundle;
+            Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+                var remaining = ownership(ownerChannel, serviceUnit);
+                if (hasDestination) {
+                    assertThat(remaining).isNotNull();
+                    assertThat(remaining.state()).isEqualTo(Owned);
+                    assertThat(remaining.dstBroker()).isEqualTo(replacement.orElseThrow().getBrokerId());
+                } else {
+                    assertThat(remaining == null || remaining.state() == Free)
+                            .as("System bundle must not remain owned after cleanup: %s", remaining).isTrue();
+                }
+            });
+        } finally {
+            race.releaseOwned.complete(null);
+            assignmentRaces.remove(bundle, race);
+            if (lookup != null) {
+                // Disabling the original owner can cancel the lookup that triggered the race.
+                lookup.handle((result, error) -> null).get(10, TimeUnit.SECONDS);
+            }
+        }
+    }
+
+    private static ServiceUnitStateData ownership(ServiceUnitStateChannel channel, String bundle) {
+        return channel.getOwnershipEntrySet().stream().filter(entry -> entry.getKey().equals(bundle))
+                .map(Map.Entry::getValue).findFirst().orElse(null);
+    }
+
+    private static class AssignmentRace {
+        private final AtomicBoolean held = new AtomicBoolean();
+        private final CompletableFuture<ServiceUnitStateData> pendingOwned = new CompletableFuture<>();
+        private final CompletableFuture<ServiceUnitStateData> conflictingOverride = new CompletableFuture<>();
+        private final CompletableFuture<Void> releaseOwned = new CompletableFuture<>();
+        private volatile CompletableFuture<Void> ownedPublished;
+    }
+
+    private static CompletableFuture<Void> delayOwnedWrite(String key, ServiceUnitStateData data,
+                                                           Supplier<CompletableFuture<Void>> write) {
+        var race = assignmentRaces.get(key);
+        if (race != null && data != null) {
+            if (data.state() == Owned && !data.force() && race.held.compareAndSet(false, true)) {
+                race.ownedPublished = race.releaseOwned.thenCompose(__ -> write.get());
+                race.pendingOwned.complete(data);
+                return race.ownedPublished;
+            }
+            var owned = race.pendingOwned.getNow(null);
+            if (data.force() && owned != null && data.versionId() == owned.versionId()) {
+                race.conflictingOverride.complete(data);
+                race.releaseOwned.complete(null);
+                return race.ownedPublished.thenCompose(__ -> write.get());
+            }
+        }
+        return write.get();
+    }
+
+    public static class DelayedSystemTopicTableView extends ServiceUnitStateTableViewImpl {
+        @Override
+        public CompletableFuture<Void> put(String key, ServiceUnitStateData value) {
+            return delayOwnedWrite(key, value, () -> super.put(key, value));
+        }
+    }
+
+    public static class DelayedMetadataStoreTableView extends ServiceUnitStateMetadataStoreTableViewImpl {
+        @Override
+        public CompletableFuture<Void> put(String key, ServiceUnitStateData value) {
+            return delayOwnedWrite(key, value, () -> super.put(key, value));
+        }
     }
 }
