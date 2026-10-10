@@ -112,11 +112,14 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
                 .create(serviceAddress)
                 .clientIdentifier(identity)
                 .namespace(namespace)
-                .sessionTimeout(Duration.ofMillis(metadataStoreConfig.getSessionTimeoutMillis()))
                 .maxRequestsPerBatch(metadataStoreConfig.getBatchingMaxOperations());
         if (StringUtils.isNotBlank(metadataStoreConfig.getConfigFilePath())) {
+            // Load the config file before setting the session timeout explicitly: the file may
+            // carry a session timeout of its own, and the pulsar metadata store configuration
+            // must win, so that the client and the session watcher agree on the session timeout.
             oxiaClientBuilder.loadConfig(metadataStoreConfig.getConfigFilePath());
         }
+        oxiaClientBuilder.sessionTimeout(Duration.ofMillis(metadataStoreConfig.getSessionTimeoutMillis()));
         client = oxiaClientBuilder.asyncClient().get();
         this.sessionWatcher = enableSessionWatcher
                 ? new OxiaSessionWatcher(client, this::receivedSessionEvent,

@@ -24,13 +24,14 @@ import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import io.oxia.client.api.AsyncOxiaClient;
 import io.oxia.client.api.GetResult;
 import io.oxia.client.api.Notification;
 import io.oxia.client.api.PutResult;
+import io.oxia.client.api.options.GetOption;
 import io.oxia.client.api.options.PutOption;
+import io.oxia.client.api.options.defs.OptionPartitionKey;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -53,6 +54,8 @@ class OxiaSessionWatcherTest {
     private AtomicInteger getCalls;
     private AtomicReference<String> putKey;
     private AtomicReference<Set<PutOption>> putOptions;
+    private List<String> putPartitionKeys;
+    private List<String> getPartitionKeys;
 
     @BeforeMethod
     void setup() {
@@ -62,20 +65,38 @@ class OxiaSessionWatcherTest {
         getCalls = new AtomicInteger();
         putKey = new AtomicReference<>();
         putOptions = new AtomicReference<>();
+        putPartitionKeys = new CopyOnWriteArrayList<>();
+        getPartitionKeys = new CopyOnWriteArrayList<>();
         stubPut(() -> CompletableFuture.completedFuture(null));
     }
 
-    private Answer<CompletableFuture<PutResult>> recording(Supplier<CompletableFuture<PutResult>> outcome) {
+    private Answer<CompletableFuture<PutResult>> recordingPut(
+            Supplier<CompletableFuture<PutResult>> outcome) {
         return invocation -> {
             putKey.set(invocation.getArgument(0));
-            putOptions.set(invocation.getArgument(2));
+            Set<PutOption> options = invocation.getArgument(2);
+            putOptions.set(options);
+            options.stream().filter(OptionPartitionKey.class::isInstance)
+                    .map(OptionPartitionKey.class::cast)
+                    .forEach(option -> putPartitionKeys.add(option.partitionKey()));
             putCalls.incrementAndGet();
             return outcome.get();
         };
     }
 
     private void stubPut(Supplier<CompletableFuture<PutResult>> outcome) {
-        doAnswer(recording(outcome)).when(client).put(anyString(), any(), any());
+        doAnswer(recordingPut(outcome)).when(client).put(anyString(), any(), any());
+    }
+
+    private void stubGet(Supplier<CompletableFuture<GetResult>> outcome) {
+        doAnswer(invocation -> {
+            Set<GetOption> options = invocation.getArgument(1);
+            options.stream().filter(OptionPartitionKey.class::isInstance)
+                    .map(OptionPartitionKey.class::cast)
+                    .forEach(option -> getPartitionKeys.add(option.partitionKey()));
+            getCalls.incrementAndGet();
+            return outcome.get();
+        }).when(client).get(anyString(), any());
     }
 
     private OxiaSessionWatcher startedWatcher() {
@@ -89,19 +110,19 @@ class OxiaSessionWatcherTest {
     /**
      * Deterministically waits for the ESTABLISHED state: the existence check only issues its
      * read once the canary write completed, so a read that was issued proves the state. The
-     * probe read is answered with a present canary, which is a no-op.
+     * probe read is answered with a present canary, which is a no-op; waiting for the check to
+     * no longer be in flight proves its answer was processed, so a subsequent check is neither
+     * skipped as a duplicate nor dated against a stale contact timestamp.
      */
     private void awaitSessionEstablished(OxiaSessionWatcher watcher) {
         CompletableFuture<GetResult> probe = new CompletableFuture<>();
-        doAnswer(invocation -> {
-            getCalls.incrementAndGet();
-            return probe;
-        }).when(client).get(anyString());
+        stubGet(() -> probe);
         await().atMost(5, SECONDS).until(() -> {
             watcher.checkCanary();
             return getCalls.get() >= 1;
         });
         probe.complete(mock(GetResult.class));
+        await().atMost(5, SECONDS).until(() -> !watcher.isCheckInFlight());
     }
 
     @Test
@@ -114,7 +135,7 @@ class OxiaSessionWatcherTest {
                             SessionEvent.SessionLost, SessionEvent.SessionReestablished));
             assertThat(putCalls.get()).isEqualTo(2);
             assertThat(putKey.get()).startsWith(OxiaSessionWatcher.CANARY_KEY_PREFIX);
-            assertThat(putOptions.get()).containsExactly(PutOption.AsEphemeralRecord);
+            assertThat(putOptions.get()).contains(PutOption.AsEphemeralRecord);
         }
     }
 
@@ -149,7 +170,7 @@ class OxiaSessionWatcherTest {
     @Test
     void existenceCheckDetectsAMissingCanary() {
         try (OxiaSessionWatcher watcher = startedWatcher()) {
-            doReturn(CompletableFuture.completedFuture(null)).when(client).get(anyString());
+            stubGet(() -> CompletableFuture.completedFuture(null));
             watcher.checkCanary();
 
             await().atMost(5, SECONDS)
@@ -161,7 +182,7 @@ class OxiaSessionWatcherTest {
     @Test
     void existenceCheckIgnoresAPresentCanary() {
         try (OxiaSessionWatcher watcher = startedWatcher()) {
-            doReturn(CompletableFuture.completedFuture(mock(GetResult.class))).when(client).get(anyString());
+            stubGet(() -> CompletableFuture.completedFuture(mock(GetResult.class)));
             watcher.checkCanary();
 
             await().during(1, SECONDS).atMost(3, SECONDS)
@@ -191,7 +212,7 @@ class OxiaSessionWatcherTest {
             // The existence check is issued while the canary is still present, but its read
             // only completes after the canary was deleted and recreated in the meantime.
             CompletableFuture<GetResult> checkRead = new CompletableFuture<>();
-            doReturn(checkRead).when(client).get(anyString());
+            stubGet(() -> checkRead);
             watcher.checkCanary();
 
             // The canary is deleted while the read is in flight: the loss is reported and the
@@ -215,6 +236,60 @@ class OxiaSessionWatcherTest {
                                 SessionEvent.SessionLost, SessionEvent.SessionReestablished);
                         assertThat(putCalls.get()).isEqualTo(2);
                     });
+        }
+    }
+
+    @Test
+    void aStaleCheckFailureDoesNotDisconnectTheNewIncarnation() {
+        try (OxiaSessionWatcher watcher = startedWatcher()) {
+            // The existence check is issued while the session is fine, but its read only fails
+            // after the session was lost and re-established in the meantime.
+            CompletableFuture<GetResult> checkRead = new CompletableFuture<>();
+            stubGet(() -> checkRead);
+            watcher.checkCanary();
+            assertThat(getCalls.get()).isEqualTo(2);
+
+            CompletableFuture<PutResult> recreation = new CompletableFuture<>();
+            stubPut(() -> recreation);
+            watcher.handleNotification(new Notification.KeyDeleted(putKey.get()));
+            await().atMost(5, SECONDS).until(() -> events.contains(SessionEvent.SessionLost));
+            await().atMost(5, SECONDS).until(() -> putCalls.get() == 2);
+            recreation.complete(null);
+            await().atMost(5, SECONDS).until(() -> events.contains(SessionEvent.SessionReestablished));
+
+            // The stale read of the expired incarnation fails: it must not disconnect the
+            // re-established session of the new incarnation.
+            checkRead.completeExceptionally(new RuntimeException("down"));
+
+            await().during(1, SECONDS).atMost(3, SECONDS)
+                    .untilAsserted(() -> {
+                        assertThat(events).containsExactly(
+                                SessionEvent.SessionLost, SessionEvent.SessionReestablished);
+                        assertThat(putCalls.get()).isEqualTo(2);
+                    });
+        }
+    }
+
+    @Test
+    void checksAreSingleFlightWhileAReadIsInFlight() {
+        try (OxiaSessionWatcher watcher = startedWatcher()) {
+            CompletableFuture<GetResult> checkRead = new CompletableFuture<>();
+            stubGet(() -> checkRead);
+
+            watcher.checkCanary();
+            watcher.checkCanary();
+
+            // The second check is skipped while the read of the first one is in flight.
+            assertThat(getCalls.get()).isEqualTo(2);
+
+            checkRead.complete(mock(GetResult.class));
+            await().atMost(5, SECONDS).until(() -> !watcher.isCheckInFlight());
+
+            watcher.checkCanary();
+            assertThat(getCalls.get()).isEqualTo(3);
+
+            await().during(1, SECONDS).atMost(3, SECONDS)
+                    .untilAsserted(() -> assertThat(events).isEmpty());
         }
     }
 
@@ -275,14 +350,13 @@ class OxiaSessionWatcherTest {
     @Test
     void aFailingCheckReportsConnectionLostUntilACheckSucceedsAgain() {
         try (OxiaSessionWatcher watcher = startedWatcher()) {
-            doReturn(CompletableFuture.failedFuture(new RuntimeException("down")))
-                    .when(client).get(anyString());
+            stubGet(() -> CompletableFuture.failedFuture(new RuntimeException("down")));
             watcher.checkCanary();
             await().atMost(5, SECONDS)
                     .untilAsserted(() -> assertThat(events).containsExactly(
                             SessionEvent.ConnectionLost));
 
-            doReturn(CompletableFuture.completedFuture(mock(GetResult.class))).when(client).get(anyString());
+            stubGet(() -> CompletableFuture.completedFuture(mock(GetResult.class)));
             watcher.checkCanary();
 
             await().atMost(5, SECONDS)
@@ -294,24 +368,42 @@ class OxiaSessionWatcherTest {
     }
 
     @Test
-    void sustainedCheckFailuresSpanningASessionTimeoutReportASessionLoss() {
-        try (OxiaSessionWatcher watcher =
-                     new OxiaSessionWatcher(client, events::add, 1)) {
-            watcher.start();
-            await().atMost(5, SECONDS).until(() -> putKey.get() != null);
-            awaitSessionEstablished(watcher);
+    void aSessionTimeoutWithoutAnyAnswerReportsTheLoss() {
+        try (OxiaSessionWatcher watcher = startedWatcher()) {
+            int readsIssued = getCalls.get();
 
-            doReturn(CompletableFuture.failedFuture(new RuntimeException("down")))
-                    .when(client).get(anyString());
+            // No read or write reaches the server for a full session timeout: the server has
+            // reaped the session by then, so the next check reports the loss immediately,
+            // instead of issuing another read that could not be answered either.
+            watcher.expireLastSuccessfulContactForTesting();
+            stubGet(() -> CompletableFuture.failedFuture(new RuntimeException("down")));
             watcher.checkCanary();
+
             await().atMost(5, SECONDS)
                     .untilAsserted(() -> assertThat(events).containsExactly(
-                            SessionEvent.ConnectionLost));
+                            SessionEvent.ConnectionLost,
+                            SessionEvent.SessionLost,
+                            SessionEvent.SessionReestablished));
+            assertThat(getCalls.get()).isEqualTo(readsIssued);
+            // The session loss moved to a fresh canary incarnation.
+            assertThat(putCalls.get()).isEqualTo(2);
+        }
+    }
 
-            // The next check fails after the session timeout has elapsed without an answer:
+    @Test
+    void aCheckFailureLandingAfterTheSessionTimeoutReportsTheLoss() {
+        try (OxiaSessionWatcher watcher = startedWatcher()) {
+            // The check is issued while the last contact is still fresh, but its read only
+            // fails after a full session timeout without an answer elapsed in the meantime:
             // the server has reaped the session by then, so the loss is reported without
             // waiting for the connectivity to return.
+            CompletableFuture<GetResult> checkRead = new CompletableFuture<>();
+            stubGet(() -> checkRead);
             watcher.checkCanary();
+            assertThat(getCalls.get()).isEqualTo(2);
+
+            watcher.expireLastSuccessfulContactForTesting();
+            checkRead.completeExceptionally(new RuntimeException("down"));
 
             await().atMost(5, SECONDS)
                     .untilAsserted(() -> assertThat(events).containsExactly(
@@ -324,9 +416,31 @@ class OxiaSessionWatcherTest {
     }
 
     @Test
+    void theCanaryIsPinnedToOneShardAcrossIncarnations() {
+        try (OxiaSessionWatcher watcher = startedWatcher()) {
+            watcher.handleNotification(new Notification.KeyDeleted(putKey.get()));
+            await().atMost(5, SECONDS)
+                    .untilAsserted(() -> assertThat(events).containsExactly(
+                            SessionEvent.SessionLost, SessionEvent.SessionReestablished));
+            assertThat(putCalls.get()).isEqualTo(2);
+
+            // Every canary request pins the shard through the incarnation-independent prefix,
+            // so that the watcher keeps tracking the session of one and the same shard.
+            assertThat(putPartitionKeys).hasSize(2);
+            assertThat(Set.copyOf(putPartitionKeys)).hasSize(1);
+            String partitionKey = putPartitionKeys.get(0);
+            assertThat(partitionKey).startsWith(OxiaSessionWatcher.CANARY_KEY_PREFIX);
+            assertThat(putKey.get()).startsWith(partitionKey);
+            assertThat(getPartitionKeys).isNotEmpty();
+            assertThat(getPartitionKeys)
+                    .allSatisfy(key -> assertThat(key).isEqualTo(partitionKey));
+        }
+    }
+
+    @Test
     void failedCanaryWriteIsRetriedUntilItSucceeds() {
-        doAnswer(recording(() -> CompletableFuture.failedFuture(new RuntimeException("down"))))
-                .doAnswer(recording(() -> CompletableFuture.completedFuture(null)))
+        doAnswer(recordingPut(() -> CompletableFuture.failedFuture(new RuntimeException("down"))))
+                .doAnswer(recordingPut(() -> CompletableFuture.completedFuture(null)))
                 .when(client).put(anyString(), any(), any());
 
         try (OxiaSessionWatcher watcher =

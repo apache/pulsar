@@ -21,6 +21,7 @@ package org.apache.pulsar.metadata.impl.oxia;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.oxia.client.api.AsyncOxiaClient;
 import io.oxia.client.api.Notification;
+import io.oxia.client.api.options.GetOption;
 import io.oxia.client.api.options.PutOption;
 import java.util.Set;
 import java.util.UUID;
@@ -49,23 +50,27 @@ import org.apache.pulsar.metadata.api.extended.SessionEvent;
  * {@link SessionEvent#SessionReestablished}.
  *
  * <p>Each loss moves to a fresh incarnation of the canary key, a monotonically increasing
- * generation suffixed to the instance-unique prefix. Notifications and write completions are only
- * honored for the current incarnation: a {@code KeyDeleted} of an expired incarnation delivered
- * late — the notification stream resumes from its last offset after a reconnect — cannot flip a
- * live session to lost, and the completion of a write issued before a loss cannot report a
- * recovery. Recovery is only ever reported by a write issued after the loss.
+ * generation suffixed to the instance-unique prefix. Notifications and the completions of reads
+ * and writes are only honored for the incarnation they were matched or issued at: a
+ * {@code KeyDeleted} of an expired incarnation delivered late — the notification stream resumes
+ * from its last offset after a reconnect — cannot flip a live session to lost, the completion of
+ * a write issued before a loss cannot report a recovery, and the answer of a read issued before
+ * a loss can neither lose nor recover the new incarnation. Recovery is only ever reported by a
+ * write issued after the loss.
  *
  * <p>While the session is considered established, a periodic existence check of the canary backs
  * the notification stream up: a deletion whose notification was lost, or that was delivered as a
- * range delete, is detected by the next check instead of being missed forever. The same check
- * monitors connectivity: the first failed check reports {@link SessionEvent#ConnectionLost},
- * check failures spanning a full session timeout report {@link SessionEvent#SessionLost}, and a
- * successful check after a connection loss reports {@link SessionEvent#Reconnected}. A failing
- * check counts as no answer whatever its cause; the window is the session timeout because that is
- * the window after which the server reaps the session — it is the timeout the client sends in
+ * range delete, is detected by the next check instead of being missed forever. At most one check
+ * read is in flight at any time, so that a stalled connection cannot pile up reads that would
+ * all complete at once when it heals. The same check monitors connectivity: the first failed
+ * check reports {@link SessionEvent#ConnectionLost}, a full session timeout without any
+ * successful read or write reports {@link SessionEvent#SessionLost}, and a successful check
+ * after a connection loss reports {@link SessionEvent#Reconnected}. A failing check counts as no
+ * answer whatever its cause; the silence window is the session timeout because that is the
+ * window after which the server reaps the session — it is the timeout the client sends in
  * {@code CreateSessionRequest} — and after which the oxia client itself expires the session. If
- * connectivity returns within the window and the session survived, the pessimistic SessionLost is
- * followed by a prompt SessionReestablished once the canary is rewritten: the same trade-off
+ * connectivity returns within the window and the session survived, the pessimistic SessionLost
+ * is followed by a prompt SessionReestablished once the canary is rewritten: the same trade-off
  * {@code ZKSessionWatcher} makes at its monitor timeout.
  *
  * <p>No ordering is guaranteed between the synthesized session events and the per-key
@@ -73,11 +78,12 @@ import org.apache.pulsar.metadata.api.extended.SessionEvent;
  * per-entry order, so consumers must not rely on SessionLost preceding the Deleted notifications
  * of the records swept with the canary.
  *
- * <p>Known limitation: the oxia client keeps one session per shard and the canary lives on a
- * single shard, so a session loss confined to a different shard — for example the clean session
- * close of a shard rebalance, which sweeps that shard's ephemeral records without an expiry — is
- * not reported by this watcher. The common loss of the session, a server restart or outage, kills
- * the sessions of all shards together with the canary and is fully covered.
+ * <p>Known limitation: the oxia client keeps one session per shard and the canary is pinned to a
+ * single shard — every incarnation is requested with the same partition key — so a session loss
+ * confined to a different shard — for example the clean session close of a shard rebalance,
+ * which sweeps that shard's ephemeral records without an expiry — is not reported by this
+ * watcher. The common loss of the session, a server restart or outage, kills the sessions of all
+ * shards together with the canary and is fully covered.
  */
 @CustomLog
 final class OxiaSessionWatcher implements AutoCloseable {
@@ -104,6 +110,14 @@ final class OxiaSessionWatcher implements AutoCloseable {
     /** Instance-unique prefix of the canary keys; the generation of the moment is appended. */
     private final String canaryKeyPrefix;
 
+    /**
+     * Options of the canary requests. The partition key pins every incarnation of the canary to
+     * the same shard, so that the watcher keeps tracking the session of one and the same shard
+     * instead of hopping to whichever shard a fresh incarnation hashes to.
+     */
+    private final Set<PutOption> canaryPutOptions;
+    private final Set<GetOption> canaryGetOptions;
+
     private final long sessionTimeoutMillis;
     private final long checkIntervalMillis;
 
@@ -115,6 +129,13 @@ final class OxiaSessionWatcher implements AutoCloseable {
      * at any time.
      */
     private final AtomicBoolean canaryWritePending = new AtomicBoolean();
+
+    /**
+     * Set while an existence check read is in flight, so that at most one check runs at any
+     * time: while the connection is down the reads never complete, and stacking them would pile
+     * up unbounded reads behind the stall.
+     */
+    private final AtomicBoolean checkPending = new AtomicBoolean();
 
     private final Object stateLock = new Object();
     private State state = State.STARTING;
@@ -138,10 +159,11 @@ final class OxiaSessionWatcher implements AutoCloseable {
     private int writeFailures;
 
     /**
-     * When the current streak of failing existence checks began, or zero outside a streak. Only
-     * accessed on the executor.
+     * When a read or write last reached the server, in {@link System#nanoTime()} units. A full
+     * session timeout without any answer means the server has reaped the session. Guarded by
+     * {@link #stateLock}.
      */
-    private long checkFailedSinceMillis;
+    private long lastSuccessfulContactNanos = System.nanoTime();
 
     private enum State {
         STARTING, ESTABLISHED, DISCONNECTED, LOST
@@ -152,6 +174,9 @@ final class OxiaSessionWatcher implements AutoCloseable {
         this.client = client;
         this.eventSink = eventSink;
         this.canaryKeyPrefix = CANARY_KEY_PREFIX + UUID.randomUUID() + "-";
+        this.canaryPutOptions =
+                Set.of(PutOption.AsEphemeralRecord, PutOption.PartitionKey(canaryKeyPrefix));
+        this.canaryGetOptions = Set.of(GetOption.PartitionKey(canaryKeyPrefix));
         this.sessionTimeoutMillis = sessionTimeoutMillis;
         this.checkIntervalMillis = Math.max(MIN_CHECK_INTERVAL_MILLIS,
                 Math.min(MAX_CHECK_INTERVAL_MILLIS, sessionTimeoutMillis / 3));
@@ -184,9 +209,19 @@ final class OxiaSessionWatcher implements AutoCloseable {
         if (closed) {
             return;
         }
-        if (notification instanceof Notification.KeyDeleted && notification.key().equals(canaryKey)) {
-            onCanaryGone("deleted");
+        if (!(notification instanceof Notification.KeyDeleted)) {
+            return;
         }
+        int generationAtMatch;
+        synchronized (stateLock) {
+            if (!notification.key().equals(canaryKey)) {
+                return;
+            }
+            // The match and the transition must both be tied to the generation: a deletion
+            // matched here is discarded if the incarnation was replaced before the transition.
+            generationAtMatch = generation;
+        }
+        onCanaryGone("deleted", generationAtMatch);
     }
 
     private void checkCanarySafely() {
@@ -212,70 +247,112 @@ final class OxiaSessionWatcher implements AutoCloseable {
             keyAtIssue = canaryKey;
             generationAtIssue = generation;
         }
+        // A read issued after a full session timeout without an answer cannot have kept the
+        // session alive: report the loss instead of piling another read onto a connection that
+        // may be stalled — the previous reads never completed either.
+        if (escalateIfSessionTimedOut(generationAtIssue)) {
+            return;
+        }
+        // At most one check read is in flight at any time.
+        if (!checkPending.compareAndSet(false, true)) {
+            return;
+        }
         try {
-            client.get(keyAtIssue).whenComplete((result, ex) -> hop(() -> {
-                if (ex != null) {
-                    onCheckFailed(ex);
-                } else if (result != null) {
-                    onCheckSucceeded();
-                } else {
-                    boolean staleRead;
-                    synchronized (stateLock) {
-                        staleRead = closed || generation != generationAtIssue;
+            client.get(keyAtIssue, canaryGetOptions).whenComplete((result, ex) -> hop(() -> {
+                try {
+                    if (ex != null) {
+                        onCheckFailed(ex, generationAtIssue);
+                    } else if (result != null) {
+                        onCheckSucceeded(generationAtIssue);
+                    } else {
+                        // A read of an expired incarnation finds its key missing, but that loss
+                        // was already reported when the incarnation was replaced: the generation
+                        // check inside turns the stale read into a no-op.
+                        onCanaryGone("missing", generationAtIssue);
                     }
-                    // A read of an expired incarnation finds its key missing, but that loss was
-                    // already reported when the incarnation was replaced.
-                    if (!staleRead) {
-                        onCanaryGone("missing");
-                    }
+                } finally {
+                    checkPending.set(false);
                 }
             }));
         } catch (RejectedExecutionException | IllegalStateException ignore) {
             // The client was closed concurrently.
+            checkPending.set(false);
+        } catch (RuntimeException e) {
+            checkPending.set(false);
+            throw e;
         }
     }
 
-    private void onCheckFailed(Throwable ex) {
-        long now = System.currentTimeMillis();
-        boolean sessionTimedOut;
+    private void onCheckFailed(Throwable ex, int generationAtIssue) {
         synchronized (stateLock) {
-            if (closed || state == State.LOST || state == State.STARTING) {
+            if (closed || state == State.LOST || state == State.STARTING
+                    || generation != generationAtIssue) {
                 return;
             }
             if (state == State.ESTABLISHED) {
                 state = State.DISCONNECTED;
-                checkFailedSinceMillis = now;
                 log.warn().exception(ex).log("Oxia metadata store connection was lost");
                 eventSink.accept(SessionEvent.ConnectionLost);
             }
-            sessionTimedOut = now - checkFailedSinceMillis >= sessionTimeoutMillis;
         }
-        if (sessionTimedOut) {
-            // The checks could not reach the server for a full session timeout, by which point
-            // the server has reaped the session. Report the loss now instead of waiting for the
-            // connectivity to return and confirm it.
-            onCanaryGone("unreachable");
-        }
+        escalateIfSessionTimedOut(generationAtIssue);
     }
 
-    private void onCheckSucceeded() {
+    private void onCheckSucceeded(int generationAtIssue) {
         synchronized (stateLock) {
-            if (closed || state != State.DISCONNECTED) {
+            if (closed) {
+                return;
+            }
+            // A successful read proves the server is reachable, whichever incarnation it was
+            // issued for; only the current incarnation's reads may report a reconnect, though.
+            lastSuccessfulContactNanos = System.nanoTime();
+            if (state != State.DISCONNECTED || generation != generationAtIssue) {
                 return;
             }
             state = State.ESTABLISHED;
-            checkFailedSinceMillis = 0L;
             log.info().log("Oxia metadata store connection was re-established");
             eventSink.accept(SessionEvent.Reconnected);
         }
     }
 
-    private void onCanaryGone(String cause) {
+    /**
+     * Reports the session as lost when no read or write reached the server for a full session
+     * timeout, by which point the server has reaped the session. Returns whether the timeout had
+     * elapsed and the loss was reported, so that the caller can skip issuing further requests.
+     */
+    private boolean escalateIfSessionTimedOut(int generationAtIssue) {
+        synchronized (stateLock) {
+            if (closed || state == State.LOST || state == State.STARTING
+                    || generation != generationAtIssue) {
+                return false;
+            }
+            if (System.nanoTime() - lastSuccessfulContactNanos
+                    < TimeUnit.MILLISECONDS.toNanos(sessionTimeoutMillis)) {
+                return false;
+            }
+            if (state == State.ESTABLISHED) {
+                state = State.DISCONNECTED;
+                log.warn().log("No answer from the oxia metadata store for a full session timeout");
+                eventSink.accept(SessionEvent.ConnectionLost);
+            }
+            // Reentrant on the same lock: the loss transition is atomic with the timeout
+            // decision, so a write completing in between cannot resurrect an incarnation that
+            // was just declared dead.
+            onCanaryGone("unreachable", generationAtIssue);
+            return true;
+        }
+    }
+
+    private void onCanaryGone(String cause, int generationAtMatch) {
         // The events are dispatched while holding the lock, so that the listeners observe them
         // in exactly the order of the state transitions, and so that no transition can inter
         // leave with the close. The dispatch is non-blocking.
+        //
+        // The generation check is what makes every signal of a loss — notification, existence
+        // check, session timeout — safe to act on only for the incarnation that raised it:
+        // anything arriving after the incarnation was replaced is a no-op.
         synchronized (stateLock) {
-            if (closed || state == State.LOST) {
+            if (closed || state == State.LOST || generation != generationAtMatch) {
                 return;
             }
             state = State.LOST;
@@ -322,7 +399,7 @@ final class OxiaSessionWatcher implements AutoCloseable {
             generationAtIssue = generation;
         }
         try {
-            client.put(keyAtIssue, CANARY_VALUE, Set.of(PutOption.AsEphemeralRecord))
+            client.put(keyAtIssue, CANARY_VALUE, canaryPutOptions)
                     .whenComplete((result, ex) -> hop(() -> onCanaryWriteCompleted(generationAtIssue, ex)));
         } catch (RuntimeException e) {
             hop(() -> onCanaryWriteCompleted(generationAtIssue, e));
@@ -334,6 +411,12 @@ final class OxiaSessionWatcher implements AutoCloseable {
         synchronized (stateLock) {
             appliesToCurrentIncarnation = !closed && generation == generationAtIssue;
             if (appliesToCurrentIncarnation && ex == null) {
+                // Rest the write chain atomically with the state transition: a canary deletion
+                // processed right after the transition finds the chain rested and re-arms it,
+                // instead of slipping into the window between the two and leaving the watcher
+                // lost with no write chain left.
+                canaryWritePending.set(false);
+                lastSuccessfulContactNanos = System.nanoTime();
                 boolean wasLost = state == State.LOST;
                 state = State.ESTABLISHED;
                 if (wasLost) {
@@ -354,7 +437,6 @@ final class OxiaSessionWatcher implements AutoCloseable {
             return;
         }
         if (ex == null) {
-            canaryWritePending.set(false);
             return;
         }
 
@@ -377,6 +459,22 @@ final class OxiaSessionWatcher implements AutoCloseable {
             executor.execute(task);
         } catch (RejectedExecutionException ignore) {
             // The watcher was closed concurrently.
+        }
+    }
+
+    /** Whether an existence check read is currently in flight. Visible for testing. */
+    boolean isCheckInFlight() {
+        return checkPending.get();
+    }
+
+    /**
+     * Backdates the last successful contact beyond the session timeout, so that tests can drive
+     * the timeout escalation deterministically. Visible for testing.
+     */
+    void expireLastSuccessfulContactForTesting() {
+        synchronized (stateLock) {
+            lastSuccessfulContactNanos =
+                    System.nanoTime() - 2 * TimeUnit.MILLISECONDS.toNanos(sessionTimeoutMillis);
         }
     }
 
