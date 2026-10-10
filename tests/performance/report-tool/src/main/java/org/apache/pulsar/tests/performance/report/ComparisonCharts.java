@@ -107,7 +107,12 @@ public final class ComparisonCharts implements Callable<Integer> {
     }
 
     public static void main(String[] args) {
-        System.exit(new CommandLine(new ComparisonCharts()).execute(args));
+        System.exit(execute(args));
+    }
+
+    /** Charts the runs as the command line does, and returns its exit code instead of exiting. */
+    public static int execute(String... args) {
+        return new CommandLine(new ComparisonCharts()).execute(args);
     }
 
     @Override

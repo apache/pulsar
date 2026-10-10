@@ -80,7 +80,7 @@ val wolfiTestImage = providers.gradleProperty("inttest.testImageVariant").map {
     }
 }.getOrElse(false)
 
-fun JavaExec.configurePerformanceLauncher(profiler: Boolean) {
+fun JavaExec.configurePerformanceLauncher(profiler: Boolean, clusterPulsarImage: Boolean = true) {
     workingDir(rootProject.projectDir)
     dependsOn(":tests:performance:tools:installDist")
     val imageSuffix = if (profiler && wolfiTestImage) "-wolfi" else ""
@@ -137,7 +137,8 @@ fun JavaExec.configurePerformanceLauncher(profiler: Boolean) {
     // The cluster runs a released Pulsar, -Pperformance.clusterPulsarImage=<image> such as apachepulsar/pulsar:4.0.13,
     // in a test image that :tests:java-test-image:dockerBuildCluster builds on it, with the same tag: ZooKeeper, the
     // bookies and the brokers. The workloads keep this repository's test image, and with it its Pulsar client.
-    providers.gradleProperty("performance.clusterPulsarImage").orNull?.let {
+    // A comparison sets each side's cluster image itself, so it doesn't build this one.
+    providers.gradleProperty("performance.clusterPulsarImage").orNull?.takeIf { clusterPulsarImage }?.let {
         dependsOn(":tests:java-test-image:dockerBuildCluster")
         systemProperty("performance.cluster.pulsarImage", it)
         systemProperty("performance.cluster.image",
@@ -149,6 +150,60 @@ fun JavaExec.configurePerformanceLauncher(profiler: Boolean) {
 tasks.named<JavaExec>("run") {
     configurePerformanceLauncher(profiler = false)
     dependsOn(":tests:java-test-image:dockerBuild")
+}
+
+// Compares two Pulsar clusters on a scenario, see tests/performance/docs/comparing-revisions.md: the runs alternate
+// between the sides, -Pperformance.compare.repetitions times each (3 by default), and the comparison charts each side's
+// median run by -Pperformance.compare.medianBy (throughput by default). The gateways and the applications run this
+// checkout's test image, and with it its Pulsar client.
+fun JavaExec.configureImageComparison(candidateIsCheckout: Boolean) {
+    group = "verification"
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("org.apache.pulsar.tests.performance.launcher.ImageComparison")
+    configurePerformanceLauncher(profiler = false, clusterPulsarImage = false)
+    dependsOn(":tests:java-test-image:dockerBuild")
+    if (candidateIsCheckout && providers.gradleProperty("performance.compare.candidateImage").isPresent) {
+        doFirst {
+            throw GradleException("compareImageWithCheckout compares with this checkout; use compareImages to compare" +
+                " with -Pperformance.compare.candidateImage")
+        }
+    }
+    val organization = providers.gradleProperty("docker.organization").getOrElse("apachepulsar")
+    fun clusterImage(image: String) =
+        "$organization/java-test-image:cluster-" + image.replace(Regex("[^A-Za-z0-9_.-]"), "-").takeLast(120)
+    val sides = if (candidateIsCheckout) listOf("Baseline") else listOf("Baseline", "Candidate")
+    sides.forEach { side ->
+        val property = "performance.compare.${side.lowercase()}Image"
+        val image = providers.gradleProperty(property).orNull
+        if (image == null) {
+            // Checked when the task runs, so that configuring other tasks doesn't need the property
+            doFirst {
+                throw GradleException("Set -P$property, such as apachepulsar/pulsar:4.0.14")
+            }
+        } else {
+            dependsOn(":tests:java-test-image:dockerBuildCompare$side")
+            systemProperty("performance.compare.${side.lowercase()}.pulsarImage", image)
+            systemProperty("performance.compare.${side.lowercase()}.image", clusterImage(image))
+        }
+    }
+    listOf("repetitions", "medianBy").forEach { name ->
+        providers.gradleProperty("performance.compare.$name").orNull?.let {
+            systemProperty("performance.compare.$name", it)
+        }
+    }
+    outputs.upToDateWhen { false }
+}
+
+tasks.register<JavaExec>("compareImages") {
+    description = "Compare two released Pulsar images on a scenario, -Pperformance.compare.baselineImage and " +
+        "-Pperformance.compare.candidateImage"
+    configureImageComparison(candidateIsCheckout = false)
+}
+
+tasks.register<JavaExec>("compareImageWithCheckout") {
+    description = "Compare a released Pulsar image, -Pperformance.compare.baselineImage, with this checkout on a " +
+        "scenario"
+    configureImageComparison(candidateIsCheckout = true)
 }
 
 tasks.register<JavaExec>("profile") {
