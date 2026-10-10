@@ -107,8 +107,13 @@ final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchCl
 
     /** Most recent layout target. Reconciles always converge toward this value. */
     private volatile ClientSegmentLayout latestLayout;
-    /** Coalesces concurrent reconcile attempts; only one runs at a time. */
+    /** Set when the segment consumers must be converged onto {@link #latestLayout} again. */
+    private final AtomicBoolean reconcileRequested = new AtomicBoolean(false);
+    /** Held while a layout is applied, so only one is applied at a time. */
     private final AtomicBoolean reconcileInProgress = new AtomicBoolean(false);
+    /** Whether a retry of the segments that failed to subscribe is scheduled. Guarded by {@code this}. */
+    private boolean retryScheduled = false;
+    /** Paces the retries. Guarded by {@code this}. */
     private final Backoff reconcileBackoff = Backoff.builder()
             .initialDelay(Duration.ofMillis(100))
             .maxBackoff(Duration.ofSeconds(30))
@@ -315,36 +320,49 @@ final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchCl
         reconcile();
     }
 
+    /**
+     * Converge the per-segment consumers onto {@link #latestLayout}. A layout is applied as soon as
+     * it arrives, not after the consumers of the previous one have subscribed: a subscribe that keeps
+     * reconnecting must not delay subscribing the segments a split creates. A consumer that fails to
+     * subscribe is evicted and retried with backoff.
+     */
     private void reconcile() {
-        if (closed) {
-            return;
-        }
-        if (!reconcileInProgress.compareAndSet(false, true)) {
-            // A reconcile is already in progress; it will observe the updated latestLayout
-            // when it finishes and re-run if needed.
-            return;
-        }
-        ClientSegmentLayout target = latestLayout;
-        subscribeSegments(target).whenComplete((__, ex) -> {
-            reconcileInProgress.set(false);
-            if (closed) {
-                return;
-            }
-            if (ex == null) {
-                reconcileBackoff.reset();
-                // If a newer layout arrived during this reconcile, run again to converge.
-                if (latestLayout != target) {
-                    reconcile();
-                }
-                return;
-            }
-            // Evict failed subscribe futures so the next attempt can re-try them.
+        reconcileRequested.set(true);
+        // One thread applies at a time, and applies again if asked to meanwhile.
+        while (!closed && reconcileRequested.get() && reconcileInProgress.compareAndSet(false, true)) {
+            reconcileRequested.set(false);
             evictFailedSegmentConsumers();
-            Duration delay = reconcileBackoff.next();
-            log.warn().attr("delayMs", delay.toMillis()).exceptionMessage(ex)
-                    .log("Failed to apply layout update, retrying after backoff");
-            scheduler().schedule(this::reconcile, delay.toMillis(), TimeUnit.MILLISECONDS);
-        });
+            subscribeSegments(latestLayout).whenComplete((__, ex) -> {
+                if (ex == null) {
+                    synchronized (this) {
+                        reconcileBackoff.reset();
+                    }
+                } else if (!closed) {
+                    scheduleRetry(ex);
+                }
+            });
+            reconcileInProgress.set(false);
+        }
+    }
+
+    /** Retry the segments that failed to subscribe after a backoff, with at most one retry scheduled. */
+    private void scheduleRetry(Throwable ex) {
+        Duration delay;
+        synchronized (this) {
+            if (retryScheduled) {
+                return;
+            }
+            retryScheduled = true;
+            delay = reconcileBackoff.next();
+        }
+        log.warn().attr("delayMs", delay.toMillis()).exceptionMessage(ex)
+                .log("Failed to apply layout update, retrying after backoff");
+        scheduler().schedule(() -> {
+            synchronized (this) {
+                retryScheduled = false;
+            }
+            reconcile();
+        }, delay.toMillis(), TimeUnit.MILLISECONDS);
     }
 
     private void evictFailedSegmentConsumers() {
