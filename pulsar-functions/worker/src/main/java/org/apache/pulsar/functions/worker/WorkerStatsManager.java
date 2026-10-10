@@ -19,6 +19,8 @@
 package org.apache.pulsar.functions.worker;
 
 import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.metrics.Meter;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.Summary;
@@ -31,8 +33,9 @@ import lombok.Setter;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.functions.instance.stats.PrometheusTextFormat;
 import org.apache.pulsar.functions.proto.FunctionMetaData;
+import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 
-public class WorkerStatsManager {
+public class WorkerStatsManager implements AutoCloseable {
 
   static {
     DefaultExports.initialize();
@@ -41,7 +44,9 @@ public class WorkerStatsManager {
   private static final String PULSAR_FUNCTION_WORKER_METRICS_PREFIX = "pulsar_function_worker_";
   private static final String START_UP_TIME = "start_up_time_ms";
   private static final String INSTANCE_COUNT = "instance_count";
+  @PulsarDeprecatedMetric(newMetricName = OpenTelemetryWorkerStats.EXPECTED_INSTANCE_COUNT)
   private static final String TOTAL_EXPECTED_INSTANCE_COUNT = "total_expected_instance_count";
+  @PulsarDeprecatedMetric(newMetricName = OpenTelemetryWorkerStats.FUNCTION_COUNT)
   private static final String TOTAL_FUNCTIONS_COUNT = "total_function_count";
   private static final String SCHEDULE_TOTAL_EXEC_TIME = "schedule_execution_time_total_ms";
   private static final String SCHEDULE_STRATEGY_EXEC_TIME = "schedule_strategy_execution_time_ms";
@@ -50,34 +55,43 @@ public class WorkerStatsManager {
   private static final String STOPPING_INSTANCE_PROCESS_TIME = "stop_instance_process_time_ms";
   private static final String STARTING_INSTANCE_PROCESS_TIME = "start_instance_process_time_ms";
   private static final String DRAIN_TOTAL_EXEC_TIME = "drain_execution_time_total_ms";
+  @PulsarDeprecatedMetric(newMetricName = OpenTelemetryWorkerStats.LEADER)
   private static final String IS_LEADER = "is_leader";
 
 
   private static final String[] metricsLabelNames = {"cluster"};
   private final String[] metricsLabels;
 
-  @Setter
   private FunctionRuntimeManager functionRuntimeManager;
 
-  @Setter
   private FunctionMetaDataManager functionMetaDataManager;
 
   @Setter
   private LeaderService leaderService;
 
-  @Setter
   private Supplier<Boolean> isLeader;
 
   private CollectorRegistry collectorRegistry = new CollectorRegistry();
 
+  private final OpenTelemetryWorkerStats openTelemetryWorkerStats;
+
+  @PulsarDeprecatedMetric(newMetricName = OpenTelemetryWorkerStats.STARTUP_DURATION)
   private final Summary statWorkerStartupTime;
+  @PulsarDeprecatedMetric(newMetricName = OpenTelemetryWorkerStats.INSTANCE_COUNT)
   private final Gauge statNumInstances;
+  @PulsarDeprecatedMetric(newMetricName = OpenTelemetryWorkerStats.SCHEDULE_DURATION)
   private final Summary scheduleTotalExecutionTime;
+  @PulsarDeprecatedMetric(newMetricName = OpenTelemetryWorkerStats.SCHEDULE_STRATEGY_DURATION)
   private final Summary scheduleStrategyExecutionTime;
+  @PulsarDeprecatedMetric(newMetricName = OpenTelemetryWorkerStats.REBALANCE_DURATION)
   private final Summary rebalanceTotalExecutionTime;
+  @PulsarDeprecatedMetric(newMetricName = OpenTelemetryWorkerStats.REBALANCE_STRATEGY_DURATION)
   private final Summary rebalanceStrategyExecutionTime;
+  @PulsarDeprecatedMetric(newMetricName = OpenTelemetryWorkerStats.INSTANCE_STOP_DURATION)
   private final Summary stopInstanceProcessTime;
+  @PulsarDeprecatedMetric(newMetricName = OpenTelemetryWorkerStats.INSTANCE_START_DURATION)
   private final Summary startInstanceProcessTime;
+  @PulsarDeprecatedMetric(newMetricName = OpenTelemetryWorkerStats.DRAIN_DURATION)
   private final Summary drainTotalExecutionTime;
 
   // As an optimization
@@ -92,8 +106,14 @@ public class WorkerStatsManager {
   private final Summary.Child drainTotalExecutionTimeChild;
 
   public WorkerStatsManager(WorkerConfig workerConfig, boolean runAsStandalone) {
+    this(workerConfig, runAsStandalone,
+        OpenTelemetry.noop().getMeter(PulsarWorkerOpenTelemetry.INSTRUMENTATION_SCOPE_NAME));
+  }
+
+  public WorkerStatsManager(WorkerConfig workerConfig, boolean runAsStandalone, Meter meter) {
 
     metricsLabels = new String[]{workerConfig.getPulsarFunctionsCluster()};
+    this.openTelemetryWorkerStats = new OpenTelemetryWorkerStats(meter);
 
     statWorkerStartupTime = Summary.build()
       .name(PULSAR_FUNCTION_WORKER_METRICS_PREFIX + START_UP_TIME)
@@ -196,6 +216,21 @@ public class WorkerStatsManager {
     }
   }
 
+  public void setFunctionRuntimeManager(FunctionRuntimeManager functionRuntimeManager) {
+    this.functionRuntimeManager = functionRuntimeManager;
+    openTelemetryWorkerStats.setFunctionRuntimeManager(functionRuntimeManager);
+  }
+
+  public void setFunctionMetaDataManager(FunctionMetaDataManager functionMetaDataManager) {
+    this.functionMetaDataManager = functionMetaDataManager;
+    openTelemetryWorkerStats.setFunctionMetaDataManager(functionMetaDataManager);
+  }
+
+  public void setIsLeader(Supplier<Boolean> isLeader) {
+    this.isLeader = isLeader;
+    openTelemetryWorkerStats.setIsLeader(isLeader);
+  }
+
   private Long startupTimeStart;
   public void startupTimeStart() {
     startupTimeStart = System.nanoTime();
@@ -203,8 +238,9 @@ public class WorkerStatsManager {
 
   public void startupTimeEnd() {
     if (startupTimeStart != null) {
-      double endTimeMs = ((double) System.nanoTime() - startupTimeStart) / 1.0E6D;
-      statWorkerStartupTimeChild.observe(endTimeMs);
+      long elapsedNanos = System.nanoTime() - startupTimeStart;
+      statWorkerStartupTimeChild.observe(elapsedNanos / 1.0E6D);
+      openTelemetryWorkerStats.recordStartupDuration(elapsedNanos);
     }
   }
 
@@ -215,8 +251,9 @@ public class WorkerStatsManager {
 
   public void scheduleTotalExecTimeEnd() {
     if (scheduleTotalExecTimeStart != null) {
-      double endTimeMs = ((double) System.nanoTime() - scheduleTotalExecTimeStart) / 1.0E6D;
-      scheduleTotalExecutionTimeChild.observe(endTimeMs);
+      long elapsedNanos = System.nanoTime() - scheduleTotalExecTimeStart;
+      scheduleTotalExecutionTimeChild.observe(elapsedNanos / 1.0E6D);
+      openTelemetryWorkerStats.recordScheduleDuration(elapsedNanos);
     }
   }
 
@@ -227,8 +264,9 @@ public class WorkerStatsManager {
 
   public void scheduleStrategyExecTimeStartEnd() {
     if (scheduleStrategyExecTimeStart != null) {
-      double endTimeMs = ((double) System.nanoTime() - scheduleStrategyExecTimeStart) / 1.0E6D;
-      scheduleStrategyExecutionTimeChild.observe(endTimeMs);
+      long elapsedNanos = System.nanoTime() - scheduleStrategyExecTimeStart;
+      scheduleStrategyExecutionTimeChild.observe(elapsedNanos / 1.0E6D);
+      openTelemetryWorkerStats.recordScheduleStrategyDuration(elapsedNanos);
     }
   }
 
@@ -239,8 +277,9 @@ public class WorkerStatsManager {
 
   public void rebalanceTotalExecTimeEnd() {
     if (rebalanceTotalExecTimeStart != null) {
-      double endTimeMs = ((double) System.nanoTime() - rebalanceTotalExecTimeStart) / 1.0E6D;
-      rebalanceTotalExecutionTimeChild.observe(endTimeMs);
+      long elapsedNanos = System.nanoTime() - rebalanceTotalExecTimeStart;
+      rebalanceTotalExecutionTimeChild.observe(elapsedNanos / 1.0E6D);
+      openTelemetryWorkerStats.recordRebalanceDuration(elapsedNanos);
     }
   }
 
@@ -251,8 +290,9 @@ public class WorkerStatsManager {
 
   public void rebalanceStrategyExecTimeEnd() {
     if (rebalanceStrategyExecTimeStart != null) {
-      double endTimeMs = ((double) System.nanoTime() - rebalanceStrategyExecTimeStart) / 1.0E6D;
-      rebalanceStrategyExecutionTimeChild.observe(endTimeMs);
+      long elapsedNanos = System.nanoTime() - rebalanceStrategyExecTimeStart;
+      rebalanceStrategyExecutionTimeChild.observe(elapsedNanos / 1.0E6D);
+      openTelemetryWorkerStats.recordRebalanceStrategyDuration(elapsedNanos);
     }
   }
 
@@ -263,8 +303,9 @@ public class WorkerStatsManager {
 
   public void drainTotalExecTimeEnd() {
     if (drainTotalExecTimeStart != null) {
-      double endTimeMs = ((double) System.nanoTime() - drainTotalExecTimeStart) / 1.0E6D;
-      drainTotalExecutionTimeChild.observe(endTimeMs);
+      long elapsedNanos = System.nanoTime() - drainTotalExecTimeStart;
+      drainTotalExecutionTimeChild.observe(elapsedNanos / 1.0E6D);
+      openTelemetryWorkerStats.recordDrainDuration(elapsedNanos);
     }
   }
 
@@ -275,8 +316,9 @@ public class WorkerStatsManager {
 
   public void stopInstanceProcessTimeEnd() {
     if (stopInstanceProcessTimeStart != null) {
-      double endTimeMs = ((double) System.nanoTime() - stopInstanceProcessTimeStart) / 1.0E6D;
-      stopInstanceProcessTimeChild.observe(endTimeMs);
+      long elapsedNanos = System.nanoTime() - stopInstanceProcessTimeStart;
+      stopInstanceProcessTimeChild.observe(elapsedNanos / 1.0E6D);
+      openTelemetryWorkerStats.recordInstanceStopDuration(elapsedNanos);
     }
   }
 
@@ -287,9 +329,15 @@ public class WorkerStatsManager {
 
   public void startInstanceProcessTimeEnd() {
     if (startInstanceProcessTimeStart != null) {
-      double endTimeMs = ((double) System.nanoTime() - startInstanceProcessTimeStart) / 1.0E6D;
-      startInstanceProcessTimeChild.observe(endTimeMs);
+      long elapsedNanos = System.nanoTime() - startInstanceProcessTimeStart;
+      startInstanceProcessTimeChild.observe(elapsedNanos / 1.0E6D);
+      openTelemetryWorkerStats.recordInstanceStartDuration(elapsedNanos);
     }
+  }
+
+  @Override
+  public void close() {
+    openTelemetryWorkerStats.close();
   }
 
   public String getStatsAsString() throws IOException {
