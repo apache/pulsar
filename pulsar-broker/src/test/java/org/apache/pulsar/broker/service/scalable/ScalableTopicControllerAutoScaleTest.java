@@ -341,12 +341,13 @@ public class ScalableTopicControllerAutoScaleTest {
     public void testInvalidBrokerLevelPolicyDisablesAutoScale() throws Exception {
         config.setScalableTopicEntryBucketMaxPerSegment(0); // violates [1, ring] — broker-level
         startController(1);
-        controller.registerConsumer("sub", "c1", 1L, ScalableConsumerType.STREAM,
-                mock(TransportCnx.class)).get();
-        controller.registerConsumer("sub", "c2", 2L, ScalableConsumerType.STREAM,
-                mock(TransportCnx.class)).get();
-        // Must complete normally and take no action (a 2-consumer surplus would otherwise
-        // split or rebucket the cold single segment).
+        // Segment 0 is hot, so a valid policy splits it on this evaluation (the split pass never
+        // reads the bucket ceiling); only the disabled fallback can stop it. Load, not a consumer
+        // surplus: registering a consumer fires its own evaluation, which the call below would
+        // coalesce into, so that split would land only after the assertion.
+        resources.reportSegmentLoadAsync(topicName, 0,
+                new SegmentLoadStats(20_000, 0, 0, 0)).get();
+        // Must complete normally (no IllegalArgumentException) and take no action.
         controller.evaluateAutoScaleForTest().get();
         assertEquals(activeSegmentCount(), 1,
                 "invalid broker-level policy must disable auto scaling, not fail or act");
