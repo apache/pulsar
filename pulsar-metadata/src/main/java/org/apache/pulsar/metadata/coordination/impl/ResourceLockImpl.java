@@ -338,6 +338,13 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                     }
 
                     synchronized (ResourceLockImpl.this) {
+                        if (state == State.Releasing || state == State.Released) {
+                            // The lock was released while the read was in flight: the
+                            // release's sequenced deletion owns the record now, and this
+                            // revalidation must not rewrite or re-create it behind the
+                            // release.
+                            return CompletableFuture.completedFuture(null);
+                        }
                         if (newValue.equals(existingValue)) {
                             // The lock value is still the same, that means that we're the
                             // logical "owners" of the lock.

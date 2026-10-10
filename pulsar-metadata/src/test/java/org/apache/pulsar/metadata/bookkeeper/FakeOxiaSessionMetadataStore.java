@@ -25,9 +25,11 @@ import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Queue;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
@@ -92,6 +94,10 @@ class FakeOxiaSessionMetadataStore extends AbstractMetadataStore {
      */
     private volatile boolean zkOwnershipSemantics = false;
     private final AtomicInteger deletesToFailWithBadVersion = new AtomicInteger();
+    private final AtomicInteger putsToHold = new AtomicInteger();
+    private final AtomicInteger deletesToHold = new AtomicInteger();
+    private final Queue<CompletableFuture<Void>> heldPutGates = new ConcurrentLinkedQueue<>();
+    private final Queue<CompletableFuture<Void>> heldDeleteGates = new ConcurrentLinkedQueue<>();
 
     FakeOxiaSessionMetadataStore(String identity) {
         super("fake-oxia-session-store", OpenTelemetry.noop(), null, 1);
@@ -143,6 +149,16 @@ class FakeOxiaSessionMetadataStore extends AbstractMetadataStore {
         if (unavailable) {
             return failed(new MetadataStoreException("injected store unavailability"));
         }
+        if (putsToHold.getAndUpdate(p -> p > 0 ? p - 1 : 0) > 0) {
+            CompletableFuture<Void> gate = new CompletableFuture<>();
+            heldPutGates.add(gate);
+            return gate.thenCompose(__ -> doStorePut(path, data, optExpectedVersion, opts));
+        }
+        return doStorePut(path, data, optExpectedVersion, opts);
+    }
+
+    private synchronized CompletableFuture<Stat> doStorePut(String path, byte[] data,
+            Optional<Long> optExpectedVersion, Set<Option> opts) {
         Record existing = records.get(path);
         if (optExpectedVersion.isPresent()) {
             long expected = optExpectedVersion.get();
@@ -182,6 +198,15 @@ class FakeOxiaSessionMetadataStore extends AbstractMetadataStore {
         if (unavailable) {
             return failed(new MetadataStoreException("injected store unavailability"));
         }
+        if (deletesToHold.getAndUpdate(d -> d > 0 ? d - 1 : 0) > 0) {
+            CompletableFuture<Void> gate = new CompletableFuture<>();
+            heldDeleteGates.add(gate);
+            return gate.thenCompose(__ -> doStoreDelete(path, optExpectedVersion));
+        }
+        return doStoreDelete(path, optExpectedVersion);
+    }
+
+    private synchronized CompletableFuture<Void> doStoreDelete(String path, Optional<Long> optExpectedVersion) {
         if (deletesToFailWithBadVersion.getAndUpdate(d -> d > 0 ? d - 1 : 0) > 0) {
             return failed(new MetadataStoreException.BadVersionException("injected delete race"));
         }
@@ -310,6 +335,29 @@ class FakeOxiaSessionMetadataStore extends AbstractMetadataStore {
     /** Makes the next n deletes fail with a BadVersion, modeling a lost delete/re-put race. */
     void failNextDeletesWithBadVersion(int n) {
         deletesToFailWithBadVersion.addAndGet(n);
+    }
+
+    /** Holds the next n puts in flight until {@link #releaseHeldOperations()} is called. */
+    void holdNextPuts(int n) {
+        putsToHold.addAndGet(n);
+    }
+
+    /** Holds the next n deletes in flight until {@link #releaseHeldOperations()} is called. */
+    void holdNextDeletes(int n) {
+        deletesToHold.addAndGet(n);
+    }
+
+    /** Releases all held puts and deletes, letting them apply. */
+    void releaseHeldOperations() {
+        heldPutGates.forEach(gate -> gate.complete(null));
+        heldPutGates.clear();
+        heldDeleteGates.forEach(gate -> gate.complete(null));
+        heldDeleteGates.clear();
+    }
+
+    /** The number of puts currently held in flight. */
+    int heldPutCount() {
+        return heldPutGates.size();
     }
 
     @Override

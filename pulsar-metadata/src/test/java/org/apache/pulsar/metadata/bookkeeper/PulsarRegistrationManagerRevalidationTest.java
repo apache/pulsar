@@ -26,6 +26,8 @@ import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.bookkeeper.bookie.BookieException;
 import org.apache.bookkeeper.conf.ServerConfiguration;
@@ -229,5 +231,94 @@ public class PulsarRegistrationManagerRevalidationTest {
 
         assertFalse(store.getRecord(regPath).isPresent());
         assertFalse(store.getRecord(regPathReadOnly).isPresent());
+    }
+
+    /**
+     * A release whose synchronous wait times out stays in flight; when it completes late,
+     * the registration record is removed, but the completion is the unregister's own
+     * release and must not be reported as a registration expiry.
+     */
+    @Test
+    public void lateReleaseCompletionAfterUnregisterTimeoutDoesNotNotify() throws Exception {
+        // A short blocking-call timeout lets the synchronous unregister wait time out while
+        // the release's delete is held in flight.
+        recreateManagerWithBlockingCallTimeout(1000);
+        registrationManager.registerBookie(bookieId, false, bookieServiceInfo());
+
+        store.holdNextDeletes(1);
+        assertThrows(BookieException.MetadataStoreException.class,
+                () -> registrationManager.unregisterBookie(bookieId, false));
+        // The unregister timed out, but its release is still in flight.
+        assertTrue(store.getRecord(regPath).isPresent());
+
+        store.releaseHeldOperations();
+
+        // The late completion of the voluntary release removes the record...
+        await().atMost(5, SECONDS).untilAsserted(() -> assertFalse(store.getRecord(regPath).isPresent()));
+        // ...without being reported as a registration expiry.
+        await().during(1, SECONDS).atMost(2, SECONDS)
+                .untilAsserted(() -> assertEquals(expiredCount.get(), 0));
+
+        // A retry of the unregister finds nothing left and succeeds.
+        registrationManager.unregisterBookie(bookieId, false);
+        assertFalse(store.getRecord(regPath).isPresent());
+    }
+
+    /**
+     * close() must fail promptly the caller of a mutation that was accepted but is still
+     * queued when the manager closes, instead of leaving it waiting out the mutation budget.
+     */
+    @Test
+    public void closeFailsQueuedMutationsPromptly() throws Exception {
+        recreateManagerWithBlockingCallTimeout(1000);
+
+        // The first mutation occupies the mutation executor, blocked on a held store write.
+        store.holdNextPuts(1);
+        CompletableFuture<Throwable> blockedFailure = callInThread(
+                () -> registrationManager.registerBookie(bookieId, false, bookieServiceInfo()));
+        await().atMost(5, SECONDS).until(() -> store.heldPutCount() == 1);
+
+        // The second mutation queues behind it. (If it is submitted only after close(), its
+        // submit is rejected instead — either way it must fail promptly with a rejection
+        // rather than wait out the mutation budget.)
+        CompletableFuture<Throwable> queuedFailure = callInThread(
+                () -> registrationManager.unregisterBookie(bookieId, false));
+        Thread.sleep(500);
+
+        registrationManager.close();
+
+        Throwable queued = queuedFailure.get(10, SECONDS);
+        assertTrue(queued instanceof BookieException.MetadataStoreException);
+        assertTrue(queued.getCause() instanceof RejectedExecutionException);
+
+        Throwable blocked = blockedFailure.get(10, SECONDS);
+        assertTrue(blocked instanceof BookieException.MetadataStoreException);
+
+        store.releaseHeldOperations();
+    }
+
+    private void recreateManagerWithBlockingCallTimeout(long timeoutMs) throws Exception {
+        registrationManager.close();
+        registrationManager = new PulsarRegistrationManager(store, LEDGERS_ROOT, new ServerConfiguration(),
+                timeoutMs);
+        registrationManager.addRegistrationListener(expiredCount::incrementAndGet);
+    }
+
+    private interface ThrowingCall {
+
+        void run() throws BookieException;
+    }
+
+    private static CompletableFuture<Throwable> callInThread(ThrowingCall call) {
+        CompletableFuture<Throwable> result = new CompletableFuture<>();
+        new Thread(() -> {
+            try {
+                call.run();
+                result.complete(null);
+            } catch (Throwable t) {
+                result.complete(t);
+            }
+        }, "test-mutation-caller").start();
+        return result;
     }
 }
