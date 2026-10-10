@@ -50,6 +50,7 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -506,6 +507,79 @@ public class ZeroQueueSizeTest extends SharedPulsarBaseTest {
 
         consumer.unsubscribe();
         producer.close();
+    }
+
+    @Test(timeOut = 30000)
+    public void testReceiveAsyncNotStuckAfterTopicUnload() throws Exception {
+        String topicName = newTopicName();
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .receiverQueueSize(0)
+                .subscribe();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .enableBatching(false)
+                .create();
+
+        try {
+            ConsumerImpl<?> consumerImpl = (ConsumerImpl<?>) consumer;
+            long lastDisconnectedTimestamp = consumerImpl.getLastDisconnectedTimestamp();
+            CompletableFuture<Message<String>> receiveFuture = consumer.receiveAsync();
+
+            admin.topics().unload(topicName);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                    .until(() -> consumerImpl.getLastDisconnectedTimestamp() > lastDisconnectedTimestamp);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).until(consumerImpl::isConnected);
+
+            producer.send("message");
+            assertEquals(receiveFuture.get(10, TimeUnit.SECONDS).getValue(), "message");
+        } finally {
+            consumer.close();
+            producer.close();
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void testMultiplePendingReceiveAsyncNotStuckAfterTopicUnload() throws Exception {
+        String topicName = newTopicName();
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .receiverQueueSize(0)
+                .subscribe();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .enableBatching(false)
+                .create();
+
+        try {
+            ConsumerImpl<?> consumerImpl = (ConsumerImpl<?>) consumer;
+            long lastDisconnectedTimestamp = consumerImpl.getLastDisconnectedTimestamp();
+            List<CompletableFuture<Message<String>>> receiveFutures = List.of(
+                    consumer.receiveAsync(), consumer.receiveAsync(), consumer.receiveAsync());
+
+            admin.topics().unload(topicName);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                    .until(() -> consumerImpl.getLastDisconnectedTimestamp() > lastDisconnectedTimestamp);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).until(consumerImpl::isConnected);
+
+            producer.send("message-0");
+            producer.send("message-1");
+            producer.send("message-2");
+
+            CompletableFuture.allOf(receiveFutures.toArray(CompletableFuture[]::new)).get(10, TimeUnit.SECONDS);
+            Set<String> receivedMessages = new HashSet<>();
+            for (CompletableFuture<Message<String>> receiveFuture : receiveFutures) {
+                receivedMessages.add(receiveFuture.join().getValue());
+            }
+            assertEquals(receivedMessages, Set.of("message-0", "message-1", "message-2"));
+        } finally {
+            consumer.close();
+            producer.close();
+        }
     }
 
     @Test(timeOut = 30000)
