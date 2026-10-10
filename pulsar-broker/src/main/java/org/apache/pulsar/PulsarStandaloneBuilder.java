@@ -19,10 +19,15 @@
 package org.apache.pulsar;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
 
 public final class PulsarStandaloneBuilder {
+    private Path tempBaseDir;
 
     private PulsarStandalone pulsarStandalone;
 
@@ -30,6 +35,18 @@ public final class PulsarStandaloneBuilder {
         pulsarStandalone = new PulsarStandalone();
         pulsarStandalone.setWipeData(true);
         pulsarStandalone.setNoFunctionsWorker(true);
+    }
+
+    public PulsarStandaloneBuilder withTempDirectory() {
+        try {
+            tempBaseDir = Files.createTempDirectory("pulsar-standalone");
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+        pulsarStandalone.setZkDir(tempBaseDir.resolve("zookeeper").toString());
+        pulsarStandalone.setBkDir(tempBaseDir.resolve("bookkeeper").toString());
+        pulsarStandalone.setTempBaseDir(tempBaseDir);
+        return this;
     }
 
     public static PulsarStandaloneBuilder instance() {
