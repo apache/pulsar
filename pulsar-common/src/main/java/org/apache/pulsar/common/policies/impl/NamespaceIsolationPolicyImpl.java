@@ -54,7 +54,13 @@ public class NamespaceIsolationPolicyImpl implements NamespaceIsolationPolicy {
     private List<URL> getMatchedBrokers(List<String> brkRegexList, List<URL> availableBrokers) {
         List<URL> matchedBrokers = new ArrayList<URL>();
         for (URL brokerUrl : availableBrokers) {
-            if (this.matchesBrokerRegex(brkRegexList, brokerUrl.getHost())) {
+            // URL#getHost returns IPv6 literals in brackets, while broker ids use the bare address,
+            // so match the bare form and keep matching the bracketed form for backward compatibility
+            String host = brokerUrl.getHost();
+            String bareHost = host.startsWith("[") && host.endsWith("]") ? host.substring(1, host.length() - 1) : host;
+            String port = brokerUrl.getPort() == -1 ? "" : ":" + brokerUrl.getPort();
+            if (this.matchesBrokerRegex(brkRegexList, bareHost + port)
+                    || (!bareHost.equals(host) && this.matchesBrokerRegex(brkRegexList, host + port))) {
                 matchedBrokers.add(brokerUrl);
             }
         }
@@ -108,13 +114,46 @@ public class NamespaceIsolationPolicyImpl implements NamespaceIsolationPolicy {
         return false;
     }
 
+    /**
+     * Checks whether the broker matches any of the given regexes.
+     *
+     * <p>Brokers are identified either by host name or by {@code host:port} (for example in the output of
+     * {@code pulsar-admin brokers list}), and isolation policies may be defined using either form. A broker
+     * given as {@code host:port} is therefore matched against the full value first and then against the host
+     * part only.
+     */
     private boolean matchesBrokerRegex(List<String> brkRegexList, String broker) {
-        for (String brkRegex : brkRegexList) {
-            if (broker.matches(brkRegex)) {
+        if (matchesAnyRegex(brkRegexList, broker)) {
+            return true;
+        }
+        String host = stripPort(broker);
+        return host != null && matchesAnyRegex(brkRegexList, host);
+    }
+
+    private static boolean matchesAnyRegex(List<String> regexList, String value) {
+        for (String regex : regexList) {
+            if (value.matches(regex)) {
                 return true;
             }
         }
         return false;
+    }
+
+    /**
+     * Returns the host part of a {@code host:port} value, or {@code null} if the value has no numeric port suffix.
+     */
+    private static String stripPort(String broker) {
+        // use the last index to support IPv6 addresses
+        int idx = broker.lastIndexOf(':');
+        if (idx <= 0 || idx == broker.length() - 1) {
+            return null;
+        }
+        for (int i = idx + 1; i < broker.length(); i++) {
+            if (!Character.isDigit(broker.charAt(i))) {
+                return null;
+            }
+        }
+        return broker.substring(0, idx);
     }
 
     @Override

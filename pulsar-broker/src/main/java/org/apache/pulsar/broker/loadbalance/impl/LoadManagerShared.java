@@ -111,11 +111,11 @@ public class LoadManagerShared {
             // todo: in future check if the resource unit has resources to take the namespace
             if (isIsolationPoliciesPresent) {
                 // note: serviceUnitID is namespace name and ResourceID is brokerName
-                if (policies.isPrimaryBroker(namespace, brokerHost)) {
+                if (isPrimaryBroker(policies, namespace, brokerHost, brokerId)) {
                     primariesCache.add(brokerId);
                     log.debug().attr("broker", brokerHost).attr("namespace", namespace.toString())
                             .log("Added Primary Broker as possible Candidates for namespace with policies");
-                } else if (policies.isSecondaryBroker(namespace, brokerHost)) {
+                } else if (isSecondaryBroker(policies, namespace, brokerHost, brokerId)) {
                     secondaryCache.add(brokerId);
                     log.debugf(
                             "Added Shared Broker - [%s] as possible "
@@ -160,6 +160,18 @@ public class LoadManagerShared {
         }
     }
 
+    // Isolation policies may reference a broker either by its host name or by its broker id (host:port),
+    // which is how brokers are listed by `pulsar-admin brokers list`, so match against both forms.
+    private static boolean isPrimaryBroker(SimpleResourceAllocationPolicies policies, NamespaceName namespace,
+                                           String brokerHost, String brokerId) {
+        return policies.isPrimaryBroker(namespace, brokerHost) || policies.isPrimaryBroker(namespace, brokerId);
+    }
+
+    private static boolean isSecondaryBroker(SimpleResourceAllocationPolicies policies, NamespaceName namespace,
+                                             String brokerHost, String brokerId) {
+        return policies.isSecondaryBroker(namespace, brokerHost) || policies.isSecondaryBroker(namespace, brokerId);
+    }
+
     private static String parseBrokerHost(String brokerId) {
         // use last index to support ipv6 addresses
         int lastIdx = brokerId.lastIndexOf(':');
@@ -198,11 +210,11 @@ public class LoadManagerShared {
                 // todo: in future check if the resource unit has resources to take the namespace
                 if (isIsolationPoliciesPresent) {
                     // note: serviceUnitID is namespace name and ResourceID is brokerName
-                    if (policies.isPrimaryBroker(namespace, brokerHost)) {
+                    if (isPrimaryBroker(policies, namespace, brokerHost, brokerId)) {
                         primariesCache.add(brokerId);
                         log.debug().attr("broker", brokerHost).attr("namespace", namespace.toString())
                                 .log("Added Primary Broker as possible Candidates for namespace with policies");
-                    } else if (policies.isSecondaryBroker(namespace, brokerHost)) {
+                    } else if (isSecondaryBroker(policies, namespace, brokerHost, brokerId)) {
                         secondaryCache.add(brokerId);
                         log.debugf(
                                 "Added Shared Broker - [%s] as possible "
