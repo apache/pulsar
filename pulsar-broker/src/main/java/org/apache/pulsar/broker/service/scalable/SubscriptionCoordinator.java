@@ -20,10 +20,12 @@ package org.apache.pulsar.broker.service.scalable;
 
 import io.github.merlimat.slog.Logger;
 import java.time.Duration;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.Deque;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -103,9 +105,9 @@ public class SubscriptionCoordinator {
     /**
      * Sealed segments confirmed drained for this subscription (cursor at end). In-memory
      * only — on controller-leader failover the new leader rediscovers drain status by
-     * polling. {@link #computeAssignment} consults this set to decide which active
-     * children of a split / merge are eligible to be assigned (children stay blocked
-     * until <em>every</em> sealed parent is drained, so message order isn't broken).
+     * polling. {@link #computeAssignment} consults this set to decide which segments
+     * of a split / merge are eligible to be assigned (a segment stays blocked until
+     * <em>every</em> ancestor is drained, so message order isn't broken).
      */
     private final Set<Long> drainedSegmentIds = ConcurrentHashMap.newKeySet();
 
@@ -385,15 +387,17 @@ public class SubscriptionCoordinator {
     // --- Drain tracking ---
 
     /**
-     * A segment is assignable to consumers when:
-     * <ul>
-     *   <li>it's sealed — there's no harm in always handing it out (the v4 layer drains or
-     *       sees {@code TopicTerminated} immediately if already drained); or</li>
-     *   <li>it's active <b>and</b> every parent in the current layout has been drained for
-     *       this subscription. Without the parent-drain check we'd hand a consumer the
-     *       child of a just-split segment immediately, breaking per-key ordering against
-     *       any unread messages still sitting in the parent.</li>
-     * </ul>
+     * A segment, sealed or active, is assignable to consumers once every ancestor in the
+     * current layout has been drained for this subscription. The ancestors hold the older
+     * messages of the segment's keys: handing the segment out earlier would break per-key
+     * ordering against them. Every ancestor, not just the parents: a parent can be drained
+     * while its own parent is not (an empty segment has no backlog), and the segment's keys
+     * can still have unread messages there. An ancestor missing from the layout was pruned,
+     * so its data is gone, and so are its own ancestors (the GC prunes ancestors first).
+     *
+     * <p>A sealed segment stops being assignable once it is drained itself: it carries no
+     * traffic, and keeping it would pin consumers to a dead segment forever (the drain
+     * rebalance would spread the group across it and its successor).
      *
      * <p>If no {@link SegmentDrainChecker} was configured (e.g., the simple test
      * constructor), the parent-drain ordering is disabled and every segment is treated
@@ -403,20 +407,23 @@ public class SubscriptionCoordinator {
         if (drainChecker == null) {
             return true;
         }
-        if (!segment.isActive()) {
-            // A sealed segment is assignable only while it still has backlog to drain. Once
-            // fully drained it carries no traffic, and keeping it assignable would pin
-            // consumers to a dead segment forever (the drain rebalance would spread the
-            // group across it and its successor).
-            return !drainedSegmentIds.contains(segment.segmentId());
+        if (!segment.isActive() && drainedSegmentIds.contains(segment.segmentId())) {
+            return false;
         }
-        for (long parentId : segment.parentIds()) {
-            // A parent that's no longer in the DAG has been pruned (its data is gone), so
-            // treat it as drained — there's nothing to wait on.
-            if (layout.getAllSegments().containsKey(parentId)
-                    && !drainedSegmentIds.contains(parentId)) {
+        Map<Long, SegmentInfo> segments = layout.getAllSegments();
+        Set<Long> visited = new HashSet<>();
+        Deque<Long> ancestors = new ArrayDeque<>(segment.parentIds());
+        while (!ancestors.isEmpty()) {
+            long ancestorId = ancestors.pop();
+            SegmentInfo ancestor = segments.get(ancestorId);
+            if (ancestor == null || !visited.add(ancestorId)) {
+                // Pruned, or already reached through another parent (after a merge).
+                continue;
+            }
+            if (!drainedSegmentIds.contains(ancestorId)) {
                 return false;
             }
+            ancestors.addAll(ancestor.parentIds());
         }
         return true;
     }
@@ -602,17 +609,19 @@ public class SubscriptionCoordinator {
      * Deterministic: the same inputs always produce the same output, so a new leader recomputing
      * assignments after failover gets the same result as the old leader.
      *
-     * <p><b>DAG replay.</b> The assignment includes every <em>sealed</em> segment in the
-     * DAG. A fresh EARLIEST subscription needs to read messages produced before it joined,
-     * and those may live on segments that have since been sealed by a split / merge.
+     * <p><b>DAG replay.</b> The assignment includes the <em>sealed</em> segments of the
+     * DAG that still have backlog. A fresh EARLIEST subscription needs to read messages
+     * produced before it joined, and those may live on segments that have since been
+     * sealed by a split / merge. They are read one generation at a time, by the
+     * parent-drain ordering below.
      *
-     * <p><b>Parent-drain ordering.</b> An <em>active</em> child segment is only assigned
-     * once <em>every</em> parent in the DAG has been drained for this subscription
-     * (tracked in {@link #drainedSegmentIds}). Without this guard a consumer would be
-     * handed an active child immediately after a split and start receiving new messages
-     * for some key while the same key's pre-split messages still sit unread on the sealed
-     * parent — breaking per-key ordering. Initial active segments (those with no parents
-     * in the layout) are unaffected and assigned right away.
+     * <p><b>Parent-drain ordering.</b> A segment, sealed or active, is only assigned once
+     * <em>every</em> ancestor in the DAG has been drained for this subscription (tracked
+     * in {@link #drainedSegmentIds}). Without this guard a consumer would be handed a
+     * child immediately after a split and start receiving new messages for some key while
+     * the same key's pre-split messages still sit unread on the sealed parent — breaking
+     * per-key ordering. Initial segments (those with no ancestors in the layout) are
+     * unaffected and assigned right away.
      *
      * <p>The client side (per-segment v4 consumer) drains a sealed-but-still-present
      * segment naturally and closes it on {@code TopicTerminated}; a sealed-and-already-
