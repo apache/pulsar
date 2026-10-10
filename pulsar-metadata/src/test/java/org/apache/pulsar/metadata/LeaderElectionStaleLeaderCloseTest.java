@@ -134,8 +134,9 @@ public class LeaderElectionStaleLeaderCloseTest {
         assertTrue(store2.get(PATH).join().orElseThrow().getStat().isCreatedBySelf(),
                 "the surviving node must be the one le2's session created");
         assertEquals(le1.getState(), LeaderElectionState.NoLeader);
-        // le2 kept the leadership: exactly the initial Following and the takeover Leading, with no
-        // extra loss/regain cycle triggered by le1's close.
+        // le2 may recreate the node after receiving the Deleted notification, so the survivor
+        // assertion above can still pass if le1.close() deleted it. The state sequence below
+        // catches the extra re-election and Leading notification caused by that deletion.
         assertEquals(le2States, List.of(LeaderElectionState.Following, LeaderElectionState.Leading));
         assertEquals(le2.getState(), LeaderElectionState.Leading);
     }

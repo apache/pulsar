@@ -308,9 +308,10 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
                             .exceptionally(ex -> {
                                 Throwable t = FutureUtil.unwrapCompletionException(ex);
                                 if (t instanceof NotFoundException || t instanceof BadVersionException) {
-                                    // The node is no longer the one we read: it was deleted, or re-created
-                                    // by another participant with a higher version, between our get() and
-                                    // this delete().
+                                    // A version check detects an in-place update. It does not close the
+                                    // delete-and-recreate race for stores that reset versions on recreation
+                                    // (ZooKeeper, LocalMemory, and RocksDB); stores such as Oxia assign a
+                                    // new version to the recreated record.
                                     return null;
                                 }
                                 throw FutureUtil.wrapToCompletionException(ex);
