@@ -312,7 +312,7 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
             var current = segmentReaders.putIfAbsent(seg.segmentId(), readerFuture);
             if (current == null) {
                 FutureUtil.completeAfter(readerFuture,
-                        FutureUtil.supplySafely(() -> createSegmentReaderAsync(seg, readerFuture)));
+                        FutureUtil.supplySafely(() -> createSegmentReaderAsync(seg)));
                 current = readerFuture;
             }
             futures.add(current);
@@ -322,8 +322,7 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
         return CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new));
     }
 
-    private CompletableFuture<Reader<T>> createSegmentReaderAsync(ActiveSegment segment,
-                                                                  CompletableFuture<Reader<T>> readerFuture) {
+    private CompletableFuture<Reader<T>> createSegmentReaderAsync(ActiveSegment segment) {
         PulsarClientImpl v4Client = client.v4Client();
         org.apache.pulsar.client.api.MessageId startMsgId = resolveStartPosition(segment.segmentId());
 
@@ -336,13 +335,15 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
             segConf.setReaderName(consumerName + "-seg-" + segment.segmentId());
         }
 
+        // What applyAssignment mapped the segment to before starting this creation.
+        CompletableFuture<Reader<T>> readerFuture = segmentReaders.get(segment.segmentId());
         return resolveLatestStartAsync(segConf)
                 .thenCompose(__ -> {
                     // Until the application receives a message from the segment, a checkpoint resumes
                     // the segment where its reader starts. A latest start is known only after a lookup,
                     // when the segment may have left the assignment or have another reader: the position
                     // is recorded only while the segment maps to this reader, and never over another.
-                    if (segmentReaders.get(segment.segmentId()) == readerFuture) {
+                    if (readerFuture != null && segmentReaders.get(segment.segmentId()) == readerFuture) {
                         lastReceivedPositions.putIfAbsent(segment.segmentId(), segConf.getStartMessageId());
                     }
                     return v4Client.createSegmentReaderAsync(segConf, v4Schema);
