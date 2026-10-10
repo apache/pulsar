@@ -177,7 +177,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private final AtomicReference<Position> cacheEvictionPosition = new AtomicReference<>();
 
     protected ManagedLedgerConfig config;
-    protected Map<String, String> propertiesMap;
+    protected volatile Map<String, String> propertiesMap;
     protected final MetaStore store;
 
     final ConcurrentLongHashMap<CompletableFuture<ReadHandle>> ledgerCache =
@@ -331,6 +331,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             AtomicReferenceFieldUpdater.newUpdater(ManagedLedgerImpl.class, State.class, "state");
     protected volatile State state = null;
     private volatile boolean migrated = false;
+    // State becomes Terminated before the BookKeeper close completes, so the position is not immediately final.
+    private volatile boolean terminationPositionReady;
+    // Guarded by this.
+    private CompletableFuture<Position> migrationFuture;
 
     @Getter
     private final OrderedScheduler scheduledExecutor;
@@ -469,10 +473,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             public void operationComplete(ManagedLedgerInfo mlInfo, Stat stat) {
                 ledgersStat = stat;
                 if (mlInfo.hasTerminatedPosition()) {
-                    state = State.Terminated;
                     NestedPositionInfo terminatedPosition = mlInfo.getTerminatedPosition();
                     lastConfirmedEntry =
                             PositionFactory.create(terminatedPosition.getLedgerId(), terminatedPosition.getEntryId());
+                    terminationPositionReady = true;
+                    state = State.Terminated;
                     log.info().attr("lastConfirmedEntry", lastConfirmedEntry)
                             .log("Recovering managed ledger terminated");
                 }
@@ -481,17 +486,17 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     ledgers.put(ls.getLedgerId(), ls);
                 }
 
-                if (mlInfo.getPropertiesCount() > 0) {
-                    propertiesMap = new HashMap<>();
-                    for (int i = 0; i < mlInfo.getPropertiesCount(); i++) {
-                        KeyValue property = mlInfo.getPropertyAt(i);
-                        propertiesMap.put(property.getKey(), property.getValue());
-                    }
+                Map<String, String> loadedProperties = new ConcurrentHashMap<>();
+                for (int i = 0; i < mlInfo.getPropertiesCount(); i++) {
+                    KeyValue property = mlInfo.getPropertyAt(i);
+                    loadedProperties.put(property.getKey(), property.getValue());
                 }
-                migrated = mlInfo.hasTerminatedPosition() && propertiesMap.containsKey(MIGRATION_STATE_PROPERTY);
+                migrated = mlInfo.hasTerminatedPosition()
+                        && loadedProperties.containsKey(MIGRATION_STATE_PROPERTY);
                 if (managedLedgerInterceptor != null) {
-                    managedLedgerInterceptor.onManagedLedgerPropertiesInitialize(propertiesMap);
+                    managedLedgerInterceptor.onManagedLedgerPropertiesInitialize(loadedProperties);
                 }
+                propertiesMap = loadedProperties;
 
                 // Last ledger stat may be zeroed, we must update it
                 if (!ledgers.isEmpty()) {
@@ -1502,8 +1507,54 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     public CompletableFuture<Position> asyncMigrate() {
-        propertiesMap.put(MIGRATION_STATE_PROPERTY, Boolean.TRUE.toString());
-        CompletableFuture<Position> result = new CompletableFuture<>();
+        final CompletableFuture<Position> result;
+        synchronized (this) {
+            if (migrationFuture != null) {
+                return migrationFuture.copy();
+            }
+            if (migrated) {
+                return CompletableFuture.completedFuture(lastConfirmedEntry);
+            }
+            result = new CompletableFuture<>();
+            migrationFuture = result;
+        }
+
+        try {
+            asyncSetProperty(MIGRATION_STATE_PROPERTY, Boolean.TRUE.toString(), new UpdatePropertiesCallback() {
+                @Override
+                public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
+                    try {
+                        terminateForMigration(result);
+                    } catch (Throwable t) {
+                        clearRetryableMigration(result);
+                        result.completeExceptionally(t);
+                    }
+                }
+
+                @Override
+                public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
+                    clearRetryableMigration(result);
+                    result.completeExceptionally(exception);
+                }
+            }, null);
+        } catch (Throwable t) {
+            clearRetryableMigration(result);
+            result.completeExceptionally(t);
+        }
+        return result.copy();
+    }
+
+    private synchronized void clearRetryableMigration(CompletableFuture<Position> result) {
+        // Retrying after a BookKeeper close failure would take asyncTerminate's already-terminated fast path and
+        // incorrectly report success with a stale position. Metadata failures after a successful close are safe to
+        // retry because terminationPositionReady is true.
+        if (migrationFuture == result && state != State.Closed && !state.isFenced()
+                && (state != State.Terminated || terminationPositionReady)) {
+            migrationFuture = null;
+        }
+    }
+
+    private void terminateForMigration(CompletableFuture<Position> result) {
         asyncTerminate(new TerminateCallback() {
 
             @Override
@@ -1511,15 +1562,20 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 migrated = true;
                 log.info().attr("position", lastCommittedPosition).log("Topic successfully terminated and migrated");
                 result.complete(lastCommittedPosition);
+                synchronized (ManagedLedgerImpl.this) {
+                    if (migrationFuture == result) {
+                        migrationFuture = null;
+                    }
+                }
             }
 
             @Override
             public void terminateFailed(ManagedLedgerException exception, Object ctx) {
                 log.info().exception(exception).log("Topic failed to terminate and migrate");
+                clearRetryableMigration(result);
                 result.completeExceptionally(exception);
             }
         }, null);
-        return result;
     }
 
     @Override
@@ -1635,6 +1691,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         log.info("Terminating managed ledger");
+        terminationPositionReady = false;
         state = State.Terminated;
 
         LedgerHandle lh = currentLedger;
@@ -1648,6 +1705,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 callback.terminateFailed(createManagedLedgerException(rc), ctx);
             } else {
                 lastConfirmedEntry = PositionFactory.create(lh.getId(), lh.getLastAddConfirmed());
+                terminationPositionReady = true;
                 storeTerminatedPosition(callback, ctx);
             }
         }, null);
@@ -4745,21 +4803,31 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return buildManagedLedgerInfo(mlInfo);
     }
     private ManagedLedgerInfo buildManagedLedgerInfo(Map<Long, LedgerInfo> ledgers) {
+        return buildManagedLedgerInfo(ledgers, propertiesMap);
+    }
+
+    private ManagedLedgerInfo buildManagedLedgerInfo(Map<Long, LedgerInfo> ledgers,
+                                                      Map<String, String> properties) {
         ManagedLedgerInfo mlInfo = new ManagedLedgerInfo();
         mlInfo.addAllLedgerInfos(ledgers.values());
-        return buildManagedLedgerInfo(mlInfo);
+        return buildManagedLedgerInfo(mlInfo, properties);
     }
 
     private ManagedLedgerInfo buildManagedLedgerInfo(ManagedLedgerInfo mlInfo) {
-        if (state == State.Terminated) {
+        return buildManagedLedgerInfo(mlInfo, propertiesMap);
+    }
+
+    private ManagedLedgerInfo buildManagedLedgerInfo(ManagedLedgerInfo mlInfo,
+                                                      Map<String, String> properties) {
+        if (state == State.Terminated && terminationPositionReady) {
             mlInfo.setTerminatedPosition()
                     .setLedgerId(lastConfirmedEntry.getLedgerId())
                     .setEntryId(lastConfirmedEntry.getEntryId());
         }
         if (managedLedgerInterceptor != null) {
-            managedLedgerInterceptor.onUpdateManagedLedgerInfo(propertiesMap);
+            managedLedgerInterceptor.onUpdateManagedLedgerInfo(properties);
         }
-        for (Map.Entry<String, String> property : propertiesMap.entrySet()) {
+        for (Map.Entry<String, String> property : properties.entrySet()) {
             mlInfo.addProperty().setKey(property.getKey()).setValue(property.getValue());
         }
 
@@ -5120,7 +5188,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @Override
     public Map<String, String> getProperties() {
-        return propertiesMap;
+        return new HashMap<>(propertiesMap);
     }
 
     @Override
@@ -5149,13 +5217,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @Override
     public void setProperties(Map<String, String> properties) throws InterruptedException, ManagedLedgerException {
-        updateProperties(properties, false, null);
+        updateProperties(new HashMap<>(properties), false, null);
     }
 
     @Override
     public void asyncSetProperties(Map<String, String> properties, final UpdatePropertiesCallback callback,
         Object ctx) {
-        asyncUpdateProperties(properties, false, null, callback, ctx);
+        asyncUpdateProperties(new HashMap<>(properties), false, null, callback, ctx);
     }
 
     private void updateProperties(Map<String, String> properties, boolean isDelete,
@@ -5202,25 +5270,54 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 callback, ctx), 100, TimeUnit.MILLISECONDS);
             return;
         }
+        Map<String, String> updatedProperties = new HashMap<>(propertiesMap);
         if (isDelete) {
-            propertiesMap.remove(deleteKey);
+            updatedProperties.remove(deleteKey);
         } else {
-            propertiesMap.putAll(properties);
+            updatedProperties.putAll(properties);
         }
-        store.asyncUpdateLedgerIds(name, getManagedLedgerInfo(), ledgersStat, new MetaStoreCallback<Void>() {
+
+        final ManagedLedgerInfo managedLedgerInfo;
+        final Map<String, String> propertiesSnapshot;
+        try {
+            managedLedgerInfo = buildManagedLedgerInfo(ledgers, updatedProperties);
+            propertiesSnapshot = new ConcurrentHashMap<>(updatedProperties);
+        } catch (Throwable t) {
+            metadataMutex.unlock();
+            try {
+                callback.updatePropertiesFailed(ManagedLedgerException.getManagedLedgerException(t), ctx);
+            } catch (Throwable callbackError) {
+                log.error().exception(callbackError).log("Managed ledger properties callback failed");
+            }
+            return;
+        }
+
+        store.asyncUpdateLedgerIds(name, managedLedgerInfo, ledgersStat, new MetaStoreCallback<Void>() {
             @Override
             public void operationComplete(Void result, Stat version) {
                 ledgersStat = version;
-                callback.updatePropertiesComplete(propertiesMap, ctx);
+                propertiesMap = propertiesSnapshot;
                 metadataMutex.unlock();
+                try {
+                    callback.updatePropertiesComplete(new HashMap<>(propertiesSnapshot), ctx);
+                } catch (Throwable t) {
+                    log.error().exception(t).log("Managed ledger properties callback failed");
+                }
             }
 
             @Override
             public void operationFailed(MetaStoreException e) {
                 log.error().exception(e).log("Update managedLedger's properties failed");
-                handleBadVersion(e);
-                callback.updatePropertiesFailed(e, ctx);
-                metadataMutex.unlock();
+                try {
+                    handleBadVersion(e);
+                } finally {
+                    metadataMutex.unlock();
+                }
+                try {
+                    callback.updatePropertiesFailed(e, ctx);
+                } catch (Throwable t) {
+                    log.error().exception(t).log("Managed ledger properties callback failed");
+                }
             }
         });
     }
