@@ -310,6 +310,23 @@ public final class EntryImpl extends AbstractCASReferenceCounted
         decreaseReadCountOnRelease = enabled;
     }
 
+    /**
+     * Releases an entry that is discarded without having been delivered to a reader, tolerating
+     * the null slots of a sparse batch. The discard must not count as a read on the shared
+     * expected-read count — otherwise the cached entry becomes eligible for eviction before its
+     * expected readers got to it — while the deallocation hooks still run, e.g. to return the
+     * in-flight read permits.
+     */
+    static void releaseDiscarded(Entry entry) {
+        if (entry == null) {
+            return;
+        }
+        if (entry instanceof EntryImpl entryImpl) {
+            entryImpl.setDecreaseReadCountOnRelease(false);
+        }
+        entry.release();
+    }
+
     public synchronized void initializeMessageMetadataIfNeeded(String managedLedgerName) {
         if (messageMetadata == null && !messageMetadataInitializationFailed) {
             try {

@@ -131,16 +131,12 @@ class OpReadEntry implements ReadEntriesCallback {
         // The size loop below dereferences every slot. A null slot (e.g. a mixed range-cache
         // read leaves its slot null when it drops an out-of-range entry) would throw a bare NPE
         // whose fallback path leaks the whole batch's buffers. Fail the read explicitly instead:
-        // release the batch and surface a proper read failure.
+        // discard the batch and surface a proper read failure.
         for (int i = 0; i < returnedEntries.size(); i++) {
             if (returnedEntries.get(i) == null) {
                 log.warn().attr("op", this).attr("slot", i)
                         .log("Delivered entry batch contains a null slot");
-                returnedEntries.forEach(entry -> {
-                    if (entry != null) {
-                        entry.release();
-                    }
-                });
+                returnedEntries.forEach(EntryImpl::releaseDiscarded);
                 throw new ManagedLedgerException("Delivered entry batch contains a null slot at index " + i);
             }
         }

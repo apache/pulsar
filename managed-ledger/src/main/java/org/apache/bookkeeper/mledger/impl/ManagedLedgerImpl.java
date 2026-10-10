@@ -2594,7 +2594,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 readEntriesCallback.readEntriesComplete(returnedEntries, cntx);
             } else {
                 slog.debug().attr("ledgerId", ledgerId).attr("entryId", entryId).log("Read entry already completed");
-                returnedEntries.forEach(Entry::release);
+                // The late batch may carry null slots (a mixed range-cache read leaves a slot
+                // null when its entry never arrived): discard slot by slot, or the entries
+                // after a null slot would leak together with their share of the in-flight
+                // read permits.
+                returnedEntries.forEach(EntryImpl::releaseDiscarded);
             }
         }
 
