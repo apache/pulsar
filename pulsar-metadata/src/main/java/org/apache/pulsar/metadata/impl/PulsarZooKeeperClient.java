@@ -63,6 +63,7 @@ import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.Watcher.Event.EventType;
 import org.apache.zookeeper.Watcher.Event.KeeperState;
 import org.apache.zookeeper.ZooKeeper;
+import org.apache.zookeeper.ZooKeeper.States;
 import org.apache.zookeeper.client.ZKClientConfig;
 import org.apache.zookeeper.data.ACL;
 import org.apache.zookeeper.data.Stat;
@@ -84,6 +85,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
     // state for the zookeeper client
     private final AtomicReference<ZooKeeper> zk = new AtomicReference<ZooKeeper>();
     private final AtomicBoolean closed = new AtomicBoolean(false);
+    private final AtomicBoolean reconnectScheduled = new AtomicBoolean(false);
     private final ZooKeeperWatcherBase watcherManager;
 
     private final ScheduledExecutorService retryExecutor;
@@ -184,6 +186,8 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                 if (!Boolean.getBoolean("pulsar.test.preventExit")) {
                     Runtime.getRuntime().exit(1);
                 }
+            } finally {
+                reconnectScheduled.set(false);
             }
         }
 
@@ -404,29 +408,44 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
     @Override
     public void process(WatchedEvent event) {
-        if (event.getType() == EventType.None
-                && event.getState() == KeeperState.Expired) {
-            onExpired();
+        if (event.getType() == EventType.None) {
+            if (event.getState() == KeeperState.Expired) {
+                onExpired();
+            } else if (event.getState() == KeeperState.AuthFailed
+                    && getState() == States.AUTH_FAILED) {
+                scheduleReconnect("authentication failed");
+            }
         }
     }
 
     private void onExpired() {
+        scheduleReconnect("session expired");
+    }
+
+    private void scheduleReconnect(String reason) {
         if (closed.get()) {
             // we don't schedule any tries if the client is closed.
+            return;
+        }
+
+        if (!reconnectScheduled.compareAndSet(false, true)) {
             return;
         }
 
         log.info()
                 .attr("sessionId", Long.toHexString(getSessionId()))
                 .attr("connectString", connectString)
-                .log("ZooKeeper session is expired");
+                .attr("reason", reason)
+                .log("Scheduling ZooKeeper reconnect");
         try {
             connectExecutor.execute(clientCreator);
         } catch (RejectedExecutionException ree) {
+            reconnectScheduled.set(false);
             if (!closed.get()) {
                 log.error().exception(ree).log("ZooKeeper reconnect task is rejected");
             }
         } catch (Exception t) {
+            reconnectScheduled.set(false);
             log.error().exception(t).log("Failed to submit zookeeper reconnect task due to runtime exception");
         }
     }

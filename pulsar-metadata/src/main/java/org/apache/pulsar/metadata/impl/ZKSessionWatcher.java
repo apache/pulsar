@@ -60,6 +60,11 @@ public class ZKSessionWatcher implements AutoCloseable, Watcher {
     private long disconnectedAt = 0;
 
     public ZKSessionWatcher(ZooKeeper zk, Consumer<SessionEvent> sessionListener) {
+        this(zk, sessionListener, true);
+    }
+
+    @VisibleForTesting
+    ZKSessionWatcher(ZooKeeper zk, Consumer<SessionEvent> sessionListener, boolean startScheduler) {
         this.zk = zk;
         this.monitorTimeoutMillis = zk.getSessionTimeout() * 5 / 6;
         this.tickTimeMillis = zk.getSessionTimeout() / 15;
@@ -67,17 +72,20 @@ public class ZKSessionWatcher implements AutoCloseable, Watcher {
 
         this.scheduler = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("metadata-store-zk-session-watcher"));
-        this.task =
-                scheduler.scheduleWithFixedDelay(
+        this.task = startScheduler
+                ? scheduler.scheduleWithFixedDelay(
                         catchingAndLoggingThrowables(this::checkConnectionStatus), tickTimeMillis,
                         tickTimeMillis,
-                        TimeUnit.MILLISECONDS);
+                        TimeUnit.MILLISECONDS)
+                : null;
         this.currentStatus = SessionEvent.SessionReestablished;
     }
 
     @Override
     public void close() throws Exception {
-        task.cancel(true);
+        if (task != null) {
+            task.cancel(true);
+        }
         scheduler.shutdownNow();
         scheduler.awaitTermination(10, TimeUnit.SECONDS);
     }
@@ -122,7 +130,9 @@ public class ZKSessionWatcher implements AutoCloseable, Watcher {
 
             checkStateIfSameSession(checkedSessionId, zkClientState);
         } catch (RejectedExecutionException | InterruptedException e) {
-            task.cancel(true);
+            if (task != null) {
+                task.cancel(true);
+            }
         } catch (Throwable t) {
             log.warn().exception(t).log("Error while checking ZK connection status");
         }
@@ -199,10 +209,15 @@ public class ZKSessionWatcher implements AutoCloseable, Watcher {
             break;
 
         case AuthFailed:
-            if (currentStatus != SessionEvent.SessionLost) {
-                log.error("ZooKeeper client authentication failed. Notifying session is lost.");
-                currentStatus = SessionEvent.SessionLost;
-                sessionListener.accept(currentStatus);
+            if (zk.getState() == ZooKeeper.States.AUTH_FAILED) {
+                if (currentStatus != SessionEvent.SessionLost) {
+                    log.error("ZooKeeper client authentication failed. Notifying session is lost.");
+                    currentStatus = SessionEvent.SessionLost;
+                    sessionListener.accept(currentStatus);
+                }
+            } else {
+                log.debug().attr("currentStatus", currentStatus)
+                        .log("ZooKeeper client authentication failed; waiting for the client connection state");
             }
             break;
 
@@ -249,12 +264,15 @@ public class ZKSessionWatcher implements AutoCloseable, Watcher {
 
     private void handleConnectedReadOnly() {
         disconnectedAt = 0;
-        log.warn()
-                .attr("sessionId", zk.getSessionId())
-                .log("ZooKeeper client is connected to a read-only server. Waiting for read-write connection");
         if (currentStatus == SessionEvent.SessionReestablished) {
+            log.warn()
+                    .attr("sessionId", zk.getSessionId())
+                    .log("ZooKeeper client is connected to a read-only server. Waiting for read-write connection");
             currentStatus = SessionEvent.ConnectionLost;
             sessionListener.accept(currentStatus);
+        } else {
+            log.debug().attr("sessionId", zk.getSessionId()).attr("currentStatus", currentStatus)
+                    .log("ZooKeeper client remains connected to a read-only server");
         }
     }
 

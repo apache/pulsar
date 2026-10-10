@@ -25,6 +25,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -78,6 +79,7 @@ import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
+import org.apache.zookeeper.ZooKeeper.States;
 import org.assertj.core.util.Lists;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
@@ -556,6 +558,37 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         var zooKeeperRef = (AtomicReference<ZooKeeper>) WhiteboxImpl.getInternalState(zkClient, "zk");
         var zooKeeper = Awaitility.await().until(zooKeeperRef::get, Objects::nonNull);
         assertFalse(zooKeeper.getClientConfig().isSaslClientEnabled());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testTerminalAuthFailedRecreatesZookeeperHandle() throws Exception {
+        @Cleanup
+        PulsarZooKeeperClient zkClient = PulsarZooKeeperClient.newBuilder()
+                .connectString(zks.getConnectionString())
+                .sessionTimeoutMs(3000)
+                .build();
+
+        var zooKeeperRef = (AtomicReference<ZooKeeper>) WhiteboxImpl.getInternalState(zkClient, "zk");
+        zkClient.process(new WatchedEvent(
+                Watcher.Event.EventType.None, Watcher.Event.KeeperState.Expired, null));
+        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                .until(() -> zooKeeperRef.get() != null && zooKeeperRef.get().getState() == States.CONNECTED);
+        ZooKeeper previousZooKeeper = zooKeeperRef.get();
+        ZooKeeper failedZooKeeper = mock(ZooKeeper.class);
+        when(failedZooKeeper.getState()).thenReturn(States.AUTH_FAILED);
+        when(failedZooKeeper.getSessionId()).thenReturn(previousZooKeeper.getSessionId());
+        zooKeeperRef.set(failedZooKeeper);
+        previousZooKeeper.close();
+
+        WatchedEvent authFailed = new WatchedEvent(
+                Watcher.Event.EventType.None, Watcher.Event.KeeperState.AuthFailed, null);
+        zkClient.process(authFailed);
+
+        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                .until(() -> zooKeeperRef.get() != failedZooKeeper
+                        && zooKeeperRef.get().getState() == States.CONNECTED);
+        assertTrue(zooKeeperRef.get().getState() == States.CONNECTED);
     }
 
     @Test

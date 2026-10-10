@@ -27,7 +27,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -39,7 +38,6 @@ import org.apache.zookeeper.Watcher.Event.EventType;
 import org.apache.zookeeper.Watcher.Event.KeeperState;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.ZooKeeper.States;
-import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
 @Test
@@ -91,7 +89,7 @@ public class ZKSessionWatcherTest {
     }
 
     @Test
-    public void testAuthFailedProbeShouldNotBeTreatedAsReconnected() throws Exception {
+    public void testAuthFailedProbeShouldMarkSessionLostForTerminalClientState() throws Exception {
         List<SessionEvent> events = new CopyOnWriteArrayList<>();
         ZooKeeper zk = newSessionZooKeeper();
         when(zk.getState()).thenReturn(States.AUTH_FAILED);
@@ -107,7 +105,7 @@ public class ZKSessionWatcherTest {
     }
 
     @Test
-    public void testAuthFailedStateFromSuccessfulProbeShouldNotBeTreatedAsReconnected() throws Exception {
+    public void testAuthFailedStateFromSuccessfulProbeShouldMarkSessionLost() throws Exception {
         List<SessionEvent> events = new CopyOnWriteArrayList<>();
         ZooKeeper zk = newSessionZooKeeper();
         when(zk.getState()).thenReturn(States.AUTH_FAILED);
@@ -118,6 +116,35 @@ public class ZKSessionWatcherTest {
             watcher.checkConnectionStatus();
 
             assertThat(events).containsExactly(SessionEvent.SessionLost);
+        }
+    }
+
+    @Test
+    public void testAuthFailedEventWhileConnectingShouldWaitForConnectionState() throws Exception {
+        List<SessionEvent> events = new CopyOnWriteArrayList<>();
+        ZooKeeper zk = newSessionZooKeeper();
+        when(zk.getState()).thenReturn(States.CONNECTING);
+
+        try (ZKSessionWatcher watcher = newSessionWatcher(zk, events)) {
+            watcher.process(new WatchedEvent(EventType.None, KeeperState.AuthFailed, null));
+
+            assertThat(events).isEmpty();
+        }
+    }
+
+    @Test
+    public void testTerminalAuthFailedThenSyncConnectedReestablishesSession() throws Exception {
+        List<SessionEvent> events = new CopyOnWriteArrayList<>();
+        ZooKeeper zk = newSessionZooKeeper();
+        when(zk.getState()).thenReturn(States.AUTH_FAILED, States.CONNECTED);
+
+        try (ZKSessionWatcher watcher = newSessionWatcher(zk, events)) {
+            watcher.process(new WatchedEvent(EventType.None, KeeperState.AuthFailed, null));
+            watcher.process(new WatchedEvent(EventType.None, KeeperState.Closed, null));
+            watcher.process(new WatchedEvent(EventType.None, KeeperState.SyncConnected, null));
+
+            assertThat(events).containsExactly(
+                    SessionEvent.SessionLost, SessionEvent.Reconnected, SessionEvent.SessionReestablished);
         }
     }
 
@@ -140,11 +167,13 @@ public class ZKSessionWatcherTest {
     public void testConnectedReadOnlyThenWritableProbeDoesNotReestablishSession() throws Exception {
         List<SessionEvent> events = new CopyOnWriteArrayList<>();
         ZooKeeper zk = newSessionZooKeeper();
-        when(zk.getState()).thenReturn(States.CONNECTEDREADONLY, States.CONNECTED);
+        when(zk.getState()).thenReturn(States.CONNECTEDREADONLY);
         completeExistsWith(zk, KeeperException.Code.OK);
 
         try (ZKSessionWatcher watcher = newSessionWatcher(zk, events)) {
             watcher.checkConnectionStatus();
+
+            when(zk.getState()).thenReturn(States.CONNECTED);
             watcher.checkConnectionStatus();
 
             assertThat(events).containsExactly(SessionEvent.ConnectionLost, SessionEvent.Reconnected);
@@ -152,33 +181,31 @@ public class ZKSessionWatcherTest {
     }
 
     @Test
-    public void testReadOnlyProbesAcrossTimeoutWaitForWritableConnectionWithoutSessionLoss() throws Exception {
+    public void testReadOnlyProbesWaitForWritableConnectionWithoutSessionLoss() throws Exception {
         List<SessionEvent> events = new CopyOnWriteArrayList<>();
-        ZooKeeper zk = newSessionZooKeeper(120);
-        when(zk.getState()).thenReturn(States.CONNECTEDREADONLY, States.CONNECTEDREADONLY, States.CONNECTED);
+        ZooKeeper zk = newSessionZooKeeper();
+        when(zk.getState()).thenReturn(States.CONNECTEDREADONLY);
         completeExistsWith(zk, KeeperException.Code.OK);
 
-        ZKSessionWatcher watcher = newSessionWatcher(zk, events);
-        watcher.close();
-        watcher.checkConnectionStatus();
-        long timeoutDeadline = System.nanoTime() + Duration.ofMillis(120).toNanos();
-        Awaitility.await().atMost(Duration.ofSeconds(1))
-                .until(() -> System.nanoTime() >= timeoutDeadline);
-        watcher.checkConnectionStatus();
+        try (ZKSessionWatcher watcher = newSessionWatcher(zk, events)) {
+            watcher.checkConnectionStatus();
+            watcher.checkConnectionStatus();
 
-        assertThat(events).containsExactly(SessionEvent.ConnectionLost);
+            assertThat(events).containsExactly(SessionEvent.ConnectionLost);
 
-        watcher.checkConnectionStatus();
-        watcher.process(new WatchedEvent(EventType.None, KeeperState.SyncConnected, null));
+            when(zk.getState()).thenReturn(States.CONNECTED);
+            watcher.checkConnectionStatus();
+            watcher.process(new WatchedEvent(EventType.None, KeeperState.SyncConnected, null));
 
-        assertThat(events).containsExactly(SessionEvent.ConnectionLost, SessionEvent.Reconnected);
+            assertThat(events).containsExactly(SessionEvent.ConnectionLost, SessionEvent.Reconnected);
+        }
     }
 
     @Test
     public void testClosedHandleAfterExpirationWaitsForWritableConnectionAndDeduplicatesRecovery() throws Exception {
         List<SessionEvent> events = new CopyOnWriteArrayList<>();
         ZooKeeper zk = newSessionZooKeeper();
-        when(zk.getState()).thenReturn(States.CLOSED, States.CONNECTED, States.CONNECTED);
+        when(zk.getState()).thenReturn(States.CLOSED);
         completeExistsWith(zk, KeeperException.Code.OK);
 
         try (ZKSessionWatcher watcher = newSessionWatcher(zk, events)) {
@@ -188,6 +215,7 @@ public class ZKSessionWatcherTest {
             watcher.checkConnectionStatus();
             assertThat(events).containsExactly(SessionEvent.SessionLost);
 
+            when(zk.getState()).thenReturn(States.CONNECTED);
             watcher.checkConnectionStatus();
             watcher.process(new WatchedEvent(EventType.None, KeeperState.SyncConnected, null));
             watcher.checkConnectionStatus();
@@ -217,16 +245,12 @@ public class ZKSessionWatcherTest {
     }
 
     private static ZKSessionWatcher newSessionWatcher(ZooKeeper zk, List<SessionEvent> events) {
-        return new ZKSessionWatcher(zk, events::add);
+        return new ZKSessionWatcher(zk, events::add, false);
     }
 
     private static ZooKeeper newSessionZooKeeper() {
-        return newSessionZooKeeper(30_000);
-    }
-
-    private static ZooKeeper newSessionZooKeeper(int sessionTimeoutMillis) {
         ZooKeeper zk = mock(ZooKeeper.class);
-        when(zk.getSessionTimeout()).thenReturn(sessionTimeoutMillis);
+        when(zk.getSessionTimeout()).thenReturn(30_000);
         when(zk.getSessionId()).thenReturn(0x1234L);
         when(zk.getState()).thenReturn(States.CONNECTED);
         return zk;
