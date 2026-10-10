@@ -55,9 +55,10 @@ import org.testng.annotations.Test;
 
 /**
  * Tests for the null-slot guard in {@link OpReadEntry}: a delivered batch containing a null
- * slot (a mixed range-cache read leaves its slot null when it drops an out-of-range entry)
- * must fail the read explicitly with a proper {@link ManagedLedgerException} and release the
- * batch's buffers — instead of throwing a bare NPE in the size loop and leaking the batch.
+ * slot (a mixed range-cache read leaves a slot unfilled when the storage leg answers short of
+ * the missing range) must fail the read explicitly with a proper {@link ManagedLedgerException}
+ * and release the batch's buffers — instead of throwing a bare NPE in the size loop and
+ * leaking the batch.
  * Discarding the batch must not count as reads on the shared expected-read count of the cached
  * entries either: the entries were never delivered to a reader.
  *
