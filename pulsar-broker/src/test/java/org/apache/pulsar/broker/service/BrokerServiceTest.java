@@ -25,6 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -35,6 +36,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Multimap;
@@ -69,6 +71,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import lombok.CustomLog;
@@ -227,6 +230,48 @@ public class BrokerServiceTest extends BrokerTestBase {
         assertTrue(snapshot.description().contains("timeout timestamp:"));
 
         pendingFuture.complete(null);
+    }
+
+    @Test(timeOut = 15000)
+    public void testTimedOutTopicLoadCanRetryAfterPolicyLoadCompletes() throws Exception {
+        final long originalTimeout = conf.getTopicLoadTimeoutSeconds();
+        final TopicName topicName = TopicName.get("persistent://public/default/timeout-retry-" + UUID.randomUUID());
+        final CompletableFuture<Optional<TopicPolicies>> delayedPolicyLoad = new CompletableFuture<>();
+        final AtomicInteger topicLoadAttempts = new AtomicInteger();
+        conf.setTopicLoadTimeoutSeconds(1);
+        MockTopicPoliciesService.PENDING_POLICY_LOADS.put(topicName, delayedPolicyLoad);
+        try {
+            final BrokerService service = spy(pulsar.getBrokerService());
+            doAnswer(invocation -> {
+                TopicLoadingContext context = invocation.getArgument(0);
+                topicLoadAttempts.incrementAndGet();
+                context.getTopicFuture().complete(Optional.empty());
+                return context.getTopicFuture();
+            }).when(service).loadOrCreatePersistentTopic(any());
+
+            final CompletableFuture<Optional<Topic>> timedOutFuture = service.getTopic(topicName, true, null);
+            try {
+                timedOutFuture.get(5, TimeUnit.SECONDS);
+                fail("The delayed policy lookup should time out");
+            } catch (ExecutionException e) {
+                assertTrue(e.getCause() instanceof TimeoutException);
+            }
+
+            MockTopicPoliciesService.PENDING_POLICY_LOADS.remove(topicName);
+            final CompletableFuture<Optional<Topic>> retryFuture = service.getTopic(topicName, true, null);
+            assertNotSame(retryFuture, timedOutFuture);
+            assertTrue(retryFuture.get(5, TimeUnit.SECONDS).isEmpty());
+            assertEquals(topicLoadAttempts.get(), 1);
+
+            delayedPolicyLoad.complete(Optional.empty());
+            assertEquals(topicLoadAttempts.get(), 1,
+                    "A timed-out request must not start topic loading when its policy lookup completes later");
+            assertSame(service.getTopic(topicName, true, null), retryFuture,
+                    "Late completion of a timed-out request must not evict the successful retry");
+        } finally {
+            MockTopicPoliciesService.PENDING_POLICY_LOADS.remove(topicName);
+            conf.setTopicLoadTimeoutSeconds(originalTimeout);
+        }
     }
 
     @Test
@@ -2670,9 +2715,15 @@ public class BrokerServiceTest extends BrokerTestBase {
     static class MockTopicPoliciesService extends TopicPoliciesService.TopicPoliciesServiceDisabled {
 
         static final Set<TopicName> FAILED_TOPICS = ConcurrentHashMap.newKeySet();
+        static final Map<TopicName, CompletableFuture<Optional<TopicPolicies>>> PENDING_POLICY_LOADS =
+                new ConcurrentHashMap<>();
 
         @Override
         public CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsync(TopicName topicName, GetType type) {
+            CompletableFuture<Optional<TopicPolicies>> pendingPolicyLoad = PENDING_POLICY_LOADS.get(topicName);
+            if (pendingPolicyLoad != null) {
+                return pendingPolicyLoad;
+            }
             if (FAILED_TOPICS.contains(topicName)) {
                 // Only fail once
                 FAILED_TOPICS.remove(topicName);
