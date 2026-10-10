@@ -2620,6 +2620,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         lock.writeLock().lock();
         boolean skipMarkDeleteBecauseAckedNothing = false;
+        boolean batchAckChanged = false;
         try {
             log.debug()
                     .attr("positions", positions)
@@ -2669,9 +2670,14 @@ public class ManagedCursorImpl implements ManagedCursor {
                     log.debug().attr("deletedMessages", individualDeletedMessages).log("Individually deleted messages");
                 } else if (batchDeletedIndexes != null) {
                     final var givenBitSet = BitSet.valueOf(ackSet);
+                    final var existingBitSet = batchDeletedIndexes.get(position);
                     final var bitSet = batchDeletedIndexes.computeIfAbsent(position, __ -> givenBitSet);
-                    if (givenBitSet != bitSet) {
+                    if (existingBitSet == null) {
+                        batchAckChanged = true;
+                    } else {
+                        final var previousBitSet = (BitSet) bitSet.clone();
                         bitSet.and(givenBitSet);
+                        batchAckChanged |= !previousBitSet.equals(bitSet);
                     }
                     if (bitSet.isEmpty()) {
                         Position previousPosition = ledger.getPreviousPosition(position);
@@ -2732,6 +2738,12 @@ public class ManagedCursorImpl implements ManagedCursor {
         } finally {
             lock.writeLock().unlock();
             if (skipMarkDeleteBecauseAckedNothing) {
+                if (batchAckChanged) {
+                    // A partial batch ACK changes cursor state without creating an individual-delete range
+                    // that would otherwise schedule a mark-delete write.
+                    isDirty = true;
+                    updateLastMarkDeleteEntryToLatest(markDeletePosition, null);
+                }
                 callback.deleteComplete(ctx);
             }
         }
