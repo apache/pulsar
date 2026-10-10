@@ -20,13 +20,16 @@ package org.apache.pulsar.client.impl.v5;
 
 import io.github.merlimat.slog.Logger;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.ClientCnx;
@@ -58,7 +61,8 @@ final class ScalableTopicsWatcher implements ScalableTopicsWatcherSession, AutoC
 
     /**
      * Listener for membership events. The watcher delivers events on the netty IO
-     * thread; implementations should not block.
+     * thread, or on the thread setting the listener for the events received before it;
+     * never two at once. Implementations should not block.
      */
     interface Listener {
         /** Full set; replace any local state. */
@@ -84,6 +88,21 @@ final class ScalableTopicsWatcher implements ScalableTopicsWatcherSession, AutoC
      * hash may be read on a reconnect callback running elsewhere.
      */
     private final Set<String> currentSet = Collections.synchronizedSet(new HashSet<>());
+    /**
+     * The changes to {@link #currentSet} the listener hasn't been handed yet: at first those
+     * since the initial snapshot, which the caller of {@link #start} handles itself before
+     * setting the listener. A topic added and removed again in between is in neither set; one
+     * removed and added again is in both. Guarded by {@code currentSet}.
+     */
+    private final Set<String> pendingAdded = new LinkedHashSet<>();
+    private final Set<String> pendingRemoved = new LinkedHashSet<>();
+    /**
+     * Whether a later snapshot replaced {@link #currentSet} since the listener was last
+     * notified, so that it gets the whole set. Guarded by {@code currentSet}.
+     */
+    private boolean pendingSnapshot;
+    /** Calls to {@link #notifyListener} not served yet; see there. */
+    private final AtomicInteger pendingNotifications = new AtomicInteger();
     private volatile Listener listener;
     private volatile ClientCnx cnx;
     private volatile boolean closed = false;
@@ -163,25 +182,23 @@ final class ScalableTopicsWatcher implements ScalableTopicsWatcherSession, AutoC
         // Reset backoff on every successful snapshot — that's the broker confirming
         // the session is live and our local state is consistent.
         reconnectBackoff.reset();
-        // Replace local set so the next reconnect computes the right hash.
+        boolean initial = !initialSnapshotFuture.isDone();
+        // Replace local set so the next reconnect computes the right hash. The snapshot
+        // supersedes any change the listener hasn't been handed yet.
         synchronized (currentSet) {
             currentSet.clear();
             currentSet.addAll(topics);
+            pendingAdded.clear();
+            pendingRemoved.clear();
+            pendingSnapshot = !initial;
         }
-        if (!initialSnapshotFuture.isDone()) {
+        if (initial) {
             initialSnapshotFuture.complete(topics);
             // The listener is set by the caller AFTER start() resolves, so the initial
             // snapshot is delivered via the future, not via onSnapshot's fan-out.
             return;
         }
-        Listener l = listener;
-        if (l != null) {
-            try {
-                l.onSnapshot(topics);
-            } catch (Exception e) {
-                log.error().exception(e).log("Listener threw on snapshot");
-            }
-        }
+        notifyListener();
     }
 
     @Override
@@ -191,13 +208,65 @@ final class ScalableTopicsWatcher implements ScalableTopicsWatcherSession, AutoC
         }
         log.info().attr("added", added.size()).attr("removed", removed.size())
                 .log("Diff received");
-        // Apply removed before added — covers rapid remove-then-add of the same name.
+        // Apply removed before added — covers rapid remove-then-add of the same name. Only
+        // what changes the set is a change for the listener: the broker can report a topic of
+        // the initial snapshot as added again.
         synchronized (currentSet) {
-            currentSet.removeAll(removed);
-            currentSet.addAll(added);
+            for (String topic : removed) {
+                // A topic added since the listener was last notified: it never hears of it.
+                if (currentSet.remove(topic) && !pendingSnapshot && !pendingAdded.remove(topic)) {
+                    pendingRemoved.add(topic);
+                }
+            }
+            for (String topic : added) {
+                if (currentSet.add(topic) && !pendingSnapshot) {
+                    pendingAdded.add(topic);
+                }
+            }
         }
-        Listener l = listener;
-        if (l != null) {
+        notifyListener();
+    }
+
+    /**
+     * Hand the listener the changes it hasn't had yet. Both the I/O thread, on every event,
+     * and {@link #setListener} call this, so the listener calls are serialized here without
+     * holding a lock while the listener runs: the call that finds no other in progress
+     * delivers, and delivers again for each call made meanwhile. The changes that arrive while
+     * there is no listener, or while it runs, reach it together in its next call.
+     */
+    private void notifyListener() {
+        if (pendingNotifications.getAndIncrement() != 0) {
+            return;
+        }
+        do {
+            Listener l = listener;
+            if (l != null) {
+                deliverPending(l);
+            }
+        } while (pendingNotifications.decrementAndGet() != 0);
+    }
+
+    private void deliverPending(Listener l) {
+        List<String> snapshot = null;
+        List<String> added;
+        List<String> removed;
+        synchronized (currentSet) {
+            if (pendingSnapshot) {
+                pendingSnapshot = false;
+                snapshot = new ArrayList<>(currentSet);
+            }
+            added = List.copyOf(pendingAdded);
+            removed = List.copyOf(pendingRemoved);
+            pendingAdded.clear();
+            pendingRemoved.clear();
+        }
+        if (snapshot != null) {
+            try {
+                l.onSnapshot(snapshot);
+            } catch (Exception e) {
+                log.error().exception(e).log("Listener threw on snapshot");
+            }
+        } else if (!added.isEmpty() || !removed.isEmpty()) {
             try {
                 l.onDiff(added, removed);
             } catch (Exception e) {
@@ -312,10 +381,12 @@ final class ScalableTopicsWatcher implements ScalableTopicsWatcherSession, AutoC
     /**
      * Set the listener that receives {@code Snapshot} / {@code Diff} events. Should
      * be called after {@link #start()} resolves — the initial snapshot is delivered
-     * via that future, not via the listener.
+     * via that future, not via the listener. The changes received since then are
+     * handed to the listener right away: the broker reports each change only once.
      */
     void setListener(Listener listener) {
         this.listener = listener;
+        notifyListener();
     }
 
     /**
