@@ -225,6 +225,10 @@ public class ScalableTopicsWatcherSession implements ScalableTopicResources.Name
     }
 
     private boolean matchesFilters(ScalableTopicMetadata metadata) {
+        if (metadata.isDeleted()) {
+            // Being deleted: the read that sees the mark can complete after the Deleted event.
+            return false;
+        }
         if (propertyFilters.isEmpty()) {
             return true;
         }

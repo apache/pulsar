@@ -272,6 +272,17 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
         return getStore().deleteRecursive(topicPath(tn));
     }
 
+    /**
+     * Mark the topic as being deleted, before its metadata is deleted. See
+     * {@link ScalableTopicMetadata#isDeleted()}.
+     */
+    public CompletableFuture<Void> markScalableTopicDeletedAsync(TopicName tn) {
+        return updateScalableTopicAsync(tn, md -> {
+            md.setDeleted(true);
+            return md;
+        });
+    }
+
     public CompletableFuture<Boolean> scalableTopicExistsAsync(TopicName tn) {
         return existsAsync(topicPath(tn));
     }

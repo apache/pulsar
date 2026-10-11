@@ -268,6 +268,21 @@ public class ScalableTopicControllerTest {
     }
 
     @Test
+    public void testInitializeFailsWhenTopicMarkedDeleted() throws Exception {
+        resources.markScalableTopicDeletedAsync(topicName).get();
+        try {
+            controller.initialize().get();
+            fail("expected IllegalStateException for a topic being deleted");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof IllegalStateException,
+                    "expected IllegalStateException, got " + e.getCause());
+            assertTrue(e.getCause().getMessage().contains("being deleted"));
+        }
+        assertFalse(store.exists(resources.controllerLockPath(topicName)).get(),
+                "no controller may be elected for a topic being deleted");
+    }
+
+    @Test
     public void testLeaderBrokerIdPersisted() throws Exception {
         controller.initialize().get();
         Optional<String> leaderId = controller.getLeaderBrokerId().get();

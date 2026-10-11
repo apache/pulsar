@@ -679,9 +679,12 @@ public class ScalableTopics extends AdminResource {
                     }
                     // Stop the controller before deleting the metadata: still running, its
                     // leader election re-acquires the lock the delete removes, under the deleted
-                    // path, and it keeps serving consumers from the deleted layout. Then delete
-                    // metadata, then best-effort clean up segment topics.
-                    return releaseController(tn)
+                    // path, and it keeps serving consumers from the deleted layout. Mark the
+                    // topic deleted first, so the controllers following it on other brokers
+                    // don't take the lock over once it is released. Then delete metadata, then
+                    // best-effort clean up segment topics.
+                    return resources().markScalableTopicDeletedAsync(tn)
+                            .thenCompose(__ -> releaseController(tn))
                             .thenCompose(__ -> resources().deleteScalableTopicAsync(tn))
                             .thenCompose(__ -> deleteSegmentTopics(tn, optMd.get(), force));
                 })
