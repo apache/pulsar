@@ -37,9 +37,9 @@ import org.apache.pulsar.common.policies.data.NamespaceIsolationPolicyUnloadScop
  */
 public class NamespaceIsolationPolicyImpl implements NamespaceIsolationPolicy {
 
-    // A broker regex that names a specific port, e.g. "broker1:8080". IPv6 host regexes contain more than one
-    // colon and are therefore always treated as host regexes.
-    private static final Pattern HOST_PORT_REGEX = Pattern.compile("[^:]*:\\d+");
+    // A broker regex that names a specific port, e.g. "broker1:8080" or "^broker1:8080$". IPv6 host regexes
+    // contain more than one colon and are therefore always treated as host regexes.
+    private static final Pattern HOST_PORT_REGEX = Pattern.compile("[^:]*:\\d+\\$?");
 
     private List<String> namespaces;
     private List<String> primary;

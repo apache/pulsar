@@ -125,6 +125,11 @@ public class NamespaceIsolationPolicyImplTest {
         assertTrue(portPolicy.isSecondaryBrokerId("broker3:8080"));
         assertFalse(portPolicy.isSecondaryBrokerId("broker4:8080"));
 
+        // anchored entries with a port are treated the same way
+        NamespaceIsolationPolicyImpl anchoredPolicy = policy(List.of("^broker1:8080$"), List.of());
+        assertTrue(anchoredPolicy.isPrimaryBrokerId("broker1:8080"));
+        assertFalse(anchoredPolicy.isPrimaryBrokerId("broker1:8081"));
+
         // entries without a port are never matched against the broker id
         NamespaceIsolationPolicyImpl hostPolicy = this.getDefaultPolicy();
         assertTrue(hostPolicy.isPrimaryBroker("prod1-broker2.messaging.use.example.com"));
