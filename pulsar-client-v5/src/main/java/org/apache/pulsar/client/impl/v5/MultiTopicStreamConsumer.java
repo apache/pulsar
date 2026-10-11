@@ -80,6 +80,10 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
     private final String subscriptionName;
 
     private final ScalableTopicsWatcher watcher;
+    /**
+     * Every topic of the matching set, from when the consumer starts attaching it until it leaves the set:
+     * while it is being attached, once attached, and while a failed attach waits to be retried.
+     */
     private final ConcurrentHashMap<String, PerTopic<T>> perTopic = new ConcurrentHashMap<>();
     private final V5ReceiveQueue<T> mux;
 
@@ -139,24 +143,40 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
                 }));
     }
 
+    /**
+     * Open one per-topic consumer per topic in the initial snapshot, waiting for the first attempt on
+     * every topic. A topic whose first attempt failed is retried in the background, like a topic that
+     * joins the matching set later.
+     */
     private CompletableFuture<Void> openInitial(List<String> topics) {
         if (topics.isEmpty()) {
             return CompletableFuture.completedFuture(null);
         }
         List<CompletableFuture<?>> opens = new ArrayList<>(topics.size());
         for (String t : topics) {
-            opens.add(openTopic(t, /* retry= */ false));
+            opens.add(openTopic(t));
         }
         return CompletableFuture.allOf(opens.toArray(CompletableFuture[]::new));
     }
 
-    private CompletableFuture<Void> openTopic(String topicName, boolean retry) {
+    /**
+     * Subscribe to one topic, retrying failures in the background until an attempt succeeds or the
+     * topic leaves the matching set. The returned future completes once the first attempt finishes.
+     */
+    private CompletableFuture<Void> openTopic(String topicName) {
         if (closed) {
             return CompletableFuture.completedFuture(null);
         }
-        if (perTopic.containsKey(topicName)) {
+        PerTopic<T> state = new PerTopic<>();
+        if (perTopic.putIfAbsent(topicName, state) != null) {
+            // Already attached, being attached, or waiting to retry.
             return CompletableFuture.completedFuture(null);
         }
+        return attachTopic(topicName, state);
+    }
+
+    /** One attempt at subscribing to a topic; a failure schedules the next one. */
+    private CompletableFuture<Void> attachTopic(String topicName, PerTopic<T> state) {
         TopicName topic = V5Utils.parseScalableTopicInput(topicName);
         // One ScalableConsumerClient session per topic, same as the single-topic builder.
         ScalableConsumerClient session = new ScalableConsumerClient(
@@ -176,13 +196,9 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
                         client, v5Schema, perTopicConf(topicName), session,
                         topicName, initialAssignment, sink))
                 .thenAccept(sc -> {
-                    if (closed) {
-                        sc.closeAsync();
-                        return;
-                    }
-                    PerTopic<T> state = new PerTopic<>(sc);
-                    PerTopic<T> existing = perTopic.putIfAbsent(topicName, state);
-                    if (existing != null) {
+                    // closeTopic cancels the state when the topic leaves the matching set
+                    // while this attempt is in flight: close what it opened.
+                    if (closed || !state.consumer.complete(sc)) {
                         sc.closeAsync();
                         return;
                     }
@@ -191,8 +207,9 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
                 .exceptionally(ex -> {
                     Throwable cause = ex instanceof CompletionException ce && ce.getCause() != null
                             ? ce.getCause() : ex;
-                    if (retry && !closed) {
-                        scheduleRetry(topicName);
+                    // No retry once the topic has left the matching set: it may be gone for good.
+                    if (!closed && !state.consumer.isDone()) {
+                        scheduleRetry(topicName, state);
                     }
                     log.warn().attr("topic", topicName).exceptionMessage(cause)
                             .log("Per-topic stream subscribe failed");
@@ -200,21 +217,18 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
                 });
     }
 
-    private void scheduleRetry(String topicName) {
+    private void scheduleRetry(String topicName, PerTopic<T> state) {
         long delayMs = nextBackoff(topicName);
         log.info().attr("topic", topicName).attr("delayMs", delayMs)
                 .log("Retrying per-topic stream subscribe");
-        Timeout timeout = client.v4Client().timer().newTimeout(t -> {
-            retryTimeouts.remove(topicName);
-            openTopic(topicName, /* retry= */ true);
+        state.retry = client.v4Client().timer().newTimeout(t -> {
+            if (!closed && !state.consumer.isDone()) {
+                attachTopic(topicName, state);
+            }
         }, delayMs, TimeUnit.MILLISECONDS);
-        retryTimeouts.put(topicName, timeout);
     }
 
     private final ConcurrentHashMap<String, AtomicLong> retryDelays = new ConcurrentHashMap<>();
-    /** Pending backoff-retry timers, so {@link #closeTopic} can cancel a retry for a topic that
-     * dropped out of the match set before the timer fires (otherwise it would resurrect the topic). */
-    private final ConcurrentHashMap<String, Timeout> retryTimeouts = new ConcurrentHashMap<>();
 
     private long nextBackoff(String topicName) {
         AtomicLong al = retryDelays.computeIfAbsent(topicName, t -> new AtomicLong(100));
@@ -258,19 +272,24 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
      */
     private CompletableFuture<Void> closeTopic(String topicName) {
         retryDelays.remove(topicName);
-        // Cancel any pending backoff retry so a topic that just left the match set can't be
-        // re-subscribed when a stale timer fires.
-        Timeout retry = retryTimeouts.remove(topicName);
-        if (retry != null) {
-            retry.cancel();
-        }
         PerTopic<T> state = perTopic.remove(topicName);
         if (state == null) {
             return CompletableFuture.completedFuture(null);
         }
+        // If it isn't attached yet, stop attaching it: an attempt in flight closes the consumer
+        // it opens, and a pending backoff retry must not re-subscribe a topic that just left
+        // the match set.
+        boolean attaching = state.consumer.cancel(false);
+        Timeout retry = state.retry;
+        if (retry != null) {
+            retry.cancel();
+        }
         // Stop tracking this topic's delivery positions. No ack flush — see javadoc.
         latestDeliveredPerTopicSegment.remove(topicName);
-        return state.consumer.closeAsync()
+        if (attaching) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return state.consumer.thenCompose(ScalableStreamConsumer::closeAsync)
                 .thenRun(() -> log.info().attr("topic", topicName)
                         .log("Per-topic stream consumer detached"));
     }
@@ -336,12 +355,13 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
         }
         for (var entry : vector.entrySet()) {
             PerTopic<T> state = perTopic.get(entry.getKey());
-            if (state == null) {
+            ScalableStreamConsumer<T> consumer = state != null ? state.attachedConsumer() : null;
+            if (consumer == null) {
                 // Topic left the matching set since this message was enqueued: we've
                 // detached it and no longer ack removed topics, so skip its slice.
                 continue;
             }
-            action.accept(state.consumer, entry.getValue());
+            action.accept(consumer, entry.getValue());
         }
     }
 
@@ -369,10 +389,6 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
         closed = true;
         watcher.close();
         mux.close();
-        // Cancel pending retries for topics that never finished subscribing (they're not in
-        // perTopic, so the closeTopic loop below wouldn't reach them).
-        retryTimeouts.values().forEach(Timeout::cancel);
-        retryTimeouts.clear();
         List<CompletableFuture<Void>> closes = new ArrayList<>();
         for (var topic : new HashSet<>(perTopic.keySet())) {
             closes.add(closeTopic(topic));
@@ -394,7 +410,7 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
             }
             for (String t : target) {
                 if (!current.contains(t)) {
-                    openTopic(t, /* retry= */ true);
+                    openTopic(t);
                     resetBackoff(t);
                 }
             }
@@ -406,7 +422,7 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
                 closeTopic(t);
             }
             for (String t : added) {
-                openTopic(t, /* retry= */ true);
+                openTopic(t);
                 resetBackoff(t);
             }
         }
@@ -451,16 +467,22 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
     // --- Per-topic state ---
 
     /**
-     * Per-topic bookkeeping. Messages flow into the shared mux directly via the
-     * sink installed on the per-topic consumer at create-time, so there's no
-     * pump thread to manage — this is just a holder for ack routing and clean
-     * shutdown.
+     * Per-topic bookkeeping, from when the topic joins the matching set until it leaves it.
+     * Messages flow into the shared mux directly via the sink installed on the per-topic
+     * consumer at create-time, so there's no pump thread to manage — this is just a holder
+     * for ack routing and clean shutdown, and for the pending retry while attaching fails.
      */
     private static final class PerTopic<T> {
-        private final ScalableStreamConsumer<T> consumer;
+        /**
+         * Completes with the per-topic consumer once an attempt attaches it. Cancelled by
+         * {@code closeTopic} if the topic leaves the matching set first, which stops the attempts.
+         */
+        private final CompletableFuture<ScalableStreamConsumer<T>> consumer = new CompletableFuture<>();
+        private volatile Timeout retry;
 
-        PerTopic(ScalableStreamConsumer<T> consumer) {
-            this.consumer = consumer;
+        /** The per-topic consumer, or null while the topic isn't attached. */
+        ScalableStreamConsumer<T> attachedConsumer() {
+            return consumer.isDone() && !consumer.isCompletedExceptionally() ? consumer.getNow(null) : null;
         }
     }
 

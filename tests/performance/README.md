@@ -431,6 +431,19 @@ such as the latest release or a particular one. The workloads, and so the Pulsar
 [Comparing with a released Pulsar](docs/comparing-revisions.md#comparing-with-a-released-pulsar) describes the
 details.
 
+To compare two released Pulsar images, or a released image and the checkout, in one command, use `compareImages` or
+`compareImageWithCheckout`. They alternate repeated runs of both clusters, pick each side's median run, and write a
+summary and comparison charts:
+
+```bash
+./gradlew :tests:performance:launcher:compareImages \
+  -Pperformance.compare.baselineImage=apachepulsar/pulsar:4.0.14 \
+  -Pperformance.compare.candidateImage=apachepulsar/pulsar:5.0.0 \
+  --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --name release-ab'
+```
+
+[Comparing two Pulsar images](docs/comparing-revisions.md#comparing-two-pulsar-images) describes them.
+
 When both revisions have valid runs, chart the median run of each against the other, with the same axes for both
 and each revision's label in the charts and their file names:
 
