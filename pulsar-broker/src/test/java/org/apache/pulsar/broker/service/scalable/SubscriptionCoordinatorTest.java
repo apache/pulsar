@@ -204,6 +204,74 @@ public class SubscriptionCoordinatorTest {
     }
 
     /**
+     * A sealed segment is held back like an active one: after 0 splits into 4 and 5 and 5
+     * splits again into 6 and 7, a subscription still behind on 0 must not read 5, which
+     * holds newer messages of the same keys.
+     */
+    @Test
+    public void testSealedChildBlockedUntilParentDrained() throws Exception {
+        SubscriptionCoordinator orderedCoordinator = coordinatorDrainedOnlyByTest();
+        try {
+            orderedCoordinator.registerConsumer("consumer-1", 1L, mock(TransportCnx.class)).get();
+            orderedCoordinator.onLayoutChange(initialLayout.splitSegment(0, 0L).splitSegment(5, 0L)).get();
+            assertEquals(assignedTo(orderedCoordinator, "consumer-1"), Set.of(0L, 1L, 2L, 3L),
+                    "only the root of the split lineage may be read");
+
+            orderedCoordinator.markSegmentsDrained(Set.of(0L));
+            assertEquals(assignedTo(orderedCoordinator, "consumer-1"), Set.of(1L, 2L, 3L, 4L, 5L),
+                    "0's children are read once 0 is drained, 5's children still wait");
+
+            orderedCoordinator.markSegmentsDrained(Set.of(5L));
+            assertEquals(assignedTo(orderedCoordinator, "consumer-1"), Set.of(1L, 2L, 3L, 4L, 6L, 7L));
+        } finally {
+            orderedCoordinator.close();
+        }
+    }
+
+    /**
+     * A segment that received nothing before it was split is drained as soon as it is sealed,
+     * while its own parent can still have backlog: its children must keep waiting for that
+     * parent, not just for the empty segment.
+     */
+    @Test
+    public void testGrandchildrenBlockedUntilRootDrained() throws Exception {
+        SubscriptionCoordinator orderedCoordinator = coordinatorDrainedOnlyByTest();
+        try {
+            orderedCoordinator.registerConsumer("consumer-1", 1L, mock(TransportCnx.class)).get();
+            orderedCoordinator.onLayoutChange(initialLayout.splitSegment(0, 0L).splitSegment(5, 0L)).get();
+
+            orderedCoordinator.markSegmentsDrained(Set.of(5L));
+            assertEquals(assignedTo(orderedCoordinator, "consumer-1"), Set.of(0L, 1L, 2L, 3L),
+                    "5's children must wait for 0, not just for 5");
+
+            orderedCoordinator.markSegmentsDrained(Set.of(0L));
+            assertEquals(assignedTo(orderedCoordinator, "consumer-1"), Set.of(1L, 2L, 3L, 4L, 6L, 7L));
+        } finally {
+            orderedCoordinator.close();
+        }
+    }
+
+    /** A merged segment waits for the ancestors of both segments it merges. */
+    @Test
+    public void testMergedChildBlockedUntilGrandparentDrained() throws Exception {
+        SubscriptionCoordinator orderedCoordinator = coordinatorDrainedOnlyByTest();
+        try {
+            orderedCoordinator.registerConsumer("consumer-1", 1L, mock(TransportCnx.class)).get();
+            // 0 splits into 4 and 5, which merge back into 6.
+            orderedCoordinator.onLayoutChange(initialLayout.splitSegment(0, 0L).mergeSegments(4, 5, 0L)).get();
+
+            orderedCoordinator.markSegmentsDrained(Set.of(4L, 5L));
+            assertEquals(assignedTo(orderedCoordinator, "consumer-1"), Set.of(0L, 1L, 2L, 3L),
+                    "6 must wait for 0, not just for 4 and 5");
+
+            orderedCoordinator.markSegmentsDrained(Set.of(0L));
+            assertEquals(assignedTo(orderedCoordinator, "consumer-1"), Set.of(1L, 2L, 3L, 6L));
+        } finally {
+            orderedCoordinator.close();
+        }
+    }
+
+    /**
      * After the drain poller has backed off, a fresh consumer registration must cancel
      * the long-delay scheduled task and re-arm at the initial delay — otherwise the new
      * consumer would wait the full backed-off delay before its first drain check.
@@ -654,6 +722,17 @@ public class SubscriptionCoordinatorTest {
         // A leave with the live id removes it.
         coordinator.unregisterConsumer("c1", 2L).get();
         assertEquals(coordinator.getConsumers().size(), 0);
+    }
+
+    /** A coordinator with parent-drain ordering, whose segments only drain through markSegmentsDrained. */
+    private SubscriptionCoordinator coordinatorDrainedOnlyByTest() {
+        return new SubscriptionCoordinator("test-sub", topicName, initialLayout, resources, scheduler,
+                Duration.ofMillis(200), (segment, sub) -> CompletableFuture.completedFuture(false),
+                Duration.ofMillis(50), Duration.ofSeconds(5));
+    }
+
+    private static Set<Long> assignedTo(SubscriptionCoordinator c, String consumerName) {
+        return new HashSet<>(segmentIds(findByName(c.currentAssignment(), consumerName)));
     }
 
     private static ConsumerAssignment findByName(Map<ConsumerSession, ConsumerAssignment> m, String name) {
