@@ -103,67 +103,50 @@ public class NamespaceIsolationPolicyImplTest {
         assertFalse(defaultPolicy.isSecondaryBroker("broker-X.messaging.use.example.com"));
     }
 
+    private static NamespaceIsolationPolicyImpl policy(List<String> primary, List<String> secondary) {
+        return new NamespaceIsolationPolicyImpl(NamespaceIsolationData.builder()
+                .namespaces(Collections.singletonList("pulsar/test.*"))
+                .primary(primary)
+                .secondary(secondary)
+                .autoFailoverPolicy(AutoFailoverPolicyData.builder()
+                        .policyType(AutoFailoverPolicyType.min_available)
+                        .parameters(Map.of("min_limit", "1", "usage_threshold", "100"))
+                        .build())
+                .build());
+    }
+
     @Test
-    public void testIsPrimaryOrSecondaryBrokerWithPort() throws Exception {
-        // policy defined on host names, broker given as host:port
-        NamespaceIsolationPolicyImpl defaultPolicy = this.getDefaultPolicy();
-        assertTrue(defaultPolicy.isPrimaryBroker("prod1-broker2.messaging.use.example.com:8080"));
-        assertFalse(defaultPolicy.isPrimaryBroker("prod1-broker5.messaging.use.example.com:8080"));
-        assertTrue(defaultPolicy.isSecondaryBroker("prod1-broker5.messaging.use.example.com:8080"));
-        assertFalse(defaultPolicy.isSecondaryBroker("broker-X.messaging.use.example.com:8080"));
+    public void testIsPrimaryOrSecondaryBrokerId() throws Exception {
+        // entries with a port are matched against the broker id
+        NamespaceIsolationPolicyImpl portPolicy = policy(List.of("broker1:8080"), List.of("broker[2-3]:8080"));
+        assertTrue(portPolicy.isPrimaryBrokerId("broker1:8080"));
+        assertFalse(portPolicy.isPrimaryBrokerId("broker1:8081"));
+        assertFalse(portPolicy.isPrimaryBroker("broker1"));
+        assertTrue(portPolicy.isSecondaryBrokerId("broker3:8080"));
+        assertFalse(portPolicy.isSecondaryBrokerId("broker4:8080"));
 
-        // policy defined on host:port, broker given as host:port
-        NamespaceIsolationPolicyImpl policyWithPort = new NamespaceIsolationPolicyImpl(
-                NamespaceIsolationData.builder()
-                        .namespaces(Collections.singletonList("pulsar/test.*"))
-                        .primary(Collections.singletonList("broker1:8080"))
-                        .secondary(Collections.singletonList("broker2:8080"))
-                        .autoFailoverPolicy(AutoFailoverPolicyData.builder()
-                                .policyType(AutoFailoverPolicyType.min_available)
-                                .parameters(Map.of("min_limit", "1", "usage_threshold", "100"))
-                                .build())
-                        .build());
-        assertTrue(policyWithPort.isPrimaryBroker("broker1:8080"));
-        assertFalse(policyWithPort.isPrimaryBroker("broker1:8081"));
-        assertFalse(policyWithPort.isPrimaryBroker("broker2:8080"));
-        assertTrue(policyWithPort.isSecondaryBroker("broker2:8080"));
+        // entries without a port are never matched against the broker id
+        NamespaceIsolationPolicyImpl hostPolicy = this.getDefaultPolicy();
+        assertTrue(hostPolicy.isPrimaryBroker("prod1-broker2.messaging.use.example.com"));
+        assertFalse(hostPolicy.isPrimaryBrokerId("prod1-broker2.messaging.use.example.com:8080"));
+        assertFalse(hostPolicy.isSecondaryBrokerId("prod1-broker5.messaging.use.example.com:8080"));
 
-        List<URL> brokers = List.of(new URL("http://broker1:8080"), new URL("http://broker2:8080"));
+        // a host regex must not match through the port suffix of a broker id
+        NamespaceIsolationPolicyImpl suffixPolicy = policy(List.of("broker.*[13]"), List.of());
+        assertFalse(suffixPolicy.isPrimaryBroker("broker2"));
+        assertFalse(suffixPolicy.isPrimaryBrokerId("broker2:8081"));
+
+        // IPv6 host regexes are host-only, so the last address segment is never taken for a port
+        NamespaceIsolationPolicyImpl ipv6Policy = policy(List.of("2001:db8::1"), List.of());
+        assertTrue(ipv6Policy.isPrimaryBroker("2001:db8::1"));
+        assertFalse(ipv6Policy.isPrimaryBroker("2001:db8::1:1234"));
+        assertFalse(ipv6Policy.isPrimaryBrokerId("2001:db8::1:1234:8080"));
+
+        List<URL> brokers = List.of(new URL("http://broker1:8080"), new URL("http://broker1:8081"),
+                new URL("http://broker2:8080"));
         NamespaceName ns = NamespaceName.get("pulsar/testns-1");
-        assertEquals(policyWithPort.findPrimaryBrokers(brokers, ns), List.of(new URL("http://broker1:8080")));
-        assertEquals(policyWithPort.findSecondaryBrokers(brokers, ns), List.of(new URL("http://broker2:8080")));
-
-        // IPv6 addresses are matched as-is first, the port is stripped only as a fallback
-        NamespaceIsolationPolicyImpl ipv6Policy = new NamespaceIsolationPolicyImpl(
-                NamespaceIsolationData.builder()
-                        .namespaces(Collections.singletonList("pulsar/test.*"))
-                        .primary(Collections.singletonList("fe80::1"))
-                        .secondary(Collections.emptyList())
-                        .autoFailoverPolicy(AutoFailoverPolicyData.builder()
-                                .policyType(AutoFailoverPolicyType.min_available)
-                                .parameters(Map.of("min_limit", "1", "usage_threshold", "100"))
-                                .build())
-                        .build());
-        assertTrue(ipv6Policy.isPrimaryBroker("fe80::1"));
-        assertTrue(ipv6Policy.isPrimaryBroker("fe80::1:8080"));
-        assertFalse(ipv6Policy.isPrimaryBroker("fe80::2:8080"));
-        List<URL> ipv6Brokers = List.of(new URL("http://[fe80::1]:8080"), new URL("http://[fe80::2]:8080"));
-        assertEquals(ipv6Policy.findPrimaryBrokers(ipv6Brokers, ns), List.of(new URL("http://[fe80::1]:8080")));
-
-        // policy copied from a broker id (bare IPv6 address with port)
-        NamespaceIsolationPolicyImpl ipv6PortPolicy = new NamespaceIsolationPolicyImpl(
-                NamespaceIsolationData.builder()
-                        .namespaces(Collections.singletonList("pulsar/test.*"))
-                        .primary(Collections.singletonList("fe80::1:8080"))
-                        .secondary(Collections.singletonList("\\[fe80::2\\]"))
-                        .autoFailoverPolicy(AutoFailoverPolicyData.builder()
-                                .policyType(AutoFailoverPolicyType.min_available)
-                                .parameters(Map.of("min_limit", "1", "usage_threshold", "100"))
-                                .build())
-                        .build());
-        assertEquals(ipv6PortPolicy.findPrimaryBrokers(ipv6Brokers, ns), List.of(new URL("http://[fe80::1]:8080")));
-        // the bracketed form is still matched for backward compatibility
-        assertEquals(ipv6PortPolicy.findSecondaryBrokers(ipv6Brokers, ns), List.of(new URL("http://[fe80::2]:8080")));
+        assertEquals(portPolicy.findPrimaryBrokers(brokers, ns), List.of(new URL("http://broker1:8080")));
+        assertEquals(portPolicy.findSecondaryBrokers(brokers, ns), List.of(new URL("http://broker2:8080")));
     }
 
     @Test

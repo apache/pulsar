@@ -160,16 +160,17 @@ public class LoadManagerShared {
         }
     }
 
-    // Isolation policies may reference a broker either by its host name or by its broker id (host:port),
-    // which is how brokers are listed by `pulsar-admin brokers list`, so match against both forms.
+    // Policy entries without a port are matched against the broker host. Entries that name a specific port
+    // (host:port, as brokers are listed by `pulsar-admin brokers list`) are matched against the broker id.
     private static boolean isPrimaryBroker(SimpleResourceAllocationPolicies policies, NamespaceName namespace,
                                            String brokerHost, String brokerId) {
-        return policies.isPrimaryBroker(namespace, brokerHost) || policies.isPrimaryBroker(namespace, brokerId);
+        return policies.isPrimaryBroker(namespace, brokerHost) || policies.isPrimaryBrokerId(namespace, brokerId);
     }
 
     private static boolean isSecondaryBroker(SimpleResourceAllocationPolicies policies, NamespaceName namespace,
                                              String brokerHost, String brokerId) {
-        return policies.isSecondaryBroker(namespace, brokerHost) || policies.isSecondaryBroker(namespace, brokerId);
+        return policies.isSecondaryBroker(namespace, brokerHost)
+                || policies.isSecondaryBrokerId(namespace, brokerId);
     }
 
     private static String parseBrokerHost(String brokerId) {
