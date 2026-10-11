@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.CALLS_REAL_METHODS;
+import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import com.google.common.collect.Sets;
 import java.util.HashSet;
 import java.util.List;
@@ -29,11 +29,13 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.resources.NamespaceResources.IsolationPolicyResources;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
-import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
-import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicyImpl;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
+import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -101,8 +103,8 @@ public class LoadManagerSharedTest {
             };
 
     private static SimpleResourceAllocationPolicies policiesWithPrimary(NamespaceName namespace,
-                                                                        String... primary) {
-        NamespaceIsolationPolicyImpl policy = new NamespaceIsolationPolicyImpl(NamespaceIsolationData.builder()
+                                                                        String... primary) throws Exception {
+        NamespaceIsolationDataImpl policyData = NamespaceIsolationDataImpl.builder()
                 .namespaces(List.of(namespace.toString()))
                 .primary(List.of(primary))
                 .secondary(List.of())
@@ -110,13 +112,17 @@ public class LoadManagerSharedTest {
                         .policyType(AutoFailoverPolicyType.min_available)
                         .parameters(Map.of("min_limit", "1", "usage_threshold", "100"))
                         .build())
-                .build());
-        SimpleResourceAllocationPolicies policies = mock(SimpleResourceAllocationPolicies.class, CALLS_REAL_METHODS);
-        doReturn(true).when(policies).areIsolationPoliciesPresent(namespace);
-        doReturn(CompletableFuture.completedFuture(true)).when(policies).areIsolationPoliciesPresentAsync(namespace);
-        doReturn(Optional.of(policy)).when(policies).getNamespaceIsolationPolicy(namespace);
-        doReturn(false).when(policies).isSharedBroker(any());
-        return policies;
+                .build();
+        Optional<NamespaceIsolationPolicies> policies =
+                Optional.of(new NamespaceIsolationPolicies(Map.of("policy1", policyData)));
+        PulsarService pulsar = mock(PulsarService.class, RETURNS_DEEP_STUBS);
+        when(pulsar.getConfiguration().getClusterName()).thenReturn("cluster1");
+        IsolationPolicyResources isolationPolicyResources =
+                pulsar.getPulsarResources().getNamespaceResources().getIsolationPolicies();
+        doReturn(policies).when(isolationPolicyResources).getIsolationDataPolicies("cluster1");
+        doReturn(CompletableFuture.completedFuture(policies))
+                .when(isolationPolicyResources).getIsolationDataPoliciesAsync("cluster1");
+        return new SimpleResourceAllocationPolicies(pulsar);
     }
 
     private static void assertPlacement(SimpleResourceAllocationPolicies policies, NamespaceName namespace,
@@ -144,5 +150,15 @@ public class LoadManagerSharedTest {
         // the last segment of an IPv6 host must not be taken for a port
         assertPlacement(policiesWithPrimary(namespace, "2001:db8::1"), namespace,
                 Set.of("2001:db8::1:1234:8080", "2001:db8::1:8080"), Set.of("2001:db8::1:8080"));
+    }
+
+    @Test
+    public void testApplyNamespacePoliciesExcludesBrokerIdPrimaryFromSharedPool() throws Exception {
+        SimpleResourceAllocationPolicies policies =
+                policiesWithPrimary(NamespaceName.get("tenant1/isolated"), "broker1:8080");
+        // a namespace without a policy must not be placed on a broker reserved by a port-specific entry
+        NamespaceName uncontrolled = NamespaceName.get("tenant1/ns1");
+        assertPlacement(policies, uncontrolled, Set.of("broker1:8080", "broker1:8081", "broker2:8080"),
+                Set.of("broker1:8081", "broker2:8080"));
     }
 }

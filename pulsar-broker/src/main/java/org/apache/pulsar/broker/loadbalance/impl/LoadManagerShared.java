@@ -135,7 +135,7 @@ public class LoadManagerShared {
                     // persistent topic can be assigned to only brokers that enabled for persistent-topic
                     log.debug().attr("broker", brokerHost).attr("namespace", namespace.toString())
                             .log("Filter broker because broker only supports non-persistent namespace");
-                } else if (policies.isSharedBroker(brokerHost)) {
+                } else if (isSharedBroker(policies, brokerHost, brokerId)) {
                     secondaryCache.add(brokerId);
                     log.debug().attr("broker", brokerHost).attr("namespace", namespace.toString())
                             .log("Added Shared Broker as possible Candidates for namespace");
@@ -171,6 +171,12 @@ public class LoadManagerShared {
                                              String brokerHost, String brokerId) {
         return policies.isSecondaryBroker(namespace, brokerHost)
                 || policies.isSecondaryBrokerId(namespace, brokerId);
+    }
+
+    // A broker reserved as primary by a port-specific policy entry is not part of the shared broker pool.
+    private static boolean isSharedBroker(SimpleResourceAllocationPolicies policies, String brokerHost,
+                                          String brokerId) {
+        return policies.isSharedBroker(brokerHost) && !policies.isPrimaryBrokerIdInAnyPolicy(brokerId);
     }
 
     private static String parseBrokerHost(String brokerId) {
@@ -236,7 +242,7 @@ public class LoadManagerShared {
                         // persistent topic can be assigned to only brokers that enabled for persistent-topic
                         log.debug().attr("broker", brokerId).attr("namespace", namespace.toString())
                                 .log("Filter broker because broker only supports non-persistent namespace");
-                    } else if (policies.isSharedBroker(brokerHost)) {
+                    } else if (isSharedBroker(policies, brokerHost, brokerId)) {
                         secondaryCache.add(brokerId);
                         log.debug().attr("broker", brokerHost).attr("namespace", namespace.toString())
                                 .log("Added Shared Broker as possible Candidates for namespace");

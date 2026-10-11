@@ -130,6 +130,9 @@ public class NamespaceIsolationPolicyImpl implements NamespaceIsolationPolicy {
      * doesn't change how they are applied.
      */
     private static boolean matchesBrokerIdRegex(List<String> brkRegexList, String brokerId) {
+        if (brokerId == null) {
+            return false;
+        }
         for (String brkRegex : brkRegexList) {
             if (HOST_PORT_REGEX.matcher(brkRegex).matches() && brokerId.matches(brkRegex)) {
                 return true;

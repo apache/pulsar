@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -80,8 +79,7 @@ public class SimpleResourceAllocationPolicies {
         }
     }
 
-    @VisibleForTesting
-    Optional<NamespaceIsolationPolicy> getNamespaceIsolationPolicy(NamespaceName namespace) {
+    private Optional<NamespaceIsolationPolicy> getNamespaceIsolationPolicy(NamespaceName namespace) {
         try {
             Optional<NamespaceIsolationPolicies> policies =
                     getIsolationPolicies(pulsar.getConfiguration().getClusterName());
@@ -123,6 +121,19 @@ public class SimpleResourceAllocationPolicies {
             log.warn().exception(e).log("isPrimaryForAnyNamespace");
         }
         return false;
+    }
+
+    public boolean isPrimaryBrokerIdInAnyPolicy(String brokerId) {
+        try {
+            Optional<NamespaceIsolationPolicies> policies =
+                    getIsolationPolicies(pulsar.getConfiguration().getClusterName());
+            return policies.map(isolationPolicies -> isolationPolicies.isPrimaryBrokerIdInAnyPolicy(brokerId))
+                    .orElse(false);
+        } catch (Exception e) {
+            log.warn().exception(e).log("isPrimaryBrokerIdInAnyPolicy");
+        }
+        // like isSharedBroker, don't consider the broker as shared if the policies can't be read
+        return true;
     }
 
     public boolean shouldFailoverToSecondaries(NamespaceName namespace, int totalPrimaryCandidates) {
