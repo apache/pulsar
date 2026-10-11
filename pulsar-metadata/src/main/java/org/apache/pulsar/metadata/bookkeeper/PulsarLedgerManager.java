@@ -265,10 +265,18 @@ public class PulsarLedgerManager implements LedgerManager {
         if (log.isDebugEnabled()) {
             log.debug("Registered ledger metadata listener {} on ledger {}.", listener, ledgerId);
         }
-        Set<BookkeeperInternalCallbacks.LedgerMetadataListener> listenerSet =
-                listeners.computeIfAbsent(ledgerId, k -> new HashSet<>());
-        synchronized (listenerSet) {
-            listenerSet.add(listener);
+        while (true) {
+            Set<BookkeeperInternalCallbacks.LedgerMetadataListener> listenerSet =
+                    listeners.computeIfAbsent(ledgerId, k -> new HashSet<>());
+            synchronized (listenerSet) {
+                // The last listener may have been unregistered while we waited for the set's monitor.
+                // Retry with the current set instead of adding a listener to a detached set.
+                if (listeners.get(ledgerId) != listenerSet) {
+                    continue;
+                }
+                listenerSet.add(listener);
+                break;
+            }
         }
         new ReadLedgerMetadataTask(ledgerId).run();
     }
@@ -287,9 +295,15 @@ public class PulsarLedgerManager implements LedgerManager {
                 }
             }
             if (listenerSet.isEmpty()) {
-                listeners.remove(ledgerId, listenerSet);
+                removeListenerSetIfCurrent(ledgerId, listenerSet);
             }
         }
+    }
+
+    private void removeListenerSetIfCurrent(long ledgerId,
+            Set<BookkeeperInternalCallbacks.LedgerMetadataListener> listenerSet) {
+        // Map.remove(key, value) uses equals: an old empty set must not remove a different, newly created empty set.
+        listeners.computeIfPresent(ledgerId, (id, currentSet) -> currentSet == listenerSet ? null : currentSet);
     }
 
     private static final Pattern ledgerPathRegex = Pattern.compile(".*/L[0-9]+$");
@@ -324,7 +338,7 @@ public class PulsarLedgerManager implements LedgerManager {
                         for (BookkeeperInternalCallbacks.LedgerMetadataListener l : listenerSet) {
                             l.onChanged(ledgerId, null);
                         }
-                        listeners.remove(ledgerId, listenerSet);
+                        removeListenerSetIfCurrent(ledgerId, listenerSet);
                     }
                 } else {
                     if (log.isDebugEnabled()) {
