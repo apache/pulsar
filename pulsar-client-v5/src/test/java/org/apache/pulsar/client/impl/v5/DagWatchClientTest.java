@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl.v5;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
@@ -120,6 +121,24 @@ public class DagWatchClientTest {
             resume.countDown();
             caller.join();
         }
+        assertThat(changes).containsExactly("1->2", "2->3");
+    }
+
+    @Test
+    public void testListenerErrorDoesNotStopLaterLayouts() {
+        DagWatchClient watch = watchWithLayout(mock(PulsarClientImpl.class));
+        List<String> changes = new ArrayList<>();
+        watch.setListener((newLayout, oldLayout) -> {
+            changes.add(oldLayout.epoch() + "->" + newLayout.epoch());
+            if (changes.size() == 1) {
+                throw new Error("listener failure");
+            }
+        });
+
+        // Whether or not the Error reaches the I/O thread, the layouts that follow must still be delivered.
+        catchThrowable(() -> watch.onUpdate(new ScalableTopicDAG().setEpoch(2L), TOPIC));
+        watch.onUpdate(new ScalableTopicDAG().setEpoch(3L), TOPIC);
+
         assertThat(changes).containsExactly("1->2", "2->3");
     }
 
