@@ -226,15 +226,15 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                         if (actEx instanceof IncompatibleSchemaException) {
                             log.warn()
                                     .attr("schemaId", schemaId)
-                                    .exception(ex)
+                                    .exceptionMessage(actEx)
                                     .log("Put schema failed due to incompatible schema");
                         } else {
-                            log.error().attr("schemaId", schemaId).exception(ex).log("Put schema failed");
+                            log.error().attr("schemaId", schemaId).exceptionMessage(actEx).log("Put schema failed");
                         }
                         if (start.longValue() != 0) {
                             this.stats.recordPutFailed(schemaId, latencyMs);
                         }
-                        promise.completeExceptionally(ex);
+                        promise.completeExceptionally(actEx);
                     } else {
                         log.debug().attr("schemaId", schemaId).log("Put schema finished");
                         // The schema storage will return null schema version if no schema is persisted to the storage
