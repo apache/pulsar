@@ -75,6 +75,10 @@ final class ScalableConsumerClient implements ScalableConsumerSession, AutoClose
     private final String consumerName;
     private final long consumerId;
     private final ScalableConsumerType consumerType;
+    /** When false, the DAG lookup must not auto-create the scalable topic if it's missing. Namespace
+     *  (multi-topic) consumers set this false so a deleted topic isn't resurrected by a per-topic
+     *  attach or reconnect. */
+    private final boolean createIfMissing;
     private final Backoff reconnectBackoff;
 
     private final AtomicReference<List<ActiveSegment>> currentAssignment =
@@ -100,12 +104,22 @@ final class ScalableConsumerClient implements ScalableConsumerSession, AutoClose
                            String subscription,
                            String consumerName,
                            ScalableConsumerType consumerType) {
+        this(v4Client, topicName, subscription, consumerName, consumerType, true);
+    }
+
+    ScalableConsumerClient(PulsarClientImpl v4Client,
+                           TopicName topicName,
+                           String subscription,
+                           String consumerName,
+                           ScalableConsumerType consumerType,
+                           boolean createIfMissing) {
         this.v4Client = v4Client;
         this.topicName = topicName;
         this.subscription = subscription;
         this.consumerName = consumerName;
         this.consumerId = v4Client.newConsumerId();
         this.consumerType = consumerType;
+        this.createIfMissing = createIfMissing;
         this.reconnectBackoff = Backoff.builder()
                 .initialDelay(Duration.ofMillis(100))
                 .maxBackoff(Duration.ofSeconds(30))
@@ -156,7 +170,7 @@ final class ScalableConsumerClient implements ScalableConsumerSession, AutoClose
         inFlightSubscribes.add(result);
         result.whenComplete((__, ___) -> inFlightSubscribes.remove(result));
 
-        DagWatchClient watch = new DagWatchClient(v4Client, topicName);
+        DagWatchClient watch = new DagWatchClient(v4Client, topicName, createIfMissing);
         watch.start()
                 .thenCompose(layout -> {
                     if (watch.isUsingProxy()) {
