@@ -18,20 +18,34 @@
  */
 package org.apache.pulsar.metadata.coordination.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 import lombok.Cleanup;
 import org.apache.pulsar.metadata.BaseMetadataStoreTest;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.Notification;
+import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
+import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
+import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore.OperationType;
+import org.apache.pulsar.metadata.impl.LocalMemoryMetadataStore;
+import org.mockito.ArgumentCaptor;
 import org.testng.annotations.Test;
 
 public class LeaderElectionImplTest extends BaseMetadataStoreTest {
@@ -71,14 +85,16 @@ public class LeaderElectionImplTest extends BaseMetadataStoreTest {
     }
 
     @Test(timeOut = 20000)
-    public void getLeaderValueTimesOutWhenElectionNeverCompletes() {
+    public void getLeaderValueTimesOutWhenElectionNeverCompletes() throws Exception {
         MetadataStoreExtended store = mock(MetadataStoreExtended.class);
         // The store never answers, so the election never settles.
         when(store.get(anyString())).thenReturn(new CompletableFuture<>());
 
+        @Cleanup
+        CoordinationServiceImpl cs = new CoordinationServiceImpl(store);
         @Cleanup("shutdownNow")
         ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-        LeaderElectionImpl<String> le = new LeaderElectionImpl<>(store, String.class,
+        LeaderElectionImpl<String> le = new LeaderElectionImpl<>(cs, store, String.class,
                 "/getLeaderValueTimesOutWhenElectionNeverCompletes", __ -> {
         }, executor);
         le.setLeaderElectionCompletionTimeoutSeconds(1);
@@ -89,5 +105,34 @@ public class LeaderElectionImplTest extends BaseMetadataStoreTest {
                 .hasCauseInstanceOf(TimeoutException.class)
                 .cause()
                 .hasMessageContaining("did not complete within");
+    }
+
+    @Test(timeOut = 20000)
+    public void closedElectionDoesNotRetryTheElection() throws Exception {
+        String path = "/closedElectionDoesNotRetryTheElection";
+        @Cleanup
+        FaultInjectionMetadataStore store = new FaultInjectionMetadataStore(
+                new LocalMemoryMetadataStore("memory:local", MetadataStoreConfig.builder().build()));
+        @Cleanup
+        CoordinationServiceImpl cs = new CoordinationServiceImpl(store);
+        // Lets the test run the retry the election schedules
+        ScheduledExecutorService executor = mock(ScheduledExecutorService.class);
+        LeaderElectionImpl<String> le = new LeaderElectionImpl<>(cs, store, String.class, path, __ -> {
+        }, executor);
+        assertThat(le.elect("test-1").join()).isEqualTo(LeaderElectionState.Leading);
+
+        // The lock is deleted and the election fails to take it again: it schedules a retry
+        store.delete(path, Optional.empty()).join();
+        store.failConditional(new MetadataStoreException("injected"),
+                (op, p) -> op == OperationType.GET && p.equals(path));
+        le.handlePathNotification(new Notification(NotificationType.Deleted, path));
+        ArgumentCaptor<Runnable> retry = ArgumentCaptor.forClass(Runnable.class);
+        verify(executor).schedule(retry.capture(), anyLong(), any(TimeUnit.class));
+
+        le.close();
+        retry.getValue().run();
+
+        assertThat(store.get(path).join()).as("lock of the closed election").isEmpty();
+        assertThat(le.getState()).isEqualTo(LeaderElectionState.NoLeader);
     }
 }
