@@ -289,6 +289,8 @@ public class ScalableTopicService {
                                     .toList()
                     );
                 })
+                // The segments share the schema of the scalable topic; deleting them leaves it in place.
+                .thenCompose(__ -> brokerService.deleteSchema(topic))
                 .thenCompose(__ -> resources.deleteScalableTopicAsync(topic));
     }
 

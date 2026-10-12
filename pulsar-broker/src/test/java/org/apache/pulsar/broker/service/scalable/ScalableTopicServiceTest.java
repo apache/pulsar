@@ -102,6 +102,8 @@ public class ScalableTopicServiceTest {
         when(pulsar.getConfiguration()).thenReturn(new ServiceConfiguration());
         when(brokerService.getTopicIfExists(anyString()))
                 .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+        when(brokerService.deleteSchema(any(TopicName.class)))
+                .thenReturn(CompletableFuture.completedFuture(null));
         when(pulsar.getBrokerId()).thenReturn(BROKER_ID);
         when(pulsar.getExecutor()).thenReturn(scheduler);
         when(pulsar.getAdminClient()).thenReturn(admin);
@@ -358,6 +360,8 @@ public class ScalableTopicServiceTest {
                 "topic delete must remove segment load records");
         verify(scalableTopicsAdmin, org.mockito.Mockito.atLeast(2))
                 .deleteSegmentAsync(anyString(), anyBoolean());
+        // Segment deletes leave the shared schema in place; the topic delete removes it.
+        verify(brokerService).deleteSchema(tn);
     }
 
     // --- concurrent topic isolation ---
