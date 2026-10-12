@@ -34,12 +34,13 @@ import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
 /**
- * Deleting the regular topic that was migrated to a scalable topic (PIP-475) must leave the schema of the
- * scalable topic in place. The old {@code persistent://} topic and the scalable topic map to the same schema id
- * ({@link TopicName#getSchemaName()}), which belongs to the scalable topic once it exists: only deleting the
+ * Deleting a regular topic with the name of a scalable topic must leave the schema of the scalable topic in
+ * place: the {@code persistent://} topic that was migrated to the scalable topic (PIP-475), or a
+ * {@code non-persistent://} topic of the same name. They map to the same schema id
+ * ({@link TopicName#getSchemaName()}), which belongs to the scalable topic while it exists: only deleting the
  * scalable topic itself deletes it.
  */
-public class ScalableTopicLegacyTopicDeleteSchemaTest extends V5ClientBaseTest {
+public class ScalableTopicRegularTopicDeleteSchemaTest extends V5ClientBaseTest {
 
     @Test
     public void testDeleteMigratedTopicKeepsSchema() throws Exception {
@@ -89,6 +90,29 @@ public class ScalableTopicLegacyTopicDeleteSchemaTest extends V5ClientBaseTest {
                 .persistentTopicExists(TopicName.get("persistent://" + base)).get())
                 .as("the inactive-topic GC deletes the migrated topic")
                 .isFalse());
+        assertSchemaKept(base);
+    }
+
+    @Test
+    public void testDeleteNonPersistentTopicKeepsSchema() throws Exception {
+        String base = getNamespace() + "/scalable-" + UUID.randomUUID().toString().substring(0, 8);
+        admin.scalableTopics().createScalableTopic("topic://" + base, 1);
+        @Cleanup
+        Producer<String> producer = v5Client.newProducer(Schema.string())
+                .topic("topic://" + base)
+                .create();
+        producer.newMessage().key("k").value("v").send();
+        assertSchemaKept(base);
+        pulsarClient.newProducer().topic("non-persistent://" + base).create().close();
+        assertThat(getPulsar().getBrokerService().getTopicReference("non-persistent://" + base))
+                .as("the non-persistent topic with the name of the scalable topic is loaded")
+                .isPresent();
+
+        admin.topics().delete("non-persistent://" + base, true);
+
+        assertThat(getPulsar().getBrokerService().getTopicReference("non-persistent://" + base))
+                .as("the non-persistent topic is deleted")
+                .isEmpty();
         assertSchemaKept(base);
     }
 

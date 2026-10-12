@@ -4663,13 +4663,14 @@ public class BrokerService implements Closeable {
     }
 
     /**
-     * Whether the schema of a {@code persistent://} topic belongs to a scalable topic with the same name. Both
-     * names map to the same schema id ({@link TopicName#getSchemaName()}), and once a regular topic has been
-     * migrated to a scalable topic (PIP-475) the scalable topic keeps using that schema, so deleting the old topic
-     * must leave it in place: it is deleted along with the scalable topic.
+     * Whether the schema of a regular ({@code persistent://} or {@code non-persistent://}) topic belongs to a
+     * scalable topic with the same name. Both names map to the same schema id ({@link TopicName#getSchemaName()}),
+     * and the scalable topic keeps using that schema after the regular topic is gone, e.g. once a regular topic
+     * has been migrated to a scalable topic (PIP-475), so deleting the regular topic must leave it in place: it is
+     * deleted along with the scalable topic.
      */
     private CompletableFuture<Boolean> isSchemaOwnedByScalableTopicAsync(TopicName topicName) {
-        if (topicName.getDomain() != TopicDomain.persistent
+        if (topicName.isScalable() || topicName.isSegment()
                 || !pulsar.getConfiguration().isScalableTopicsEnabled()) {
             return CompletableFuture.completedFuture(false);
         }
@@ -4677,8 +4678,7 @@ public class BrokerService implements Closeable {
         if (scalableResources == null) {
             return CompletableFuture.completedFuture(false);
         }
-        return scalableResources.getScalableTopicMetadataAsync(topicName.toScalableTopic())
-                .thenApply(Optional::isPresent);
+        return scalableResources.scalableTopicExistsAsync(topicName.toScalableTopic());
     }
 
     private CompletableFuture<Boolean> checkNonPartitionedTopicExists(TopicName topicName) {
