@@ -160,6 +160,10 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
     }
 
     private synchronized CompletableFuture<LeaderElectionState> handleExistingLeaderValue(GetResult res) {
+        if (internalState == InternalState.Closed) {
+            // Closed while the lock was being read: the value read must not bring the election back
+            return FutureUtil.failedFuture(new AlreadyClosedException("The leader election was already closed"));
+        }
         T existingValue;
         try {
             existingValue = serde.deserialize(path, res.getValue(), res.getStat());
