@@ -20,27 +20,38 @@ package org.apache.pulsar.metadata.coordination.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import lombok.Cleanup;
+import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyClosedException;
+import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.Notification;
+import org.apache.pulsar.metadata.api.Option;
+import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.coordination.LeaderElection;
 import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
+import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
+import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore.OperationType;
 import org.apache.pulsar.metadata.impl.LocalMemoryMetadataStore;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
 /**
- * How {@link CoordinationServiceImpl} keeps track of the leader elections it creates.
+ * The leader elections of {@link CoordinationServiceImpl}: how they are tracked, and how a closed one stays out of
+ * the election.
  */
 public class CoordinationServiceImplTest {
 
@@ -227,6 +238,89 @@ public class CoordinationServiceImplTest {
         assertThat(observer.getState()).isEqualTo(LeaderElectionState.NoLeader);
     }
 
+    @Test(timeOut = 30000)
+    public void electionClosedWhileReelectingDoesNotTakeTheLock() throws Exception {
+        @Cleanup
+        TestStore store = new TestStore();
+        @Cleanup
+        CoordinationServiceImpl cs = new CoordinationServiceImpl(store);
+
+        List<LeaderElectionState> states = new CopyOnWriteArrayList<>();
+        LeaderElection<String> election = cs.getLeaderElection(String.class, PATH, states::add);
+        assertThat(election.elect("broker-1").join()).isEqualTo(LeaderElectionState.Leading);
+
+        // The lock is deleted, and the election is closed while it reads the lock to elect again
+        CompletableFuture<Void> readGate = new CompletableFuture<>();
+        store.readGate = readGate;
+        store.delete(PATH, Optional.empty()).join();
+        Awaitility.await().untilAsserted(() -> assertThat(store.heldReads).hasValue(1));
+        election.close();
+        store.writes.clear();
+        store.readGate = null;
+        readGate.complete(null);
+
+        assertThat(store.writes).as("paths written after the close").doesNotContain(PATH);
+        assertThat(store.get(PATH).join()).as("lock of the closed election").isEmpty();
+        assertThat(election.getState()).isEqualTo(LeaderElectionState.NoLeader);
+        assertThat(states).as("reported states").containsExactly(LeaderElectionState.Leading);
+    }
+
+    @Test(timeOut = 30000)
+    public void electionClosedWhileReelectingLeavesTheNewLeaderAlone() throws Exception {
+        @Cleanup
+        TestStore store = new TestStore();
+        @Cleanup
+        CoordinationServiceImpl cs = new CoordinationServiceImpl(store);
+
+        List<LeaderElectionState> states = new CopyOnWriteArrayList<>();
+        LeaderElection<String> election = cs.getLeaderElection(String.class, PATH, states::add);
+        assertThat(election.elect("broker-1").join()).isEqualTo(LeaderElectionState.Leading);
+
+        // The lock is deleted, and the election is closed while it reads the lock to elect again, which another
+        // broker took in the meantime
+        CompletableFuture<Void> readGate = new CompletableFuture<>();
+        store.readGate = readGate;
+        store.delete(PATH, Optional.empty()).join();
+        Awaitility.await().untilAsserted(() -> assertThat(store.heldReads).hasValue(1));
+        election.close();
+        store.put(PATH, "\"broker-2\"".getBytes(StandardCharsets.UTF_8), Optional.of(-1L),
+                EnumSet.of(CreateOption.Ephemeral)).join();
+        store.readGate = null;
+        readGate.complete(null);
+
+        assertThat(store.get(PATH).join()).as("lock of the new leader")
+                .map(result -> new String(result.getValue(), StandardCharsets.UTF_8))
+                .contains("\"broker-2\"");
+        assertThat(election.getState()).isEqualTo(LeaderElectionState.NoLeader);
+        assertThat(states).as("reported states").containsExactly(LeaderElectionState.Leading);
+    }
+
+    @Test(timeOut = 30000)
+    public void electionClosedWhileTakingTheLockDoesNotRetryAfterAConflict() throws Exception {
+        @Cleanup
+        TestStore store = new TestStore();
+        @Cleanup
+        CoordinationServiceImpl cs = new CoordinationServiceImpl(store);
+
+        List<LeaderElectionState> states = new CopyOnWriteArrayList<>();
+        LeaderElection<String> election = cs.getLeaderElection(String.class, PATH, states::add);
+
+        // The election is closed while it writes the lock, and the write then fails with a conflict
+        CompletableFuture<Void> writeGate = new CompletableFuture<>();
+        store.writeGate = writeGate;
+        store.failConditional(new BadVersionException("injected"),
+                (op, path) -> op == OperationType.PUT && path.equals(PATH));
+        CompletableFuture<LeaderElectionState> result = election.elect("broker-1");
+        election.close();
+        store.writeGate = null;
+        writeGate.complete(null);
+
+        assertThatThrownBy(result::join).hasCauseInstanceOf(AlreadyClosedException.class);
+        assertThat(store.get(PATH).join()).as("lock of the closed election").isEmpty();
+        assertThat(election.getState()).isEqualTo(LeaderElectionState.NoLeader);
+        assertThat(states).as("reported states").isEmpty();
+    }
+
     // The elections do their work, e.g. processing a session event, on the coordination service's executor
     private static void awaitQueuedTasks(LeaderElection<?> election) throws Exception {
         ((LeaderElectionImpl<?>) election).getSchedulerExecutor().submit(() -> {
@@ -234,14 +328,41 @@ public class CoordinationServiceImplTest {
     }
 
     /**
-     * An in-memory store that counts the listeners registered on it, and can trigger session events.
+     * An in-memory store that counts the listeners registered on it, can trigger session events, records the
+     * paths written, and can hold the reads and the writes until the test lets them go.
      */
     private static class TestStore extends FaultInjectionMetadataStore {
         private final AtomicInteger listenerCount = new AtomicInteger();
         private final AtomicInteger sessionListenerCount = new AtomicInteger();
+        private final List<String> writes = new CopyOnWriteArrayList<>();
+        private final AtomicInteger heldReads = new AtomicInteger();
+        // While set, the reads (or the writes) wait for it to complete
+        private volatile CompletableFuture<Void> readGate;
+        private volatile CompletableFuture<Void> writeGate;
 
         TestStore() throws Exception {
             super(new LocalMemoryMetadataStore("memory:local", MetadataStoreConfig.builder().build()));
+        }
+
+        @Override
+        public CompletableFuture<Optional<GetResult>> get(String path, Set<Option> opts) {
+            CompletableFuture<Void> gate = readGate;
+            if (gate == null) {
+                return super.get(path, opts);
+            }
+            heldReads.incrementAndGet();
+            return gate.thenCompose(__ -> super.get(path, opts));
+        }
+
+        @Override
+        public CompletableFuture<Stat> put(String path, byte[] value, Optional<Long> expectedVersion,
+                                           Set<Option> opts) {
+            writes.add(path);
+            CompletableFuture<Void> gate = writeGate;
+            if (gate == null) {
+                return super.put(path, value, expectedVersion, opts);
+            }
+            return gate.thenCompose(__ -> super.put(path, value, expectedVersion, opts));
         }
 
         @Override

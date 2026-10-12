@@ -175,10 +175,11 @@ public class CoordinationServiceImpl implements CoordinationService {
 
     /**
      * Register the store listener and the session listener of the elections, once: the store can't unregister
-     * a listener, so the elections share them, and they dispatch to the elections that are not closed. They are
-     * registered with the first election rather than when this service is created, since the store calls its
-     * listeners in registration order: the listeners registered in between, like the one of the broker's
-     * metadata resources, see a notification before the elections do.
+     * a listener, so the elections share them, and they dispatch to the elections that are not closed. The store
+     * calls its listeners in registration order, so every election sees a notification where the first election
+     * was created: after the listeners registered before it, like the one of the broker's metadata resources, and
+     * before the ones registered after it. That's why they are registered with the first election, rather than
+     * when this service is created.
      */
     private synchronized void registerLeaderElectionListeners() {
         if (!leaderElectionListenersRegistered) {

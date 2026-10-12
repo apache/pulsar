@@ -160,6 +160,10 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
     }
 
     private synchronized CompletableFuture<LeaderElectionState> handleExistingLeaderValue(GetResult res) {
+        if (internalState == InternalState.Closed) {
+            // Closed while the lock was read: don't follow the leader nor delete its lock
+            return FutureUtil.failedFuture(new AlreadyClosedException("The leader election was already closed"));
+        }
         T existingValue;
         try {
             existingValue = serde.deserialize(path, res.getValue(), res.getStat());
@@ -217,6 +221,11 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
     }
 
     private synchronized CompletableFuture<LeaderElectionState> tryToBecomeLeader() {
+        if (internalState == InternalState.Closed) {
+            // Closed while the lock was read or deleted: don't take it. A close while the lock is written is
+            // handled once the write completes.
+            return FutureUtil.failedFuture(new AlreadyClosedException("The leader election was already closed"));
+        }
         T value = proposedValue.get();
         byte[] payload;
         try {
@@ -399,6 +408,13 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
                 return revalidation.thenAccept(leaderState -> {
                     log.info().attr("path", path).attr("state", leaderState).log("Resynced leadership");
                 }).exceptionally(ex -> {
+                    synchronized (LeaderElectionImpl.this) {
+                        if (internalState == InternalState.Closed) {
+                            log.debug().attr("path", path)
+                                    .log("Leader election closed while revalidating leadership");
+                            return null;
+                        }
+                    }
                     log.warn().exception(ex).log("Failure when processing session event");
                     return null;
                 });
@@ -429,20 +445,28 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
                 if (proposedValue.isPresent()) {
                     elect()
                             .exceptionally(ex -> {
-                                log.warn().attr("path", path).exception(ex).log("Leader election has failed");
                                 synchronized (LeaderElectionImpl.this) {
+                                    if (internalState == InternalState.Closed) {
+                                        // Closed while re-electing: there's nothing to report nor to retry
+                                        log.debug().attr("path", path)
+                                                .log("Leader election closed while re-electing");
+                                        return null;
+                                    }
+                                    log.warn().attr("path", path).exception(ex).log("Leader election has failed");
                                     try {
                                         stateChangesListener.accept(leaderElectionState);
                                     } catch (Throwable t) {
                                         log.warn().exception(t).log("Exception in state change listener");
                                     }
 
-                                    if (internalState != InternalState.Closed) {
-                                        executor.schedule(() -> {
-                                            log.info().attr("path", path).log("Retrying Leader election");
-                                            elect();
-                                        }, LEADER_ELECTION_RETRY_DELAY_SECONDS, TimeUnit.SECONDS);
-                                    }
+                                    executor.schedule(() -> {
+                                        synchronized (LeaderElectionImpl.this) {
+                                            if (internalState != InternalState.Closed) {
+                                                log.info().attr("path", path).log("Retrying Leader election");
+                                                elect();
+                                            }
+                                        }
+                                    }, LEADER_ELECTION_RETRY_DELAY_SECONDS, TimeUnit.SECONDS);
                                 }
                                 return null;
                             });
