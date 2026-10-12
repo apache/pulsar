@@ -184,6 +184,10 @@ final class ScalableStreamConsumer<T>
     private final AtomicBoolean reconcileInProgress = new AtomicBoolean(false);
     /** Whether a reconcile retry is scheduled. Guarded by {@code this}. */
     private boolean retryScheduled = false;
+    /** Whether the backoff was reset after the pending retry was scheduled. Guarded by {@code this}. */
+    private boolean backoffResetSinceRetry = false;
+    /** Identifies the latest retry: a retry it replaced does nothing. Guarded by {@code this}. */
+    private long retryGeneration = 0;
     /** Paces the retries. Guarded by {@code this}. */
     private final Backoff reconcileBackoff = Backoff.builder()
             .initialDelay(Duration.ofMillis(100))
@@ -596,6 +600,8 @@ final class ScalableStreamConsumer<T>
         if (closed || !reconcileInProgress.compareAndSet(false, true)) {
             return;
         }
+        // Evict failed subscribe futures so this attempt re-tries them.
+        evictFailedSegmentConsumers();
         List<ActiveSegment> target = latestAssignment;
         subscribeAssigned(target).whenComplete((__, ex) -> {
             reconcileInProgress.set(false);
@@ -605,33 +611,44 @@ final class ScalableStreamConsumer<T>
             if (ex == null) {
                 synchronized (this) {
                     reconcileBackoff.reset();
+                    backoffResetSinceRetry = retryScheduled;
                 }
-                // If a newer assignment arrived during this reconcile, run again to converge.
-                if (latestAssignment != target) {
-                    reconcile();
-                }
-                return;
             }
-            // Evict failed subscribe futures so the next attempt can re-try them.
-            evictFailedSegmentConsumers();
-            scheduleRetry(ex);
+            // If a newer assignment arrived during this reconcile, run again to converge: that run also
+            // re-tries what failed in this one.
+            if (latestAssignment != target) {
+                reconcile();
+            } else if (ex != null) {
+                scheduleRetry(ex);
+            }
         });
     }
 
-    /** Retry the reconcile after a backoff, with at most one retry scheduled. */
+    /**
+     * Retry the reconcile after a backoff, with at most one retry scheduled. A retry scheduled before
+     * the backoff was last reset is replaced, so a new failure doesn't wait out the longer delay of
+     * earlier ones.
+     */
     private void scheduleRetry(Throwable ex) {
         Duration delay;
+        long generation;
         synchronized (this) {
-            if (retryScheduled) {
+            if (retryScheduled && !backoffResetSinceRetry) {
                 return;
             }
             retryScheduled = true;
+            backoffResetSinceRetry = false;
+            generation = ++retryGeneration;
             delay = reconcileBackoff.next();
         }
         log.warn().attr("delayMs", delay.toMillis()).exceptionMessage(ex)
                 .log("Failed to apply assignment update, retrying after backoff");
         scheduler().schedule(() -> {
             synchronized (this) {
+                if (generation != retryGeneration) {
+                    // Replaced by a later retry.
+                    return;
+                }
                 retryScheduled = false;
             }
             reconcile();

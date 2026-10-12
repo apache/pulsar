@@ -113,6 +113,10 @@ final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchCl
     private final AtomicBoolean reconcileInProgress = new AtomicBoolean(false);
     /** Whether a retry of the segments that failed to subscribe is scheduled. Guarded by {@code this}. */
     private boolean retryScheduled = false;
+    /** Whether the backoff was reset after the pending retry was scheduled. Guarded by {@code this}. */
+    private boolean backoffResetSinceRetry = false;
+    /** Identifies the latest retry: a retry it replaced does nothing. Guarded by {@code this}. */
+    private long retryGeneration = 0;
     /** Paces the retries. Guarded by {@code this}. */
     private final Backoff reconcileBackoff = Backoff.builder()
             .initialDelay(Duration.ofMillis(100))
@@ -313,9 +317,6 @@ final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchCl
     @Override
     public void onLayoutChange(ClientSegmentLayout newLayout, ClientSegmentLayout oldLayout) {
         // Fully async: safe to run on the netty IO thread that delivered the update.
-        // Store the target and kick off a reconcile. If a reconcile is already running,
-        // it will re-read latestLayout once it finishes. On failure, the reconcile
-        // reschedules itself with exponential backoff until it succeeds (or we close).
         latestLayout = newLayout;
         reconcile();
     }
@@ -330,35 +331,50 @@ final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchCl
         reconcileRequested.set(true);
         // One thread applies at a time, and applies again if asked to meanwhile.
         while (!closed && reconcileRequested.get() && reconcileInProgress.compareAndSet(false, true)) {
-            reconcileRequested.set(false);
-            evictFailedSegmentConsumers();
-            subscribeSegments(latestLayout).whenComplete((__, ex) -> {
-                if (ex == null) {
-                    synchronized (this) {
-                        reconcileBackoff.reset();
+            try {
+                reconcileRequested.set(false);
+                evictFailedSegmentConsumers();
+                subscribeSegments(latestLayout).whenComplete((__, ex) -> {
+                    if (ex == null) {
+                        synchronized (this) {
+                            reconcileBackoff.reset();
+                            backoffResetSinceRetry = retryScheduled;
+                        }
+                    } else if (!closed) {
+                        scheduleRetry(ex);
                     }
-                } else if (!closed) {
-                    scheduleRetry(ex);
-                }
-            });
-            reconcileInProgress.set(false);
+                });
+            } finally {
+                reconcileInProgress.set(false);
+            }
         }
     }
 
-    /** Retry the segments that failed to subscribe after a backoff, with at most one retry scheduled. */
+    /**
+     * Retry the segments that failed to subscribe after a backoff, with at most one retry scheduled.
+     * A retry scheduled before the backoff was last reset is replaced, so a new failure doesn't wait
+     * out the longer delay of earlier ones.
+     */
     private void scheduleRetry(Throwable ex) {
         Duration delay;
+        long generation;
         synchronized (this) {
-            if (retryScheduled) {
+            if (retryScheduled && !backoffResetSinceRetry) {
                 return;
             }
             retryScheduled = true;
+            backoffResetSinceRetry = false;
+            generation = ++retryGeneration;
             delay = reconcileBackoff.next();
         }
         log.warn().attr("delayMs", delay.toMillis()).exceptionMessage(ex)
                 .log("Failed to apply layout update, retrying after backoff");
         scheduler().schedule(() -> {
             synchronized (this) {
+                if (generation != retryGeneration) {
+                    // Replaced by a later retry.
+                    return;
+                }
                 retryScheduled = false;
             }
             reconcile();

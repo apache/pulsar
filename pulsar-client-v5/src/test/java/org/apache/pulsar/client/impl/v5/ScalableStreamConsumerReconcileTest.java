@@ -24,6 +24,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.util.Timer;
 import java.lang.reflect.Proxy;
@@ -62,8 +63,12 @@ public class ScalableStreamConsumerReconcileTest {
 
     /** Segment subscribe attempts per segment. */
     private final Map<Long, Integer> attempts = new HashMap<>();
-    /** Scheduled tasks (reconcile retries and release drain polls), run by the test. */
-    private final ArrayDeque<Runnable> scheduled = new ArrayDeque<>();
+    /** Scheduled reconcile retries, run by the test. */
+    private final ArrayDeque<Runnable> retries = new ArrayDeque<>();
+    /** The delay of each reconcile retry scheduled, in milliseconds. */
+    private final List<Long> retryDelays = new ArrayList<>();
+    /** Scheduled release drain polls, run by the test. */
+    private final ArrayDeque<Runnable> drainPolls = new ArrayDeque<>();
     /** Messages handed to the application. */
     private final List<MessageV5<byte[]>> delivered = new ArrayList<>();
     private ExecutorService externalExecutor;
@@ -75,7 +80,9 @@ public class ScalableStreamConsumerReconcileTest {
     @BeforeMethod
     public void setup() {
         attempts.clear();
-        scheduled.clear();
+        retries.clear();
+        retryDelays.clear();
+        drainPolls.clear();
         delivered.clear();
         externalExecutor = MoreExecutors.newDirectExecutorService();
         v4 = mock(PulsarClientImpl.class);
@@ -90,13 +97,15 @@ public class ScalableStreamConsumerReconcileTest {
         when(v4.getConfiguration()).thenReturn(new ClientConfigurationData());
         when(v4.getScheduledExecutorProvider()).thenReturn(scheduledProvider);
         when(scheduledProvider.getExecutor()).thenReturn(scheduler);
+        // The reconcile retries are scheduled as Runnables, the release drain polls as Callables.
         when(scheduler.schedule(any(Runnable.class), anyLong(), any())).thenAnswer(invocation -> {
-            scheduled.add(invocation.getArgument(0));
+            retries.add(invocation.getArgument(0));
+            retryDelays.add(invocation.getArgument(1));
             return null;
         });
         when(scheduler.schedule(any(Callable.class), anyLong(), any())).thenAnswer(invocation -> {
             Callable<?> task = invocation.getArgument(0);
-            scheduled.add(() -> {
+            drainPolls.add(() -> {
                 try {
                     task.call();
                 } catch (Exception e) {
@@ -127,18 +136,109 @@ public class ScalableStreamConsumerReconcileTest {
         try {
             listener.onAssignmentChange(List.of(segment(0), segment(1)), List.of(segment(0)));
             assertEquals(attempts.get(1L), 1);
-            assertEquals(scheduled.size(), 1, "the rejected subscribe must be retried");
+            assertEquals(retries.size(), 1, "the rejected subscribe must be retried");
 
             // The assignment is pushed again while the retry waits: each push retries segment 1
             // right away, which fails again, without scheduling a second retry.
             listener.onAssignmentChange(List.of(segment(0), segment(1)), List.of(segment(0), segment(1)));
             listener.onAssignmentChange(List.of(segment(0), segment(1)), List.of(segment(0), segment(1)));
             assertEquals(attempts.get(1L), 3);
-            assertEquals(scheduled.size(), 1, "at most one retry must be scheduled");
+            assertEquals(retries.size(), 1, "at most one retry must be scheduled");
 
-            scheduled.poll().run();
+            retries.poll().run();
             assertEquals(attempts.get(1L), 4);
-            assertEquals(scheduled.size(), 1, "the retry must be rescheduled while the subscribe keeps failing");
+            assertEquals(retries.size(), 1, "the retry must be rescheduled while the subscribe keeps failing");
+        } finally {
+            consumer.close();
+        }
+    }
+
+    @Test
+    public void retriesANewFailureWithoutWaitingOutAnEarlierBackoff() throws Exception {
+        // Segment 1's subscribe is rejected three times, then accepted; segment 2's is always rejected.
+        subscribeSegments((segmentId, attempt) -> segmentId == 2 || (segmentId == 1 && attempt <= 3)
+                ? CompletableFuture.failedFuture(new ConsumerBusyException("busy"))
+                : CompletableFuture.completedFuture(consumer(new CompletableFuture<>())));
+        ScalableStreamConsumer<byte[]> consumer = create(List.of(segment(0)));
+        try {
+            // Each failed retry doubles the backoff.
+            listener.onAssignmentChange(List.of(segment(0), segment(1)), List.of(segment(0)));
+            retries.poll().run();
+            retries.poll().run();
+            assertEquals(attempts.get(1L), 3);
+            assertTrue(retryDelays.get(2) >= 300, "the backoff must have grown: " + retryDelays);
+
+            // The assignment is pushed again while that retry waits, and segment 1 is accepted. Then
+            // segment 2 is assigned and rejected: it's retried after the initial delay, not after the
+            // longer one of the retry still pending.
+            listener.onAssignmentChange(List.of(segment(0), segment(1)), List.of(segment(0), segment(1)));
+            assertEquals(attempts.get(1L), 4);
+            listener.onAssignmentChange(List.of(segment(0), segment(1), segment(2)),
+                    List.of(segment(0), segment(1)));
+            assertEquals(retries.size(), 2);
+            assertTrue(retryDelays.get(3) < 200, "a new failure must be retried soon: " + retryDelays);
+
+            retries.poll().run();
+            assertEquals(attempts.get(2L), 1, "a replaced retry must do nothing");
+            retries.poll().run();
+            assertEquals(attempts.get(2L), 2);
+            assertEquals(retries.size(), 1);
+        } finally {
+            consumer.close();
+        }
+    }
+
+    @Test
+    public void keepsTheRetryThatFiresWhileASegmentDrains() throws Exception {
+        // Segment 1's subscribe keeps being rejected; segment 0's consumer hands the application a message.
+        CompletableFuture<Message<byte[]>> segment0Receive = new CompletableFuture<>();
+        subscribeSegments((segmentId, attempt) -> segmentId == 1
+                ? CompletableFuture.failedFuture(new ConsumerBusyException("busy"))
+                : CompletableFuture.completedFuture(consumer(segmentId == 0 ? segment0Receive
+                        : new CompletableFuture<>())));
+        ScalableStreamConsumer<byte[]> consumer = create(List.of(segment(0)));
+        try {
+            segment0Receive.complete(message());
+            listener.onAssignmentChange(List.of(segment(0), segment(1)), List.of(segment(0)));
+            assertEquals(retries.size(), 1);
+
+            // Segment 0 moves to another member while the application holds its message, so the
+            // reconcile releasing it waits for the ack: the retry fires meanwhile, and does nothing.
+            listener.onAssignmentChange(List.of(segment(1)), List.of(segment(0), segment(1)));
+            retries.poll().run();
+            assertEquals(attempts.get(1L), 2);
+            assertEquals(retries.size(), 0);
+
+            // Once the release drained, the reconcile's own failure schedules the next retry.
+            consumer.acknowledgeCumulative(delivered.get(0).id());
+            runDrainPolls();
+            assertEquals(retries.size(), 1, "the rejected subscribe must still be retried");
+        } finally {
+            consumer.close();
+        }
+    }
+
+    @Test
+    public void appliesAnAssignmentThatArrivedDuringAFailedReconcileRightAway() throws Exception {
+        // Segment 1's subscribe keeps being rejected; segment 0's consumer hands the application a message.
+        CompletableFuture<Message<byte[]>> segment0Receive = new CompletableFuture<>();
+        subscribeSegments((segmentId, attempt) -> segmentId == 1
+                ? CompletableFuture.failedFuture(new ConsumerBusyException("busy"))
+                : CompletableFuture.completedFuture(consumer(segmentId == 0 ? segment0Receive
+                        : new CompletableFuture<>())));
+        ScalableStreamConsumer<byte[]> consumer = create(List.of(segment(0)));
+        try {
+            segment0Receive.complete(message());
+
+            // Segment 0 moves to another member while the application holds its message, and segment 1,
+            // assigned instead, is rejected: the reconcile completes once the release drained. Segment 2
+            // is assigned meanwhile.
+            listener.onAssignmentChange(List.of(segment(1)), List.of(segment(0)));
+            listener.onAssignmentChange(List.of(segment(1), segment(2)), List.of(segment(1)));
+            consumer.acknowledgeCumulative(delivered.get(0).id());
+            runDrainPolls();
+            assertEquals(attempts.get(2L), 1, "a newer assignment must be applied right after a failed reconcile");
+            assertEquals(retries.size(), 1, "the rejected subscribe must still be retried");
         } finally {
             consumer.close();
         }
@@ -163,7 +263,7 @@ public class ScalableStreamConsumerReconcileTest {
             assertEquals(attempts.get(0L), 1, "a segment must not be subscribed again while it drains");
 
             consumer.acknowledgeCumulative(delivered.get(0).id());
-            runScheduled();
+            runDrainPolls();
             assertEquals(attempts.get(0L), 2, "the segment must be subscribed again once its release drained");
             secondReceive.complete(message());
             assertEquals(delivered.size(), 2, "the new consumer of the segment must deliver");
@@ -172,12 +272,12 @@ public class ScalableStreamConsumerReconcileTest {
         }
     }
 
-    /** Run the scheduled tasks, including those they schedule, until none is left. */
-    private void runScheduled() {
-        for (int i = 0; i < 100 && !scheduled.isEmpty(); i++) {
-            scheduled.poll().run();
+    /** Run the release drain polls, including those they schedule, until none is left. */
+    private void runDrainPolls() {
+        for (int i = 0; i < 100 && !drainPolls.isEmpty(); i++) {
+            drainPolls.poll().run();
         }
-        assertEquals(scheduled.size(), 0);
+        assertEquals(drainPolls.size(), 0);
     }
 
     /** Answer each segment subscribe with {@code subscribe}, given the segment and its attempt number. */

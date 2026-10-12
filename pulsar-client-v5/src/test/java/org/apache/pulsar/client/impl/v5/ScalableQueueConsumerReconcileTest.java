@@ -24,15 +24,19 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.util.Timer;
 import java.lang.reflect.Proxy;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -57,6 +61,8 @@ public class ScalableQueueConsumerReconcileTest {
     private final Map<Long, Integer> attempts = new HashMap<>();
     /** Scheduled retries, run by the test. */
     private final ArrayDeque<Runnable> retries = new ArrayDeque<>();
+    /** The delay of each retry scheduled, in milliseconds. */
+    private final List<Long> retryDelays = new ArrayList<>();
     private ExecutorService externalExecutor;
     private PulsarClientImpl v4;
     private PulsarClientV5 client;
@@ -65,6 +71,7 @@ public class ScalableQueueConsumerReconcileTest {
     public void setup() {
         attempts.clear();
         retries.clear();
+        retryDelays.clear();
         externalExecutor = MoreExecutors.newDirectExecutorService();
         v4 = mock(PulsarClientImpl.class);
         client = mock(PulsarClientV5.class);
@@ -79,6 +86,7 @@ public class ScalableQueueConsumerReconcileTest {
         when(scheduledProvider.getExecutor()).thenReturn(scheduler);
         when(scheduler.schedule(any(Runnable.class), anyLong(), any())).thenAnswer(invocation -> {
             retries.add(invocation.getArgument(0));
+            retryDelays.add(invocation.getArgument(1));
             return null;
         });
     }
@@ -113,6 +121,45 @@ public class ScalableQueueConsumerReconcileTest {
             retries.poll().run();
             assertEquals(attempts.get(1L), 4);
             assertEquals(retries.size(), 1, "the retry must be rescheduled while the subscribe keeps failing");
+            assertEquals(attempts.get(0L), 1, "subscribed segments are not recreated");
+            assertEquals(attempts.get(2L), 1, "subscribed segments are not recreated");
+        } finally {
+            consumer.close();
+        }
+    }
+
+    @Test
+    public void retriesANewFailureWithoutWaitingOutAnEarlierBackoff() throws Exception {
+        // Segment 1's subscribe fails three times, then succeeds; segment 3's always fails.
+        subscribeSegments((segmentId, attempt) -> segmentId == 3 || (segmentId == 1 && attempt <= 3)
+                ? CompletableFuture.failedFuture(new PulsarClientException("transient"))
+                : CompletableFuture.completedFuture(consumer()));
+        DagWatchClient.LayoutChangeListener[] listener = new DagWatchClient.LayoutChangeListener[1];
+        ClientSegmentLayout initial = layout(0);
+        ScalableQueueConsumer<byte[]> consumer = create(initial, listener);
+        try {
+            // Each failed retry doubles the backoff.
+            ClientSegmentLayout split = layout(1);
+            listener[0].onLayoutChange(split, initial);
+            retries.poll().run();
+            retries.poll().run();
+            assertEquals(attempts.get(1L), 3);
+            assertTrue(retryDelays.get(2) >= 300, "the backoff must have grown: " + retryDelays);
+
+            // The layout is pushed again while that retry waits, and segment 1 subscribes. Then segment 2
+            // splits and segment 3 fails to subscribe: it's retried after the initial delay, not after the
+            // longer one of the retry still pending.
+            listener[0].onLayoutChange(split, split);
+            assertEquals(attempts.get(1L), 4);
+            listener[0].onLayoutChange(layout(2), split);
+            assertEquals(retries.size(), 2);
+            assertTrue(retryDelays.get(3) < 200, "a new failure must be retried soon: " + retryDelays);
+
+            retries.poll().run();
+            assertEquals(attempts.get(3L), 1, "a replaced retry must do nothing");
+            retries.poll().run();
+            assertEquals(attempts.get(3L), 2);
+            assertEquals(retries.size(), 1);
         } finally {
             consumer.close();
         }
@@ -135,8 +182,32 @@ public class ScalableQueueConsumerReconcileTest {
             listener[0].onLayoutChange(layout(2), split);
             assertEquals(attempts.get(3L), 1, "a new segment must be subscribed right away");
             assertEquals(attempts.get(4L), 1, "a new segment must be subscribed right away");
+            assertEquals(attempts.get(1L), 1, "an in-flight subscribe must be kept, not duplicated");
         } finally {
             segment1Subscribe.complete(consumer());
+            consumer.close();
+        }
+    }
+
+    @Test
+    public void closesASegmentThatLeftTheLayoutOnceItsSubscribeCompletes() throws Exception {
+        // Segment 2's subscribe doesn't complete until the test completes it.
+        CompletableFuture<Consumer<byte[]>> segment2Subscribe = new CompletableFuture<>();
+        subscribeSegments((segmentId, attempt) -> segmentId == 2 ? segment2Subscribe
+                : CompletableFuture.completedFuture(consumer()));
+        DagWatchClient.LayoutChangeListener[] listener = new DagWatchClient.LayoutChangeListener[1];
+        ClientSegmentLayout initial = layout(0);
+        ScalableQueueConsumer<byte[]> consumer = create(initial, listener);
+        try {
+            // Segment 0 splits into 1 and 2, and segment 2 leaves the layout while its subscribe is pending.
+            ClientSegmentLayout split = layout(1);
+            listener[0].onLayoutChange(split, initial);
+            listener[0].onLayoutChange(layout(3), split);
+            AtomicBoolean segment2Closed = new AtomicBoolean();
+            segment2Subscribe.complete(consumer(() -> segment2Closed.set(true)));
+            assertTrue(segment2Closed.get(), "a segment that left the layout must be closed once subscribed");
+            assertEquals(attempts.get(2L), 1);
+        } finally {
             consumer.close();
         }
     }
@@ -167,15 +238,20 @@ public class ScalableQueueConsumerReconcileTest {
 
     /**
      * Segment 0; after the first split, sealed segment 0 with children 1 and 2; after the second,
-     * segment 2 sealed too, with children 3 and 4.
+     * segment 2 sealed too, with children 3 and 4; once the sealed segments are garbage collected,
+     * only 1, 3 and 4.
      */
     private static ClientSegmentLayout layout(long epoch) {
         ScalableTopicDAG dag = new ScalableTopicDAG().setEpoch(epoch);
-        dag.addSegment().setSegmentId(0).setHashStart(0).setHashEnd(0xffff)
-                .setState(epoch >= 1 ? SegmentState.SEALED : SegmentState.ACTIVE).setCreatedAtEpoch(0);
+        if (epoch < 3) {
+            dag.addSegment().setSegmentId(0).setHashStart(0).setHashEnd(0xffff)
+                    .setState(epoch >= 1 ? SegmentState.SEALED : SegmentState.ACTIVE).setCreatedAtEpoch(0);
+        }
         if (epoch >= 1) {
             dag.addSegment().setSegmentId(1).setHashStart(0).setHashEnd(0x7fff)
                     .setState(SegmentState.ACTIVE).setCreatedAtEpoch(1).addParentId(0);
+        }
+        if (epoch >= 1 && epoch < 3) {
             dag.addSegment().setSegmentId(2).setHashStart(0x8000).setHashEnd(0xffff)
                     .setState(epoch >= 2 ? SegmentState.SEALED : SegmentState.ACTIVE).setCreatedAtEpoch(1)
                     .addParentId(0);
@@ -190,13 +266,19 @@ public class ScalableQueueConsumerReconcileTest {
     }
 
     /** A segment consumer with nothing to receive: its pending receive never completes. */
-    @SuppressWarnings("unchecked")
     private static Consumer<byte[]> consumer() {
+        return consumer(() -> {
+        });
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Consumer<byte[]> consumer(Runnable onClose) {
         CompletableFuture<Object> receive = new CompletableFuture<>();
         return (Consumer<byte[]>) Proxy.newProxyInstance(Consumer.class.getClassLoader(),
                 new Class<?>[]{Consumer.class}, (proxy, method, args) -> switch (method.getName()) {
                     case "receiveAsync" -> receive;
                     case "closeAsync" -> {
+                        onClose.run();
                         receive.completeExceptionally(new AlreadyClosedException("closed"));
                         yield CompletableFuture.completedFuture(null);
                     }
