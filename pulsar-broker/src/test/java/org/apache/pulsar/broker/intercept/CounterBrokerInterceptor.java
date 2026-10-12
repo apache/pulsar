@@ -68,6 +68,9 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     private final AtomicInteger txnCount = new AtomicInteger();
     private final AtomicInteger committedTxnCount = new AtomicInteger();
     private final AtomicInteger abortedTxnCount = new AtomicInteger();
+
+    private final List<CompletionOutcome> completionOutcomes = new CopyOnWriteArrayList<>();
+    private volatile boolean failCompletionListener;
     public static final String NAME = "COUNTER-BROKER-INTERCEPTOR";
 
     public void reset() {
@@ -93,6 +96,14 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     public class ResponseEvent {
         private String requestUri;
         private int responseStatus;
+    }
+
+    @Data
+    @AllArgsConstructor
+    public class CompletionOutcome {
+        private long ledgerId;
+        private long entryId;
+        private Exception error;
     }
 
     @Override
@@ -140,6 +151,15 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
         log.debug().attr("topic", producer.getTopic().getName())
                 .attr("producer", producer.getProducerName()).log("Message broker received");
         messagePublishCount.incrementAndGet();
+        // The first listener optionally throws, to verify that a listener failure is contained and
+        // does not prevent the remaining listeners from being notified.
+        publishContext.whenComplete((ledgerId, entryId, error) -> {
+            if (failCompletionListener) {
+                throw new RuntimeException("Intentional completion listener failure");
+            }
+        });
+        publishContext.whenComplete((ledgerId, entryId, error)
+                -> completionOutcomes.add(new CompletionOutcome(ledgerId, entryId, error)));
     }
 
     @Override
@@ -310,6 +330,18 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
 
     public void clearResponseList() {
         responseList.clear();
+    }
+
+    public void setFailCompletionListener(boolean failCompletionListener) {
+        this.failCompletionListener = failCompletionListener;
+    }
+
+    public void clearCompletionOutcomes() {
+        completionOutcomes.clear();
+    }
+
+    public List<CompletionOutcome> getCompletionOutcomes() {
+        return completionOutcomes;
     }
 
     public List<ResponseEvent> getResponseList() {

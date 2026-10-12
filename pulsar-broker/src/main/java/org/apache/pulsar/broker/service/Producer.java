@@ -34,10 +34,12 @@ import io.netty.util.Recycler.Handle;
 import io.opentelemetry.api.common.Attributes;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -413,6 +415,8 @@ public class Producer {
 
         private long entryTimestamp;
 
+        private List<CompletionListener> completionListeners;
+
         @Override
         public long getLedgerId() {
             return ledgerId;
@@ -526,6 +530,7 @@ public class Producer {
                     }
                     producer.cnx.completedSendOperation(producer.isNonPersistentTopic, msgSize);
                     producer.publishOperationCompleted();
+                    notifyCompletionListeners(ledgerId, entryId, exception);
                     recycle();
                 });
             } else {
@@ -549,6 +554,30 @@ public class Producer {
                 serverError = ServerError.PersistenceError;
             }
             return serverError;
+        }
+
+        @Override
+        public void whenComplete(CompletionListener listener) {
+            if (completionListeners == null) {
+                completionListeners = new CopyOnWriteArrayList<>();
+            }
+            completionListeners.add(listener);
+        }
+
+        private void notifyCompletionListeners(long ledgerId, long entryId, Exception error) {
+            List<CompletionListener> listeners = completionListeners;
+            if (listeners == null) {
+                return;
+            }
+            for (CompletionListener listener : listeners) {
+                try {
+                    listener.publishCompleted(ledgerId, entryId, error);
+                } catch (Throwable t) {
+                    LOG.warn()
+                            .exception(t)
+                            .log("Failed to notify the publish completion listener");
+                }
+            }
         }
 
         /**
@@ -578,6 +607,7 @@ public class Producer {
                 producer.brokerInterceptor.messageProduced(
                         (ServerCnx) producer.cnx, producer, startTimeNs, ledgerId, entryId, this);
             }
+            notifyCompletionListeners(ledgerId, entryId, null);
             recycle();
         }
 
@@ -705,6 +735,9 @@ public class Producer {
             isMarker = false;
             if (propertyMap != null) {
                 propertyMap.clear();
+            }
+            if (completionListeners != null) {
+                completionListeners.clear();
             }
             recyclerHandle.recycle(this);
         }
