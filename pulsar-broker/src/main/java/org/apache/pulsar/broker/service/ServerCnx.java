@@ -1244,13 +1244,18 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         if (ex != null) {
                             Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
                             log.warn().attr("topic", topicName).attr("subscription", subscription)
-                                    .attr("consumerName", consumerName).exception(cause)
-                                    .log("ScalableTopicSubscribe failed");
-                            // Nothing was registered: drop the ref so unsubscribes and the
-                            // disconnect sweep have nothing to report for it.
-                            scalableConsumerRegistrations.remove(consumerId, ref);
-                            getCommandSender().sendScalableTopicSubscribeError(requestId,
-                                    ServerError.UnknownError, cause.getMessage());
+                                    .attr("consumerName", consumerName).attr("answered", !unanswered)
+                                    .exception(cause).log("ScalableTopicSubscribe failed");
+                            if (unanswered) {
+                                // Nothing was registered: drop the ref so unsubscribes and the
+                                // disconnect sweep have nothing to report for it.
+                                scalableConsumerRegistrations.remove(consumerId, ref);
+                                getCommandSender().sendScalableTopicSubscribeError(requestId,
+                                        ServerError.UnknownError, cause.getMessage());
+                            }
+                            // Otherwise the coordinator registered the consumer and answered the
+                            // subscribe before the failure: keep the ref, so the consumer's
+                            // unsubscribe and the disconnect sweep still reach the coordinator.
                             return;
                         }
                         if (unanswered) {

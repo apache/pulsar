@@ -1779,6 +1779,47 @@ public class ServerCnxTest {
         channel.finish();
     }
 
+    /**
+     * A registration that fails after the coordinator's push answered the subscribe sends no error
+     * for the already answered request, and keeps the registration ref: the coordinator holds the
+     * session, so the consumer's unsubscribe must still reach it.
+     */
+    @Test(timeOut = 30000)
+    public void testScalableTopicSubscribeFailingAfterAnswerKeepsRegistration() throws Exception {
+        ScalableTopicService scalableTopicService = mock(ScalableTopicService.class);
+        when(brokerService.getScalableTopicService()).thenReturn(scalableTopicService);
+        when(scalableTopicService.registerConsumer(any(), anyString(), anyString(), anyLong(), any(), any()))
+                .thenAnswer(invocation -> {
+                    new ConsumerSession("c1", 7L, invocation.getArgument(5), Duration.ofMinutes(1),
+                            mock(ScheduledExecutorService.class), () -> {}, log)
+                            .sendAssignmentUpdate(scalableAssignment(0L));
+                    return CompletableFuture.failedFuture(new RuntimeException("failed after registering"));
+                });
+        when(scalableTopicService.unregisterConsumer(any(), anyString(), anyString(), anyLong()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+
+        resetChannel();
+        channel.writeInbound(Commands.newConnect("none", "", null));
+        assertTrue(getResponse() instanceof CommandConnected);
+
+        channel.writeInbound(Commands.newScalableTopicSubscribe(600L,
+                "persistent://public/default/scalable-late-failure", "group", "c1", 7L,
+                ScalableConsumerType.CHECKPOINT));
+        Object response = getResponse();
+        assertTrue(response instanceof CommandScalableTopicSubscribeResponse, String.valueOf(response));
+        assertFalse(((CommandScalableTopicSubscribeResponse) response).hasError());
+        channel.runPendingTasks();
+        assertTrue(channel.outboundMessages().isEmpty(), "no error may follow the answered subscribe");
+
+        // The ref was kept: the unsubscribe reaches the coordinator instead of answering as a no-op.
+        channel.writeInbound(Commands.newScalableTopicUnsubscribe(601L, 7L));
+        Object unsubscribed = getResponse();
+        assertTrue(unsubscribed instanceof CommandSuccess, String.valueOf(unsubscribed));
+        verify(scalableTopicService).unregisterConsumer(any(), anyString(), anyString(), eq(7L));
+
+        channel.finish();
+    }
+
     private static ConsumerAssignment scalableAssignment(long... segmentIds) {
         List<ConsumerAssignment.AssignedSegment> segments = new ArrayList<>();
         for (long segmentId : segmentIds) {
