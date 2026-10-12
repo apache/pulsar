@@ -21,6 +21,8 @@ package org.apache.pulsar.broker.service.scalable;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -471,6 +473,19 @@ public class SubscriptionCoordinatorTest {
             assertEquals(active.size(), 1);
             assertEquals(active.iterator().next().getConsumerName(), "consumer-2");
         });
+    }
+
+    @Test
+    public void testClosedCoordinatorDoesNotEvictExpiredSession() {
+        coordinator.registerConsumer("consumer-1", 1L, mock(TransportCnx.class)).join();
+        coordinator.onConsumerDisconnect("consumer-1");
+
+        // The controller stops serving as the leader: the session is the next leader's to restore.
+        coordinator.close();
+
+        // Past the 200ms grace period, the persisted registration must still be there.
+        Awaitility.await().during(1, TimeUnit.SECONDS).atMost(2, TimeUnit.SECONDS).untilAsserted(() ->
+                verify(resources, never()).unregisterConsumerAsync(topicName, "test-sub", "consumer-1"));
     }
 
     @Test

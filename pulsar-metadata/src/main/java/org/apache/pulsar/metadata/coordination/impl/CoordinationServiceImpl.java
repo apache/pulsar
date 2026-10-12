@@ -55,7 +55,7 @@ public class CoordinationServiceImpl implements CoordinationService {
     private final MetadataStoreExtended store;
 
     private final Map<Object, LockManager<?>> lockManagers = new ConcurrentHashMap<>();
-    private final Map<String, LeaderElection<?>> leaderElections = new ConcurrentHashMap<>();
+    private final Map<String, LeaderElectionImpl<?>> leaderElections = new ConcurrentHashMap<>();
 
     private final ScheduledExecutorService executor;
 
@@ -161,7 +161,11 @@ public class CoordinationServiceImpl implements CoordinationService {
     public <T> LeaderElection<T> getLeaderElection(Class<T> clazz, String path,
             Consumer<LeaderElectionState> stateChangesListener) {
 
-        return (LeaderElection<T>) leaderElections.computeIfAbsent(path,
-                key -> new LeaderElectionImpl<T>(store, clazz, path, stateChangesListener, executor));
+        // A closed election is replaced, not handed out again: it would keep passing its state
+        // changes to the listener of the caller that created it.
+        return (LeaderElection<T>) leaderElections.compute(path, (key, election) ->
+                election != null && !election.isClosed()
+                        ? election
+                        : new LeaderElectionImpl<T>(store, clazz, path, stateChangesListener, executor));
     }
 }

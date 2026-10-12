@@ -312,6 +312,10 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
         return leaderElectionState;
     }
 
+    synchronized boolean isClosed() {
+        return internalState == InternalState.Closed;
+    }
+
     @Override
     public CompletableFuture<Optional<T>> getLeaderValue() {
         CompletableFuture<Optional<T>> future;

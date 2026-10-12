@@ -113,7 +113,16 @@ public class ScalableTopicService {
         CompletableFuture<ScalableTopicController> stored = controllers.computeIfAbsent(key, k -> {
             ScalableTopicController controller = new ScalableTopicController(
                     topic, resources, brokerService, coordinationService);
-            return controller.initialize().thenApply(__ -> controller);
+            return controller.initialize()
+                    .whenComplete((__, ex) -> {
+                        if (ex != null) {
+                            // Close its leader election, which holds the lock if it was elected, and
+                            // would otherwise be handed to the next controller of the topic with this
+                            // controller's listener.
+                            controller.close();
+                        }
+                    })
+                    .thenApply(__ -> controller);
         });
         // Evict failed futures so subsequent callers can retry. This runs *outside*
         // computeIfAbsent, so modifying the map here is safe.

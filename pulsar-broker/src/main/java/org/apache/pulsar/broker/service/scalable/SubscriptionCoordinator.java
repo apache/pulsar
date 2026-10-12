@@ -376,9 +376,11 @@ public class SubscriptionCoordinator {
     }
 
     /**
-     * Stop the periodic drain-status poller. Called by the controller on close. Idempotent.
-     * Also flips a {@code closed} flag so any {@link #pollDrainStatus()} iteration that's
-     * mid-flight aborts its rearm step instead of leaking a task into the executor.
+     * Stop the periodic drain-status poller and the grace-period timers. Called by the
+     * controller on close and when it stops serving as the leader. Idempotent. Also flips a
+     * {@code closed} flag so any {@link #pollDrainStatus()} iteration that's mid-flight aborts
+     * its rearm step instead of leaking a task into the executor, and neither it nor a grace
+     * timer already firing acts on the sessions: they are left, persisted, to the next leader.
      */
     public synchronized void close() {
         closed = true;
@@ -386,6 +388,7 @@ public class SubscriptionCoordinator {
             drainPollTask.cancel(false);
             drainPollTask = null;
         }
+        sessions.values().forEach(ConsumerSession::cancelGraceTimer);
     }
 
     // --- Drain tracking ---
@@ -437,6 +440,9 @@ public class SubscriptionCoordinator {
      * goes through {@link #pollDrainStatus()}, which queries the broker.
      */
     synchronized void markSegmentsDrained(Set<Long> segmentIds) {
+        if (closed) {
+            return;
+        }
         boolean changed = false;
         for (long id : segmentIds) {
             if (drainedSegmentIds.add(id)) {
@@ -576,7 +582,7 @@ public class SubscriptionCoordinator {
     private void evictExpiredConsumer(String consumerName) {
         synchronized (this) {
             ConsumerSession session = sessions.get(consumerName);
-            if (session == null) {
+            if (closed || session == null) {
                 return;
             }
             if (session.isConnected()) {

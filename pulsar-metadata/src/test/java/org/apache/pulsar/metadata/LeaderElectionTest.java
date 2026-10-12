@@ -412,6 +412,33 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
     }
 
     @Test(dataProvider = "impl", timeOut = 30000)
+    public void closedElectionIsNotHandedToTheNextCaller(String provider, Supplier<String> urlSupplier)
+            throws Exception {
+        @Cleanup
+        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
+
+        String path = newKey();
+
+        @Cleanup
+        CoordinationService cs = new CoordinationServiceImpl(store);
+
+        List<LeaderElectionState> firstStates = new CopyOnWriteArrayList<>();
+        LeaderElection<String> first = cs.getLeaderElection(String.class, path, firstStates::add);
+        assertEquals(first.elect("test-1").join(), LeaderElectionState.Leading);
+        first.close();
+
+        // The next caller for the path gets an election of its own, which reports to its listener.
+        BlockingQueue<LeaderElectionState> secondStates = new LinkedBlockingDeque<>();
+        @Cleanup
+        LeaderElection<String> second = cs.getLeaderElection(String.class, path, secondStates::add);
+        assertThat(second).isNotSameAs(first);
+        assertEquals(second.elect("test-1").join(), LeaderElectionState.Leading);
+        assertEquals(secondStates.poll(3, TimeUnit.SECONDS), LeaderElectionState.Leading);
+        assertThat(firstStates).containsExactly(LeaderElectionState.Leading);
+    }
+
+    @Test(dataProvider = "impl", timeOut = 30000)
     public void observerReadsLeaderValueFromStore(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
