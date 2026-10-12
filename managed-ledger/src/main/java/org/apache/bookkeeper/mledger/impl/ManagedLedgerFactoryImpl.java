@@ -154,6 +154,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
      */
     @Getter
     private boolean metadataServiceAvailable;
+    private volatile boolean metadataSessionLost;
     private final ManagedLedgerConfig defaultManagedLedgerConfig;
 
     private static class PendingInitializeManagedLedger {
@@ -293,6 +294,26 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     private synchronized void handleMetadataStoreNotification(SessionEvent e) {
         log.info().attr("event", e).log("Received MetadataStore session event");
         metadataServiceAvailable = e.isConnected();
+        if (e == SessionEvent.SessionLost) {
+            metadataSessionLost = true;
+            // Off the store's event thread and this lock: a managed ledger's recheck of a fenced ledger may be
+            // waiting for the metadata service
+            scheduledExecutor.execute(() -> ledgers.values().forEach(future -> {
+                if (future.isDone() && !future.isCompletedExceptionally()) {
+                    future.join().metadataSessionLost();
+                }
+            }));
+        } else if (e == SessionEvent.SessionReestablished) {
+            metadataSessionLost = false;
+        }
+    }
+
+    /**
+     * Whether the metadata store's session was lost and not reestablished yet: the store may have deleted the
+     * session's ephemeral nodes, such as its locks, and other clients may have taken over what they protected.
+     */
+    boolean isMetadataSessionLost() {
+        return metadataSessionLost;
     }
 
     private synchronized void flushCursors() {

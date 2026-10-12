@@ -45,6 +45,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -68,6 +69,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl
 import org.apache.pulsar.broker.loadbalance.extensions.manager.RedirectManagerForLoadManagerMigration;
 import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.resources.NamespaceResources;
+import org.apache.pulsar.broker.service.BrokerServiceException.MetadataSessionLostException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
@@ -285,6 +287,23 @@ public class NamespaceService implements AutoCloseable {
         return bundles.map(b -> b.findBundle(topicName));
     }
 
+    /**
+     * Stops serving the bundle of a topic whose ledger another broker fenced after this broker lost its metadata
+     * session, which shows that the other broker took the bundle over. See
+     * {@link OwnershipCache#handleOwnershipTakenOver(TopicName)}. The extensible load manager tracks the ownerships
+     * in its own service unit state channel, which this doesn't apply to.
+     */
+    public void handleOwnershipTakenOver(TopicName topicName) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            return;
+        }
+        ownershipCache.handleOwnershipTakenOver(topicName).exceptionally(e -> {
+            log.warn().attr("topic", topicName).exception(e)
+                    .log("Failed to stop serving the bundle that another broker took over");
+            return null;
+        });
+    }
+
     public NamespaceBundle getBundle(TopicName topicName) {
         return bundleFactory.getBundles(topicName.getNamespaceObject()).findBundle(topicName);
     }
@@ -483,7 +502,9 @@ public class NamespaceService implements AutoCloseable {
         }
         LookupRequestKey lookupRequestKey = LookupRequestKey.from(bundle, options);
 
-        return targetMap.computeIfAbsent(lookupRequestKey, (k) -> {
+        AtomicBoolean started = new AtomicBoolean();
+        CompletableFuture<Optional<LookupResult>> lookup = targetMap.computeIfAbsent(lookupRequestKey, (k) -> {
+            started.set(true);
             CompletableFuture<Optional<LookupResult>> future = new CompletableFuture<>();
 
             // First check if we or someone else already owns the bundle
@@ -507,10 +528,16 @@ public class NamespaceService implements AutoCloseable {
                     resolveBrokerServiceLookupResult(options, nsData.get(), future);
                 }
             }).exceptionally(exception -> {
-                log.warn()
-                        .attr("bundle", bundle)
-                        .exception(exception)
-                        .log("Failed to check owner for bundle");
+                if (FutureUtil.unwrapCompletionException(exception) instanceof MetadataSessionLostException) {
+                    // the client retries the lookup
+                    log.debug().attr("bundle", bundle).exceptionMessage(exception)
+                            .log("Failed to check owner for bundle");
+                } else {
+                    log.warn()
+                            .attr("bundle", bundle)
+                            .exception(exception)
+                            .log("Failed to check owner for bundle");
+                }
                 future.completeExceptionally(exception);
                 return null;
             });
@@ -521,6 +548,15 @@ public class NamespaceService implements AutoCloseable {
 
             return future;
         });
+        if (!started.get() && !lookup.isDone() && pulsar.isMetadataSessionLost()) {
+            // Another lookup of the bundle is still in progress while the session is lost: it may be waiting for the
+            // metadata store, such as for acquiring the bundle, which this can't tell from a lookup that is only
+            // choosing a broker to redirect to. Fail rather than risk waiting behind it: the client looks the topic
+            // up again, possibly at another broker.
+            return FutureUtil.failedFuture(new MetadataSessionLostException("Namespace bundle " + bundle
+                    + " is being looked up while this broker's metadata session is lost"));
+        }
+        return lookup;
     }
 
     /**
