@@ -178,12 +178,15 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
     /** One attempt at subscribing to a topic; a failure schedules the next one. */
     private CompletableFuture<Void> attachTopic(String topicName, PerTopic<T> state) {
         TopicName topic = V5Utils.parseScalableTopicInput(topicName);
-        // One ScalableConsumerClient session per topic, same as the single-topic builder.
+        // One ScalableConsumerClient session per topic, same as the single-topic builder. A namespace
+        // consumer only attaches to topics the watcher reports as existing; it must never auto-create one
+        // (so a deleted topic can't be resurrected by an attach or a reconnect that looks it up).
         ScalableConsumerClient session = new ScalableConsumerClient(
                 client.v4Client(), topic,
                 consumerConf.getSubscriptionName(),
                 perTopicConsumerName(topicName),
-                ScalableConsumerType.STREAM);
+                ScalableConsumerType.STREAM,
+                /* createIfMissing= */ false);
 
         // Per-topic message sink: each delivered message arrives with its
         // single-topic positionVector (computed by ScalableStreamConsumer). Update
