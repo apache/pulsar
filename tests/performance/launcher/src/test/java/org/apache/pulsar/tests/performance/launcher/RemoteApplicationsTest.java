@@ -106,19 +106,24 @@ public class RemoteApplicationsTest {
                 .isEqualTo("broker-1");
         assertThat(PerformanceLauncher.componentName("/iot-1-remote-bookie-0", "iot-1-remote")).isEqualTo("bookie-0");
         assertThat(PerformanceLauncher.componentName("/iot-1-zookeeper", "iot-1")).isEqualTo("zookeeper");
+        assertThat(PerformanceLauncher.componentName("/iot-1-iot-1-pulsar-bookie-0", "iot-1")).isEqualTo("bookie-0");
+        assertThat(PerformanceLauncher.componentName("/iot-1-remote-iot-1-remote-zookeeper", "iot-1-remote"))
+                .isEqualTo("zookeeper");
     }
 
     @Test
     public void namesEveryContainerThatTheEndpointsExpandTo() {
-        // The containers as the clusters name them: with a shared configuration store, a broker's name repeats its
-        // cluster's
+        // The containers as the clusters name them: with a shared configuration store, the name of a broker, a bookie
+        // and ZooKeeper repeats its cluster's
         Set<String> launcherNames = new TreeSet<>();
         for (String container : List.of("/iot-1-iot-1-pulsar-broker-0", "/iot-1-iot-1-pulsar-broker-1",
-                "/iot-1-pulsar-bookie-0", "/iot-1-pulsar-bookie-1", "/iot-1-pulsar-bookie-2", "/iot-1-zookeeper")) {
+                "/iot-1-iot-1-pulsar-bookie-0", "/iot-1-iot-1-pulsar-bookie-1", "/iot-1-iot-1-pulsar-bookie-2",
+                "/iot-1-iot-1-zookeeper")) {
             launcherNames.add(PerformanceLauncher.componentName(container, "iot-1"));
         }
-        for (String container : List.of("/iot-1-remote-iot-1-remote-pulsar-broker-0", "/iot-1-remote-pulsar-bookie-0",
-                "/iot-1-remote-pulsar-bookie-1", "/iot-1-remote-zookeeper")) {
+        for (String container : List.of("/iot-1-remote-iot-1-remote-pulsar-broker-0",
+                "/iot-1-remote-iot-1-remote-pulsar-bookie-0", "/iot-1-remote-iot-1-remote-pulsar-bookie-1",
+                "/iot-1-remote-iot-1-remote-zookeeper")) {
             launcherNames.add(NetworkSettings.REMOTE_PREFIX + PerformanceLauncher.componentName(container,
                     "iot-1-remote"));
         }
