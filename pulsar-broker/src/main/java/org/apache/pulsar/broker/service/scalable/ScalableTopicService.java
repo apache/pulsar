@@ -106,14 +106,28 @@ public class ScalableTopicService {
 
     /**
      * Get or create a controller for a scalable topic. The controller will attempt
-     * leader election; only the leader actively coordinates consumers.
+     * leader election; only the leader actively coordinates consumers. A controller that
+     * fails to initialize is closed and dropped, so the next call starts over.
      */
     public CompletableFuture<ScalableTopicController> getOrCreateController(TopicName topic) {
         String key = topic.toString();
         CompletableFuture<ScalableTopicController> stored = controllers.computeIfAbsent(key, k -> {
             ScalableTopicController controller = new ScalableTopicController(
                     topic, resources, brokerService, coordinationService);
-            return controller.initialize().thenApply(__ -> controller);
+            return controller.initialize()
+                    // initialize() can fail after winning the election, with the controller lock
+                    // held and the leader's periodic tasks scheduled: close the controller before
+                    // dropping it, or it keeps acting as the leader next to the controller of the
+                    // next attempt.
+                    .exceptionallyCompose(ex -> controller.close()
+                            .handle((__, closeEx) -> {
+                                if (closeEx != null) {
+                                    log.warn().attr("topic", topic).exceptionMessage(closeEx)
+                                            .log("Failed to close a controller that failed to initialize");
+                                }
+                                throw FutureUtil.wrapToCompletionException(ex);
+                            }))
+                    .thenApply(__ -> controller);
         });
         // Evict failed futures so subsequent callers can retry. This runs *outside*
         // computeIfAbsent, so modifying the map here is safe.

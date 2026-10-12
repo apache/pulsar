@@ -23,6 +23,8 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -35,8 +37,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -55,9 +56,10 @@ import org.apache.pulsar.common.policies.data.ScalableSubscriptionType;
 import org.apache.pulsar.common.policies.data.ScalableTopicStats;
 import org.apache.pulsar.common.policies.data.SegmentTopicStats;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
-import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
+import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.apache.pulsar.metadata.impl.LocalMemoryMetadataStore;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -71,10 +73,11 @@ public class ScalableTopicServiceTest {
 
     private static final String BROKER_ID = "broker-service-test";
 
-    private MetadataStoreExtended store;
+    private FaultInjectionMetadataStore store;
     private CoordinationService coordinationService;
     private ScalableTopicResources resources;
-    private ScheduledExecutorService scheduler;
+    /** The broker executor; cancelled tasks leave its queue, so the queue holds the live periodic tasks. */
+    private ScheduledThreadPoolExecutor scheduler;
 
     private BrokerService brokerService;
     private PulsarService pulsar;
@@ -86,11 +89,12 @@ public class ScalableTopicServiceTest {
 
     @BeforeMethod
     public void setUp() throws Exception {
-        store = new LocalMemoryMetadataStore("memory:local",
-                MetadataStoreConfig.builder().build());
+        store = new FaultInjectionMetadataStore(new LocalMemoryMetadataStore("memory:local",
+                MetadataStoreConfig.builder().build()));
         coordinationService = new CoordinationServiceImpl(store);
         resources = new ScalableTopicResources(store, 30);
-        scheduler = Executors.newSingleThreadScheduledExecutor();
+        scheduler = new ScheduledThreadPoolExecutor(1);
+        scheduler.setRemoveOnCancelPolicy(true);
 
         brokerService = mock(BrokerService.class);
         pulsar = mock(PulsarService.class);
@@ -230,6 +234,60 @@ public class ScalableTopicServiceTest {
             assertTrue(cause instanceof RuntimeException);
             assertTrue(cause.getMessage().contains("Failed to initialize controller"),
                     "got: " + cause.getMessage());
+        }
+    }
+
+    @Test
+    public void testFailedInitializationStopsTheController() throws Exception {
+        TopicName tn = scalableTopic("t-init-fails");
+        service.createScalableTopic(tn, 1).get();
+        String lockPath = resources.controllerLockPath(tn);
+        // Fail restoreSessionsFromStore(), which runs once the controller won the election and
+        // scheduled the leader's periodic tasks. The failure is injected once.
+        String subscriptionsPath = resources.topicPath(tn) + "/subscriptions";
+        store.failConditional(new MetadataStoreException("injected"), (op, path) ->
+                op == FaultInjectionMetadataStore.OperationType.GET_CHILDREN && path.equals(subscriptionsPath));
+
+        try {
+            service.getOrCreateController(tn).get();
+            fail("expected the controller initialization to fail");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause().getMessage().contains("Failed to initialize controller"),
+                    "got: " + e.getCause().getMessage());
+        }
+        assertFalse(store.exists(lockPath).get(), "the failed controller must release the controller lock");
+        assertTrue(scheduler.getQueue().isEmpty(), "the failed controller must stop its periodic tasks");
+
+        // The retry runs the only controller of the topic: releasing it leaves nothing running.
+        service.getOrCreateController(tn).get();
+        assertTrue(store.exists(lockPath).get(), "the retry must win the election");
+        service.releaseController(tn).get();
+        assertFalse(store.exists(lockPath).get());
+        assertTrue(scheduler.getQueue().isEmpty(), "no periodic task may outlive the released controller");
+    }
+
+    @Test
+    public void testSubscribeToMissingTopicsCreatesNoLeaderElection() throws Exception {
+        CoordinationService observedCoordinationService = spy(coordinationService);
+        ScalableTopicService observedService =
+                new ScalableTopicService(brokerService, resources, observedCoordinationService);
+        try {
+            for (int i = 0; i < 3; i++) {
+                TopicName missing = scalableTopic("t-missing-" + i);
+                try {
+                    observedService.registerConsumer(missing, "sub", "c1", i, ScalableConsumerType.STREAM,
+                            mock(TransportCnx.class)).get();
+                    fail("expected the subscribe to a missing topic to fail");
+                } catch (ExecutionException e) {
+                    assertTrue(e.getCause().getMessage().contains("Failed to initialize controller"),
+                            "got: " + e.getCause().getMessage());
+                }
+            }
+            // A leader election is never dropped by the coordination service and keeps its metadata
+            // store listeners for the broker's lifetime.
+            verify(observedCoordinationService, never()).getLeaderElection(any(), anyString(), any());
+        } finally {
+            observedService.close();
         }
     }
 

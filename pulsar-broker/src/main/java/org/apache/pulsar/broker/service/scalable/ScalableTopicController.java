@@ -84,7 +84,9 @@ public class ScalableTopicController {
     private final TopicName topicName;
     private final ScalableTopicResources resources;
     private final BrokerService brokerService;
-    private final LeaderElection<String> leaderElection;
+    private final CoordinationService coordinationService;
+    /** Created once the topic is known to exist, see {@link #getOrCreateLeaderElection()}. */
+    private volatile LeaderElection<String> leaderElection;
     /** Wall-clock source used for sealed-segment retention math. Tests override. */
     private final Clock clock;
     /** Cadence of the GC tick. Tests override to a small value. */
@@ -145,13 +147,10 @@ public class ScalableTopicController {
         this.topicName = topicName;
         this.resources = resources;
         this.brokerService = brokerService;
+        this.coordinationService = coordinationService;
         this.clock = clock;
         this.gcInterval = gcInterval;
         this.log = LOG.with().attr("topic", topicName).build();
-        this.leaderElection = coordinationService.getLeaderElection(
-                String.class,
-                resources.controllerLockPath(topicName),
-                this::onLeaderStateChange);
     }
 
     /**
@@ -751,12 +750,28 @@ public class ScalableTopicController {
         // NamespaceService.createLookupResult(brokerId, ...), matching the pattern used by
         // the cluster-leader redirection in NamespacesBase.
         String brokerId = brokerService.getPulsar().getBrokerId();
-        return leaderElection.elect(brokerId)
+        return getOrCreateLeaderElection().elect(brokerId)
                 .thenAccept(state -> {
                     this.leaderState = state;
                     log.info().attr("state", state)
                             .log("Leader election for scalable topic");
                 });
+    }
+
+    /**
+     * The leader election on the controller lock, created by the first election attempt.
+     * {@link #initialize()} makes it only after reading the topic record: the coordination
+     * service keeps an election, with its metadata store listeners, for the broker's lifetime,
+     * so a controller created for a topic that doesn't exist must not create one.
+     */
+    private synchronized LeaderElection<String> getOrCreateLeaderElection() {
+        if (leaderElection == null) {
+            leaderElection = coordinationService.getLeaderElection(
+                    String.class,
+                    resources.controllerLockPath(topicName),
+                    this::onLeaderStateChange);
+        }
+        return leaderElection;
     }
 
     public boolean isLeader() {
@@ -770,7 +785,8 @@ public class ScalableTopicController {
      * boolean, String)}.
      */
     public CompletableFuture<Optional<String>> getLeaderBrokerId() {
-        return leaderElection.getLeaderValue();
+        LeaderElection<String> election = leaderElection;
+        return election != null ? election.getLeaderValue() : CompletableFuture.completedFuture(Optional.empty());
     }
 
     // --- Layout operations (only valid on leader) ---
@@ -1652,7 +1668,9 @@ public class ScalableTopicController {
         // task keeps running after the controller goes away.
         subscriptions.values().forEach(SubscriptionCoordinator::close);
         subscriptions.clear();
-        return leaderElection.asyncClose();
+        // No election if the controller never found its topic.
+        LeaderElection<String> election = leaderElection;
+        return election != null ? election.asyncClose() : CompletableFuture.completedFuture(null);
     }
 
     // --- Internal helpers ---
