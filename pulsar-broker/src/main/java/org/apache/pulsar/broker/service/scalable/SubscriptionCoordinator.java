@@ -189,6 +189,10 @@ public class SubscriptionCoordinator {
      * is preserved and the new connection is attached; otherwise the registration is
      * persisted and a rebalance is triggered.
      *
+     * <p>Both paths push the registering consumer its assignment while holding the monitor. The
+     * connection answers the consumer's subscribe with that push, which orders the response with
+     * every later push (see {@code ServerCnx#sendScalableConsumerAssignment}).
+     *
      * @return assignment map for all consumers (unchanged on reconnect, recomputed on fresh register)
      */
     public synchronized CompletableFuture<Map<ConsumerSession, ConsumerAssignment>> registerConsumer(
