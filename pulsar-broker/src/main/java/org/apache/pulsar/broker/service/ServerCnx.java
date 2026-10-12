@@ -64,6 +64,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BooleanSupplier;
 import java.util.stream.Collectors;
 import javax.naming.AuthenticationException;
@@ -1156,17 +1157,18 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private final java.util.concurrent.ConcurrentHashMap<Long, ScalableConsumerRegistrationRef>
             scalableConsumerRegistrations = new java.util.concurrent.ConcurrentHashMap<>();
 
+    /**
+     * A scalable-topic consumer registration made on this connection. {@code answered} records
+     * whether the response to its subscribe, {@code requestId}, was written; see
+     * {@link #sendScalableConsumerAssignment}.
+     */
     private record ScalableConsumerRegistrationRef(
             TopicName topicName,
             String subscription,
             String consumerName,
-            CompletableFuture<?> registration) {}
-
-    /**
-     * Scalable-topic subscribes on this connection that are not answered yet: consumer id to
-     * request id. See {@link #sendScalableConsumerAssignment}.
-     */
-    private final ConcurrentHashMap<Long, Long> unansweredScalableSubscribes = new ConcurrentHashMap<>();
+            CompletableFuture<?> registration,
+            long requestId,
+            AtomicBoolean answered) {}
 
     @Override
     protected void handleCommandScalableTopicSubscribe(
@@ -1229,17 +1231,16 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     // and the subscribe can be answered before registerScalableConsumer even
                     // returns (see sendScalableConsumerAssignment).
                     var registration = new CompletableFuture<ConsumerAssignment>();
-                    var ref = new ScalableConsumerRegistrationRef(
-                            topicName, subscription, consumerName, registration);
+                    var ref = new ScalableConsumerRegistrationRef(topicName, subscription,
+                            consumerName, registration, requestId, new AtomicBoolean());
                     scalableConsumerRegistrations.put(consumerId, ref);
-                    unansweredScalableSubscribes.put(consumerId, requestId);
                     FutureUtil.completeAfter(registration, FutureUtil.supplySafely(() ->
                             registerScalableConsumer(scalableTopicService, topicName, subscription,
                                     consumerName, consumerId, consumerType)));
                     registration.whenCompleteAsync((assignment, ex) -> {
                         // Normally answered already, by the push of the consumer's assignment
                         // the coordinator makes while registering it.
-                        boolean unanswered = unansweredScalableSubscribes.remove(consumerId, requestId);
+                        boolean unanswered = ref.answered().compareAndSet(false, true);
                         if (ex != null) {
                             Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
                             log.warn().attr("topic", topicName).attr("subscription", subscription)
@@ -1293,9 +1294,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
      */
     @Override
     public void sendScalableConsumerAssignment(long consumerId, ScalableConsumerAssignment assignment) {
-        Long requestId = unansweredScalableSubscribes.remove(consumerId);
-        if (requestId != null) {
-            getCommandSender().sendScalableTopicSubscribeResponse(requestId, assignment);
+        ScalableConsumerRegistrationRef ref = scalableConsumerRegistrations.get(consumerId);
+        if (ref != null && ref.answered().compareAndSet(false, true)) {
+            getCommandSender().sendScalableTopicSubscribeResponse(ref.requestId(), assignment);
         } else {
             getCommandSender().sendScalableTopicAssignmentUpdate(consumerId, assignment);
         }
