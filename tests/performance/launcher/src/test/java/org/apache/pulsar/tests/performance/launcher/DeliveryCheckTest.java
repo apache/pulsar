@@ -43,7 +43,7 @@ public class DeliveryCheckTest {
         Path run = Files.createTempDirectory("delivery-check");
         write(run.resolve("applications/iot-application-0/application-summary.json"), "{\"duplicates\": 0}");
         write(run.resolve("applications/iot-application-1/application-summary.json"), secondSummary);
-        return PerformanceLauncher.deliveredIncorrectly(mapper, run, workload, 2);
+        return PerformanceLauncher.deliveredIncorrectly(mapper, run.resolve("applications"), workload, 2);
     }
 
     private static void write(Path file, String content) throws Exception {

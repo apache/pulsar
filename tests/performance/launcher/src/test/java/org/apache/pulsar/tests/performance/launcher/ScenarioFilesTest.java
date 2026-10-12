@@ -138,6 +138,35 @@ public class ScenarioFilesTest {
         }
     }
 
+    @DataProvider
+    public static Object[][] networkOverlays() throws IOException {
+        try (Stream<Path> files = Files.list(SCENARIOS.resolve("network"))) {
+            return files.filter(file -> file.getFileName().toString().endsWith(".yaml")).sorted()
+                    .map(file -> new Object[] {file.getFileName().toString()}).toArray(Object[][]::new);
+        }
+    }
+
+    @Test(dataProvider = "networkOverlays")
+    public void appliesEveryNetworkOverlayToTheScenarios(String overlay) {
+        for (String scenario : List.of("iot-telemetry-small.yaml", "iot-telemetry-high-rate.yaml")) {
+            ObjectNode resolved = resolve(SCENARIOS.resolve(scenario),
+                    List.of(SCENARIOS.resolve("network").resolve(overlay)));
+            ClusterSettings cluster = ClusterSettings.read(loader.mapper(), resolved.path("cluster"));
+            NetworkSettings network = NetworkSettings.read(resolved.path("network"), cluster.topology(),
+                    PerformanceLauncher.measurementSeconds(loader.select(resolved, "workloads.iotTelemetry")));
+            // Every overlay but the clusters that the fault overlays extend impairs something
+            assertThat(network.any()).as(overlay + " on " + scenario)
+                    .isEqualTo(!List.of("failover-cluster.yaml", "geo-replication.yaml").contains(overlay));
+            // The geo overlays add the remote cluster
+            assertThat(cluster.remote() != null).as(overlay + " on " + scenario)
+                    .isEqualTo(overlay.startsWith("geo-"));
+            assertThat(ledgerSetting(cluster, "managedLedgerDefaultEnsembleSize"))
+                    .as("the ensemble size of %d bookie(s)", cluster.bookies().replicas())
+                    .isBetween(1, cluster.bookies().replicas());
+            checkWorkload(resolved);
+        }
+    }
+
     private ObjectNode resolve(Path scenario, List<Path> appended) {
         return loader.resolve(scenario, appended, null, Map.of(), "PULSAR_PERFORMANCE_", "PULSAR_PERFORMANCE_CONFIG");
     }
