@@ -161,7 +161,8 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
 
     private synchronized CompletableFuture<LeaderElectionState> handleExistingLeaderValue(GetResult res) {
         if (internalState == InternalState.Closed) {
-            // Closed while the lock was read: don't follow the leader nor delete its lock
+            // Closed while the lock was being read: the value read must not bring the election back, nor make it
+            // delete the lock
             return FutureUtil.failedFuture(new AlreadyClosedException("The leader election was already closed"));
         }
         T existingValue;
