@@ -19,12 +19,15 @@
 
 package org.apache.pulsar.tests.integration.oxia;
 
+import com.github.dockerjava.api.command.InspectContainerResponse;
 import java.time.Duration;
+import lombok.CustomLog;
 import org.apache.pulsar.tests.OxiaTestImage;
 import org.apache.pulsar.tests.integration.containers.ChaosContainer;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 
+@CustomLog
 public class OxiaContainer extends ChaosContainer<OxiaContainer> {
 
     public static final String NAME = "oxia";
@@ -62,6 +65,16 @@ public class OxiaContainer extends ChaosContainer<OxiaContainer> {
 
     public String getServiceAddress() {
         return OxiaContainer.NAME + ":" + OXIA_PORT;
+    }
+
+    @Override
+    protected void containerIsStarted(InspectContainerResponse containerInfo) {
+        super.containerIsStarted(containerInfo);
+        // The image tag moves every day, so record the Oxia commit the test runs against
+        log.info()
+                .attr("image", getDockerImageName())
+                .attr("revision", containerInfo.getConfig().getLabels().get(OxiaTestImage.REVISION_LABEL))
+                .log("Oxia server started");
     }
 
     @Override

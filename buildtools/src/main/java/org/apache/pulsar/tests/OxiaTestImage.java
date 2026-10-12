@@ -24,9 +24,24 @@ package org.apache.pulsar.tests;
 public final class OxiaTestImage {
 
     /**
-     * Oxia's nightly build of its main branch. The tag moves every day.
+     * Oxia's {@code nightly-beta} image, which Oxia's
+     * <a href="https://github.com/oxia-db/oxia/blob/main/.github/workflows/ci-nightly-images.yaml">nightly images
+     * workflow</a> rebuilds every day from Oxia's development branch. The tests run against it, rather than
+     * {@code nightly-stable}, which the workflow builds from the current release branch, so that an Oxia change that
+     * breaks Pulsar shows up before it reaches an Oxia release.
+     *
+     * <p>If an Oxia nightly breaks the Pulsar tests, pin an Oxia release tag here, such as {@code oxia/oxia:0.16.11}.
+     *
+     * <p>Testcontainers pulls an image only when it is missing, so a local run keeps the nightly it pulled first. Run
+     * {@code docker pull oxia/oxia:nightly-beta} before reproducing a CI failure. The tests log the Oxia commit they
+     * run against, from {@link #REVISION_LABEL}.
      */
     public static final String NAME = "oxia/oxia:nightly-beta";
+
+    /**
+     * The label of the Oxia image that holds the Oxia commit the image was built from.
+     */
+    public static final String REVISION_LABEL = "org.opencontainers.image.revision";
 
     private OxiaTestImage() {
     }

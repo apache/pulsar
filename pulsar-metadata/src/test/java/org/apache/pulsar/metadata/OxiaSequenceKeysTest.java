@@ -32,9 +32,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.api.Option;
 import org.apache.pulsar.metadata.api.Stat;
-import org.apache.pulsar.tests.OxiaTestImage;
 import org.awaitility.Awaitility;
-import org.testcontainers.utility.DockerImageName;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -53,8 +51,7 @@ public class OxiaSequenceKeysTest {
 
     @BeforeClass
     public void start() {
-        oxiaServer = new OxiaContainer(DockerImageName.parse(OxiaTestImage.NAME)).withShards(SHARDS);
-        oxiaServer.start();
+        oxiaServer = OxiaTestServer.start(SHARDS);
     }
 
     @AfterClass(alwaysRun = true)
