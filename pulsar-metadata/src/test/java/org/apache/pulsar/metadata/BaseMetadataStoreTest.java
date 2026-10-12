@@ -34,8 +34,10 @@ import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.impl.MetadataStoreFactoryImpl;
+import org.apache.pulsar.tests.OxiaTestImage;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.assertj.core.util.Files;
+import org.testcontainers.utility.DockerImageName;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -159,7 +161,7 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
             return null;
         }
         if (oxiaServer == null) {
-            oxiaServer = new OxiaContainer(OxiaContainer.DEFAULT_IMAGE_NAME);
+            oxiaServer = new OxiaContainer(DockerImageName.parse(OxiaTestImage.NAME));
             oxiaServer.start();
         }
         return oxiaServer.getServiceAddress();

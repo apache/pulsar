@@ -20,6 +20,7 @@
 package org.apache.pulsar.tests.integration.oxia;
 
 import java.time.Duration;
+import org.apache.pulsar.tests.OxiaTestImage;
 import org.apache.pulsar.tests.integration.containers.ChaosContainer;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
@@ -32,10 +33,8 @@ public class OxiaContainer extends ChaosContainer<OxiaContainer> {
     public static final int METRICS_PORT = 8080;
     private static final int DEFAULT_SHARDS = 1;
 
-    private static final String DEFAULT_IMAGE_NAME = "oxia/oxia:main";
-
     public OxiaContainer(String clusterName) {
-        this(clusterName, DEFAULT_IMAGE_NAME, DEFAULT_SHARDS);
+        this(clusterName, OxiaTestImage.NAME, DEFAULT_SHARDS);
     }
 
     @SuppressWarnings("resource")

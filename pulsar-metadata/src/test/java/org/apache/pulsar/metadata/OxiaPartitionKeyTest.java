@@ -31,6 +31,8 @@ import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.api.Option;
+import org.apache.pulsar.tests.OxiaTestImage;
+import org.testcontainers.utility.DockerImageName;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -50,7 +52,7 @@ public class OxiaPartitionKeyTest {
 
     @BeforeClass
     public void start() {
-        oxiaServer = new OxiaContainer(OxiaContainer.DEFAULT_IMAGE_NAME).withShards(SHARDS);
+        oxiaServer = new OxiaContainer(DockerImageName.parse(OxiaTestImage.NAME)).withShards(SHARDS);
         oxiaServer.start();
     }
 
