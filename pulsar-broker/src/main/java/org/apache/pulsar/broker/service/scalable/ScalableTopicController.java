@@ -23,6 +23,7 @@ import io.github.merlimat.slog.Logger;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -58,6 +59,7 @@ import org.apache.pulsar.common.scalable.HashRange;
 import org.apache.pulsar.common.scalable.SegmentInfo;
 import org.apache.pulsar.common.scalable.SegmentTopicName;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
@@ -731,8 +733,21 @@ public class ScalableTopicController {
      * <p>Returns {@code false} if the segment topic or subscription is not yet loaded
      * (the admin endpoint replies 404). The next poll will succeed once the consumer's
      * subscribe lands the topic on its owning broker.
+     *
+     * <p>A legacy segment is checked on the {@code persistent://} topic it wraps, which the
+     * segment endpoints can't address. If that topic no longer exists (deleted out of band,
+     * e.g. by the inactive-topic GC), nothing is left to read on it: it counts as drained.
      */
     private CompletableFuture<Boolean> isSegmentDrained(SegmentInfo segment, String subscription) {
+        if (segment.isLegacy()) {
+            return legacySubscriptionBacklogs(segment).thenApply(backlogs -> backlogs
+                    .map(bySubscription -> {
+                        Long backlog = bySubscription.get(subscription);
+                        // No cursor: the subscription hasn't attached to the legacy topic yet.
+                        return backlog != null && backlog <= 0;
+                    })
+                    .orElse(true));
+        }
         String segmentTopicName = toSegmentPersistentName(segment);
         try {
             return brokerService.getPulsar().getAdminClient()
@@ -752,6 +767,37 @@ public class ScalableTopicController {
         } catch (PulsarServerException e) {
             return CompletableFuture.failedFuture(e);
         }
+    }
+
+    /**
+     * The backlog of every durable subscription, other than the compaction cursor, of the
+     * {@code persistent://} topic a legacy segment wraps, read through the regular topic stats
+     * endpoint. Empty if that topic no longer exists.
+     */
+    private CompletableFuture<Optional<Map<String, Long>>> legacySubscriptionBacklogs(SegmentInfo segment) {
+        final PulsarAdmin admin;
+        try {
+            admin = brokerService.getPulsar().getAdminClient();
+        } catch (PulsarServerException e) {
+            return CompletableFuture.failedFuture(e);
+        }
+        return admin.topics().getStatsAsync(segment.legacyTopicName())
+                .thenApply(stats -> {
+                    Map<String, Long> backlogs = new HashMap<>();
+                    stats.getSubscriptions().forEach((name, sub) -> {
+                        if (sub.isDurable() && !Compactor.COMPACTION_SUBSCRIPTION.equals(name)) {
+                            backlogs.put(name, sub.getMsgBacklog());
+                        }
+                    });
+                    return Optional.of(backlogs);
+                })
+                .exceptionally(ex -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                    if (cause instanceof PulsarAdminException.NotFoundException) {
+                        return Optional.empty();
+                    }
+                    throw FutureUtil.wrapToCompletionException(cause);
+                });
     }
 
     private CompletableFuture<Void> electLeader() {
@@ -1162,15 +1208,22 @@ public class ScalableTopicController {
             return clearSubscriptionBacklogOnSegment(segment, subscription);
         }
         long effective = timestampMs;
-        if (segment.createdAtMs() > 0 && segment.createdAtMs() >= timestampMs) {
+        // A legacy segment was created by the migration, after the data of the topic it wraps.
+        if (!segment.isLegacy() && segment.createdAtMs() > 0 && segment.createdAtMs() >= timestampMs) {
             // Segment fully postdates timestamp → seek to start (timestamp=0 == earliest
             // for managed-ledger reset-cursor-by-timestamp semantics).
             effective = 0L;
         }
-        String segmentName = toSegmentPersistentName(segment);
+        String segmentName = SegmentTopicName.backingTopicName(topicName, segment);
         try {
-            return brokerService.getPulsar().getAdminClient()
-                    .scalableTopics().seekSegmentSubscriptionAsync(segmentName, subscription, effective)
+            PulsarAdmin admin = brokerService.getPulsar().getAdminClient();
+            // The segment endpoints can't address the persistent:// topic a legacy segment wraps:
+            // use the regular topic endpoint, whose 404 means that the topic or the subscription
+            // is missing, which leaves nothing to reset either way.
+            CompletableFuture<Void> seek = segment.isLegacy()
+                    ? admin.topics().resetCursorAsync(segmentName, subscription, effective)
+                    : admin.scalableTopics().seekSegmentSubscriptionAsync(segmentName, subscription, effective);
+            return seek
                     .exceptionally(ex -> {
                         Throwable cause =
                                 org.apache.pulsar.common.util.FutureUtil.unwrapCompletionException(ex);
@@ -1191,11 +1244,14 @@ public class ScalableTopicController {
 
     private CompletableFuture<Void> clearSubscriptionBacklogOnSegment(SegmentInfo segment,
                                                                        String subscription) {
-        String segmentName = toSegmentPersistentName(segment);
+        String segmentName = SegmentTopicName.backingTopicName(topicName, segment);
         try {
-            return brokerService.getPulsar().getAdminClient()
-                    .scalableTopics()
-                    .clearSegmentSubscriptionBacklogAsync(segmentName, subscription)
+            PulsarAdmin admin = brokerService.getPulsar().getAdminClient();
+            // A legacy segment goes through the regular topic endpoint (see the seek path).
+            CompletableFuture<Void> clear = segment.isLegacy()
+                    ? admin.topics().skipAllMessagesAsync(segmentName, subscription)
+                    : admin.scalableTopics().clearSegmentSubscriptionBacklogAsync(segmentName, subscription);
+            return clear
                     .exceptionally(ex -> {
                         Throwable cause =
                                 org.apache.pulsar.common.util.FutureUtil.unwrapCompletionException(ex);
@@ -1232,11 +1288,14 @@ public class ScalableTopicController {
     }
 
     private CompletableFuture<Void> deleteSubscriptionOnSegment(SegmentInfo segment, String subscription) {
-        String segmentTopicName = toSegmentPersistentName(segment);
+        String segmentTopicName = SegmentTopicName.backingTopicName(topicName, segment);
         try {
-            return brokerService.getPulsar().getAdminClient()
-                    .scalableTopics()
-                    .deleteSegmentSubscriptionAsync(segmentTopicName, subscription)
+            PulsarAdmin admin = brokerService.getPulsar().getAdminClient();
+            // A legacy segment goes through the regular topic endpoint (see the seek path).
+            CompletableFuture<Void> delete = segment.isLegacy()
+                    ? admin.topics().deleteSubscriptionAsync(segmentTopicName, subscription)
+                    : admin.scalableTopics().deleteSegmentSubscriptionAsync(segmentTopicName, subscription);
+            return delete
                     .exceptionally(ex -> {
                         Throwable cause = org.apache.pulsar.common.util.FutureUtil.unwrapCompletionException(ex);
                         if (cause instanceof org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException) {
@@ -1512,7 +1571,19 @@ public class ScalableTopicController {
           });
     }
 
+    /**
+     * Whether every subscription has drained {@code seg}. A legacy segment also waits for the
+     * subscriptions that the {@code persistent://} topic it wraps has of its own, from before the
+     * migration: the scalable topic doesn't know them, but deleting the topic drops their backlog.
+     */
     private CompletableFuture<Boolean> prunable(SegmentInfo seg, List<String> subs) {
+        if (seg.isLegacy()) {
+            return legacySubscriptionBacklogs(seg).thenApply(backlogs -> backlogs
+                    .map(bySubscription -> bySubscription.keySet().containsAll(subs)
+                            && bySubscription.values().stream().allMatch(backlog -> backlog <= 0))
+                    // The topic is gone, and its data with it.
+                    .orElse(true));
+        }
         if (subs.isEmpty()) {
             // No subscribers ever attached / all unsubscribed → nothing left to drain.
             return CompletableFuture.completedFuture(true);
@@ -1534,15 +1605,19 @@ public class ScalableTopicController {
     /**
      * Delete the segment's backing storage via the {@code scalableTopics} admin
      * endpoint, which understands the {@code segment://} naming scheme and routes
-     * to the segment's owning broker. Failures are best-effort: the controller
+     * to the segment's owning broker, or for a legacy segment the {@code persistent://}
+     * topic it wraps via the regular topic endpoint. Failures are best-effort: the controller
      * has already pruned the segment from the layout (the point of no return),
      * so a failed delete is just leaked storage that the next tick will retry.
      */
     private CompletableFuture<Void> deleteSegmentBackingTopic(SegmentInfo seg) {
-        String name = toSegmentPersistentName(seg);
+        String name = SegmentTopicName.backingTopicName(topicName, seg);
         try {
-            return brokerService.getPulsar().getAdminClient()
-                    .scalableTopics().deleteSegmentAsync(name, /* force */ true)
+            PulsarAdmin admin = brokerService.getPulsar().getAdminClient();
+            CompletableFuture<Void> delete = seg.isLegacy()
+                    ? admin.topics().deleteAsync(name, /* force */ true)
+                    : admin.scalableTopics().deleteSegmentAsync(name, /* force */ true);
+            return delete
                     .exceptionally(ex -> {
                         Throwable cause =
                                 org.apache.pulsar.common.util.FutureUtil.unwrapCompletionException(ex);

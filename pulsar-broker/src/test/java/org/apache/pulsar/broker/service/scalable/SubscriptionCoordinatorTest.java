@@ -36,6 +36,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.TransportCnx;
@@ -627,6 +628,25 @@ public class SubscriptionCoordinatorTest {
         // Once marked as a checkpoint group, the subscription gets whole segments only.
         coordinator.markCheckpointGroup();
         assertFalse(coordinator.canShareSegmentsByEntryBucket());
+    }
+
+    @Test
+    public void testLegacySegmentIsAssignedTheTopicItWraps() throws Exception {
+        // A regular-to-scalable migration (PIP-475) keeps the old topic as a sealed legacy parent, which
+        // has no segment:// topic of its own.
+        SubscriptionCoordinator c = new SubscriptionCoordinator("test-sub", topicName,
+                SegmentLayout.fromMetadata(ScalableTopicController.createMigratedMetadata(
+                        TopicName.get("persistent://tenant/ns/my-topic"), 0, 1)),
+                resources, scheduler, Duration.ofMillis(200));
+
+        ConsumerAssignment assignment = findByName(
+                c.registerConsumer("consumer-1", 1L, mock(TransportCnx.class)).get(), "consumer-1");
+
+        assertEquals(assignment.assignedSegments().stream().collect(Collectors.toMap(
+                        ConsumerAssignment.AssignedSegment::segmentId,
+                        ConsumerAssignment.AssignedSegment::underlyingTopicName)),
+                Map.of(0L, "persistent://tenant/ns/my-topic",
+                        1L, "segment://tenant/ns/my-topic/0000-ffff-1"));
     }
 
     private SubscriptionCoordinator bucketedCoordinator() {

@@ -94,10 +94,13 @@ public final class RunScrape implements AutoCloseable {
     }
 
     // A container's name on the dashboards, such as pulsar-broker-0, without the cluster's name that its name starts
-    // with
+    // with: a cluster that shares its configuration store prefixes its brokers' names with it twice
     public static String instanceName(String clusterName, String containerName) {
-        return containerName.startsWith(clusterName + "-") ? containerName.substring(clusterName.length() + 1)
-                : containerName;
+        String name = containerName;
+        while (name.startsWith(clusterName + "-")) {
+            name = name.substring(clusterName.length() + 1);
+        }
+        return name;
     }
 
     /** Stops scraping the run's containers. */

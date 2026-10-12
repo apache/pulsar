@@ -137,6 +137,9 @@ report has these sections:
   the measurement, and where, by whom and from which commit the run was made. The host row names the host's CPU,
   cores, hardware threads, memory and operating system, and the Docker engine row the engine's version, CPUs and
   memory, which on macOS are those of Docker Desktop's virtual machine rather than the host's.
+- **Network conditions**, in a run with a `network` section: each impairment, when it was applied and removed
+  relative to the measurement's start, its queues' packets and drops, and each impaired container's TCP
+  retransmissions, see [Network conditions](network-conditions.md#files).
 - **Correctness**: the unique messages, duplicates, ordering violations and invalid messages of each application.
   In a valid run, every application received every message the gateways sent, warmup included, with no ordering
   violations or invalid messages. Duplicates are valid in Pulsar's at-least-once delivery, and are counted so that
@@ -152,6 +155,9 @@ report has these sections:
   Latency section's charts.
 - **Latency**: the publish latency (send to acknowledgment) and each application's end-to-end latency (publish to
   consume) at percentiles from p50 to the maximum, with charts by percentile and over time.
+- **Remote applications**, in a run with a remote cluster
+  ([Geo-replication](network-conditions.md#geo-replication)): the remote applications' correctness, as in the
+  Correctness section, and their end-to-end latency, which includes the replication, with the remote cluster's files.
 - **Backlog and rates**: each subscription's backlog and the per-second rates, sampled from the broker's topic
   stats once per second while the gateways publish and the applications receive. A sampled maximum is not the exact peak
   between samples.
@@ -198,10 +204,14 @@ beside it, rendered with [commonmark-java](https://github.com/commonmark/commonm
 | `gateways/gateways-summary.json` | The gateways' counts and throughput, and the epoch-millisecond boundaries of the measurement |
 | `gateways/gateways-latency.hdr`, `.hgrm` | The publish latency log, and its percentile distribution in milliseconds, see [Latency logs](#latency-logs) |
 | `gateways/gateways-state.bin` | The gateways' next sequence number for each device. The launcher compares it with each application's `application-state.bin` and fails the run when they differ, which catches messages missing at the end, where no gap shows |
-| `applications/<application>/application-summary.json` | The application's unique messages, duplicates, ordering violations and invalid messages, and its first and last measured-message receipt. Its join setting (`joinSeconds`), and for an application that joined after the measurement started, its join time (`joinEpochMs`), when it caught up (`caughtUpEpochMs`) within `caughtUpLatencyMillis`, and its received messages then (`messagesWhenCaughtUp`); `joinEpochMs` is 0 for an application that joined at the start, and `caughtUpEpochMs` and `messagesWhenCaughtUp` are 0 for one that didn't catch up |
+| `applications/<application>/application-summary.json` | The application's unique messages, duplicates, ordering violations and invalid messages, and its first and last measured-message receipt. Of the duplicates of a device's latest message, `redeliveredDuplicates` had the same message ID, a redelivery, and `republishedDuplicates` another one: the broker persisted the message twice, which deduplication should prevent. Its join setting (`joinSeconds`), and for an application that joined after the measurement started, its join time (`joinEpochMs`), when it caught up (`caughtUpEpochMs`) within `caughtUpLatencyMillis`, and its received messages then (`messagesWhenCaughtUp`); `joinEpochMs` is 0 for an application that joined at the start, and `caughtUpEpochMs` and `messagesWhenCaughtUp` are 0 for one that didn't catch up |
 | `applications/<application>/application-latency.hdr`, `.hgrm` | The application's end-to-end latency log, and its percentile distribution in milliseconds |
 | `applications/<application>/application-state.bin` | The application's next expected sequence number for each device |
-| `applications/<application>/ordering-violations.txt` | Samples of the ordering violations, with the message ID, topic and receiving thread; empty in a valid run |
+| `applications/<application>/ordering-violations.txt` | Samples of the ordering violations, with the message ID, topic, receiving thread, redelivery count and receipt time, and the receipts of the messages that came late (`recovered=`); empty in a valid run |
+| `applications/<application>/republished-duplicates.txt` | Samples of the republished duplicates, with the device, its sequence number and the second message ID, topic, receiving thread, redelivery count and receipt time, when there were any |
+| `network-summary.json`, `network-events.jsonl` | In a run with a `network` section, each impairment's settings, status and counters, and every event as it happened, see [Network conditions](network-conditions.md#files) |
+| `gateways/pulsar-client.log.txt`, `applications/pulsar-client.log.txt` | The Pulsar client's log in the workloads, at the level of `PULSAR_CLIENT_LOG_LEVEL`, `warn` by default, when it logged anything |
+| `remote-applications/`, `remote-topic-stats.csv`, `replication-stats.csv`, `resolved-config-remote-applications.yaml` | In a run with a remote cluster, the remote applications' outputs, laid out as in `applications/`, the remote topics' stats, the replicators' stats and the remote applications' configuration, see [Geo-replication](network-conditions.md#geo-replication) |
 | `gateways/container.log.txt`, `applications/container.log.txt` | The container's log, named `.txt` so that HTTP servers show it as text |
 | `coordination/` | The markers with which the applications tell the gateways that they received a warmup round, and the gateways' measurement start, from which the applications that join later count their join time |
 

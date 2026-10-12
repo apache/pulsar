@@ -29,6 +29,7 @@ import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.GetStatsOptions;
 import org.apache.pulsar.broker.transaction.metadata.TxnMetadataStore;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.api.proto.ScalableConsumerType;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
@@ -315,6 +316,8 @@ public class ScalableTopicService {
                                     .toList()
                     );
                 })
+                // The segments share the schema of the scalable topic; deleting them leaves it in place.
+                .thenCompose(__ -> brokerService.deleteSchema(topic))
                 .thenCompose(__ -> resources.deleteScalableTopicAsync(topic));
     }
 
@@ -397,11 +400,14 @@ public class ScalableTopicService {
     }
 
     private CompletableFuture<Void> deleteUnderlyingSegmentTopic(TopicName parentTopic, SegmentInfo segment) {
-        String segmentName = SegmentTopicName.fromParent(
-                parentTopic, segment.hashRange(), segment.segmentId()).toString();
+        String segmentName = SegmentTopicName.backingTopicName(parentTopic, segment);
         try {
-            return brokerService.getPulsar().getAdminClient()
-                    .scalableTopics().deleteSegmentAsync(segmentName, true)
+            PulsarAdmin admin = brokerService.getPulsar().getAdminClient();
+            // The segment endpoints can't address the persistent:// topic a legacy segment wraps.
+            CompletableFuture<Void> delete = segment.isLegacy()
+                    ? admin.topics().deleteAsync(segmentName, true)
+                    : admin.scalableTopics().deleteSegmentAsync(segmentName, true);
+            return delete
                     .exceptionally(ex -> {
                         log.warn().attr("segment", segmentName).exceptionMessage(ex)
                                 .log("Failed to delete segment topic");
