@@ -21,11 +21,17 @@ package org.apache.pulsar.client.api.v5;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicService;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ScalableSubscriptionType;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.metadata.api.GetResult;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
@@ -107,15 +113,20 @@ public class V5MultiBrokerScalableTopicDeleteTest extends V5MultiBrokerClientBas
         brokers.get(leaderIndex).getBrokerService().getScalableTopicService().releaseController(tn)
                 .get(10, TimeUnit.SECONDS);
 
+        ScalableTopicResources resources = brokers.get(0).getPulsarResources().getScalableTopicResources();
         Awaitility.await().atMost(Duration.ofSeconds(15)).untilAsserted(() -> {
-            int leaders = 0;
+            List<String> leaders = new ArrayList<>();
             for (int i = 0; i < brokers.size(); i++) {
                 if (i != leaderIndex && brokers.get(i).getBrokerService().getScalableTopicService()
                         .getOrCreateController(tn).get(10, TimeUnit.SECONDS).isLeader()) {
-                    leaders++;
+                    leaders.add(brokers.get(i).getBrokerId());
                 }
             }
-            assertThat(leaders).as("followers that took the controller over").isEqualTo(1);
+            assertThat(leaders).as("followers that took the controller over").hasSize(1);
+            Optional<GetResult> lock = resources.getStore().get(resources.controllerLockPath(tn)).get();
+            assertThat(lock).as("controller lock").isPresent();
+            assertThat(ObjectMapperFactory.getMapper().reader().readValue(lock.get().getValue(), String.class))
+                    .as("broker holding the controller lock").isEqualTo(leaders.get(0));
         });
     }
 
@@ -130,5 +141,15 @@ public class V5MultiBrokerScalableTopicDeleteTest extends V5MultiBrokerClientBas
                             .as("record of the deleted topic").isEmpty();
                 });
         assertThat(admin.scalableTopics().listScalableTopics(getNamespace())).doesNotContain(topic);
+        // No broker keeps a controller for the deleted topic: getting one creates a new controller,
+        // which fails to initialize.
+        Awaitility.await().atMost(Duration.ofSeconds(15)).untilAsserted(() -> {
+            for (PulsarService broker : brokers) {
+                assertThatThrownBy(() -> broker.getBrokerService().getScalableTopicService()
+                        .getOrCreateController(tn).get(10, TimeUnit.SECONDS))
+                        .as("controller of the deleted topic on " + broker.getBrokerId())
+                        .hasMessageContaining("Failed to initialize controller");
+            }
+        });
     }
 }

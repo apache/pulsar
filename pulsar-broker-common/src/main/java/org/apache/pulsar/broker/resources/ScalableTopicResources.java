@@ -521,24 +521,6 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
     }
 
     /**
-     * The scalable topic whose record is stored at {@code path}: the inverse of
-     * {@link #topicPath(TopicName)}. Empty if {@code path} is not a topic record path, e.g. a
-     * namespace path or a child of a record (controller lock, subscription, consumer).
-     */
-    public Optional<TopicName> topicNameFromPath(String path) {
-        String prefix = SCALABLE_TOPIC_PATH + "/";
-        if (!path.startsWith(prefix)) {
-            return Optional.empty();
-        }
-        String[] parts = path.substring(prefix.length()).split("/");
-        if (parts.length != 3) {
-            return Optional.empty();
-        }
-        return Optional.of(TopicName.get("topic", NamespaceName.get(parts[0], parts[1]),
-                Codec.decode(parts[2])));
-    }
-
-    /**
      * Path under which all scalable topic records for a namespace live as direct
      * children. Used by namespace-wide watchers as the prefix to filter metadata
      * notifications down to events that touch a topic record.

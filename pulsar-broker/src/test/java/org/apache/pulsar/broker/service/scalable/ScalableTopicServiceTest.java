@@ -32,6 +32,7 @@ import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -388,6 +389,35 @@ public class ScalableTopicServiceTest {
             assertTrue(e.getCause().getMessage().contains("Failed to initialize controller"),
                     "got: " + e.getCause().getMessage());
         }
+    }
+
+    /**
+     * A controller whose initialize() fails after winning the election is closed, or its election
+     * would keep the controller lock with no controller left to release it.
+     */
+    @Test
+    public void testControllerFailingAfterElectionGivesTheLockBack() throws Exception {
+        TopicName tn = scalableTopic("t-init-fails");
+        service.createScalableTopic(tn, 1).get();
+        ScalableTopicResources failingResources = new ScalableTopicResources(store, 30) {
+            @Override
+            public CompletableFuture<List<String>> listSubscriptionsAsync(TopicName topic) {
+                // Restoring the subscriptions runs once the controller won the election.
+                return CompletableFuture.failedFuture(new IllegalStateException("injected"));
+            }
+        };
+        ScalableTopicService failingService =
+                new ScalableTopicService(brokerService, failingResources, coordinationService);
+        try {
+            failingService.getOrCreateController(tn).get();
+            fail("expected the controller initialization to fail");
+        } catch (ExecutionException expected) {
+            // initialize() failed after the election
+        }
+        Awaitility.await().untilAsserted(() ->
+                assertFalse(store.get(resources.controllerLockPath(tn)).get().isPresent(),
+                        "the failed controller must give the lock back"));
+        failingService.close();
     }
 
     // --- concurrent topic isolation ---

@@ -683,11 +683,14 @@ public class ScalableTopics extends AdminResource {
                     // topic deleted first, so the controllers following it on other brokers
                     // don't take the lock over once it is released. Then delete metadata, then
                     // best-effort clean up segment topics and the schema they share (deleting a
-                    // segment topic leaves the schema in place).
+                    // segment topic leaves the schema in place). The segments are read again
+                    // after the release, to include those of a split that was still in flight.
                     return resources().markScalableTopicDeletedAsync(tn)
                             .thenCompose(__ -> releaseController(tn))
-                            .thenCompose(__ -> resources().deleteScalableTopicAsync(tn))
-                            .thenCompose(__ -> deleteSegmentTopics(tn, optMd.get(), force))
+                            .thenCompose(__ -> resources().getScalableTopicMetadataAsync(tn, true))
+                            .thenCompose(latest -> resources().deleteScalableTopicAsync(tn)
+                                    .thenCompose(__ -> deleteSegmentTopics(tn, latest.orElse(optMd.get()),
+                                            force)))
                             .thenCompose(__ -> pulsar().getBrokerService().deleteSchema(tn)
                                     .exceptionally(ex -> {
                                         log.warn().attr("topic", tn).exceptionMessage(ex)

@@ -71,7 +71,7 @@ public class V5ScalableTopicDeleteTest extends V5ClientBaseTest {
         admin.scalableTopics().deleteScalableTopic(topic, true);
 
         assertThatThrownBy(() -> subscribe(topic, "sub", "late-consumer"))
-                .hasMessageContaining("Scalable topic subscribe failed");
+                .hasMessageContaining("Failed to initialize controller");
         ScalableTopicResources resources = scalableTopicResources();
         assertThat(resources.getStore().exists(resources.consumerPath(tn, "sub", "late-consumer")).get())
                 .as("consumer registration under the deleted topic").isFalse();
