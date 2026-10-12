@@ -100,11 +100,12 @@ public class ScalableTopicsWatcherSession implements ScalableTopicResources.Name
     private final Set<String> currentSet = Collections.synchronizedSet(new HashSet<>());
 
     /**
-     * Id of the metadata read started by each topic's latest Created / Modified event, while
-     * that read is in flight. Only that read may change the topic's membership: an earlier one
-     * — or one still in flight when the topic is deleted — may have seen an older record, and
-     * applying it would undo the later event, e.g. bring a deleted topic back. Guarded by
-     * {@code currentSet}'s monitor, together with the membership changes it gates.
+     * Id of each topic's latest metadata read, while that read is in flight: the read started by
+     * the topic's latest Created / Modified event, or by {@link #start()} for a topic that changed
+     * while the initial listing was in flight. Only that read may change the topic's membership:
+     * an earlier one — or one still in flight when the topic is deleted — may have seen an older
+     * record, and applying it would undo the later event, e.g. bring a deleted topic back. Guarded
+     * by {@code currentSet}'s monitor, together with the membership changes it gates.
      */
     private final Map<String, Long> inFlightReads = new HashMap<>();
     private long lastReadId;
@@ -328,6 +329,13 @@ public class ScalableTopicsWatcherSession implements ScalableTopicResources.Name
         if (closed.get()) {
             return;
         }
+        // The pending changes are relative to the snapshot's set: send them only after the
+        // snapshot frame, and leave them pending until then, so that a later change can still
+        // cancel them out. flushScheduled stays set, so nothing else gets scheduled meanwhile.
+        if (!snapshotEmitted.get()) {
+            scheduler.schedule(this::flushPending, COALESCE_WINDOW.toMillis(), TimeUnit.MILLISECONDS);
+            return;
+        }
         Set<String> added;
         Set<String> removed;
         synchronized (coalesceLock) {
@@ -338,21 +346,6 @@ public class ScalableTopicsWatcherSession implements ScalableTopicResources.Name
             flushScheduled = false;
         }
         if (added.isEmpty() && removed.isEmpty()) {
-            return;
-        }
-        // Wait until the initial snapshot was emitted: any deltas that fire before the
-        // snapshot is sent have already been folded into currentSet via onNotification's
-        // wasInSet check (same set we built the snapshot from), so they're correctly
-        // represented. We just need to send them AFTER the snapshot frame.
-        if (!snapshotEmitted.get()) {
-            // Re-defer: the snapshot future is short-lived, retry shortly.
-            scheduler.schedule(this::flushPending, COALESCE_WINDOW.toMillis(), TimeUnit.MILLISECONDS);
-            // Re-enqueue what we drained, since the next flush will rebuild from pending.
-            synchronized (coalesceLock) {
-                pendingAdded.addAll(added);
-                pendingRemoved.addAll(removed);
-                flushScheduled = true;
-            }
             return;
         }
         log.info().attr("added", added.size()).attr("removed", removed.size()).log("Pushing diff");

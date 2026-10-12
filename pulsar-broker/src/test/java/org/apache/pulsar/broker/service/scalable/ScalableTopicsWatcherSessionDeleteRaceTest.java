@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service.scalable;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import io.netty.buffer.ByteBuf;
@@ -37,6 +38,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.ServerCnx;
@@ -251,6 +253,7 @@ public class ScalableTopicsWatcherSessionDeleteRaceTest {
             if (deleted.compareAndSet(false, true)) {
                 resources.deleteScalableTopicAsync(tn).get();
                 awaitHandled(NotificationType.Deleted, resources.topicPath(tn));
+                assertThat(scheduledFlushes).as("flush scheduled by the delete").isNotEmpty();
                 for (int due = scheduledFlushes.size(); due > 0; due--) {
                     scheduledFlushes.remove().run();
                 }
@@ -259,6 +262,40 @@ public class ScalableTopicsWatcherSessionDeleteRaceTest {
         });
         applyListing(started);
 
+        assertThat(clientView).as("topics after the delete").isEmpty();
+    }
+
+    @Test
+    public void topicDeletedWhileAFlushWaitsForTheSnapshotIsNotKept() throws Exception {
+        CompletableFuture<Void> started = startWithListingHeld();
+        // Once the session has applied the listing, and right before it writes the snapshot: create a
+        // topic, so that its add is pending, and run the flush this schedules. The flush has to wait for
+        // the snapshot: delete the topic while it schedules itself again.
+        AtomicReference<TopicName> created = new AtomicReference<>();
+        AtomicBoolean deleteOnNextSchedule = new AtomicBoolean();
+        doAnswer(invocation -> {
+            if (deleteOnNextSchedule.compareAndSet(true, false)) {
+                resources.deleteScalableTopicAsync(created.get()).get();
+                awaitHandled(NotificationType.Deleted, resources.topicPath(created.get()));
+            }
+            scheduledFlushes.add(invocation.getArgument(0));
+            return null;
+        }).when(scheduler).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+        when(cnx.ctx()).thenAnswer(invocation -> {
+            if (created.get() == null) {
+                created.set(newTopic());
+                resources.releaseReads();
+                assertThat(scheduledFlushes).as("flush scheduled by the create").isNotEmpty();
+                deleteOnNextSchedule.set(true);
+                for (int due = scheduledFlushes.size(); due > 0; due--) {
+                    scheduledFlushes.remove().run();
+                }
+            }
+            return ctx;
+        });
+        applyListing(started);
+
+        assertThat(deleteOnNextSchedule).as("topic deleted while the flush waited").isFalse();
         assertThat(clientView).as("topics after the delete").isEmpty();
     }
 
