@@ -23,10 +23,12 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import lombok.CustomLog;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -185,6 +187,39 @@ public class TxnMetadataStore {
      */
     public CompletableFuture<Void> deleteWriteOpsForSegmentAndTxn(String segment, String txnId) {
         return scanAndDeleteOpsForTxn(txnId, collector -> listWritesBySegment(segment, collector));
+    }
+
+    /**
+     * Delete every {@code /txn/op} write record for {@code segment}, of any txn — used when the segment is
+     * deleted: the TB deletes them as it applies the txns' outcomes, which it never does for a txn still
+     * open by then. Best-effort: tolerates concurrent deletions via {@link MetadataStore#deleteIfExists}.
+     */
+    public CompletableFuture<Void> deleteWriteOpsForSegment(String segment) {
+        Map<String, String> txnIdByPath = new ConcurrentHashMap<>();
+        return listWritesBySegment(segment, new ScanConsumer() {
+            @Override
+            public void onNext(GetResult r) {
+                String txnIdKey = TxnPaths.txnIdFromOpPath(r.getStat().getPath());
+                if (txnIdKey != null) {
+                    txnIdByPath.put(r.getStat().getPath(), txnIdKey);
+                }
+            }
+
+            @Override
+            public void onError(Throwable throwable) {
+                log.warn().attr("segment", segment).exception(throwable)
+                        .log("Segment write-op cleanup scan errored");
+            }
+
+            @Override
+            public void onCompleted() {
+            }
+        }).thenCompose(__ -> {
+            List<CompletableFuture<Void>> deletes = new ArrayList<>(txnIdByPath.size());
+            txnIdByPath.forEach((path, txnIdKey) -> deletes.add(
+                    store.deleteIfExists(path, Optional.empty(), Set.of(new Option.PartitionKey(txnIdKey)))));
+            return FutureUtil.waitForAll(deletes);
+        });
     }
 
     /**

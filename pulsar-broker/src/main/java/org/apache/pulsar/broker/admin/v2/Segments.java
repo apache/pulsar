@@ -517,15 +517,20 @@ public class Segments extends AdminResource {
     }
 
     /**
-     * Delete the state the transaction buffer of a segment keeps in the metadata store, which deleting the topic
-     * leaves in place. Only once the segment's data is gone: its aborted-txn records are what hides the data of
+     * Delete what the transactions on a segment keep in the metadata store, which deleting the topic leaves in
+     * place: the state of the segment's transaction buffer, and the write records of the transactions still open
+     * on it. The buffer deletes a transaction's write records as it applies its outcome; left behind, they keep
+     * the coordinator from garbage-collecting the transaction, and make a segment re-created with the same name
+     * recover it as open. Only once the segment's data is gone: the aborted-txn records are what hides the data of
      * aborted transactions.
      */
     private CompletableFuture<Void> deleteSegmentTxnState(TopicName segmentTopic) {
         if (!pulsar().getConfiguration().isTransactionCoordinatorEnabled()) {
             return CompletableFuture.completedFuture(null);
         }
-        return new TxnMetadataStore(pulsar().getLocalMetadataStore())
-                .deleteAllSegmentState(segmentTopic.toString());
+        String segment = segmentTopic.toString();
+        TxnMetadataStore txnStore = new TxnMetadataStore(pulsar().getLocalMetadataStore());
+        return txnStore.deleteAllSegmentState(segment)
+                .thenCompose(__ -> txnStore.deleteWriteOpsForSegment(segment));
     }
 }

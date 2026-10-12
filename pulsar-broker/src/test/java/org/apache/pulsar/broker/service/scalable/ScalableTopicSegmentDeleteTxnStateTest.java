@@ -26,10 +26,13 @@ import java.util.List;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.transaction.metadata.TxnMetadataStore;
 import org.apache.pulsar.broker.transaction.metadata.TxnPaths;
+import org.apache.pulsar.client.api.v5.Message;
 import org.apache.pulsar.client.api.v5.Producer;
 import org.apache.pulsar.client.api.v5.PulsarClient;
+import org.apache.pulsar.client.api.v5.QueueConsumer;
 import org.apache.pulsar.client.api.v5.Transaction;
 import org.apache.pulsar.client.api.v5.V5ClientBaseTest;
+import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.v5.config.TransactionPolicy;
 import org.apache.pulsar.client.api.v5.schema.Schema;
 import org.apache.pulsar.common.naming.TopicName;
@@ -46,7 +49,8 @@ import org.testng.annotations.Test;
  * transaction buffer keeps in the metadata store under {@link TxnPaths#TXN_SEGMENT_STATE_PREFIX}: the
  * watermark record, written once anything is published on the segment, and one record per aborted
  * transaction whose data is still in the segment. Nothing reads or deletes them once the segment is
- * gone.
+ * gone. The same goes for the {@link TxnPaths#TXN_OP_PREFIX} write records of the transactions still
+ * open on the segment, which the buffer deletes as it applies their outcome.
  */
 public class ScalableTopicSegmentDeleteTxnStateTest extends V5ClientBaseTest {
 
@@ -118,6 +122,58 @@ public class ScalableTopicSegmentDeleteTxnStateTest extends V5ClientBaseTest {
         assertChildrenKeepTxnState(children);
     }
 
+    @Test
+    public void testDeleteScalableTopicDeletesWriteRecordsOfOpenTransaction() throws Exception {
+        String topic = newScalableTopic(1);
+        String segment = segmentTopicName(topic, singleActiveSegmentId(topic));
+        PulsarClient client = newTxnClient();
+        Transaction txn = writeInOpenTransaction(topic, client);
+        assertThat(writeRecords(segment))
+                .as("write records on %s of a transaction still open", segment)
+                .hasSize(1);
+
+        admin.scalableTopics().deleteScalableTopic(topic, true);
+
+        assertThat(writeRecords(segment))
+                .as("write records on %s of a transaction still open after deleting %s", segment, topic)
+                .isEmpty();
+        txn.abort();
+    }
+
+    @Test
+    public void testRecreatedTopicNotHeldBackByOpenTransactionOfDeletedTopic() throws Exception {
+        // A write record left behind would make the transaction buffer of the re-created segment, named like the
+        // deleted one, recover the transaction as open, and hold back every message until the transaction ends.
+        String topic = newScalableTopic(1);
+        String segment = segmentTopicName(topic, singleActiveSegmentId(topic));
+        PulsarClient client = newTxnClient();
+        Transaction txn = writeInOpenTransaction(topic, client);
+        admin.scalableTopics().deleteScalableTopic(topic, true);
+        admin.scalableTopics().createScalableTopic(topic, 1);
+        assertThat(segmentTopicName(topic, singleActiveSegmentId(topic)))
+                .as("segment of %s re-created with the same name", topic)
+                .isEqualTo(segment);
+
+        @Cleanup
+        QueueConsumer<String> consumer = client.newQueueConsumer(Schema.string())
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.EARLIEST)
+                .subscribe();
+        @Cleanup
+        Producer<String> producer = client.newProducer(Schema.string())
+                .topic(topic)
+                .create();
+        producer.newMessage().key("k").value("v").send();
+
+        Message<String> msg = consumer.receive(Duration.ofSeconds(10));
+        assertThat(msg)
+                .as("message on %s, re-created while a transaction that wrote to it is still open", topic)
+                .isNotNull();
+        assertThat(msg.value()).isEqualTo("v");
+        txn.abort();
+    }
+
     private PulsarClient newTxnClient() throws Exception {
         return track(PulsarClient.builder()
                 .serviceUrl(getBrokerServiceUrl())
@@ -151,6 +207,15 @@ public class ScalableTopicSegmentDeleteTxnStateTest extends V5ClientBaseTest {
                 .hasSize(2));
         producer.newMessage().key("k").value("post").send();
         return parent;
+    }
+
+    /** Publishes a message on {@code topic} in a transaction left open, and returns the transaction. */
+    private Transaction writeInOpenTransaction(String topic, PulsarClient client) throws Exception {
+        Transaction txn = client.newTransaction();
+        try (Producer<String> producer = client.newProducer(Schema.string()).topic(topic).create()) {
+            producer.newMessage().key("k").transaction(txn).value("open").send();
+        }
+        return txn;
     }
 
     /** The active segments that have persisted a watermark for what was published on them. */
@@ -209,6 +274,27 @@ public class ScalableTopicSegmentDeleteTxnStateTest extends V5ClientBaseTest {
                     }
                 }).get();
         return records;
+    }
+
+    /** The paths of the {@link TxnPaths#TXN_OP_PREFIX} write records on the segment. */
+    private List<String> writeRecords(String segment) throws Exception {
+        TxnMetadataStore txnStore = new TxnMetadataStore(getPulsar().getLocalMetadataStore());
+        List<String> paths = Collections.synchronizedList(new ArrayList<>());
+        txnStore.listWritesBySegment(segment, new ScanConsumer() {
+            @Override
+            public void onNext(GetResult r) {
+                paths.add(r.getStat().getPath());
+            }
+
+            @Override
+            public void onError(Throwable throwable) {
+            }
+
+            @Override
+            public void onCompleted() {
+            }
+        }).get();
+        return paths;
     }
 
     private long singleActiveSegmentId(String topic) throws Exception {
