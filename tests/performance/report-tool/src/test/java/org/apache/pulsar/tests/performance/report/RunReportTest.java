@@ -647,4 +647,30 @@ public class RunReportTest {
             writer.outputIntervalHistogram(histogram);
         }
     }
+
+    @Test
+    public void reportsTheRemoteApplicationsApartFromTheFirstClusters() throws IOException {
+        Path run = Files.createTempDirectory("run-report-remote");
+        Path remote = run.resolve(RunReport.REMOTE_APPLICATIONS_DIRECTORY).resolve("iot-application-0");
+        Files.createDirectories(remote);
+        Files.writeString(remote.resolve("application-summary.json"), "{\"applicationIndex\": 0,"
+                + " \"uniqueMessages\": 130466, \"duplicates\": 0, \"orderingViolations\": 4253}");
+        Files.writeString(run.resolve("replication-stats.csv"), "epochMs,topic\n");
+        JsonNode workload = mapper.readTree("{\"applications\": {\"subscriptionPrefix\": \"iot-application-\"}}");
+
+        StringBuilder report = new StringBuilder();
+        RunReport.appendRemoteApplications(report, run, workload, mapper);
+
+        assertThat(report.toString()).contains("## Remote applications", "| iot-application-0 | 130,466 | 0 | 4,253 |",
+                "**Duplicates, ordering violations or invalid messages were received.**", "replication-stats.csv");
+    }
+
+    @Test
+    public void hasNoRemoteApplicationsWithoutARemoteCluster() throws IOException {
+        StringBuilder report = new StringBuilder();
+        RunReport.appendRemoteApplications(report, Files.createTempDirectory("run-report-local"),
+                mapper.readTree("{\"applications\": {\"subscriptionPrefix\": \"iot-application-\"}}"), mapper);
+
+        assertThat(report.toString()).isEmpty();
+    }
 }

@@ -54,6 +54,11 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
                     + "the control port, for example after letting the host cool down")
     boolean awaitMeasurementStart;
 
+    @Option(names = "--await-run-start",
+            description = "Before creating the clients, wait for the launcher to start the run over the control port, "
+                    + "for example after setting up the run's network conditions")
+    boolean awaitRunStart;
+
     // What the producer is doing, for the progress stream
     private volatile String phase = "connecting";
     private volatile int warmupRound;
@@ -81,6 +86,9 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
         if (awaitMeasurementStart && controlPort == null) {
             throw new IllegalArgumentException("--await-measurement-start needs --control-port");
         }
+        if (awaitRunStart && controlPort == null) {
+            throw new IllegalArgumentException("--await-run-start needs --control-port");
+        }
         ProgressStream progress = new ProgressStream(sendLatency, line -> {
             line.put("role", "producer");
             line.put("phase", phase);
@@ -97,6 +105,12 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
             control = MeasurementControl.start(controlPort);
             control.serveProgress(progress);
             System.out.println("CONTROL_READY port=" + control.port());
+            if (awaitRunStart) {
+                phase = "awaiting-run-start";
+                control.awaitRunStart(System.nanoTime() + TimeUnit.SECONDS.toNanos(scenario.timeoutSeconds()));
+                System.out.println("RUN_START");
+                phase = "connecting";
+            }
         }
         PulsarClientSharedResources sharedResources = SharedClientResources.create(
                 scenario.gateways().producer().ioThreads(), scenario.gateways().producer().listenerThreads());
