@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service.scalable;
 import io.github.merlimat.slog.Logger;
 import java.time.Duration;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Map;
@@ -95,6 +96,16 @@ public class ScalableTopicsWatcherSession implements ScalableTopicResources.Name
      * Topic names are fully-qualified ({@code topic://tenant/ns/name}).
      */
     private final Set<String> currentSet = Collections.synchronizedSet(new HashSet<>());
+
+    /**
+     * Id of the metadata read started by each topic's latest Created / Modified event, while
+     * that read is in flight. Only that read may change the topic's membership: an earlier one
+     * — or one still in flight when the topic is deleted — may have seen an older record, and
+     * applying it would undo the later event, e.g. bring a deleted topic back. Guarded by
+     * {@code currentSet}'s monitor, together with the membership changes it gates.
+     */
+    private final Map<String, Long> inFlightReads = new HashMap<>();
+    private long lastReadId;
 
     private final AtomicBoolean closed = new AtomicBoolean();
     private final AtomicBoolean snapshotEmitted = new AtomicBoolean();
@@ -185,6 +196,11 @@ public class ScalableTopicsWatcherSession implements ScalableTopicResources.Name
         if (closed.get()) {
             return;
         }
+        // ChildrenChanged on a topic path reports a change under the record — the controller
+        // lock, a subscription, a segment load record — not to the record itself.
+        if (notification.getType() == NotificationType.ChildrenChanged) {
+            return;
+        }
         String path = notification.getPath();
         // Resources-level fan-out guarantees direct-child paths under basePath, but
         // re-derive the encoded local name defensively.
@@ -194,13 +210,21 @@ public class ScalableTopicsWatcherSession implements ScalableTopicResources.Name
         String topicName = TopicName.get("topic", namespace, Codec.decode(rest)).toString();
 
         if (notification.getType() == NotificationType.Deleted) {
-            if (currentSet.remove(topicName)) {
-                enqueueRemoved(topicName);
+            synchronized (currentSet) {
+                inFlightReads.remove(topicName);
+                if (currentSet.remove(topicName)) {
+                    enqueueRemoved(topicName);
+                }
             }
             return;
         }
 
         // Created or Modified — fetch the new value to evaluate the filter against.
+        long readId;
+        synchronized (currentSet) {
+            readId = ++lastReadId;
+            inFlightReads.put(topicName, readId);
+        }
         TopicName tn = TopicName.get(topicName);
         resources.getScalableTopicMetadataAsync(tn, true)
                 .whenComplete((optMd, ex) -> {
@@ -210,16 +234,21 @@ public class ScalableTopicsWatcherSession implements ScalableTopicResources.Name
                     if (ex != null) {
                         log.warn().attr("topic", topicName).exceptionMessage(ex)
                                 .log("Failed to load scalable topic metadata for filter eval");
-                        return;
                     }
-                    boolean wasInSet = currentSet.contains(topicName);
-                    boolean shouldBeInSet = optMd.isPresent() && matchesFilters(optMd.get());
-                    if (!wasInSet && shouldBeInSet) {
-                        currentSet.add(topicName);
-                        enqueueAdded(topicName);
-                    } else if (wasInSet && !shouldBeInSet) {
-                        currentSet.remove(topicName);
-                        enqueueRemoved(topicName);
+                    synchronized (currentSet) {
+                        boolean latestRead = inFlightReads.remove(topicName, readId);
+                        if (!latestRead || ex != null) {
+                            return;
+                        }
+                        boolean wasInSet = currentSet.contains(topicName);
+                        boolean shouldBeInSet = optMd.isPresent() && matchesFilters(optMd.get());
+                        if (!wasInSet && shouldBeInSet) {
+                            currentSet.add(topicName);
+                            enqueueAdded(topicName);
+                        } else if (wasInSet && !shouldBeInSet) {
+                            currentSet.remove(topicName);
+                            enqueueRemoved(topicName);
+                        }
                     }
                 });
     }
