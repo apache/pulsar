@@ -30,6 +30,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.ClientCnx;
@@ -87,6 +88,13 @@ final class ScalableConsumerClient implements ScalableConsumerSession, AutoClose
     private final CompletableFuture<List<ActiveSegment>> initialAssignmentFuture =
             new CompletableFuture<>();
     private volatile AssignmentChangeListener listener;
+    /**
+     * The assignment the listener was last handed: at first the initial assignment, which the caller of
+     * {@link #start} applies itself before setting the listener.
+     */
+    private volatile List<ActiveSegment> notifiedAssignment;
+    /** Calls to {@link #notifyListener} not served yet; see there. */
+    private final AtomicInteger pendingNotifications = new AtomicInteger();
     private volatile ClientCnx cnx;
     private volatile boolean closed = false;
     /**
@@ -142,6 +150,9 @@ final class ScalableConsumerClient implements ScalableConsumerSession, AutoClose
         connectAndSubscribe()
                 .thenAccept(assignment -> {
                     List<ActiveSegment> segments = applyAssignment(assignment);
+                    // No listener is set yet: the caller applies the initial assignment itself, then sets
+                    // the listener for the ones that follow.
+                    notifiedAssignment = segments;
                     log.info().attr("epoch", currentEpoch)
                             .attr("segments", segments.size())
                             .log("Initial assignment received");
@@ -269,20 +280,38 @@ final class ScalableConsumerClient implements ScalableConsumerSession, AutoClose
     private List<ActiveSegment> applyAssignment(ScalableConsumerAssignment assignment) {
         long epoch = assignment.getLayoutEpoch();
         List<ActiveSegment> newSegments = toSegmentList(assignment);
-        List<ActiveSegment> oldSegments = currentAssignment.getAndSet(newSegments);
+        currentAssignment.set(newSegments);
         currentEpoch = epoch;
         log.info().attr("epoch", epoch).attr("segments", newSegments.size())
                 .log("Assignment updated");
-
-        AssignmentChangeListener l = listener;
-        if (l != null) {
-            try {
-                l.onAssignmentChange(newSegments, oldSegments);
-            } catch (Exception e) {
-                log.error().exception(e).log("Error in assignment change listener");
-            }
-        }
+        notifyListener();
         return newSegments;
+    }
+
+    /**
+     * Hand the listener the current assignment if it hasn't had it yet. Both the I/O thread, on every
+     * update, and {@link #setListener} call this, so the listener calls are serialized here without
+     * holding a lock while the listener runs: the call that finds no other in progress delivers, and
+     * delivers again for each call made meanwhile. The listener gets the assignments in order and the
+     * current one last, skipping any replaced before it could be delivered.
+     */
+    private void notifyListener() {
+        if (pendingNotifications.getAndIncrement() != 0) {
+            return;
+        }
+        do {
+            AssignmentChangeListener l = listener;
+            List<ActiveSegment> segments = currentAssignment.get();
+            List<ActiveSegment> previous = notifiedAssignment;
+            if (l != null && segments != previous) {
+                notifiedAssignment = segments;
+                try {
+                    l.onAssignmentChange(segments, previous);
+                } catch (Exception e) {
+                    log.error().exception(e).log("Error in assignment change listener");
+                }
+            }
+        } while (pendingNotifications.decrementAndGet() != 0);
     }
 
     @Override
@@ -370,20 +399,15 @@ final class ScalableConsumerClient implements ScalableConsumerSession, AutoClose
         return currentAssignment.get();
     }
 
+    /**
+     * Set the listener for the assignments that follow the initial one, which {@link #start} completes
+     * with and the caller applies itself first. An assignment that arrived meanwhile is handed to the
+     * listener right away: the controller pushes each assignment only once, and there is no periodic
+     * refresh to recover it. It may be one the caller already applied; appliers are idempotent.
+     */
     void setListener(AssignmentChangeListener listener) {
         this.listener = listener;
-        // Replay the current assignment: an update that raced listener registration (delivered
-        // after registerConsumer returned but before the caller finished applying its initial
-        // assignment) would otherwise be lost — there is no periodic refresh to recover it.
-        // Appliers are idempotent, so a redundant replay of the initial assignment is a no-op.
-        List<ActiveSegment> current = currentAssignment.get();
-        if (current != null) {
-            try {
-                listener.onAssignmentChange(current, current);
-            } catch (Exception e) {
-                log.error().exception(e).log("Error in assignment change listener");
-            }
-        }
+        notifyListener();
     }
 
     long consumerId() {
