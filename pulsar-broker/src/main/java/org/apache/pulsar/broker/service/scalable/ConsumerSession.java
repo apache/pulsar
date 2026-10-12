@@ -168,9 +168,9 @@ public class ConsumerSession {
     }
 
     /**
-     * Push an assignment update to this consumer, if currently connected. Builds a
-     * {@code ScalableConsumerAssignment} proto and writes a
-     * {@code CommandScalableTopicAssignmentUpdate} to the connection.
+     * Push an assignment to this consumer, if currently connected. The connection sends it as the
+     * response to the consumer's subscribe while that is unanswered, and as a
+     * {@code CommandScalableTopicAssignmentUpdate} otherwise.
      */
     public void sendAssignmentUpdate(ConsumerAssignment assignment) {
         TransportCnx localCnx = this.cnx;
@@ -179,12 +179,7 @@ public class ConsumerSession {
             // reconnects (the coordinator re-pushes on attach).
             return;
         }
-        var sender = localCnx.getCommandSender();
-        if (sender == null) {
-            // Connection is in the middle of being torn down; skip silently.
-            return;
-        }
-        sender.sendScalableTopicAssignmentUpdate(consumerId, toProto(assignment));
+        localCnx.sendScalableConsumerAssignment(consumerId, toProto(assignment));
     }
 
     /**
