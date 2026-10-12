@@ -109,6 +109,11 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
     private final CompletableFuture<Void> recoveryFuture = new CompletableFuture<>();
     private volatile AutoCloseable subscription;
     private volatile boolean closed;
+    /**
+     * Set once the segment topic is being deleted: its durable state is deleted after the topic, so the
+     * buffer stops updating it (see {@link #clearSnapshotAndClose()}).
+     */
+    private volatile boolean deleted;
 
     /** Guards mutable state below. */
     private final Object lock = new Object();
@@ -466,6 +471,11 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
     }
 
     private CompletableFuture<Void> applyTerminalNow(String txnIdKey, TxnState newState) {
+        if (deleted) {
+            // The segment is being deleted along with its state. Leave the op records in place too: should the
+            // topic delete fail, the next owner recovers the transaction from them.
+            return CompletableFuture.completedFuture(null);
+        }
         // Snapshot the entry under the lock — we need its positions / recovery flag to decide
         // what to persist.
         boolean alreadyTerminal;
@@ -549,7 +559,7 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
         long expectedVersion;
         synchronized (lock) {
             Position desired = maxReadPosition;
-            if (desired == null) {
+            if (deleted || desired == null) {
                 return CompletableFuture.completedFuture(null);
             }
             if (watermark != null
@@ -806,9 +816,20 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
         return CompletableFuture.completedFuture(null);
     }
 
+    /**
+     * Called when the segment topic is deleted. The durable state of the segment is not deleted here but once the
+     * segment's data is gone (see {@code Segments#deleteSegment}): the aborted-txn records are what hides the data
+     * of aborted transactions, and the topic delete can still fail. Stop updating the state and wait for the update
+     * in progress, so that none lands after the state is deleted.
+     */
     @Override
     public CompletableFuture<Void> clearSnapshotAndClose() {
-        return closeAsync();
+        CompletableFuture<Void> updateInProgress;
+        synchronized (lock) {
+            deleted = true;
+            updateInProgress = stateTail;
+        }
+        return closeAsync().thenCompose(__ -> updateInProgress);
     }
 
     @Override

@@ -45,6 +45,7 @@ import lombok.CustomLog;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.transaction.metadata.TxnMetadataStore;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -501,6 +502,7 @@ public class Segments extends AdminResource {
                     Topic t = optTopic.get();
                     return (force ? t.deleteForcefully() : t.delete()).thenApply(__ -> null);
                 })
+                .thenCompose(__ -> deleteSegmentTxnState(segmentTopic))
                 .thenAccept(__ -> {
                     log.info().attr("clientAppId", clientAppId()).attr("segment", segmentTopic)
                             .log("Deleted segment topic");
@@ -512,5 +514,18 @@ public class Segments extends AdminResource {
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
+    }
+
+    /**
+     * Delete the state the transaction buffer of a segment keeps in the metadata store, which deleting the topic
+     * leaves in place. Only once the segment's data is gone: its aborted-txn records are what hides the data of
+     * aborted transactions.
+     */
+    private CompletableFuture<Void> deleteSegmentTxnState(TopicName segmentTopic) {
+        if (!pulsar().getConfiguration().isTransactionCoordinatorEnabled()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return new TxnMetadataStore(pulsar().getLocalMetadataStore())
+                .deleteAllSegmentState(segmentTopic.toString());
     }
 }

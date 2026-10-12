@@ -21,8 +21,15 @@ package org.apache.pulsar.broker.transaction.buffer.impl;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -307,6 +314,56 @@ public class MetadataTransactionBufferTest {
         tb2.checkIfTBRecoverCompletely().get();
         assertThat(tb2.isTxnAborted(trimmedTxn, PositionFactory.create(1, 5))).isFalse();
         assertThat(tb2.isTxnAborted(liveTxn, PositionFactory.create(10, 5))).isTrue();
+    }
+
+    @Test
+    public void clearSnapshotAndClose_waitsForStateUpdateInProgress_thenStopsUpdates() throws Exception {
+        // The segment delete deletes the durable state after the topic: deleting the topic must wait for the
+        // state update in progress, and no update may start afterwards, or it would re-create the state.
+        TxnMetadataStore spyStore = spy(txnStore);
+        CompletableFuture<Stat> watermarkWrite = new CompletableFuture<>();
+        doReturn(watermarkWrite).when(spyStore).casSegmentWatermark(eq(SEGMENT), any(), any());
+        MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic, spyStore);
+        tb.checkIfTBRecoverCompletely().get();
+
+        when(ledger.getLastConfirmedEntry()).thenReturn(PositionFactory.create(10, 1));
+        tb.syncMaxReadPositionForNormalPublish(PositionFactory.create(10, 1), false);
+        verify(spyStore).casSegmentWatermark(eq(SEGMENT), any(), any());
+
+        CompletableFuture<Void> deleted = tb.clearSnapshotAndClose();
+        assertThat(deleted).as("topic delete with a watermark write in progress").isNotDone();
+        watermarkWrite.complete(new Stat(TxnPaths.segmentWatermarkPath(SEGMENT), 0, 0, 0, false, true));
+        deleted.get();
+
+        // No update starts once the topic delete has started
+        when(ledger.getLastConfirmedEntry()).thenReturn(PositionFactory.create(10, 2));
+        tb.syncMaxReadPositionForNormalPublish(PositionFactory.create(10, 2), false);
+        verify(spyStore, times(1)).casSegmentWatermark(eq(SEGMENT), any(), any());
+    }
+
+    @Test
+    public void clearSnapshotAndClose_leavesStateOfTxnRecoveredAfterwards() throws Exception {
+        // A terminal txn that recovery finds only once the topic delete has started: its outcome is neither
+        // persisted nor are its op records deleted, so that the next owner recovers it should the delete fail.
+        TxnID txnId = new TxnID(1, 1);
+        createOpenHeader(txnId);
+        Stat opRecord = txnStore.appendOp(TxnIds.toKey(txnId),
+                new TxnOp(TxnOpKind.WRITE, SEGMENT, null, 0L, 0L, null)).get();
+        abortTxn(txnId);
+        TxnMetadataStore spyStore = spy(txnStore);
+        CompletableFuture<Void> opScanReleased = new CompletableFuture<>();
+        doAnswer(inv -> opScanReleased.thenCompose(__ ->
+                txnStore.listWritesBySegment(SEGMENT, inv.getArgument(1))))
+                .when(spyStore).listWritesBySegment(eq(SEGMENT), any());
+        MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic, spyStore);
+
+        tb.clearSnapshotAndClose().get();
+        opScanReleased.complete(null);
+        // Recovery applies the terminal txns it finds before it completes: stateTail was complete
+        tb.checkIfTBRecoverCompletely().get();
+
+        verify(spyStore, never()).putAbortedTxn(any(), any(), anyLong(), anyLong());
+        assertThat(store.exists(opRecord.getPath()).get()).as("op record of the recovered txn").isTrue();
     }
 
     @Test
