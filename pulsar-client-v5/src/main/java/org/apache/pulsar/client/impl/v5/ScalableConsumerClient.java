@@ -307,7 +307,9 @@ final class ScalableConsumerClient implements ScalableConsumerSession, AutoClose
                 notifiedAssignment = segments;
                 try {
                     l.onAssignmentChange(segments, previous);
-                } catch (Exception e) {
+                } catch (Throwable e) {
+                    // Not just Exception: whatever escapes this loop leaves pendingNotifications above zero,
+                    // and nothing would be delivered after it.
                     log.error().exception(e).log("Error in assignment change listener");
                 }
             }

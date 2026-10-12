@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl.v5;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.Mockito.mock;
 import java.util.ArrayList;
 import java.util.List;
@@ -89,6 +90,25 @@ public class ScalableConsumerClientTest {
         assertThat(deliveredDuringReplay).as("assignments delivered while the replay was running")
                 .containsExactly(List.of(0L));
         assertThat(delivered).containsExactly(List.of(0L), List.of(1L));
+    }
+
+    @Test
+    public void testListenerErrorDoesNotStopLaterDeliveries() {
+        ScalableConsumerClient session = newSession();
+        session.onAssignmentUpdate(assignment(0L));
+        List<List<Long>> delivered = new ArrayList<>();
+        session.setListener((newSegments, oldSegments) -> {
+            delivered.add(segmentIds(newSegments));
+            if (delivered.size() == 2) {
+                throw new Error("listener failure");
+            }
+        });
+
+        // Whether or not the Error reaches the I/O thread, the assignments that follow must still be delivered.
+        catchThrowable(() -> session.onAssignmentUpdate(assignment(1L)));
+        session.onAssignmentUpdate(assignment(0L, 1L));
+
+        assertThat(delivered).containsExactly(List.of(0L), List.of(1L), List.of(0L, 1L));
     }
 
     private static ScalableConsumerClient newSession() {

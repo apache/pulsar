@@ -260,16 +260,18 @@ final class ScalableTopicsWatcher implements ScalableTopicsWatcherSession, AutoC
             pendingAdded.clear();
             pendingRemoved.clear();
         }
+        // Not just Exception: whatever escapes the loop in notifyListener leaves pendingNotifications above
+        // zero, and nothing would be delivered after it.
         if (snapshot != null) {
             try {
                 l.onSnapshot(snapshot);
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 log.error().exception(e).log("Listener threw on snapshot");
             }
         } else if (!added.isEmpty() || !removed.isEmpty()) {
             try {
                 l.onDiff(added, removed);
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 log.error().exception(e).log("Listener threw on diff");
             }
         }
