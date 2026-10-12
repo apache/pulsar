@@ -76,7 +76,7 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
         try (Producer<V3Data> p = pulsarClient.newProducer(Schema.AVRO(V3Data.class)).topic(topicName).create()) {
             Assert.fail("Forward compat schema should be rejected");
         } catch (PulsarClientException e) {
-            Assert.assertTrue(e.getMessage().contains("IncompatibleSchemaException"));
+            Assert.assertTrue(e.getMessage().contains("schema compatibility"));
         }
 
         log.info("try with backward compat, should succeed");
@@ -101,7 +101,7 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
         try (Producer<V2Data> p = pulsarClient.newProducer(Schema.AVRO(V2Data.class)).topic(topicName).create()) {
             Assert.fail("Backward compat schema should be rejected");
         } catch (PulsarClientException e) {
-            Assert.assertTrue(e.getMessage().contains("IncompatibleSchemaException"));
+            Assert.assertTrue(e.getMessage().contains("schema compatibility"));
         }
 
         log.info("try with forward compat, should succeed");
@@ -122,14 +122,14 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
         try (Producer<V2Data> p = pulsarClient.newProducer(Schema.AVRO(V2Data.class)).topic(topicName).create()) {
             Assert.fail("Backward compat only schema should fail");
         } catch (PulsarClientException e) {
-            Assert.assertTrue(e.getMessage().contains("IncompatibleSchemaException"));
+            Assert.assertTrue(e.getMessage().contains("schema compatibility"));
         }
 
         log.info("try with forward compat only, should fail");
         try (Producer<V3Data> p = pulsarClient.newProducer(Schema.AVRO(V3Data.class)).topic(topicName).create()) {
             Assert.fail("Forward compat only schema should fail");
         } catch (PulsarClientException e) {
-            Assert.assertTrue(e.getMessage().contains("IncompatibleSchemaException"));
+            Assert.assertTrue(e.getMessage().contains("schema compatibility"));
         }
 
         log.info("try with fully compat");
@@ -152,21 +152,21 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
         try (Producer<V2Data> p = pulsarClient.newProducer(Schema.AVRO(V2Data.class)).topic(topicName).create()) {
             Assert.fail("Backward compat only schema should fail");
         } catch (PulsarClientException e) {
-            Assert.assertTrue(e.getMessage().contains("IncompatibleSchemaException"));
+            Assert.assertTrue(e.getMessage().contains("schema compatibility"));
         }
 
         log.info("try with forward compat only, should fail");
         try (Producer<V3Data> p = pulsarClient.newProducer(Schema.AVRO(V3Data.class)).topic(topicName).create()) {
             Assert.fail("Forward compat only schema should fail");
         } catch (PulsarClientException e) {
-            Assert.assertTrue(e.getMessage().contains("IncompatibleSchemaException"));
+            Assert.assertTrue(e.getMessage().contains("schema compatibility"));
         }
 
         log.info("try with fully compat, should fail");
         try (Producer<V4Data> p = pulsarClient.newProducer(Schema.AVRO(V4Data.class)).topic(topicName).create()) {
             Assert.fail("Fully compat schema should fail, autoupdate disabled");
         } catch (PulsarClientException e) {
-            Assert.assertTrue(e.getMessage().contains("IncompatibleSchemaException"));
+            Assert.assertTrue(e.getMessage().contains("schema compatibility"));
         }
 
         log.info("Should still be able to connect with original schema");
