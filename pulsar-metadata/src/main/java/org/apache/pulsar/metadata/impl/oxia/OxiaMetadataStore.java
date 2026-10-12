@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.metadata.impl.oxia;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.opentelemetry.api.OpenTelemetry;
 import io.oxia.client.api.AsyncOxiaClient;
 import io.oxia.client.api.Notification;
@@ -64,10 +65,15 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
     private Optional<MetadataEventSynchronizer> synchronizer;
 
     public OxiaMetadataStore(AsyncOxiaClient oxia, String identity) {
+        this(oxia, identity, null);
+    }
+
+    @VisibleForTesting
+    OxiaMetadataStore(AsyncOxiaClient oxia, String identity, MetadataEventSynchronizer synchronizer) {
         super("oxia-metadata", OpenTelemetry.noop(), null, 1);
         this.client = oxia;
         this.identity = identity;
-        this.synchronizer = Optional.empty();
+        this.synchronizer = Optional.ofNullable(synchronizer);
         init();
     }
 
@@ -99,7 +105,6 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
         updateMetadataEventSynchronizer(synchronizer.orElse(null));
 
         client.notifications(this::notificationCallback);
-        super.registerSyncListener(synchronizer);
     }
 
     private void notificationCallback(Notification notification) {
