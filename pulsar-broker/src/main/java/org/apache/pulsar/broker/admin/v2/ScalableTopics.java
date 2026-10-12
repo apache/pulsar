@@ -1224,7 +1224,8 @@ public class ScalableTopics extends AdminResource {
     /**
      * Best-effort delete the underlying topic for every segment in the DAG. Uses the
      * segment-aware admin endpoint, which routes to the segment-owning broker via the
-     * standard bundle-ownership lookup.
+     * standard bundle-ownership lookup, and for a legacy segment of a migrated topic the
+     * regular topic endpoint, which the {@code persistent://} topic it wraps needs.
      */
     private CompletableFuture<Void> deleteSegmentTopics(TopicName parentTopic,
                                                          ScalableTopicMetadata metadata,
@@ -1233,9 +1234,11 @@ public class ScalableTopics extends AdminResource {
             var admin = pulsar().getAdminClient();
             CompletableFuture<?>[] futures = metadata.getSegments().values().stream()
                     .map(seg -> {
-                        String segmentTopicName = SegmentTopicName.fromParent(
-                                parentTopic, seg.hashRange(), seg.segmentId()).toString();
-                        return admin.scalableTopics().deleteSegmentAsync(segmentTopicName, force)
+                        String segmentTopicName = SegmentTopicName.backingTopicName(parentTopic, seg);
+                        CompletableFuture<Void> delete = seg.isLegacy()
+                                ? admin.topics().deleteAsync(segmentTopicName, force)
+                                : admin.scalableTopics().deleteSegmentAsync(segmentTopicName, force);
+                        return delete
                                 .exceptionally(ex -> {
                                     log.warn().attr("segment", segmentTopicName).exceptionMessage(ex)
                                             .log("Failed to delete segment topic");

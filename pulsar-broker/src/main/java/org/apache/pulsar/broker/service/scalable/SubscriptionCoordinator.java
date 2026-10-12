@@ -189,6 +189,10 @@ public class SubscriptionCoordinator {
      * is preserved and the new connection is attached; otherwise the registration is
      * persisted and a rebalance is triggered.
      *
+     * <p>Both paths push the registering consumer its assignment while holding the monitor. The
+     * connection answers the consumer's subscribe with that push, which orders the response with
+     * every later push (see {@code ServerCnx#sendScalableConsumerAssignment}).
+     *
      * @return assignment map for all consumers (unchanged on reconnect, recomputed on fresh register)
      */
     public synchronized CompletableFuture<Map<ConsumerSession, ConsumerAssignment>> registerConsumer(
@@ -665,11 +669,11 @@ public class SubscriptionCoordinator {
         if (consumerCount <= segmentCount || checkpointGroup) {
             int consumerIndex = 0;
             for (SegmentInfo segment : sortedSegments) {
-                TopicName segmentTopic = SegmentTopicName.fromParent(topicName, segment.hashRange(),
-                        segment.segmentId());
+                // A legacy segment of a migrated topic is read from the persistent:// topic it wraps.
+                String segmentTopic = SegmentTopicName.backingTopicName(topicName, segment);
                 ConsumerSession consumer = sortedConsumers.get(consumerIndex % sortedConsumers.size());
                 assignmentLists.get(consumer).add(new ConsumerAssignment.AssignedSegment(
-                        segment.segmentId(), segment.hashRange(), segmentTopic.toString(), List.of()));
+                        segment.segmentId(), segment.hashRange(), segmentTopic, List.of()));
                 consumerIndex++;
             }
         } else {
@@ -692,13 +696,12 @@ public class SubscriptionCoordinator {
             int consumerIndex = 0;
             for (int i = 0; i < segmentCount; i++) {
                 SegmentInfo segment = sortedSegments.get(i);
-                TopicName segmentTopic = SegmentTopicName.fromParent(topicName, segment.hashRange(),
-                        segment.segmentId());
+                String segmentTopic = SegmentTopicName.backingTopicName(topicName, segment);
                 int k = owners[i];
                 if (k == 1) {
                     ConsumerSession consumer = sortedConsumers.get(consumerIndex++);
                     assignmentLists.get(consumer).add(new ConsumerAssignment.AssignedSegment(
-                            segment.segmentId(), segment.hashRange(), segmentTopic.toString(), List.of()));
+                            segment.segmentId(), segment.hashRange(), segmentTopic, List.of()));
                 } else {
                     // Shared segment: every attached consumer subscribes Key_Shared declaring the
                     // segment's full (immutable) bucket boundary list — WHO owns WHICH bucket is
@@ -709,8 +712,7 @@ public class SubscriptionCoordinator {
                     for (int c = 0; c < k; c++) {
                         ConsumerSession consumer = sortedConsumers.get(consumerIndex++);
                         assignmentLists.get(consumer).add(new ConsumerAssignment.AssignedSegment(
-                                segment.segmentId(), segment.hashRange(), segmentTopic.toString(),
-                                boundaries));
+                                segment.segmentId(), segment.hashRange(), segmentTopic, boundaries));
                     }
                 }
             }
