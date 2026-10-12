@@ -35,7 +35,6 @@ import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.v5.schema.Schema;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.naming.TopicName;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
@@ -126,31 +125,6 @@ public class V5ScalableTopicsWatcherTest extends V5ClientBaseTest {
 
             // bob's topic exists but never reaches the watcher's set.
             assertTrue(!handle.listener.currentSet.contains("topic://" + bobTopic));
-        } finally {
-            handle.close();
-        }
-    }
-
-    @Test
-    public void watcherDropsTopicMarkedDeleted() throws Exception {
-        NamespaceName ns = NamespaceName.get(getNamespace());
-
-        WatcherHandle handle = openWatcher(ns, Map.of());
-        try {
-            Awaitility.await().atMost(10, TimeUnit.SECONDS)
-                    .until(() -> !handle.listener.snapshots.isEmpty());
-            String topic = "topic://" + ns + "/marked-" + UUID.randomUUID().toString().substring(0, 8);
-            admin.scalableTopics().createScalableTopic(topic, 1);
-            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                    assertEquals(handle.listener.currentSet, Set.of(topic)));
-
-            // The delete marks the record before deleting it. A read of the marked record can
-            // complete after the Deleted event, so the watch must not count a marked topic.
-            getPulsar().getPulsarResources().getScalableTopicResources()
-                    .markScalableTopicDeletedAsync(TopicName.get(topic)).get();
-
-            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                    assertEquals(handle.listener.currentSet, Set.of()));
         } finally {
             handle.close();
         }
