@@ -672,9 +672,16 @@ public class ScalableTopics extends AdminResource {
                         throw new RestException(Response.Status.NOT_FOUND,
                                 "Scalable topic not found: " + tn);
                     }
-                    // Delete metadata first, then best-effort clean up segment topics
+                    // Delete metadata first, then best-effort clean up segment topics and the schema
+                    // they share (deleting a segment topic leaves the schema in place)
                     return resources().deleteScalableTopicAsync(tn)
-                            .thenCompose(__ -> deleteSegmentTopics(tn, optMd.get(), force));
+                            .thenCompose(__ -> deleteSegmentTopics(tn, optMd.get(), force))
+                            .thenCompose(__ -> pulsar().getBrokerService().deleteSchema(tn)
+                                    .exceptionally(ex -> {
+                                        log.warn().attr("topic", tn).exceptionMessage(ex)
+                                                .log("Failed to delete schema of scalable topic");
+                                        return null;
+                                    }));
                 })
                 .thenAccept(__ -> {
                     log.info().attr("clientAppId", clientAppId()).attr("topic", tn)
