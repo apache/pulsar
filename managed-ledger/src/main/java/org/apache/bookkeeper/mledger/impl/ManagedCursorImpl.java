@@ -2669,15 +2669,14 @@ public class ManagedCursorImpl implements ManagedCursor {
                     log.debug().attr("deletedMessages", individualDeletedMessages).log("Individually deleted messages");
                 } else if (batchDeletedIndexes != null) {
                     final var givenBitSet = BitSet.valueOf(ackSet);
-                    final var existingBitSet = batchDeletedIndexes.get(position);
-                    final var bitSet = batchDeletedIndexes.computeIfAbsent(position, __ -> givenBitSet);
-                    if (existingBitSet == null) {
-                        batchAckChanged = true;
-                    } else {
-                        final var previousBitSet = (BitSet) bitSet.clone();
-                        bitSet.and(givenBitSet);
-                        batchAckChanged |= !previousBitSet.equals(bitSet);
-                    }
+                    // Use computeIfAbsent atomically — another thread may have inserted a bitmap
+                    // between a separate get() and computeIfAbsent(), so merge based on whatever
+                    // bitmap computeIfAbsent returns.
+                    final var bitSet = batchDeletedIndexes.computeIfAbsent(position,
+                            __ -> BitSet.valueOf(givenBitSet.toByteArray()));
+                    final var previousBitSet = (BitSet) bitSet.clone();
+                    bitSet.and(givenBitSet);
+                    batchAckChanged |= !previousBitSet.equals(bitSet);
                     if (bitSet.isEmpty()) {
                         Position previousPosition = ledger.getPreviousPosition(position);
                         individualDeletedMessages.addOpenClosed(previousPosition.getLedgerId(),
