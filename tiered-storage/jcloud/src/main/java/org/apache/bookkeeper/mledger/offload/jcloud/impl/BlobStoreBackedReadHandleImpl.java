@@ -559,6 +559,17 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
                                   LedgerOffloaderStats offloaderStats, String managedLedgerName,
                                   OffsetsCache entryOffsetsCache)
             throws IOException, BKException.BKNoSuchLedgerExistsException {
+        return open(executor, blobStore, bucket, key, indexKey, versionCheck, ledgerId, readBufferSize,
+                offloaderStats, managedLedgerName, entryOffsetsCache, null);
+    }
+
+    public static ReadHandle open(ScheduledExecutorService executor,
+                                  BlobStore blobStore, String bucket, String key, String indexKey,
+                                  VersionCheck versionCheck,
+                                  long ledgerId, int readBufferSize,
+                                  LedgerOffloaderStats offloaderStats, String managedLedgerName,
+                                  OffsetsCache entryOffsetsCache, OffloadedDataChunkCache dataChunkCache)
+            throws IOException, BKException.BKNoSuchLedgerExistsException {
         int retryCount = 3;
         OffloadIndexBlock index = null;
         IOException lastException = null;
@@ -597,7 +608,8 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
         }
 
         BackedInputStream inputStream = new BlobStoreBackedInputStreamImpl(blobStore, bucket, key,
-                versionCheck, index.getDataObjectLength(), readBufferSize, offloaderStats, managedLedgerName);
+                versionCheck, index.getDataObjectLength(), readBufferSize, offloaderStats, managedLedgerName,
+                dataChunkCache);
 
         return new BlobStoreBackedReadHandleImpl(ledgerId, index, inputStream, executor, entryOffsetsCache);
     }

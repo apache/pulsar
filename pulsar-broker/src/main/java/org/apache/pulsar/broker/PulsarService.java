@@ -81,6 +81,7 @@ import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.LedgerOffloaderFactory;
 import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.mledger.OffloadedReadCacheConfig;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.offload.Offloaders;
 import org.apache.bookkeeper.mledger.offload.OffloadersCache;
@@ -1726,7 +1727,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                                         config.getClusterName()
                                 ),
                                 schemaStorage, getOffloaderScheduler(offloadPolicies),
-                                getOffloaderReadScheduler(offloadPolicies), this.offloaderStats);
+                                getOffloaderReadScheduler(offloadPolicies), this.offloaderStats,
+                                offloadedReadCacheConfig());
                     } catch (IOException ioe) {
                         throw new PulsarServerException(ioe.getMessage(), ioe.getCause());
                     }
@@ -1796,6 +1798,14 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                     .name("offloader").build();
         }
         return this.offloaderScheduler;
+    }
+
+    /** The broker's settings for reading offloaded ledgers, which apply to every offloader. */
+    private OffloadedReadCacheConfig offloadedReadCacheConfig() {
+        return new OffloadedReadCacheConfig(config.getManagedLedgerOffloadReadCacheSizeInMB() * 1024 * 1024,
+                config.getManagedLedgerOffloadReadCacheExpirySeconds(),
+                config.getManagedLedgerOffloadReadPrefetchChunks(),
+                config.getManagedLedgerOffloadReadFetchThreads());
     }
 
     protected synchronized OrderedScheduler getOffloaderReadScheduler(OffloadPoliciesImpl offloadPolicies) {

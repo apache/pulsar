@@ -4143,6 +4143,34 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int managedLedgerOffloadReadThreads = 2;
 
     @FieldContext(
+            category = CATEGORY_STORAGE_OFFLOADING,
+            doc = "The most offloaded data, in MB, that the broker keeps in direct memory for reads of offloaded"
+                    + " ledgers: chunks of the read buffer size that the reads of every offloaded ledger share, so"
+                    + " that cursors reading the same ledger at different positions don't fetch the same data again."
+                    + " A read of data that is being fetched waits for that fetch. 0 keeps no data"
+    )
+    private long managedLedgerOffloadReadCacheSizeInMB = 64;
+
+    @FieldContext(
+            category = CATEGORY_STORAGE_OFFLOADING,
+            doc = "How long, in seconds, the cache of offloaded data keeps data that no read has used"
+    )
+    private int managedLedgerOffloadReadCacheExpirySeconds = 60;
+
+    @FieldContext(
+            category = CATEGORY_STORAGE_OFFLOADING,
+            doc = "How many chunks of offloaded data after the one that a sequential read moves on to are fetched in"
+                    + " the background, into the cache of offloaded data; 0 fetches none"
+    )
+    private int managedLedgerOffloadReadPrefetchChunks = 1;
+
+    @FieldContext(
+            category = CATEGORY_STORAGE_OFFLOADING,
+            doc = "The threads that fetch offloaded data for reads of offloaded ledgers"
+    )
+    private int managedLedgerOffloadReadFetchThreads = 4;
+
+    @FieldContext(
         category = CATEGORY_STORAGE_OFFLOADING,
         doc = "The directory where nar Extraction of offloaders happens"
     )
