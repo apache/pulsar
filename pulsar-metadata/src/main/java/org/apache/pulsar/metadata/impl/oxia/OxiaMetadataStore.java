@@ -256,18 +256,19 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
             ScanConsumer consumer, Set<Option> opts) {
         // Index entries are stored at "<parentPath>/<secondaryKey>" by doStorePut, where
         // parentPath == scanPathPrefix for records directly under the prefix. The API uses
-        // inclusive-on-both-sides bounds; Oxia's list(start, end, ...) is half-open, so we
-        // append a sentinel character to the upper bound to widen the half-open range to
-        // include `toKeyInclusive`. We use '~' (0x7E) — it lex-sorts after every printable
-        // ASCII byte, which is a safe choice for the secondary keys callers actually use today
-        // (numeric-encoded timestamps, fixed-tag enums, etc.). Callers that need full byte-range
-        // coverage can pass `toKeyInclusive=null` or use a different scheme.
+        // inclusive-on-both-sides bounds; Oxia's list(start, end, ...) is half-open, and it compares
+        // the bounds with whole index entries, which Oxia stores as the secondary key, a 0x01
+        // separator and the escaped primary key. So the end that follows the entries of
+        // `toKeyInclusive`, and precedes those of the keys that extend it (e.g. "k-12" for "k-1"),
+        // is `toKeyInclusive` followed by 0x02. Without `toKeyInclusive`, the range ends at the end
+        // of the level of the records, as the range [path + "/", path + "//") of
+        // getChildrenFromStore does with Oxia's hierarchical key sorting.
         String scopedFrom = fromKeyInclusive == null
                 ? scanPathPrefix + "/"
                 : scanPathPrefix + "/" + fromKeyInclusive;
         String scopedTo = toKeyInclusive == null
-                ? scanPathPrefix + "0"   // '0' (0x30) is the lex successor of '/' (0x2F)
-                : scanPathPrefix + "/" + toKeyInclusive + "~";
+                ? scanPathPrefix + "//"
+                : scanPathPrefix + "/" + toKeyInclusive + "\u0002";
         Set<ListOption> listOpts = new HashSet<>(listOptions(opts));
         listOpts.add(ListOption.UseIndex(indexName));
         CompletableFuture<Void> done = new CompletableFuture<>();
