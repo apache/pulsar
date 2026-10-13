@@ -1425,11 +1425,18 @@ public class BrokerService implements Closeable {
                         final var inserted = new MutableBoolean(false);
                         final var cachedFuture = topics.computeIfAbsent(topicName.toString(), ___ -> {
                             if (topicFuture.isDone()) {
-                                return topicFuture;
+                                // Return null to abort without inserting — a timed-out future must not be cached.
+                                return null;
                             }
                             inserted.setTrue();
                             return loadOrCreatePersistentTopic(context);
                         });
+                        if (cachedFuture == null) {
+                            // Timeout fired between the outer guard and here — abort cleanly, no cache entry.
+                            log.debug().attr("topic", topicName)
+                                    .log("Topic future completed before cache insertion; aborting");
+                            return;
+                        }
                         if (inserted.isFalse()) {
                             // This case should happen rarely when the same topic is loaded concurrently because we
                             // checked if the `topics` cache includes this topic before, so the latency is not the
@@ -3916,6 +3923,9 @@ public class BrokerService implements Closeable {
         if (pendingFuture.isDone()) {
             log.debug().attr("topic", topicLoadingContext.getTopicName())
                     .log("Skipping already-completed pending topic loading context");
+            // Identity-remove the cached future so subsequent retries aren't stuck with this expired entry.
+            topics.remove(topicLoadingContext.getTopicName(), pendingFuture);
+            topicLoadingContext.finishTrace(queuedPoint, null);
             createPendingLoadTopic();
             return;
         }
