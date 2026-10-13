@@ -226,11 +226,19 @@ public class TableViewImplTest {
         }
 
         /** @param strategy the compaction strategy the table view loads, or {@code null} for none */
-        @SuppressWarnings("unchecked")
         TailRetryFixture(TopicCompactionStrategy<String> strategy) {
+            this(strategy, new ClientConfigurationData());
+        }
+
+        /**
+         * @param strategy the compaction strategy the table view loads, or {@code null} for none
+         * @param clientConf the client configuration, which holds the backoff settings
+         */
+        @SuppressWarnings("unchecked")
+        TailRetryFixture(TopicCompactionStrategy<String> strategy, ClientConfigurationData clientConf) {
             ReaderBuilder<String> builder = mock(ReaderBuilder.class, RETURNS_SELF);
             when(client.newReader(Schema.STRING)).thenReturn(builder);
-            when(client.getConfiguration()).thenReturn(new ClientConfigurationData());
+            when(client.getConfiguration()).thenReturn(clientConf);
             when(builder.createAsync()).thenReturn(CompletableFuture.completedFuture(reader));
             when(reader.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
             TableViewConfigurationData conf = new TableViewConfigurationData();
@@ -324,6 +332,22 @@ public class TableViewImplTest {
             assertEquals(delays.size(), 3);
             assertTrue(delays.get(1) > delays.get(0), "Second delay must back off: " + delays);
             assertTrue(delays.get(2) > delays.get(1), "Third delay must back off: " + delays);
+        }
+    }
+
+    @Test(timeOut = 10_000)
+    public void testTailReadRetryKeepsAMinimumDelayWithAZeroBackoff() throws Exception {
+        ClientConfigurationData clientConf = new ClientConfigurationData();
+        clientConf.setInitialBackoffIntervalNanos(0);
+        try (TailRetryFixture f = new TailRetryFixture(null, clientConf)) {
+            when(f.reader.readNextAsync()).thenAnswer(inv -> failedRead());
+
+            f.tableView.start().get(5, TimeUnit.SECONDS);
+            f.runLatestRetry();
+            f.runLatestRetry();
+
+            // The backoff gives 0 ms every time here: a read that keeps failing must not be retried back to back.
+            assertEquals(f.retryDelays, List.of(50L, 50L, 50L));
         }
     }
 

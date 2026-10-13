@@ -65,6 +65,13 @@ import org.apache.pulsar.common.util.FutureUtil;
 abstract class AbstractTableViewImpl<T, V> implements TableView<V> {
 
     private static final Logger LOG = Logger.get(AbstractTableViewImpl.class);
+
+    /**
+     * The shortest delay before a tail read is retried, whatever the client's backoff settings: with a zero or
+     * sub-millisecond initial backoff, {@link Backoff} gives 0 ms, and a read that keeps failing right away
+     * would be retried back to back. It is the delay the retry used to sleep before it was given a backoff.
+     */
+    private static final long MIN_TAIL_READ_RETRY_DELAY_MS = 50;
     protected final Logger log;
     private final PulsarClientImpl client;
     private final TableViewConfigurationData conf;
@@ -600,7 +607,7 @@ abstract class AbstractTableViewImpl<T, V> implements TableView<V> {
     }
 
     private void scheduleTailReadRetry(Reader<T> reader, Throwable ex) {
-        long delayMillis = tailReadBackoff.next().toMillis();
+        long delayMillis = Math.max(tailReadBackoff.next().toMillis(), MIN_TAIL_READ_RETRY_DELAY_MS);
         log.warn().attr("reader", reader.getTopic())
                 .attr("retryDelayMs", delayMillis)
                 .exception(ex)
