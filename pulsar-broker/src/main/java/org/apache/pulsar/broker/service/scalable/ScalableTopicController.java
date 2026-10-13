@@ -1813,7 +1813,7 @@ public class ScalableTopicController {
     public CompletableFuture<Void> close() {
         // The election first, outside the monitor (the election calls onLeaderStateChange
         // holding its own): ScalableTopicService replaces a controller seen closed, and the
-        // replacement takes the election over only once it is closed.
+        // replacement gets an election of its own only once this one is closed.
         CompletableFuture<Void> electionClosed = leaderElection.asyncClose();
         synchronized (this) {
             closed = true;

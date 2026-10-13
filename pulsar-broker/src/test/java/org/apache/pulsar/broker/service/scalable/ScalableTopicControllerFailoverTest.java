@@ -170,9 +170,8 @@ public class ScalableTopicControllerFailoverTest {
     }
 
     /**
-     * A controller created again for a topic on a broker that released an earlier one, as when the topic
-     * is deleted and created again with the same name, must follow its own leader election: the coordination
-     * service keeps one election per lock path, and the released controller's would report to it.
+     * A controller created again for a topic on a broker that released an earlier one, as when the earlier one
+     * failed to initialize, must follow its own leader election, not the released controller's.
      */
     @Test
     public void testRecreatedControllerServesAsLeaderAfterTakingTheLockOver() throws Exception {
@@ -248,7 +247,7 @@ public class ScalableTopicControllerFailoverTest {
 
     /**
      * A released controller's leader election takes no part in elections, not even when the
-     * metadata session reconnects: the controller created again on the broker takes it over.
+     * metadata session reconnects: the controller created again on the broker leads.
      */
     @Test
     public void testReleasedControllerTakesNoPartAfterReconnect() throws Exception {

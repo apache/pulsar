@@ -133,7 +133,7 @@ public class ScalableTopicService {
                 .whenComplete((__, ex) -> {
                     if (ex != null) {
                         // Release its leader election, and the lock if it was elected: the next
-                        // controller of the topic takes the election over once it is closed.
+                        // controller of the topic gets an election of its own once this one is closed.
                         controller.close().exceptionally(closeEx -> {
                             log.warn().attr("topic", topic).exceptionMessage(closeEx)
                                     .log("Failed to close a controller that failed to initialize");
@@ -163,8 +163,8 @@ public class ScalableTopicService {
 
     /**
      * Release the controller for a topic (e.g., on topic unload). It is closed before it is
-     * removed, so that a controller created for the topic afterwards finds its leader election
-     * closed and takes it over.
+     * removed, so that a controller created for the topic afterwards gets a leader election of
+     * its own, rather than this one's.
      */
     public CompletableFuture<Void> releaseController(TopicName topic) {
         String key = topic.toString();
