@@ -234,7 +234,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                         if (start.longValue() != 0) {
                             this.stats.recordPutFailed(schemaId, latencyMs);
                         }
-                        promise.completeExceptionally(actEx);
+                        promise.completeExceptionally(ex);
                     } else {
                         log.debug().attr("schemaId", schemaId).log("Put schema finished");
                         // The schema storage will return null schema version if no schema is persisted to the storage
