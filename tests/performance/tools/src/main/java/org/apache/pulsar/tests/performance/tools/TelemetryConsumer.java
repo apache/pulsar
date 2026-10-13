@@ -408,10 +408,13 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
             receiveLatency.close();
             tracker.writeState(output.resolve("application-state.bin"));
             tracker.writeViolationSamples(output.resolve("ordering-violations.txt"));
+            tracker.writeRepublishedSamples(output.resolve("republished-duplicates.txt"));
             Files.writeString(output.resolve("application-summary.json"), "{\n"
                     + "  \"applicationIndex\": " + index + ",\n"
                     + "  \"uniqueMessages\": " + summary.uniqueMessages() + ",\n"
                     + "  \"duplicates\": " + summary.duplicates() + ",\n"
+                    + "  \"redeliveredDuplicates\": " + summary.redeliveredDuplicates() + ",\n"
+                    + "  \"republishedDuplicates\": " + summary.republishedDuplicates() + ",\n"
                     + "  \"orderingViolations\": " + summary.orderingViolations() + ",\n"
                     + "  \"invalidMessages\": " + summary.invalidMessages() + ",\n"
                     + "  \"firstMeasurementMessageReceivedEpochMs\": "
@@ -514,7 +517,8 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
                                         decoded.measurement());
                                 tracker.received(decoded.deviceId(), decoded.sequence(), message.getMessageId(),
                                         decoded.sentNanos(), message.getTopicName(),
-                                        Thread.currentThread().getName());
+                                        Thread.currentThread().getName(), message.getRedeliveryCount(),
+                                        receivedEpochMs);
                                 if (decoded.measurement()) {
                                     // after counting the message, which then counts for the catch-up
                                     catchUp.received(message.getTopicName(), message.getPublishTime(),

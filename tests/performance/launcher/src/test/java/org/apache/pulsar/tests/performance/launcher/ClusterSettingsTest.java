@@ -23,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.entry;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import java.util.Map;
 import org.testng.annotations.Test;
 
 public class ClusterSettingsTest {
@@ -48,6 +49,36 @@ public class ClusterSettingsTest {
         assertThat(settings.bookies().journalTmpfs()).isNull();
         assertThat(settings.bookies().containerEnv()).isEmpty();
         assertThat(settings.bookies().journalTmpfsMount()).isEmpty();
+    }
+
+    @Test
+    public void bootstrapsTheWorkloadsFromTheFirstOrEveryBroker() throws Exception {
+        ClusterSettings first = ClusterSettings.read(mapper, mapper.readTree("""
+                brokers:
+                  replicas: 3
+                bookies:
+                  replicas: 1
+                """));
+        assertThat(first.allBrokersBootstrap()).isFalse();
+        assertThat(first.serviceUrl("iot-1")).isEqualTo("pulsar://iot-1-pulsar-broker-0:6650");
+
+        ClusterSettings all = ClusterSettings.read(mapper, mapper.readTree("""
+                brokers:
+                  replicas: 3
+                  bootstrap: all
+                bookies:
+                  replicas: 1
+                """));
+        assertThat(all.serviceUrl("iot-1")).isEqualTo("pulsar://iot-1-pulsar-broker-0:6650,"
+                + "iot-1-pulsar-broker-1:6650,iot-1-pulsar-broker-2:6650");
+
+        assertThatThrownBy(() -> ClusterSettings.read(mapper, mapper.readTree("""
+                brokers:
+                  replicas: 1
+                  bootstrap: some
+                bookies:
+                  replicas: 1
+                """))).hasMessageContaining("cluster.brokers.bootstrap must be first or all");
     }
 
     @Test
@@ -108,5 +139,100 @@ public class ClusterSettingsTest {
         assertThatThrownBy(() -> ClusterSettings.read(mapper, mapper.readTree("workloads: {}").path("cluster")))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("needs a cluster section");
+    }
+
+    @Test
+    public void hasNoRemoteClusterWithoutItsSection() throws Exception {
+        ClusterSettings settings = ClusterSettings.read(mapper, mapper.readTree("""
+                brokers:
+                  replicas: 2
+                bookies:
+                  replicas: 3
+                """));
+
+        assertThat(settings.remote()).isNull();
+        assertThat(settings.topology()).isEqualTo(new NetworkSettings.Topology(2, 3));
+    }
+
+    @Test
+    public void copiesTheClusterIntoTheRemoteOneWithItsChanges() throws Exception {
+        ClusterSettings settings = ClusterSettings.read(mapper, mapper.readTree("""
+                brokers:
+                  replicas: 2
+                  bootstrap: all
+                  env:
+                    PULSAR_MEM: "-Xmx4g"
+                    brokerDeduplicationEnabled: "true"
+                bookies:
+                  replicas: 3
+                  journalTmpfs: 1g
+                remote:
+                  brokers:
+                    replicas: 1
+                    env:
+                      PULSAR_MEM: "-Xmx1g"
+                  applications:
+                    count: 4
+                    env:
+                      PULSAR_MEM: "-Xmx256m"
+                """));
+
+        ClusterSettings.Remote remote = settings.remote();
+        assertThat(remote.brokers().replicas()).isEqualTo(1);
+        assertThat(remote.brokers().env()).containsEntry("PULSAR_MEM", "-Xmx1g")
+                .containsEntry("brokerDeduplicationEnabled", "true");
+        assertThat(settings.brokers().env()).containsEntry("PULSAR_MEM", "-Xmx4g");
+        assertThat(remote.bookies().replicas()).isEqualTo(3);
+        assertThat(remote.bookies().journalTmpfs()).isEqualTo("1g");
+        assertThat(remote.serviceUrl("iot-1")).isEqualTo("pulsar://iot-1-remote-pulsar-broker-0:6650");
+        assertThat(remote.applications()).isEqualTo(new ClusterSettings.RemoteApplications(4, null,
+                Map.of("PULSAR_MEM", "-Xmx256m")));
+        assertThat(settings.topology()).isEqualTo(new NetworkSettings.Topology(2, 3, 1, 3));
+    }
+
+    @Test
+    public void anEmptyRemoteSectionCopiesTheCluster() throws Exception {
+        ClusterSettings settings = ClusterSettings.read(mapper, mapper.readTree("""
+                brokers:
+                  replicas: 2
+                bookies:
+                  replicas: 3
+                remote: {}
+                """));
+
+        assertThat(settings.remote().brokers()).isEqualTo(settings.brokers());
+        assertThat(settings.remote().bookies()).isEqualTo(settings.bookies());
+        assertThat(settings.remote().applications()).isEqualTo(new ClusterSettings.RemoteApplications(null, null,
+                null));
+    }
+
+    @Test
+    public void rejectsUnknownRemoteSettings() {
+        assertThatThrownBy(() -> ClusterSettings.read(mapper, mapper.readTree("""
+                brokers:
+                  replicas: 1
+                bookies:
+                  replicas: 1
+                remote:
+                  proxies: 1
+                """))).hasMessageContaining("cluster.remote.proxies isn't a setting");
+        assertThatThrownBy(() -> ClusterSettings.read(mapper, mapper.readTree("""
+                brokers:
+                  replicas: 1
+                bookies:
+                  replicas: 1
+                remote:
+                  applications:
+                    count: 0
+                """))).hasMessageContaining("cluster.remote.applications.count must be a positive number");
+        assertThatThrownBy(() -> ClusterSettings.read(mapper, mapper.readTree("""
+                brokers:
+                  replicas: 1
+                bookies:
+                  replicas: 1
+                remote:
+                  bookies:
+                    replicas: 0
+                """))).hasMessageContaining("cluster.remote.bookies.replicas must be a positive number");
     }
 }
