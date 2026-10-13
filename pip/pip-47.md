@@ -2,9 +2,7 @@
 
 - Status: Adopted
 - Author: Xiaolong Ran
-- Pull request:
 - Mailing list discussion: https://lists.apache.org/thread/xt4wtsy313qztt0n7h6tvd8hfqbq3bzj
-- Release:
 
 This proposal is to adopt Kafka's [Time Based Release Plan](https://cwiki.apache.org/confluence/display/KAFKA/Time+Based+Release+Plan).
 

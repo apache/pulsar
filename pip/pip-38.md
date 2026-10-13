@@ -1,9 +1,6 @@
 # PIP-38: Batch Receiving Messages
 
-- Status:
 - Author: Penghui Li
-- Discussion Thread:
-- Issue:
 - Pull Request: https://github.com/apache/pulsar/pull/4621
 
 ## Motivation

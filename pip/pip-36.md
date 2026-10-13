@@ -2,8 +2,6 @@
 
 - Status: Proposed
 - Author: Yong Zhang
-- Discusstion Thread:
-- Issue:
 
 ## Motivation
 

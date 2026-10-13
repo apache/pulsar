@@ -4,7 +4,6 @@
 - Authors: Neng Lu
 - Pull Request: https://github.com/apache/pulsar/pull/11056
 - Mailing List discussion: https://lists.apache.org/thread/2j38dt96dlxv542t0bont1y8vh0y9grx
-- Release:
 
 ## Motivation
 

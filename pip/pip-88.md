@@ -4,7 +4,6 @@
 - Authors: Lin Lin, Hang Chen, Penghui Li
 - Pull Request: https://github.com/apache/pulsar/pull/11441
 - Mailing List discussion: https://lists.apache.org/thread.html/rd35af2122782d374ff819b9b14386851742622661107fa6229973851%40%3Cdev.pulsar.apache.org%3E
-- Release:
 
 ### Background
 

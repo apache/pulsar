@@ -4,7 +4,6 @@
 - Author: Penghui Li
 - Pull Request: https://github.com/apache/pulsar/pull/6347
 - Mailing List discussion: https://lists.apache.org/thread.html/r1f0de583a2d02f9aeff0cadc2bab0fcfb41bf092cfdc7ff4cc9ed1bc%40%3Cdev.pulsar.apache.org%3E
-- Release:
 
 ## Motivation
 
