@@ -332,8 +332,12 @@ OPTS="-Dio.netty.recycler.maxCapacityPerThread=4096 -Dio.netty.allocator.maxOrde
 
 OPTS="-cp $PULSAR_CLASSPATH $OPTS"
 
+# Netty's leak detection samples buffer allocations and records access traces for the sampled ones, which costs CPU
+# on every component's hot paths. Disable it by default; the options that come later on the command line, such as
+# -Dio.netty.leakDetection.level=simple in PULSAR_EXTRA_OPTS (BOOKIE_EXTRA_OPTS for bookies), override this.
+OPTS="-Dio.netty.leakDetection.level=disabled $OPTS"
+
 if [ $COMMAND == "bookie" ]; then
-  OPTS="-Dio.netty.leakDetection.level=disabled $OPTS"
   # Pass BOOKIE_EXTRA_OPTS option defined in bkenv.sh
   OPTS="$OPTS $BOOKIE_MEM $BOOKIE_GC $BOOKIE_GC_LOG $BOOKIE_EXTRA_OPTS"
 else

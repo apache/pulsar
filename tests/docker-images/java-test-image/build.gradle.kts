@@ -118,6 +118,11 @@ fun registerDockerBuild(taskName: String, imageTag: String, installAsyncProfiler
         args.add(".")
 
         commandLine(args)
+        // docker writes the image ID file but doesn't create its directory. Gradle creates it for a declared output,
+        // which a build on a released Pulsar image, such as dockerBuildCluster's, doesn't have
+        doFirst {
+            imageIdFile.parentFile.mkdirs()
+        }
 
         inputs.file("Dockerfile")
         inputs.files(prepareBuildContext)
@@ -168,3 +173,17 @@ if (clusterPulsarImage != null) {
         description = "Build the java-test-image Docker image on the performance.clusterPulsarImage Pulsar image"
     }
 }
+
+// The clusters' images for :tests:performance:launcher:compareImages and compareImageWithCheckout, which compare two
+// released Pulsar images, -Pperformance.compare.baselineImage and -Pperformance.compare.candidateImage, or a released
+// image and this checkout: the test image built on each, named as dockerBuildCluster names its image.
+listOf("Baseline" to "performance.compare.baselineImage", "Candidate" to "performance.compare.candidateImage")
+    .forEach { (side, property) ->
+        providers.gradleProperty(property).orNull?.let { image ->
+            registerDockerBuild("dockerBuildCompare$side",
+                "cluster-" + image.replace(Regex("[^A-Za-z0-9_.-]"), "-").takeLast(120), "false", image, null)
+                .configure {
+                    description = "Build the java-test-image Docker image on the $property Pulsar image"
+                }
+        }
+    }

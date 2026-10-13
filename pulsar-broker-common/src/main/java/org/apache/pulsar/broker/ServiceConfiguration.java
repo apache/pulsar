@@ -622,6 +622,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
+            dynamic = true,
             doc = "Amount of seconds to timeout when loading a topic. In situations with many geo-replicated clusters, "
                     + "this may need raised."
     )
@@ -1511,7 +1512,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "PIP-486 segments-vs-buckets lever: on consumer-driven scale-up, split only if the "
                     + "busiest segment's inbound msg/s is at or above this floor; below it the "
                     + "controller grows the segment's entry-buckets instead (a low-throughput topic "
-                    + "should not materialize physical segments just for consumer count)."
+                    + "should not materialize physical segments just for consumer count). Checkpoint "
+                    + "consumer groups drive splits only: they read whole segments, so more buckets "
+                    + "would not serve them."
     )
     private double scalableTopicSplitVsRebucketMinMsgRateInThreshold = 1_000;
 

@@ -103,6 +103,14 @@ public class ScenarioFilesTest {
     }
 
     @Test
+    public void theCatchUpScenarioJoinsApplicationsAfterTheMeasurementStarts() {
+        ObjectNode applications = (ObjectNode) resolve(SCENARIOS.resolve("iot-telemetry-catch-up.yaml"), List.of())
+                .path("workloads").path("iotTelemetry").path("applications");
+        assertThat(applications.path("joinSeconds").toString()).isEqualTo("[0,20,22,24,60]");
+        assertThat(applications.path("count").asInt()).isEqualTo(5);
+    }
+
+    @Test
     public void theMemoryConfigurationsSetTheirOwnMemory() {
         // The configuration that a scenario extends last sets the memory, over the default of iot-telemetry-base.yaml
         String defaultMemory = brokerMemory(resolve(SCENARIOS.resolve("iot-telemetry.yaml"), List.of()));
@@ -127,6 +135,35 @@ public class ScenarioFilesTest {
                 default -> profiling.applications();
             };
             assertThat(profiled.profiled()).as(component).isTrue();
+        }
+    }
+
+    @DataProvider
+    public static Object[][] networkOverlays() throws IOException {
+        try (Stream<Path> files = Files.list(SCENARIOS.resolve("network"))) {
+            return files.filter(file -> file.getFileName().toString().endsWith(".yaml")).sorted()
+                    .map(file -> new Object[] {file.getFileName().toString()}).toArray(Object[][]::new);
+        }
+    }
+
+    @Test(dataProvider = "networkOverlays")
+    public void appliesEveryNetworkOverlayToTheScenarios(String overlay) {
+        for (String scenario : List.of("iot-telemetry-small.yaml", "iot-telemetry-high-rate.yaml")) {
+            ObjectNode resolved = resolve(SCENARIOS.resolve(scenario),
+                    List.of(SCENARIOS.resolve("network").resolve(overlay)));
+            ClusterSettings cluster = ClusterSettings.read(loader.mapper(), resolved.path("cluster"));
+            NetworkSettings network = NetworkSettings.read(resolved.path("network"), cluster.topology(),
+                    PerformanceLauncher.measurementSeconds(loader.select(resolved, "workloads.iotTelemetry")));
+            // Every overlay but the clusters that the fault overlays extend impairs something
+            assertThat(network.any()).as(overlay + " on " + scenario)
+                    .isEqualTo(!List.of("failover-cluster.yaml", "geo-replication.yaml").contains(overlay));
+            // The geo overlays add the remote cluster
+            assertThat(cluster.remote() != null).as(overlay + " on " + scenario)
+                    .isEqualTo(overlay.startsWith("geo-"));
+            assertThat(ledgerSetting(cluster, "managedLedgerDefaultEnsembleSize"))
+                    .as("the ensemble size of %d bookie(s)", cluster.bookies().replicas())
+                    .isBetween(1, cluster.bookies().replicas());
+            checkWorkload(resolved);
         }
     }
 

@@ -69,8 +69,43 @@ public final class RunReport {
     public static final String HOST_STATS_FILE = "host-stats.csv";
     public static final String HOST_STATS_HEADER =
             "epochMillis,packageCelsius,coreCelsius,meanMHz,minMHz,coreThrottles,packageThrottles,fanRpm";
+    /**
+     * The host's CPU utilization and disk throughput sampled during a run, one row per second: the busy and I/O-wait
+     * share of all CPUs, then each disk's read and write MB/s and busy share.
+     */
+    public static final String HOST_IO_FILE = "host-io.csv";
+    /**
+     * The measurement's averages of the host's and each container's CPU use, context switches and perf counts, the
+     * run report's Containers section as JSON for scripts and agents.
+     */
+    public static final String CONTAINER_SUMMARY_FILE = "container-summary.json";
+    /**
+     * Each container's CPU use and context switches sampled during a run, one row per container and second: the CPUs
+     * used, and the voluntary and involuntary context switches per second of its threads.
+     */
+    public static final String CONTAINER_STATS_FILE = "container-stats.csv";
+    public static final String CONTAINER_STATS_HEADER =
+            "epochMillis,container,cpuCores,voluntarySwitchesPerSecond,involuntarySwitchesPerSecond";
+    /**
+     * Each container's perf counts during a run, one row per container and second: CPU time in ms, context switches,
+     * CPU migrations, page faults, cycles, instructions, last-level cache references and misses, L1 data cache load
+     * misses and branch misses. A count the host's CPU doesn't provide is empty.
+     */
+    public static final String PERF_STAT_FILE = "perf-stat.csv";
+    public static final String PERF_STAT_HEADER =
+            "epochMillis,container,taskClockMillis,contextSwitches,cpuMigrations,pageFaults,cycles,instructions,"
+                    + "cacheReferences,cacheMisses,l1dLoadMisses,branchMisses";
+    /**
+     * The network impairments of a run, as the launcher applied them: each one's settings, when it was applied and
+     * removed, its queues' counters, and the impaired containers' TCP retransmissions.
+     */
+    public static final String NETWORK_SUMMARY_FILE = "network-summary.json";
+    /** Every network impairment event of a run, one JSON object per line, appended as they happen. */
+    public static final String NETWORK_EVENTS_FILE = "network-events.jsonl";
     // .txt, so that an HTTP server such as Python's shows the log as text instead of offering a download
     public static final String CONTAINER_LOG = "container.log.txt";
+    /** The Pulsar client's warnings in a workload container, written only when the client logs one. */
+    public static final String CLIENT_LOG = "pulsar-client.log.txt";
     /** What the launcher printed on the console, from the run directory's creation to the end. */
     public static final String CONSOLE_LOG = "console.log.txt";
     /**
@@ -78,6 +113,18 @@ public final class RunReport {
      * {@link #applicationDirectory}.
      */
     public static final String APPLICATIONS_DIRECTORY = "applications";
+    /** The remote applications' outputs in a run with a remote cluster, laid out as the applications'. */
+    public static final String REMOTE_APPLICATIONS_DIRECTORY = "remote-applications";
+    /** The remote applications' configuration: the resolved one with their service URL and their settings. */
+    public static final String REMOTE_APPLICATIONS_CONFIG = "resolved-config-remote-applications.yaml";
+    /** The remote cluster's topic stats, sampled as {@link #TOPIC_STATS_FILE} has the first cluster's. */
+    public static final String REMOTE_TOPIC_STATS_FILE = "remote-topic-stats.csv";
+    /** The replicators' stats of the first cluster's topics, sampled with a remote cluster. */
+    public static final String REPLICATION_STATS_FILE = "replication-stats.csv";
+    // The files of a run with a remote cluster, which the launcher writes
+    private static final List<String> REMOTE_FILES = List.of(REMOTE_APPLICATIONS_CONFIG, REMOTE_TOPIC_STATS_FILE,
+            REPLICATION_STATS_FILE, REMOTE_APPLICATIONS_DIRECTORY + "/" + CONTAINER_LOG,
+            REMOTE_APPLICATIONS_DIRECTORY + "/" + CLIENT_LOG);
     private static final String MEASUREMENT_RECORDING_SUFFIX = ".measurement.jfr";
     private static final DateTimeFormatter FOOTER_START = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     // The guide to the performance tests, which the report links to
@@ -294,18 +341,24 @@ public final class RunReport {
         appendRun(report, runDirectory, run, producer, host);
         // The profiles come first so that a profiled run leads to its flame graphs
         appendProfiles(report, runDirectory, mapper);
-        appendCorrectness(report, run.workload(), consumers);
+        NetworkReport.append(report, runDirectory, mapper, measurementStart);
+        appendCorrectness(report, "Correctness", run.workload(), consumers);
         appendThroughput(report, producer, consumers);
-        appendLatency(report, runDirectory, run, consumerHistograms, measurementStart);
         Path stats = runDirectory.resolve(TOPIC_STATS_FILE);
-        if (Files.isRegularFile(stats)) {
-            appendTopicStats(report, runDirectory, readSamples(stats), measurementStart, measurementEnd,
+        Samples samples = Files.isRegularFile(stats) ? readSamples(stats) : null;
+        appendCatchUp(report, run.workload(), consumers, samples, measurementStart, measurementEnd);
+        appendLatency(report, runDirectory, run, consumerHistograms, measurementStart);
+        appendRemoteApplications(report, runDirectory, run.workload(), mapper);
+        if (samples != null) {
+            appendTopicStats(report, runDirectory, samples, measurementStart, measurementEnd,
                     run.cooldowns(), chartFooter(run.info(), run.finished()));
         }
         if (hostSamples != null) {
             appendHost(report, runDirectory, hostSamples, host, run.cooldowns(), measurementStart, measurementEnd,
                     chartFooter(run.info(), run.finished()));
         }
+        ContainerStatsReport.append(report, runDirectory, measurementStart, measurementEnd,
+                producer.path("measurementMessages").asLong());
         appendMetrics(report, runDirectory, mapper);
         appendHeapDumps(report, runDirectory);
         appendFiles(report, runDirectory, run.workload());
@@ -488,8 +541,10 @@ public final class RunReport {
     private static void appendFiles(StringBuilder report, Path runDirectory, JsonNode workload) {
         List<String> links = new ArrayList<>();
         // The scenario and its resolved configuration are linked from the settings table
-        for (String name : List.of(CONSOLE_LOG, RunInfo.FILE_NAME, METRICS_FILE, "gateways/gateways-summary.json",
-                "gateways/" + CONTAINER_LOG, APPLICATIONS_DIRECTORY + "/" + CONTAINER_LOG)) {
+        for (String name : List.of(CONSOLE_LOG, RunInfo.FILE_NAME, METRICS_FILE, NETWORK_SUMMARY_FILE,
+                NETWORK_EVENTS_FILE, "gateways/gateways-summary.json",
+                "gateways/" + CONTAINER_LOG, "gateways/" + CLIENT_LOG, APPLICATIONS_DIRECTORY + "/" + CONTAINER_LOG,
+                APPLICATIONS_DIRECTORY + "/" + CLIENT_LOG)) {
             Path file = runDirectory.resolve(name);
             if (Files.isRegularFile(file)) {
                 links.add(link(runDirectory, file));
@@ -579,9 +634,10 @@ public final class RunReport {
         return value.isEmpty() ? "" : "`" + value + "`";
     }
 
-    private static void appendCorrectness(StringBuilder report, JsonNode workload, List<JsonNode> consumers) {
-        report.append("\n## Correctness\n\n| Application | Unique messages | Duplicates | Ordering violations |"
-                + " Invalid |\n|---|---:|---:|---:|---:|\n");
+    private static void appendCorrectness(StringBuilder report, String heading, JsonNode workload,
+                                          List<JsonNode> consumers) {
+        report.append("\n## ").append(heading).append("\n\n| Application | Unique messages | Duplicates |"
+                + " Ordering violations | Invalid |\n|---|---:|---:|---:|---:|\n");
         boolean clean = true;
         for (JsonNode consumer : consumers) {
             long duplicates = consumer.path("duplicates").asLong();
@@ -595,6 +651,62 @@ public final class RunReport {
         }
         report.append(clean ? "\nNo duplicates, ordering violations or invalid messages.\n"
                 : "\n**Duplicates, ordering violations or invalid messages were received.**\n");
+        long redelivered = consumers.stream().mapToLong(c -> c.path("redeliveredDuplicates").asLong()).sum();
+        long republished = consumers.stream().mapToLong(c -> c.path("republishedDuplicates").asLong()).sum();
+        if (redelivered > 0 || republished > 0) {
+            // Only a duplicate of a device's latest message can be compared with it
+            report.append(String.format(Locale.ROOT, "%nOf the duplicates of a device's latest message, %,d came"
+                    + " with the same message ID, redelivered, and %,d with another one: the broker persisted the"
+                    + " message twice%s.%n", redelivered, republished, republished > 0
+                    ? ", see each application's `republished-duplicates.txt`" : ""));
+        }
+    }
+
+    /**
+     * The remote applications of a run with a remote cluster: what each received of the replicated messages, and
+     * their publish-to-consume latency, which includes the replication. Nothing without them.
+     */
+    static void appendRemoteApplications(StringBuilder report, Path runDirectory, JsonNode workload,
+                                         ObjectMapper mapper) throws IOException {
+        Path remote = runDirectory.resolve(REMOTE_APPLICATIONS_DIRECTORY);
+        List<JsonNode> consumers = new ArrayList<>();
+        List<Path> histograms = new ArrayList<>();
+        for (int application = 0; ; application++) {
+            Path directory = remote.resolve(applicationName(workload, application));
+            if (!Files.isRegularFile(directory.resolve("application-summary.json"))) {
+                break;
+            }
+            consumers.add(mapper.readTree(directory.resolve("application-summary.json").toFile()));
+            if (Files.isRegularFile(directory.resolve("application-latency.hdr"))) {
+                histograms.add(directory.resolve("application-latency.hdr"));
+            }
+        }
+        if (consumers.isEmpty()) {
+            return;
+        }
+        appendCorrectness(report, "Remote applications", workload, consumers);
+        report.append("\nThey consume the replicated messages in the remote cluster, so their latency includes the"
+                + " replication.\n");
+        if (!histograms.isEmpty()) {
+            report.append("\n| Latency (ms) | Count | Min | p50 | p90 | p99 | p99.9 | Max |\n"
+                    + "|---|---:|---:|---:|---:|---:|---:|---:|\n");
+            for (Path histogram : histograms) {
+                report.append(latencyRow(applicationOf(histogram) + " (publish to consume, remote)",
+                        HdrHistogramRenderer.readMerged(List.of(histogram))));
+            }
+        }
+        List<String> links = new ArrayList<>();
+        for (String name : REMOTE_FILES) {
+            Path file = runDirectory.resolve(name);
+            if (Files.isRegularFile(file)) {
+                links.add(link(runDirectory, file));
+            }
+        }
+        if (!links.isEmpty()) {
+            report.append("\n<details><summary>The remote cluster's files</summary>\n\n");
+            links.forEach(file -> report.append("- ").append(file).append('\n'));
+            report.append("\n</details>\n");
+        }
     }
 
     private static void appendThroughput(StringBuilder report, JsonNode producer, List<JsonNode> consumers) {
@@ -612,6 +724,69 @@ public final class RunReport {
                         producer.path("measurementElapsedSeconds").asDouble())))
                 .append(row("Applications still receiving after the gateways finished",
                         String.format(Locale.ROOT, "%.1f s", Math.max(0, lastReceived - end) / 1000.0)));
+        if (consumers.stream().anyMatch(consumer -> consumer.path("joinEpochMs").asLong() > 0)) {
+            report.append("\nSome applications joined after the measurement started, so the delivered throughput and"
+                    + " the time the applications were still receiving are mostly those of the last one to finish;"
+                    + " the Catch-up section has each one's.\n");
+        }
+    }
+
+    /**
+     * The applications that joined after the measurement started ({@code applications.joinSeconds}): when each
+     * joined, its subscription's backlog then, from the sampled topic stats, how long it took to catch up, and its
+     * catch-up rate.
+     */
+    static void appendCatchUp(StringBuilder report, JsonNode workload, List<JsonNode> consumers, Samples samples,
+                              long measurementStart, long measurementEnd) {
+        List<JsonNode> late = consumers.stream().filter(consumer -> consumer.path("joinEpochMs").asLong() > 0)
+                .toList();
+        if (late.isEmpty()) {
+            return;
+        }
+        int caughtUpLatency = late.get(0).path("caughtUpLatencyMillis")
+                .asInt(workload.path("applications").path("caughtUpLatencyMillis").asInt(1000));
+        report.append("\n## Catch-up\n\nThe applications that joined after the measurement started. Each had its"
+                        + " subscription from the start, so its backlog built up until it joined. An application has"
+                        + " caught up when each of its topics delivered a measured message within ")
+                .append(String.format(Locale.ROOT, "%,d", caughtUpLatency))
+                .append(" ms of its publishing; the time includes opening its pods. Its catch-up rate is the messages"
+                        + " that it received until then, warmup included, per second since it joined; for an"
+                        + " application that didn't catch up, it is the rate until its last message. The backlog is"
+                        + " the sampled topic stats' last sample before the application joined.\n\n"
+                        + "| Application | Joined | Backlog when it joined | Caught up after | Catch-up rate"
+                        + " | Received its last message after |\n|---|---:|---:|---:|---:|---:|\n");
+        for (JsonNode consumer : late) {
+            String application = applicationName(workload, consumer.path("applicationIndex").asInt());
+            long joined = consumer.path("joinEpochMs").asLong();
+            long caughtUp = consumer.path("caughtUpEpochMs").asLong();
+            long lastReceived = consumer.path("lastMeasurementMessageReceivedEpochMs").asLong();
+            String backlog = "–";
+            double[] backlogs = samples != null ? samples.backlog().get(application) : null;
+            if (backlogs != null) {
+                for (int round = samples.epochMillis().length - 1; round >= 0; round--) {
+                    if (samples.epochMillis()[round] <= joined && !Double.isNaN(backlogs[round])) {
+                        backlog = String.format(Locale.ROOT, "%,.0f", backlogs[round]);
+                        break;
+                    }
+                }
+            }
+            String caughtUpAfter;
+            String rate;
+            if (caughtUp > 0 && caughtUp >= joined) {
+                caughtUpAfter = String.format(Locale.ROOT, "%.1f s", (caughtUp - joined) / 1000.0)
+                        + (caughtUp > measurementEnd ? ", after the gateways finished" : "");
+                rate = caughtUp > joined ? String.format(Locale.ROOT, "%,.0f msg/s",
+                        consumer.path("messagesWhenCaughtUp").asLong() * 1000.0 / (caughtUp - joined)) : "–";
+            } else {
+                caughtUpAfter = "not caught up";
+                rate = lastReceived > joined ? String.format(Locale.ROOT, "%,.0f msg/s until its last message",
+                        consumer.path("uniqueMessages").asLong() * 1000.0 / (lastReceived - joined)) : "–";
+            }
+            report.append(String.format(Locale.ROOT, "| `%s` | %.1f s | %s | %s | %s | %s |%n", application,
+                    (joined - measurementStart) / 1000.0, backlog, caughtUpAfter, rate,
+                    lastReceived > joined ? String.format(Locale.ROOT, "%.1f s", (lastReceived - joined) / 1000.0)
+                            : "–"));
+        }
     }
 
     /**

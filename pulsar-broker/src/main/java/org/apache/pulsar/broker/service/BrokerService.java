@@ -1580,7 +1580,18 @@ public class BrokerService implements Closeable {
                 future.completeExceptionally(ex);
                 return;
             }
-            CompletableFuture<ManagedLedgerConfig> mlConfigFuture = getManagedLedgerConfig(topicName);
+            CompletableFuture<ManagedLedgerConfig> mlConfigFuture = getManagedLedgerConfig(topicName)
+                    .thenCombine(fetchPartitionShadowSourceAsync(tn), (config, shadowSource) -> {
+                        shadowSource.ifPresent(source -> {
+                            Map<String, String> properties = new HashMap<>();
+                            if (config.getProperties() != null) {
+                                properties.putAll(config.getProperties());
+                            }
+                            properties.put(PROPERTY_SOURCE_TOPIC_KEY, source);
+                            config.setProperties(properties);
+                        });
+                        return config;
+                    });
             mlConfigFuture.thenAccept(config -> {
                 getManagedLedgerFactoryForTopic(topicName, config.getStorageClassName())
                         .asyncDelete(tn.getPersistenceNamingEncoding(),
@@ -2120,6 +2131,26 @@ public class BrokerService implements Closeable {
         return topicFuture;
     }
 
+    /**
+     * Resolves the shadow source of a partition from the properties of its partitioned topic metadata.
+     * The partitions of a partitioned shadow topic list the ledgers of the source partitions, and the managed
+     * ledger of a partition may not contain the shadow source property itself.
+     */
+    private CompletableFuture<Optional<String>> fetchPartitionShadowSourceAsync(TopicName topicName) {
+        if (!topicName.isPartitioned()) {
+            return CompletableFuture.completedFuture(Optional.empty());
+        }
+        TopicName partitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
+        return fetchPartitionedTopicMetadataAsync(partitionedTopicName).thenApply(metadata -> {
+            String sourceTopic = metadata.partitions != PartitionedTopicMetadata.NON_PARTITIONED
+                    ? MapUtils.getString(metadata.properties, PROPERTY_SOURCE_TOPIC_KEY) : null;
+            if (sourceTopic == null) {
+                return Optional.empty();
+            }
+            return Optional.of(TopicName.getTopicPartitionNameString(sourceTopic, topicName.getPartitionIndex()));
+        });
+    }
+
     @VisibleForTesting
     protected CompletableFuture<Map<String, String>> fetchTopicPropertiesAsync(TopicName topicName) {
         if (!topicName.isPartitioned()) {
@@ -2221,6 +2252,23 @@ public class BrokerService implements Closeable {
                 managedLedgerConfig.setManagedLedgerInterceptor(
                         new ManagedLedgerInterceptorImpl(interceptors, brokerEntryPayloadProcessors));
             }
+
+            // Set non-recoverable data metrics callback
+            if (pulsarStats.getBrokerOperabilityMetrics() != null) {
+                managedLedgerConfig.setNonRecoverableDataMetricsCallback(
+                    new org.apache.bookkeeper.mledger.NonRecoverableDataMetricsCallback() {
+                        @Override
+                        public void onSkipNonRecoverableLedger(long ledgerId) {
+                            pulsarStats.getBrokerOperabilityMetrics().recordNonRecoverableLedgerSkipped();
+                        }
+
+                        @Override
+                        public void onSkipNonRecoverableEntries(long entryCount) {
+                            pulsarStats.getBrokerOperabilityMetrics().recordNonRecoverableEntriesSkipped(entryCount);
+                        }
+                    });
+            }
+
             managedLedgerConfig.setCreateIfMissing(createIfMissing);
             if (context.getProperties() != null) {
                 managedLedgerConfig.setProperties(context.getProperties());
@@ -2323,8 +2371,7 @@ public class BrokerService implements Closeable {
                                             log.warn()
                                                     .attr("topic", topic)
                                                     .exceptionMessage(ex)
-                                                    .log("Replication or dedup check failed."
-                                                            + "Removing topic from topics list");
+                                                    .log("Topic initialization failed. Removing topic from cache");
                                             executor().submit(() -> {
                                                 persistentTopic.close().whenComplete((ignore, closeEx) -> {
                                                     topics.remove(topic, topicFuture);
@@ -2564,6 +2611,13 @@ public class BrokerService implements Closeable {
                         serviceConfig.isCacheEvictionByMarkDeletedPosition());
                 managedLedgerConfig.setCacheEvictionByExpectedReadCount(false);
             }
+            Long continueCachingAddedEntriesAfterLastActiveCursorLeavesMillis =
+                    serviceConfig.getManagedLedgerContinueCachingAddedEntriesAfterLastActiveCursorLeavesMillis();
+            // default to 2 * managedLedgerCacheEvictionTimeThresholdMillis if the value is unset
+            managedLedgerConfig.setContinueCachingAddedEntriesAfterLastActiveCursorLeavesMillis(
+                    continueCachingAddedEntriesAfterLastActiveCursorLeavesMillis != null
+                            ? continueCachingAddedEntriesAfterLastActiveCursorLeavesMillis
+                            : 2 * serviceConfig.getManagedLedgerCacheEvictionTimeThresholdMillis());
             managedLedgerConfig.setBatchReadEnabled(serviceConfig.isManagedLedgerBatchReadEnabled());
             managedLedgerConfig.setReadEntriesCallbackInline(serviceConfig.isManagedLedgerReadEntriesCallbackInline());
             managedLedgerConfig.setAddEntryHandoverMaxBatchItems(
@@ -4584,21 +4638,48 @@ public class BrokerService implements Closeable {
     }
 
     public CompletableFuture<SchemaVersion> deleteSchema(TopicName topicName) {
-        // delete schema at the upper level when deleting the partitioned topic.
-        if (topicName.isPartitioned()) {
+        // delete schema at the upper level when deleting the partitioned topic. Likewise, every segment
+        // shares the schema of its scalable topic, which deletes it along with the topic.
+        if (topicName.isPartitioned() || topicName.isSegment()) {
             return CompletableFuture.completedFuture(null);
         }
         String base = topicName.getPartitionedTopicName();
         String id = TopicName.get(base).getSchemaName();
-        return getPulsar().getSchemaRegistryService().deleteSchemaStorage(id).whenComplete((vid, ex) -> {
-            if (vid != null && ex == null) {
-                // It's different from `SchemasResource.deleteSchema`
-                // because when we delete a topic, the schema
-                // history is meaningless. But when we delete a schema of a topic, a new schema could be
-                // registered in the future.
-                log.info().attr("schemaId", id).log("Deleted schema storage");
+        return isSchemaOwnedByScalableTopicAsync(topicName).thenCompose(ownedByScalableTopic -> {
+            if (ownedByScalableTopic) {
+                log.debug().attr("topic", topicName).attr("schemaId", id)
+                        .log("Keeping schema of the scalable topic with the same name");
+                return CompletableFuture.completedFuture(null);
             }
+            return getPulsar().getSchemaRegistryService().deleteSchemaStorage(id).whenComplete((vid, ex) -> {
+                if (vid != null && ex == null) {
+                    // It's different from `SchemasResource.deleteSchema`
+                    // because when we delete a topic, the schema
+                    // history is meaningless. But when we delete a schema of a topic, a new schema could be
+                    // registered in the future.
+                    log.info().attr("schemaId", id).log("Deleted schema storage");
+                }
+            });
         });
+    }
+
+    /**
+     * Whether the schema of a regular ({@code persistent://} or {@code non-persistent://}) topic belongs to a
+     * scalable topic with the same name. Both names map to the same schema id ({@link TopicName#getSchemaName()}),
+     * and the scalable topic keeps using that schema after the regular topic is gone, e.g. once a regular topic
+     * has been migrated to a scalable topic (PIP-475), so deleting the regular topic must leave it in place: it is
+     * deleted along with the scalable topic.
+     */
+    private CompletableFuture<Boolean> isSchemaOwnedByScalableTopicAsync(TopicName topicName) {
+        if (topicName.isScalable() || topicName.isSegment()
+                || !pulsar.getConfiguration().isScalableTopicsEnabled()) {
+            return CompletableFuture.completedFuture(false);
+        }
+        ScalableTopicResources scalableResources = pulsar.getPulsarResources().getScalableTopicResources();
+        if (scalableResources == null) {
+            return CompletableFuture.completedFuture(false);
+        }
+        return scalableResources.scalableTopicExistsAsync(topicName.toScalableTopic());
     }
 
     private CompletableFuture<Boolean> checkNonPartitionedTopicExists(TopicName topicName) {

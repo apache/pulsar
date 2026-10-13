@@ -113,6 +113,28 @@ public class TxnMetadataStoreTest {
     }
 
     @Test
+    public void deleteWriteOpsForSegment_removesTheSegmentsWriteOpsOfEveryTxn() throws Exception {
+        @Cleanup MetadataStore store = newMemoryStore();
+        TxnMetadataStore txn = new TxnMetadataStore(store);
+
+        String segA = "segment://public/default/topic/0000-7fff-0";
+        String segB = "segment://public/default/topic/8000-ffff-0";
+        txn.appendOp("tx-1", new TxnOp(TxnOpKind.WRITE, segA, null, 0L, 0L, null)).get();
+        txn.appendOp("tx-2", new TxnOp(TxnOpKind.WRITE, segA, null, 0L, 0L, null)).get();
+        TxnOp otherSegmentWrite = new TxnOp(TxnOpKind.WRITE, segB, null, 0L, 0L, null);
+        txn.appendOp("tx-1", otherSegmentWrite).get();
+        TxnOp ack = new TxnOp(TxnOpKind.ACK, segA, "sub/x", 1L, 5L, false);
+        txn.appendOp("tx-1", ack).get();
+
+        txn.deleteWriteOpsForSegment(segA).get();
+
+        List<TxnOp> remaining = new ArrayList<>();
+        txn.listOpsByTxn("tx-1", collectOps(remaining)).get();
+        txn.listOpsByTxn("tx-2", collectOps(remaining)).get();
+        assertThat(remaining).containsExactlyInAnyOrder(otherSegmentWrite, ack);
+    }
+
+    @Test
     public void appendAndScanAckOps() throws Exception {
         @Cleanup MetadataStore store = newMemoryStore();
         TxnMetadataStore txn = new TxnMetadataStore(store);
