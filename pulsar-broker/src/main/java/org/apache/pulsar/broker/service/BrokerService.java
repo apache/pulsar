@@ -1334,9 +1334,20 @@ public class BrokerService implements Closeable {
     public CompletableFuture<Optional<Topic>> getTopic(final TopicName topicName, boolean createIfMissing,
                                                        @Nullable Map<String, String> properties) {
         try {
-            // If topic future exists in the cache returned directly regardless of whether it fails or timeout.
             CompletableFuture<Optional<Topic>> tp = topics.get(topicName.toString());
             if (tp != null) {
+                if (isTopicLoadTimedOut(tp)) {
+                    // The cached load timed out but the original async chain may still be running
+                    // (ManagedLedgerFactory.asyncOpen, PersistentTopic.initialize, etc.). Evicting the
+                    // map entry here and starting a retry would let a new load wrap the same ledger
+                    // while the abandoned one eventually closes it out from under the retry.
+                    // Instead, chain after the abandoned future so the retry only starts once its
+                    // cleanup path (including ledger close) has finished.
+                    return tp.handle((v, ex) -> {
+                        topics.remove(topicName.toString(), tp);
+                        return null;
+                    }).thenCompose(__ -> getTopic(topicName, createIfMissing, properties));
+                }
                 return tp;
             }
             final boolean isPersistentTopic = topicName.isPersistent();
@@ -1358,9 +1369,6 @@ public class BrokerService implements Closeable {
                     final Throwable unwrapped = throwable == null
                             ? null : FutureUtil.unwrapCompletionException(throwable);
                     final boolean timedOut = unwrapped instanceof TimeoutException;
-                    if (timedOut) {
-                        topics.remove(topicName.toString(), topicFuture);
-                    }
                     try {
                         if (throwable == null) {
                             if (optTopic.isPresent()) {
@@ -1415,6 +1423,8 @@ public class BrokerService implements Closeable {
                             getTopicPoliciesBypassSystemTopic(topicName, TopicPoliciesService.GetType.LOCAL_ONLY));
                     systemTopicLoadFuture.thenRun(() -> {
                         if (topicFuture.isDone()) {
+                            // Already completed (e.g. timed out while policies were loading) —
+                            // don't kick off the real load chain for an already-abandoned future.
                             return;
                         }
                         final var inserted = new MutableBoolean(false);
@@ -1425,10 +1435,6 @@ public class BrokerService implements Closeable {
                             inserted.setTrue();
                             return loadOrCreatePersistentTopic(context);
                         });
-                        if (isTopicLoadTimedOut(topicFuture)) {
-                            topics.remove(topicName.toString(), topicFuture);
-                            return;
-                        }
                         if (inserted.isFalse()) {
                             // This case should happen rarely when the same topic is loaded concurrently because we
                             // checked if the `topics` cache includes this topic before, so the latency is not the
