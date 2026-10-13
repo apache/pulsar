@@ -50,8 +50,10 @@ import org.testng.annotations.Test;
  * watermark record, written once anything is published on the segment, and one record per aborted
  * transaction whose data is still in the segment. Nothing reads or deletes them once the segment is
  * gone. The same goes for the {@link TxnPaths#TXN_OP_PREFIX} write records of the transactions still
- * open on the segment, which the buffer deletes as it applies their outcome. Except while the segment
- * is still active in the layout of its topic: a client can then load it again.
+ * open on the segment, which the buffer deletes as it applies their outcome, and for their ack records
+ * on the segment's subscriptions, which the pending-ack store of each subscription deletes the same way.
+ * Except while the segment is still active in the layout of its topic: a client can then load it again.
+ * Deleting just a subscription must delete its ack records too.
  */
 public class ScalableTopicSegmentDeleteTxnStateTest extends V5ClientBaseTest {
 
@@ -220,6 +222,42 @@ public class ScalableTopicSegmentDeleteTxnStateTest extends V5ClientBaseTest {
         txn.abort();
     }
 
+    @Test
+    public void testDeleteScalableTopicDeletesAckRecordsOfOpenTransaction() throws Exception {
+        String topic = newScalableTopic(1);
+        String segment = segmentTopicName(topic, singleActiveSegmentId(topic));
+        PulsarClient client = newTxnClient();
+        Transaction txn = client.newTransaction();
+        ackInTransaction(topic, client, "sub", txn);
+
+        admin.scalableTopics().deleteScalableTopic(topic, true);
+
+        assertThat(ackRecords(segment, "sub"))
+                .as("ack records on %s of a transaction still open after deleting %s", segment, topic)
+                .isEmpty();
+        txn.abort();
+    }
+
+    @Test
+    public void testDeleteSubscriptionDeletesAckRecordsOfOpenTransaction() throws Exception {
+        String topic = newScalableTopic(1);
+        String segment = segmentTopicName(topic, singleActiveSegmentId(topic));
+        PulsarClient client = newTxnClient();
+        Transaction txn = client.newTransaction();
+        ackInTransaction(topic, client, "sub", txn);
+        ackInTransaction(topic, client, "sub2", txn);
+
+        admin.scalableTopics().deleteSubscription(topic, "sub");
+
+        assertThat(ackRecords(segment, "sub"))
+                .as("ack records on %s of a transaction still open after deleting the subscription", segment)
+                .isEmpty();
+        assertThat(ackRecords(segment, "sub2"))
+                .as("ack records on %s of the same transaction on another subscription", segment)
+                .hasSize(1);
+        txn.abort();
+    }
+
     private PulsarClient newTxnClient() throws Exception {
         return track(PulsarClient.builder()
                 .serviceUrl(getBrokerServiceUrl())
@@ -262,6 +300,27 @@ public class ScalableTopicSegmentDeleteTxnStateTest extends V5ClientBaseTest {
             producer.newMessage().key("k").transaction(txn).value("open").send();
         }
         return txn;
+    }
+
+    /** Publishes a message on {@code topic}, and acknowledges a message on {@code subscription} in {@code txn}. */
+    private void ackInTransaction(String topic, PulsarClient client, String subscription, Transaction txn)
+            throws Exception {
+        String segment = segmentTopicName(topic, singleActiveSegmentId(topic));
+        try (QueueConsumer<String> consumer = client.newQueueConsumer(Schema.string())
+                     .topic(topic)
+                     .subscriptionName(subscription)
+                     .subscriptionInitialPosition(SubscriptionInitialPosition.EARLIEST)
+                     .subscribe();
+             Producer<String> producer = client.newProducer(Schema.string()).topic(topic).create()) {
+            producer.newMessage().key("k").value("acked").send();
+            Message<String> msg = consumer.receive(Duration.ofSeconds(10));
+            assertThat(msg).as("message on %s", topic).isNotNull();
+            consumer.acknowledge(msg.id(), txn);
+            // The acknowledgment is sent asynchronously: wait until the subscription has recorded it.
+            Awaitility.await().untilAsserted(() -> assertThat(ackRecords(segment, subscription))
+                    .as("ack records of %s on %s", subscription, segment)
+                    .hasSize(1));
+        }
     }
 
     /** The active segments that have persisted a watermark for what was published on them. */
@@ -327,6 +386,27 @@ public class ScalableTopicSegmentDeleteTxnStateTest extends V5ClientBaseTest {
         TxnMetadataStore txnStore = new TxnMetadataStore(getPulsar().getLocalMetadataStore());
         List<String> paths = Collections.synchronizedList(new ArrayList<>());
         txnStore.listWritesBySegment(segment, new ScanConsumer() {
+            @Override
+            public void onNext(GetResult r) {
+                paths.add(r.getStat().getPath());
+            }
+
+            @Override
+            public void onError(Throwable throwable) {
+            }
+
+            @Override
+            public void onCompleted() {
+            }
+        }).get();
+        return paths;
+    }
+
+    /** The paths of the {@link TxnPaths#TXN_OP_PREFIX} ack records of {@code subscription} on the segment. */
+    private List<String> ackRecords(String segment, String subscription) throws Exception {
+        TxnMetadataStore txnStore = new TxnMetadataStore(getPulsar().getLocalMetadataStore());
+        List<String> paths = Collections.synchronizedList(new ArrayList<>());
+        txnStore.listAcksBySegmentSubscription(segment, subscription, new ScanConsumer() {
             @Override
             public void onNext(GetResult r) {
                 paths.add(r.getStat().getPath());
