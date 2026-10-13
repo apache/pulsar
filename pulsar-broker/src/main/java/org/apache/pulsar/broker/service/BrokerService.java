@@ -1336,18 +1336,13 @@ public class BrokerService implements Closeable {
         try {
             CompletableFuture<Optional<Topic>> tp = topics.get(topicName.toString());
             if (tp != null) {
-                if (isTopicLoadTimedOut(tp)) {
-                    // The cached load timed out but the original async chain may still be running
-                    // (ManagedLedgerFactory.asyncOpen, PersistentTopic.initialize, etc.). Evicting the
-                    // map entry here and starting a retry would let a new load wrap the same ledger
-                    // while the abandoned one eventually closes it out from under the retry.
-                    // Instead, chain after the abandoned future so the retry only starts once its
-                    // cleanup path (including ledger close) has finished.
-                    return tp.handle((v, ex) -> {
-                        topics.remove(topicName.toString(), tp);
-                        return null;
-                    }).thenCompose(__ -> getTopic(topicName, createIfMissing, properties));
-                }
+                // A cached entry may be a timed-out future whose original async chain is still running
+                // (ManagedLedgerFactory.asyncOpen, PersistentTopic.initialize, etc.). We must not evict it
+                // here and start a retry, because the abandoned chain's eventual cleanup (persistentTopic.close
+                // → ledger.asyncClose) would race with the new load on the shared ledger. Instead, we return
+                // the cached future as-is. The original chain's cleanup path removes the entry from topics
+                // after persistentTopic.close completes; a subsequent retry call after that point will start
+                // a fresh load safely.
                 return tp;
             }
             final boolean isPersistentTopic = topicName.isPersistent();
@@ -1517,13 +1512,6 @@ public class BrokerService implements Closeable {
         // It will trigger the logging for exception and traced latencies in topicFuture's exceptionally callback, so
         // we don't need to add an extra log before it.
         topicFuture.completeExceptionally(rc);
-    }
-
-    private boolean isTopicLoadTimedOut(CompletableFuture<?> topicFuture) {
-        return FutureUtil.getException(topicFuture)
-                .map(FutureUtil::unwrapCompletionException)
-                .filter(TimeoutException.class::isInstance)
-                .isPresent();
     }
 
     private CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesBypassSystemTopic(@NonNull TopicName topicName,
@@ -3921,11 +3909,20 @@ public class BrokerService implements Closeable {
 
         TopicLoadingContext topicLoadingContext = contextAndPointPair.getLeft();
         LatencyTracer.TracePoint queuedPoint = contextAndPointPair.getRight();
+        // Skip entries whose future is already completed (e.g. timed out while sitting in the queue).
+        // Starting the real load chain for an abandoned attempt would race with the cleanup of
+        // the timed-out future and with any retry that may already be in flight.
+        final CompletableFuture<Optional<Topic>> pendingFuture = topicLoadingContext.getTopicFuture();
+        if (pendingFuture.isDone()) {
+            log.debug().attr("topic", topicLoadingContext.getTopicName())
+                    .log("Skipping already-completed pending topic loading context");
+            createPendingLoadTopic();
+            return;
+        }
         topicLoadingContext.finishTrace(queuedPoint, null);
         final String topic = topicLoadingContext.getTopicName().toString();
         // ServiceUnitNotReadyException is classified as bundle_unloading when the topic future completes.
         topicLoadingContext.trace(TopicLoadingTracePoints.OWNERSHIP, checkTopicNsOwnership(topic)).thenRun(() -> {
-            CompletableFuture<Optional<Topic>> pendingFuture = topicLoadingContext.getTopicFuture();
             final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
             final boolean acquiredPermit = topicLoadSemaphore.tryAcquire();
             checkOwnershipAndCreatePersistentTopic(topicLoadingContext);

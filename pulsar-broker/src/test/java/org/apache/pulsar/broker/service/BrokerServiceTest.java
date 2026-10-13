@@ -232,9 +232,60 @@ public class BrokerServiceTest extends BrokerTestBase {
     }
 
     @Test(timeOut = 15000)
-    public void testTimedOutTopicLoadCanRetryAfterPolicyLoadCompletes() throws Exception {
+    public void testTimedOutTopicLoadDoesNotTriggerSecondLoadWhileOriginalAsyncChainAlive() throws Exception {
         final long originalTimeout = conf.getTopicLoadTimeoutSeconds();
         final TopicName topicName = TopicName.get("persistent://public/default/timeout-retry-" + UUID.randomUUID());
+        final AtomicInteger topicLoadAttempts = new AtomicInteger();
+        conf.setTopicLoadTimeoutSeconds(1);
+
+        final BrokerService service = spy(pulsar.getBrokerService());
+        doAnswer(invocation -> {
+            TopicLoadingContext context = invocation.getArgument(0);
+            topicLoadAttempts.incrementAndGet();
+            // Return the same topicFuture the real implementation returns, but do NOT start the
+            // actual async chain — we want topicFuture to only complete via the 1-second timeout.
+            return context.getTopicFuture();
+        }).when(service).loadOrCreatePersistentTopic(any());
+
+        try {
+            // First call: policy lookup completes quickly, computeIfAbsent runs, topicFuture is put
+            // into the topics cache, then the 1-second timeout fires.
+            final CompletableFuture<Optional<Topic>> timedOutFuture = service.getTopic(topicName, true, null);
+
+            // computeIfAbsent must have already run — loadOrCreatePersistentTopic called exactly once
+            assertEquals(topicLoadAttempts.get(), 1,
+                    "First getTopic should have reached computeIfAbsent and placed topicFuture in topics cache");
+
+            // Wait for the 1-second timeout to fire
+            try {
+                timedOutFuture.get(5, TimeUnit.SECONDS);
+                fail("Should have timed out");
+            } catch (ExecutionException e) {
+                assertTrue(e.getCause() instanceof TimeoutException);
+            }
+
+            // Now retry getTopic. The topics cache still holds the timed-out future because the
+            // original cleanup path (persistentTopic.close → topics.remove) has not run yet.
+            // Our fix MUST return the cached future as-is — it must NOT evict and start a fresh
+            // load while the abandoned async chain could still race with a new load on the ledger.
+            final CompletableFuture<Optional<Topic>> retryFuture = service.getTopic(topicName, true, null);
+
+            // Retry must return the SAME timed-out future — not a new one from computeIfAbsent
+            assertSame(retryFuture, timedOutFuture,
+                    "Retry must not start a second load; must return the cached timed-out future");
+
+            // loadOrCreatePersistentTopic must still have been called exactly once
+            assertEquals(topicLoadAttempts.get(), 1,
+                    "Retry must not invoke loadOrCreatePersistentTopic while the timed-out future is still cached");
+        } finally {
+            conf.setTopicLoadTimeoutSeconds(originalTimeout);
+        }
+    }
+
+    @Test(timeOut = 15000)
+    public void testComputeIfAbsentGuardSkipsAlreadyDoneTopicFuture() throws Exception {
+        final long originalTimeout = conf.getTopicLoadTimeoutSeconds();
+        final TopicName topicName = TopicName.get("persistent://public/default/timeout-guard-" + UUID.randomUUID());
         final CompletableFuture<Optional<TopicPolicies>> delayedPolicyLoad = new CompletableFuture<>();
         final AtomicInteger topicLoadAttempts = new AtomicInteger();
         conf.setTopicLoadTimeoutSeconds(1);
@@ -242,10 +293,9 @@ public class BrokerServiceTest extends BrokerTestBase {
         try {
             final BrokerService service = spy(pulsar.getBrokerService());
             doAnswer(invocation -> {
-                TopicLoadingContext context = invocation.getArgument(0);
                 topicLoadAttempts.incrementAndGet();
-                context.getTopicFuture().complete(Optional.empty());
-                return context.getTopicFuture();
+                fail("loadOrCreatePersistentTopic must never be called when topicFuture is already done");
+                return null;
             }).when(service).loadOrCreatePersistentTopic(any());
 
             final CompletableFuture<Optional<Topic>> timedOutFuture = service.getTopic(topicName, true, null);
@@ -256,17 +306,11 @@ public class BrokerServiceTest extends BrokerTestBase {
                 assertTrue(e.getCause() instanceof TimeoutException);
             }
 
-            MockTopicPoliciesService.PENDING_POLICY_LOADS.remove(topicName);
-            final CompletableFuture<Optional<Topic>> retryFuture = service.getTopic(topicName, true, null);
-            assertNotSame(retryFuture, timedOutFuture);
-            assertTrue(retryFuture.get(5, TimeUnit.SECONDS).isEmpty());
-            assertEquals(topicLoadAttempts.get(), 1);
-
             delayedPolicyLoad.complete(Optional.empty());
-            assertEquals(topicLoadAttempts.get(), 1,
-                    "A timed-out request must not start topic loading when its policy lookup completes later");
-            assertSame(service.getTopic(topicName, true, null), retryFuture,
-                    "Late completion of a timed-out request must not evict the successful retry");
+            // Even after policy lookup finally resolves, the thenRun guard (topicFuture.isDone())
+            // must prevent loadOrCreatePersistentTopic from being invoked on the already-abandoned future.
+            assertEquals(topicLoadAttempts.get(), 0,
+                    "loadOrCreatePersistentTopic must not be invoked for an already-completed future");
         } finally {
             MockTopicPoliciesService.PENDING_POLICY_LOADS.remove(topicName);
             conf.setTopicLoadTimeoutSeconds(originalTimeout);
