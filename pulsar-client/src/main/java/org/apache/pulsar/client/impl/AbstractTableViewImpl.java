@@ -567,10 +567,13 @@ abstract class AbstractTableViewImpl<T, V> implements TableView<V> {
                     handleMessage(msg);
                     readTailMessages(reader);
                 }).exceptionally(ex -> {
-                    if (ex.getCause() instanceof PulsarClientException.AlreadyClosedException) {
+                    if (read.isCompletedExceptionally()
+                            && ex.getCause() instanceof PulsarClientException.AlreadyClosedException) {
                         log.info().attr("reader", reader.getTopic())
                                 .log("Reader was closed while reading tail messages.");
-                        // No more messages can be read: fail the refreshes, whatever they are waiting for.
+                        // No more messages can be read: fail the refreshes, whatever they are waiting for. Only a
+                        // failed read says so: a handling failure carrying this exception, from a compaction
+                        // strategy using some other closed resource for instance, is retried below.
                         stopTailReads(ex);
                     } else if (read.isCompletedExceptionally()
                             && ex.getCause() instanceof RejectedExecutionException) {

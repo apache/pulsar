@@ -36,6 +36,7 @@ import static org.testng.Assert.expectThrows;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -724,6 +725,34 @@ public class TableViewImplTest {
             CompletableFuture<Void> refresh = f.pendingRefresh();
 
             assertEquals(f.retries.size(), 1, "Only a read the reader rejects ends the tail reads");
+            f.runLatestRetry();
+
+            verify(f.reader, times(2)).readNextAsync();
+            assertFalse(refresh.isDone(), "The tail reads go on, so the refresh keeps waiting");
+        }
+    }
+
+    @Test(timeOut = 10_000)
+    @SuppressWarnings("unchecked")
+    public void testHandlingFailureThatIsAClosedResourceIsRetried() throws Exception {
+        TopicCompactionStrategy<String> strategy = mock(TopicCompactionStrategy.class);
+        // A strategy that joins a future of some other closed resource: that says nothing about the reader.
+        when(strategy.shouldKeepLeft(any(), any())).thenThrow(new CompletionException(
+                new PulsarClientException.AlreadyClosedException("Producer already closed")));
+        try (TailRetryFixture f = new TailRetryFixture(strategy)) {
+            Message<String> message = mock(Message.class);
+            when(message.getTopicName()).thenReturn(TAIL_RETRY_TOPIC);
+            when(message.getMessageId()).thenReturn(new MessageIdImpl(1, 0, -1));
+            when(message.hasKey()).thenReturn(true);
+            when(message.getKey()).thenReturn("key");
+            when(message.size()).thenReturn(1);
+            when(message.getValue()).thenReturn("value");
+            when(f.reader.readNextAsync()).thenReturn(CompletableFuture.completedFuture(message),
+                    new CompletableFuture<>());
+            f.tableView.start().get(5, TimeUnit.SECONDS);
+            CompletableFuture<Void> refresh = f.pendingRefresh();
+
+            assertEquals(f.retries.size(), 1, "Only a read that finds the reader closed ends the tail reads");
             f.runLatestRetry();
 
             verify(f.reader, times(2)).readNextAsync();
