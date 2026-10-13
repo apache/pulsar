@@ -49,6 +49,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.ConsumerRegistration;
@@ -357,6 +358,43 @@ public class ScalableTopicControllerTest {
                 "the controller lock must be given back");
         verify(scalableTopics, times(0)).createSegmentAsync(anyString(), any());
         racing.close().join();
+    }
+
+    /**
+     * A failed takeover is retried, backing off, while the election keeps the controller the
+     * leader. A request reaching the controller in between waits for the retry, rather than
+     * failing at once as reaching a broker that is not the leader.
+     */
+    @Test
+    public void testFailedTakeOverIsRetriedWhileRequestsWait() throws Exception {
+        // Replaced by the failing controller, like ScalableTopicService does: closed first, so that
+        // the failing one gets a leader election of its own.
+        controller.close().join();
+        AtomicInteger listings = new AtomicInteger();
+        ScalableTopicResources failingOnceResources = new ScalableTopicResources(store, 30) {
+            @Override
+            public CompletableFuture<List<String>> listSubscriptionsAsync(TopicName tn) {
+                // Restoring the consumer sessions is the last step of a takeover.
+                return listings.getAndIncrement() == 0
+                        ? CompletableFuture.failedFuture(new IllegalStateException("injected"))
+                        : super.listSubscriptionsAsync(tn);
+            }
+        };
+        ScalableTopicController retrying = new ScalableTopicController(topicName, failingOnceResources,
+                brokerService, coordinationService);
+        try {
+            retrying.initialize().get();
+            fail("expected the first takeover attempt to fail");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause().getMessage().contains("injected"), "unexpected failure: " + e.getCause());
+        }
+        CompletableFuture<Void> takeover = retrying.takeOverInProgress();
+        assertFalse(takeover.isDone(), "a request must wait for the retry");
+        assertFalse(retrying.isLeader());
+
+        takeover.get(10, TimeUnit.SECONDS);
+        assertTrue(retrying.isLeader());
+        retrying.close().join();
     }
 
     @Test

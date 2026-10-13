@@ -141,10 +141,14 @@ public class ScalableTopicController {
     private long term;
 
     /**
-     * The takeover in progress or done if the election made this controller the leader, completed
-     * otherwise. Guarded by {@code this}.
+     * One per term the election makes this controller the leader in: completed once the controller
+     * serves, or once the term ends, across failed takeover attempts. Completed outside of a term.
+     * Guarded by {@code this}.
      */
     private CompletableFuture<Void> leadership = CompletableFuture.completedFuture(null);
+
+    /** The latest takeover attempt of the current term, completed if none. Guarded by {@code this}. */
+    private CompletableFuture<Void> takeOverAttempt = CompletableFuture.completedFuture(null);
 
     /**
      * Cadence of the retries of a failed takeover, e.g. on a metadata store error. Reset on every
@@ -344,12 +348,12 @@ public class ScalableTopicController {
                     return electLeader();
                 })
                 // The election reported its outcome to onLeaderStateChange before completing:
-                // wait for the takeover that started, if it made this controller the leader.
-                .thenCompose(__ -> currentLeadership());
+                // wait for the takeover attempt that started, if it made this controller the leader.
+                .thenCompose(__ -> currentTakeOverAttempt());
     }
 
-    private synchronized CompletableFuture<Void> currentLeadership() {
-        return leadership;
+    private synchronized CompletableFuture<Void> currentTakeOverAttempt() {
+        return takeOverAttempt;
     }
 
     /**
@@ -358,8 +362,7 @@ public class ScalableTopicController {
      * than fail as reaching a broker that is not the leader.
      */
     synchronized CompletableFuture<Void> takeOverInProgress() {
-        return electionState == LeaderElectionState.Leading
-                ? leadership : CompletableFuture.completedFuture(null);
+        return leadership;
     }
 
     /** Whether no state change of the leader election, nor a close, came after {@code term}. */
@@ -388,6 +391,7 @@ public class ScalableTopicController {
             }
             electionState = LeaderElectionState.Leading;
             term = ++this.term;
+            leadership = new CompletableFuture<>();
             takeOverBackoff.reset();
         }
         startTakeOver(term);
@@ -405,7 +409,7 @@ public class ScalableTopicController {
             if (term != this.term) {
                 return;
             }
-            leadership = takeover;
+            takeOverAttempt = takeover;
             retryDelayMs = takeOverBackoff.next().toMillis();
         }
         takeover.exceptionally(ex -> {
@@ -463,13 +467,19 @@ public class ScalableTopicController {
                 });
     }
 
-    private synchronized void serveAsLeader(long term) {
-        if (closed || term != this.term) {
-            return;
+    private void serveAsLeader(long term) {
+        CompletableFuture<Void> served;
+        synchronized (this) {
+            if (closed || term != this.term) {
+                return;
+            }
+            leaderState = LeaderElectionState.Leading;
+            scheduleGcTask();
+            scheduleAutoScaleTask();
+            served = leadership;
         }
-        leaderState = LeaderElectionState.Leading;
-        scheduleGcTask();
-        scheduleAutoScaleTask();
+        // Not under the monitor: the requests that waited for the takeover go on from here.
+        served.complete(null);
     }
 
     /**
@@ -481,6 +491,7 @@ public class ScalableTopicController {
      * metadata store: nothing else would tell them to move.
      */
     private void stopServingAsLeader(LeaderElectionState state) {
+        CompletableFuture<Void> endedTerm = null;
         synchronized (this) {
             if (closed) {
                 return;
@@ -489,11 +500,16 @@ public class ScalableTopicController {
                 electionState = state;
                 term++;
                 leaderState = state;
-                leadership = CompletableFuture.completedFuture(null);
+                endedTerm = leadership;
+                takeOverAttempt = CompletableFuture.completedFuture(null);
                 cancelGcTask();
                 cancelAutoScaleTask();
                 closeSubscriptions(true);
             }
+        }
+        if (endedTerm != null) {
+            // The requests waiting for a takeover go on, and find that this controller doesn't serve.
+            endedTerm.complete(null);
         }
         if (state == LeaderElectionState.Following) {
             // Like in electLeader(): a follower holds no lock, and closing its election keeps it
@@ -1977,15 +1993,18 @@ public class ScalableTopicController {
         // holding its own): ScalableTopicService replaces a controller seen closed, and the
         // replacement gets an election of its own only once this one is closed.
         CompletableFuture<Void> electionClosed = leaderElection.asyncClose();
+        CompletableFuture<Void> endedTerm;
         synchronized (this) {
             closed = true;
             resources.deregisterPathListener(controllerLockListener);
             resources.deregisterPathListener(topicRecordListener);
             leaderState = LeaderElectionState.NoLeader;
+            endedTerm = leadership;
             cancelGcTask();
             cancelAutoScaleTask();
             closeSubscriptions(false);
         }
+        endedTerm.complete(null);
         return electionClosed;
     }
 

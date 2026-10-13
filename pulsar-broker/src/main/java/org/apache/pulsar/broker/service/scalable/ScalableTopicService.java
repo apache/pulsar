@@ -161,7 +161,8 @@ public class ScalableTopicService {
         if (takeover.isDone()) {
             return CompletableFuture.completedFuture(controller);
         }
-        // Timed out or failed, the request goes on and finds that the controller doesn't serve.
+        // Timed out, or the term ended without serving: the request goes on and finds that the
+        // controller doesn't serve.
         return FutureUtil.addTimeoutHandling(takeover.thenApply(__ -> controller), TAKEOVER_WAIT,
                         brokerService.getPulsar().getExecutor(),
                         () -> FutureUtil.createTimeoutException("The controller of " + controller.getTopicName()
