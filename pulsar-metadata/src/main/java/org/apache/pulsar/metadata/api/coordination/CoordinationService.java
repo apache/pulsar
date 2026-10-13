@@ -28,7 +28,11 @@ import org.apache.pulsar.metadata.api.MetadataSerde;
 public interface CoordinationService extends AutoCloseable {
 
     /**
-     * Create a new {@link LeaderElection} controller.
+     * Get the {@link LeaderElection} controller of a path.
+     *
+     * <p>There is one per path: a later call for the same path returns the same controller. If it was
+     * closed, it passes its state changes, once reopened with {@link LeaderElection#elect(Object)}, to the
+     * listener of the latest call. A closed controller takes no part in elections until reopened.
      *
      * @param clazz
      *            the class type to be used for serialization/deserialization

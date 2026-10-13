@@ -197,6 +197,9 @@ public class SubscriptionCoordinator {
      */
     public synchronized CompletableFuture<Map<ConsumerSession, ConsumerAssignment>> registerConsumer(
             String consumerName, long consumerId, TransportCnx cnx) {
+        if (closed) {
+            return CompletableFuture.failedFuture(notServing());
+        }
         ConsumerSession existing = sessions.get(consumerName);
         if (existing != null) {
             // Reconnect: attach the new connection, cancel any grace timer, and push the
@@ -216,6 +219,10 @@ public class SubscriptionCoordinator {
         return resources.registerConsumerAsync(topicName, subscriptionName, consumerName)
                 .thenApply(__ -> {
                     synchronized (this) {
+                        if (closed) {
+                            // The registration is persisted: the next leader restores it.
+                            throw notServing();
+                        }
                         sessions.put(consumerName, session);
                         Map<ConsumerSession, ConsumerAssignment> result = rebalanceAndNotify();
                         // First consumer (or rejoining one) — kick off drain checks at the
@@ -250,6 +257,9 @@ public class SubscriptionCoordinator {
         return resources.unregisterConsumerAsync(topicName, subscriptionName, consumerName)
                 .thenApply(__ -> {
                     synchronized (this) {
+                        if (closed) {
+                            return Map.<ConsumerSession, ConsumerAssignment>of();
+                        }
                         ConsumerSession current = sessions.get(consumerName);
                         if (current != null && current.getConsumerId() != expectedConsumerId) {
                             // A same-name consumer rejoined while the delete was in flight
@@ -288,7 +298,7 @@ public class SubscriptionCoordinator {
      */
     public synchronized void onConsumerDisconnect(String consumerName) {
         ConsumerSession session = sessions.get(consumerName);
-        if (session == null || !session.isConnected()) {
+        if (closed || session == null || !session.isConnected()) {
             return;
         }
         session.markDisconnected();
@@ -301,6 +311,9 @@ public class SubscriptionCoordinator {
      */
     public synchronized Map<ConsumerSession, ConsumerAssignment> restoreConsumers(
             Collection<String> persistedConsumerNames) {
+        if (closed) {
+            return Map.of();
+        }
         for (String name : persistedConsumerNames) {
             if (sessions.containsKey(name)) {
                 continue;
@@ -327,6 +340,9 @@ public class SubscriptionCoordinator {
      */
     public synchronized CompletableFuture<Map<ConsumerSession, ConsumerAssignment>> onLayoutChange(
             SegmentLayout newLayout) {
+        if (closed) {
+            return CompletableFuture.completedFuture(Map.of());
+        }
         this.currentLayout = newLayout;
         if (sessions.isEmpty()) {
             segmentAssignments.clear();
@@ -346,7 +362,7 @@ public class SubscriptionCoordinator {
      * defaulted to "no enforcement"). No-op if a checker is already installed.
      */
     synchronized void installDrainChecker(SegmentDrainChecker checker) {
-        if (this.drainChecker != null || checker == null) {
+        if (closed || this.drainChecker != null || checker == null) {
             return;
         }
         this.drainChecker = checker;
@@ -379,8 +395,10 @@ public class SubscriptionCoordinator {
      * Stop the periodic drain-status poller and the grace-period timers. Called by the
      * controller on close and when it stops serving as the leader. Idempotent. Also flips a
      * {@code closed} flag so any {@link #pollDrainStatus()} iteration that's mid-flight aborts
-     * its rearm step instead of leaking a task into the executor, and neither it nor a grace
-     * timer already firing acts on the sessions: they are left, persisted, to the next leader.
+     * its rearm step instead of leaking a task into the executor. Nothing that completes after
+     * it (a drain poll, a grace timer, a registration in flight) acts on the sessions or pushes
+     * an assignment, and new registrations fail: the sessions are left, persisted, to the next
+     * leader.
      */
     public synchronized void close() {
         closed = true;
@@ -602,6 +620,9 @@ public class SubscriptionCoordinator {
                 })
                 .thenRun(() -> {
                     synchronized (this) {
+                        if (closed) {
+                            return;
+                        }
                         if (!sessions.isEmpty()) {
                             rebalanceAndNotify();
                         } else {
@@ -609,6 +630,11 @@ public class SubscriptionCoordinator {
                         }
                     }
                 });
+    }
+
+    private IllegalStateException notServing() {
+        return new IllegalStateException("The controller no longer serves subscription " + subscriptionName
+                + " of topic " + topicName);
     }
 
     /**

@@ -20,6 +20,7 @@ package org.apache.pulsar.metadata;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
+import java.time.Duration;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
@@ -37,7 +38,9 @@ import org.apache.pulsar.metadata.api.coordination.LeaderElection;
 import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
+import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
@@ -412,7 +415,7 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
     }
 
     @Test(dataProvider = "impl", timeOut = 30000)
-    public void closedElectionIsNotHandedToTheNextCaller(String provider, Supplier<String> urlSupplier)
+    public void closedElectionReportsToItsNextCaller(String provider, Supplier<String> urlSupplier)
             throws Exception {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
@@ -428,14 +431,40 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
         assertEquals(first.elect("test-1").join(), LeaderElectionState.Leading);
         first.close();
 
-        // The next caller for the path gets an election of its own, which reports to its listener.
+        // The path keeps its election, which reports to the listener of the caller it is handed to.
         BlockingQueue<LeaderElectionState> secondStates = new LinkedBlockingDeque<>();
         @Cleanup
         LeaderElection<String> second = cs.getLeaderElection(String.class, path, secondStates::add);
-        assertThat(second).isNotSameAs(first);
+        assertThat(second).isSameAs(first);
         assertEquals(second.elect("test-1").join(), LeaderElectionState.Leading);
         assertEquals(secondStates.poll(3, TimeUnit.SECONDS), LeaderElectionState.Leading);
         assertThat(firstStates).containsExactly(LeaderElectionState.Leading);
+    }
+
+    @Test(dataProvider = "impl", timeOut = 30000)
+    public void closedElectionTakesNoPartInElections(String provider, Supplier<String> urlSupplier)
+            throws Exception {
+        @Cleanup
+        MetadataStoreExtended underlying = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
+        FaultInjectionMetadataStore store = new FaultInjectionMetadataStore(underlying);
+
+        String path = newKey();
+
+        @Cleanup
+        CoordinationService cs = new CoordinationServiceImpl(store);
+
+        LeaderElection<String> le = cs.getLeaderElection(String.class, path, __ -> {
+        });
+        assertEquals(le.elect("test-1").join(), LeaderElectionState.Leading);
+        le.close();
+
+        // A reconnect of the metadata session must not make the closed election take the lock again.
+        store.triggerSessionEvent(SessionEvent.Reconnected);
+        store.triggerSessionEvent(SessionEvent.SessionReestablished);
+        Awaitility.await().during(Duration.ofSeconds(1)).atMost(Duration.ofSeconds(3))
+                .untilAsserted(() -> assertThat(underlying.exists(path).join()).isFalse());
+        assertEquals(le.getState(), LeaderElectionState.NoLeader);
     }
 
     @Test(dataProvider = "impl", timeOut = 30000)

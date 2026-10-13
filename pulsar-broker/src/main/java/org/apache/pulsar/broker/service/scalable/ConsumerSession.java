@@ -168,6 +168,17 @@ public class ConsumerSession {
     }
 
     /**
+     * Make the consumer subscribe again, with whichever broker is the controller leader now: the
+     * controller holding this session stopped serving as the leader. No-op while disconnected.
+     */
+    public void resubscribe() {
+        TransportCnx localCnx = this.cnx;
+        if (localCnx != null && connected) {
+            localCnx.closeScalableConsumerSession(consumerId);
+        }
+    }
+
+    /**
      * Push an assignment to this consumer, if currently connected. The connection sends it as the
      * response to the consumer's subscribe while that is unanswered, and as a
      * {@code CommandScalableTopicAssignmentUpdate} otherwise.

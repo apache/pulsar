@@ -19,7 +19,10 @@
 package org.apache.pulsar.broker.service.scalable;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -473,6 +476,29 @@ public class SubscriptionCoordinatorTest {
             assertEquals(active.size(), 1);
             assertEquals(active.iterator().next().getConsumerName(), "consumer-2");
         });
+    }
+
+    @Test
+    public void testClosedCoordinatorNeitherRegistersNorPushes() {
+        TransportCnx cnx1 = mock(TransportCnx.class);
+        coordinator.registerConsumer("consumer-1", 1L, cnx1).join();
+        CompletableFuture<Void> persisted = new CompletableFuture<>();
+        when(resources.registerConsumerAsync(any(), anyString(), eq("consumer-2"))).thenReturn(persisted);
+        TransportCnx cnx2 = mock(TransportCnx.class);
+        CompletableFuture<Map<ConsumerSession, ConsumerAssignment>> inFlight =
+                coordinator.registerConsumer("consumer-2", 2L, cnx2);
+
+        // The controller stops serving as the leader while consumer-2 registers.
+        coordinator.close();
+        clearInvocations(cnx1);
+        persisted.complete(null);
+        coordinator.onLayoutChange(initialLayout.splitSegment(0, System.currentTimeMillis()));
+
+        assertTrue(inFlight.isCompletedExceptionally(), "the registration completing after close must fail");
+        assertTrue(coordinator.registerConsumer("consumer-3", 3L, mock(TransportCnx.class))
+                .isCompletedExceptionally(), "a registration after close must fail");
+        verify(cnx1, never()).sendScalableConsumerAssignment(anyLong(), any());
+        verify(cnx2, never()).sendScalableConsumerAssignment(anyLong(), any());
     }
 
     @Test

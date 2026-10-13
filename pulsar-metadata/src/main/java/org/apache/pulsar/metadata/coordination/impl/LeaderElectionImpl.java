@@ -50,7 +50,8 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
     private final String path;
     private final MetadataSerde<T> serde;
     private final MetadataStoreExtended store;
-    private final Consumer<LeaderElectionState> stateChangesListener;
+    // Replaced only while closed, when the election is handed to a new caller (see rebindListenerIfClosed).
+    private Consumer<LeaderElectionState> stateChangesListener;
 
     private LeaderElectionState leaderElectionState;
     private Optional<Long> version = Optional.empty();
@@ -125,6 +126,7 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
         if (internalState == InternalState.Closed) {
             // Reopened after close() (e.g. the broker's LeaderElectionService is close()d and then
             // start()ed again): reset so a fresh election cycle runs and readers wait for it.
+            internalState = InternalState.Init;
             leaderElectionState = LeaderElectionState.NoLeader;
             currentLeaderFuture = new CompletableFuture<>();
         }
@@ -137,6 +139,10 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
     }
 
     private synchronized CompletableFuture<LeaderElectionState> elect() {
+        if (internalState == InternalState.Closed) {
+            // A closed election takes no part in elections until elect(T) reopens it.
+            return FutureUtil.failedFuture(new AlreadyClosedException("The leader election was already closed"));
+        }
         // First check if there's already a leader elected
         internalState = InternalState.ElectionInProgress;
         return store.get(path).thenCompose(optLock -> {
@@ -298,6 +304,10 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
         return store.delete(path, version)
                 .thenAccept(__ -> {
                             synchronized (LeaderElectionImpl.this) {
+                                if (internalState != InternalState.Closed) {
+                                    // Reopened meanwhile: the state is the new election cycle's.
+                                    return;
+                                }
                                 leaderElectionState = LeaderElectionState.NoLeader;
                                 // The deleted leader node was ours and a closed instance no longer
                                 // observes elections; don't keep reporting ourselves as leader.
@@ -312,8 +322,18 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
         return leaderElectionState;
     }
 
-    synchronized boolean isClosed() {
+    private synchronized boolean isClosed() {
         return internalState == InternalState.Closed;
+    }
+
+    /**
+     * Make a closed election report to {@code listener} once reopened: it is handed to a new caller. No-op
+     * if the election is not closed. A closed election reports nothing until reopened.
+     */
+    synchronized void rebindListenerIfClosed(Consumer<LeaderElectionState> listener) {
+        if (internalState == InternalState.Closed) {
+            stateChangesListener = listener;
+        }
     }
 
     @Override
@@ -378,7 +398,7 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
     private void handleSessionNotification(SessionEvent event) {
         // Ensure we're only processing one session event at a time.
         sequencer.sequential(() -> FutureUtil.composeAsync(() -> {
-            if (event == SessionEvent.Reconnected || event == SessionEvent.SessionReestablished) {
+            if ((event == SessionEvent.Reconnected || event == SessionEvent.SessionReestablished) && !isClosed()) {
                 log.info().attr("path", path).attr("event", event).log("Revalidating leadership");
                 return elect().thenAccept(leaderState -> {
                     log.info().attr("path", path).attr("state", leaderState).log("Resynced leadership");
@@ -427,6 +447,9 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
 
                                     if (internalState != InternalState.Closed) {
                                         executor.schedule(() -> {
+                                            if (isClosed()) {
+                                                return;
+                                            }
                                             log.info().attr("path", path).log("Retrying Leader election");
                                             elect();
                                         }, LEADER_ELECTION_RETRY_DELAY_SECONDS, TimeUnit.SECONDS);

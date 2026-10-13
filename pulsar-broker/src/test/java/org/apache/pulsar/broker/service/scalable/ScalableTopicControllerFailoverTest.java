@@ -22,14 +22,22 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
@@ -44,6 +52,7 @@ import org.apache.pulsar.metadata.TestZKServer;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
 import org.apache.pulsar.metadata.impl.DualMetadataStore;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
@@ -180,6 +189,107 @@ public class ScalableTopicControllerFailoverTest {
 
         Awaitility.await().untilAsserted(() -> assertThat(recreated.isLeader())
                 .as("broker 1, whose election took the controller lock over").isTrue());
+    }
+
+    /**
+     * Nothing else tells the consumers connected to a leader that loses the lock to move: it makes
+     * them subscribe again, and the new leader gives them their session back and pushes them the
+     * layout changes it makes.
+     */
+    @Test
+    public void testConsumersOfADeposedLeaderSubscribeAgainWithTheNewOne() throws Exception {
+        ScalableTopicController first = broker1.newController();
+        first.initialize().get();
+        TransportCnx cnx1 = mock(TransportCnx.class);
+        first.registerConsumer("sub", "consumer-1", 1L, ScalableConsumerType.STREAM, cnx1).get();
+        ScalableTopicController second = broker2.newController();
+        second.initialize().get();
+
+        broker2.takeOverControllerLock();
+
+        Awaitility.await().untilAsserted(() -> verify(cnx1).closeScalableConsumerSession(1L));
+        Awaitility.await().until(second::isLeader);
+        TransportCnx cnx2 = mock(TransportCnx.class);
+        ConsumerAssignment assignment = second.registerConsumer("sub", "consumer-1", 2L,
+                ScalableConsumerType.STREAM, cnx2).get();
+        assertThat(assignment.assignedSegments()).as("segments assigned to consumer-1").hasSize(SEGMENTS);
+        assertThat(broker2.resources.listConsumersAsync(topic, "sub").get())
+                .as("registered consumers").containsExactly("consumer-1");
+        second.splitSegment(0).get();
+        verify(cnx2, atLeastOnce()).sendScalableConsumerAssignment(eq(2L),
+                argThat(update -> update.getLayoutEpoch() == 1));
+    }
+
+    /**
+     * A leader that loses the lock and gets it back made its connected consumers subscribe again
+     * meanwhile: they get their sessions back from it.
+     */
+    @Test
+    public void testConsumersSubscribeAgainAfterALeadershipBlip() throws Exception {
+        ScalableTopicController controller = broker1.newController();
+        controller.initialize().get();
+        TransportCnx cnx = mock(TransportCnx.class);
+        controller.registerConsumer("sub", "consumer-1", 1L, ScalableConsumerType.STREAM, cnx).get();
+        ScalableTopicController other = broker2.newController();
+        other.initialize().get();
+
+        broker2.takeOverControllerLock();
+        Awaitility.await().until(() -> !controller.isLeader());
+        broker1.takeOverControllerLock();
+        Awaitility.await().until(controller::isLeader);
+
+        verify(cnx).closeScalableConsumerSession(1L);
+        ConsumerAssignment assignment = controller.registerConsumer("sub", "consumer-1", 2L,
+                ScalableConsumerType.STREAM, mock(TransportCnx.class)).get();
+        assertThat(assignment.assignedSegments()).as("segments assigned to consumer-1").hasSize(SEGMENTS);
+        assertThat(broker1.resources.listConsumersAsync(topic, "sub").get())
+                .as("registered consumers").containsExactly("consumer-1");
+    }
+
+    /**
+     * A released controller's leader election takes no part in elections, not even when the
+     * metadata session reconnects: the controller created again on the broker takes it over.
+     */
+    @Test
+    public void testReleasedControllerTakesNoPartAfterReconnect() throws Exception {
+        ScalableTopicController released = broker1.newController();
+        released.initialize().get();
+        released.close().get();
+        BlockingQueue<SessionEvent> sessionEvents = new LinkedBlockingQueue<>();
+        broker1.store.registerSessionListener(sessionEvents::add);
+
+        zks.stop();
+        zks.start();
+
+        Awaitility.await().until(() -> sessionEvents.contains(SessionEvent.Reconnected));
+        String lockPath = broker1.resources.controllerLockPath(topic);
+        Awaitility.await().during(Duration.ofSeconds(1)).atMost(Duration.ofSeconds(5))
+                .until(() -> !broker1.store.exists(lockPath).get());
+        ScalableTopicController recreated = broker1.newController();
+        recreated.initialize().get();
+        assertThat(recreated.isLeader()).as("the controller created again on broker 1").isTrue();
+    }
+
+    /**
+     * A broker taking the lock over for a topic whose record can't be read, like the empty one
+     * that a re-election re-creates under the lock of a deleted topic, has nothing to serve: it
+     * closes the controller and so releases the lock, rather than retrying forever.
+     */
+    @Test
+    public void testTakeOverOfUnreadableTopicReleasesTheLock() throws Exception {
+        ScalableTopicController leader = broker1.newController();
+        leader.initialize().get();
+        ScalableTopicController follower = broker2.newController();
+        follower.initialize().get();
+        broker1.store.put(broker1.resources.topicPath(topic), new byte[0], Optional.empty()).get();
+
+        leader.close().get();
+
+        String lockPath = broker2.resources.controllerLockPath(topic);
+        Awaitility.await().untilAsserted(() -> {
+            assertThat(follower.isClosed()).as("broker 2's controller").isTrue();
+            assertThat(broker2.store.exists(lockPath).get()).as("controller lock").isFalse();
+        });
     }
 
     /** A broker of the test: its own metadata session, coordination service and controllers. */

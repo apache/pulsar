@@ -161,11 +161,11 @@ public class CoordinationServiceImpl implements CoordinationService {
     public <T> LeaderElection<T> getLeaderElection(Class<T> clazz, String path,
             Consumer<LeaderElectionState> stateChangesListener) {
 
-        // A closed election is replaced, not handed out again: it would keep passing its state
-        // changes to the listener of the caller that created it.
-        return (LeaderElection<T>) leaderElections.compute(path, (key, election) ->
-                election != null && !election.isClosed()
-                        ? election
-                        : new LeaderElectionImpl<T>(store, clazz, path, stateChangesListener, executor));
+        // One election per path: it stays registered on the store, which can't unregister listeners. A
+        // closed one reports, once reopened, to the caller it is handed to now, not to the one that closed it.
+        LeaderElectionImpl<?> election = leaderElections.computeIfAbsent(path,
+                key -> new LeaderElectionImpl<T>(store, clazz, path, stateChangesListener, executor));
+        election.rebindListenerIfClosed(stateChangesListener);
+        return (LeaderElection<T>) election;
     }
 }

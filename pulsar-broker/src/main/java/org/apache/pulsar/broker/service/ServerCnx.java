@@ -1307,6 +1307,20 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>The protocol has no command to close a single scalable consumer session, so this closes the
+     * connection: the client subscribes all its scalable consumer sessions again, with the controller
+     * leader it looks up, and reconnects its producers and consumers.
+     */
+    @Override
+    public void closeScalableConsumerSession(long consumerId) {
+        log.info().attr("consumerId", consumerId)
+                .log("Closing the connection of a scalable consumer to make it subscribe again");
+        ctx.close();
+    }
+
     @Override
     protected void handleCommandScalableTopicUnsubscribe(
             CommandScalableTopicUnsubscribe commandScalableTopicUnsubscribe) {

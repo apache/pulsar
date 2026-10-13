@@ -249,6 +249,19 @@ public class ScalableTopicServiceTest {
     }
 
     @Test
+    public void testClosedControllerIsReplaced() throws Exception {
+        TopicName tn = scalableTopic("t-closed");
+        service.createScalableTopic(tn, 1).get();
+        // A controller closes itself when it finds its topic deleted while taking over.
+        ScalableTopicController closed = service.getOrCreateController(tn).get();
+        closed.close().get();
+
+        ScalableTopicController controller = service.getOrCreateController(tn).get();
+        assertNotSame(controller, closed);
+        assertTrue(controller.isLeader(), "the controller replacing the closed one must lead");
+    }
+
+    @Test
     public void testReleaseControllerDrops() throws Exception {
         TopicName tn = scalableTopic("t-release");
         service.createScalableTopic(tn, 1).get();

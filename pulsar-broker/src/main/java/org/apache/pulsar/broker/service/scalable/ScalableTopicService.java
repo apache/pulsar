@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.scalable;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -60,6 +61,9 @@ public class ScalableTopicService {
      */
     public static final GetStatsOptions SEGMENT_STATS_OPTIONS =
             new GetStatsOptions(false, true, false, false, false);
+
+    /** How long a request waits for a controller taking over as the leader, before going on. */
+    private static final Duration TAKEOVER_WAIT = Duration.ofSeconds(10);
 
     private final BrokerService brokerService;
     private final ScalableTopicResources resources;
@@ -106,39 +110,68 @@ public class ScalableTopicService {
 
     /**
      * Get or create a controller for a scalable topic. The controller will attempt
-     * leader election; only the leader actively coordinates consumers.
+     * leader election; only the leader actively coordinates consumers. A controller that
+     * closed itself, having found its topic deleted while taking over, is replaced. A takeover
+     * in progress is waited for, bounded, so that a request arriving meanwhile doesn't fail.
      */
     public CompletableFuture<ScalableTopicController> getOrCreateController(TopicName topic) {
         String key = topic.toString();
-        CompletableFuture<ScalableTopicController> stored = controllers.computeIfAbsent(key, k -> {
-            ScalableTopicController controller = new ScalableTopicController(
-                    topic, resources, brokerService, coordinationService);
-            return controller.initialize()
-                    .whenComplete((__, ex) -> {
-                        if (ex != null) {
-                            // Close its leader election, which holds the lock if it was elected, and
-                            // would otherwise be handed to the next controller of the topic with this
-                            // controller's listener.
-                            controller.close();
-                        }
-                    })
-                    .thenApply(__ -> controller);
-        });
+        CompletableFuture<ScalableTopicController> stored = controllers.compute(key,
+                (k, existing) -> existing == null || isClosed(existing) ? newController(topic) : existing);
         // Evict failed futures so subsequent callers can retry. This runs *outside*
-        // computeIfAbsent, so modifying the map here is safe.
+        // compute, so modifying the map here is safe.
         return stored.exceptionally(ex -> {
             controllers.remove(key, stored);
             throw new RuntimeException("Failed to initialize controller for " + topic, ex);
-        });
+        }).thenCompose(this::awaitTakeOver);
+    }
+
+    private CompletableFuture<ScalableTopicController> newController(TopicName topic) {
+        ScalableTopicController controller = new ScalableTopicController(
+                topic, resources, brokerService, coordinationService);
+        return controller.initialize()
+                .whenComplete((__, ex) -> {
+                    if (ex != null) {
+                        // Release its leader election, and the lock if it was elected: the next
+                        // controller of the topic takes the election over once it is closed.
+                        controller.close().exceptionally(closeEx -> {
+                            log.warn().attr("topic", topic).exceptionMessage(closeEx)
+                                    .log("Failed to close a controller that failed to initialize");
+                            return null;
+                        });
+                    }
+                })
+                .thenApply(__ -> controller);
+    }
+
+    private static boolean isClosed(CompletableFuture<ScalableTopicController> controller) {
+        return controller.isDone() && !controller.isCompletedExceptionally() && controller.join().isClosed();
+    }
+
+    private CompletableFuture<ScalableTopicController> awaitTakeOver(ScalableTopicController controller) {
+        CompletableFuture<Void> takeover = controller.takeOverInProgress();
+        if (takeover.isDone()) {
+            return CompletableFuture.completedFuture(controller);
+        }
+        // Timed out or failed, the request goes on and finds that the controller doesn't serve.
+        return FutureUtil.addTimeoutHandling(takeover.thenApply(__ -> controller), TAKEOVER_WAIT,
+                        brokerService.getPulsar().getExecutor(),
+                        () -> FutureUtil.createTimeoutException("The controller of " + controller.getTopicName()
+                                + " did not take over in time", ScalableTopicService.class, "awaitTakeOver"))
+                .handle((__, ___) -> controller);
     }
 
     /**
-     * Release the controller for a topic (e.g., on topic unload).
+     * Release the controller for a topic (e.g., on topic unload). It is closed before it is
+     * removed, so that a controller created for the topic afterwards finds its leader election
+     * closed and takes it over.
      */
     public CompletableFuture<Void> releaseController(TopicName topic) {
-        CompletableFuture<ScalableTopicController> future = controllers.remove(topic.toString());
+        String key = topic.toString();
+        CompletableFuture<ScalableTopicController> future = controllers.get(key);
         if (future != null) {
-            return future.thenCompose(ScalableTopicController::close);
+            return future.thenCompose(ScalableTopicController::close)
+                    .whenComplete((__, ___) -> controllers.remove(key, future));
         }
         return CompletableFuture.completedFuture(null);
     }
