@@ -1526,38 +1526,46 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 ByteBuf compressedAssembledPayload;
                 MessageIdImpl[] chunkedMessageIds = null;
                 // Acks decided under the lock are issued only after it is released, see acknowledgeChunkedMessageIds.
+                // They are issued in a finally: once a path has queued them it has already removed the ctx they belong
+                // to, so if chunk processing then throws (a malformed chunk overflowing the buffer, say) nothing else
+                // could ever ack those ids.
                 List<MessageIdImpl> deferredAcks = new ArrayList<>();
-                // Critical section: append the final chunk, then atomically remove + recycle the ctx, capturing the
-                // assembled (still-compressed) buffer and the chunk ids into locals. Keeping assembly and finalize in
-                // one locked region closes the assemble->finalize race with the expiry/eviction path. Once the ctx is
-                // out of chunkedMessagesMap and recycled, the captured buffer is reachable only through this thread, so
-                // decompression and message building are done below, OUTSIDE the lock, to avoid serializing other
-                // completions and expiry behind codec work (and discardCorruptedMessage on failure).
-                synchronized (chunkedMessageLock) {
-                    compressedAssembledPayload =
-                            doProcessMessageChunk(uncompressedPayload, msgMetadata, msgId, messageId, cnx,
-                                    deferredAcks);
-                    if (compressedAssembledPayload != null) {
-                        // last chunk received: so, stitch chunked-messages and clear up chunkedMsgBuffer
-                        log.debug().attr("chunkid", msgMetadata.getChunkId())
-                                .attr("totalChunks", msgMetadata.getNumChunksFromMsg())
-                                .attr("msgid", msgId)
-                                .attr("sequenceid", msgMetadata.getSequenceId())
-                                .log("Chunked message completed chunkId, total-chunks, msgId sequenceId");
+                try {
+                    // Critical section: append the final chunk, then atomically remove + recycle the ctx, capturing
+                    // the assembled (still-compressed) buffer and the chunk ids into locals. Keeping assembly and
+                    // finalize in one locked region closes the assemble->finalize race with the expiry/eviction path.
+                    // Once the ctx is out of chunkedMessagesMap and recycled, the captured buffer is reachable only
+                    // through this thread, so decompression and message building are done below, OUTSIDE the lock, to
+                    // avoid serializing other completions and expiry behind codec work (and discardCorruptedMessage
+                    // on failure).
+                    synchronized (chunkedMessageLock) {
+                        compressedAssembledPayload =
+                                doProcessMessageChunk(uncompressedPayload, msgMetadata, msgId, messageId, cnx,
+                                        deferredAcks);
+                        if (compressedAssembledPayload != null) {
+                            // last chunk received: so, stitch chunked-messages and clear up chunkedMsgBuffer
+                            log.debug().attr("chunkid", msgMetadata.getChunkId())
+                                    .attr("totalChunks", msgMetadata.getNumChunksFromMsg())
+                                    .attr("msgid", msgId)
+                                    .attr("sequenceid", msgMetadata.getSequenceId())
+                                    .log("Chunked message completed chunkId, total-chunks, msgId sequenceId");
 
-                        // remove the ctx from the map and recycle it, capturing the chunk ids before recycle lets it
-                        // be reused. The returned buffer is this ctx's chunkedMsgBuffer; recycle only nulls the field,
-                        // the buffer object stays alive and is now owned solely by compressedAssembledPayload.
-                        ChunkedMessageCtx chunkedMsgCtx = chunkedMessagesMap.remove(msgMetadata.getUuid());
-                        chunkedMessageIds = chunkedMsgCtx.chunkedMessageIds;
-                        // Drop the completed uuid from the queue too, mirroring the map removal, so it doesn't linger
-                        // as a ghost entry.
-                        pendingChunkedMessageUuidQueue.remove(msgMetadata.getUuid());
-                        pendingChunkedMessageCount--;
-                        chunkedMsgCtx.recycle();
+                            // remove the ctx from the map and recycle it, capturing the chunk ids before recycle lets
+                            // it be reused. The returned buffer is this ctx's chunkedMsgBuffer; recycle only nulls the
+                            // field, the buffer object stays alive and is now owned solely by
+                            // compressedAssembledPayload.
+                            ChunkedMessageCtx chunkedMsgCtx = chunkedMessagesMap.remove(msgMetadata.getUuid());
+                            chunkedMessageIds = chunkedMsgCtx.chunkedMessageIds;
+                            // Drop the completed uuid from the queue too, mirroring the map removal, so it doesn't
+                            // linger as a ghost entry.
+                            pendingChunkedMessageUuidQueue.remove(msgMetadata.getUuid());
+                            pendingChunkedMessageCount--;
+                            chunkedMsgCtx.recycle();
+                        }
                     }
+                } finally {
+                    acknowledgeChunkedMessageIds(deferredAcks);
                 }
-                acknowledgeChunkedMessageIds(deferredAcks);
                 if (compressedAssembledPayload == null) {
                     return;
                 }
@@ -1644,13 +1652,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     ByteBuf processMessageChunk(ByteBuf compressedPayload, MessageMetadata msgMetadata, MessageIdImpl msgId,
             MessageIdData messageId, ClientCnx cnx) {
         List<MessageIdImpl> deferredAcks = new ArrayList<>();
-        ByteBuf assembledPayload;
-        synchronized (chunkedMessageLock) {
-            assembledPayload = doProcessMessageChunk(compressedPayload, msgMetadata, msgId, messageId, cnx,
-                    deferredAcks);
+        try {
+            synchronized (chunkedMessageLock) {
+                return doProcessMessageChunk(compressedPayload, msgMetadata, msgId, messageId, cnx, deferredAcks);
+            }
+        } finally {
+            // Also on an exception: see the finally in messageReceived.
+            acknowledgeChunkedMessageIds(deferredAcks);
         }
-        acknowledgeChunkedMessageIds(deferredAcks);
-        return assembledPayload;
     }
 
     /**
@@ -1658,6 +1667,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
      * not purely asynchronous: the persistent acknowledgments grouping tracker invokes the consumer's acknowledgment
      * interceptors inline, and application code must never run under the lock. Otherwise a slow interceptor on the
      * expiry thread stalls chunk reception on the IO thread, and one that waits for that IO thread deadlocks it.
+     * Callers invoke this from a {@code finally}: the ids were queued by a path that already removed their ctx, so if
+     * processing throws afterwards they would otherwise be lost as a permanent ack hole.
      */
     private void acknowledgeChunkedMessageIds(List<MessageIdImpl> messageIds) {
         for (MessageIdImpl messageId : messageIds) {
@@ -3295,10 +3306,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
         // Acks decided under the lock are issued only after it is released, see acknowledgeChunkedMessageIds.
         List<MessageIdImpl> deferredAcks = new ArrayList<>();
-        synchronized (chunkedMessageLock) {
-            doRemoveExpireIncompleteChunkedMessages(deferredAcks);
+        try {
+            synchronized (chunkedMessageLock) {
+                doRemoveExpireIncompleteChunkedMessages(deferredAcks);
+            }
+        } finally {
+            // Also on an exception: see the finally in messageReceived.
+            acknowledgeChunkedMessageIds(deferredAcks);
         }
-        acknowledgeChunkedMessageIds(deferredAcks);
     }
 
     /**

@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.atLeast;
@@ -226,13 +227,21 @@ public class ConsumerImplTest {
      * chunk id under a different message id.
      */
     private void sendChunk(String uuid, int chunkId, int numChunks, long entryId) {
+        sendChunk(uuid, chunkId, numChunks, entryId, new byte[] {1, 2, 3, 4});
+    }
+
+    /** Every chunk advertises a total message size of 64 bytes, so a larger payload is a malformed chunk. */
+    private static final int CHUNK_TOTAL_MSG_SIZE = 64;
+
+    private void sendChunk(String uuid, int chunkId, int numChunks, long entryId, byte[] payload) {
         MessageMetadata md = new MessageMetadata()
                 .setProducerName("p").setSequenceId(0).setPublishTime(System.currentTimeMillis())
-                .setUuid(uuid).setChunkId(chunkId).setNumChunksFromMsg(numChunks).setTotalChunkMsgSize(64);
+                .setUuid(uuid).setChunkId(chunkId).setNumChunksFromMsg(numChunks)
+                .setTotalChunkMsgSize(CHUNK_TOTAL_MSG_SIZE);
         md.setCompression(CompressionType.NONE);
         MessageIdData idData = new MessageIdData().setLedgerId(1L).setEntryId(entryId);
         MessageIdImpl msgId = new MessageIdImpl(1L, entryId, -1);
-        ByteBuf chunk = Unpooled.wrappedBuffer(new byte[] {1, 2, 3, 4});
+        ByteBuf chunk = Unpooled.wrappedBuffer(payload);
         consumer.processMessageChunk(chunk, md, msgId, idData, null);
     }
 
@@ -1013,6 +1022,33 @@ public class ConsumerImplTest {
             assertThat(consumer.chunkedMessagesMap).containsOnlyKeys("uuid-new");
             assertThat(consumer.pendingChunkedMessageCount).isEqualTo(1);
             assertThat(consumer.pendingChunkedMessageUuidQueue.size()).isEqualTo(1);
+        } finally {
+            releasePendingChunkedMessages();
+        }
+    }
+
+    /**
+     * Acks queued under {@code chunkedMessageLock} belong to a context that has already been removed, so they must be
+     * issued even when chunk processing then throws: here a replacement first chunk queues the old context's ids and
+     * is itself malformed (its payload overflows the advertised total size), so appending it fails with
+     * {@link IndexOutOfBoundsException}. The old ids must still be acked, or they are lost as a permanent ack hole.
+     */
+    @Test(timeOut = 30000)
+    public void testAcksQueuedUnderLockAreIssuedWhenChunkProcessingThrows() throws Exception {
+        RecordingAckInterceptor interceptor = new RecordingAckInterceptor();
+        createConsumer(consumerConf, PERSISTENT_TOPIC, interceptor);
+        consumer.expireTimeOfIncompleteChunkedMessageMillis = 0L;
+
+        try {
+            sendChunk("uuid-throw", 0, 3, 10L);
+            sendChunk("uuid-throw", 1, 3, 11L);
+            // replacement chunk 0 under a new message id, larger than the buffer it allocates for itself
+            byte[] oversized = new byte[CHUNK_TOTAL_MSG_SIZE + 1];
+            assertThatThrownBy(() -> sendChunk("uuid-throw", 0, 3, 20L, oversized))
+                    .isInstanceOf(IndexOutOfBoundsException.class);
+
+            assertThat(interceptor.acked).as("ids of the replaced context are acked despite the failure")
+                    .containsExactly(new MessageIdImpl(1L, 10L, -1), new MessageIdImpl(1L, 11L, -1));
         } finally {
             releasePendingChunkedMessages();
         }
