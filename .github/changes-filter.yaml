@@ -5,6 +5,8 @@ all:
 docs:
   - '*.md'
   - '**/*.md'
+  - '*.adoc'
+  - '**/*.adoc'
   - '.asf.yaml'
   - '.github/changes-filter.yaml'
   - '.github/ISSUE_TEMPLATE/**'
