@@ -81,4 +81,18 @@ public class OffloadSettingsTest {
                 .containsEntry("s3ManagedLedgerOffloadBucket", "other")
                 .containsEntry("PULSAR_MEM", "-Xmx1g");
     }
+
+    @Test
+    public void requiresTheTopicsInTheOffloadedNamespace() throws Exception {
+        OffloadSettings settings = OffloadSettings.read(mapper.readTree("namespace: tenant/ns"));
+        settings.checkTopics("persistent://tenant/ns/iot-");
+        assertThatThrownBy(() -> settings.checkTopics("persistent://public/default/iot-"))
+                .hasMessageContaining("topics.prefix starting with persistent://tenant/ns/");
+        // a namespace whose name starts with the offloaded one's
+        assertThatThrownBy(() -> settings.checkTopics("persistent://tenant/ns2/iot-"))
+                .hasMessageContaining("not persistent://tenant/ns2/iot-");
+        assertThatThrownBy(() -> settings.checkTopics("non-persistent://tenant/ns/iot-"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> settings.checkTopics(null)).isInstanceOf(IllegalArgumentException.class);
+    }
 }

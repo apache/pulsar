@@ -52,7 +52,27 @@ import org.apache.pulsar.tests.performance.tools.MeasurementStartMarker;
  * {@link RunReport#OFFLOAD_STATUS_FILE}.
  */
 final class JoinPreparation implements AutoCloseable {
-    private final PulsarAdmin admin;
+    /** The admin operations of the join preparation, which a test fakes. */
+    interface TopicOperations extends AutoCloseable {
+        long backlog(String topic, String subscription) throws Exception;
+
+        void skip(String topic, String subscription, long messages) throws Exception;
+
+        void reset(String topic, String subscription, long publishTime) throws Exception;
+
+        void unload(String topic) throws Exception;
+
+        OffloadStatus offloadStatus(String topic) throws Exception;
+
+        @Override
+        void close();
+    }
+
+    /** A topic's ledgers, how many of them have been offloaded and their bytes, and its entries. */
+    record OffloadStatus(int ledgers, int offloadedLedgers, long offloadedBytes, long entries) {
+    }
+
+    private final TopicOperations topicOperations;
     private final IotScenario scenario;
     private final Path runOutput;
     // Written when the gateways have finished
@@ -60,11 +80,13 @@ final class JoinPreparation implements AutoCloseable {
     private final Consumer<String> status;
     // Completed exceptionally when preparing the join fails, which fails the run at once
     private final CompletableFuture<Void> failure = new CompletableFuture<>();
+    // Set by close(), whose interrupt ends a preparation in progress without it having failed
+    private volatile boolean closing;
     private Thread thread;
 
-    private JoinPreparation(PulsarAdmin admin, IotScenario scenario, Path runOutput, Consumer<String> status) {
+    JoinPreparation(TopicOperations topicOperations, IotScenario scenario, Path runOutput, Consumer<String> status) {
         this.gatewaysSummary = runOutput.resolve("gateways").resolve("gateways-summary.json");
-        this.admin = admin;
+        this.topicOperations = topicOperations;
         this.scenario = scenario;
         this.runOutput = runOutput;
         this.status = status;
@@ -80,10 +102,11 @@ final class JoinPreparation implements AutoCloseable {
             Files.writeString(runOutput.resolve(RunReport.OFFLOAD_STATUS_FILE),
                     RunReport.OFFLOAD_STATUS_HEADER + "\n");
         }
-        JoinPreparation preparation = new JoinPreparation(PulsarAdmin.builder().serviceHttpUrl(adminUrl)
+        JoinPreparation preparation = new JoinPreparation(adminTopicOperations(PulsarAdmin.builder()
+                .serviceHttpUrl(adminUrl)
                 .connectionTimeout(10, TimeUnit.SECONDS)
                 .readTimeout(2, TimeUnit.MINUTES)
-                .build(), scenario, runOutput, status);
+                .build()), scenario, runOutput, status);
         // At the earliest late join: preparing it, and with offloading the offload status then
         if (scenario.preparesJoin() || offloads && scenario.hasLateApplications()) {
             long deadlineNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos(scenario.timeoutSeconds());
@@ -95,7 +118,11 @@ final class JoinPreparation implements AutoCloseable {
         return preparation;
     }
 
-    private void prepare(Path coordinationDirectory, String runId, boolean offloads, long deadlineNanos) {
+    /**
+     * Waits for the earliest late join, prepares it, and marks it prepared; with {@code offloads}, records the offload
+     * status just before, as the applications will read the topics.
+     */
+    void prepare(Path coordinationDirectory, String runId, boolean offloads, long deadlineNanos) {
         try {
             long measurementStart = MeasurementStartMarker.await(coordinationDirectory, runId, deadlineNanos);
             long waitMillis = measurementStart + TimeUnit.SECONDS.toMillis(scenario.earliestLateJoinSeconds())
@@ -104,10 +131,10 @@ final class JoinPreparation implements AutoCloseable {
                 Thread.sleep(waitMillis);
             }
             long started = System.nanoTime();
-            if (offloads) {
-                recordOffloadStatus("join");
-            }
             if (!scenario.preparesJoin()) {
+                if (offloads) {
+                    recordOffloadStatusOrWarn("join");
+                }
                 return;
             }
             Files.writeString(runOutput.resolve(RunReport.JOIN_PREPARATION_FILE),
@@ -119,15 +146,14 @@ final class JoinPreparation implements AutoCloseable {
                         String subscription = scenario.subscriptionName(application);
                         // The broker skips no more than the backlog, and the application expects every message but
                         // the skipped ones, so the backlog has to have them; it only grows, without consumers
-                        SubscriptionStats stats = admin.topics().getStats(topic).getSubscriptions().get(subscription);
-                        long backlog = stats != null ? stats.getMsgBacklog() : 0;
+                        long backlog = topicOperations.backlog(topic, subscription);
                         if (backlog < skipped) {
                             throw new IllegalStateException(String.format(Locale.ROOT, "%s of %s has a backlog of"
                                     + " %,d message(s), fewer than the %,d to skip: join later, or skip fewer",
                                     subscription, topic, backlog, skipped));
                         }
                         long start = System.currentTimeMillis();
-                        admin.topics().skipMessages(topic, subscription, skipped);
+                        topicOperations.skip(topic, subscription, skipped);
                         record(start, "skip", subscription, topic, skipped);
                     }
                 }
@@ -145,10 +171,9 @@ final class JoinPreparation implements AutoCloseable {
                     long backlog = 0;
                     for (String topic : scenario.topicNames()) {
                         long start = System.currentTimeMillis();
-                        admin.topics().resetCursor(topic, subscription, measurementStart + resetTo);
+                        topicOperations.reset(topic, subscription, measurementStart + resetTo);
                         record(start, "reset", subscription, topic, resetTo);
-                        SubscriptionStats stats = admin.topics().getStats(topic).getSubscriptions().get(subscription);
-                        backlog += stats != null ? stats.getMsgBacklog() : 0;
+                        backlog += topicOperations.backlog(topic, subscription);
                     }
                     expectedMessages.put(application, backlog);
                 }
@@ -156,9 +181,12 @@ final class JoinPreparation implements AutoCloseable {
             if (scenario.applications().unloadBeforeJoin()) {
                 for (String topic : scenario.topicNames()) {
                     long start = System.currentTimeMillis();
-                    admin.topics().unload(topic);
+                    topicOperations.unload(topic);
                     record(start, "unload", "", topic, 0);
                 }
+            }
+            if (offloads) {
+                recordOffloadStatusOrWarn("join");
             }
             JoinPreparedMarker.mark(coordinationDirectory, runId, expectedMessages);
             status.accept(String.format(Locale.ROOT, "Prepared the late applications' join in %.1f s:%s%s",
@@ -176,6 +204,11 @@ final class JoinPreparation implements AutoCloseable {
             // the applications' timeout fails the run
             status.accept("The late applications' join wasn't prepared: " + e.getMessage());
         } catch (Throwable e) {
+            if (closing || Thread.currentThread().isInterrupted()) {
+                // The run is shutting down, such as after another failure, which interrupted an admin request
+                log().debug().exception(e).log("Preparing the late applications' join ended by the shutdown");
+                return;
+            }
             failure.completeExceptionally(e);
             status.accept("Preparing the late applications' join failed: " + e);
             log().warn().exception(e).log("Preparing the late applications' join failed");
@@ -213,31 +246,41 @@ final class JoinPreparation implements AutoCloseable {
     }
 
     /**
+     * Records the offload status, which is diagnostic: a failure to read it is a warning, not the run's failure.
+     */
+    void recordOffloadStatusOrWarn(String phase) {
+        try {
+            recordOffloadStatus(phase);
+        } catch (Exception e) {
+            if (closing || Thread.currentThread().isInterrupted()) {
+                // The run is shutting down, which interrupted or closed the admin request
+                log().debug().attr("phase", phase).exception(e).log("Recording the offload status ended by the"
+                        + " shutdown");
+                return;
+            }
+            status.accept("Warning: couldn't record the offload status (" + phase + "): " + e.getMessage());
+            log().warn().attr("phase", phase).exception(e).log("Recording the offload status failed");
+        }
+    }
+
+    /**
      * Appends each topic's ledgers and how many of them the brokers have offloaded to
      * {@link RunReport#OFFLOAD_STATUS_FILE}, and shows their sums.
      */
-    void recordOffloadStatus(String phase) throws PulsarAdminException, IOException {
+    void recordOffloadStatus(String phase) throws Exception {
         StringBuilder lines = new StringBuilder();
         int ledgers = 0;
         int offloaded = 0;
         long offloadedBytes = 0;
         long now = System.currentTimeMillis();
         for (String topic : scenario.topicNames()) {
-            PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
-            int topicOffloaded = 0;
-            long topicOffloadedBytes = 0;
-            for (LedgerInfo ledger : stats.ledgers) {
-                if (ledger.offloaded) {
-                    topicOffloaded++;
-                    topicOffloadedBytes += ledger.size;
-                }
-            }
+            OffloadStatus topicStatus = topicOperations.offloadStatus(topic);
             lines.append(now).append(',').append(phase).append(',').append(topic).append(',')
-                    .append(stats.ledgers.size()).append(',').append(topicOffloaded).append(',')
-                    .append(topicOffloadedBytes).append(',').append(stats.numberOfEntries).append('\n');
-            ledgers += stats.ledgers.size();
-            offloaded += topicOffloaded;
-            offloadedBytes += topicOffloadedBytes;
+                    .append(topicStatus.ledgers()).append(',').append(topicStatus.offloadedLedgers()).append(',')
+                    .append(topicStatus.offloadedBytes()).append(',').append(topicStatus.entries()).append('\n');
+            ledgers += topicStatus.ledgers();
+            offloaded += topicStatus.offloadedLedgers();
+            offloadedBytes += topicStatus.offloadedBytes();
         }
         Files.writeString(runOutput.resolve(RunReport.OFFLOAD_STATUS_FILE), lines, StandardCharsets.UTF_8,
                 StandardOpenOption.APPEND);
@@ -248,14 +291,59 @@ final class JoinPreparation implements AutoCloseable {
 
     @Override
     public void close() throws InterruptedException {
+        closing = true;
         try {
             if (thread != null) {
                 thread.interrupt();
                 thread.join(TimeUnit.SECONDS.toMillis(10));
             }
         } finally {
-            admin.close();
+            topicOperations.close();
         }
+    }
+
+    private static TopicOperations adminTopicOperations(PulsarAdmin admin) {
+        return new TopicOperations() {
+            @Override
+            public long backlog(String topic, String subscription) throws PulsarAdminException {
+                SubscriptionStats stats = admin.topics().getStats(topic).getSubscriptions().get(subscription);
+                return stats != null ? stats.getMsgBacklog() : 0;
+            }
+
+            @Override
+            public void skip(String topic, String subscription, long messages) throws PulsarAdminException {
+                admin.topics().skipMessages(topic, subscription, messages);
+            }
+
+            @Override
+            public void reset(String topic, String subscription, long publishTime) throws PulsarAdminException {
+                admin.topics().resetCursor(topic, subscription, publishTime);
+            }
+
+            @Override
+            public void unload(String topic) throws PulsarAdminException {
+                admin.topics().unload(topic);
+            }
+
+            @Override
+            public OffloadStatus offloadStatus(String topic) throws PulsarAdminException {
+                PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
+                int offloaded = 0;
+                long offloadedBytes = 0;
+                for (LedgerInfo ledger : stats.ledgers) {
+                    if (ledger.offloaded) {
+                        offloaded++;
+                        offloadedBytes += ledger.size;
+                    }
+                }
+                return new OffloadStatus(stats.ledgers.size(), offloaded, offloadedBytes, stats.numberOfEntries);
+            }
+
+            @Override
+            public void close() {
+                admin.close();
+            }
+        };
     }
 
     private static Logger log() {

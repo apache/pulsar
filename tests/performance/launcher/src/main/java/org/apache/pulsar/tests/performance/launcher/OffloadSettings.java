@@ -55,8 +55,10 @@ import org.testcontainers.images.builder.Transferable;
  *                       every ledger once it rolls over
  * @param thresholdSeconds the namespace's offload threshold in seconds, or null to leave it unset, which older
  *                         brokers don't have
- * @param deletionLagMillis how long a ledger stays in BookKeeper after it has been offloaded, 0 deleting it at once,
- *                          so that reading it again reads the tiered storage
+ * @param deletionLagMillis how long a ledger stays in BookKeeper after it has been offloaded, 0 deleting it at once.
+ *                          With the brokers' default managedLedgerDataReadPriority, tiered-storage-first, reads go to
+ *                          the tiered storage as soon as a ledger has been offloaded, whatever the lag; the lag decides
+ *                          where they go only with bookkeeper-first
  * @param logRequests the storage logs every request, with the range of each read, into its log, which the launcher
  *                    saves into the run directory as {@link RunReport#OFFLOAD_STORAGE_LOG_FILE}
  */
@@ -106,6 +108,19 @@ record OffloadSettings(String image, String namespace, long thresholdBytes, Long
         }
         return new OffloadSettings(image, namespace, thresholdBytes, thresholdSeconds, deletionLagMillis,
                 logRequests.asBoolean(false));
+    }
+
+    /**
+     * Checks that the workload's topics are in the namespace whose offload policies the launcher sets: otherwise
+     * nothing would be offloaded, and the run would measure reads from BookKeeper.
+     */
+    void checkTopics(String topicPrefix) {
+        String namespacePrefix = "persistent://" + namespace + "/";
+        if (topicPrefix == null || !topicPrefix.startsWith(namespacePrefix)) {
+            throw new IllegalArgumentException("offload sets the offload policies of " + namespace + ", so the"
+                    + " workload's topics must be persistent topics in it, with topics.prefix starting with "
+                    + namespacePrefix + ", not " + topicPrefix);
+        }
     }
 
     private static String text(JsonNode section, String key, String defaultValue) {

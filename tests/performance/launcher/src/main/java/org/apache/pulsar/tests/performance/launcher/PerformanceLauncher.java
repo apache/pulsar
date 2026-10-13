@@ -22,9 +22,12 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.github.dockerjava.api.async.ResultCallback;
+import com.github.dockerjava.api.model.Frame;
 import com.github.dockerjava.api.model.Info;
 import io.github.merlimat.slog.Logger;
 import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -33,6 +36,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -60,6 +64,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -104,6 +109,9 @@ public class PerformanceLauncher implements Callable<Integer> {
     private static final String COORDINATION_MOUNT = "/performance-coordination";
     // The producer's measurement control endpoints, inside its container
     private static final int CONTROL_PORT = 8089;
+    // The proxy only forwards the launcher's admin requests, which needs little memory
+    static final Map<String, String> PROXY_ENV =
+            Map.of("PULSAR_MEM", "-Xms96m -Xmx256m -XX:MaxDirectMemorySize=128m");
     private static final String OUTPUT_MOUNT = "/performance-output";
     // Where the one-off container that merges the JFR configurations sees the .jfc files and its output directory
     private static final String JFC_MOUNT = "/jfr";
@@ -283,6 +291,9 @@ public class PerformanceLauncher implements Callable<Integer> {
         String clusterName = "iot-" + ProcessHandle.current().pid();
         workload.put("serviceUrl", clusterSettings.serviceUrl(clusterName));
         checkWorkload(loader.mapper(), workload);
+        if (offloadSettings != null) {
+            offloadSettings.checkTopics(workload.path("topics").path("prefix").textValue());
+        }
         String remoteClusterName = ClusterSettings.remoteClusterName(clusterName);
         ObjectNode remoteWorkload = null;
         if (remote != null) {
@@ -306,6 +317,9 @@ public class PerformanceLauncher implements Callable<Integer> {
         }
         if (clusterPulsarImage != null) {
             runInfo = runInfo.withCluster(new RunInfo.Cluster(clusterPulsarImage, ""));
+        }
+        if (offloadSettings != null && clusterImage != null) {
+            requireOffloader(clusterImage, clusterPulsarImage);
         }
         Path reportsRoot = reportsDirectory != null ? reportsDirectory
                 : runInfo.projectDirectory().resolve(RunDirectory.DEFAULT_REPORTS_ROOT);
@@ -410,7 +424,11 @@ public class PerformanceLauncher implements Callable<Integer> {
                 .clusterName(clusterName)
                 .numBrokers(clusterSettings.brokers().replicas())
                 .numBookies(clusterSettings.bookies().replicas())
-                .numProxies(0)
+                // The launcher's admin requests go through the proxy, which forwards each to the broker that owns
+                // the topic: a broker redirects them to the owner's name in the cluster's network, which the
+                // launcher's host can't resolve
+                .numProxies(1)
+                .proxyEnvs(PROXY_ENV)
                 .profileBroker(profilingSettings.broker().profiled())
                 .profileDirectory(brokerProfileDirectory.toString())
                 .jonoffcpuAgentJar(agentJar != null ? agentJar.toString() : null)
@@ -425,7 +443,11 @@ public class PerformanceLauncher implements Callable<Integer> {
                 .clusterName(remoteClusterName)
                 .numBrokers(remote.brokers().replicas())
                 .numBookies(remote.bookies().replicas())
-                .numProxies(0)
+                // The launcher's admin requests go through the proxy, which forwards each to the broker that owns
+                // the topic: a broker redirects them to the owner's name in the cluster's network, which the
+                // launcher's host can't resolve
+                .numProxies(1)
+                .proxyEnvs(PROXY_ENV)
                 .clusterImage(clusterImage)
                 .brokerEnvs(metricsSettings.withBrokerStatsSettings(remote.brokers().env()))
                 .bookkeeperEnvs(metricsSettings.withBookieStatsSettings(remote.bookies().containerEnv()))
@@ -502,8 +524,8 @@ public class PerformanceLauncher implements Callable<Integer> {
         ZonedDateTime workloadFinished;
         try {
             String journalTmpfs = clusterSettings.bookies().journalTmpfs();
-            status(String.format(Locale.ROOT, "Starting the Pulsar cluster: %d broker(s), %d bookie(s)%s",
-                    spec.numBrokers(), spec.numBookies(),
+            status(String.format(Locale.ROOT, "Starting the Pulsar cluster: %d broker(s), %d bookie(s), %d proxy%s",
+                    spec.numBrokers(), spec.numBookies(), spec.numProxies(),
                     journalTmpfs != null ? ", with each bookie's journal on a tmpfs of " + journalTmpfs : ""));
             if (networkSettings.any()) {
                 // Before the cluster, so that a Docker engine that can't apply them fails the run at once
@@ -527,8 +549,8 @@ public class PerformanceLauncher implements Callable<Integer> {
             if (remoteCluster != null) {
                 long remoteStart = System.nanoTime();
                 status(String.format(Locale.ROOT, "Starting the remote cluster %s, which public/default replicates"
-                        + " to: %d broker(s), %d bookie(s)", remoteClusterName, remoteSpec.numBrokers(),
-                        remoteSpec.numBookies()));
+                        + " to: %d broker(s), %d bookie(s), %d proxy", remoteClusterName, remoteSpec.numBrokers(),
+                        remoteSpec.numBookies(), remoteSpec.numProxies()));
                 remoteCluster.start();
                 status(String.format(Locale.ROOT, "Started the remote cluster in %.0f s",
                         (System.nanoTime() - remoteStart) / 1e9));
@@ -598,7 +620,7 @@ public class PerformanceLauncher implements Callable<Integer> {
             IotScenario iotScenario = loader.mapper().treeToValue(workload, IotScenario.class);
             if (offloadSettings != null || iotScenario.preparesJoin()) {
                 // It records the offload status when the late applications join, and at the run's end
-                joinPreparation = JoinPreparation.start(cluster.getAnyBroker().getHttpServiceUrl(), iotScenario,
+                joinPreparation = JoinPreparation.start(cluster.getHttpServiceUrl(), iotScenario,
                         offloadSettings != null, runOutput, coordinationDirectory, runId, PerformanceLauncher::status);
             }
             TopicStatsSampler backlogSource = topicStatsSampler;
@@ -689,7 +711,7 @@ public class PerformanceLauncher implements Callable<Integer> {
                 JsonNode gatewaysSummary = loader.mapper().readTree(
                         runOutput.resolve(GATEWAYS_DIRECTORY).resolve("gateways-summary.json").toFile());
                 long seeksStarted = System.nanoTime();
-                RandomSeeks.run(cluster.getAnyBroker().getHttpServiceUrl(), iotScenario.topicNames(),
+                RandomSeeks.run(cluster.getHttpServiceUrl(), iotScenario.topicNames(),
                         requiredLong(gatewaysSummary, "measurementStartEpochMs"),
                         requiredLong(gatewaysSummary, "measurementEndEpochMs"), seekSettings, runOutput,
                         runFailure, PerformanceLauncher::status);
@@ -702,7 +724,8 @@ public class PerformanceLauncher implements Callable<Integer> {
                 network.finishRun();
             }
             if (joinPreparation != null && offloadSettings != null) {
-                joinPreparation.recordOffloadStatus("end");
+                // Diagnostic: the run, whose deliveries are checked below, doesn't fail with it
+                joinPreparation.recordOffloadStatusOrWarn("end");
             }
             progress.report();
             progress.close();
@@ -1052,7 +1075,7 @@ public class PerformanceLauncher implements Callable<Integer> {
     private static void setOffloadPolicies(PulsarCluster cluster, OffloadSettings offload)
             throws PulsarClientException, PulsarAdminException {
         try (PulsarAdmin admin = PulsarAdmin.builder()
-                .serviceHttpUrl(cluster.getAnyBroker().getHttpServiceUrl())
+                .serviceHttpUrl(cluster.getHttpServiceUrl())
                 .build()) {
             admin.namespaces().setOffloadThreshold(offload.namespace(), offload.thresholdBytes());
             if (offload.thresholdSeconds() != null) {
@@ -1071,7 +1094,7 @@ public class PerformanceLauncher implements Callable<Integer> {
     // the whole cluster runs
     private static String brokerVersion(PulsarCluster cluster) {
         try (PulsarAdmin admin = PulsarAdmin.builder()
-                .serviceHttpUrl(cluster.getAnyBroker().getHttpServiceUrl())
+                .serviceHttpUrl(cluster.getHttpServiceUrl())
                 .connectionTimeout(5, TimeUnit.SECONDS)
                 .readTimeout(5, TimeUnit.SECONDS)
                 .build()) {
@@ -1197,7 +1220,9 @@ public class PerformanceLauncher implements Callable<Integer> {
     record MeasuredContainer(String name, GenericContainer<?> container) {
     }
 
-    /** The cluster's and the workloads' containers, named without the cluster's prefix, such as broker-0. */
+    /**
+     * The cluster's and the workloads' containers, named without the cluster's prefix, such as broker-0 and proxy.
+     */
     static List<MeasuredContainer> measuredContainers(PulsarCluster cluster, String clusterName,
                                                       GenericContainer<?> producer, GenericContainer<?> consumer) {
         List<MeasuredContainer> containers = new ArrayList<>();
@@ -1206,6 +1231,10 @@ public class PerformanceLauncher implements Callable<Integer> {
         clusterContainers.addAll(cluster.getBookies());
         if (cluster.getZooKeeper() != null) {
             clusterContainers.add(cluster.getZooKeeper());
+        }
+        // The proxy only forwards the launcher's admin requests, but counts in the totals of all the containers
+        if (cluster.getProxy() != null) {
+            clusterContainers.add(cluster.getProxy());
         }
         for (GenericContainer<?> container : clusterContainers) {
             containers.add(new MeasuredContainer(componentName(container.getContainerName(), clusterName),
@@ -1714,6 +1743,26 @@ public class PerformanceLauncher implements Callable<Integer> {
     }
 
     /**
+     * Fails when the cluster's test image, built on a released Pulsar image, has no jcloud offloader: the Pulsar images
+     * of 4.x releases don't include it, and the test image installs it only with
+     * {@code -Pperformance.installOffloaders=true}. Without it, the brokers wouldn't offload, and the run would quietly
+     * measure BookKeeper's reads.
+     */
+    private static void requireOffloader(String clusterImage, String clusterPulsarImage) {
+        try (GenericContainer<?> check = new GenericContainer<>(clusterImage)
+                .withCreateContainerCmdModifier(command -> command.withEntrypoint("sh"))
+                .withCommand("-c", "ls /pulsar/offloaders/tiered-storage-jcloud-*.nar")
+                .withStartupCheckStrategy(new OneShotStartupCheckStrategy().withTimeout(Duration.ofMinutes(1)))) {
+            check.start();
+        } catch (RuntimeException e) {
+            throw new IllegalArgumentException("This scenario offloads, but the cluster's image " + clusterImage
+                    + ", built on " + clusterPulsarImage + ", has no jcloud offloader in /pulsar/offloaders: the"
+                    + " images of 4.x releases don't include it. Run with -Pperformance.installOffloaders=true, which"
+                    + " installs the release's offloader in the test image", e);
+        }
+    }
+
+    /**
      * The async-profiler options a recording was made with, as the agent configuration beside it records them.
      */
     private static String asyncProfilerOptions(ObjectMapper mapper, Path recording) throws IOException {
@@ -1966,14 +2015,49 @@ public class PerformanceLauncher implements Callable<Integer> {
         }
     }
 
+    // Streams the container's log into the file, which can be large, such as a storage that logs every request
     private static void saveContainerLog(GenericContainer<?> container, Path path) {
         if (container.getContainerId() == null) {
             return;
         }
-        try {
-            Files.writeString(path, container.getLogs());
-        } catch (Exception ignored) {
+        try (OutputStream output = new BufferedOutputStream(Files.newOutputStream(path))) {
+            AtomicReference<IOException> writeFailure = new AtomicReference<>();
+            ResultCallback.Adapter<Frame> callback = container.getDockerClient()
+                    .logContainerCmd(container.getContainerId())
+                    .withStdOut(true)
+                    .withStdErr(true)
+                    .exec(new ResultCallback.Adapter<Frame>() {
+                        @Override
+                        public void onNext(Frame frame) {
+                            synchronized (output) {
+                                try {
+                                    output.write(frame.getPayload());
+                                } catch (IOException e) {
+                                    writeFailure.compareAndSet(null, e);
+                                }
+                            }
+                        }
+                    });
+            boolean completed = callback.awaitCompletion(5, TimeUnit.MINUTES);
+            if (!completed) {
+                callback.close();
+            }
+            if (writeFailure.get() != null) {
+                throw writeFailure.get();
+            }
+            if (!completed) {
+                // Marks the file as cut short, such as the storage's request log, whose requests the report counts
+                synchronized (output) {
+                    output.write((RunReport.CUT_SHORT_LOG_LINE + "\n").getBytes(StandardCharsets.UTF_8));
+                }
+                status("Warning: saving the log of " + path.getFileName() + " took longer than 5 minutes; it is"
+                        + " cut short");
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (Exception e) {
             // Preserve the workload result when optional diagnostic log collection fails.
+            log().warn().attr("path", path).exception(e).log("Saving a container's log failed");
         }
     }
 

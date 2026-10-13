@@ -27,7 +27,8 @@ extends: iot-telemetry-base.yaml
 cluster:
   brokers:
     env:
-      # A ledger rolls over at 25,000 entries, without the minimum of 10 minutes between rollovers
+      # A ledger rolls over at 25,000 entries, without the 60-minute minimum between rollovers of
+      # configs/cluster-base.yaml
       managedLedgerMaxEntriesPerLedger: "25000"
       managedLedgerMinLedgerRolloverTimeMinutes: "0"
       # An hour's retention, through the namespaces' defaults: the messages that the application has received stay

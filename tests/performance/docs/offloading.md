@@ -49,7 +49,9 @@ With it, the launcher:
   offloader's signed uploads. A setting in `cluster.brokers.env` overrides them;
 - sets the namespace's offload policies once the cluster has started: the offload threshold, which with 0 offloads a
   ledger as soon as it rolls over, the threshold in seconds when the section sets it, and the deletion lag, which with 0
-  deletes the ledger from BookKeeper once it is offloaded;
+  deletes the ledger from BookKeeper once it is offloaded. With the brokers' default `managedLedgerDataReadPriority`,
+  `tiered-storage-first`, reads go to the tiered storage as soon as a ledger has been offloaded, whatever the lag;
+  the lag decides where they go only with `bookkeeper-first`;
 - records the topics' ledgers, and how many of them the brokers have offloaded, in `offload-status.csv`, when the late
   applications join and at the run's end, which the report's Offloading section sums;
 - saves the storage's log into the run directory as `offload-storage.log.txt`.
@@ -62,7 +64,7 @@ that don't need it.
 
 The brokers offload a ledger only once it has rolled over, so a scenario sets the rollover in `cluster.brokers.env`:
 `managedLedgerMaxEntriesPerLedger`, and `managedLedgerMinLedgerRolloverTimeMinutes: "0"`, without which a ledger
-lives at least 10 minutes.
+lives at least 60 minutes, as `configs/cluster-base.yaml`, which every scenario extends, sets.
 
 The storage is a network endpoint, `offload-storage`, so that the network impairments can put latency or a bandwidth
 limit between it and the brokers, as an object store in another zone or region has:
@@ -136,14 +138,17 @@ subscriptions to publish times spread over the four offloaded ledgers, with the 
 `-Pperformance.clusterPulsarImage`, `compareImages` and `compareImageWithCheckout` build the cluster's test image on a
 released Pulsar image, see [Comparing revisions](comparing-revisions.md#comparing-with-a-released-pulsar). The Pulsar
 images of 4.x releases don't include the offloaders, which a release publishes separately as
-`apache-pulsar-offloaders-<version>-bin.tar.gz`: building the test image on such an image installs the release's
-jcloud offloader from the Apache download CDN, or from the release archive for an older release. The images of
-Pulsar 5.0 and later, and this checkout's, include it.
+`apache-pulsar-offloaders-<version>-bin.tar.gz`. With `-Pperformance.installOffloaders=true`, building the test image
+on such an image installs the release's jcloud offloader from the Apache download CDN, or from the release archive for
+an older release, and verifies its SHA-512 checksum. It is off by default, since only the scenarios that offload need
+it. The images of Pulsar 5.0 and later, and this checkout's, include the offloader. A scenario with `offload` on a
+cluster image without it fails before the cluster starts, naming the property.
 
 ```bash
 ./gradlew :tests:performance:launcher:compareImages \
   -Pperformance.compare.baselineImage=apachepulsar/pulsar:4.0.14 \
   -Pperformance.compare.candidateImage=apachepulsar/pulsar:4.2.5 \
+  -Pperformance.installOffloaders=true \
   --args='--scenario tests/performance/scenarios/iot-telemetry-offload.yaml --name offload-ab'
 ```
 
@@ -155,3 +160,7 @@ Pulsar 5.0 and later, and this checkout's, include it.
   tiered storage bounds.
 - The backlog chart, each subscription's backlog falling as its application catches up, and the applications'
   end-to-end latency.
+- When comparing offloader implementations or releases, set the broker settings that shape the reads explicitly in
+  `cluster.brokers.env`, such as `dispatcherMaxReadBatchSize`, how many entries a dispatcher reads at a time, and
+  `s3ManagedLedgerOffloadReadBufferSizeInBytes`, how much an offloaded read fetches at a time: otherwise the releases'
+  defaults of these settings, rather than the offloaders, can decide the result.

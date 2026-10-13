@@ -76,6 +76,8 @@ public final class RunReport {
             "epochMillis,phase,topic,ledgers,offloadedLedgers,offloadedBytes,entries";
     /** With offloading, the storage's log, with every request when {@code offload.logRequests} is set. */
     public static final String OFFLOAD_STORAGE_LOG_FILE = "offload-storage.log.txt";
+    /** The line that ends a container's log that the launcher cut short, as it does when reading it takes too long. */
+    public static final String CUT_SHORT_LOG_LINE = "[The log was cut short: reading it took longer than 5 minutes]";
     /**
      * How long each action that prepared the late applications' join took: skipping messages, resetting a
      * subscription by timestamp, or unloading a topic.
@@ -866,8 +868,10 @@ public final class RunReport {
                 sums[2] / (1024.0 * 1024.0), sums[3])));
         if (storageRequests != null && !storageRequests.reads().isEmpty()) {
             report.append(String.format(Locale.ROOT, "%nThe storage served %,d reads of objects, %,.1f MB in ranged"
-                    + " reads, from its request log (`offload.logRequests`).%n", storageRequests.reads().size(),
-                    storageRequests.rangeBytes(Long.MIN_VALUE, Long.MAX_VALUE) / (1024.0 * 1024.0)));
+                    + " reads, from its request log (`offload.logRequests`)%s.%n", storageRequests.reads().size(),
+                    storageRequests.rangeBytes(Long.MIN_VALUE, Long.MAX_VALUE) / (1024.0 * 1024.0),
+                    storageRequests.cutShort() ? ", at least: the launcher cut the log short, so it has only the"
+                            + " earlier requests" : ""));
         }
     }
 
@@ -990,8 +994,9 @@ public final class RunReport {
      *
      * @param reads the times of the reads of objects, in epoch milliseconds
      * @param ranges the times of the ranged reads, in epoch milliseconds, and their ranges' bytes
+     * @param cutShort whether the launcher cut the log short, so that it has fewer requests than the storage served
      */
-    record StorageRequests(List<Long> reads, List<long[]> ranges) {
+    record StorageRequests(List<Long> reads, List<long[]> ranges, boolean cutShort) {
         // I1013 11:22:55.724973 stats.go:42 "performance" GET "/pulsar/object" 206 4.378522ms
         private static final Pattern ACCESS = Pattern.compile("^I(\\d\\d)(\\d\\d)"
                 + " (\\d\\d):(\\d\\d):(\\d\\d)\\.(\\d{3})\\d* +stats\\.go:\\d+\\]?"
@@ -1012,8 +1017,13 @@ public final class RunReport {
             long reference = referenceEpochMs > 0 ? referenceEpochMs : System.currentTimeMillis();
             List<Long> reads = new ArrayList<>();
             List<long[]> ranges = new ArrayList<>();
+            boolean cutShort = false;
             try (Stream<String> lines = Files.lines(log)) {
                 for (String line : (Iterable<String>) lines::iterator) {
+                    if (line.equals(CUT_SHORT_LOG_LINE)) {
+                        cutShort = true;
+                        continue;
+                    }
                     Matcher range = RANGE.matcher(line);
                     if (range.find()) {
                         ranges.add(new long[] {epochMs(range, reference), Long.parseLong(range.group(7))});
@@ -1025,7 +1035,7 @@ public final class RunReport {
                     }
                 }
             }
-            return new StorageRequests(reads, ranges);
+            return new StorageRequests(reads, ranges, cutShort);
         }
 
         // The month, day, time and milliseconds of the match, in the year nearest the reference
