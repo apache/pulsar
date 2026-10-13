@@ -270,12 +270,12 @@ public class ScalableTopicControllerFailoverTest {
     }
 
     /**
-     * A broker taking the lock over for a topic whose record can't be read, like the empty one
-     * that a re-election re-creates under the lock of a deleted topic, has nothing to serve: it
-     * closes the controller and so releases the lock, rather than retrying forever.
+     * A follower seeing the lock released for a topic whose record can't be read, like the empty
+     * one that a store re-creating missing parents leaves under the lock of a deleted topic, has
+     * nothing to serve: it doesn't take the lock.
      */
     @Test
-    public void testTakeOverOfUnreadableTopicReleasesTheLock() throws Exception {
+    public void testFollowerLeavesTheLockOfAnUnreadableTopic() throws Exception {
         ScalableTopicController leader = broker1.newController();
         leader.initialize().get();
         ScalableTopicController follower = broker2.newController();
@@ -285,10 +285,9 @@ public class ScalableTopicControllerFailoverTest {
         leader.close().get();
 
         String lockPath = broker2.resources.controllerLockPath(topic);
-        Awaitility.await().untilAsserted(() -> {
-            assertThat(follower.isClosed()).as("broker 2's controller").isTrue();
-            assertThat(broker2.store.exists(lockPath).get()).as("controller lock").isFalse();
-        });
+        Awaitility.await().during(Duration.ofSeconds(1)).atMost(Duration.ofSeconds(5))
+                .until(() -> !broker2.store.exists(lockPath).get());
+        assertThat(follower.isLeader()).as("broker 2's controller").isFalse();
     }
 
     /** A broker of the test: its own metadata session, coordination service and controllers. */

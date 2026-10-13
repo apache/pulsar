@@ -117,7 +117,7 @@ public class ScalableTopicService {
     public CompletableFuture<ScalableTopicController> getOrCreateController(TopicName topic) {
         String key = topic.toString();
         CompletableFuture<ScalableTopicController> stored = controllers.compute(key,
-                (k, existing) -> existing == null || isClosed(existing) ? newController(topic) : existing);
+                (k, existing) -> existing == null || isClosed(existing) ? newController(key, topic) : existing);
         // Evict failed futures so subsequent callers can retry. This runs *outside*
         // compute, so modifying the map here is safe.
         return stored.exceptionally(ex -> {
@@ -126,22 +126,30 @@ public class ScalableTopicService {
         }).thenCompose(this::awaitTakeOver);
     }
 
-    private CompletableFuture<ScalableTopicController> newController(TopicName topic) {
+    private CompletableFuture<ScalableTopicController> newController(String key, TopicName topic) {
         ScalableTopicController controller = new ScalableTopicController(
                 topic, resources, brokerService, coordinationService);
-        return controller.initialize()
-                .whenComplete((__, ex) -> {
-                    if (ex != null) {
-                        // Release its leader election, and the lock if it was elected: the next
-                        // controller of the topic gets an election of its own once this one is closed.
-                        controller.close().exceptionally(closeEx -> {
-                            log.warn().attr("topic", topic).exceptionMessage(closeEx)
-                                    .log("Failed to close a controller that failed to initialize");
-                            return null;
-                        });
-                    }
-                })
-                .thenApply(__ -> controller);
+        CompletableFuture<ScalableTopicController> future = new CompletableFuture<>();
+        // Released once its topic is deleted: the admin delete stops the controller on the
+        // broker serving it, not the ones other brokers hold for the topic. Closed before it is
+        // removed, as in releaseController().
+        controller.setTopicDeletedAction(() -> controller.close()
+                .whenComplete((__, ___) -> controllers.remove(key, future)));
+        controller.initialize().whenComplete((__, ex) -> {
+            if (ex == null) {
+                future.complete(controller);
+            } else {
+                // Release its leader election, and the lock if it was elected: the next
+                // controller of the topic gets an election of its own once this one is closed.
+                controller.close().exceptionally(closeEx -> {
+                    log.warn().attr("topic", topic).exceptionMessage(closeEx)
+                            .log("Failed to close a controller that failed to initialize");
+                    return null;
+                });
+                future.completeExceptionally(ex);
+            }
+        });
+        return future;
     }
 
     private static boolean isClosed(CompletableFuture<ScalableTopicController> controller) {
