@@ -3,7 +3,7 @@
 - Status: Proposal
 - Authors: Lin Lin, Hang Chen, Penghui Li
 - Pull Request: https://github.com/apache/pulsar/pull/11441
-- Mailing List discussion: https://lists.apache.org/thread/opbl0qj1xb3m23x5t5co63o0357p0kms
+- Mailing List discussion: https://lists.apache.org/thread/opbl0qj1xb3m23x5t5co63o0357p0kms (posted as PIP 87)
 
 ### Background
 
