@@ -32,6 +32,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import io.opentelemetry.api.common.Attributes;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -39,7 +40,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -415,6 +415,8 @@ public class Producer {
 
         private long entryTimestamp;
 
+        // Guarded by this; true once the publish reaches its terminal state.
+        private boolean listenersClosed;
         private List<CompletionListener> completionListeners;
 
         @Override
@@ -557,15 +559,28 @@ public class Producer {
         }
 
         @Override
-        public void whenComplete(CompletionListener listener) {
-            if (completionListeners == null) {
-                completionListeners = new CopyOnWriteArrayList<>();
+        public boolean whenComplete(CompletionListener listener) {
+            // Reject registrations after the terminal state: this pooled context may already have
+            // been recycled and reused for an unrelated publish.
+            synchronized (this) {
+                if (listenersClosed) {
+                    return false;
+                }
+                if (completionListeners == null) {
+                    completionListeners = new ArrayList<>(2);
+                }
+                completionListeners.add(listener);
+                return true;
             }
-            completionListeners.add(listener);
         }
 
         private void notifyCompletionListeners(long ledgerId, long entryId, Exception error) {
-            List<CompletionListener> listeners = completionListeners;
+            List<CompletionListener> listeners;
+            synchronized (this) {
+                listenersClosed = true;
+                listeners = completionListeners;
+                completionListeners = null;
+            }
             if (listeners == null) {
                 return;
             }
@@ -667,6 +682,7 @@ public class Producer {
             if (callback.propertyMap != null) {
                 callback.propertyMap.clear();
             }
+            callback.listenersClosed = false;
             return callback;
         }
 
@@ -690,6 +706,7 @@ public class Producer {
             if (callback.propertyMap != null) {
                 callback.propertyMap.clear();
             }
+            callback.listenersClosed = false;
             return callback;
         }
 

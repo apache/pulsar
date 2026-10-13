@@ -133,20 +133,26 @@ public interface Topic {
         }
 
         /**
-         * Registers a listener that is invoked exactly once when this publish operation reaches its terminal
-         * state: persisted (with the entry position), deduplicated (ledgerId/entryId equal to -1 and a null
-         * error) or failed (a non-null error). The listener is invoked on the connection event loop thread
-         * before this context is recycled.
+         * Attempts to register a listener that is invoked exactly once when this publish operation reaches
+         * its terminal state: persisted (with the entry position), deduplicated (ledgerId/entryId equal to
+         * -1 and a null error) or failed (a non-null error). The listener is invoked on the connection
+         * event loop thread before this context is recycled.
          * <p>
-         * The listener must not block, and it must not retain this context: the context is pooled and reused
-         * for subsequent publish operations after the notification.
+         * The listener must not block, and it must not retain this context: the context is pooled and
+         * reused for subsequent publish operations after the notification.
          * <p>
-         * The default implementation discards the listener. Publish contexts that support terminal-state
-         * notification override it.
+         * Registration must happen while handling the publish, e.g. from
+         * {@code BrokerInterceptor#onMessagePublish}. Once the terminal state is reached the registration
+         * is rejected: a late listener would otherwise attach to a pooled context that may already be
+         * serving an unrelated publish. The default implementation always rejects.
          *
          * @param listener the listener to notify when this publish operation completes
+         * @return true if the listener was registered and will be notified exactly once; false if this
+         *         context already reached its terminal state, in which case the listener is discarded and
+         *         will never be invoked — callers staging per-publish state should drop it
          */
-        default void whenComplete(CompletionListener listener) {
+        default boolean whenComplete(CompletionListener listener) {
+            return false;
         }
 
         /**
