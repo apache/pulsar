@@ -244,14 +244,22 @@ public class ScalableTopicServiceTest {
 
     @Test
     public void testFailedInitializationLeavesNothingRunning() throws Exception {
+        // With a broker configuration, the leader schedules its auto split/merge tick next to the GC
+        // tick. Neither fires during the test (60s).
+        when(pulsar.getConfig()).thenReturn(new ServiceConfiguration());
         TopicName tn = scalableTopic("t-init-fails");
         service.createScalableTopic(tn, 1).get();
         String lockPath = resources.controllerLockPath(tn);
-        // Fail restoreSessionsFromStore(), which runs once the controller won the election. The
-        // failure is injected once, so the next attempt succeeds.
-        String subscriptionsPath = resources.topicPath(tn) + "/subscriptions";
+        resources.createSubscriptionAsync(tn, "sub-a", SubscriptionType.STREAM).get();
+        resources.registerConsumerAsync(tn, "sub-a", "c1").get();
+        resources.createSubscriptionAsync(tn, "sub-b", SubscriptionType.STREAM).get();
+        resources.registerConsumerAsync(tn, "sub-b", "c2").get();
+        // Restoring the consumer sessions runs once the controller won the election. Fail it on
+        // sub-b, while sub-a's consumer is restored with a grace timer. The failure is injected
+        // once, so the next attempt succeeds.
+        String consumersPath = resources.subscriptionPath(tn, "sub-b") + "/consumers";
         store.failConditional(new MetadataStoreException("injected"), (op, path) ->
-                op == FaultInjectionMetadataStore.OperationType.GET_CHILDREN && path.equals(subscriptionsPath));
+                op == FaultInjectionMetadataStore.OperationType.GET_CHILDREN && path.equals(consumersPath));
 
         try {
             service.getOrCreateController(tn).get();
@@ -261,14 +269,19 @@ public class ScalableTopicServiceTest {
                     "got: " + e.getCause().getMessage());
         }
         // The failed controller is closed: its election gives the lock back, and none of its tasks
-        // (takeover retries, leader ticks) stays scheduled.
+        // (takeover retries, grace timers of restored consumers) stays scheduled.
         Awaitility.await().untilAsserted(() -> {
             assertFalse(store.exists(lockPath).get(), "the failed controller must give the lock back");
             assertTrue(scheduler.getQueue().isEmpty(), "the failed controller must leave no task scheduled");
         });
+        // An expiring grace timer would delete the registration that the next controller restores.
+        assertEquals(resources.listConsumersAsync(tn, "sub-a").get(), List.of("c1"));
+        assertEquals(resources.listConsumersAsync(tn, "sub-b").get(), List.of("c2"));
 
         // The retry runs the only controller of the topic: releasing it leaves nothing running.
         assertTrue(service.getOrCreateController(tn).get().isLeader(), "the retry must lead the topic");
+        assertEquals(scheduler.getQueue().size(), 4,
+                "the GC and auto split/merge ticks, and the grace timers of c1 and c2: " + scheduler.getQueue());
         service.releaseController(tn).get();
         assertFalse(store.exists(lockPath).get());
         assertTrue(scheduler.getQueue().isEmpty(), "no task may outlive the released controller");
