@@ -3,7 +3,7 @@
 * Status: **Implemented**
 * Author: [Samuel Sun](https://github.com/foreversunyao)
 * Pull Request: [3915](https://github.com/apache/pulsar/pull/3915)
-* Mailing List Discussion: [PIP-28](https://lists.apache.org/thread.html/37d91f72698ef51a0b6cfc65ac82b0e39314cadbb73c4d8ba4d02659@%3Ccommits.pulsar.apache.org%3E)
+* Mailing List Discussion: [PIP-28](https://lists.apache.org/thread/o2q9x4tkv09pk7ndvt6hyb3swc5pp3dx)
 * Release: 2.4.0
 
 ## Motivation

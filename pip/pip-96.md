@@ -6,7 +6,7 @@
 
 **Pull Request**: https://github.com/apache/pulsar/pull/12088
 
-**Mailing List discussion**: https://lists.apache.org/thread.html/rb4df052fdea1d6791ecdebdd09bb4cbc27ffec307ad678afb1157c6c%40%3Cdev.pulsar.apache.org%3E
+**Mailing List discussion**: https://lists.apache.org/thread/pnfx8fsfwpkvk7ctpv1skhdjkscv26ng
 
 **Release**: 2.9.0
 
