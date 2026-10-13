@@ -3,7 +3,7 @@
 - Status: Proposal
 - Author: Sijie Guo
 - Pull Request:
-- Mailing List discussion:
+- Mailing List discussion: https://lists.apache.org/thread/qtwmxk7ocb6otp117kozsbjrfsh6mfcb
 - Release:
 
 ## Motivation

@@ -3,7 +3,7 @@
 - Status: Proposal
 - Author: XiaoLong Ran
 - Pull Request:
-- Mailing List discussion:
+- Mailing List discussion: https://lists.apache.org/thread/d15kt7bhvwzg6tjdslhzgombgz1z27k4
 - Release:
 
 ## Motivation

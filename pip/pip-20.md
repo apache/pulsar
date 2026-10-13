@@ -2,7 +2,6 @@
 
 - **Status**: Proposed
 - **Author**: [Ivan Kelly](https://github.com/ivankelly)
-- **Pull Request**: -
 - **Mailing List discussion**: https://lists.apache.org/thread.html/ac70badf3648cb4287a483b9ee75d7cf599126bba9e45f30acbb7ba4@%3Cdev.pulsar.apache.org%3E
 
 # Motivation

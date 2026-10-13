@@ -359,11 +359,13 @@ The following table lists all current PIPs in this directory, sorted by PIP numb
 | PIP-370 | [configurable remote topic creation in geo-replication](pip-370.md) |
 | PIP-373 | [Add a topic's system prop that indicates whether users have published TXN messages in before.](pip-373.md) |
 | PIP-374 | [Visibility of messages in receiverQueue for the consumers](pip-374.md) |
+| PIP-375 | [Expose the Admin client configs: readTimeout, requestTimeout, connectionTimeout](pip-375.md) |
 | PIP-376 | [Make Topic Policies Service Pluggable](pip-376.md) |
 | PIP-378 | [Add ServiceUnitStateTableView abstraction (ExtensibleLoadMangerImpl only)](pip-378.md) |
 | PIP-379 | [Key_Shared Draining Hashes for Improved Message Ordering](pip-379.md) |
 | PIP-380 | [Support setting up specific namespaces to skipping the load-shedding](pip-380.md) |
 | PIP-381 | [Handle large PositionInfo state](pip-381.md) |
+| PIP-382 | [Add a label named reason for topic_load_failed_total](pip-382.md) |
 | PIP-383 | [Support granting/revoking permissions for multiple topics](pip-383.md) |
 | PIP-384 | [ManagedLedger interface decoupling](pip-384.md) |
 | PIP-389 | [Add Producer config compressMinMsgBodySize to improve compression performance](pip-389.md) |
@@ -394,8 +396,42 @@ The following table lists all current PIPs in this directory, sorted by PIP numb
 | PIP-431 | [Add Creation and Last Publish Timestamps to Topic Stats](pip-431.md) |
 | PIP-432 | [Add isEncrypted field to EncryptionContext](pip-432.md) |
 | PIP-433 | [Optimize the conflicts of the replication and automatic creation mechanisms, including the automatic creation of topics and schemas](pip-433.md) |
+| PIP-434 | [Expose Netty channel configuration WRITE_BUFFER_WATER_MARK to pulsar conf and pause receive requests when channel is unwritable](pip-434.md) |
 | PIP-435 | [Add `startTimestamp` and `endTimestamp` for consuming messages in client cli](pip-435.md) |
 | PIP-436 | [Add decryptFailListener to Consumer](pip-436.md) |
+| PIP-437 | [Granular and Fixed-Delay Policies for Message Delivery](pip-437.md) |
+| PIP-439 | [Adding Transaction Support to Pulsar Functions Through Managed Transaction Wrapping](pip-439.md) |
+| PIP-441 | [Add Broker-Level Metrics for Skipped Non-Recoverable Data](pip-441.md) |
+| PIP-442 | [Add memory limits for CommandGetTopicsOfNamespace and CommandWatchTopicList on Broker and Proxy](pip-442.md) |
+| PIP-443 | [Stop using Netty Recycler in new code](pip-443.md) |
+| PIP-444 | [Rate limit for deleting ledger to alleviate the zk pressure.](pip-444.md) |
+| PIP-445 | [Add Builder Methods to Create Message-based TableView](pip-445.md) |
+| PIP-446 | [Support Native OpenTelemetry Tracing in Pulsar Java Client](pip-446.md) |
+| PIP-447 | [Customizable Prometheus Labels for Topic Metrics](pip-447.md) |
+| PIP-452 | [Customizable topic listing of namespace with properties](pip-452.md) |
+| PIP-453 | [Improve the metadata store threading model](pip-453.md) |
+| PIP-454 | [Metadata Store Migration Framework](pip-454.md) |
+| PIP-457 | [Remove support for V1 topic names and V1 Admin API](pip-457.md) |
+| PIP-460 | [Scalable Topics (Topics v5)](pip-460.md) |
+| PIP-462 | [Remove Etcd metadata store backend](pip-462.md) |
+| PIP-463 | [Migrate Build System from Maven to Gradle](pip-463.md) |
+| PIP-464 | [Deprecate legacy Jackson JsonSchema format for SchemaType.JSON](pip-464.md) |
+| PIP-465 | [Split IO Connectors into Separate Repository](pip-465.md) |
+| PIP-466 | [New Java Client API (V5) with Scalable Topic Support](pip-466.md) |
+| PIP-467 | [Adopt slog for structured logging across Pulsar](pip-467.md) |
+| PIP-468 | [Scalable Topic Controller](pip-468.md) |
+| PIP-469 | [Legacy-aware topic policies backend routing and metadata-store topic policies](pip-469.md) |
+| PIP-470 | [Close Inactive Topics Without Deleting Them](pip-470.md) |
+| PIP-472 | [Migrate from javax.* to jakarta.* APIs](pip-472.md) |
+| PIP-473 | [Metadata-Driven Transactions for Scalable Topics](pip-473.md) |
+| PIP-475 | [Regular-to-Scalable Topic Migration](pip-475.md) |
+| PIP-478 | [Asynchronous v5 client authentication SPI, Pulsar TLS factory SPI, and Pulsar HTTP client SPI](pip-478.md) |
+| PIP-483 | [Scalable Topic Auto Split/Merge](pip-483.md) |
+| PIP-486 | [Scalable Topic Key-Shared Consumption](pip-486.md) |
+| PIP-487 | [Add event count metrics for InflightReadsLimiter acquire and release operations](pip-487.md) |
+| PIP-492 | [Add subscription-level storage backlog age metric and stats field](pip-492.md) |
+| PIP-494 | [Scalable Topics Client Specification — authoritative reference and change process](pip-494.md) |
+| PIP-496 | [Pulsar Functions and IO support for the V5 client and scalable topics](pip-496.md) |
 
 ### Additional Information
 

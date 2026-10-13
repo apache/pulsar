@@ -85,3 +85,8 @@ Further, if we created a new interfaces named `AsyncAuthenticationProvider` and 
 ## References
 
 This addition was first discussed on the dev mailing list here: https://lists.apache.org/x/thread.html/r6c2522ca62242109758586696261cb1f4b4ce8e94ae593fda6e97b99@%3Cdev.pulsar.apache.org%3E.
+
+# Links
+
+* Mailing List discussion thread: https://lists.apache.org/thread/kqhfxy075dcgtr7cz9of8vj3ohpzq1rq
+* Mailing List voting thread: https://lists.apache.org/thread/2wbp56r9zt4vh7tzontw8hfdn0tnbmdk

@@ -3,7 +3,7 @@
 - Status: Draft
 - Author: Xiaolong Ran
 - Pull request:
-- Mailing list discussion:
+- Mailing list discussion: https://lists.apache.org/thread/fdtr81fd1hdkrohpmb723xkr1w5zpxfy
 - Release:
 
 The purpose of this proposal is mainly to add ReconsumerLater on the consumer side to retry in an incremental level

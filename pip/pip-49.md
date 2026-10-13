@@ -3,7 +3,7 @@
 - Status: Draft
 - Author: [Xiaolong Ran](https://github.com/wolfstudy)([@wolf4j](https://twitter.com/wolf4j1))
 - Pull request:
-- Mailing list discussion:
+- Mailing list discussion: https://lists.apache.org/thread/bry6w4btn0dbwbqdlc0o6t2csg7rfnyn
 - Release:
 
 ## Motivation

@@ -3,7 +3,7 @@
 - Status: Proposal
 - Authors: Penghui Li、Chen Hang、 Lin Lin
 - Pull Request:
-- Mailing List discussion:
+- Mailing List discussion: https://lists.apache.org/thread/2fv1ppgc3tf86t3d406fbwsyzt5d3m45
 - Release:
 # Motivation
 When setting the topic policy for a geo-replicated cluster, some policies want to affect the whole geo-replicated cluster but some only want to affect the local cluster. So the proposal is to support global topic policy and local topic policy.

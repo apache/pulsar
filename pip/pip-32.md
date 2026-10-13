@@ -3,7 +3,7 @@
 - Status: Adopted
 - Author: Xiaolong Ran
 - Pull request:
-- Mailing list discussion:
+- Mailing list discussion: https://lists.apache.org/thread/clqr5z16d1gl4ktdsn9o6lykv624wnrq
 - Release:
 
 ## Motivation
