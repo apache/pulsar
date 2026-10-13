@@ -54,6 +54,7 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -318,6 +319,93 @@ public class BrokerServiceTest extends BrokerTestBase {
             MockTopicPoliciesService.PENDING_POLICY_LOADS.remove(topicName);
             conf.setTopicLoadTimeoutSeconds(originalTimeout);
         }
+    }
+
+    /**
+     * Regression test for queued-timeout abort path (Bug 1).
+     * <p>
+     * When a topic load times out while sitting in the pending queue
+     * ({@code pendingTopicLoadingQueue}), {@code createPendingLoadTopic()} must remove the
+     * expired future from the {@code topics} cache. The cache is keyed by the
+     * {@code toString()} form of {@code TopicName}; the identity-remove call must use that
+     * same key so it actually matches the cached entry.
+     */
+    @Test(timeOut = 15000)
+    public void testQueuedTimeoutRemovesFutureFromTopicsCacheByStringKey() throws Exception {
+        final String topicKey = "persistent://public/default/queued-timeout-" + UUID.randomUUID();
+        final BrokerService service = pulsar.getBrokerService();
+
+        // Access private state via reflection so we can directly exercise createPendingLoadTopic.
+        final var topicsField = BrokerService.class.getDeclaredField("topics");
+        topicsField.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        final Map<String, CompletableFuture<Optional<Topic>>> topics =
+                (Map<String, CompletableFuture<Optional<Topic>>>) topicsField.get(service);
+
+        final var queueField = BrokerService.class.getDeclaredField("pendingTopicLoadingQueue");
+        queueField.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        final Collection<Object> pendingQueue = (Collection<Object>) queueField.get(service);
+
+        final var queueMethod = BrokerService.class.getDeclaredMethod("createPendingLoadTopic");
+        queueMethod.setAccessible(true);
+
+        // Create a deliberately-failed future (simulates a timeout that fired while queued).
+        final CompletableFuture<Optional<Topic>> failedFuture = new CompletableFuture<>();
+        failedFuture.completeExceptionally(new TimeoutException("test queued timeout"));
+
+        // Place it in both the topics cache (as the real code does in computeIfAbsent)
+        // and the pending queue (as the real code does when tryAcquire fails).
+        topics.put(topicKey, failedFuture);
+        final TopicLoadingContext ctx = new TopicLoadingContext(
+                TopicName.get(topicKey), true, failedFuture, mock(PulsarStats.class));
+        final var pairClass = Class.forName("org.apache.commons.lang3.tuple.ImmutablePair");
+        final var pair = pairClass.getDeclaredConstructor(Object.class, Object.class)
+                .newInstance(ctx, null);
+        pendingQueue.add(pair);
+
+        assertTrue(topics.containsKey(topicKey),
+                "precondition: topics must hold the String-keyed expired future");
+        assertFalse(pendingQueue.isEmpty(),
+                "precondition: pending queue must have our entry");
+
+        queueMethod.invoke(service);
+
+        assertFalse(topics.containsKey(topicKey),
+                "createPendingLoadTopic must remove the expired queued future from topics cache "
+                        + "using the String form of the topic name as the key");
+    }
+
+    /**
+     * Regression test for the inner computeIfAbsent abort path (Bug 2).
+     * <p>
+     * When the topicFuture times out between the outer {@code isDone()} guard and the
+     * {@code computeIfAbsent} mapper, the mapper returns {@code null} so the timed-out
+     * future is never inserted into {@code topics}. A subsequent retry then starts a
+     * completely fresh load chain.
+     */
+    @Test(timeOut = 15000)
+    public void testComputeIfAbsentNullMapperLeavesTopicsCleanForRetry() throws Exception {
+        final TopicName topicName = TopicName.get(
+                "persistent://public/default/null-mapper-" + UUID.randomUUID());
+        final BrokerService spyService = spy(pulsar.getBrokerService());
+        final AtomicInteger loadInvocations = new AtomicInteger();
+
+        doAnswer(invocation -> {
+            loadInvocations.incrementAndGet();
+            TopicLoadingContext ctx = invocation.getArgument(0);
+            return ctx.getTopicFuture();
+        }).when(spyService).loadOrCreatePersistentTopic(any());
+
+        final CompletableFuture<Optional<Topic>> future = spyService.getTopic(topicName, true, null);
+
+        // Wait until the mapper has fired and invoked loadOrCreatePersistentTopic.
+        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                .until(() -> loadInvocations.get() >= 1);
+
+        assertEquals(loadInvocations.get(), 1,
+                "computeIfAbsent mapper must invoke loadOrCreatePersistentTopic normally "
+                        + "when the future is not yet done");
     }
 
     @Test

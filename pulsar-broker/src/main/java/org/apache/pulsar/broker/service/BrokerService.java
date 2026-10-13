@@ -3924,7 +3924,8 @@ public class BrokerService implements Closeable {
             log.debug().attr("topic", topicLoadingContext.getTopicName())
                     .log("Skipping already-completed pending topic loading context");
             // Identity-remove the cached future so subsequent retries aren't stuck with this expired entry.
-            topics.remove(topicLoadingContext.getTopicName(), pendingFuture);
+            // Use toString() because topics is keyed by the String form of the topic name.
+            topics.remove(topicLoadingContext.getTopicName().toString(), pendingFuture);
             topicLoadingContext.finishTrace(queuedPoint, null);
             createPendingLoadTopic();
             return;
