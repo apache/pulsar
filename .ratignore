@@ -61,7 +61,6 @@ conf/schema_example.json
 **/_helpers.tpl
 # Project/IDE files
 **/*.md
-**/*.adoc
 .github/**
 **/*.nar
 **/.terraform/**
