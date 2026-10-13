@@ -34,6 +34,7 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -46,6 +47,13 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.LogEvent;
+import org.apache.logging.log4j.core.LoggerContext;
+import org.apache.logging.log4j.core.appender.AbstractAppender;
+import org.apache.logging.log4j.core.config.LoggerConfig;
+import org.apache.logging.log4j.core.layout.PatternLayout;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -781,6 +789,113 @@ public class TableViewImplTest {
 
             verify(f.reader, times(2)).readNextAsync();
             assertFalse(refresh.isDone(), "The tail reads go on, so the refresh keeps waiting");
+        }
+    }
+
+    /**
+     * Captures the WARN and above events of the table view's logger that are logged on the calling thread. The
+     * tail reads of a {@link TailRetryFixture} run on the test thread, while a retry left over by another test
+     * could still log from another thread.
+     */
+    private static final class TableViewLogCapture extends AbstractAppender implements AutoCloseable {
+        private static final String LOGGER_NAME = AbstractTableViewImpl.class.getName();
+        private final List<LogEvent> events = Collections.synchronizedList(new ArrayList<>());
+        private final Thread thread = Thread.currentThread();
+        private final LoggerContext context = (LoggerContext) LogManager.getContext(false);
+        private final LoggerConfig loggerConfig = context.getConfiguration().getLoggerConfig(LOGGER_NAME);
+
+        TableViewLogCapture() {
+            super("TableViewLogCapture", null, PatternLayout.createDefaultLayout(), false, null);
+            start();
+            // The resolved config is usually an ancestor's, shared with other loggers: append() filters them out.
+            loggerConfig.addAppender(this, Level.WARN, null);
+            context.updateLoggers();
+        }
+
+        @Override
+        public void append(LogEvent event) {
+            if (LOGGER_NAME.equals(event.getLoggerName()) && thread.getName().equals(event.getThreadName())) {
+                events.add(event.toImmutable());
+            }
+        }
+
+        List<LogEvent> warnings() {
+            synchronized (events) {
+                return new ArrayList<>(events);
+            }
+        }
+
+        @Override
+        public void close() {
+            loggerConfig.removeAppender(getName());
+            context.updateLoggers();
+            stop();
+        }
+    }
+
+    private static String message(LogEvent event) {
+        return event.getMessage().getFormattedMessage();
+    }
+
+    /** The value of an slog attribute of the event, as text. */
+    private static String attr(LogEvent event, String name) {
+        // Typed as Object: getValue() is generic, and String.valueOf() would otherwise pick its char[] overload.
+        Object value = event.getContextData().getValue(name);
+        return String.valueOf(value);
+    }
+
+    @Test(timeOut = 10_000)
+    @SuppressWarnings("unchecked")
+    public void testHandlingFailureIsLoggedWithItsMessageAndNotAsAFailedRead() throws Exception {
+        TopicCompactionStrategy<String> strategy = mock(TopicCompactionStrategy.class);
+        IllegalStateException failure = new IllegalStateException("strategy failure");
+        when(strategy.shouldKeepLeft(any(), any())).thenThrow(failure);
+        try (TailRetryFixture f = new TailRetryFixture(strategy);
+             TableViewLogCapture logs = new TableViewLogCapture()) {
+            Message<String> message = mock(Message.class);
+            MessageIdImpl messageId = new MessageIdImpl(1, 0, -1);
+            when(message.getTopicName()).thenReturn(TAIL_RETRY_TOPIC);
+            when(message.getMessageId()).thenReturn(messageId);
+            when(message.hasKey()).thenReturn(true);
+            when(message.getKey()).thenReturn("key");
+            when(message.size()).thenReturn(1);
+            when(message.getValue()).thenReturn("value");
+            when(f.reader.readNextAsync()).thenReturn(CompletableFuture.completedFuture(message),
+                    new CompletableFuture<>());
+
+            f.tableView.start().get(5, TimeUnit.SECONDS);
+
+            assertEquals(f.retries.size(), 1, "The tail reads must go on after the skipped message");
+            List<LogEvent> warnings = logs.warnings();
+            assertEquals(warnings.size(), 1, "One warning for the skipped message, none for the reader: "
+                    + warnings.stream().map(TableViewImplTest::message).toList());
+            LogEvent warning = warnings.get(0);
+            assertEquals(warning.getLevel(), Level.WARN);
+            assertEquals(message(warning), "Failed to apply message, skipping it");
+            assertEquals(attr(warning, "messageId"), messageId.toString(),
+                    "The warning must say which message was skipped");
+            assertEquals(warning.getThrown(), failure);
+        }
+    }
+
+    @Test(timeOut = 10_000)
+    public void testFailedReadIsLoggedAsARetry() throws Exception {
+        try (TailRetryFixture f = new TailRetryFixture();
+             TableViewLogCapture logs = new TableViewLogCapture()) {
+            when(f.reader.readNextAsync()).thenReturn(failedRead(), new CompletableFuture<>());
+
+            f.tableView.start().get(5, TimeUnit.SECONDS);
+
+            List<LogEvent> warnings = logs.warnings();
+            assertEquals(warnings.size(), 1, "One warning for the failed read: "
+                    + warnings.stream().map(TableViewImplTest::message).toList());
+            LogEvent warning = warnings.get(0);
+            assertEquals(warning.getLevel(), Level.WARN);
+            assertEquals(message(warning), "Tail read failed, retrying");
+            assertEquals(attr(warning, "retryDelayMs"), String.valueOf(f.retryDelays.get(0)),
+                    "The warning must say when the read is retried");
+            assertTrue(warning.getThrown().getCause() instanceof PulsarClientException.NotConnectedException,
+                    "The warning must carry the read failure, got " + warning.getThrown());
         }
     }
 
