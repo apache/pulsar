@@ -20,10 +20,12 @@ package org.apache.pulsar.broker.service.scalable;
 
 import io.github.merlimat.slog.Logger;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -98,14 +100,24 @@ public class ScalableTopicsWatcherSession implements ScalableTopicResources.Name
     private final Set<String> currentSet = Collections.synchronizedSet(new HashSet<>());
 
     /**
-     * Id of the metadata read started by each topic's latest Created / Modified event, while
-     * that read is in flight. Only that read may change the topic's membership: an earlier one
-     * — or one still in flight when the topic is deleted — may have seen an older record, and
-     * applying it would undo the later event, e.g. bring a deleted topic back. Guarded by
-     * {@code currentSet}'s monitor, together with the membership changes it gates.
+     * Id of each topic's latest metadata read, while that read is in flight: the read started by
+     * the topic's latest Created / Modified event, or by {@link #start()} for a topic that changed
+     * while the initial listing was in flight. Only that read may change the topic's membership:
+     * an earlier one — or one still in flight when the topic is deleted — may have seen an older
+     * record, and applying it would undo the later event, e.g. bring a deleted topic back. Guarded
+     * by {@code currentSet}'s monitor, together with the membership changes it gates.
      */
     private final Map<String, Long> inFlightReads = new HashMap<>();
     private long lastReadId;
+
+    /**
+     * Last event of each topic that changed while the initial listing was in flight, or
+     * {@code null} once the listing has been applied. The listing may have read the store
+     * before or after any of these events, so it can't be trusted for these topics:
+     * {@link #start()} settles them once the listing is in place. Guarded by
+     * {@code currentSet}'s monitor.
+     */
+    private Map<String, NotificationType> changedDuringListing = new HashMap<>();
 
     private final AtomicBoolean closed = new AtomicBoolean();
     private final AtomicBoolean snapshotEmitted = new AtomicBoolean();
@@ -150,38 +162,46 @@ public class ScalableTopicsWatcherSession implements ScalableTopicResources.Name
      * listener.
      */
     public CompletableFuture<Void> start() {
-        // Register BEFORE computing the initial set: any event that arrives mid-snapshot
-        // is captured by the listener and either (a) already in the initial set we're
-        // about to emit, in which case the redundant Add is a no-op on the client
-        // (set semantics), or (b) genuinely newer than the snapshot, in which case it
-        // correctly flows through as a Diff after the Snapshot frame.
+        // Register BEFORE computing the initial set, so that no event is lost. An event that
+        // arrives before the listing completes may or may not be reflected in it: it is only
+        // recorded in changedDuringListing, and settled once the listing is in place.
         resources.registerNamespaceListener(this);
 
         return resources.findScalableTopicsByPropertiesAsync(namespace, propertyFilters)
-                .thenAccept(initialTopics -> {
+                .thenAccept(listedTopics -> {
                     if (closed.get()) {
                         return;
                     }
-                    // Replace currentSet under sync to avoid races with onNotification.
+                    List<String> initialTopics;
+                    List<String> topicsToRead = new ArrayList<>();
                     synchronized (currentSet) {
-                        currentSet.clear();
-                        currentSet.addAll(initialTopics);
+                        currentSet.addAll(listedTopics);
+                        changedDuringListing.forEach((topic, lastEvent) -> {
+                            if (lastEvent == NotificationType.Deleted) {
+                                // Gone, unless created again — and then a Created event follows.
+                                currentSet.remove(topic);
+                            } else {
+                                // Created or Modified, possibly after the listing read the store.
+                                topicsToRead.add(topic);
+                            }
+                        });
+                        changedDuringListing = null;
+                        initialTopics = new ArrayList<>(currentSet);
                     }
-                    snapshotEmitted.set(true);
                     // Hash short-circuit: if the client tells us it already has this
                     // exact set (reconnect within an unchanged window), don't waste
                     // bytes on the wire. Future Diffs flow as usual.
-                    if (clientHash != null) {
-                        String serverHash = TopicList.calculateHash(initialTopics);
-                        if (clientHash.equals(serverHash)) {
-                            log.info().attr("topics", initialTopics.size())
-                                    .log("Reconnect hash matched; skipping snapshot");
-                            return;
-                        }
+                    if (clientHash != null && clientHash.equals(TopicList.calculateHash(initialTopics))) {
+                        log.info().attr("topics", initialTopics.size())
+                                .log("Reconnect hash matched; skipping snapshot");
+                    } else {
+                        log.info().attr("topics", initialTopics.size()).log("Initial snapshot");
+                        cnx.ctx().writeAndFlush(
+                                Commands.newWatchScalableTopicsSnapshot(watchId, initialTopics));
                     }
-                    log.info().attr("topics", initialTopics.size()).log("Initial snapshot");
-                    cnx.ctx().writeAndFlush(
-                            Commands.newWatchScalableTopicsSnapshot(watchId, initialTopics));
+                    // Diffs are computed against the snapshot's set: let them out only after it.
+                    snapshotEmitted.set(true);
+                    topicsToRead.forEach(this::evaluateTopic);
                 });
     }
 
@@ -209,17 +229,27 @@ public class ScalableTopicsWatcherSession implements ScalableTopicResources.Name
 
         String topicName = TopicName.get("topic", namespace, Codec.decode(rest)).toString();
 
-        if (notification.getType() == NotificationType.Deleted) {
-            synchronized (currentSet) {
+        synchronized (currentSet) {
+            if (changedDuringListing != null) {
+                // Settled by start() once the listing is in place.
+                changedDuringListing.put(topicName, notification.getType());
+                return;
+            }
+            if (notification.getType() == NotificationType.Deleted) {
                 inFlightReads.remove(topicName);
                 if (currentSet.remove(topicName)) {
                     enqueueRemoved(topicName);
                 }
+                return;
             }
-            return;
         }
 
         // Created or Modified — fetch the new value to evaluate the filter against.
+        evaluateTopic(topicName);
+    }
+
+    /** Read the topic's record and add it to, or remove it from, the matching set accordingly. */
+    private void evaluateTopic(String topicName) {
         long readId;
         synchronized (currentSet) {
             readId = ++lastReadId;
@@ -299,6 +329,13 @@ public class ScalableTopicsWatcherSession implements ScalableTopicResources.Name
         if (closed.get()) {
             return;
         }
+        // The pending changes are relative to the snapshot's set: send them only after the
+        // snapshot frame, and leave them pending until then, so that a later change can still
+        // cancel them out. flushScheduled stays set, so nothing else gets scheduled meanwhile.
+        if (!snapshotEmitted.get()) {
+            scheduler.schedule(this::flushPending, COALESCE_WINDOW.toMillis(), TimeUnit.MILLISECONDS);
+            return;
+        }
         Set<String> added;
         Set<String> removed;
         synchronized (coalesceLock) {
@@ -309,21 +346,6 @@ public class ScalableTopicsWatcherSession implements ScalableTopicResources.Name
             flushScheduled = false;
         }
         if (added.isEmpty() && removed.isEmpty()) {
-            return;
-        }
-        // Wait until the initial snapshot was emitted: any deltas that fire before the
-        // snapshot is sent have already been folded into currentSet via onNotification's
-        // wasInSet check (same set we built the snapshot from), so they're correctly
-        // represented. We just need to send them AFTER the snapshot frame.
-        if (!snapshotEmitted.get()) {
-            // Re-defer: the snapshot future is short-lived, retry shortly.
-            scheduler.schedule(this::flushPending, COALESCE_WINDOW.toMillis(), TimeUnit.MILLISECONDS);
-            // Re-enqueue what we drained, since the next flush will rebuild from pending.
-            synchronized (coalesceLock) {
-                pendingAdded.addAll(added);
-                pendingRemoved.addAll(removed);
-                flushScheduled = true;
-            }
             return;
         }
         log.info().attr("added", added.size()).attr("removed", removed.size()).log("Pushing diff");
