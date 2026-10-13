@@ -61,6 +61,7 @@ import org.apache.pulsar.common.scalable.SegmentTopicName;
 import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
@@ -123,8 +124,40 @@ public class ScalableTopicController {
     private volatile long lastMergeAtMs = Long.MIN_VALUE;
     private volatile long lastRebucketAtMs = Long.MIN_VALUE;
 
+    /**
+     * {@link LeaderElectionState#Leading} while this controller serves as the leader, which starts once it
+     * has taken over (see {@link #takeOverLeadership()}), after its election reported Leading.
+     */
     @Getter
     private volatile LeaderElectionState leaderState = LeaderElectionState.NoLeader;
+
+    /** The state its leader election last reported to this controller. Guarded by {@code this}. */
+    private LeaderElectionState electionState = LeaderElectionState.NoLeader;
+
+    /**
+     * Incremented on every change of {@link #electionState}: a takeover started before the last change is
+     * stale, and must neither restore consumer sessions nor serve. Guarded by {@code this}.
+     */
+    private long term;
+
+    /**
+     * One per term the election makes this controller the leader in: completed once the controller
+     * serves, or once the term ends, across failed takeover attempts. Completed outside of a term.
+     * Guarded by {@code this}.
+     */
+    private CompletableFuture<Void> leadership = CompletableFuture.completedFuture(null);
+
+    /** The latest takeover attempt of the current term, completed if none. Guarded by {@code this}. */
+    private CompletableFuture<Void> takeOverAttempt = CompletableFuture.completedFuture(null);
+
+    /**
+     * Cadence of the retries of a failed takeover, e.g. on a metadata store error. Reset on every
+     * takeover. Guarded by {@code this}.
+     */
+    private final Backoff takeOverBackoff = Backoff.builder()
+            .initialDelay(Duration.ofSeconds(1))
+            .maxBackoff(Duration.ofMinutes(1))
+            .build();
 
     private volatile boolean closed = false;
 
@@ -169,18 +202,23 @@ public class ScalableTopicController {
     }
 
     /**
-     * Reacts to leader election state transitions. On {@link LeaderElectionState#NoLeader}
+     * Reacts to leader election state transitions, including those of the elections the
+     * leader election runs by itself after the one {@link #initialize()} started: when the
+     * controller lock is deleted (its holder released it or lost its metadata session) and
+     * when the metadata session is re-established. Leading makes this controller take over
+     * as the leader; any other state makes it stop serving as the leader at once, so that a
+     * deposed leader never acts alongside the new one. On {@link LeaderElectionState#NoLeader}
      * we kick off another {@link #initialize()} so the cluster always converges toward
      * having a leader.
+     *
+     * <p>The election calls this while holding its monitor, one state change at a time.
      */
     private void onLeaderStateChange(LeaderElectionState state) {
         log.info().attr("state", state).log("Leader state change for scalable topic");
-        if (state != LeaderElectionState.Leading) {
-            // Stepped down (or never was leader). Stop the GC and auto-scale ticks so the
-            // deposed leader doesn't race the new one on layout writes / backing-topic
-            // deletes. The new leader's initialize() will reschedule.
-            cancelGcTask();
-            cancelAutoScaleTask();
+        if (state == LeaderElectionState.Leading) {
+            takeOverLeadership();
+        } else {
+            stopServingAsLeader(state);
         }
         if (state == LeaderElectionState.NoLeader && !closed) {
             initialize().exceptionally(ex -> {
@@ -193,15 +231,15 @@ public class ScalableTopicController {
     /**
      * The controller lock was deleted while this broker follows the leader: the leader released
      * the controller or lost its metadata session, or the topic is being deleted. A follower's
-     * election is closed once it settles (see {@link #electLeader()}), so it doesn't take the lock
-     * over by itself, even for a topic being deleted, where it would re-create the lock under the
-     * record the delete is about to remove (failing that delete on stores that refuse to delete a
-     * node with children). Re-elect through {@link #initialize()} instead, unless the topic is gone
-     * or marked deleted, retrying with backoff while that fails.
+     * election is closed once it settles (see {@link #electLeader()} and
+     * {@link #stopServingAsLeader(LeaderElectionState)}), so it doesn't take the lock over by
+     * itself, even for a topic being deleted, where it would re-create the lock under the record
+     * the delete is about to remove (failing that delete on stores that refuse to delete a node
+     * with children). Re-elect through {@link #initialize()} instead, unless the topic is gone or
+     * marked deleted, retrying with backoff while that fails.
      */
     private void onControllerLockDeleted() {
-        if (closed || leaderState != LeaderElectionState.Following
-                || !reElecting.compareAndSet(false, true)) {
+        if (closed || !isFollowing() || !reElecting.compareAndSet(false, true)) {
             return;
         }
         reElect(Backoff.builder()
@@ -211,7 +249,7 @@ public class ScalableTopicController {
     }
 
     private void reElect(Backoff backoff) {
-        resources.getScalableTopicMetadataAsync(topicName, true)
+        readTopicRecord()
                 .thenCompose(optMd -> {
                     if (closed || optMd.isEmpty() || optMd.get().isDeleted()) {
                         log.debug().log("Controller lock released for a deleted topic, not re-electing");
@@ -241,7 +279,7 @@ public class ScalableTopicController {
         if (closed) {
             return;
         }
-        resources.getScalableTopicMetadataAsync(topicName, true)
+        readTopicRecord()
                 .thenAccept(optMd -> {
                     if (optMd.isEmpty() && !closed) {
                         log.debug().log("Scalable topic deleted, releasing its controller");
@@ -309,38 +347,177 @@ public class ScalableTopicController {
                     this.currentLayout = SegmentLayout.fromMetadata(optMd.get());
                     return electLeader();
                 })
-                .thenCompose(__ -> isLeader()
-                        ? releaseIfMarkedDeleted() : CompletableFuture.completedFuture(null))
-                .thenCompose(__ -> {
-                    if (isLeader()) {
-                        seedAutoScaleCooldownsFromLayout();
-                        scheduleGcTask();
-                        scheduleAutoScaleTask();
-                        return ensureActiveSegmentsExist()
-                                .thenCompose(___ -> restoreSessionsFromStore());
+                // The election reported its outcome to onLeaderStateChange before completing:
+                // wait for the takeover attempt that started, if it made this controller the leader.
+                .thenCompose(__ -> currentTakeOverAttempt());
+    }
+
+    private synchronized CompletableFuture<Void> currentTakeOverAttempt() {
+        return takeOverAttempt;
+    }
+
+    /**
+     * The takeover in progress if the leader election made this controller the leader and it
+     * doesn't serve yet, completed otherwise: a request arriving meanwhile can wait for it rather
+     * than fail as reaching a broker that is not the leader.
+     */
+    synchronized CompletableFuture<Void> takeOverInProgress() {
+        return leadership;
+    }
+
+    /** Whether no state change of the leader election, nor a close, came after {@code term}. */
+    private synchronized boolean isCurrentTerm(long term) {
+        return !closed && term == this.term;
+    }
+
+    private synchronized boolean isFollowing() {
+        return electionState == LeaderElectionState.Following;
+    }
+
+    /**
+     * The leader election made this controller the leader: take over. The layout is reloaded,
+     * since the previous leader may have changed it after this controller loaded it, the
+     * cooldowns and the consumer sessions of the previous leader are recovered, and the active
+     * segments are healed. Only then does this controller serve as the leader: a consumer
+     * registering before the sessions are restored would be handed segments that a restored
+     * session owns. A failed takeover is retried, backing off, as long as the election keeps
+     * this controller the leader.
+     */
+    private void takeOverLeadership() {
+        long term;
+        synchronized (this) {
+            if (closed || electionState == LeaderElectionState.Leading) {
+                return;
+            }
+            electionState = LeaderElectionState.Leading;
+            term = ++this.term;
+            leadership = new CompletableFuture<>();
+            takeOverBackoff.reset();
+        }
+        startTakeOver(term);
+    }
+
+    private void startTakeOver(long term) {
+        if (!isCurrentTerm(term)) {
+            return;
+        }
+        // Not under the monitor: a takeover that finds the topic deleted closes this controller,
+        // and with it the leader election, whose monitor comes first.
+        CompletableFuture<Void> takeover = takeOver(term);
+        long retryDelayMs;
+        synchronized (this) {
+            if (term != this.term) {
+                return;
+            }
+            takeOverAttempt = takeover;
+            retryDelayMs = takeOverBackoff.next().toMillis();
+        }
+        takeover.exceptionally(ex -> {
+            if (!isCurrentTerm(term)) {
+                // Closed, e.g. for a deleted topic, or overtaken by a later state change.
+                return null;
+            }
+            log.warn().attr("retryDelayMs", retryDelayMs).exceptionMessage(ex)
+                    .log("Failed to take over as the scalable topic leader, retrying");
+            scheduler().schedule(() -> startTakeOver(term), retryDelayMs, TimeUnit.MILLISECONDS);
+            return null;
+        });
+    }
+
+    /**
+     * A topic deleted or being deleted has nothing to serve. The delete marks the topic before
+     * releasing its leader, but this controller may have read the record before the mark and won
+     * the election after the release, re-creating the lock under the record the delete is about
+     * to remove: it gives the lock back by closing, and the takeover fails. ScalableTopicService
+     * replaces a closed controller.
+     */
+    private CompletableFuture<Void> takeOver(long term) {
+        return readTopicRecord()
+                .thenCompose(optMd -> {
+                    if (!isCurrentTerm(term)) {
+                        return CompletableFuture.completedFuture(null);
                     }
-                    return CompletableFuture.completedFuture(null);
+                    if (optMd.isEmpty() || optMd.get().isDeleted()) {
+                        log.info().log("Scalable topic deleted while taking over as its leader, closing"
+                                + " the controller");
+                        return close().thenCompose(__ -> CompletableFuture.failedFuture(
+                                new IllegalStateException("Scalable topic is being deleted: " + topicName)));
+                    }
+                    this.currentLayout = SegmentLayout.fromMetadata(optMd.get());
+                    seedAutoScaleCooldownsFromLayout();
+                    return ensureActiveSegmentsExist()
+                            .thenCompose(__ -> restoreSessionsFromStore(term))
+                            .thenRun(() -> serveAsLeader(term));
                 });
     }
 
     /**
-     * The delete marks the topic before releasing its leader, but a controller that read the record
-     * before the mark can win the election after the release, re-creating the lock under the record
-     * the delete is about to remove. Read the record again once elected, and give the lock back if
-     * the topic is marked deleted or gone.
+     * The record of the topic, read from the store. Empty if it is missing or can't be read, like
+     * the empty one that a store re-creating missing parents leaves under the lock of a deleted
+     * topic.
      */
-    private CompletableFuture<Void> releaseIfMarkedDeleted() {
+    private CompletableFuture<Optional<ScalableTopicMetadata>> readTopicRecord() {
         return resources.getScalableTopicMetadataAsync(topicName, true)
-                .thenCompose(optMd -> {
-                    if (optMd.isPresent() && !optMd.get().isDeleted()) {
-                        return CompletableFuture.completedFuture(null);
+                .exceptionally(ex -> {
+                    if (FutureUtil.unwrapCompletionException(ex)
+                            instanceof MetadataStoreException.ContentDeserializationException) {
+                        return Optional.empty();
                     }
-                    leaderState = LeaderElectionState.NoLeader;
-                    return leaderElection.asyncClose()
-                            .handle((__, ex) -> null)
-                            .thenCompose(__ -> CompletableFuture.failedFuture(new IllegalStateException(
-                                    "Scalable topic is being deleted: " + topicName)));
+                    throw FutureUtil.wrapToCompletionException(ex);
                 });
+    }
+
+    private void serveAsLeader(long term) {
+        CompletableFuture<Void> served;
+        synchronized (this) {
+            if (closed || term != this.term) {
+                return;
+            }
+            leaderState = LeaderElectionState.Leading;
+            scheduleGcTask();
+            scheduleAutoScaleTask();
+            served = leadership;
+        }
+        // Not under the monitor: the requests that waited for the takeover go on from here.
+        served.complete(null);
+    }
+
+    /**
+     * The leader election lost the controller lock, or reported that another broker holds it:
+     * stop serving as the leader at once. Besides the GC and auto split/merge ticks, the
+     * consumer sessions are dropped: a deposed leader must neither push assignments nor evict
+     * the consumers whose grace period runs out. The consumers connected here are made to
+     * subscribe again, with whichever broker leads now, which restores their sessions from the
+     * metadata store: nothing else would tell them to move.
+     */
+    private void stopServingAsLeader(LeaderElectionState state) {
+        CompletableFuture<Void> endedTerm = null;
+        synchronized (this) {
+            if (closed) {
+                return;
+            }
+            if (state != electionState) {
+                electionState = state;
+                term++;
+                leaderState = state;
+                endedTerm = leadership;
+                takeOverAttempt = CompletableFuture.completedFuture(null);
+                cancelGcTask();
+                cancelAutoScaleTask();
+                closeSubscriptions(true);
+            }
+        }
+        if (endedTerm != null) {
+            // The requests waiting for a takeover go on, and find that this controller doesn't serve.
+            endedTerm.complete(null);
+        }
+        if (state == LeaderElectionState.Following) {
+            // Like in electLeader(): a follower holds no lock, and closing its election keeps it
+            // from taking the lock over by itself once the lock is deleted, before this controller
+            // can check the topic. onControllerLockDeleted() re-elects. Not under the monitor: the
+            // election's comes first.
+            leaderElection.asyncClose();
+        }
     }
 
     /**
@@ -728,25 +905,31 @@ public class ScalableTopicController {
      * on successful leader election so the newly-elected leader can resume servicing
      * consumers that were registered under a previous leader.
      */
-    private CompletableFuture<Void> restoreSessionsFromStore() {
+    private CompletableFuture<Void> restoreSessionsFromStore(long term) {
         return resources.listSubscriptionsAsync(topicName)
                 .thenCompose(subNames -> {
                     if (subNames.isEmpty()) {
                         return CompletableFuture.completedFuture(null);
                     }
                     CompletableFuture<?>[] futures = subNames.stream()
-                            .map(this::restoreSubscription)
+                            .map(subscription -> restoreSubscription(subscription, term))
                             .toArray(CompletableFuture[]::new);
                     return CompletableFuture.allOf(futures);
                 });
     }
 
-    private CompletableFuture<Void> restoreSubscription(String subscription) {
+    private CompletableFuture<Void> restoreSubscription(String subscription, long term) {
         return resources.listConsumersAsync(topicName, subscription)
                 .thenAccept(consumerNames -> {
-                    SubscriptionCoordinator coordinator = subscriptions.computeIfAbsent(
-                            subscription, this::createCoordinator);
-                    coordinator.restoreConsumers(consumerNames);
+                    synchronized (this) {
+                        if (closed || term != this.term) {
+                            // Stopped serving meanwhile: the sessions are the next leader's.
+                            return;
+                        }
+                        SubscriptionCoordinator coordinator = subscriptions.computeIfAbsent(
+                                subscription, this::createCoordinator);
+                        coordinator.restoreConsumers(consumerNames);
+                    }
                     log.info().attr("subscription", subscription)
                             .attr("consumerCount", consumerNames.size())
                             .log("Restored subscription");
@@ -899,13 +1082,13 @@ public class ScalableTopicController {
         }
         return leaderElection.elect(brokerId)
                 .thenAccept(state -> {
-                    if (state == LeaderElectionState.Following) {
+                    if (state == LeaderElectionState.Following || closed) {
                         // A follower holds no lock. Closing its election keeps the election from
                         // taking the lock over by itself once the lock is deleted, before this
                         // controller can check the topic: onControllerLockDeleted() re-elects.
+                        // Closed while electing, this controller closes what elect() reopened.
                         leaderElection.asyncClose();
                     }
-                    this.leaderState = state;
                     log.info().attr("state", state)
                             .log("Leader election for scalable topic");
                 });
@@ -1116,9 +1299,13 @@ public class ScalableTopicController {
                                                                    ScalableConsumerType
                                                                            consumerType,
                                                                    TransportCnx cnx) {
-        checkLeader();
-        SubscriptionCoordinator coordinator = subscriptions.computeIfAbsent(
-                subscription, sub -> createCoordinator(sub, consumerType));
+        SubscriptionCoordinator coordinator;
+        synchronized (this) {
+            // Under the monitor: stopping to serve in between would miss the coordinator.
+            checkLeader();
+            coordinator = subscriptions.computeIfAbsent(
+                    subscription, sub -> createCoordinator(sub, consumerType));
+        }
         // The coordinator may have been created on the failover-restore path (consumer
         // type unknown then; we defaulted to "no parent-drain enforcement"). Now that we
         // know the type, upgrade if it's STREAM. installDrainChecker is a no-op if the
@@ -1796,17 +1983,45 @@ public class ScalableTopicController {
 
     // --- Lifecycle ---
 
+    /**
+     * Release the controller: its leader election is closed, which releases the controller lock
+     * if it holds it. The consumers connected here are not moved: on a broker shutdown their
+     * connections close anyway, and a deleted topic has nothing left to subscribe to.
+     */
     public CompletableFuture<Void> close() {
-        closed = true;
-        resources.deregisterPathListener(controllerLockListener);
-        resources.deregisterPathListener(topicRecordListener);
-        cancelGcTask();
-        cancelAutoScaleTask();
-        // Stop each coordinator's drain poller before clearing — otherwise the scheduler
-        // task keeps running after the controller goes away.
-        subscriptions.values().forEach(SubscriptionCoordinator::close);
+        // The election first, outside the monitor (the election calls onLeaderStateChange
+        // holding its own): ScalableTopicService replaces a controller seen closed, and the
+        // replacement gets an election of its own only once this one is closed.
+        CompletableFuture<Void> electionClosed = leaderElection.asyncClose();
+        CompletableFuture<Void> endedTerm;
+        synchronized (this) {
+            closed = true;
+            resources.deregisterPathListener(controllerLockListener);
+            resources.deregisterPathListener(topicRecordListener);
+            leaderState = LeaderElectionState.NoLeader;
+            endedTerm = leadership;
+            cancelGcTask();
+            cancelAutoScaleTask();
+            closeSubscriptions(false);
+        }
+        endedTerm.complete(null);
+        return electionClosed;
+    }
+
+    public boolean isClosed() {
+        return closed;
+    }
+
+    private void closeSubscriptions(boolean resubscribeConsumers) {
+        // Stop each coordinator's drain poller and grace timers before clearing — otherwise
+        // the scheduler tasks keep running after the controller stops serving.
+        subscriptions.values().forEach(coordinator -> {
+            coordinator.close();
+            if (resubscribeConsumers) {
+                coordinator.getConsumers().forEach(ConsumerSession::resubscribe);
+            }
+        });
         subscriptions.clear();
-        return leaderElection.asyncClose();
     }
 
     // --- Internal helpers ---
