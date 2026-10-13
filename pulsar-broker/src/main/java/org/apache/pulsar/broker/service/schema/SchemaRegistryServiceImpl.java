@@ -230,7 +230,8 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                 }))).whenComplete((v, ex) -> {
                     var latencyMs = this.clock.millis() - start.getValue();
                     if (ex != null) {
-                        if (ex instanceof IncompatibleSchemaException) {
+                        Throwable actEx = FutureUtil.unwrapCompletionException(ex);
+                        if (actEx instanceof IncompatibleSchemaException) {
                             log.warn("[{}] Put schema failed due to incompatible schema", schemaId, ex);
                         } else {
                             log.error("[{}] Put schema failed", schemaId, ex);

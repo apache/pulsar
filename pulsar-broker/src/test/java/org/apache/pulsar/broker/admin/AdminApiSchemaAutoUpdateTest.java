@@ -29,6 +29,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -71,7 +72,8 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
         try (Producer<V3Data> p = pulsarClient.newProducer(Schema.AVRO(V3Data.class)).topic(topicName).create()) {
             Assert.fail("Forward compat schema should be rejected");
         } catch (PulsarClientException e) {
-            Assert.assertTrue(e.getMessage().contains("IncompatibleSchemaException"));
+            Throwable actEx = FutureUtil.unwrapCompletionException(e);
+            Assert.assertTrue(actEx instanceof PulsarClientException.IncompatibleSchemaException, actEx.getMessage());
         }
 
         log.info("try with backward compat, should succeed");
@@ -95,7 +97,8 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
         try (Producer<V2Data> p = pulsarClient.newProducer(Schema.AVRO(V2Data.class)).topic(topicName).create()) {
             Assert.fail("Backward compat schema should be rejected");
         } catch (PulsarClientException e) {
-            Assert.assertTrue(e.getMessage().contains("IncompatibleSchemaException"));
+            Throwable actEx = FutureUtil.unwrapCompletionException(e);
+            Assert.assertTrue(actEx instanceof PulsarClientException.IncompatibleSchemaException, actEx.getMessage());
         }
 
         log.info("try with forward compat, should succeed");
@@ -115,14 +118,16 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
         try (Producer<V2Data> p = pulsarClient.newProducer(Schema.AVRO(V2Data.class)).topic(topicName).create()) {
             Assert.fail("Backward compat only schema should fail");
         } catch (PulsarClientException e) {
-            Assert.assertTrue(e.getMessage().contains("IncompatibleSchemaException"));
+            Throwable actEx = FutureUtil.unwrapCompletionException(e);
+            Assert.assertTrue(actEx instanceof PulsarClientException.IncompatibleSchemaException, actEx.getMessage());
         }
 
         log.info("try with forward compat only, should fail");
         try (Producer<V3Data> p = pulsarClient.newProducer(Schema.AVRO(V3Data.class)).topic(topicName).create()) {
             Assert.fail("Forward compat only schema should fail");
         } catch (PulsarClientException e) {
-            Assert.assertTrue(e.getMessage().contains("IncompatibleSchemaException"));
+            Throwable actEx = FutureUtil.unwrapCompletionException(e);
+            Assert.assertTrue(actEx instanceof PulsarClientException.IncompatibleSchemaException, actEx.getMessage());
         }
 
         log.info("try with fully compat");
@@ -144,21 +149,24 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
         try (Producer<V2Data> p = pulsarClient.newProducer(Schema.AVRO(V2Data.class)).topic(topicName).create()) {
             Assert.fail("Backward compat only schema should fail");
         } catch (PulsarClientException e) {
-            Assert.assertTrue(e.getMessage().contains("IncompatibleSchemaException"));
+            Throwable actEx = FutureUtil.unwrapCompletionException(e);
+            Assert.assertTrue(actEx instanceof PulsarClientException.IncompatibleSchemaException, actEx.getMessage());
         }
 
         log.info("try with forward compat only, should fail");
         try (Producer<V3Data> p = pulsarClient.newProducer(Schema.AVRO(V3Data.class)).topic(topicName).create()) {
             Assert.fail("Forward compat only schema should fail");
         } catch (PulsarClientException e) {
-            Assert.assertTrue(e.getMessage().contains("IncompatibleSchemaException"));
+            Throwable actEx = FutureUtil.unwrapCompletionException(e);
+            Assert.assertTrue(actEx instanceof PulsarClientException.IncompatibleSchemaException, actEx.getMessage());
         }
 
         log.info("try with fully compat, should fail");
         try (Producer<V4Data> p = pulsarClient.newProducer(Schema.AVRO(V4Data.class)).topic(topicName).create()) {
             Assert.fail("Fully compat schema should fail, autoupdate disabled");
         } catch (PulsarClientException e) {
-            Assert.assertTrue(e.getMessage().contains("IncompatibleSchemaException"));
+            Throwable actEx = FutureUtil.unwrapCompletionException(e);
+            Assert.assertTrue(actEx instanceof PulsarClientException.IncompatibleSchemaException, actEx.getMessage());
         }
 
         log.info("Should still be able to connect with original schema");
