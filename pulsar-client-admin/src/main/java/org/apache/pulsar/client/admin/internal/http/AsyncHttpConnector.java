@@ -27,6 +27,7 @@ import static org.asynchttpclient.util.HttpConstants.ResponseStatusCodes.PERMANE
 import static org.asynchttpclient.util.HttpConstants.ResponseStatusCodes.SEE_OTHER_303;
 import static org.asynchttpclient.util.HttpConstants.ResponseStatusCodes.TEMPORARY_REDIRECT_307;
 import static org.asynchttpclient.util.MiscUtils.isNonEmpty;
+import com.google.common.annotations.VisibleForTesting;
 import com.spotify.futures.ConcurrencyReducer;
 import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.HttpRequest;
@@ -48,6 +49,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 import javax.ws.rs.ProcessingException;
 import javax.ws.rs.client.Client;
@@ -290,11 +292,28 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
 
     private CompletableFuture<Response> retryOrTimeOut(ClientRequest request) {
         final CompletableFuture<Response> resultFuture = new CompletableFuture<>();
-        retryOperation(resultFuture, () -> oneShot(serviceNameResolver.resolveHost(), request), maxRetries);
+        // The deadline and the timeout start before the first attempt, which can block this thread, e.g. to resolve
+        // the host name. AsyncHttpClient times out each attempt after the same duration, on its own timer, which can
+        // fire before ours: once the deadline has passed, a failed attempt is not retried
+        final BooleanSupplier requestTimedOut;
         if (requestTimeout != null) {
+            long deadlineNanos = nanoTime() + requestTimeout.toNanos();
+            requestTimedOut = () -> nanoTime() - deadlineNanos >= 0;
             FutureUtil.addTimeoutHandling(resultFuture, requestTimeout, delayer, () -> REQUEST_TIMEOUT_EXCEPTION);
+        } else {
+            requestTimedOut = () -> false;
         }
+        retryOperation(resultFuture, () -> oneShot(serviceNameResolver.resolveHost(), request), maxRetries,
+                requestTimedOut);
         return resultFuture;
+    }
+
+    /**
+     * @return the current time of the clock that request deadlines are measured with, in nanoseconds
+     */
+    @VisibleForTesting
+    long nanoTime() {
+        return System.nanoTime();
     }
 
     // TODO: There are problems with this solution since AsyncHttpClient already contains logic to retry requests.
@@ -302,7 +321,8 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
     private <T> void retryOperation(
             final CompletableFuture<T> resultFuture,
             final Supplier<CompletableFuture<T>> operation,
-            final int retries) {
+            final int retries,
+            final BooleanSupplier requestTimedOut) {
 
         if (!resultFuture.isDone()) {
             final CompletableFuture<T> operationFuture = operation.get();
@@ -317,6 +337,12 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
                             } else if (throwable instanceof MaxRedirectException) {
                                 // don't retry on max redirect
                                 resultFuture.completeExceptionally(throwable);
+                            } else if (requestTimedOut.getAsBoolean()) {
+                                if (log.isDebugEnabled()) {
+                                    log.debug("Request timeout has elapsed. Failing the operation instead of retrying",
+                                            throwable);
+                                }
+                                resultFuture.completeExceptionally(REQUEST_TIMEOUT_EXCEPTION);
                             } else {
                                 if (retries > 0) {
                                     if (log.isDebugEnabled()) {
@@ -325,7 +351,8 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
                                     retryOperation(
                                             resultFuture,
                                             operation,
-                                            retries - 1);
+                                            retries - 1,
+                                            requestTimedOut);
                                 } else {
                                     if (log.isDebugEnabled()) {
                                         log.debug("Number of retries has been exhausted. Failing the operation.",
