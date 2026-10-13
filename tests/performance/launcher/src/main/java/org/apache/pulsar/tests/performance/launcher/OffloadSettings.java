@@ -20,6 +20,7 @@ package org.apache.pulsar.tests.performance.launcher;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,6 +45,7 @@ import org.testcontainers.images.builder.Transferable;
  *   thresholdBytes: 0
  *   thresholdSeconds: 0
  *   deletionLagMillis: 0
+ *   logRequests: false
  * </pre>
  *
  * @param image the SeaweedFS image
@@ -54,9 +56,11 @@ import org.testcontainers.images.builder.Transferable;
  *                         brokers don't have
  * @param deletionLagMillis how long a ledger stays in BookKeeper after it has been offloaded, 0 deleting it at once,
  *                          so that reading it again reads the tiered storage
+ * @param logRequests the storage logs every request, with the range of each read, into its log, which the launcher
+ *                    saves into the run directory as {@value #STORAGE_LOG}
  */
 record OffloadSettings(String image, String namespace, long thresholdBytes, Long thresholdSeconds,
-                       long deletionLagMillis) {
+                       long deletionLagMillis, boolean logRequests) {
     static final String DEFAULT_IMAGE = "chrislusf/seaweedfs:4.47";
     static final String DEFAULT_NAMESPACE = "public/default";
     /** The storage's name on the cluster's network, as the network impairments' endpoint names it too. */
@@ -69,8 +73,12 @@ record OffloadSettings(String image, String namespace, long thresholdBytes, Long
      */
     static final String CREDENTIAL = "performance";
     private static final String S3_CONFIG = "/etc/seaweedfs/s3.json";
+    /** The storage's log in the run directory. */
+    static final String STORAGE_LOG = "offload-storage.log.txt";
+    // SeaweedFS's log level that logs each S3 request, with the offset and size of a read's range
+    private static final String REQUEST_LOG_LEVEL = "-v=4";
     private static final List<String> KEYS = List.of("image", "namespace", "thresholdBytes", "thresholdSeconds",
-            "deletionLagMillis");
+            "deletionLagMillis", "logRequests");
 
     /** Reads the {@code offload} section, which may be missing: null then, without offloading. */
     static OffloadSettings read(JsonNode offload) {
@@ -93,7 +101,12 @@ record OffloadSettings(String image, String namespace, long thresholdBytes, Long
         long thresholdBytes = number(offload, "thresholdBytes", 0L);
         Long thresholdSeconds = number(offload, "thresholdSeconds", null);
         long deletionLagMillis = number(offload, "deletionLagMillis", 0L);
-        return new OffloadSettings(image, namespace, thresholdBytes, thresholdSeconds, deletionLagMillis);
+        JsonNode logRequests = offload.path("logRequests");
+        if (!logRequests.isMissingNode() && !logRequests.isNull() && !logRequests.isBoolean()) {
+            throw new IllegalArgumentException("offload.logRequests must be true or false");
+        }
+        return new OffloadSettings(image, namespace, thresholdBytes, thresholdSeconds, deletionLagMillis,
+                logRequests.asBoolean(false));
     }
 
     private static String text(JsonNode section, String key, String defaultValue) {
@@ -137,6 +150,17 @@ record OffloadSettings(String image, String namespace, long thresholdBytes, Long
         return env;
     }
 
+    /** The storage's command: SeaweedFS's single-process server, with its log level before the command. */
+    List<String> command() {
+        List<String> command = new ArrayList<>();
+        if (logRequests) {
+            command.add(REQUEST_LOG_LEVEL);
+        }
+        command.addAll(List.of("mini", "-dir=/data", "-bucket=" + BUCKET, "-s3.config=" + S3_CONFIG,
+                "-master.telemetry=false"));
+        return command;
+    }
+
     /**
      * The storage's container on the network, not started: SeaweedFS's single-process server with its S3 API and the
      * offloads' bucket.
@@ -149,8 +173,7 @@ record OffloadSettings(String image, String namespace, long thresholdBytes, Long
                 .withNetwork(network)
                 .withNetworkAliases(STORAGE_HOST)
                 .withCopyToContainer(Transferable.of(s3Config), S3_CONFIG)
-                .withCommand("mini", "-dir=/data", "-bucket=" + BUCKET, "-s3.config=" + S3_CONFIG,
-                        "-master.telemetry=false")
+                .withCommand(command().toArray(String[]::new))
                 .withExposedPorts(S3_PORT)
                 // The S3 API listens, and the filer, which holds the buckets, has the bucket
                 .waitingFor(new WaitAllStrategy()

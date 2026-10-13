@@ -825,6 +825,9 @@ public class PerformanceLauncher implements Callable<Integer> {
             }
             status("Stopping the Pulsar cluster");
             shutDown("stopping the Pulsar cluster", cluster::stop);
+            if (offloadStorage != null) {
+                saveContainerLog(offloadStorage, runOutput.resolve(OffloadSettings.STORAGE_LOG));
+            }
             if (offloadStorage != null && !PulsarContainer.PULSAR_CONTAINERS_LEAVE_RUNNING) {
                 shutDown("stopping the offload storage", offloadStorage::stop);
             }

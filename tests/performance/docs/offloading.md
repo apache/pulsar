@@ -37,6 +37,7 @@ offload:
   thresholdBytes: 0                 # how many bytes of a topic stay in BookKeeper, 0 by default
   thresholdSeconds: 0               # optional: the offload threshold in seconds, unset by default
   deletionLagMillis: 0              # how long an offloaded ledger stays in BookKeeper, 0 by default
+  logRequests: false                # log every request to the storage, false by default
 ```
 
 With it, the launcher:
@@ -50,7 +51,14 @@ With it, the launcher:
   ledger as soon as it rolls over, the threshold in seconds when the section sets it, and the deletion lag, which with 0
   deletes the ledger from BookKeeper once it is offloaded;
 - records the topics' ledgers, and how many of them the brokers have offloaded, in `offload-status.csv`, when the late
-  applications join and at the run's end, which the report's Offloading section sums.
+  applications join and at the run's end, which the report's Offloading section sums;
+- saves the storage's log into the run directory as `offload-storage.log.txt`.
+
+With `logRequests: true`, SeaweedFS logs every request at its log level 4: an access line for each request, such as
+`"performance" GET "/pulsar/<object>" 206 2.1ms`, and for a ranged read the offset and the size of its range
+(`isRange=true, offset=1048576, size=1048576`). Counting the reads, the bytes they read, and how often each range was
+read tells how the brokers read the offloaded ledgers. It logs a few kilobytes per request, so leave it off for runs
+that don't need it.
 
 The brokers offload a ledger only once it has rolled over, so a scenario sets the rollover in `cluster.brokers.env`:
 `managedLedgerMaxEntriesPerLedger`, and `managedLedgerMinLedgerRolloverTimeMinutes: "0"`, without which a ledger

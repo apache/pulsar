@@ -27,9 +27,7 @@
 # section how long each took to receive its backlog: the time to read it from the tiered storage.
 #
 # Compare tiered storage implementations, or Pulsar releases, with -Pperformance.clusterPulsarImage: the test image
-# built on a 4.x release image adds the release's offloader, which the release image doesn't have. Reads that interleave
-# in the same offloaded ledger are slow in releases before 5.0: about 70 msg/s for each application on a workstation,
-# against about 400 msg/s with 5.0, so a 4.x run takes up to 20 minutes.
+# built on a 4.x release image adds the release's offloader, which the release image doesn't have.
 extends: iot-telemetry-base.yaml
 cluster:
   brokers:
@@ -55,8 +53,7 @@ workloads:
       seconds: 0
     measurement:
       seconds: 10
-    # The applications read their backlog from the tiered storage after they join at 30 s; releases before 5.0 take
-    # up to 20 minutes for it
+    # The applications read their backlog from the tiered storage after they join at 30 s, which can take minutes
     timeoutSeconds: 1500
     rate: 10000
     payload:

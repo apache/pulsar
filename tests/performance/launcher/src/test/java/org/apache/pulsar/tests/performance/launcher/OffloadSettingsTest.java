@@ -32,14 +32,16 @@ public class OffloadSettingsTest {
     public void readsTheSectionWithItsDefaults() throws Exception {
         assertThat(OffloadSettings.read(mapper.readTree("workloads: {}").path("offload"))).isNull();
         assertThat(OffloadSettings.read(mapper.readTree("{}"))).isEqualTo(new OffloadSettings(
-                OffloadSettings.DEFAULT_IMAGE, "public/default", 0, null, 0));
+                OffloadSettings.DEFAULT_IMAGE, "public/default", 0, null, 0, false));
         assertThat(OffloadSettings.read(mapper.readTree("""
                 image: chrislusf/seaweedfs:4.40
                 namespace: tenant/ns
                 thresholdBytes: 1048576
                 thresholdSeconds: 0
                 deletionLagMillis: 60000
-                """))).isEqualTo(new OffloadSettings("chrislusf/seaweedfs:4.40", "tenant/ns", 1048576, 0L, 60000));
+                logRequests: true
+                """))).isEqualTo(new OffloadSettings("chrislusf/seaweedfs:4.40", "tenant/ns", 1048576, 0L, 60000,
+                true));
     }
 
     @Test
@@ -52,11 +54,24 @@ public class OffloadSettingsTest {
                 .hasMessageContaining("offload.namespace must be <tenant>/<namespace>");
         assertThatThrownBy(() -> OffloadSettings.read(mapper.readTree("true")))
                 .hasMessageContaining("offload must be a mapping");
+        assertThatThrownBy(() -> OffloadSettings.read(mapper.readTree("logRequests: all")))
+                .hasMessageContaining("offload.logRequests must be true or false");
+    }
+
+    @Test
+    public void logsTheStoragesRequestsWhenAsked() {
+        OffloadSettings quiet = new OffloadSettings(OffloadSettings.DEFAULT_IMAGE, "public/default", 0, null, 0, false);
+        assertThat(quiet.command()).startsWith("mini").doesNotContain("-v=4");
+        OffloadSettings logging = new OffloadSettings(OffloadSettings.DEFAULT_IMAGE, "public/default", 0, null, 0,
+                true);
+        // a global option, before the command
+        assertThat(logging.command()).startsWith("-v=4", "mini");
     }
 
     @Test
     public void givesTheBrokersTheOffloadersSettingsUnlessTheScenarioSetsThem() {
-        Map<String, String> env = new OffloadSettings(OffloadSettings.DEFAULT_IMAGE, "public/default", 0, null, 0)
+        Map<String, String> env = new OffloadSettings(OffloadSettings.DEFAULT_IMAGE, "public/default", 0, null, 0,
+                false)
                 .withBrokerOffloadSettings(Map.of("s3ManagedLedgerOffloadBucket", "other", "PULSAR_MEM", "-Xmx1g"));
 
         assertThat(env)
