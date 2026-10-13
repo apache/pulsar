@@ -3208,10 +3208,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             chunkedMsgCtx = StringUtils.isNotBlank(messageUUID) ? chunkedMessagesMap.get(messageUUID) : null;
             if (chunkedMsgCtx == null) {
                 // Stale queue head with no backing context (e.g. the message already completed, or a
-                // discard path left the uuid behind). Like removeOldestPendingChunkedMessage(), skip
-                // it by polling and continue, so a ghost head cannot block expiry of live entries
-                // queued behind it.
-                pendingChunkedMessageUuidQueue.poll();
+                // discard path left the uuid behind). Skip it and continue, so a ghost head cannot block
+                // expiry of live entries queued behind it.
+                pendingChunkedMessageUuidQueue.remove(messageUUID);
                 continue;
             }
             if (System.currentTimeMillis() > (chunkedMsgCtx.receivedTime + expireTimeOfIncompleteChunkedMessageMillis)) {
