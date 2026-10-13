@@ -252,7 +252,10 @@ public class BrokerServiceTest extends BrokerTestBase {
             // into the topics cache, then the 1-second timeout fires.
             final CompletableFuture<Optional<Topic>> timedOutFuture = service.getTopic(topicName, true, null);
 
-            // computeIfAbsent must have already run — loadOrCreatePersistentTopic called exactly once
+            // computeIfAbsent is called inside systemTopicLoadFuture.thenRun, which runs asynchronously.
+            // Wait for loadOrCreatePersistentTopic to be called (placing the future in topics cache).
+            Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                    .until(() -> topicLoadAttempts.get() == 1);
             assertEquals(topicLoadAttempts.get(), 1,
                     "First getTopic should have reached computeIfAbsent and placed topicFuture in topics cache");
 
