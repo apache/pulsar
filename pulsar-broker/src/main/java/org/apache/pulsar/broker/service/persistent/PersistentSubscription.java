@@ -1341,7 +1341,7 @@ public class PersistentSubscription extends AbstractSubscription {
                 .exceptionally(ex -> {
                     log.warn().exceptionMessage(ex)
                             .log("Failed to collect the transaction ack records of the subscription to delete");
-                    return Map.of();
+                    return List.of();
                 })
                 .thenCompose(ackOps -> topic.unsubscribe(subName)
                         .thenCompose(__ -> txnAckRecordsDeleteGate)

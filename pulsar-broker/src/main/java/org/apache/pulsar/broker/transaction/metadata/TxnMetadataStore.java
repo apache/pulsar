@@ -67,6 +67,13 @@ public class TxnMetadataStore {
 
     private final MetadataStore store;
 
+    /**
+     * A {@code /txn/op} record collected to be deleted: its path, the txn it belongs to, and the version it was read
+     * at. The path alone doesn't identify the record: Oxia gives the next op of a txn the sequence key of the txn's
+     * last op once that one is deleted.
+     */
+    public record OpRecord(String path, String txnId, long version) {}
+
     public TxnMetadataStore(MetadataStore store) {
         this.store = store;
     }
@@ -194,7 +201,7 @@ public class TxnMetadataStore {
     /**
      * Delete every {@code /txn/op} write record for {@code segment}, of any txn — used when the segment is
      * deleted: the TB deletes them as it applies the txns' outcomes, which it never does for a txn still
-     * open by then. Best-effort: tolerates concurrent deletions via {@link MetadataStore#deleteIfExists}.
+     * open by then. Best-effort, see {@link #deleteOps}.
      */
     public CompletableFuture<Void> deleteWriteOpsForSegment(String segment) {
         return collectOpsOnSegment(segment,
@@ -219,11 +226,9 @@ public class TxnMetadataStore {
      * {@link #deleteOps} — used when the subscription is deleted: the PendingAckStore deletes them as it applies the
      * txns' outcomes, which it never does for a txn still open by then. A snapshot: the records a subscription
      * re-created with the same name writes afterwards aren't in it.
-     *
-     * @return the paths of the records, mapped to their txn ids
      */
-    public CompletableFuture<Map<String, String>> collectAckOpsForSegmentSubscription(String segment,
-                                                                                     String subscription) {
+    public CompletableFuture<List<OpRecord>> collectAckOpsForSegmentSubscription(String segment,
+                                                                                String subscription) {
         return collectOpsOnSegment(segment,
                 op -> op.getKind() == TxnOpKind.ACK && segment.equals(op.getSegment())
                         && subscription.equals(op.getSubscription()),
@@ -243,13 +248,23 @@ public class TxnMetadataStore {
     }
 
     /**
-     * Delete the {@code /txn/op} records collected by {@link #collectAckOpsForSegmentSubscription}, each with its
-     * txn's partition key. Best-effort: tolerates concurrent deletions via {@link MetadataStore#deleteIfExists}.
+     * Delete the {@code /txn/op} records collected by {@link #collectAckOpsForSegmentSubscription}, each at the
+     * version it was collected at. Best-effort: a record deleted since is left alone, and so is a record written at
+     * its path since, for another op of the same txn.
      */
-    public CompletableFuture<Void> deleteOps(Map<String, String> txnIdByPath) {
-        List<CompletableFuture<Void>> deletes = new ArrayList<>(txnIdByPath.size());
-        txnIdByPath.forEach((path, txnIdKey) -> deletes.add(
-                store.deleteIfExists(path, Optional.empty(), Set.of(new Option.PartitionKey(txnIdKey)))));
+    public CompletableFuture<Void> deleteOps(List<OpRecord> ops) {
+        List<CompletableFuture<Void>> deletes = new ArrayList<>(ops.size());
+        for (OpRecord op : ops) {
+            deletes.add(store.delete(op.path(), Optional.of(op.version()), Set.of(new Option.PartitionKey(op.txnId())))
+                    .exceptionally(ex -> {
+                        Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                        if (cause instanceof MetadataStoreException.NotFoundException
+                                || cause instanceof MetadataStoreException.BadVersionException) {
+                            return null;
+                        }
+                        throw FutureUtil.wrapToCompletionException(cause);
+                    }));
+        }
         return FutureUtil.waitForAll(deletes);
     }
 
@@ -304,23 +319,24 @@ public class TxnMetadataStore {
 
     /**
      * Shared implementation of the cleanups on a deleted segment or subscription, of any txn: invoke the supplied
-     * scan with a collector that captures the records {@code matches} accepts, mapping their paths to their txn ids.
-     * The collector checks the records itself: a store with a native index doesn't apply the scan's filter, and its
-     * point lookups also match the keys that extend the one looked up (the records of a segment whose id extends
-     * this one's, of a subscription whose name extends this one's).
+     * scan with a collector that captures the records {@code matches} accepts. The collector checks the records
+     * itself: a store with a native index doesn't apply the scan's filter, and its point lookups also match the keys
+     * that extend the one looked up (the records of a segment whose id extends this one's, of a subscription whose
+     * name extends this one's).
      */
-    private CompletableFuture<Map<String, String>> collectOpsOnSegment(
+    private CompletableFuture<List<OpRecord>> collectOpsOnSegment(
             String segment, Predicate<TxnOp> matches, Function<ScanConsumer, CompletableFuture<Void>> scan) {
-        Map<String, String> txnIdByPath = new ConcurrentHashMap<>();
+        Map<String, OpRecord> opsByPath = new ConcurrentHashMap<>();
         ScanConsumer collector = new ScanConsumer() {
             @Override
             public void onNext(GetResult r) {
                 if (!matches.test(fromJson(r.getValue(), TxnOp.class))) {
                     return;
                 }
-                String txnIdKey = TxnPaths.txnIdFromOpPath(r.getStat().getPath());
+                String path = r.getStat().getPath();
+                String txnIdKey = TxnPaths.txnIdFromOpPath(path);
                 if (txnIdKey != null) {
-                    txnIdByPath.put(r.getStat().getPath(), txnIdKey);
+                    opsByPath.put(path, new OpRecord(path, txnIdKey, r.getStat().getVersion()));
                 }
             }
 
@@ -334,7 +350,7 @@ public class TxnMetadataStore {
             public void onCompleted() {
             }
         };
-        return scan.apply(collector).thenApply(__ -> txnIdByPath);
+        return scan.apply(collector).thenApply(__ -> List.copyOf(opsByPath.values()));
     }
 
     /**

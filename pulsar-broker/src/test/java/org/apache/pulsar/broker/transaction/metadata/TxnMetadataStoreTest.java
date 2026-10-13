@@ -24,7 +24,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -196,17 +195,40 @@ public class TxnMetadataStoreTest {
         TxnOp write = new TxnOp(TxnOpKind.WRITE, seg, null, 0L, 0L, null);
         txn.appendOp("tx-1", write).get();
 
-        Map<String, String> ackOps = txn.collectAckOpsForSegmentSubscription(seg, "sub").get();
+        List<TxnMetadataStore.OpRecord> ackOps = txn.collectAckOpsForSegmentSubscription(seg, "sub").get();
         // Written after the collection, like the record of a subscription re-created with the same name.
         TxnOp laterAck = new TxnOp(TxnOpKind.ACK, seg, "sub", 1L, 3L, false);
         txn.appendOp("tx-3", laterAck).get();
         txn.deleteOps(ackOps).get();
 
-        assertThat(ackOps.values()).containsExactlyInAnyOrder("tx-1", "tx-2");
+        assertThat(ackOps).extracting(TxnMetadataStore.OpRecord::txnId).containsExactlyInAnyOrder("tx-1", "tx-2");
         List<TxnOp> remaining = new ArrayList<>();
         store.scanChildren(TxnPaths.TXN_OP_PREFIX, collectOps(remaining)).get();
         assertThat(remaining)
                 .containsExactlyInAnyOrder(extendingSubscriptionAck, extendingSegmentAck, write, laterAck);
+    }
+
+    @Test
+    public void deleteOps_keepsARecordWrittenAtACollectedPathSince() throws Exception {
+        @Cleanup MetadataStore store = newMemoryStore();
+        TxnMetadataStore txn = new TxnMetadataStore(store);
+
+        String seg = "segment://public/default/topic/0000-7fff-1";
+        String path = txn.appendOp("tx-1", new TxnOp(TxnOpKind.ACK, seg, "sub", 1L, 1L, false)).get().getPath();
+        List<TxnMetadataStore.OpRecord> ackOps = txn.collectAckOpsForSegmentSubscription(seg, "sub").get();
+
+        // Another cleanup deletes the record, and the same txn acknowledges again on a subscription re-created
+        // with the same name: Oxia gives the new op the sequence key of the deleted one, with another version
+        // (versions only grow on Oxia; the in-memory store restarts a re-created path at 0, so update it once).
+        store.delete(path, Optional.empty()).get();
+        TxnOp newAck = new TxnOp(TxnOpKind.ACK, seg, "sub", 2L, 1L, false);
+        Stat created = store.put(path, TxnMetadataStore.toJson(newAck), Optional.of(-1L)).get();
+        store.put(path, TxnMetadataStore.toJson(newAck), Optional.of(created.getVersion())).get();
+        txn.deleteOps(ackOps).get();
+
+        List<TxnOp> remaining = new ArrayList<>();
+        store.scanChildren(TxnPaths.TXN_OP_PREFIX, collectOps(remaining)).get();
+        assertThat(remaining).containsExactly(newAck);
     }
 
     @Test
