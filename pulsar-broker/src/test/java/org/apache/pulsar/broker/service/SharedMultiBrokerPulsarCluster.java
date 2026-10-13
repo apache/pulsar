@@ -77,6 +77,7 @@ public class SharedMultiBrokerPulsarCluster {
     private final List<PulsarService> brokers = new ArrayList<>(NUM_BROKERS);
     private final List<PulsarAdmin> admins = new ArrayList<>(NUM_BROKERS);
     private final List<PulsarClient> clients = new ArrayList<>(NUM_BROKERS);
+    private int extraBrokers;
 
     /** Returns the singleton instance, starting the cluster on first invocation. */
     public static SharedMultiBrokerPulsarCluster get() throws Exception {
@@ -122,6 +123,14 @@ public class SharedMultiBrokerPulsarCluster {
     /** Convenience: the first broker's client. Lookups redirect to topic-owning brokers. */
     public PulsarClient getClient() {
         return clients.get(0);
+    }
+
+    /**
+     * Start one more broker in the cluster, for a test that shuts a broker down, e.g. to fail over
+     * what it leads. It is not one of {@link #getBrokers()}: the caller closes it.
+     */
+    public synchronized PulsarService startExtraBroker() throws Exception {
+        return startBroker(NUM_BROKERS + extraBrokers++);
     }
 
     @SuppressWarnings("deprecation")

@@ -1157,6 +1157,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private final java.util.concurrent.ConcurrentHashMap<Long, ScalableConsumerRegistrationRef>
             scalableConsumerRegistrations = new java.util.concurrent.ConcurrentHashMap<>();
 
+    /** Set once the connection is closed to make its scalable consumers subscribe again. */
+    private final AtomicBoolean closedForScalableConsumers = new AtomicBoolean();
+
     /**
      * A scalable-topic consumer registration made on this connection. {@code answered} records
      * whether the response to its subscribe, {@code requestId}, was written; see
@@ -1304,6 +1307,23 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             getCommandSender().sendScalableTopicSubscribeResponse(ref.requestId(), assignment);
         } else {
             getCommandSender().sendScalableTopicAssignmentUpdate(consumerId, assignment);
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>The protocol has no command to close a single scalable consumer session, so this closes the
+     * connection: the client subscribes all its scalable consumer sessions again, with the controller
+     * leader it looks up, and reconnects its producers and consumers. Once for all the sessions of
+     * the connection: the channel stays active until the close runs on its event loop.
+     */
+    @Override
+    public void closeScalableConsumerSession(long consumerId) {
+        if (ctx.channel().isActive() && closedForScalableConsumers.compareAndSet(false, true)) {
+            log.info().attr("consumerId", consumerId)
+                    .log("Closing the connection of a scalable consumer to make it subscribe again");
+            ctx.close();
         }
     }
 
