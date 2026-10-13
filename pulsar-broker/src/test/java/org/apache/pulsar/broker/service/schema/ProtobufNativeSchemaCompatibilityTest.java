@@ -396,7 +396,31 @@ public class ProtobufNativeSchemaCompatibilityTest {
         assertThat(restored.getUnknownFields().asMap()).isEmpty();
         assertThatThrownBy(() -> checker.checkCompatible(schema(descriptor), differentEncoding(schema(descriptor)),
                 SchemaCompatibilityStrategy.BACKWARD))
-                .isInstanceOf(IncompatibleSchemaException.class).hasMessageContaining("UNSUPPORTED_FEATURE");
+                .isInstanceOf(IncompatibleSchemaException.class)
+                .hasMessageContaining("UNSUPPORTED_FEATURE")
+                .hasMessageContaining("side=writer")
+                .hasMessageContaining("detail=feature ");
+    }
+
+    @Test
+    public void testUnsupportedFeatureDiagnosticIdentifiesTheComparisonSide() throws Exception {
+        DescriptorProto message = message("Order", field("id", 1, TYPE_INT32, LABEL_OPTIONAL));
+        SchemaData supported = schema(root(message));
+        SchemaData unsupported = schema(root(message.toBuilder().addExtensionRange(
+                DescriptorProto.ExtensionRange.newBuilder().setStart(100).setEnd(200)).build()));
+        for (SchemaCompatibilityStrategy strategy : List.of(SchemaCompatibilityStrategy.BACKWARD,
+                SchemaCompatibilityStrategy.FORWARD)) {
+            boolean backward = strategy == SchemaCompatibilityStrategy.BACKWARD;
+            assertThatThrownBy(() -> checker.checkCompatible(supported, unsupported, strategy))
+                    .isInstanceOf(IncompatibleSchemaException.class)
+                    .hasMessageContaining("UNSUPPORTED_FEATURE")
+                    .hasMessageContaining("side=" + (backward ? "reader" : "writer"))
+                    .hasMessageContaining("detail=extension range or MessageSet");
+            assertThatThrownBy(() -> checker.checkCompatible(unsupported, supported, strategy))
+                    .isInstanceOf(IncompatibleSchemaException.class)
+                    .hasMessageContaining("side=" + (backward ? "writer" : "reader"))
+                    .hasMessageContaining("detail=extension range or MessageSet");
+        }
     }
 
     @Test(dataProvider = "explicitUnknownWireFeatures")
@@ -553,7 +577,8 @@ public class ProtobufNativeSchemaCompatibilityTest {
         assertThatThrownBy(() -> accepts(writer, nestedCycle(41)))
                 .isInstanceOf(IncompatibleSchemaException.class)
                 .hasMessageContaining("COMPARISON_LIMIT_EXCEEDED")
-                .hasMessageContaining("limit=4288");
+                .hasMessageContaining("limit=4288")
+                .satisfies(error -> assertThat(error.getMessage()).doesNotContain("writer=", "reader="));
         assertThat(work(writer, equal)).isEqualTo(new WorkSummary(260, 4160, 4160));
     }
 
@@ -568,6 +593,45 @@ public class ProtobufNativeSchemaCompatibilityTest {
                 .hasMessageContaining("COMPARISON_LIMIT_EXCEEDED")
                 .hasMessageContaining("work=100007")
                 .hasMessageContaining("limit=100000");
+    }
+
+    @DataProvider
+    public Object[][] largeSchemaBudgetExamples() {
+        return new Object[][]{
+                {14000, 0, true},
+                {14500, 0, false},
+                {1, 16600, true},
+                {1, 16700, false}
+        };
+    }
+
+    @Test(dataProvider = "largeSchemaBudgetExamples", timeOut = 30000)
+    public void testLargeSchemaOptionalAdditionBudget(int fields, int enumValues, boolean accepted) throws Exception {
+        DescriptorProto.Builder message = DescriptorProto.newBuilder().setName("Order");
+        EnumDescriptorProto.Builder enumeration = EnumDescriptorProto.newBuilder().setName("State");
+        for (int i = 0; i < enumValues; i++) {
+            enumeration.addValue(EnumValueDescriptorProto.newBuilder().setName("VALUE_" + i).setNumber(i));
+        }
+        for (int number = 1; number <= fields; number++) {
+            FieldDescriptorProto.Builder field = field("field" + number, number,
+                    enumValues == 0 ? TYPE_INT32 : TYPE_ENUM, LABEL_OPTIONAL).toBuilder();
+            if (enumValues > 0) {
+                field.setTypeName(".example.State");
+            }
+            message.addField(field);
+        }
+        Descriptor writer = enumValues == 0 ? root(message.build()) : root(message.build(), enumeration.build());
+        message.addField(field("added", fields + 1, TYPE_INT32, LABEL_OPTIONAL));
+        Descriptor reader = enumValues == 0 ? root(message.build()) : root(message.build(), enumeration.build());
+        if (accepted) {
+            checker.checkCompatible(schema(writer), schema(reader), SchemaCompatibilityStrategy.BACKWARD);
+        } else {
+            assertThatThrownBy(() -> checker.checkCompatible(schema(writer), schema(reader),
+                    SchemaCompatibilityStrategy.BACKWARD))
+                    .isInstanceOf(IncompatibleSchemaException.class)
+                    .hasMessageContaining("COMPARISON_LIMIT_EXCEEDED")
+                    .hasMessageContaining("limit=100000");
+        }
     }
 
     @Test

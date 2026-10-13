@@ -24,6 +24,7 @@ import com.google.protobuf.DescriptorProtos.FileDescriptorProto;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FileDescriptor;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.service.schema.ProtobufNativeSchemaAdvancedCompatibilityCheck;
@@ -51,7 +52,7 @@ import org.openjdk.jmh.annotations.Warmup;
 @Fork(1)
 @State(Scope.Thread)
 public class ProtobufNativeSchemaCompatibilityBenchmark {
-    @Param({"compact", "sparse", "wide", "recursive", "history16", "history64"})
+    @Param({"compact", "sparse", "wide", "recursive", "identical", "history16", "history64"})
     public String scenario;
 
     private final ProtobufNativeSchemaAdvancedCompatibilityCheck checker =
@@ -65,18 +66,22 @@ public class ProtobufNativeSchemaCompatibilityBenchmark {
         switch (scenario) {
             case "compact" -> {
                 proposed = schema(2, false, false);
-                history.add(proposed);
+                history.add(withoutFirstField(proposed));
             }
             case "sparse" -> {
                 proposed = schema(2, true, false);
-                history.add(proposed);
+                history.add(withoutFirstField(proposed));
             }
             case "wide" -> {
                 proposed = schema(128, false, false);
-                history.add(proposed);
+                history.add(withoutFirstField(proposed));
             }
             case "recursive" -> {
                 proposed = schema(8, false, true);
+                history.add(withoutFirstField(proposed));
+            }
+            case "identical" -> {
+                proposed = schema(128, false, false);
                 history.add(proposed);
             }
             case "history16", "history64" -> {
@@ -88,11 +93,26 @@ public class ProtobufNativeSchemaCompatibilityBenchmark {
             }
             default -> throw new IllegalArgumentException(scenario);
         }
+        if (!scenario.equals("identical") && history.stream()
+                .anyMatch(existing -> Arrays.equals(existing.getData(), proposed.getData()))) {
+            throw new IllegalStateException("Comparison scenarios must not use byte-identical schemas");
+        }
+        checker.checkCompatible(history, proposed, SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE);
     }
 
     @Benchmark
     public void check() throws IncompatibleSchemaException {
         checker.checkCompatible(history, proposed, SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE);
+    }
+
+    private static SchemaData withoutFirstField(SchemaData schema) throws Exception {
+        Descriptor descriptor = ProtobufNativeSchemaUtils.deserialize(schema.getData());
+        // Remove a scalar field without renumbering the sparse tag or the recursive child reference.
+        FileDescriptorProto file = descriptor.getFile().toProto().toBuilder()
+                .setMessageType(0, descriptor.toProto().toBuilder().removeField(0)).build();
+        Descriptor previous = FileDescriptor.buildFrom(file, new FileDescriptor[0]).findMessageTypeByName("Order");
+        return SchemaData.builder().type(SchemaType.PROTOBUF_NATIVE)
+                .data(ProtobufNativeSchemaUtils.serialize(previous)).build();
     }
 
     private static SchemaData schema(int fields, boolean sparse, boolean recursive) throws Exception {

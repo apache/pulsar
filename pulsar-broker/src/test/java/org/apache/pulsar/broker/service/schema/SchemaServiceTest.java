@@ -44,12 +44,14 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -60,8 +62,14 @@ import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaExce
 import org.apache.pulsar.broker.service.schema.exceptions.NotExistSchemaException;
 import org.apache.pulsar.broker.service.schema.generated.enums.NativeLegacyEnum;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo;
 import org.apache.pulsar.client.impl.schema.ProtobufNativeSchemaUtils;
+import org.apache.pulsar.client.impl.schema.generic.GenericProtobufNativeSchema;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.IsCompatibilityResponse;
@@ -80,6 +88,7 @@ import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
@@ -512,16 +521,22 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
                 .hasStackTraceContaining("existingSchemaVersion=1");
     }
 
-    @Test
-    public void testAdvancedNativeKeyValueFailureIdentifiesStoredVersion() throws Exception {
+    @DataProvider
+    public Object[][] nativeKeyValueEncodings() {
+        return new Object[][]{{KeyValueEncodingType.INLINE}, {KeyValueEncodingType.SEPARATED}};
+    }
+
+    @Test(dataProvider = "nativeKeyValueEncodings")
+    public void testAdvancedNativeKeyValueFailureIdentifiesStoredVersion(KeyValueEncodingType encoding)
+            throws Exception {
         for (boolean nativeKey : List.of(true, false)) {
             String id = BrokerTestUtil.newUniqueName("tenant/ns/native-kv-history");
             SchemaData first = nativeSchema("id", 1, FieldDescriptorProto.Type.TYPE_INT32, false);
             SchemaData empty = nativeSchema(null, 0, null, false);
             SchemaData changed = nativeSchema("id", 1, FieldDescriptorProto.Type.TYPE_STRING, false);
-            first = withNativeComponent(first, nativeKey);
-            empty = withNativeComponent(empty, nativeKey);
-            SchemaData proposed = withNativeComponent(changed, nativeKey);
+            first = withNativeComponent(first, nativeKey, encoding);
+            empty = withNativeComponent(empty, nativeKey, encoding);
+            SchemaData proposed = withNativeComponent(changed, nativeKey, encoding);
             putSchema(id, first, version(0), BACKWARD);
             putSchema(id, empty, version(1), BACKWARD);
             assertThatThrownBy(() -> schemaRegistryService.checkConsumerCompatibility(id, proposed,
@@ -532,12 +547,66 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    private static SchemaData withNativeComponent(SchemaData nativeSchema, boolean key) {
+    private static SchemaData withNativeComponent(SchemaData nativeSchema, boolean key, KeyValueEncodingType encoding) {
         SchemaInfo schema = KeyValueSchemaInfo.encodeKeyValueSchemaInfo("native-kv",
                 (key ? nativeSchema : schemaData1).toSchemaInfo(),
-                (key ? schemaData1 : nativeSchema).toSchemaInfo(), KeyValueEncodingType.INLINE);
+                (key ? schemaData1 : nativeSchema).toSchemaInfo(), encoding);
         return SchemaData.builder().type(schema.getType()).data(schema.getSchema()).props(schema.getProperties())
                 .user(userId).timestamp(MockClock.millis()).build();
+    }
+
+    @Test
+    public void testAdvancedNativeDiagnosticsReachProducerAndConsumer() throws Exception {
+        Set<String> originalCheckers = conf.getSchemaRegistryCompatibilityCheckers();
+        Set<String> advancedCheckers = new HashSet<>(originalCheckers);
+        advancedCheckers.remove(ProtobufNativeSchemaCompatibilityCheck.class.getName());
+        advancedCheckers.add(ProtobufNativeSchemaAdvancedCompatibilityCheck.class.getName());
+        conf.setSchemaRegistryCompatibilityCheckers(advancedCheckers);
+        try {
+            restartBroker();
+            admin.namespaces().setSchemaCompatibilityStrategy("public/default", BACKWARD);
+            String topic = BrokerTestUtil.newUniqueName("persistent://public/default/native-diagnostics");
+            GenericProtobufNativeSchema original = new GenericProtobufNativeSchema(
+                    nativeSchema("id", 1, FieldDescriptorProto.Type.TYPE_INT32, false).toSchemaInfo());
+            GenericProtobufNativeSchema changed = new GenericProtobufNativeSchema(
+                    nativeSchema("id", 1, FieldDescriptorProto.Type.TYPE_STRING, false).toSchemaInfo());
+
+            try (Producer<GenericRecord> producer = pulsarClient.newProducer(original).topic(topic).create();
+                 Consumer<GenericRecord> consumer = pulsarClient.newConsumer(original).topic(topic)
+                         .subscriptionName("valid").subscribe()) {
+                producer.send(original.newRecordBuilder().set("id", 42).build());
+                Message<GenericRecord> message = consumer.receive(10, TimeUnit.SECONDS);
+                assertThat(message).isNotNull();
+                assertThat(message.getValue().getField("id")).isEqualTo(42);
+
+                assertThatThrownBy(() -> {
+                    try (Producer<GenericRecord> ignored = pulsarClient.newProducer(changed).topic(topic).create()) {
+                        fail("The advanced checker must reject the changed producer schema");
+                    }
+                }).isInstanceOf(PulsarClientException.IncompatibleSchemaException.class)
+                        .hasMessageContaining("TYPE_CHANGED")
+                        .hasMessageContaining("strategy=BACKWARD")
+                        .hasMessageContaining("direction=BACKWARD")
+                        .hasMessageContaining("existingSchemaVersion=0")
+                        .hasMessageContaining("path=example.Order.id")
+                        .hasMessageContaining("writer=INT32, reader=STRING");
+
+                assertThatThrownBy(() -> {
+                    try (Consumer<GenericRecord> ignored = pulsarClient.newConsumer(changed).topic(topic)
+                            .subscriptionName("invalid").subscribe()) {
+                        fail("The advanced checker must reject the changed consumer schema");
+                    }
+                }).isInstanceOf(PulsarClientException.IncompatibleSchemaException.class)
+                        .hasMessageContaining("TYPE_CHANGED")
+                        .hasMessageContaining("strategy=BACKWARD")
+                        .hasMessageContaining("direction=BACKWARD")
+                        .hasMessageContaining("existingSchemaVersion=0")
+                        .hasMessageContaining("path=example.Order.id")
+                        .hasMessageContaining("writer=INT32, reader=STRING");
+            }
+        } finally {
+            conf.setSchemaRegistryCompatibilityCheckers(originalCheckers);
+        }
     }
 
     @Test

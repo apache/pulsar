@@ -95,27 +95,27 @@ final class ProtobufNativeSchemaCompatibility {
             comparison.checkFile(message.getFile(), side, path);
             if (message.toProto().getExtensionRangeCount() != 0
                     || message.getOptions().getMessageSetWireFormat()) {
-                throw incompatible("UNSUPPORTED_FEATURE", path, 0, side, "extension range or MessageSet");
+                throw unsupportedFeature(path, 0, side, "extension range or MessageSet");
             }
-            comparison.checkContainingFeatures(message);
+            comparison.checkContainingFeatures(message, side);
             for (FieldDescriptor field : comparison.sortedFields(message)) {
                 // Every reference field is charged, including references to an already visited message or enum.
                 comparison.charge(1, path);
                 String fieldPath = append(path, field.getName());
-                checkFeatures(field.toProto().getOptions().getFeatures(), fieldPath);
+                checkFeatures(field.toProto().getOptions().getFeatures(), side, fieldPath);
                 if (field.getJavaType() == FieldDescriptor.JavaType.ENUM) {
                     EnumDescriptor enumType = field.getEnumType();
                     if (visitedEnums.add(enumType)) {
                         comparison.charge(1L + enumType.getValues().size(), fieldPath);
                         comparison.checkFile(enumType.getFile(), side, fieldPath);
-                        comparison.checkContainingFeatures(enumType.getContainingType());
-                        checkFeatures(enumType.toProto().getOptions().getFeatures(), fieldPath);
+                        comparison.checkContainingFeatures(enumType.getContainingType(), side);
+                        checkFeatures(enumType.toProto().getOptions().getFeatures(), side, fieldPath);
                         for (EnumValueDescriptor value : enumType.getValues()) {
-                            checkFeatures(value.toProto().getOptions().getFeatures(), fieldPath);
+                            checkFeatures(value.toProto().getOptions().getFeatures(), side, fieldPath);
                         }
                     }
                     if (enumType.isClosed() != legacyEnumFieldTreatedAsClosed(field)) {
-                        throw incompatible("UNSUPPORTED_FEATURE", fieldPath, field.getNumber(), side,
+                        throw unsupportedFeature(fieldPath, field.getNumber(), side,
                                 "Java legacy closed-enum behavior differs from enum openness");
                     }
                 } else if (field.getJavaType() == FieldDescriptor.JavaType.MESSAGE) {
@@ -127,7 +127,7 @@ final class ProtobufNativeSchemaCompatibility {
             }
             for (OneofDescriptor oneof : comparison.sortedOneofs(message)) {
                 comparison.charge(1, path);
-                checkFeatures(oneof.toProto().getOptions().getFeatures(), append(path, oneof.getName()));
+                checkFeatures(oneof.toProto().getOptions().getFeatures(), side, append(path, oneof.getName()));
             }
         }
     }
@@ -144,16 +144,17 @@ final class ProtobufNativeSchemaCompatibility {
                     || proto.getEdition() == Edition.EDITION_2024);
         }
         if (!supported) {
-            throw incompatible("UNSUPPORTED_FEATURE", path, 0, side, "syntax=" + syntax
+            throw unsupportedFeature(path, 0, side, "syntax=" + syntax
                     + ", edition=" + proto.getEdition());
         }
-        checkFeatures(proto.getOptions().getFeatures(), path);
+        checkFeatures(proto.getOptions().getFeatures(), side, path);
     }
 
-    private static void checkFeatures(FeatureSet features, String path) throws IncompatibleSchemaException {
+    private static void checkFeatures(FeatureSet features, String side, String path)
+            throws IncompatibleSchemaException {
         String unsupported = findUnsupportedFeature(features);
         if (unsupported != null) {
-            throw incompatible("UNSUPPORTED_FEATURE", path, 0, "feature", unsupported);
+            throw unsupportedFeature(path, 0, side, "feature " + unsupported);
         }
     }
 
@@ -394,8 +395,7 @@ final class ProtobufNativeSchemaCompatibility {
         private void charge(long amount, String path) throws IncompatibleSchemaException {
             // Equality is allowed. Support scanning uses the absolute cap until G establishes the final limit.
             if (amount > limit - work) {
-                throw incompatible("COMPARISON_LIMIT_EXCEEDED", path, 0,
-                        "work=" + (work + amount), "limit=" + limit);
+                throw comparisonLimitExceeded(path, work + amount, limit);
             }
             work += amount;
         }
@@ -445,11 +445,11 @@ final class ProtobufNativeSchemaCompatibility {
             }
         }
 
-        private void checkContainingFeatures(Descriptor descriptor) throws IncompatibleSchemaException {
+        private void checkContainingFeatures(Descriptor descriptor, String side) throws IncompatibleSchemaException {
             for (Descriptor scope = descriptor; scope != null && checkedScopes.add(scope);
                     scope = scope.getContainingType()) {
                 charge(1, scope.getFullName());
-                checkFeatures(scope.toProto().getOptions().getFeatures(), scope.getFullName());
+                checkFeatures(scope.toProto().getOptions().getFeatures(), side, scope.getFullName());
             }
         }
     }
@@ -464,10 +464,23 @@ final class ProtobufNativeSchemaCompatibility {
 
     private static IncompatibleSchemaException incompatible(String rule, String path, int field,
                                                              String writer, String reader) {
-        return new IncompatibleSchemaException(rule + ": path=" + bounded(path, MAX_PATH_LENGTH)
-                + (field == 0 ? "" : ", field=" + field)
+        return new IncompatibleSchemaException(diagnosticPrefix(rule, path, field)
                 + ", writer=" + bounded(writer, MAX_DETAIL_LENGTH)
                 + ", reader=" + bounded(reader, MAX_DETAIL_LENGTH));
+    }
+
+    private static IncompatibleSchemaException unsupportedFeature(String path, int field, String side, String detail) {
+        return new IncompatibleSchemaException(diagnosticPrefix("UNSUPPORTED_FEATURE", path, field)
+                + ", side=" + side + ", detail=" + bounded(detail, MAX_DETAIL_LENGTH));
+    }
+
+    private static IncompatibleSchemaException comparisonLimitExceeded(String path, long work, long limit) {
+        return new IncompatibleSchemaException(diagnosticPrefix("COMPARISON_LIMIT_EXCEEDED", path, 0)
+                + ", work=" + work + ", limit=" + limit);
+    }
+
+    private static String diagnosticPrefix(String rule, String path, int field) {
+        return rule + ": path=" + bounded(path, MAX_PATH_LENGTH) + (field == 0 ? "" : ", field=" + field);
     }
 
     private record MessagePair(Descriptor writer, Descriptor reader, String path) {

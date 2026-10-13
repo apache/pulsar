@@ -41,6 +41,7 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
@@ -69,33 +70,40 @@ public class KeyValueSchemaCompatibilityCheckTest {
         checkers.put(SchemaType.KEY_VALUE, new KeyValueSchemaCompatibilityCheck(checkers));
     }
 
-    @Test
-    public void testAdvancedNativeKeyAndValueDelegation() throws Exception {
+    @DataProvider
+    public Object[][] keyValueEncodings() {
+        return new Object[][]{{KeyValueEncodingType.INLINE}, {KeyValueEncodingType.SEPARATED}};
+    }
+
+    @Test(dataProvider = "keyValueEncodings")
+    public void testAdvancedNativeKeyAndValueDelegation(KeyValueEncodingType encoding) throws Exception {
         SchemaInfo nativeInt = nativeSchemaInfo(FieldDescriptorProto.Type.TYPE_INT32);
         SchemaInfo nativeString = nativeSchemaInfo(FieldDescriptorProto.Type.TYPE_STRING);
         SchemaInfo other = new StringSchema().getSchemaInfo();
         SchemaCompatibilityCheck keyValue = checkers.get(SchemaType.KEY_VALUE);
 
-        Assert.assertFalse(keyValue.isCompatible(keyValue(nativeInt, other), keyValue(nativeString, other),
+        Assert.assertFalse(keyValue.isCompatible(keyValue(nativeInt, other, encoding),
+                keyValue(nativeString, other, encoding),
                 SchemaCompatibilityStrategy.BACKWARD));
-        Assert.assertFalse(keyValue.isCompatible(keyValue(other, nativeInt), keyValue(other, nativeString),
+        Assert.assertFalse(keyValue.isCompatible(keyValue(other, nativeInt, encoding),
+                keyValue(other, nativeString, encoding),
                 SchemaCompatibilityStrategy.BACKWARD));
-        Assert.assertFalse(keyValue.isCompatible(keyValue(nativeInt, nativeInt),
-                keyValue(nativeString, nativeInt), SchemaCompatibilityStrategy.BACKWARD));
-        Assert.assertTrue(keyValue.isCompatible(keyValue(nativeInt, nativeInt),
-                keyValue(nativeInt, nativeInt), SchemaCompatibilityStrategy.FULL));
+        Assert.assertFalse(keyValue.isCompatible(keyValue(nativeInt, nativeInt, encoding),
+                keyValue(nativeString, nativeInt, encoding), SchemaCompatibilityStrategy.BACKWARD));
+        Assert.assertTrue(keyValue.isCompatible(keyValue(nativeInt, nativeInt, encoding),
+                keyValue(nativeInt, nativeInt, encoding), SchemaCompatibilityStrategy.FULL));
 
-        SchemaData old = keyValue(nativeInt, other);
-        SchemaData empty = keyValue(nativeSchemaInfo(null), other);
-        SchemaData proposed = keyValue(nativeString, other);
+        SchemaData old = keyValue(nativeInt, other, encoding);
+        SchemaData empty = keyValue(nativeSchemaInfo(null), other, encoding);
+        SchemaData proposed = keyValue(nativeString, other, encoding);
         Assert.assertTrue(keyValue.isCompatible(empty, proposed, SchemaCompatibilityStrategy.BACKWARD));
         Assert.assertFalse(keyValue.isCompatible(List.of(old, empty), proposed,
                 SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE));
     }
 
-    private static SchemaData keyValue(SchemaInfo key, SchemaInfo value) {
+    private static SchemaData keyValue(SchemaInfo key, SchemaInfo value, KeyValueEncodingType encoding) {
         return SchemaData.fromSchemaInfo(KeyValueSchemaInfo.encodeKeyValueSchemaInfo("KeyValue", key, value,
-                KeyValueEncodingType.INLINE));
+                encoding));
     }
 
     private static SchemaInfo nativeSchemaInfo(FieldDescriptorProto.Type type) throws Exception {
