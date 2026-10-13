@@ -28,6 +28,9 @@ plugins {
 
 // --- java-library projects: JAR + sources + javadoc ---
 pluginManager.withPlugin("java-library") {
+    if (!PulsarApiSpiPublication.includes(project)) {
+        return@withPlugin
+    }
     val sourceSets = the<SourceSetContainer>()
 
     // Match Maven's javadoc configuration: no doclint, don't fail on errors
@@ -38,12 +41,12 @@ pluginManager.withPlugin("java-library") {
         isFailOnError = false
     }
 
-    val sourcesJar by tasks.registering(Jar::class) {
+    val sourcesJar = tasks.register<Jar>("sourcesJar") {
         archiveClassifier.set("sources")
         from(sourceSets["main"].allJava)
     }
 
-    val javadocJar by tasks.registering(Jar::class) {
+    val javadocJar = tasks.register<Jar>("javadocJar") {
         archiveClassifier.set("javadoc")
         from(tasks.named(JavaPlugin.JAVADOC_TASK_NAME))
     }
@@ -60,6 +63,16 @@ pluginManager.withPlugin("java-library") {
     val mavenPublication = publishing.publications.create<MavenPublication>("maven") {
         artifact(sourcesJar)
         artifact(javadocJar)
+        // Preserve the test JAR publications from the branch-4.2 Maven build in both modes.
+        if (project.path in setOf(
+                ":managed-ledger",
+                ":pulsar-broker",
+                ":pulsar-broker-common",
+                ":pulsar-metadata",
+                ":pulsar-package-management:pulsar-package-core",
+            )) {
+            artifact(tasks.named("testJar"))
+        }
     }
 
     // Shaded modules: the shadow plugin registers components["shadow"] in its own afterEvaluate, so
@@ -90,6 +103,9 @@ pluginManager.withPlugin("java-library") {
 
 // --- java-platform projects (BOM, dependencies): POM-only, no JAR ---
 pluginManager.withPlugin("java-platform") {
+    if (!PulsarApiSpiPublication.includes(project)) {
+        return@withPlugin
+    }
     publishing {
         publications {
             create<MavenPublication>("maven") {
@@ -107,6 +123,7 @@ run {
     val isPlatformProject = plugins.hasPlugin("java-platform")
     val isRootProject = project == rootProject
     val pulsarVersion = version.toString()
+    val pulsarGroup = project.group.toString()
 
     // Per-module POM name and description. Read in afterEvaluate so that a description
     // assigned in a module's build script body is picked up, and captured as plain strings
@@ -162,7 +179,7 @@ run {
                             s = s.replace(
                                 "<modelVersion>4.0.0</modelVersion>",
                                 "<modelVersion>4.0.0</modelVersion>\n  <parent>\n" +
-                                    "    <groupId>org.apache.pulsar</groupId>\n" +
+                                    "    <groupId>$pulsarGroup</groupId>\n" +
                                     "    <artifactId>pulsar</artifactId>\n" +
                                     "    <version>$pulsarVersion</version>\n" +
                                     "  </parent>"

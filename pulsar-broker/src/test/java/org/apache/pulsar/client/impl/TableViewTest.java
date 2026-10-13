@@ -36,6 +36,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -54,6 +55,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TableView;
+import org.apache.pulsar.client.api.TableViewMessageMapper;
 import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
@@ -443,12 +445,12 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         if (partitionedTopic) {
             MultiTopicsReaderImpl<String> reader =
                     ((CompletableFuture<MultiTopicsReaderImpl<String>>) FieldUtils
-                            .readDeclaredField(tv1, "reader", true)).get();
+                            .readField(tv1, "reader", true)).get();
             consumerBase = spy(reader.getMultiTopicsConsumer());
             FieldUtils.writeDeclaredField(reader, "multiTopicsConsumer", consumerBase, true);
         } else {
             ReaderImpl<String> reader = ((CompletableFuture<ReaderImpl<String>>) FieldUtils
-                    .readDeclaredField(tv1, "reader", true)).get();
+                    .readField(tv1, "reader", true)).get();
             consumerBase = spy(reader.getConsumer());
             FieldUtils.writeDeclaredField(reader, "consumer", consumerBase, true);
         }
@@ -557,7 +559,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
 
         // inject failure on consumer.receiveAsync()
         var reader = ((CompletableFuture<Reader<byte[]>>)
-                FieldUtils.readDeclaredField(tv, "reader", true)).join();
+                FieldUtils.readField(tv, "reader", true)).join();
         var consumer = spy((ConsumerImpl<byte[]>)
                 FieldUtils.readDeclaredField(reader, "consumer", true));
 
@@ -625,7 +627,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
                 .createAsync()
                 .get();
         TableViewImpl<byte[]> mockTableView = spy(tableView);
-        Method readAllExistingMessagesMethod = TableViewImpl.class
+        Method readAllExistingMessagesMethod = AbstractTableViewImpl.class
                 .getDeclaredMethod("readAllExistingMessages", Reader.class);
         readAllExistingMessagesMethod.setAccessible(true);
         CompletableFuture<Reader<?>> future =
@@ -634,5 +636,138 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         // The future will complete after receive all the messages from lastMessageIds.
         future.get(3, TimeUnit.SECONDS);
         assertTrue(index.get() <= 0);
+    }
+
+    @Test
+    public void testCreateMapped() throws Exception {
+        String topic = "persistent://public/default/testCreateMapped";
+        admin.topics().createNonPartitionedTopic(topic);
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+
+        @Cleanup
+        TableView<String> tableView = pulsarClient.newTableViewBuilder(Schema.STRING)
+                .topic(topic)
+                .createMapped(m -> {
+                    if (m.getValue().equals("delete-me")) {
+                        return null;
+                    }
+                    return m.getValue() + ":" + m.getProperty("myProp");
+                });
+
+        // Send a message to be mapped
+        String testKey = "key1";
+        producer.newMessage()
+                .key(testKey)
+                .value("value1")
+                .property("myProp", "myValue")
+                .send();
+
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> tableView.size() == 1);
+        assertEquals(tableView.get(testKey), "value1:myValue");
+
+        // Send another message to update the value
+        producer.newMessage()
+                .key(testKey)
+                .value("value2")
+                .property("myProp", "myValue2")
+                .send();
+
+        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                .until(() -> "value2:myValue2".equals(tableView.get(testKey)));
+        assertEquals(tableView.size(), 1);
+
+        // Send a message that maps to null (tombstone)
+        producer.newMessage()
+                .key(testKey)
+                .value("delete-me")
+                .send();
+
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> tableView.size() == 0);
+        Assert.assertNull(tableView.get(testKey), "Value should be null after tombstone message");
+    }
+
+    @Test
+    public void testCreateMappedWithIdentityMapper() throws Exception {
+        String topic = "persistent://public/default/testCreateMappedWithIdentityMapper";
+        admin.topics().createNonPartitionedTopic(topic);
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+
+        String testKey = "key1";
+        String testValue = "value1";
+        producer.newMessage()
+                .key(testKey)
+                .value(testValue)
+                .property("myProp", "myValue")
+                .send();
+
+        @Cleanup
+        TableView<Message<String>> tableView = pulsarClient.newTableViewBuilder(Schema.STRING)
+                .topic(topic)
+                .createMapped(msg -> msg);
+
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> tableView.size() == 1);
+
+        Message<String> message = tableView.get(testKey);
+        Assert.assertNotNull(message, "Message should not be null for key: " + testKey);
+        assertEquals(message.getKey(), testKey);
+        assertEquals(message.getValue(), testValue);
+        assertEquals(message.getProperty("myProp"), "myValue");
+
+        Assert.assertNull(tableView.get("missingKey"), "Message should be null for missing key");
+    }
+
+    @Test
+    public void testCreateMappedWithFailingMapper() throws Exception {
+        String topic = "persistent://public/default/testCreateMappedWithFailingMapper";
+        admin.topics().createNonPartitionedTopic(topic);
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+
+        List<String> failedValues = new CopyOnWriteArrayList<>();
+        TableViewMessageMapper<String, String> mapper = new TableViewMessageMapper<>() {
+            @Override
+            public String map(Message<String> message) throws Exception {
+                if (message.getValue().startsWith("fail")) {
+                    throw new IllegalStateException("cannot map " + message.getValue());
+                }
+                return message.getValue().toUpperCase();
+            }
+
+            @Override
+            public boolean onMappingError(Message<String> message, Throwable error) {
+                failedValues.add(message.getValue() + ":" + error.getMessage());
+                return true;
+            }
+        };
+
+        String testKey = "key1";
+        // A message that fails to map during the initial replay
+        producer.newMessage().key(testKey).value("fail-replay").send();
+
+        @Cleanup
+        TableView<String> tableView = pulsarClient.newTableViewBuilder(Schema.STRING)
+                .topic(topic)
+                .createMapped(mapper);
+        assertEquals(failedValues, List.of("fail-replay:cannot map fail-replay"));
+        Assert.assertNull(tableView.get(testKey), "A message that fails to map is skipped");
+
+        producer.newMessage().key(testKey).value("value1").send();
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> "VALUE1".equals(tableView.get(testKey)));
+
+        // A message that fails to map while tailing keeps the previous value
+        producer.newMessage().key(testKey).value("fail-tail").send();
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> failedValues.size() == 2);
+        assertEquals(failedValues.get(1), "fail-tail:cannot map fail-tail");
+        assertEquals(tableView.get(testKey), "VALUE1");
+
+        // The view keeps applying later messages
+        producer.newMessage().key(testKey).value("value2").send();
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> "VALUE2".equals(tableView.get(testKey)));
+        assertEquals(failedValues.size(), 2);
     }
 }

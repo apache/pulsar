@@ -31,7 +31,6 @@ import io.opentelemetry.api.common.Attributes;
 import it.unimi.dsi.fastutil.objects.ObjectIntPair;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.BitSet;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -72,7 +71,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.collections.BitSetRecyclable;
+import org.apache.pulsar.common.util.LongArrayAckSets;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 
@@ -117,6 +116,22 @@ public class Consumer {
     private static final AtomicIntegerFieldUpdater<Consumer> MESSAGE_PERMITS_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(Consumer.class, "messagePermits");
     private volatile int messagePermits = 0;
+    /**
+     * Guards Flow permit accounting and blocked-consumer state transitions. A Flow command increases the consumer
+     * permits before the dispatcher processes the corresponding update asynchronously. Consumer removal can happen
+     * between those two operations, so {@link #messagePermits} and {@link #pendingDispatcherFlowPermits} must be
+     * observed consistently when calculating how many permits are already included in the dispatcher total.
+     *
+     * <p>Routing a Flow command to either {@link #messagePermits} or
+     * {@link #permitsReceivedWhileConsumerBlocked} must also be atomic with blocking and unblocking the consumer.
+     * Otherwise an unblock can drain the blocked permits immediately before a concurrent Flow command adds to them,
+     * leaving those permits stranded while the consumer is unblocked.
+     *
+     * <p>The dispatcher callback is invoked only after this lock is released. This avoids holding the lock while
+     * calling into the subscription and preserves the lock order used by dispatcher flow processing and removal.
+     */
+    private final Object flowPermitAccountingLock = new Object();
+    private int pendingDispatcherFlowPermits = 0;
     // It starts keep tracking of messagePermits once consumer gets blocked, as consumer needs two separate counts:
     // messagePermits (1) before and (2) after being blocked: to dispatch only blockedPermit number of messages at the
     // time of redelivery
@@ -151,7 +166,6 @@ public class Consumer {
 
     private static final double avgPercent = 0.9;
     private boolean preciseDispatcherFlowControl;
-    private Position readPositionWhenJoining;
     private final String clientAddress; // IP address only, no port number included
     private final MessageId startMessageId;
     private final boolean isAcknowledgmentAtBatchIndexLevelEnabled;
@@ -389,7 +403,7 @@ public class Consumer {
                     long[] ackSet = batchIndexesAcks == null ? null : batchIndexesAcks.getAckSet(i);
                     int remainingUnacked;
                     if (ackSet != null) {
-                        remainingUnacked = BitSet.valueOf(ackSet).cardinality();
+                        remainingUnacked = LongArrayAckSets.cardinality(ackSet);
                         unackedMessages -= (batchSize - remainingUnacked);
                     } else {
                         remainingUnacked = batchSize;
@@ -461,11 +475,35 @@ public class Consumer {
     }
 
     private void incrementUnackedMessages(int unackedMessages) {
-        if (Subscription.isIndividualAckMode(subType)
-                && addAndGetUnAckedMsgs(this, unackedMessages) >= getMaxUnackedMessages()
-                && getMaxUnackedMessages() > 0) {
-            blockedConsumerOnUnackedMsgs = true;
+        if (!Subscription.isIndividualAckMode(subType)) {
+            return;
         }
+
+        int updatedUnackedMessages = addAndGetUnackedMessages(unackedMessages);
+        int maxUnackedMessages = getMaxUnackedMessages();
+        if (maxUnackedMessages <= 0 || updatedUnackedMessages < maxUnackedMessages) {
+            return;
+        }
+
+        if (!shouldTrackPendingDispatcherFlowPermits()) {
+            blockConsumerIfUnackedLimitReached();
+            return;
+        }
+
+        synchronized (flowPermitAccountingLock) {
+            // An ACK can reduce the count after the lock-free candidate check. Recheck while holding the same lock
+            // used by unblock so an old dispatch-side snapshot cannot publish a permanently stale blocked state.
+            blockConsumerIfUnackedLimitReached();
+        }
+    }
+
+    @VisibleForTesting
+    void incrementUnackedMessagesForTesting(int unackedMessages) {
+        incrementUnackedMessages(unackedMessages);
+    }
+
+    void notifyChannelWritable() {
+        subscription.notifyChannelWritable(this);
     }
 
     public boolean isWritable() {
@@ -597,9 +635,10 @@ public class Consumer {
         List<Pair<Consumer, MutablePair<Position, Integer>>> txnPositions =
                 hasTxn ? new ArrayList<>() : null;
         // Non-txn path needs plain positions for acknowledgeMessageAsync.
-        List<Position> nonTxnPositions = hasTxn ? null : new ArrayList<>();
+        List<Position> nonTxnPositions = hasTxn ? null : new ArrayList<>(ack.getMessageIdsCount());
         // Deferred completions for non-txn (applied after persistence).
-        List<PendingAckCompletion> pendingAckCompletions = new ArrayList<>();
+        PendingAckCompletions pendingAckCompletions =
+                hasTxn ? null : new PendingAckCompletions(ack.getMessageIdsCount());
         long totalAckCount = 0;
 
         for (int i = 0; i < ack.getMessageIdsCount(); i++) {
@@ -646,14 +685,13 @@ public class Consumer {
                     boolean updated = ackOwnerConsumer.updateRemainingUnacked(
                             position.getLedgerId(), position.getEntryId(), (int) ackedCount);
                     if (updated) {
-                        addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
+                        ackOwnerConsumer.decrementUnackedMessagesAndReconcileBlockedState((int) ackedCount);
                     }
                 } else if (!hasAckSet) {
                     int removed = ackOwnerConsumer.removePendingAckAndGetRemainingUnacked(
                             position.getLedgerId(), position.getEntryId());
                     if (removed != PENDING_ACK_NOT_FOUND) {
-                        addAndGetUnAckedMsgs(ackOwnerConsumer, -removed);
-                        updateBlockedConsumerOnUnackedMsgs(ackOwnerConsumer);
+                        ackOwnerConsumer.decrementUnackedMessagesAndReconcileBlockedState(removed);
                     }
                 }
 
@@ -665,12 +703,13 @@ public class Consumer {
                 long ackedCount = computeAckedCount(msgId, position, ackOwnerConsumer, batchSize);
 
                 nonTxnPositions.add(position);
-                pendingAckCompletions.add(new PendingAckCompletion(ackOwnerConsumer, position,
-                        hasAckSet, ackedCount));
+                pendingAckCompletions.add(ackOwnerConsumer, position, hasAckSet, ackedCount);
                 totalAckCount += ackedCount;
             }
 
-            checkAckValidationError(ack, getAckPosition(hasTxn, msgId));
+            if (ack.hasValidationError()) {
+                checkAckValidationError(ack, getAckPosition(hasTxn, msgId));
+            }
         }
 
         final long finalTotalAckCount = totalAckCount;
@@ -727,30 +766,84 @@ public class Consumer {
     }
 
 
-    private record PendingAckCompletion(Consumer consumer, Position position, boolean hasAckSet, long ackedCount) {
+    /**
+     * A command-local snapshot, independent of the position list passed to the subscription.
+     * Arrays avoid allocating a completion record per message ID and reduce traversal overhead for grouped ACKs.
+     * Built before starting persistence and never mutated or reused once its callback can run.
+     */
+    @VisibleForTesting
+    static final class PendingAckCompletions {
+        private final Consumer[] consumers;
+        private final Position[] positions;
+        private long[] batchAckedCounts;
+        private int size;
+
+        PendingAckCompletions(int capacity) {
+            consumers = new Consumer[capacity];
+            positions = new Position[capacity];
+        }
+
+        void add(Consumer consumer, Position position, boolean hasAckSet, long ackedCount) {
+            consumers[size] = consumer;
+            positions[size] = position;
+            if (hasAckSet) {
+                if (batchAckedCounts == null) {
+                    batchAckedCounts = new long[positions.length];
+                }
+                // Zero denotes a whole-entry ACK. Non-positive batch deltas must not remove the entry.
+                batchAckedCounts[size] = ackedCount > 0 ? ackedCount : -1;
+            }
+            size++;
+        }
+
+        int size() {
+            return size;
+        }
+
+        Consumer consumerAt(int index) {
+            return consumers[index];
+        }
+
+        Position positionAt(int index) {
+            return positions[index];
+        }
+
+        boolean hasAckSetAt(int index) {
+            return batchAckedCounts != null && batchAckedCounts[index] != 0;
+        }
+
+        long ackedCountAt(int index) {
+            return batchAckedCounts[index];
+        }
     }
 
-    private void applyPendingAckCompletions(List<PendingAckCompletion> pendingAckCompletions) {
-        for (PendingAckCompletion pendingAckCompletion : pendingAckCompletions) {
-            Consumer ackOwnerConsumer = pendingAckCompletion.consumer();
-            Position position = pendingAckCompletion.position();
+    private void applyPendingAckCompletions(PendingAckCompletions pendingAckCompletions) {
+        for (int i = 0; i < pendingAckCompletions.size(); i++) {
+            Consumer ackOwnerConsumer = pendingAckCompletions.consumerAt(i);
+            Position position = pendingAckCompletions.positionAt(i);
+            boolean blockedStateReconciled = false;
 
-            if (pendingAckCompletion.hasAckSet()) {
-                if (pendingAckCompletion.ackedCount() > 0) {
+            if (pendingAckCompletions.hasAckSetAt(i)) {
+                if (pendingAckCompletions.ackedCountAt(i) > 0) {
                     boolean updated = ackOwnerConsumer.updateRemainingUnacked(
-                            position.getLedgerId(), position.getEntryId(), (int) pendingAckCompletion.ackedCount());
+                            position.getLedgerId(), position.getEntryId(), (int) pendingAckCompletions.ackedCountAt(i));
                     if (updated) {
-                        addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) pendingAckCompletion.ackedCount());
+                        ackOwnerConsumer.decrementUnackedMessagesAndReconcileBlockedState(
+                                (int) pendingAckCompletions.ackedCountAt(i));
+                        blockedStateReconciled = true;
                     }
                 }
             } else {
                 int removed = ackOwnerConsumer.removePendingAckAndGetRemainingUnacked(
                         position.getLedgerId(), position.getEntryId());
                 if (removed != PENDING_ACK_NOT_FOUND) {
-                    addAndGetUnAckedMsgs(ackOwnerConsumer, -removed);
+                    ackOwnerConsumer.decrementUnackedMessagesAndReconcileBlockedState(removed);
+                    blockedStateReconciled = true;
                 }
             }
-            updateBlockedConsumerOnUnackedMsgs(ackOwnerConsumer);
+            if (!blockedStateReconciled) {
+                updateBlockedConsumerOnUnackedMsgs(ackOwnerConsumer);
+            }
 
             if (isTransactionEnabled() && Subscription.isIndividualAckMode(subType)) {
                 //check if the position can remove from the consumer pending acks.
@@ -804,23 +897,13 @@ public class Consumer {
         }
         long[] cursorAckSet = getCursorAckSet(position);
         if (cursorAckSet == null) {
-            return batchSize - BitSet.valueOf(ackSets).cardinality();
+            return batchSize - LongArrayAckSets.cardinality(ackSets);
         }
-        BitSetRecyclable cursorBitSet = BitSetRecyclable.create().resetWords(cursorAckSet);
-        int lastCardinality = cursorBitSet.cardinality();
-        BitSetRecyclable givenBitSet = BitSetRecyclable.create().resetWords(ackSets);
-        cursorBitSet.and(givenBitSet);
-        givenBitSet.recycle();
-        int currentCardinality = cursorBitSet.cardinality();
-        cursorBitSet.recycle();
-        return lastCardinality - currentCardinality;
+        return LongArrayAckSets.cardinalityOfDifference(cursorAckSet, ackSets);
     }
 
     private long getAckedCountForTransactionAck(int batchSize, long[] ackSets) {
-        BitSetRecyclable bitset = BitSetRecyclable.create().resetWords(ackSets);
-        long ackedCount = batchSize - bitset.cardinality();
-        bitset.recycle();
-        return ackedCount;
+        return batchSize - LongArrayAckSets.cardinality(ackSets);
     }
 
     private void checkAckValidationError(CommandAck ack, Position position) {
@@ -910,49 +993,138 @@ public class Consumer {
         }
         this.lastConsumedFlowTimestamp = currentTs;
 
-        // block shared consumer when unacked-messages reaches limit
-        if (shouldBlockConsumerOnUnackMsgs() && unackedMessages >= getMaxUnackedMessages()) {
-            blockedConsumerOnUnackedMsgs = true;
-        }
         int oldPermits;
-        if (!blockedConsumerOnUnackedMsgs) {
-            oldPermits = MESSAGE_PERMITS_UPDATER.getAndAdd(this, additionalNumberOfMessages);
+        boolean notifyDispatcher;
+        boolean blocked;
+        if (shouldTrackPendingDispatcherFlowPermits()) {
+            synchronized (flowPermitAccountingLock) {
+                blockConsumerIfUnackedLimitReached();
+                blocked = blockedConsumerOnUnackedMsgs;
+                if (blocked) {
+                    beforeAddingBlockedFlowPermits();
+                    oldPermits = PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER
+                            .getAndAdd(this, additionalNumberOfMessages);
+                    notifyDispatcher = false;
+                } else {
+                    oldPermits = addPermitsPendingDispatcherUpdateLocked(additionalNumberOfMessages);
+                    notifyDispatcher = true;
+                }
+            }
+        } else {
+            // Exclusive, Failover, and non-persistent consumers keep their lock-free Flow path.
+            blockConsumerIfUnackedLimitReached();
+            blocked = blockedConsumerOnUnackedMsgs;
+            if (blocked) {
+                beforeAddingBlockedFlowPermits();
+                oldPermits = PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER
+                        .getAndAdd(this, additionalNumberOfMessages);
+                notifyDispatcher = false;
+            } else {
+                oldPermits = MESSAGE_PERMITS_UPDATER.getAndAdd(this, additionalNumberOfMessages);
+                notifyDispatcher = true;
+            }
+        }
+
+        if (notifyDispatcher) {
             log.debug()
                     .attr("additionalNumberOfMessages", additionalNumberOfMessages)
                     .log("Added message permits before updating dispatcher");
             subscription.consumerFlow(this, additionalNumberOfMessages);
-        } else {
-            oldPermits = PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.getAndAdd(this, additionalNumberOfMessages);
         }
 
         log.debug()
                 .attr("additionalNumberOfMessages", additionalNumberOfMessages)
                 .attr("oldPermits", oldPermits)
-                .attr("blockedConsumerOnUnackedMsgs", blockedConsumerOnUnackedMsgs)
+                .attr("blockedConsumerOnUnackedMsgs", blocked)
                 .log("Added more flow control message permits");
 
     }
 
-    /**
-     * Triggers dispatcher to dispatch {@code blockedPermits} number of messages and adds same number of permits to
-     * {@code messagePermits} as it maintains count of actual dispatched message-permits.
-     *
-     * @param consumer:
-     *            Consumer whose blockedPermits needs to be dispatched
-     */
-    void flowConsumerBlockedPermits(Consumer consumer) {
-        int additionalNumberOfPermits = PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.getAndSet(consumer, 0);
-        // add newly flow permits to actual consumer.messagePermits
-        MESSAGE_PERMITS_UPDATER.getAndAdd(consumer, additionalNumberOfPermits);
+    @VisibleForTesting
+    void beforeAddingBlockedFlowPermits() {
+        // Test hook for deterministically ordering blocked Flow accounting against unblock.
+    }
+
+    private void notifyDispatcherOfBlockedPermits(int additionalNumberOfPermits) {
         log.debug()
                 .attr("additionalNumberOfPermits", additionalNumberOfPermits)
                 .log("Added blocked permits");
         // dispatch pending permits to flow more messages: it will add more permits to dispatcher and consumer
-        subscription.consumerFlow(consumer, additionalNumberOfPermits);
+        subscription.consumerFlow(this, additionalNumberOfPermits);
+    }
+
+    private int unblockAndTransferBlockedPermits() {
+        if (!shouldTrackPendingDispatcherFlowPermits()) {
+            int additionalNumberOfPermits =
+                    PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.getAndSet(this, 0);
+            MESSAGE_PERMITS_UPDATER.getAndAdd(this, additionalNumberOfPermits);
+            blockedConsumerOnUnackedMsgs = false;
+            return additionalNumberOfPermits;
+        }
+
+        synchronized (flowPermitAccountingLock) {
+            return unblockAndTransferBlockedPermitsLocked();
+        }
+    }
+
+    private int unblockAndTransferBlockedPermitsLocked() {
+        int additionalNumberOfPermits =
+                PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.getAndSet(this, 0);
+        addPermitsPendingDispatcherUpdateLocked(additionalNumberOfPermits);
+        // Publish the unblocked state only after the blocked bucket has been drained into both active counters.
+        blockedConsumerOnUnackedMsgs = false;
+        return additionalNumberOfPermits;
     }
 
     public int getAvailablePermits() {
         return MESSAGE_PERMITS_UPDATER.get(this);
+    }
+
+    /**
+     * Adds permits after a Flow command is accepted and immediately before notifying the dispatcher. The pending
+     * count covers the interval until the dispatcher's asynchronous Flow task starts processing the same permits.
+     * The caller must hold {@link #flowPermitAccountingLock}.
+     */
+    private int addPermitsPendingDispatcherUpdateLocked(int additionalNumberOfPermits) {
+        pendingDispatcherFlowPermits += additionalNumberOfPermits;
+        return MESSAGE_PERMITS_UPDATER.getAndAdd(this, additionalNumberOfPermits);
+    }
+
+    private boolean shouldTrackPendingDispatcherFlowPermits() {
+        return isPersistentTopic && Subscription.isIndividualAckMode(subType);
+    }
+
+    /**
+     * Called at the start of the dispatcher's asynchronous Flow task, before checking whether this consumer is still
+     * connected. At this point the Flow update is no longer pending: the dispatcher will either add the permits to
+     * its total or ignore them because the consumer has already been removed.
+     */
+    public void completePendingDispatcherFlow(int additionalNumberOfPermits) {
+        synchronized (flowPermitAccountingLock) {
+            // Preserve the accounting delta across signed int wrap, matching the other permit counters.
+            pendingDispatcherFlowPermits -= additionalNumberOfPermits;
+        }
+    }
+
+    /**
+     * Called while the dispatcher removes this consumer. Permits belonging to Flow tasks that have not started yet
+     * are excluded because those permits have not been added to the dispatcher total and must not be subtracted from
+     * it during removal.
+     *
+     * <p>This accounting is enabled for persistent Shared and Key_Shared dispatchers. It relies on every dispatcher
+     * Flow task calling {@link #completePendingDispatcherFlow(int)} before applying or ignoring the update. For these
+     * dispatchers, when observed under the dispatcher monitor, the total available permits equal the sum of this
+     * balance over all connected consumers.
+     *
+     * <p>The returned balance can be negative. A pending Flow makes permits visible on the consumer before its
+     * asynchronous dispatcher update runs, so the dispatcher can consume those permits while they are still counted
+     * as pending. Subtracting the negative balance during removal is required to restore the dispatcher total; callers
+     * must not clamp it to zero.
+     */
+    public int getAvailablePermitsForDispatcherRemoval() {
+        synchronized (flowPermitAccountingLock) {
+            return MESSAGE_PERMITS_UPDATER.get(this) - pendingDispatcherFlowPermits;
+        }
     }
 
     /**
@@ -991,15 +1163,19 @@ public class Consumer {
                     return clusterUrl.isPresent();
                 });
     }
-    /**
-     * Checks if consumer-blocking on unAckedMessages is allowed for below conditions:<br/>
-     * a. consumer must have Shared-subscription<br/>
-     * b. {@link this#getMaxUnackedMessages()} value > 0
-     *
-     * @return
-     */
-    private boolean shouldBlockConsumerOnUnackMsgs() {
-        return Subscription.isIndividualAckMode(subType) && getMaxUnackedMessages() > 0;
+
+    private void blockConsumerIfUnackedLimitReached() {
+        int maxUnackedMessages = getMaxUnackedMessages();
+        if (!blockedConsumerOnUnackedMsgs && Subscription.isIndividualAckMode(subType) && maxUnackedMessages > 0
+                && UNACKED_MESSAGES_UPDATER.get(this) >= maxUnackedMessages) {
+            beforeSettingBlockedConsumerOnUnackedMessages();
+            blockedConsumerOnUnackedMsgs = true;
+        }
+    }
+
+    @VisibleForTesting
+    void beforeSettingBlockedConsumerOnUnackedMessages() {
+        // Test hook for deterministically ordering a threshold crossing against an unblock.
     }
 
     public void updateRates() {
@@ -1046,9 +1222,6 @@ public class Consumer {
         stats.blockedConsumerOnUnackedMsgs = blockedConsumerOnUnackedMsgs;
         stats.avgMessagesPerEntry = getAvgMessagesPerEntry();
         stats.consumerName = consumerName;
-        if (readPositionWhenJoining != null) {
-            stats.readPositionWhenJoining = readPositionWhenJoining.toString();
-        }
         if (drainingHashesConsumerStatsUpdater != null) {
             drainingHashesConsumerStatsUpdater.accept(this, stats);
         }
@@ -1157,15 +1330,76 @@ public class Consumer {
     }
 
     public void updateBlockedConsumerOnUnackedMsgs(Consumer ackOwnedConsumer) {
-        // unblock consumer-throttling when limit check is disabled or receives half of maxUnackedMessages =>
-        // consumer can start again consuming messages
-        int unAckedMsgs = UNACKED_MESSAGES_UPDATER.get(ackOwnedConsumer);
-        if ((((unAckedMsgs <= getMaxUnackedMessages() / 2) && ackOwnedConsumer.blockedConsumerOnUnackedMsgs)
-                && ackOwnedConsumer.shouldBlockConsumerOnUnackMsgs())
-                || !shouldBlockConsumerOnUnackMsgs()) {
-            ackOwnedConsumer.blockedConsumerOnUnackedMsgs = false;
-            flowConsumerBlockedPermits(ackOwnedConsumer);
+        // ACKs on Shared subscriptions can be sent through a consumer other than the message owner.
+        ackOwnedConsumer.reconcileBlockedConsumerState(false);
+    }
+
+    /**
+     * Reconciles a blocked consumer after a dynamic topic or namespace policy update.
+     */
+    public void reconcileBlockedStateAfterPolicyUpdate() {
+        // Policy reconciliation must serialize with a block-state publication even when the lock-free state still
+        // looks unblocked. The policy update itself may have changed whether blocking is enabled.
+        reconcileBlockedConsumerState(true);
+    }
+
+    /**
+     * Decrements this consumer's unacked count and reconciles its blocked state. The one decrement that crosses the
+     * resume threshold must acquire {@link #flowPermitAccountingLock}, even if the consumer still looks unblocked.
+     * This orders the decrement with a concurrent block-state publication: whichever operation acquires the lock
+     * second observes and reconciles the first operation's state change.
+     */
+    private void decrementUnackedMessagesAndReconcileBlockedState(int messagesToRemove) {
+        int updatedUnackedMessages = addAndGetUnackedMessages(-messagesToRemove);
+        int previousUnackedMessages = updatedUnackedMessages + messagesToRemove;
+        int maxUnackedMessages = getMaxUnackedMessages();
+        boolean crossedResumeThreshold = maxUnackedMessages > 0
+                && previousUnackedMessages > maxUnackedMessages / 2
+                && updatedUnackedMessages <= maxUnackedMessages / 2;
+        reconcileBlockedConsumerState(crossedResumeThreshold);
+    }
+
+    private void reconcileBlockedConsumerState(boolean synchronizeWithBlockStatePublication) {
+        boolean trackedPermitAccounting = shouldTrackPendingDispatcherFlowPermits();
+        if (trackedPermitAccounting && !synchronizeWithBlockStatePublication) {
+            int maxUnackedMessages = getMaxUnackedMessages();
+            boolean blockingEnabled = Subscription.isIndividualAckMode(subType) && maxUnackedMessages > 0;
+            if (blockingEnabled && UNACKED_MESSAGES_UPDATER.get(this) > maxUnackedMessages / 2) {
+                return;
+            }
+            if (!blockedConsumerOnUnackedMsgs
+                    && PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.get(this) == 0) {
+                return;
+            }
         }
+
+        int additionalNumberOfPermits;
+        if (trackedPermitAccounting) {
+            synchronized (flowPermitAccountingLock) {
+                if (!shouldUnblockConsumer()) {
+                    return;
+                }
+                additionalNumberOfPermits = unblockAndTransferBlockedPermitsLocked();
+            }
+        } else {
+            if (!shouldUnblockConsumer()) {
+                return;
+            }
+            additionalNumberOfPermits = unblockAndTransferBlockedPermits();
+        }
+        // A real unblock must wake the dispatcher even if no permits were deferred. Already-active consumers with
+        // an empty deferred bucket do not need another Flow task for each acknowledgment.
+        notifyDispatcherOfBlockedPermits(additionalNumberOfPermits);
+    }
+
+    private boolean shouldUnblockConsumer() {
+        int maxUnackedMessages = getMaxUnackedMessages();
+        boolean blockingEnabled = Subscription.isIndividualAckMode(subType) && maxUnackedMessages > 0;
+        if (blockingEnabled && UNACKED_MESSAGES_UPDATER.get(this) > maxUnackedMessages / 2) {
+            return false;
+        }
+        return blockedConsumerOnUnackedMsgs
+                || PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.get(this) != 0;
     }
 
     public PendingAcksMap getPendingAcks() {
@@ -1177,6 +1411,11 @@ public class Consumer {
      * by the given acknowledged delta.
      *
      * <p>No-op if {@code pendingAcks} is not initialized.
+     *
+     * <p>This is a low-level pending-ack operation. It does not update this consumer's aggregate
+     * {@code unackedMessages} count or reconcile its blocked state. After a successful update, broker acknowledgement
+     * handling inside this class must call {@link #decrementUnackedMessagesAndReconcileBlockedState(int)} on the
+     * pending-ack owner.
      *
      * @return {@code true} if the update succeeds or pendingAcks is null;
      *         {@code false} otherwise
@@ -1192,6 +1431,11 @@ public class Consumer {
      * Atomically remove the pending ack entry and return its stored values.
      *
      * <p>No-op if {@code pendingAcks} is not initialized.
+     *
+     * <p>This is a low-level pending-ack operation. It does not update this consumer's aggregate
+     * {@code unackedMessages} count or reconcile its blocked state. After a successful removal, broker acknowledgement
+     * handling inside this class must pass the returned count to
+     * {@link #decrementUnackedMessagesAndReconcileBlockedState(int)} on the pending-ack owner.
      *
      * @return the remaining unacked count, or {@link PendingAcksMap#PENDING_ACK_NOT_FOUND} if not found
      */
@@ -1225,8 +1469,7 @@ public class Consumer {
                 });
         int totalUnacked = mutableTotalUnacked.intValue();
         if (totalUnacked > 0) {
-            addAndGetUnAckedMsgs(this, -totalUnacked);
-            updateBlockedConsumerOnUnackedMsgs(this);
+            decrementUnackedMessagesAndReconcileBlockedState(totalUnacked);
         }
     }
 
@@ -1237,6 +1480,7 @@ public class Consumer {
     public void redeliverUnacknowledgedMessages(long consumerEpoch) {
         log.debug("Consumer received redelivery");
 
+        int blockedPermits;
         if (pendingAcks != null) {
             List<Position> pendingPositions = new ArrayList<>((int) pendingAcks.size());
             MutableInt totalRedeliveryMessages = new MutableInt(0);
@@ -1246,21 +1490,21 @@ public class Consumer {
             });
 
             if (totalRedeliveryMessages.intValue() > 0) {
-                addAndGetUnAckedMsgs(this, -totalRedeliveryMessages.intValue());
+                addAndGetUnackedMessages(-totalRedeliveryMessages.intValue());
             }
-            blockedConsumerOnUnackedMsgs = false;
+            blockedPermits = unblockAndTransferBlockedPermits();
 
             msgRedeliver.recordMultipleEvents(totalRedeliveryMessages.intValue(), totalRedeliveryMessages.intValue());
             msgRedeliverCounter.add(totalRedeliveryMessages.intValue());
 
             subscription.redeliverUnacknowledgedMessages(this, pendingPositions);
         } else {
-            clearUnAckedMsgs();
-            blockedConsumerOnUnackedMsgs = false;
+            clearUnackedMessages();
+            blockedPermits = unblockAndTransferBlockedPermits();
             subscription.redeliverUnacknowledgedMessages(this, consumerEpoch);
         }
 
-        flowConsumerBlockedPermits(this);
+        notifyDispatcherOfBlockedPermits(blockedPermits);
     }
 
     public void redeliverUnacknowledgedMessages(List<MessageIdData> messageIds) {
@@ -1276,8 +1520,8 @@ public class Consumer {
             }
         }
 
-        addAndGetUnAckedMsgs(this, -totalRedeliveryMessages);
-        blockedConsumerOnUnackedMsgs = false;
+        addAndGetUnackedMessages(-totalRedeliveryMessages);
+        int blockedPermits = unblockAndTransferBlockedPermits();
 
         log.debug()
                 .attr("totalRedeliveryMessages", totalRedeliveryMessages)
@@ -1288,18 +1532,26 @@ public class Consumer {
         msgRedeliver.recordMultipleEvents(totalRedeliveryMessages, totalRedeliveryMessages);
         msgRedeliverCounter.add(totalRedeliveryMessages);
 
-        flowConsumerBlockedPermits(this);
+        notifyDispatcherOfBlockedPermits(blockedPermits);
     }
 
     public Subscription getSubscription() {
         return subscription;
     }
 
-    private int addAndGetUnAckedMsgs(Consumer consumer, int ackedMessages) {
+    /**
+     * Updates the aggregate unacknowledged-message counters without reconciling this consumer's blocked state.
+     *
+     * <p>Acknowledgement and pending-ack removal paths must use
+     * {@link #decrementUnackedMessagesAndReconcileBlockedState(int)} instead. Redelivery paths that use this primitive
+     * must immediately complete the corresponding blocked-permit transfer with
+     * {@link #unblockAndTransferBlockedPermits()}.
+     */
+    private int addAndGetUnackedMessages(int ackedMessages) {
         int unackedMsgs = 0;
         if (isPersistentTopic && Subscription.isIndividualAckMode(subType)) {
             subscription.addUnAckedMessages(ackedMessages);
-            unackedMsgs = UNACKED_MESSAGES_UPDATER.addAndGet(consumer, ackedMessages);
+            unackedMsgs = UNACKED_MESSAGES_UPDATER.addAndGet(this, ackedMessages);
         }
         if (unackedMsgs < 0 && System.currentTimeMillis() - negativeUnackedMsgsTimestamp >= 10_000) {
             negativeUnackedMsgsTimestamp = System.currentTimeMillis();
@@ -1311,17 +1563,13 @@ public class Consumer {
         return unackedMsgs;
     }
 
-    private void clearUnAckedMsgs() {
+    private void clearUnackedMessages() {
         int unaAckedMsgs = UNACKED_MESSAGES_UPDATER.getAndSet(this, 0);
         subscription.addUnAckedMessages(-unaAckedMsgs);
     }
 
     public boolean isPreciseDispatcherFlowControl() {
         return preciseDispatcherFlowControl;
-    }
-
-    public void setReadPositionWhenJoining(Position readPositionWhenJoining) {
-        this.readPositionWhenJoining = readPositionWhenJoining;
     }
 
     public int getMaxUnackedMessages() {

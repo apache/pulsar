@@ -69,6 +69,11 @@ public class PulsarResources {
 
     public PulsarResources(MetadataStoreExtended localMetadataStore, MetadataStore configurationMetadataStore,
             int operationTimeoutSec, Executor executor) {
+        this(localMetadataStore, configurationMetadataStore, operationTimeoutSec, executor, true);
+    }
+
+    public PulsarResources(MetadataStoreExtended localMetadataStore, MetadataStore configurationMetadataStore,
+            int operationTimeoutSec, Executor executor, boolean scalableTopicsEnabled) {
         if (configurationMetadataStore != null) {
             tenantResources = new TenantResources(configurationMetadataStore, operationTimeoutSec);
             clusterResources = new ClusterResources(localMetadataStore, configurationMetadataStore,
@@ -89,7 +94,8 @@ public class PulsarResources {
             bookieResources = new BookieResources(localMetadataStore, operationTimeoutSec);
             topicResources = new TopicResources(localMetadataStore);
             loadBalanceResources = new LoadBalanceResources(localMetadataStore, operationTimeoutSec);
-            scalableTopicResources = new ScalableTopicResources(localMetadataStore, operationTimeoutSec);
+            scalableTopicResources = scalableTopicsEnabled
+                    ? new ScalableTopicResources(localMetadataStore, operationTimeoutSec) : null;
         } else {
             dynamicConfigResources = null;
             localPolicies = null;

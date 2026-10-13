@@ -136,6 +136,25 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
         return false;
     }
 
+    /**
+     * Returns {@code true} if any entry in the closed range {@code [lowerEntryId, upperEntryId]} of
+     * {@code ledgerId} is present in this set. Both bounds are inclusive (matching
+     * {@link #cardinality}), unlike the open lower bound of {@link #addOpenClosed}. A negative
+     * {@code lowerEntryId} is treated as {@code 0}. Returns {@code false} for an empty range or an
+     * absent ledger.
+     */
+    boolean containsAny(long ledgerId, long lowerEntryId, long upperEntryId) {
+        if (rangeBitmapMap.isEmpty() || lowerEntryId > upperEntryId) {
+            return false;
+        }
+        LongBitmap bitmap = rangeBitmapMap.get(ledgerId);
+        if (bitmap == null) {
+            return false;
+        }
+        long nextPresentEntryId = bitmap.nextPresentValue(Math.max(0, lowerEntryId));
+        return nextPresentEntryId != -1 && nextPresentEntryId <= upperEntryId;
+    }
+
     @Override
     public Range<Position> rangeContaining(long ledgerId, long entryId) {
         LongBitmap rangeBitmap = rangeBitmapMap.get(ledgerId);
