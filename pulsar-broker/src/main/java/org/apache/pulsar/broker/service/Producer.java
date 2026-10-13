@@ -567,7 +567,7 @@ public class Producer {
                     return false;
                 }
                 if (completionListeners == null) {
-                    completionListeners = new ArrayList<>(2);
+                    completionListeners = new ArrayList<>();
                 }
                 completionListeners.add(listener);
                 return true;
