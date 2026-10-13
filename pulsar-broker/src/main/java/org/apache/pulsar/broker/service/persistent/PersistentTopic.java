@@ -4036,7 +4036,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         // Client permission check.
         subscriptions.forEach((subName, sub) -> {
-            sub.getConsumers().forEach(consumer -> applyPoliciesFutureList.add(consumer.checkPermissionsAsync()));
+            sub.getConsumers().forEach(consumer -> {
+                consumer.reconcileBlockedStateAfterPolicyUpdate();
+                applyPoliciesFutureList.add(consumer.checkPermissionsAsync());
+            });
         });
         producers.values().forEach(producer -> applyPoliciesFutureList.add(
                 producer.checkPermissionsAsync().thenRun(producer::checkEncryption)));

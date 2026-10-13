@@ -31,6 +31,8 @@ import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -59,6 +61,7 @@ import org.apache.pulsar.metadata.api.coordination.CoordinationService;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
 import org.apache.pulsar.metadata.impl.LocalMemoryMetadataStore;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -102,6 +105,8 @@ public class ScalableTopicServiceTest {
         when(pulsar.getConfiguration()).thenReturn(new ServiceConfiguration());
         when(brokerService.getTopicIfExists(anyString()))
                 .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+        when(brokerService.deleteSchema(any(TopicName.class)))
+                .thenReturn(CompletableFuture.completedFuture(null));
         when(pulsar.getBrokerId()).thenReturn(BROKER_ID);
         when(pulsar.getExecutor()).thenReturn(scheduler);
         when(pulsar.getAdminClient()).thenReturn(admin);
@@ -232,6 +237,34 @@ public class ScalableTopicServiceTest {
     }
 
     @Test
+    public void testControllerCreatedAfterFailedInitializationLeads() throws Exception {
+        TopicName tn = scalableTopic("t-late");
+        try {
+            service.getOrCreateController(tn).get();
+            fail("expected failure: the topic doesn't exist yet");
+        } catch (ExecutionException expected) {
+            // The failed controller must not leave its leader election to the next one.
+        }
+        service.createScalableTopic(tn, 1).get();
+
+        ScalableTopicController controller = service.getOrCreateController(tn).get();
+        assertTrue(controller.isLeader(), "the only controller of the topic must lead it");
+    }
+
+    @Test
+    public void testClosedControllerIsReplaced() throws Exception {
+        TopicName tn = scalableTopic("t-closed");
+        service.createScalableTopic(tn, 1).get();
+        // A controller closes itself when it finds its topic deleted while taking over.
+        ScalableTopicController closed = service.getOrCreateController(tn).get();
+        closed.close().get();
+
+        ScalableTopicController controller = service.getOrCreateController(tn).get();
+        assertNotSame(controller, closed);
+        assertTrue(controller.isLeader(), "the controller replacing the closed one must lead");
+    }
+
+    @Test
     public void testReleaseControllerDrops() throws Exception {
         TopicName tn = scalableTopic("t-release");
         service.createScalableTopic(tn, 1).get();
@@ -358,6 +391,61 @@ public class ScalableTopicServiceTest {
                 "topic delete must remove segment load records");
         verify(scalableTopicsAdmin, org.mockito.Mockito.atLeast(2))
                 .deleteSegmentAsync(anyString(), anyBoolean());
+        // Segment deletes leave the shared schema in place; the topic delete removes it.
+        verify(brokerService).deleteSchema(tn);
+    }
+
+    @Test
+    public void testControllerReleasedWhenTopicRecordDeleted() throws Exception {
+        TopicName tn = scalableTopic("t-deleted-elsewhere");
+        service.createScalableTopic(tn, 1).get();
+        service.getOrCreateController(tn).get();
+        String lockPath = resources.controllerLockPath(tn);
+        assertTrue(store.exists(lockPath).get());
+
+        // Delete the metadata the way an admin delete served by another broker does, without
+        // releasing the controller held here first.
+        resources.deleteScalableTopicAsync(tn).get();
+
+        Awaitility.await().during(Duration.ofSeconds(2)).atMost(Duration.ofSeconds(10))
+                .untilAsserted(() -> assertFalse(store.exists(lockPath).get(),
+                        "the controller lock must not be re-acquired under the deleted topic"));
+        try {
+            service.getOrCreateController(tn).get();
+            fail("the deleted topic must not be served by its old controller");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause().getMessage().contains("Failed to initialize controller"),
+                    "got: " + e.getCause().getMessage());
+        }
+    }
+
+    /**
+     * A controller whose initialize() fails after winning the election is closed, or its election
+     * would keep the controller lock with no controller left to release it.
+     */
+    @Test
+    public void testControllerFailingAfterElectionGivesTheLockBack() throws Exception {
+        TopicName tn = scalableTopic("t-init-fails");
+        service.createScalableTopic(tn, 1).get();
+        ScalableTopicResources failingResources = new ScalableTopicResources(store, 30) {
+            @Override
+            public CompletableFuture<List<String>> listSubscriptionsAsync(TopicName topic) {
+                // Restoring the subscriptions runs once the controller won the election.
+                return CompletableFuture.failedFuture(new IllegalStateException("injected"));
+            }
+        };
+        ScalableTopicService failingService =
+                new ScalableTopicService(brokerService, failingResources, coordinationService);
+        try {
+            failingService.getOrCreateController(tn).get();
+            fail("expected the controller initialization to fail");
+        } catch (ExecutionException expected) {
+            // initialize() failed after the election
+        }
+        Awaitility.await().untilAsserted(() ->
+                assertFalse(store.get(resources.controllerLockPath(tn)).get().isPresent(),
+                        "the failed controller must give the lock back"));
+        failingService.close();
     }
 
     // --- concurrent topic isolation ---
