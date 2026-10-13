@@ -76,7 +76,7 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
         try (Producer<V3Data> p = pulsarClient.newProducer(Schema.AVRO(V3Data.class)).topic(topicName).create()) {
             Assert.fail("Forward compat schema should be rejected");
         } catch (PulsarClientException e) {
-            Assert.assertTrue(e.getMessage().contains("schema compatibility"));
+            Assert.assertTrue(e instanceof PulsarClientException.IncompatibleSchemaException, e.getMessage());
         }
 
         log.info("try with backward compat, should succeed");
