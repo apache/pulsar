@@ -45,6 +45,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import lombok.Cleanup;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.tls.impl.TlsContextAcquisition;
@@ -197,6 +198,68 @@ public class AsyncHttpConnectorTest {
         // the attempt that was in flight fails after the timeout, which must not trigger a retry
         attempts.get(0).completeExceptionally(new IOException("Connection reset"));
         assertThat(attempts.size()).as("attempts sent for the request").isEqualTo(1);
+    }
+
+    @Test
+    public void testShouldNotRetryAfterRequestTimeoutHasElapsed() {
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("http://localhost:" + server.port());
+
+        // the connector's own timer doesn't fire during the test: the deadline is driven by the clock below
+        int requestTimeout = 60_000;
+
+        AtomicLong clock = new AtomicLong();
+        List<CompletableFuture<Response>> attempts = new CopyOnWriteArrayList<>();
+        @Cleanup
+        AsyncHttpConnector connector = new AsyncHttpConnector(5000, requestTimeout,
+                requestTimeout, 0, conf, false, null) {
+            @Override
+            protected CompletableFuture<Response> oneShot(InetSocketAddress host, ClientRequest request) {
+                CompletableFuture<Response> attempt = new CompletableFuture<>();
+                attempts.add(attempt);
+                return attempt;
+            }
+
+            @Override
+            long nanoTime() {
+                return clock.get();
+            }
+        };
+
+        JerseyClient jerseyClient = JerseyClientBuilder.createClient();
+        URI requestUri = URI.create("http://localhost:" + server.port() + "/admin/v2/clusters");
+        ClientRequest request = new TestClientRequest(requestUri, jerseyClient.getConfiguration(),
+                new MapPropertiesDelegate());
+        request.setMethod("GET");
+        CompletableFuture<ClientResponse> future = new CompletableFuture<>();
+        connector.apply(request, new AsyncConnectorCallback() {
+            @Override
+            public void response(ClientResponse response) {
+                future.complete(response);
+            }
+
+            @Override
+            public void failure(Throwable failure) {
+                future.completeExceptionally(failure);
+            }
+        });
+
+        // an attempt that fails before the request timeout has elapsed is retried
+        attempts.get(0).completeExceptionally(new IOException("Connection reset"));
+        assertThat(attempts.size()).as("attempts sent for the request").isEqualTo(2);
+
+        // AsyncHttpClient times out every attempt after the same duration as the request, and can do so before the
+        // connector's own timer fires: once the request timeout has elapsed, a failed attempt is not retried
+        clock.addAndGet(TimeUnit.MILLISECONDS.toNanos(requestTimeout));
+        attempts.get(1).completeExceptionally(
+                new TimeoutException("Request timeout to localhost after " + requestTimeout + " ms"));
+        assertThat(attempts.size()).as("attempts sent for the request").isEqualTo(2);
+        assertThatThrownBy(() -> future.get(10, TimeUnit.SECONDS))
+                .as("the request fails with the request timeout")
+                .isInstanceOf(ExecutionException.class)
+                .cause()
+                .isInstanceOf(TimeoutException.class)
+                .hasMessage("Request timeout");
     }
 
     @Test
