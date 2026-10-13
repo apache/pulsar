@@ -55,7 +55,7 @@ accordingly:
 The **`pip/`** directory holds **Pulsar Improvement Proposals** (`pip-<N>.md`) — the design
 documents for significant changes, referenced as `PIP-<N>` throughout commit messages and code (e.g.
 PIP-463 = Maven→Gradle migration, PIP-465 = IO connectors moved out, PIP-466/468 = V5 client).
-`pip/README.md` describes the process and `pip/TEMPLATE.md` is the proposal template. Consult the
+`pip/README.adoc` describes the process and `pip/TEMPLATE.md` is the proposal template. Consult the
 relevant PIP for the rationale behind a non-trivial feature or architectural decision. A PIP **number
 is reserved by the first `dev@pulsar.apache.org` thread that uses it** — start the discussion to claim
 the next free number.
