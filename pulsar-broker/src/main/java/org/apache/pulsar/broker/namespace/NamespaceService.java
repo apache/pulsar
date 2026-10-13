@@ -1041,6 +1041,9 @@ public class NamespaceService implements AutoCloseable {
                                     log.warn().exception(e).log(msg);
                                     updateFuture.completeExceptionally(new ServiceUnitNotReadyException(msg, e));
                                 }
+                            }).exceptionally(splitException -> {
+                                updateFuture.completeExceptionally(splitException);
+                                return null;
                             });
                 } catch (Exception e) {
                     updateFuture.completeExceptionally(e);

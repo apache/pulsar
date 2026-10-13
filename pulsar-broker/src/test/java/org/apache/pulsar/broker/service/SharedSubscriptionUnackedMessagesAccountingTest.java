@@ -26,7 +26,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
-import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumersClassic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.KeySharedPolicy;
@@ -42,34 +41,18 @@ import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
-import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
 /**
  * Consumer removal must debit both subscription and broker unacknowledged-message counters exactly once.
- * Each dispatcher variant owns its broker so configuration changes cannot affect the shared test cluster.
  */
 @Test(groups = "broker-api")
 public class SharedSubscriptionUnackedMessagesAccountingTest extends ProducerConsumerBase {
     private static final String SUBSCRIPTION = "shared-churn-sub";
     private static final int UNACKED_MESSAGES = 10;
-    private final boolean classic;
-
-    @Factory
-    public static Object[] createTestInstances() {
-        return new Object[] {new SharedSubscriptionUnackedMessagesAccountingTest(false),
-                new SharedSubscriptionUnackedMessagesAccountingTest(true)};
-    }
-
-    public SharedSubscriptionUnackedMessagesAccountingTest(boolean classic) {
-        this.classic = classic;
-    }
-
     @Override
     protected void doInitConf() throws Exception {
         super.doInitConf();
-        conf.setSubscriptionSharedUseClassicPersistentImplementation(classic);
-        conf.setSubscriptionKeySharedUseClassicPersistentImplementation(classic);
         conf.setMaxUnackedMessagesPerBroker(1000);
     }
 
@@ -111,8 +94,8 @@ public class SharedSubscriptionUnackedMessagesAccountingTest extends ProducerCon
             PersistentTopic topic = (PersistentTopic) brokerService.getTopicReference(topicName).orElseThrow();
             AbstractPersistentDispatcherMultipleConsumers dispatcher =
                     (AbstractPersistentDispatcherMultipleConsumers) topic.getSubscription(SUBSCRIPTION).getDispatcher();
-            assertThat(dispatcher).as("configured dispatcher implementation").isInstanceOf(classic
-                    ? PersistentDispatcherMultipleConsumersClassic.class : PersistentDispatcherMultipleConsumers.class);
+            assertThat(dispatcher).as("configured dispatcher implementation")
+                    .isInstanceOf(PersistentDispatcherMultipleConsumers.class);
             Consumer brokerConsumer = dispatcher.getConsumers().get(0);
 
             // Serialize with dispatch so both aggregate credits have completed before checking their values.

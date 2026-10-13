@@ -315,6 +315,7 @@ public class SegmentLayoutTest {
         // A layout mutation must round-trip every non-layout field, not just properties.
         metadata.setAutoScalePolicy(org.apache.pulsar.common.policies.data.AutoScalePolicyOverride
                 .builder().enabled(false).maxSegments(8).build());
+        metadata.setDeleted(true);
         SegmentLayout layout = SegmentLayout.fromMetadata(metadata);
         SegmentLayout afterSplit = layout.splitSegment(0, 0L);
 
@@ -325,6 +326,7 @@ public class SegmentLayoutTest {
         assertEquals(restored.getProperties().get("key"), "value");
         assertEquals(restored.getAutoScalePolicy(), metadata.getAutoScalePolicy(),
                 "split/merge must not drop the per-topic auto-scale policy");
+        assertTrue(restored.isDeleted(), "split/merge must not drop the deleted mark");
     }
 
     @Test

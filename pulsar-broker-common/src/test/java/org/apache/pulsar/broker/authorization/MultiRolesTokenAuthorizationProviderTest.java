@@ -53,6 +53,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.authentication.AuthenticationDataForwarded;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
+import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
@@ -301,6 +302,111 @@ public class MultiRolesTokenAuthorizationProviderTest {
                     .isFalse();
             verify(authenticationProvider, never()).authenticateRolesAsync(any(), any());
         }
+    }
+
+    private static AuthenticationDataSource httpAuthData(String token) {
+        return new AuthenticationDataSource() {
+            @Override
+            public boolean hasDataFromHttp() {
+                return true;
+            }
+
+            @Override
+            public boolean hasDataFromTls() {
+                return true;
+            }
+
+            @Override
+            public String getHttpHeader(String name) {
+                return token != null && "Authorization".equals(name) ? "Bearer " + token : null;
+            }
+        };
+    }
+
+    @Test
+    public void testProxiedHttpRequestUsesOnlyTheOriginalPrincipalToken() throws Exception {
+        SecretKey key = Jwts.SIG.HS256.key().build();
+        ServiceConfiguration conf = tokenConfiguration(key);
+        conf.setProxyRoles(Set.of("proxy"));
+        conf.setSuperUserRoles(Set.of("proxy", "admin"));
+        conf.setAuthorizationProvider(MultiRolesTokenAuthorizationProvider.class.getName());
+        TenantResources tenants = mock(TenantResources.class);
+        when(tenants.getTenantAsync("tenant"))
+                .thenReturn(CompletableFuture.completedFuture(Optional.of(new TenantInfoImpl(Set.of(), Set.of()))));
+        NamespaceResources namespaces = mock(NamespaceResources.class);
+        Policies policies = new Policies();
+        policies.auth_policies.getNamespaceAuthentication().put("consumer", Set.of(AuthAction.consume));
+        when(namespaces.getPoliciesAsync(any())).thenReturn(CompletableFuture.completedFuture(Optional.of(policies)));
+        PulsarResources resources = mock(PulsarResources.class);
+        when(resources.getTenantResources()).thenReturn(tenants);
+        when(resources.getNamespaceResources()).thenReturn(namespaces);
+        AuthenticationProviderToken authenticationProvider = new AuthenticationProviderToken();
+        authenticationProvider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
+        AuthorizationService service = new AuthorizationService(conf, resources,
+                authenticationService(authenticationProvider));
+
+        String clientToken = Jwts.builder().subject("user").claim("roles", List.of("user", "consumer"))
+                .signWith(key).compact();
+        String clientAdminToken = Jwts.builder().subject("user").claim("roles", List.of("user", "admin"))
+                .signWith(key).compact();
+        String proxyToken = Jwts.builder().subject("proxy").claim("roles", List.of("proxy", "consumer", "admin"))
+                .signWith(key).compact();
+        String otherToken = Jwts.builder().subject("other").claim("roles", List.of("other", "consumer", "admin"))
+                .signWith(key).compact();
+        TopicName topic = TopicName.get("persistent://tenant/ns/topic");
+
+        // a proxy authenticated without a token forwards the token of the original principal
+        assertThat(service.allowTopicOperationAsync(topic, TopicOperation.LOOKUP, "user", "proxy",
+                httpAuthData(clientToken)).get()).isTrue();
+        assertThat(service.isSuperUser(AuthenticationParameters.builder().clientRole("proxy")
+                .originalPrincipal("user").clientAuthenticationDataSource(httpAuthData(clientAdminToken))
+                .build()).get()).isTrue();
+        // a token of another principal doesn't add roles to the original principal
+        for (String token : List.of(proxyToken, otherToken)) {
+            assertThat(service.allowTopicOperationAsync(topic, TopicOperation.LOOKUP, "user", "proxy",
+                    httpAuthData(token)).get()).isFalse();
+            assertThat(service.isSuperUser(AuthenticationParameters.builder().clientRole("proxy")
+                    .originalPrincipal("user").clientAuthenticationDataSource(httpAuthData(token))
+                    .build()).get()).isFalse();
+            assertThat(service.allowTopicOperationAsync(topic, TopicOperation.LOOKUP, "consumer", "proxy",
+                    httpAuthData(token)).get()).isTrue();
+        }
+        // a token of the original principal that doesn't validate adds no roles
+        String invalidToken = Jwts.builder().subject("user").claim("roles", List.of("user", "consumer", "admin"))
+                .signWith(Jwts.SIG.HS256.key().build()).compact();
+        assertThat(service.allowTopicOperationAsync(topic, TopicOperation.LOOKUP, "user", "proxy",
+                httpAuthData(invalidToken)).get()).isFalse();
+        assertThat(service.isSuperUser(AuthenticationParameters.builder().clientRole("proxy")
+                .originalPrincipal("user").clientAuthenticationDataSource(httpAuthData(invalidToken))
+                .build()).get()).isFalse();
+        assertThat(service.allowTopicOperationAsync(topic, TopicOperation.LOOKUP, "consumer", "proxy",
+                httpAuthData(invalidToken)).get()).isTrue();
+        // without a token, the original principal is checked with its own role
+        assertThat(service.allowTopicOperationAsync(topic, TopicOperation.LOOKUP, "user", "proxy",
+                httpAuthData(null)).get()).isFalse();
+        assertThat(service.allowTopicOperationAsync(topic, TopicOperation.LOOKUP, "consumer", "proxy",
+                httpAuthData(null)).get()).isTrue();
+    }
+
+    @Test
+    public void testTenantAdminRoleWithoutTokenIsRecognized() throws Exception {
+        SecretKey key = Jwts.SIG.HS256.key().build();
+        ServiceConfiguration conf = tokenConfiguration(key);
+        conf.setSuperUserRoles(Set.of("admin"));
+        conf.setAuthorizationProvider(MultiRolesTokenAuthorizationProvider.class.getName());
+        TenantResources tenants = mock(TenantResources.class);
+        when(tenants.getTenantAsync("tenant")).thenReturn(CompletableFuture.completedFuture(
+                Optional.of(new TenantInfoImpl(Set.of("tls-proxy"), Set.of()))));
+        PulsarResources resources = mock(PulsarResources.class);
+        when(resources.getTenantResources()).thenReturn(tenants);
+        AuthenticationProviderToken authenticationProvider = new AuthenticationProviderToken();
+        authenticationProvider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
+        AuthorizationService service = new AuthorizationService(conf, resources,
+                authenticationService(authenticationProvider));
+
+        // for example a proxy authenticated with TLS whose request carries no token
+        assertThat(service.isSuperUserOrTenantAdmin("tenant", "tls-proxy", httpAuthData(null)).get()).isTrue();
+        assertThat(service.isSuperUserOrTenantAdmin("tenant", "user", httpAuthData(null)).get()).isFalse();
     }
 
     @DataProvider

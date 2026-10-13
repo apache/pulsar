@@ -25,7 +25,6 @@ import com.google.common.base.MoreObjects;
 import io.github.merlimat.slog.Logger;
 import io.netty.buffer.ByteBuf;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -74,6 +73,7 @@ import org.apache.pulsar.broker.service.StickyKeyDispatcher;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
+import org.apache.pulsar.broker.stats.OpenTelemetryMessageFinderStats.FindReason;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleDisabled;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
@@ -312,11 +312,7 @@ public class PersistentSubscription extends AbstractSubscription {
             case Shared:
                 if (dispatcher == null || dispatcher.getType() != SubType.Shared) {
                     previousDispatcher = dispatcher;
-                    if (config.isSubscriptionSharedUseClassicPersistentImplementation()) {
-                        dispatcher = new PersistentDispatcherMultipleConsumersClassic(topic, cursor, this);
-                    } else {
-                        dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursor, this);
-                    }
+                    dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursor, this);
                 }
                 break;
             case Failover:
@@ -345,10 +341,6 @@ public class PersistentSubscription extends AbstractSubscription {
                         // modern implementation; the classic dispatcher has no bucket support.
                         dispatcher = new PersistentEntryBucketDispatcherMultipleConsumers(topic, cursor,
                                 this, config, ksm);
-                    } else if (config.isSubscriptionKeySharedUseClassicPersistentImplementation()) {
-                        dispatcher =
-                                new PersistentStickyKeyDispatcherMultipleConsumersClassic(topic, cursor,
-                                        this, config, ksm);
                     } else {
                         dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
                                 config, ksm);
@@ -913,7 +905,8 @@ public class PersistentSubscription extends AbstractSubscription {
         final CompletableFuture<Void> future = new CompletableFuture<>();
         inProgressResetCursorFuture = future;
         PersistentMessageFinder persistentMessageFinder = new PersistentMessageFinder(topicName, cursor,
-                config.getManagedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis());
+                config.getManagedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis(),
+                topic.getBrokerService().getPulsar().getOpenTelemetryMessageFinderStats(), FindReason.SEEK);
 
         log.debug()
                 .attr("timestamp", timestamp)
@@ -1460,17 +1453,9 @@ public class PersistentSubscription extends AbstractSubscription {
                 subStats.lastAckedTimestamp = Math.max(subStats.lastAckedTimestamp, consumerStats.lastAckedTimestamp);
                 List<Range> keyRanges = consumerKeyHashRanges != null ? consumerKeyHashRanges.get(consumer) : null;
                 if (keyRanges != null) {
-                    if (((StickyKeyDispatcher) dispatcher).isClassic()) {
-                        // Use string representation for classic mode
-                        consumerStats.keyHashRanges = keyRanges.stream()
-                                .map(Range::toString)
-                                .collect(Collectors.toList());
-                    } else {
-                        // Use array representation for PIP-379 stats
-                        consumerStats.keyHashRangeArrays = keyRanges.stream()
-                                .map(range -> new int[]{range.getStart(), range.getEnd()})
-                                .collect(Collectors.toList());
-                    }
+                    consumerStats.keyHashRangeArrays = keyRanges.stream()
+                            .map(range -> new int[]{range.getStart(), range.getEnd()})
+                            .collect(Collectors.toList());
                 }
                 subStats.drainingHashesCount += consumerStats.drainingHashesCount;
                 subStats.drainingHashesClearedTotal += consumerStats.drainingHashesClearedTotal;
@@ -1542,14 +1527,6 @@ public class PersistentSubscription extends AbstractSubscription {
             StickyKeyDispatcher keySharedDispatcher = (StickyKeyDispatcher) dispatcher;
             subStats.allowOutOfOrderDelivery = keySharedDispatcher.isAllowOutOfOrderDelivery();
             subStats.keySharedMode = keySharedDispatcher.getKeySharedMode().toString();
-
-            LinkedHashMap<Consumer, Position> recentlyJoinedConsumers = keySharedDispatcher
-                    .getRecentlyJoinedConsumers();
-            if (recentlyJoinedConsumers != null && recentlyJoinedConsumers.size() > 0) {
-                recentlyJoinedConsumers.forEach((k, v) -> {
-                    subStats.consumersAfterMarkDeletePosition.put(k.consumerName(), v.toString());
-                });
-            }
         }
         subStats.nonContiguousDeletedMessagesRanges = cursor.getTotalNonContiguousDeletedMessagesRange();
         subStats.nonContiguousDeletedMessagesRangesSerializedSize =

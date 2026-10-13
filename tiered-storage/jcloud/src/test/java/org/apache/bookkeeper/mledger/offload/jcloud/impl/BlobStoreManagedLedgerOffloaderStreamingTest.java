@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
 import static org.apache.bookkeeper.client.api.BKException.Code.NoSuchLedgerExistsException;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
@@ -41,6 +42,7 @@ import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.LedgerOffloader.OffloadHandle;
 import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.OffloadedLedgerHandle;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.JCloudBlobStoreProvider;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration;
@@ -164,6 +166,8 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
 
         @Cleanup
         final ReadHandle readHandle = offloader.readOffloaded(0, context, driverMeta).get();
+        // The managed ledger relies on this marker to tell that the entries of a ledger are read from tiered storage
+        assertThat(readHandle).isInstanceOf(OffloadedLedgerHandle.class);
         @Cleanup
         final LedgerEntries ledgerEntries = readHandle.readAsync(0, 9).get();
 
