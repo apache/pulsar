@@ -129,6 +129,29 @@ public class PublishContextCompletionListenerTest extends ProducerConsumerBase {
     }
 
     @Test
+    public void testPublishCompletionListenerOnNonPersistentTopic() throws PulsarClientException {
+        counterBrokerInterceptor.clearCompletionOutcomes();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic("non-persistent://public/default/test-publish-completion-non-persistent")
+                .create();
+
+        producer.send("hello world");
+
+        // NonPersistentTopic completes with the fixed 0:0 position: same terminal notification,
+        // no persisted entry.
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(counterBrokerInterceptor.getCompletionOutcomes().size(), 1);
+            CounterBrokerInterceptor.CompletionOutcome outcome =
+                    counterBrokerInterceptor.getCompletionOutcomes().get(0);
+            assertEquals(outcome.getLedgerId(), 0L);
+            assertEquals(outcome.getEntryId(), 0L);
+            assertNull(outcome.getError());
+        });
+    }
+
+    @Test
     public void testPublishCompletionListenerExceptionContainment() throws PulsarClientException {
         counterBrokerInterceptor.clearCompletionOutcomes();
         counterBrokerInterceptor.setFailCompletionListener(true);
