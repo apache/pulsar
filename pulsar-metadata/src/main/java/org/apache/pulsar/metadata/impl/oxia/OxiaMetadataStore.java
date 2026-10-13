@@ -263,6 +263,9 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
         // is `toKeyInclusive` followed by 0x02. Without `toKeyInclusive`, the range ends at the end
         // of the level of the records, as the range [path + "/", path + "//") of
         // getChildrenFromStore does with Oxia's hierarchical key sorting.
+        // The ranges follow that sorting, which orders the secondary keys by their number of '/'
+        // first: a range without `toKeyInclusive` leaves out the keys with a '/' (e.g.
+        // "tenant/ns1"), and the range ["b", "tenant/ns1"] also returns "zz".
         String scopedFrom = fromKeyInclusive == null
                 ? scanPathPrefix + "/"
                 : scanPathPrefix + "/" + fromKeyInclusive;
