@@ -33,9 +33,11 @@ import java.util.concurrent.TimeUnit;
  * The workload's control port, which the launcher reaches through the port that Testcontainers maps on the host,
  * served with the JDK's built-in server. It streams the workload's progress, see {@link ProgressStream}, and lets
  * the launcher control when the producer's measurement starts: the producer signals that every warmup round has
- * been received, and the launcher, for example once the host has cooled down, starts the measurement:
+ * been received, and the launcher, for example once the host has cooled down, starts the measurement. It can also hold
+ * the producer before it creates its clients, until the launcher has set up the run's network conditions:
  *
  * <ul>
+ *   <li>{@code POST /run/start} lets the producer create its clients and start the run;</li>
  *   <li>{@code GET /measurement/ready?waitMillis=<ms>} waits up to that long for the producer to be ready, and
  *   answers 200 when it is and 204 when it isn't yet, so that the launcher learns it at once without polling
  *   files;</li>
@@ -45,6 +47,7 @@ import java.util.concurrent.TimeUnit;
 final class MeasurementControl implements AutoCloseable {
     static final String READY_PATH = "/measurement/ready";
     static final String START_PATH = "/measurement/start";
+    static final String RUN_START_PATH = "/run/start";
     // The JDK's server doesn't time out a request that is being answered (sun.net.httpserver.maxReqTime and
     // maxRspTime default to none); it closes connections left idle for sun.net.httpserver.idleInterval, 30 s by
     // default. A ready request waits at most this long, well within that, and the launcher asks again.
@@ -55,6 +58,7 @@ final class MeasurementControl implements AutoCloseable {
     private final ExecutorService executor;
     private final CountDownLatch ready = new CountDownLatch(1);
     private final CountDownLatch start = new CountDownLatch(1);
+    private final CountDownLatch runStart = new CountDownLatch(1);
 
     private MeasurementControl(HttpServer server, ExecutorService executor) {
         this.server = server;
@@ -74,6 +78,7 @@ final class MeasurementControl implements AutoCloseable {
         MeasurementControl control = new MeasurementControl(server, executor);
         server.createContext(READY_PATH, control::handleReady);
         server.createContext(START_PATH, control::handleStart);
+        server.createContext(RUN_START_PATH, control::handleRunStart);
         server.start();
         return control;
     }
@@ -98,6 +103,22 @@ final class MeasurementControl implements AutoCloseable {
         if (!start.await(Math.max(0, deadlineNanos - System.nanoTime()), TimeUnit.NANOSECONDS)) {
             throw new IllegalStateException("Timed out waiting for the launcher to start the measurement");
         }
+    }
+
+    /** Waits until the launcher starts the run. */
+    void awaitRunStart(long deadlineNanos) throws InterruptedException {
+        if (!runStart.await(Math.max(0, deadlineNanos - System.nanoTime()), TimeUnit.NANOSECONDS)) {
+            throw new IllegalStateException("Timed out waiting for the launcher to start the run");
+        }
+    }
+
+    private void handleRunStart(HttpExchange exchange) throws IOException {
+        if (!"POST".equals(exchange.getRequestMethod())) {
+            respond(exchange, 405, "POST starts the run\n");
+            return;
+        }
+        runStart.countDown();
+        respond(exchange, 200, "started\n");
     }
 
     private void handleReady(HttpExchange exchange) throws IOException {

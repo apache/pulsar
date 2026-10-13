@@ -30,6 +30,9 @@ import static org.testng.Assert.assertTrue;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.zookeeper.AsyncCallback.StatCallback;
 import org.apache.zookeeper.KeeperException;
@@ -145,6 +148,46 @@ public class ZKSessionWatcherTest {
 
             assertThat(events).containsExactly(
                     SessionEvent.SessionLost, SessionEvent.Reconnected, SessionEvent.SessionReestablished);
+        }
+    }
+
+    @Test
+    public void testSessionReplacedWhileListenerIsNotifiedReestablishesWithNextSession() throws Exception {
+        ZooKeeper zk = mock(ZooKeeper.class);
+        when(zk.getSessionTimeout()).thenReturn(600_000);
+        AtomicLong sessionId = new AtomicLong(1);
+        when(zk.getSessionId()).thenAnswer(invocation -> sessionId.get());
+        List<SessionEvent> events = new CopyOnWriteArrayList<>();
+        AtomicReference<ZKSessionWatcher> watcherRef = new AtomicReference<>();
+        AtomicBoolean replaceOnce = new AtomicBoolean(true);
+
+        try (ZKSessionWatcher watcher = new ZKSessionWatcher(zk, event -> {
+            events.add(event);
+            if (event == SessionEvent.SessionReestablished && replaceOnce.getAndSet(false)) {
+                watcherRef.get().setSessionReplaced();
+            }
+        }, false)) {
+            watcherRef.set(watcher);
+
+            watcher.process(new WatchedEvent(EventType.None, KeeperState.Expired, null));
+            watcher.process(new WatchedEvent(EventType.None, KeeperState.Closed, null));
+            assertThat(events).containsExactly(SessionEvent.SessionLost);
+
+            watcher.process(new WatchedEvent(EventType.None, KeeperState.SyncConnected, null));
+            assertThat(events).containsExactly(
+                    SessionEvent.SessionLost, SessionEvent.Reconnected, SessionEvent.SessionReestablished);
+
+            // The old session may still report a successful probe or a close event while it is being replaced.
+            watcher.process(new WatchedEvent(EventType.None, KeeperState.SyncConnected, null));
+            watcher.process(new WatchedEvent(EventType.None, KeeperState.Closed, null));
+            assertThat(events).containsExactly(
+                    SessionEvent.SessionLost, SessionEvent.Reconnected, SessionEvent.SessionReestablished);
+
+            sessionId.set(2);
+            watcher.process(new WatchedEvent(EventType.None, KeeperState.SyncConnected, null));
+            assertThat(events).containsExactly(
+                    SessionEvent.SessionLost, SessionEvent.Reconnected, SessionEvent.SessionReestablished,
+                    SessionEvent.Reconnected, SessionEvent.SessionReestablished);
         }
     }
 
