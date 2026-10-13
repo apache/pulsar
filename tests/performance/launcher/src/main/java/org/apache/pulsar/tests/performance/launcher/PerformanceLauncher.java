@@ -260,6 +260,7 @@ public class PerformanceLauncher implements Callable<Integer> {
         HeapDumpSettings heapDumpSettings = HeapDumpSettings.read(resolved.path("heapDumps"));
         MetricsSettings metricsSettings = MetricsSettings.read(resolved.path("metrics"));
         OffloadSettings offloadSettings = OffloadSettings.read(resolved.path("offload"));
+        SeekSettings seekSettings = SeekSettings.read(resolved.path("seeks"));
         NetworkSettings.Topology topology = clusterSettings.topology().withOffloadStorage(offloadSettings != null);
         ClusterSettings.Remote remote = clusterSettings.remote();
         NetworkSettings networkSettings = NetworkSettings.read(resolved.path("network"), topology,
@@ -494,6 +495,8 @@ public class PerformanceLauncher implements Callable<Integer> {
         JoinPreparation joinPreparation = null;
         Exception networkCleanupFailure = null;
         Instant gatewaysStarted = null;
+        // When the seeks after the workloads ended, or 0 without them
+        long seeksEndEpochMs = 0;
         String metricsBindAddress = System.getProperty("performance.metrics.bindAddress",
                 ReportsUrl.DEFAULT_BIND_ADDRESS);
         ZonedDateTime workloadFinished;
@@ -681,6 +684,19 @@ public class PerformanceLauncher implements Callable<Integer> {
                 runFailure = CompletableFuture.anyOf(runFailure, joinPreparation.failure());
             }
             awaitWorkloads(workloads, workload.path("timeoutSeconds").intValue() + 60, runFailure);
+            if (seekSettings != null) {
+                // While the network impairments still apply, such as the latency to the offload storage
+                JsonNode gatewaysSummary = loader.mapper().readTree(
+                        runOutput.resolve(GATEWAYS_DIRECTORY).resolve("gateways-summary.json").toFile());
+                long seeksStarted = System.nanoTime();
+                RandomSeeks.run(cluster.getAnyBroker().getHttpServiceUrl(), iotScenario.topicNames(),
+                        requiredLong(gatewaysSummary, "measurementStartEpochMs"),
+                        requiredLong(gatewaysSummary, "measurementEndEpochMs"), seekSettings, runOutput,
+                        runFailure, PerformanceLauncher::status);
+                seeksEndEpochMs = System.currentTimeMillis();
+                status(String.format(Locale.ROOT, "Made %,d seek(s) in %.1f s", seekSettings.count(),
+                        (System.nanoTime() - seeksStarted) / 1e9));
+            }
             if (network != null) {
                 // No traffic sees an impairment from now on; one that hasn't started is missed
                 network.finishRun();
@@ -826,7 +842,7 @@ public class PerformanceLauncher implements Callable<Integer> {
             status("Stopping the Pulsar cluster");
             shutDown("stopping the Pulsar cluster", cluster::stop);
             if (offloadStorage != null) {
-                saveContainerLog(offloadStorage, runOutput.resolve(OffloadSettings.STORAGE_LOG));
+                saveContainerLog(offloadStorage, runOutput.resolve(RunReport.OFFLOAD_STORAGE_LOG_FILE));
             }
             if (offloadStorage != null && !PulsarContainer.PULSAR_CONTAINERS_LEAVE_RUNNING) {
                 shutDown("stopping the offload storage", offloadStorage::stop);
@@ -851,6 +867,13 @@ public class PerformanceLauncher implements Callable<Integer> {
                 lastConsumerReceiptEpochMs = Math.max(lastConsumerReceiptEpochMs,
                         requiredLong(consumerSummary, "lastMeasurementMessageReceivedEpochMs"));
             }
+            // Without measured receipts, such as when the applications skipped every measured message, the gateways'
+            // measurement end
+            if (lastConsumerReceiptEpochMs < measurementStart.toEpochMilli()) {
+                lastConsumerReceiptEpochMs = requiredLong(summary, "measurementEndEpochMs");
+            }
+            // The seeks after the workloads, which the profiles cover too
+            lastConsumerReceiptEpochMs = Math.max(lastConsumerReceiptEpochMs, seeksEndEpochMs);
             // Consumer timestamps have millisecond precision. Use the following millisecond as the exclusive bound
             // so that events from the millisecond containing the final receipt are retained.
             Instant measurementEnd = Instant.ofEpochMilli(lastConsumerReceiptEpochMs).plusMillis(1);
@@ -1270,6 +1293,7 @@ public class PerformanceLauncher implements Callable<Integer> {
         // which need the late joins
         applications.remove("skipMessages");
         applications.remove("unloadBeforeJoin");
+        applications.remove("resetToMillis");
         if (remote.applications().env() != null) {
             applications.set("env", new ObjectMapper().valueToTree(remote.applications().env()));
         }
@@ -1966,12 +1990,14 @@ public class PerformanceLauncher implements Callable<Integer> {
             throws Exception {
         long[] produced = readState(output.resolve("gateways/gateways-state.bin"));
         JsonNode skipMessages = workload.path("applications").path("skipMessages");
+        JsonNode resetToMillis = workload.path("applications").path("resetToMillis");
         for (int application = 0; application < applications; application++) {
             long[] consumed = readState(applicationsDirectory.resolve(RunReport.applicationName(workload, application))
                     .resolve("application-state.bin"));
-            // An application that skipped messages has no state for a device whose messages it all skipped; it has
-            // checked that it received as many messages as followed its position
-            boolean skipped = skipMessages.path(application).asLong() > 0;
+            // An application that skipped messages, or reset its subscription, has no state for a device whose messages
+            // it all skipped; it has checked that it received as many messages as followed its position
+            boolean skipped = skipMessages.path(application).asLong() > 0
+                    || resetToMillis.path(application).asLong(-1) >= 0;
             if (!statesMatch(produced, consumed, skipped)) {
                 throw new IllegalStateException((applicationsDirectory.endsWith(REMOTE_APPLICATIONS_DIRECTORY)
                         ? "Remote application " : "Application ") + application

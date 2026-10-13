@@ -25,6 +25,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
+import org.apache.pulsar.tests.performance.report.RunReport;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.wait.strategy.Wait;
@@ -57,7 +58,7 @@ import org.testcontainers.images.builder.Transferable;
  * @param deletionLagMillis how long a ledger stays in BookKeeper after it has been offloaded, 0 deleting it at once,
  *                          so that reading it again reads the tiered storage
  * @param logRequests the storage logs every request, with the range of each read, into its log, which the launcher
- *                    saves into the run directory as {@value #STORAGE_LOG}
+ *                    saves into the run directory as {@link RunReport#OFFLOAD_STORAGE_LOG_FILE}
  */
 record OffloadSettings(String image, String namespace, long thresholdBytes, Long thresholdSeconds,
                        long deletionLagMillis, boolean logRequests) {
@@ -73,8 +74,6 @@ record OffloadSettings(String image, String namespace, long thresholdBytes, Long
      */
     static final String CREDENTIAL = "performance";
     private static final String S3_CONFIG = "/etc/seaweedfs/s3.json";
-    /** The storage's log in the run directory. */
-    static final String STORAGE_LOG = "offload-storage.log.txt";
     // SeaweedFS's log level that logs each S3 request, with the offset and size of a read's range
     private static final String REQUEST_LOG_LEVEL = "-v=4";
     private static final List<String> KEYS = List.of("image", "namespace", "thresholdBytes", "thresholdSeconds",
@@ -174,6 +173,8 @@ record OffloadSettings(String image, String namespace, long thresholdBytes, Long
                 .withNetworkAliases(STORAGE_HOST)
                 .withCopyToContainer(Transferable.of(s3Config), S3_CONFIG)
                 .withCommand(command().toArray(String[]::new))
+                // The log's times, which the run report reads, are in UTC
+                .withEnv("TZ", "UTC")
                 .withExposedPorts(S3_PORT)
                 // The S3 API listens, and the filer, which holds the buckets, has the bucket
                 .waitingFor(new WaitAllStrategy()

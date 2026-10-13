@@ -24,7 +24,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.LinkedHashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -41,8 +43,11 @@ import org.apache.pulsar.tests.performance.tools.MeasurementStartMarker;
 
 /**
  * Prepares the join of the applications that join later, which wait for it: at the earliest one's join time, it
- * moves each late application's subscription forward by its {@code applications.skipMessages} on every topic, unloads
- * every topic with {@code applications.unloadBeforeJoin}, and then marks the join prepared. With offloading, it
+ * moves each late application's subscription forward by its {@code applications.skipMessages} on every topic, resets it
+ * to the publish time of its {@code applications.resetToMillis} once the gateways have finished, unloads every topic
+ * with {@code applications.unloadBeforeJoin}, and then marks the join prepared, with the messages that each application
+ * that reset its subscription expects: its backlog then. It records how long each of these took in
+ * {@link RunReport#JOIN_PREPARATION_FILE}. With offloading, it
  * records the topics' ledgers, and how many of them the brokers have offloaded, before it and at the run's end, in
  * {@link RunReport#OFFLOAD_STATUS_FILE}.
  */
@@ -50,12 +55,15 @@ final class JoinPreparation implements AutoCloseable {
     private final PulsarAdmin admin;
     private final IotScenario scenario;
     private final Path runOutput;
+    // Written when the gateways have finished
+    private final Path gatewaysSummary;
     private final Consumer<String> status;
     // Completed exceptionally when preparing the join fails, which fails the run at once
     private final CompletableFuture<Void> failure = new CompletableFuture<>();
     private Thread thread;
 
     private JoinPreparation(PulsarAdmin admin, IotScenario scenario, Path runOutput, Consumer<String> status) {
+        this.gatewaysSummary = runOutput.resolve("gateways").resolve("gateways-summary.json");
         this.admin = admin;
         this.scenario = scenario;
         this.runOutput = runOutput;
@@ -102,6 +110,8 @@ final class JoinPreparation implements AutoCloseable {
             if (!scenario.preparesJoin()) {
                 return;
             }
+            Files.writeString(runOutput.resolve(RunReport.JOIN_PREPARATION_FILE),
+                    RunReport.JOIN_PREPARATION_HEADER + "\n");
             for (int application = 0; application < scenario.applicationCount(); application++) {
                 long skipped = scenario.skipMessages(application);
                 if (skipped > 0) {
@@ -116,31 +126,81 @@ final class JoinPreparation implements AutoCloseable {
                                     + " %,d message(s), fewer than the %,d to skip: join later, or skip fewer",
                                     subscription, topic, backlog, skipped));
                         }
+                        long start = System.currentTimeMillis();
                         admin.topics().skipMessages(topic, subscription, skipped);
+                        record(start, "skip", subscription, topic, skipped);
                     }
+                }
+            }
+            Map<Integer, Long> expectedMessages = new LinkedHashMap<>();
+            if (scenario.resetsSubscriptions()) {
+                // The backlog after a reset is what the application expects, so the gateways have to have finished
+                awaitGateways(deadlineNanos);
+                for (int application = 0; application < scenario.applicationCount(); application++) {
+                    long resetTo = scenario.resetToMillis(application);
+                    if (resetTo < 0) {
+                        continue;
+                    }
+                    String subscription = scenario.subscriptionName(application);
+                    long backlog = 0;
+                    for (String topic : scenario.topicNames()) {
+                        long start = System.currentTimeMillis();
+                        admin.topics().resetCursor(topic, subscription, measurementStart + resetTo);
+                        record(start, "reset", subscription, topic, resetTo);
+                        SubscriptionStats stats = admin.topics().getStats(topic).getSubscriptions().get(subscription);
+                        backlog += stats != null ? stats.getMsgBacklog() : 0;
+                    }
+                    expectedMessages.put(application, backlog);
                 }
             }
             if (scenario.applications().unloadBeforeJoin()) {
                 for (String topic : scenario.topicNames()) {
+                    long start = System.currentTimeMillis();
                     admin.topics().unload(topic);
+                    record(start, "unload", "", topic, 0);
                 }
             }
-            JoinPreparedMarker.mark(coordinationDirectory, runId);
+            JoinPreparedMarker.mark(coordinationDirectory, runId, expectedMessages);
             status.accept(String.format(Locale.ROOT, "Prepared the late applications' join in %.1f s:%s%s",
                     (System.nanoTime() - started) / 1e9,
                     scenario.applications().skipMessages().stream().anyMatch(skipped -> skipped > 0)
                             ? " skipped " + scenario.applications().skipMessages() + " message(s) of each topic;"
                             : "",
-                    scenario.applications().unloadBeforeJoin() ? " unloaded the topics" : ""));
+                    (expectedMessages.isEmpty() ? "" : " reset subscriptions to "
+                            + scenario.applications().resetToMillis() + " ms after the measurement's start, which"
+                            + " left backlogs of " + expectedMessages.values() + ";")
+                            + (scenario.applications().unloadBeforeJoin() ? " unloaded the topics" : "")));
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } catch (TimeoutException e) {
             // the applications' timeout fails the run
-            status.accept("The late applications' join wasn't prepared: the measurement didn't start");
+            status.accept("The late applications' join wasn't prepared: " + e.getMessage());
         } catch (Throwable e) {
             failure.completeExceptionally(e);
             status.accept("Preparing the late applications' join failed: " + e);
             log().warn().exception(e).log("Preparing the late applications' join failed");
+        }
+    }
+
+    // Appends an action of the join preparation and how long it took to the join preparation file
+    private void record(long startEpochMillis, String action, String subscription, String topic, long argument)
+            throws IOException {
+        long end = System.currentTimeMillis();
+        Files.writeString(runOutput.resolve(RunReport.JOIN_PREPARATION_FILE), startEpochMillis + "," + end + ","
+                + action + "," + subscription + "," + topic + "," + argument + "," + (end - startEpochMillis) + "\n",
+                StandardCharsets.UTF_8, StandardOpenOption.APPEND);
+    }
+
+    // Waits for the gateways to finish, which they have when they have written their summary
+    private void awaitGateways(long deadlineNanos) throws InterruptedException, TimeoutException {
+        if (!Files.exists(gatewaysSummary)) {
+            status.accept("Waiting for the gateways to finish before resetting the late applications' subscriptions");
+        }
+        while (!Files.exists(gatewaysSummary)) {
+            if (deadlineNanos - System.nanoTime() <= 0) {
+                throw new TimeoutException("The gateways didn't finish");
+            }
+            Thread.sleep(100);
         }
     }
 

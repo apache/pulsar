@@ -179,6 +179,31 @@ public class IotScenarioTest {
     }
 
     @Test
+    public void resetsTheSubscriptionsOfLateApplications() {
+        IotScenario scenario = unbatched(new IotScenario.Applications(3, 2, "app-", new IotScenario.Client(2, 2), null,
+                List.of(0, 30, 30), null, null, false, List.of(-1L, 5_000L, -1L)));
+        assertThat(scenario.resetToMillis(0)).isEqualTo(-1);
+        assertThat(scenario.resetToMillis(1)).isEqualTo(5_000);
+        assertThat(scenario.resetsSubscriptions()).isTrue();
+        assertThat(scenario.preparesJoin()).isTrue();
+        assertThat(scenario.startsAtFirstSequence(1)).isTrue();
+        assertThat(scenario.startsAtFirstSequence(2)).isFalse();
+        // only a late application resets, unbatched, and doesn't also skip
+        assertThatThrownBy(() -> unbatched(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, List.of(0, 30), null, null, false, List.of(5_000L, -1L))))
+                .hasMessageContaining("only an application that joins later");
+        assertThatThrownBy(() -> unbatched(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, List.of(0, 30), null, List.of(0L, 10L), false, List.of(-1L, 5_000L))))
+                .hasMessageContaining("can't also skip messages");
+        assertThatThrownBy(() -> scenario(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, List.of(0, 30), null, null, false, List.of(-1L, 5_000L))))
+                .hasMessageContaining("resetToMillis needs gateways.producer.batchingEnabled: false");
+        assertThatThrownBy(() -> unbatched(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, List.of(0, 30), null, null, false, List.of(-2L, 5_000L))))
+                .hasMessageContaining("-1 for none, or at least 0");
+    }
+
+    @Test
     public void rejectsInvalidJoinSettings() {
         assertThatThrownBy(() -> scenario(new IotScenario.Applications(3, 2, "app-", new IotScenario.Client(2, 2),
                 null, List.of(0, 20), null))).hasMessageContaining("a value for each of the 3 applications");

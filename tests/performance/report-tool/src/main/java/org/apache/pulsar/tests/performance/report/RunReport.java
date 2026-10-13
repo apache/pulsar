@@ -23,6 +23,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.DateTimeException;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -35,6 +39,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.HdrHistogram.Histogram;
 
@@ -68,6 +74,19 @@ public final class RunReport {
     public static final String OFFLOAD_STATUS_FILE = "offload-status.csv";
     public static final String OFFLOAD_STATUS_HEADER =
             "epochMillis,phase,topic,ledgers,offloadedLedgers,offloadedBytes,entries";
+    /** With offloading, the storage's log, with every request when {@code offload.logRequests} is set. */
+    public static final String OFFLOAD_STORAGE_LOG_FILE = "offload-storage.log.txt";
+    /**
+     * How long each action that prepared the late applications' join took: skipping messages, resetting a
+     * subscription by timestamp, or unloading a topic.
+     */
+    public static final String JOIN_PREPARATION_FILE = "join-preparation.csv";
+    public static final String JOIN_PREPARATION_HEADER =
+            "startEpochMillis,endEpochMillis,action,subscription,topic,argument,durationMillis";
+    /** The launcher's seeks to random publish times after the workloads ({@code seeks}), and how long each took. */
+    public static final String SEEKS_FILE = "seeks.csv";
+    public static final String SEEKS_HEADER =
+            "seek,startEpochMillis,endEpochMillis,topic,publishTime,resetMicros,peekMicros,position";
     /**
      * The host's thermal state sampled during a run, one row per second: temperatures in °C, frequencies in MHz, the
      * thermal throttle counters since boot (summed over the cores, and over the packages) and the fastest fan in rpm.
@@ -354,7 +373,11 @@ public final class RunReport {
         Path stats = runDirectory.resolve(TOPIC_STATS_FILE);
         Samples samples = Files.isRegularFile(stats) ? readSamples(stats) : null;
         appendCatchUp(report, run.workload(), consumers, samples, measurementStart, measurementEnd);
-        appendOffloadStatus(report, runDirectory.resolve(OFFLOAD_STATUS_FILE));
+        StorageRequests storageRequests = StorageRequests.read(runDirectory.resolve(OFFLOAD_STORAGE_LOG_FILE),
+                measurementStart);
+        appendOffloadStatus(report, runDirectory.resolve(OFFLOAD_STATUS_FILE), storageRequests);
+        appendJoinPreparation(report, runDirectory.resolve(JOIN_PREPARATION_FILE), storageRequests);
+        appendSeeks(report, runDirectory.resolve(SEEKS_FILE), storageRequests);
         appendLatency(report, runDirectory, run, consumerHistograms, measurementStart);
         appendRemoteApplications(report, runDirectory, run.workload(), mapper);
         if (samples != null) {
@@ -809,7 +832,8 @@ public final class RunReport {
      * With offloading ({@code offload}), the topics' ledgers and how many of them the brokers had offloaded when the
      * late applications joined and at the run's end, summed over the topics.
      */
-    static void appendOffloadStatus(StringBuilder report, Path status) throws IOException {
+    static void appendOffloadStatus(StringBuilder report, Path status, StorageRequests storageRequests)
+            throws IOException {
         if (!Files.isRegularFile(status)) {
             return;
         }
@@ -840,6 +864,200 @@ public final class RunReport {
                         + " | %,d |%n", phase.equals("join") ? "The late applications joined"
                         : phase.equals("end") ? "The run's end" : phase, topics.get(phase), sums[0], sums[1],
                 sums[2] / (1024.0 * 1024.0), sums[3])));
+        if (storageRequests != null && !storageRequests.reads().isEmpty()) {
+            report.append(String.format(Locale.ROOT, "%nThe storage served %,d reads of objects, %,.1f MB in ranged"
+                    + " reads, from its request log (`offload.logRequests`).%n", storageRequests.reads().size(),
+                    storageRequests.rangeBytes(Long.MIN_VALUE, Long.MAX_VALUE) / (1024.0 * 1024.0)));
+        }
+    }
+
+    /**
+     * The actions that prepared the late applications' join ({@code applications.skipMessages},
+     * {@code applications.resetToMillis}, {@code applications.unloadBeforeJoin}) and how long each took, and with the
+     * storage's request log, the reads of offloaded data during the resets.
+     */
+    static void appendJoinPreparation(StringBuilder report, Path preparation, StorageRequests storageRequests)
+            throws IOException {
+        if (!Files.isRegularFile(preparation)) {
+            return;
+        }
+        List<String> lines = Files.readAllLines(preparation);
+        List<String[]> actions = new ArrayList<>();
+        for (String line : lines.subList(Math.min(1, lines.size()), lines.size())) {
+            String[] fields = line.split(",", -1);
+            if (fields.length == 7) {
+                actions.add(fields);
+            }
+        }
+        if (actions.isEmpty()) {
+            return;
+        }
+        report.append("\n## Join preparation\n\nWhat the launcher did before the late applications joined, and how long"
+                + " each took. A reset moves the subscription to the publish time this many milliseconds after the"
+                + " measurement's start, which searches the topic's ledgers by timestamp.\n\n"
+                + "| Action | Subscription | Topic | Argument | Took |\n|---|---|---|---:|---:|\n");
+        long resetStart = Long.MAX_VALUE;
+        long resetEnd = Long.MIN_VALUE;
+        for (String[] action : actions) {
+            report.append(String.format(Locale.ROOT, "| %s | %s | `%s` | %s | %,d ms |%n", action[2],
+                    action[3].isEmpty() ? "–" : "`" + action[3] + "`", action[4],
+                    action[2].equals("unload") ? "–" : String.format(Locale.ROOT, "%,d", Long.parseLong(action[5])),
+                    Long.parseLong(action[6])));
+            if (action[2].equals("reset")) {
+                resetStart = Math.min(resetStart, Long.parseLong(action[0]));
+                resetEnd = Math.max(resetEnd, Long.parseLong(action[1]));
+            }
+        }
+        if (resetStart <= resetEnd && storageRequests != null && !storageRequests.reads().isEmpty()) {
+            long reads = storageRequests.reads(resetStart, resetEnd);
+            report.append(String.format(Locale.ROOT, "%nDuring the resets, the storage served %,d reads of objects,"
+                    + " %,.1f MB in ranged reads.%n", reads,
+                    storageRequests.rangeBytes(resetStart, resetEnd) / (1024.0 * 1024.0)));
+        }
+    }
+
+    /**
+     * The launcher's seeks to random publish times ({@code seeks}): how long a reset by timestamp, and reading the
+     * message at its position, took, and with the storage's request log the reads of offloaded data that they made.
+     */
+    static void appendSeeks(StringBuilder report, Path seeks, StorageRequests storageRequests) throws IOException {
+        if (!Files.isRegularFile(seeks)) {
+            return;
+        }
+        List<String> lines = Files.readAllLines(seeks);
+        List<Long> resets = new ArrayList<>();
+        List<Long> peeks = new ArrayList<>();
+        long first = Long.MAX_VALUE;
+        long last = Long.MIN_VALUE;
+        for (String line : lines.subList(Math.min(1, lines.size()), lines.size())) {
+            String[] fields = line.split(",", -1);
+            if (fields.length != 8) {
+                continue;
+            }
+            first = Math.min(first, Long.parseLong(fields[1]));
+            last = Math.max(last, Long.parseLong(fields[2]));
+            resets.add(Long.parseLong(fields[5]));
+            long peek = Long.parseLong(fields[6]);
+            if (peek >= 0) {
+                peeks.add(peek);
+            }
+        }
+        if (resets.isEmpty()) {
+            return;
+        }
+        report.append(String.format(Locale.ROOT, "%n## Seeks%n%nThe launcher's %,d seeks to random publish times after"
+                + " the workloads, in %.1f s: each a reset of a subscription by timestamp, which searches the topic's"
+                + " ledgers, offloaded or not, by publish time%s. `%s` has each one.%n%n"
+                + "| | Seeks | p50 | p90 | p99 | Max | Mean |%n|---|---:|---:|---:|---:|---:|---:|%n",
+                resets.size(), (last - first) / 1000.0,
+                peeks.isEmpty() ? "" : ", and a read of the message at the new position", SEEKS_FILE));
+        appendLatencyRow(report, "Reset by timestamp", resets);
+        if (!peeks.isEmpty()) {
+            appendLatencyRow(report, "Read of the message", peeks);
+        }
+        if (storageRequests != null && !storageRequests.reads().isEmpty()) {
+            long reads = storageRequests.reads(first, last);
+            report.append(String.format(Locale.ROOT, "%nDuring the seeks, the storage served %,d reads of objects,"
+                    + " %.2f per seek, %,.1f MB in ranged reads.%n", reads, (double) reads / resets.size(),
+                    storageRequests.rangeBytes(first, last) / (1024.0 * 1024.0)));
+        }
+    }
+
+    private static void appendLatencyRow(StringBuilder report, String name, List<Long> micros) {
+        List<Long> sorted = new ArrayList<>(micros);
+        sorted.sort(null);
+        double mean = sorted.stream().mapToLong(Long::longValue).average().orElse(0);
+        report.append(String.format(Locale.ROOT, "| %s | %,d | %s | %s | %s | %s | %s |%n", name, sorted.size(),
+                microsAsMillis(percentile(sorted, 0.5)), microsAsMillis(percentile(sorted, 0.9)),
+                microsAsMillis(percentile(sorted, 0.99)), microsAsMillis(sorted.get(sorted.size() - 1)),
+                microsAsMillis(Math.round(mean))));
+    }
+
+    // The nearest-rank percentile of sorted values
+    private static long percentile(List<Long> sorted, double quantile) {
+        int rank = (int) Math.ceil(quantile * sorted.size());
+        return sorted.get(Math.max(0, Math.min(sorted.size() - 1, rank - 1)));
+    }
+
+    private static String microsAsMillis(long micros) {
+        return String.format(Locale.ROOT, "%,.1f ms", micros / 1000.0);
+    }
+
+    /**
+     * The reads of objects that the offload storage served, from its request log: SeaweedFS's level 4 log, in UTC, with
+     * an access line for each request and a line with the range of each ranged read. The lines of a request aren't
+     * correlated, so the ranges' bytes are counted by their own times.
+     *
+     * @param reads the times of the reads of objects, in epoch milliseconds
+     * @param ranges the times of the ranged reads, in epoch milliseconds, and their ranges' bytes
+     */
+    record StorageRequests(List<Long> reads, List<long[]> ranges) {
+        // I1013 11:22:55.724973 stats.go:42 "performance" GET "/pulsar/object" 206 4.378522ms
+        private static final Pattern ACCESS = Pattern.compile("^I(\\d\\d)(\\d\\d)"
+                + " (\\d\\d):(\\d\\d):(\\d\\d)\\.(\\d{3})\\d* +stats\\.go:\\d+\\]?"
+                + " \"[^\"]*\" GET \"/[^/\"]+/[^\"]+\" (\\d+) ");
+        // I1013 11:22:55.720111 s3api_object_handlers.go:981 streamFromVolumeServers: ..., isRange=true, ..., size=N
+        private static final Pattern RANGE = Pattern.compile("^I(\\d\\d)(\\d\\d)"
+                + " (\\d\\d):(\\d\\d):(\\d\\d)\\.(\\d{3})\\d* .*isRange=true, offset=\\d+, size=(\\d+)");
+
+        /**
+         * The requests of the log, or null without a log. Its times have no year: each takes the year that puts it
+         * nearest {@code referenceEpochMs}, such as the measurement's start, so that a run across a new year counts
+         * right.
+         */
+        static StorageRequests read(Path log, long referenceEpochMs) throws IOException {
+            if (!Files.isRegularFile(log)) {
+                return null;
+            }
+            long reference = referenceEpochMs > 0 ? referenceEpochMs : System.currentTimeMillis();
+            List<Long> reads = new ArrayList<>();
+            List<long[]> ranges = new ArrayList<>();
+            try (Stream<String> lines = Files.lines(log)) {
+                for (String line : (Iterable<String>) lines::iterator) {
+                    Matcher range = RANGE.matcher(line);
+                    if (range.find()) {
+                        ranges.add(new long[] {epochMs(range, reference), Long.parseLong(range.group(7))});
+                        continue;
+                    }
+                    Matcher access = ACCESS.matcher(line);
+                    if (access.find() && access.group(7).startsWith("2")) {
+                        reads.add(epochMs(access, reference));
+                    }
+                }
+            }
+            return new StorageRequests(reads, ranges);
+        }
+
+        // The month, day, time and milliseconds of the match, in the year nearest the reference
+        private static long epochMs(Matcher match, long reference) {
+            int referenceYear = Instant.ofEpochMilli(reference).atZone(ZoneOffset.UTC).getYear();
+            long nearest = Long.MIN_VALUE;
+            for (int year = referenceYear - 1; year <= referenceYear + 1; year++) {
+                long epochMs;
+                try {
+                    epochMs = LocalDateTime.of(year, Integer.parseInt(match.group(1)),
+                            Integer.parseInt(match.group(2)), Integer.parseInt(match.group(3)),
+                            Integer.parseInt(match.group(4)), Integer.parseInt(match.group(5)))
+                            .toInstant(ZoneOffset.UTC).toEpochMilli() + Integer.parseInt(match.group(6));
+                } catch (DateTimeException e) {
+                    // February 29 of a year that hasn't one
+                    continue;
+                }
+                if (nearest == Long.MIN_VALUE || Math.abs(epochMs - reference) < Math.abs(nearest - reference)) {
+                    nearest = epochMs;
+                }
+            }
+            return nearest;
+        }
+
+        long reads(long fromEpochMs, long toEpochMs) {
+            return reads.stream().filter(time -> time >= fromEpochMs && time <= toEpochMs).count();
+        }
+
+        long rangeBytes(long fromEpochMs, long toEpochMs) {
+            return ranges.stream().filter(range -> range[0] >= fromEpochMs && range[0] <= toEpochMs)
+                    .mapToLong(range -> range[1]).sum();
+        }
     }
 
     /**

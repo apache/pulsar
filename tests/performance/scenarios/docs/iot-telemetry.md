@@ -66,6 +66,14 @@ application-visible order across Key_Shared hash-range reassignment.
   gateways have finished; before they do, the launcher moves their subscriptions' positions 10,240 messages apart and
   unloads the topic. The brokers reach the storage with 10 ms of delay each way. See
   [Offloading](../../docs/offloading.md).
+- [`iot-telemetry-offload-random-seeks.yaml`](../iot-telemetry-offload-random-seeks.yaml) measures random reads of
+  offloaded ledgers by time: after 110,000 unbatched 1 KiB messages 1 ms apart, which one application receives and
+  the namespace retains, the launcher seeks a subscription of its own 500 times to random publish times and reads the
+  message at each. See [Random seeks](../../docs/offloading.md#random-seeks).
+- [`iot-telemetry-offload-seek.yaml`](../iot-telemetry-offload-seek.yaml) measures seeks by timestamp in offloaded
+  ledgers: 110,000 unbatched 1 KiB messages 1 ms apart, and six late applications whose subscriptions the launcher
+  resets to publish times spread over the offloaded ledgers before they read their backlogs. The storage logs every
+  request, so that the report counts the reads of the searches. See [Offloading](../../docs/offloading.md).
 - [`iot-telemetry-max-rate.yaml`](../iot-telemetry-max-rate.yaml) runs the high-rate scenario's 500 gateways at the
   maximum rate: `rate: 0` removes the rate limit, so the gateways publish four million unbatched 128-byte messages
   as fast as the cluster takes them, with at most 100,000 in flight. One application consumes them with twenty pods
@@ -201,6 +209,7 @@ workloads:
       caughtUpLatencyMillis: 1000  # not set in the base file: a late application has caught up within this latency
       skipMessages: []         # not set in the base file: the messages of each topic each late application skips
       unloadBeforeJoin: false  # not set in the base file: unload the topics before the late applications join
+      resetToMillis: []        # not set in the base file: the publish time each late application resets to, in ms
     behaviors:
       podRestarts:             # each application restarts this fraction of its pods every intervalSeconds
         intervalSeconds: 0
@@ -220,7 +229,10 @@ have to be within the timeout, which also has to leave room for the last applica
 `applications.skipMessages` and `applications.unloadBeforeJoin` prepare the late applications' join, which the
 launcher carries out at the earliest late application's join time: it moves each late application's subscription
 forward by its number of messages on every topic, a value for each application, and then unloads every topic. The
-late applications wait for it before they open their pods. Skipping needs `gateways.producer.batchingEnabled: false`,
+late applications wait for it before they open their pods. `applications.resetToMillis` resets each late
+application's subscription by timestamp instead, to the publish time this many milliseconds after the measurement's
+start, -1 for none, once the gateways have finished; the application then expects as many messages as its backlog
+had. Skipping and resetting need `gateways.producer.batchingEnabled: false`,
 since the launcher skips entries. An application that skips messages expects every message but the skipped ones, each
 device's from the first one that it receives. [Offloading](../../docs/offloading.md) uses them to read a backlog from
 tiered storage from staggered positions.

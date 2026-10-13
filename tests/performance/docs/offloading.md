@@ -91,8 +91,45 @@ their pods:
   have the messages to skip when the applications join, or the run fails. An application that skips messages expects every
   message but the skipped ones, as many as follow its position, and each device's from the first one that it
   receives; its summary has `skippedMessages`, and the report's Catch-up section shows them.
-- `applications.unloadBeforeJoin: true`: after the skips, the launcher unloads every topic, so that the applications
-  read from a topic loaded anew, without the broker's cached entries or open ledger handles.
+- `applications.resetToMillis`: where each late application's subscription is reset to, a value for each application,
+  -1 for none: the publish time this many milliseconds after the measurement's start. The launcher waits for the
+  gateways to finish, and then resets each subscription by timestamp on every topic, which makes the broker search the
+  topic's ledgers, the offloaded ones among them, by publish time. An application that reset its subscription expects
+  as many messages as its backlog then had, which the launcher tells it, each device's from the first one that it
+  receives. Resetting needs `gateways.producer.batchingEnabled: false`.
+- `applications.unloadBeforeJoin: true`: after the skips and the resets, the launcher unloads every topic, so that the
+  applications read from a topic loaded anew, without the broker's cached entries or open ledger handles.
+
+The launcher records how long each skip, reset and unload took in `join-preparation.csv`, which the report's Join
+preparation section shows. With `offload.logRequests`, the section also counts the reads of offloaded data that the
+storage served during the resets, and the Offloading section the reads of the whole run.
+
+## Random seeks
+
+A scenario's `seeks` section makes the launcher seek a subscription of its own to random publish times after the
+workloads have finished, while the network impairments still apply:
+
+```yaml
+seeks:
+  count: 500        # how many seeks, 500 by default
+  seed: 1           # the seed of the random topics and publish times, so that runs seek alike
+  peek: true        # read the message at each seek's position, true by default
+  unloadFirst: true # unload the topics first, so that the seeks read from storage, true by default
+  timeoutSeconds: 1800 # the longest that the seeks may take, after which the run fails, 1800 by default
+```
+
+Each seek resets the subscription by timestamp on a random topic to a publish time between the measurement's start
+and end, which makes the broker search the topic's ledgers by publish time, and with `peek` reads the message at the
+new position, so that each seek is a random read. The seeks stop when the run fails, such as a network impairment
+that failed, and the launcher's subscription is removed whatever happens. A profiled run's profiles cover the seeks.
+`seeks.csv` has each seek's time, and the report's Seeks section
+their latencies' percentiles, and with `offload.logRequests` the reads of offloaded data per seek.
+[`iot-telemetry-offload-random-seeks.yaml`](../scenarios/iot-telemetry-offload-random-seeks.yaml) makes 500 of them
+over 110,000 offloaded messages; set `--set seeks.count=<n>` for more.
+
+[`iot-telemetry-offload-seek.yaml`](../scenarios/iot-telemetry-offload-seek.yaml) seeks by timestamp: the gateways
+publish 110,000 unbatched 1 KiB messages 1 ms apart, at 1,000 msg/s, and six late applications reset their
+subscriptions to publish times spread over the four offloaded ledgers, with the storage logging every request.
 
 ## Comparing Pulsar releases
 
