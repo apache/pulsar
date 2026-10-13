@@ -47,6 +47,8 @@ import org.apache.pulsar.metadata.cache.impl.JSONMetadataSerdeSimpleType;
 
 @Slf4j
 class LeaderElectionImpl<T> implements LeaderElection<T> {
+    // Dispatches the store notifications and session events to this election while it's not closed
+    private final CoordinationServiceImpl coordinationService;
     private final String path;
     private final MetadataSerde<T> serde;
     private final MetadataStoreExtended store;
@@ -83,9 +85,10 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
         this.leaderElectionCompletionTimeoutSeconds = leaderElectionCompletionTimeoutSeconds;
     }
 
-    LeaderElectionImpl(MetadataStoreExtended store, Class<T> clazz, String path,
-            Consumer<LeaderElectionState> stateChangesListener,
+    LeaderElectionImpl(CoordinationServiceImpl coordinationService, MetadataStoreExtended store, Class<T> clazz,
+            String path, Consumer<LeaderElectionState> stateChangesListener,
                        ScheduledExecutorService executor) {
+        this.coordinationService = coordinationService;
         this.path = path;
         this.serde = new JSONMetadataSerdeSimpleType<>(TypeFactory.defaultInstance().constructSimpleType(clazz, null));
         this.store = store;
@@ -94,8 +97,6 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
         this.stateChangesListener = stateChangesListener;
         this.executor = executor;
         this.sequencer = FutureUtil.Sequencer.create();
-        store.registerListener(this::handlePathNotification);
-        store.registerSessionListener(this::handleSessionNotification);
     }
 
     /**
@@ -125,6 +126,12 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
         if (internalState == InternalState.Closed) {
             // Reopened after close() (e.g. the broker's LeaderElectionService is close()d and then
             // start()ed again): reset so a fresh election cycle runs and readers wait for it.
+            if (!coordinationService.readdLeaderElection(path, this)) {
+                // Both elections would compete for the same lock: the new one keeps the path
+                return FutureUtil.failedFuture(new AlreadyClosedException(
+                        "The leader election was closed and a new one was created on " + path));
+            }
+            internalState = InternalState.Init;
             leaderElectionState = LeaderElectionState.NoLeader;
             currentLeaderFuture = new CompletableFuture<>();
         }
@@ -137,6 +144,10 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
     }
 
     private synchronized CompletableFuture<LeaderElectionState> elect() {
+        if (internalState == InternalState.Closed) {
+            // Closed while a retry or a revalidation was pending: only elect(T) re-opens the election
+            return FutureUtil.failedFuture(new AlreadyClosedException("The leader election was already closed"));
+        }
         // First check if there's already a leader elected
         internalState = InternalState.ElectionInProgress;
         return store.get(path).thenCompose(optLock -> {
@@ -149,6 +160,11 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
     }
 
     private synchronized CompletableFuture<LeaderElectionState> handleExistingLeaderValue(GetResult res) {
+        if (internalState == InternalState.Closed) {
+            // Closed while the lock was being read: the value read must not bring the election back, nor make it
+            // delete the lock
+            return FutureUtil.failedFuture(new AlreadyClosedException("The leader election was already closed"));
+        }
         T existingValue;
         try {
             existingValue = serde.deserialize(path, res.getValue(), res.getStat());
@@ -204,6 +220,11 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
     }
 
     private synchronized CompletableFuture<LeaderElectionState> tryToBecomeLeader() {
+        if (internalState == InternalState.Closed) {
+            // Closed while the lock was read or deleted: don't take it. A close while the lock is written is
+            // handled once the write completes.
+            return FutureUtil.failedFuture(new AlreadyClosedException("The leader election was already closed"));
+        }
         T value = proposedValue.get();
         byte[] payload;
         try {
@@ -280,6 +301,7 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
         }
 
         internalState = InternalState.Closed;
+        coordinationService.removeLeaderElection(path, this);
         // A closed election reports "no leader" rather than waiting or failing: callers like the
         // extensible load manager's handleNoChannelOwnerError() key off the resulting
         // "no channel owner" condition to restart the election.
@@ -367,14 +389,30 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
         return future.isDone() && !future.isCompletedExceptionally() ? future.join() : Optional.empty();
     }
 
-    private void handleSessionNotification(SessionEvent event) {
+    void handleSessionNotification(SessionEvent event) {
         // Ensure we're only processing one session event at a time.
         sequencer.sequential(() -> FutureUtil.composeAsync(() -> {
             if (event == SessionEvent.Reconnected || event == SessionEvent.SessionReestablished) {
-                log.info("Revalidating leadership for {}, event:{}", path, event);
-                return elect().thenAccept(leaderState -> {
+                CompletableFuture<LeaderElectionState> revalidation;
+                synchronized (LeaderElectionImpl.this) {
+                    if (internalState == InternalState.Init || internalState == InternalState.Closed) {
+                        // Not taking part in the election: elect(T) was never called, or the election was closed
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    log.info("Revalidating leadership for {}, event:{}", path, event);
+                    revalidation = elect();
+                }
+                return revalidation.thenAccept(leaderState -> {
                     log.info("Resynced leadership for {} - State: {}", path, leaderState);
                 }).exceptionally(ex -> {
+                    synchronized (LeaderElectionImpl.this) {
+                        if (internalState == InternalState.Closed) {
+                            if (log.isDebugEnabled()) {
+                                log.debug("Leader election closed while revalidating leadership for {}", path);
+                            }
+                            return null;
+                        }
+                    }
                     log.warn("Failure when processing session event", ex);
                     return null;
                 });
@@ -383,12 +421,8 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
         }, executor));
     }
 
-    private void handlePathNotification(Notification notification) {
-        if (!path.equals(notification.getPath())) {
-            // Ignore notifications we don't care about
-            return;
-        }
-
+    // Called for the notifications on the path of this election
+    void handlePathNotification(Notification notification) {
         synchronized (this) {
             if (internalState != InternalState.LeaderIsPresent) {
                 // Ignoring notification since we're not trying to become leader
@@ -409,20 +443,29 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
                 if (proposedValue.isPresent()) {
                     elect()
                             .exceptionally(ex -> {
-                                log.warn("Leader election for path {} has failed", path, ex);
                                 synchronized (LeaderElectionImpl.this) {
+                                    if (internalState == InternalState.Closed) {
+                                        // Closed while re-electing: there's nothing to report nor to retry
+                                        if (log.isDebugEnabled()) {
+                                            log.debug("Leader election closed while re-electing for path {}", path);
+                                        }
+                                        return null;
+                                    }
+                                    log.warn("Leader election for path {} has failed", path, ex);
                                     try {
                                         stateChangesListener.accept(leaderElectionState);
                                     } catch (Throwable t) {
                                         log.warn("Exception in state change listener", t);
                                     }
 
-                                    if (internalState != InternalState.Closed) {
-                                        executor.schedule(() -> {
-                                            log.info("Retrying Leader election for path {}", path);
-                                            elect();
-                                        }, LEADER_ELECTION_RETRY_DELAY_SECONDS, TimeUnit.SECONDS);
-                                    }
+                                    executor.schedule(() -> {
+                                        synchronized (LeaderElectionImpl.this) {
+                                            if (internalState != InternalState.Closed) {
+                                                log.info("Retrying Leader election for path {}", path);
+                                                elect();
+                                            }
+                                        }
+                                    }, LEADER_ELECTION_RETRY_DELAY_SECONDS, TimeUnit.SECONDS);
                                 }
                                 return null;
                             });
