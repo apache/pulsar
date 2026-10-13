@@ -81,8 +81,8 @@ public class OffloadedDataChunkCacheTest extends BlobStoreTestBase {
             reads.add(readers.submit(() -> cache.acquire(KEY, fetcher)));
         }
         assertThat(fetching.await(10, TimeUnit.SECONDS)).isTrue();
-        // every read has joined the fetch before it completes
-        Awaitility.await().untilAsserted(() -> assertThat(cache.joinedFetches()).isEqualTo(7));
+        // every read waits for the fetch before it completes
+        Awaitility.await().untilAsserted(() -> assertThat(cache.waiters(KEY)).isEqualTo(8));
         release.countDown();
         OffloadedDataChunkCache.Chunk first = reads.get(0).get(10, TimeUnit.SECONDS);
         for (Future<OffloadedDataChunkCache.Chunk> read : reads) {
@@ -141,6 +141,54 @@ public class OffloadedDataChunkCacheTest extends BlobStoreTestBase {
         // dropped from the cache, so fetched again
         cache.acquire(KEY, OffloadedDataChunkCacheTest::bytes).release();
         assertThat(cache.fetches()).isEqualTo(2);
+    }
+
+    @Test
+    public void releasesTheBuffersOfExpiredChunks() throws Exception {
+        @Cleanup
+        OffloadedDataChunkCache cache = new OffloadedDataChunkCache(1024, 1, 0, 1);
+        OffloadedDataChunkCache.Chunk chunk = cache.acquire(KEY, OffloadedDataChunkCacheTest::bytes);
+        chunk.release();
+        assertThat(chunk.references()).isEqualTo(1);
+        // the cleanup drops it once no read has used it for the expiry
+        Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertThat(chunk.buffer().refCnt()).isZero());
+        assertThat(cache.cachedBytes()).isZero();
+    }
+
+    @Test
+    public void anInterruptedReadReleasesItsReferenceWhenTheFetchCompletes() throws Exception {
+        @Cleanup
+        OffloadedDataChunkCache cache = new OffloadedDataChunkCache(1024, 60, 0, 1);
+        CountDownLatch release = new CountDownLatch(1);
+        OffloadedDataChunkCache.Fetcher fetcher = key -> {
+            try {
+                release.await();
+            } catch (InterruptedException e) {
+                throw new IOException(e);
+            }
+            return bytes(key);
+        };
+        @Cleanup("shutdownNow")
+        ExecutorService readers = Executors.newSingleThreadExecutor();
+        Future<OffloadedDataChunkCache.Chunk> read = readers.submit(() -> cache.acquire(KEY, fetcher));
+        Awaitility.await().untilAsserted(() -> assertThat(cache.waiters(KEY)).isEqualTo(1));
+        read.cancel(true);
+        release.countDown();
+        Awaitility.await().untilAsserted(() -> assertThat(cache.waiters(KEY)).isEqualTo(-1));
+        OffloadedDataChunkCache.Chunk chunk = cache.acquire(KEY, fetcher);
+        // the cache's reference and this read's: the interrupted read's has been released
+        Awaitility.await().untilAsserted(() -> assertThat(chunk.references()).isEqualTo(2));
+        chunk.release();
+        assertThat(cache.fetches()).isEqualTo(1);
+    }
+
+    @Test
+    public void doesNotPrefetchAChunkLargerThanTheBudget() throws Exception {
+        @Cleanup
+        OffloadedDataChunkCache cache = new OffloadedDataChunkCache(8, 60, 1, 1);
+        cache.prefetch(KEY, OffloadedDataChunkCacheTest::bytes);
+        assertThat(cache.fetches()).isZero();
     }
 
     @Test

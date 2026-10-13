@@ -4147,7 +4147,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "The most offloaded data, in MB, that the broker keeps in direct memory for reads of offloaded"
                     + " ledgers: chunks of the read buffer size that the reads of every offloaded ledger share, so"
                     + " that cursors reading the same ledger at different positions don't fetch the same data again."
-                    + " A read of data that is being fetched waits for that fetch. 0 keeps no data"
+                    + " A read of data that is being fetched waits for that fetch. 0 keeps no data. The chunks that"
+                    + " reads are using and the fetches in progress come on top of it"
     )
     private long managedLedgerOffloadReadCacheSizeInMB = 64;
 

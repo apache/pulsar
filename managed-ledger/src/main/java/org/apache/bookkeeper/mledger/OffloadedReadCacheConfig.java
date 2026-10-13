@@ -26,7 +26,8 @@ import org.apache.bookkeeper.common.annotation.InterfaceStability.Evolving;
  * creates: the cache of offloaded data that their read handles share.
  *
  * @param cacheSizeBytes the most bytes of offloaded data that the cache keeps; 0 keeps none, and only reads of the
- *                       same data at the same time share it
+ *                       same data at the same time share it. The data that reads are using and the fetches in
+ *                       progress come on top of it
  * @param cacheExpirySeconds how long the cache keeps data that no read has used
  * @param prefetchChunks how many chunks after the one that a sequential read moves on to are fetched in the
  *                       background; 0 fetches none

@@ -110,10 +110,15 @@ public class OffloadedDataChunkCache implements AutoCloseable {
      */
     private static final class PendingFetch {
         private final CompletableFuture<Chunk> future = new CompletableFuture<>();
+        private final Thread starter = Thread.currentThread();
         // Guarded by this
         private int waiters;
         private boolean done;
         private Chunk chunk;
+
+        boolean startedBy(Thread thread) {
+            return starter == thread;
+        }
     }
 
     private final long maxSizeBytes;
@@ -122,7 +127,8 @@ public class OffloadedDataChunkCache implements AutoCloseable {
     private final ConcurrentHashMap<Key, PendingFetch> pendingFetches = new ConcurrentHashMap<>();
     private final ExecutorService fetchExecutor;
     private final ScheduledExecutorService cleanupExecutor;
-    private volatile boolean closed;
+    // Guarded by this
+    private boolean closed;
     private final LongAdder hits = new LongAdder();
     private final LongAdder joinedFetches = new LongAdder();
     private final LongAdder fetches = new LongAdder();
@@ -174,7 +180,8 @@ public class OffloadedDataChunkCache implements AutoCloseable {
                     return cached;
                 }
                 pending = startFetch(key, fetcher);
-            } else {
+            }
+            if (!pending.startedBy(Thread.currentThread())) {
                 joinedFetches.increment();
             }
             synchronized (pending) {
@@ -196,7 +203,9 @@ public class OffloadedDataChunkCache implements AutoCloseable {
 
     /** Fetches the chunk in the background unless it is cached or being fetched. */
     void prefetch(Key key, Fetcher fetcher) {
-        if (prefetchChunks == 0 || chunks.getIfPresent(key) != null || pendingFetches.containsKey(key)) {
+        // A chunk larger than the budget would be dropped at once, before a read uses it
+        if (prefetchChunks == 0 || key.length() > maxSizeBytes || chunks.getIfPresent(key) != null
+                || pendingFetches.containsKey(key)) {
             return;
         }
         startFetch(key, fetcher);
@@ -212,12 +221,18 @@ public class OffloadedDataChunkCache implements AutoCloseable {
         if (existing != null) {
             return existing;
         }
+        // A fetch that completed since the caller's last look at the cache has cached the chunk
+        Chunk cached = chunks.getIfPresent(key);
+        if (cached != null && cached.tryRetain()) {
+            complete(key, created, cached, null, false);
+            return created;
+        }
         fetches.increment();
         try {
             fetchExecutor.execute(() -> fetch(key, fetcher, created));
         } catch (RuntimeException e) {
             // Such as a rejection after close
-            complete(key, created, null, e);
+            complete(key, created, null, e, false);
         }
         return created;
     }
@@ -227,13 +242,17 @@ public class OffloadedDataChunkCache implements AutoCloseable {
         try {
             buffer = fetcher.fetch(key);
         } catch (Throwable e) {
-            complete(key, pending, null, e);
+            complete(key, pending, null, e, false);
             return;
         }
-        complete(key, pending, new Chunk(buffer), null);
+        complete(key, pending, new Chunk(buffer), null, true);
     }
 
-    private void complete(Key key, PendingFetch pending, Chunk chunk, Throwable failure) {
+    /**
+     * Completes the fetch with the chunk, with a reference that it releases, or with the failure. A fetched chunk is
+     * {@code publish}ed into the cache.
+     */
+    private void complete(Key key, PendingFetch pending, Chunk chunk, Throwable failure, boolean publish) {
         synchronized (pending) {
             if (pending.done) {
                 // close() has failed it already
@@ -249,10 +268,15 @@ public class OffloadedDataChunkCache implements AutoCloseable {
                 chunk.retain(pending.waiters);
             }
         }
-        if (chunk != null && maxSizeBytes > 0 && !closed) {
-            chunk.retain(1);
-            // Into the cache before it stops being pending, see acquire()
-            chunks.put(key, chunk);
+        if (chunk != null && publish && maxSizeBytes > 0) {
+            // With close(), so that no chunk is put into the cache after close() has emptied it
+            synchronized (this) {
+                if (!closed) {
+                    chunk.retain(1);
+                    // Into the cache before it stops being pending, see acquire()
+                    chunks.put(key, chunk);
+                }
+            }
         }
         pendingFetches.remove(key, pending);
         if (chunk != null) {
@@ -301,6 +325,18 @@ public class OffloadedDataChunkCache implements AutoCloseable {
         return fetches.sum();
     }
 
+    /** The reads waiting for the fetch of the chunk, or -1 when it isn't being fetched. */
+    @VisibleForTesting
+    int waiters(Key key) {
+        PendingFetch pending = pendingFetches.get(key);
+        if (pending == null) {
+            return -1;
+        }
+        synchronized (pending) {
+            return pending.waiters;
+        }
+    }
+
     @VisibleForTesting
     long cachedBytes() {
         return chunks.asMap().keySet().stream().mapToLong(Key::length).sum();
@@ -312,12 +348,16 @@ public class OffloadedDataChunkCache implements AutoCloseable {
 
     @Override
     public void close() {
-        closed = true;
+        synchronized (this) {
+            closed = true;
+        }
         cleanupExecutor.shutdownNow();
         fetchExecutor.shutdownNow();
         // The reads waiting for fetches that won't run fail instead of waiting forever
         pendingFetches.forEach((key, pending) -> complete(key, pending, null,
-                new IOException("The offloaded data chunk cache is closed")));
-        chunks.invalidateAll();
+                new IOException("The offloaded data chunk cache is closed"), false));
+        synchronized (this) {
+            chunks.invalidateAll();
+        }
     }
 }
