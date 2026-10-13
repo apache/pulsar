@@ -113,7 +113,25 @@ public class ScalableTopicService {
         CompletableFuture<ScalableTopicController> stored = controllers.computeIfAbsent(key, k -> {
             ScalableTopicController controller = new ScalableTopicController(
                     topic, resources, brokerService, coordinationService);
-            return controller.initialize().thenApply(__ -> controller);
+            CompletableFuture<ScalableTopicController> future = new CompletableFuture<>();
+            // Released once its topic is deleted: the admin delete stops the controller on the
+            // broker serving it, not the ones other brokers hold for the topic.
+            controller.setTopicDeletedAction(() -> {
+                if (controllers.remove(key, future)) {
+                    controller.close();
+                }
+            });
+            controller.initialize().whenComplete((__, ex) -> {
+                if (ex == null) {
+                    future.complete(controller);
+                } else {
+                    // initialize() can fail after winning the election: close the controller, or
+                    // its election keeps the lock.
+                    controller.close();
+                    future.completeExceptionally(ex);
+                }
+            });
+            return future;
         });
         // Evict failed futures so subsequent callers can retry. This runs *outside*
         // computeIfAbsent, so modifying the map here is safe.
