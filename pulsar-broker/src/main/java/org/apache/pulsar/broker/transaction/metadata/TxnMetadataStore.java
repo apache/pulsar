@@ -197,9 +197,10 @@ public class TxnMetadataStore {
      * open by then. Best-effort: tolerates concurrent deletions via {@link MetadataStore#deleteIfExists}.
      */
     public CompletableFuture<Void> deleteWriteOpsForSegment(String segment) {
-        return scanAndDeleteOpsOnSegment(segment,
+        return collectOpsOnSegment(segment,
                 op -> op.getKind() == TxnOpKind.WRITE && segment.equals(op.getSegment()),
-                collector -> listWritesBySegment(segment, collector));
+                collector -> listWritesBySegment(segment, collector))
+                .thenCompose(this::deleteOps);
     }
 
     /**
@@ -214,13 +215,16 @@ public class TxnMetadataStore {
     }
 
     /**
-     * Delete every {@code /txn/op} ack record for {@code (segment, subscription)}, of any txn — used when the
-     * subscription is deleted: the PendingAckStore deletes them as it applies the txns' outcomes, which it never
-     * does for a txn still open by then. Best-effort: tolerates concurrent deletions via
-     * {@link MetadataStore#deleteIfExists}.
+     * Collect every {@code /txn/op} ack record for {@code (segment, subscription)}, of any txn, for
+     * {@link #deleteOps} — used when the subscription is deleted: the PendingAckStore deletes them as it applies the
+     * txns' outcomes, which it never does for a txn still open by then. A snapshot: the records a subscription
+     * re-created with the same name writes afterwards aren't in it.
+     *
+     * @return the paths of the records, mapped to their txn ids
      */
-    public CompletableFuture<Void> deleteAckOpsForSegmentSubscription(String segment, String subscription) {
-        return scanAndDeleteOpsOnSegment(segment,
+    public CompletableFuture<Map<String, String>> collectAckOpsForSegmentSubscription(String segment,
+                                                                                     String subscription) {
+        return collectOpsOnSegment(segment,
                 op -> op.getKind() == TxnOpKind.ACK && segment.equals(op.getSegment())
                         && subscription.equals(op.getSubscription()),
                 collector -> listAcksBySegmentSubscription(segment, subscription, collector));
@@ -228,13 +232,25 @@ public class TxnMetadataStore {
 
     /**
      * Delete every {@code /txn/op} ack record for {@code segment}, of any subscription and txn — used when the
-     * segment is deleted, for the same reason as {@link #deleteAckOpsForSegmentSubscription}. A single scan,
+     * segment is deleted, for the same reason as {@link #collectAckOpsForSegmentSubscription}. A single scan,
      * whatever the number of subscriptions, which also finds the records of subscriptions deleted before.
      */
     public CompletableFuture<Void> deleteAckOpsForSegment(String segment) {
-        return scanAndDeleteOpsOnSegment(segment,
+        return collectOpsOnSegment(segment,
                 op -> op.getKind() == TxnOpKind.ACK && segment.equals(op.getSegment()),
-                collector -> listAcksBySegment(segment, collector));
+                collector -> listAcksBySegment(segment, collector))
+                .thenCompose(this::deleteOps);
+    }
+
+    /**
+     * Delete the {@code /txn/op} records collected by {@link #collectAckOpsForSegmentSubscription}, each with its
+     * txn's partition key. Best-effort: tolerates concurrent deletions via {@link MetadataStore#deleteIfExists}.
+     */
+    public CompletableFuture<Void> deleteOps(Map<String, String> txnIdByPath) {
+        List<CompletableFuture<Void>> deletes = new ArrayList<>(txnIdByPath.size());
+        txnIdByPath.forEach((path, txnIdKey) -> deletes.add(
+                store.deleteIfExists(path, Optional.empty(), Set.of(new Option.PartitionKey(txnIdKey)))));
+        return FutureUtil.waitForAll(deletes);
     }
 
     /** Stream all ack ops targeting {@code segment}, of any subscription. */
@@ -288,13 +304,13 @@ public class TxnMetadataStore {
 
     /**
      * Shared implementation of the cleanups on a deleted segment or subscription, of any txn: invoke the supplied
-     * scan with a collector that captures the records {@code matches} accepts, then delete each captured path with
-     * its txn's partition key. The collector checks the records itself: a store with a native index doesn't apply
-     * the scan's filter, and its point lookups also match the keys that extend the one looked up (the records of a
-     * segment whose id extends this one's, of a subscription whose name extends this one's).
+     * scan with a collector that captures the records {@code matches} accepts, mapping their paths to their txn ids.
+     * The collector checks the records itself: a store with a native index doesn't apply the scan's filter, and its
+     * point lookups also match the keys that extend the one looked up (the records of a segment whose id extends
+     * this one's, of a subscription whose name extends this one's).
      */
-    private CompletableFuture<Void> scanAndDeleteOpsOnSegment(String segment, Predicate<TxnOp> matches,
-                                                              Function<ScanConsumer, CompletableFuture<Void>> scan) {
+    private CompletableFuture<Map<String, String>> collectOpsOnSegment(
+            String segment, Predicate<TxnOp> matches, Function<ScanConsumer, CompletableFuture<Void>> scan) {
         Map<String, String> txnIdByPath = new ConcurrentHashMap<>();
         ScanConsumer collector = new ScanConsumer() {
             @Override
@@ -318,12 +334,7 @@ public class TxnMetadataStore {
             public void onCompleted() {
             }
         };
-        return scan.apply(collector).thenCompose(__ -> {
-            List<CompletableFuture<Void>> deletes = new ArrayList<>(txnIdByPath.size());
-            txnIdByPath.forEach((path, txnIdKey) -> deletes.add(
-                    store.deleteIfExists(path, Optional.empty(), Set.of(new Option.PartitionKey(txnIdKey)))));
-            return FutureUtil.waitForAll(deletes);
-        });
+        return scan.apply(collector).thenApply(__ -> txnIdByPath);
     }
 
     /**

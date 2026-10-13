@@ -272,7 +272,6 @@ public class Segments extends AdminResource {
                     }
                     return sub.delete();
                 })
-                .thenCompose(__ -> deleteSubscriptionTxnState(segmentTopic, subscription))
                 .thenAccept(__ -> {
                     log.info().attr("clientAppId", clientAppId()).attr("segment", segmentTopic)
                             .attr("subscription", subscription)
@@ -575,25 +574,5 @@ public class Segments extends AdminResource {
                         .map(md -> md.getSegments().get(SegmentTopicName.getSegmentId(segmentTopic)))
                         .map(seg -> seg.isActive())
                         .orElse(false));
-    }
-
-    /**
-     * Delete the ack records of the transactions still open on a deleted subscription of a segment, which
-     * deleting the subscription leaves in place: its pending-ack store deletes a transaction's ack records as it
-     * applies its outcome. Left behind, they keep the coordinator from garbage-collecting the transaction. Best
-     * effort, like {@link #deleteSegmentTxnState}: the subscription is gone, and the controller doesn't retry.
-     */
-    private CompletableFuture<Void> deleteSubscriptionTxnState(TopicName segmentTopic, String subscription) {
-        if (!pulsar().getConfiguration().isTransactionCoordinatorEnabled()) {
-            return CompletableFuture.completedFuture(null);
-        }
-        return new TxnMetadataStore(pulsar().getLocalMetadataStore())
-                .deleteAckOpsForSegmentSubscription(segmentTopic.toString(), subscription)
-                .exceptionally(ex -> {
-                    log.warn().attr("segment", segmentTopic).attr("subscription", subscription)
-                            .exceptionMessage(ex)
-                            .log("Failed to delete the transaction state of the deleted subscription");
-                    return null;
-                });
     }
 }
