@@ -33,6 +33,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.metadata.OxiaTestServer;
 import org.apache.pulsar.metadata.bookkeeper.BKCluster;
 import org.apache.pulsar.tests.ThreadLeakDetectorListener;
 
@@ -134,8 +135,7 @@ public class SharedMultiBrokerPulsarCluster {
         // broker its own session and the proper ephemeral / CAS semantics. Container-based
         // because oxia ships no in-process server; tests skip cleanly when Docker isn't
         // available.
-        oxiaServer = new OxiaContainer(OxiaContainer.DEFAULT_IMAGE_NAME);
-        oxiaServer.start();
+        oxiaServer = OxiaTestServer.start(1);
         metadataStoreUrl = "oxia://" + oxiaServer.getServiceAddress();
 
         // Single shared bookie. Same minimal config as SharedPulsarCluster — write quorum stays
