@@ -29,7 +29,7 @@ public class SeekSettingsTest {
 
     @Test
     public void readsTheSectionWithItsDefaults() throws Exception {
-        assertThat(SeekSettings.read(mapper.readTree("workloads: {}").path("seeks"))).isNull();
+        assertThat(SeekSettings.read(mapper.readTree("offload: {}").path("offload").path("seeks"))).isNull();
         assertThat(SeekSettings.read(mapper.readTree("{}"))).isEqualTo(new SeekSettings(500, 1, true, true, 1800));
         assertThat(SeekSettings.read(mapper.readTree("""
                 count: 2000
@@ -42,10 +42,12 @@ public class SeekSettingsTest {
     @Test
     public void rejectsInvalidSettings() {
         assertThatThrownBy(() -> SeekSettings.read(mapper.readTree("count: 0")))
-                .hasMessageContaining("seeks.count must be a whole number, 1 or more");
+                .hasMessageStartingWith("offload.seeks.count must be a whole number, 1 or more");
         assertThatThrownBy(() -> SeekSettings.read(mapper.readTree("times: 5")))
-                .hasMessageContaining("seeks.times isn't a setting");
+                .hasMessageStartingWith("offload.seeks.times isn't a setting");
         assertThatThrownBy(() -> SeekSettings.read(mapper.readTree("peek: sometimes")))
-                .hasMessageContaining("seeks.peek must be true or false");
+                .hasMessageStartingWith("offload.seeks.peek must be true or false");
+        assertThatThrownBy(() -> SeekSettings.read(mapper.readTree("[500]")))
+                .hasMessageStartingWith("offload.seeks must be a mapping");
     }
 }

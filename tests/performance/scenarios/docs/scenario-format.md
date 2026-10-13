@@ -59,9 +59,9 @@ into the workload containers.
   partitions, connection resets and silent disconnections, for the whole run or for a time, see
   [Network conditions and network faults](../../docs/network-conditions.md).
 - `offload`: optional; the brokers offload the topics' ledgers to an S3-compatible SeaweedFS in a container, with the
-  namespace's offload policies, see [Offloading to tiered storage](../../docs/offloading.md).
-- `seeks`: optional; after the workloads, the launcher seeks a subscription of its own to random publish times and
-  reads the message at each position, see [Random seeks](../../docs/offloading.md#random-seeks).
+  namespace's offload policies, see [Offloading to tiered storage](../../docs/offloading.md). Its optional `seeks`
+  section makes the launcher seek a subscription of its own to random publish times after the workloads and read the
+  message at each position, see [Random seeks](../../docs/offloading.md#random-seeks).
 - `metrics`: optional; `metrics.intervalSeconds`, 5 by default, is how often VictoriaMetrics scrapes the metrics of
   the brokers, the bookies and ZooKeeper, and the period of the broker's stats, see [Metrics](../../docs/metrics.md).
 - `output`: optional; `output.name` names the scenario's runs in the reports hierarchy instead of the file name, see

@@ -268,7 +268,7 @@ public class PerformanceLauncher implements Callable<Integer> {
         HeapDumpSettings heapDumpSettings = HeapDumpSettings.read(resolved.path("heapDumps"));
         MetricsSettings metricsSettings = MetricsSettings.read(resolved.path("metrics"));
         OffloadSettings offloadSettings = OffloadSettings.read(resolved.path("offload"));
-        SeekSettings seekSettings = SeekSettings.read(resolved.path("seeks"));
+        SeekSettings seekSettings = offloadSettings != null ? offloadSettings.seeks() : null;
         NetworkSettings.Topology topology = clusterSettings.topology().withOffloadStorage(offloadSettings != null);
         ClusterSettings.Remote remote = clusterSettings.remote();
         NetworkSettings networkSettings = NetworkSettings.read(resolved.path("network"), topology,

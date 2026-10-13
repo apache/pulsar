@@ -105,7 +105,7 @@ public class RandomSeeksTest {
         topicOperations.resetMillis = 400;
         assertThatThrownBy(() -> RandomSeeks.run(topicOperations, List.of("t-0"), 1_000, 2_000,
                 new SeekSettings(100, 1, false, false, 1), runOutput(), new CompletableFuture<>(), line -> { }))
-                .isInstanceOf(TimeoutException.class).hasMessageContaining("seeks.timeoutSeconds");
+                .isInstanceOf(TimeoutException.class).hasMessageContaining("within offload.seeks.timeoutSeconds");
         assertThat(topicOperations.resets).isLessThan(10);
         assertThat(topicOperations.operations).contains("delete t-0");
     }

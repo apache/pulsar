@@ -22,18 +22,20 @@ import com.fasterxml.jackson.databind.JsonNode;
 import java.util.List;
 
 /**
- * A scenario's {@code seeks} section: after the workloads have finished, the launcher seeks a subscription of its own
- * to random publish times, {@code count} times, each a reset of the subscription by timestamp on a random topic, which
- * makes the broker search the topic's ledgers by publish time, and with {@code peek} reads the message at the new
- * position, so that each seek is a random read of the topic's data, offloaded or not.
+ * The {@code seeks} section of a scenario's {@code offload} section: after the workloads have finished, the launcher
+ * seeks a subscription of its own to random publish times, {@code count} times, each a reset of the subscription by
+ * timestamp on a random topic, which makes the broker search the topic's ledgers by publish time, and with
+ * {@code peek} reads the message at the new position, so that each seek is a random read of the topic's data,
+ * offloaded or not.
  *
  * <pre>
- * seeks:
- *   count: 500
- *   seed: 1
- *   peek: true
- *   unloadFirst: true
- *   timeoutSeconds: 1800
+ * offload:
+ *   seeks:
+ *     count: 500
+ *     seed: 1
+ *     peek: true
+ *     unloadFirst: true
+ *     timeoutSeconds: 1800
  * </pre>
  *
  * @param count how many seeks
@@ -47,37 +49,41 @@ record SeekSettings(int count, long seed, boolean peek, boolean unloadFirst, int
     static final int DEFAULT_TIMEOUT_SECONDS = 1800;
     private static final List<String> KEYS = List.of("count", "seed", "peek", "unloadFirst", "timeoutSeconds");
 
-    /** Reads the {@code seeks} section, which may be missing: null then, without seeks. */
+    // The section's path in the scenario, which the messages name
+    private static final String SECTION = "offload.seeks";
+
+    /** Reads the {@code offload.seeks} section, which may be missing: null then, without seeks. */
     static SeekSettings read(JsonNode seeks) {
         if (seeks.isMissingNode() || seeks.isNull()) {
             return null;
         }
         if (!seeks.isObject()) {
-            throw new IllegalArgumentException("seeks must be a mapping with " + KEYS);
+            throw new IllegalArgumentException(SECTION + " must be a mapping with " + KEYS);
         }
         seeks.fieldNames().forEachRemaining(field -> {
             if (!KEYS.contains(field)) {
-                throw new IllegalArgumentException("seeks." + field + " isn't a setting; seeks has " + KEYS);
+                throw new IllegalArgumentException(SECTION + "." + field + " isn't a setting; " + SECTION + " has "
+                        + KEYS);
             }
         });
         JsonNode count = seeks.path("count");
         if (!count.isMissingNode() && !count.isNull() && (!count.isIntegralNumber() || !count.canConvertToInt()
                 || count.intValue() < 1)) {
-            throw new IllegalArgumentException("seeks.count must be a whole number, 1 or more");
+            throw new IllegalArgumentException(SECTION + ".count must be a whole number, 1 or more");
         }
         JsonNode timeout = seeks.path("timeoutSeconds");
         if (!timeout.isMissingNode() && !timeout.isNull() && (!timeout.isIntegralNumber() || !timeout.canConvertToInt()
                 || timeout.intValue() < 1)) {
-            throw new IllegalArgumentException("seeks.timeoutSeconds must be a whole number, 1 or more");
+            throw new IllegalArgumentException(SECTION + ".timeoutSeconds must be a whole number, 1 or more");
         }
         JsonNode seed = seeks.path("seed");
         if (!seed.isMissingNode() && !seed.isNull() && !seed.isIntegralNumber()) {
-            throw new IllegalArgumentException("seeks.seed must be a whole number");
+            throw new IllegalArgumentException(SECTION + ".seed must be a whole number");
         }
         for (String key : List.of("peek", "unloadFirst")) {
             JsonNode value = seeks.path(key);
             if (!value.isMissingNode() && !value.isNull() && !value.isBoolean()) {
-                throw new IllegalArgumentException("seeks." + key + " must be true or false");
+                throw new IllegalArgumentException(SECTION + "." + key + " must be true or false");
             }
         }
         return new SeekSettings(count.asInt(DEFAULT_COUNT), seed.asLong(1), seeks.path("peek").asBoolean(true),

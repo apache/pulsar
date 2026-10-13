@@ -38,6 +38,7 @@ offload:
   thresholdSeconds: 0               # optional: the offload threshold in seconds, unset by default
   deletionLagMillis: 0              # how long an offloaded ledger stays in BookKeeper, 0 by default
   logRequests: false                # log every request to the storage, false by default
+  # seeks:                          # optional: seeks to random publish times after the workloads, see Random seeks
 ```
 
 With it, the launcher:
@@ -108,16 +109,18 @@ storage served during the resets, and the Offloading section the reads of the wh
 
 ## Random seeks
 
-A scenario's `seeks` section makes the launcher seek a subscription of its own to random publish times after the
-workloads have finished, while the network impairments still apply:
+The `offload` section's `seeks` section makes the launcher seek a subscription of its own to random publish times
+after the workloads have finished, while the network impairments still apply. An empty `seeks: {}` seeks with the
+defaults:
 
 ```yaml
-seeks:
-  count: 500        # how many seeks, 500 by default
-  seed: 1           # the seed of the random topics and publish times, so that runs seek alike
-  peek: true        # read the message at each seek's position, true by default
-  unloadFirst: true # unload the topics first, so that the seeks read from storage, true by default
-  timeoutSeconds: 1800 # the longest that the seeks may take, after which the run fails, 1800 by default
+offload:
+  seeks:
+    count: 500        # how many seeks, 500 by default
+    seed: 1           # the seed of the random topics and publish times, so that runs seek alike
+    peek: true        # read the message at each seek's position, true by default
+    unloadFirst: true # unload the topics first, so that the seeks read from storage, true by default
+    timeoutSeconds: 1800 # the longest that the seeks may take, after which the run fails, 1800 by default
 ```
 
 Each seek resets the subscription by timestamp on a random topic to a publish time between the measurement's start
@@ -127,7 +130,7 @@ that failed, and the launcher's subscription is removed whatever happens. A prof
 `seeks.csv` has each seek's time, and the report's Seeks section
 their latencies' percentiles, and with `offload.logRequests` the reads of offloaded data per seek.
 [`iot-telemetry-offload-random-seeks.yaml`](../scenarios/iot-telemetry-offload-random-seeks.yaml) makes 500 of them
-over 110,000 offloaded messages; set `--set seeks.count=<n>` for more.
+over 110,000 offloaded messages; set `--set offload.seeks.count=<n>` for more.
 
 [`iot-telemetry-offload-seek.yaml`](../scenarios/iot-telemetry-offload-seek.yaml) seeks by timestamp: the gateways
 publish 110,000 unbatched 1 KiB messages 1 ms apart, at 1,000 msg/s, and six late applications reset their

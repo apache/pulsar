@@ -160,7 +160,7 @@ final class RandomSeeks {
         }
         if (deadlineNanos - System.nanoTime() <= 0) {
             throw new TimeoutException(String.format(Locale.ROOT, "The seeks didn't finish within"
-                    + " seeks.timeoutSeconds, %,d s: %,d of %,d made", settings.timeoutSeconds(), seeks,
+                    + " offload.seeks.timeoutSeconds, %,d s: %,d of %,d made", settings.timeoutSeconds(), seeks,
                     settings.count()));
         }
     }

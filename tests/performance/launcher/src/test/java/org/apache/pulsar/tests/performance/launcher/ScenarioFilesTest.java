@@ -90,7 +90,7 @@ public class ScenarioFilesTest {
     }
 
     // The workload's settings as the launcher checks them before it starts a cluster, with the service URL it sets,
-    // and the sections that offloading, the network and the seeks read
+    // and the sections that offloading, its seeks among them, and the network read
     private void checkWorkload(ObjectNode resolved) {
         ObjectNode workload = (ObjectNode) loader.select(resolved, "workloads.iotTelemetry").deepCopy();
         workload.put("serviceUrl", "pulsar://broker:6650");
@@ -99,7 +99,6 @@ public class ScenarioFilesTest {
         if (offload != null) {
             offload.checkTopics(workload.path("topics").path("prefix").textValue());
         }
-        SeekSettings.read(resolved.path("seeks"));
         ClusterSettings cluster = ClusterSettings.read(loader.mapper(), resolved.path("cluster"));
         NetworkSettings.read(resolved.path("network"), cluster.topology().withOffloadStorage(offload != null),
                 PerformanceLauncher.measurementSeconds(workload));
@@ -144,10 +143,18 @@ public class ScenarioFilesTest {
                 assertThat(impairment.to()).containsExactly("offload-storage");
             });
         }
-        SeekSettings seeks = SeekSettings.read(resolve(SCENARIOS.resolve("iot-telemetry-offload-random-seeks.yaml"),
-                List.of()).path("seeks"));
+        ObjectNode randomSeeks = resolve(SCENARIOS.resolve("iot-telemetry-offload-random-seeks.yaml"), List.of());
+        assertThat(randomSeeks.has("seeks")).as("a top-level seeks").isFalse();
+        SeekSettings seeks = OffloadSettings.read(randomSeeks.path("offload")).seeks();
         assertThat(seeks).isNotNull();
         assertThat(seeks.count()).isEqualTo(500);
+        // the only scenario that seeks
+        assertThat(OffloadSettings.read(resolve(SCENARIOS.resolve("iot-telemetry-offload.yaml"), List.of())
+                .path("offload")).seeks()).isNull();
+        // --set reaches the nested section
+        ObjectNode moreSeeks = resolve(SCENARIOS.resolve("iot-telemetry-offload-random-seeks.yaml"), List.of());
+        loader.set(moreSeeks, "offload.seeks.count=2000");
+        assertThat(OffloadSettings.read(moreSeeks.path("offload")).seeks().count()).isEqualTo(2000);
     }
 
     @Test

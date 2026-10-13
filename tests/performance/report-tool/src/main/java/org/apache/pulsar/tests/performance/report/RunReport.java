@@ -85,7 +85,9 @@ public final class RunReport {
     public static final String JOIN_PREPARATION_FILE = "join-preparation.csv";
     public static final String JOIN_PREPARATION_HEADER =
             "startEpochMillis,endEpochMillis,action,subscription,topic,argument,durationMillis";
-    /** The launcher's seeks to random publish times after the workloads ({@code seeks}), and how long each took. */
+    /**
+     * The launcher's seeks to random publish times after the workloads ({@code offload.seeks}), and how long each took.
+     */
     public static final String SEEKS_FILE = "seeks.csv";
     public static final String SEEKS_HEADER =
             "seek,startEpochMillis,endEpochMillis,topic,publishTime,resetMicros,peekMicros,position";
@@ -921,8 +923,8 @@ public final class RunReport {
     }
 
     /**
-     * The launcher's seeks to random publish times ({@code seeks}): how long a reset by timestamp, and reading the
-     * message at its position, took, and with the storage's request log the reads of offloaded data that they made.
+     * The launcher's seeks to random publish times ({@code offload.seeks}): how long a reset by timestamp, and reading
+     * the message at its position, took, and with the storage's request log the reads of offloaded data that they made.
      */
     static void appendSeeks(StringBuilder report, Path seeks, StorageRequests storageRequests) throws IOException {
         if (!Files.isRegularFile(seeks)) {

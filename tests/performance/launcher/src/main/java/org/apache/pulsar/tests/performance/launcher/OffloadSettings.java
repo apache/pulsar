@@ -47,6 +47,8 @@ import org.testcontainers.images.builder.Transferable;
  *   thresholdSeconds: 0
  *   deletionLagMillis: 0
  *   logRequests: false
+ *   seeks:                # optional, see SeekSettings
+ *     count: 500
  * </pre>
  *
  * @param image the SeaweedFS image
@@ -61,9 +63,10 @@ import org.testcontainers.images.builder.Transferable;
  *                          where they go only with bookkeeper-first
  * @param logRequests the storage logs every request, with the range of each read, into its log, which the launcher
  *                    saves into the run directory as {@link RunReport#OFFLOAD_STORAGE_LOG_FILE}
+ * @param seeks the launcher's seeks to random publish times after the workloads, or null without them
  */
 record OffloadSettings(String image, String namespace, long thresholdBytes, Long thresholdSeconds,
-                       long deletionLagMillis, boolean logRequests) {
+                       long deletionLagMillis, boolean logRequests, SeekSettings seeks) {
     static final String DEFAULT_IMAGE = "chrislusf/seaweedfs:4.47";
     static final String DEFAULT_NAMESPACE = "public/default";
     /** The storage's name on the cluster's network, as the network impairments' endpoint names it too. */
@@ -79,7 +82,7 @@ record OffloadSettings(String image, String namespace, long thresholdBytes, Long
     // SeaweedFS's log level that logs each S3 request, with the offset and size of a read's range
     private static final String REQUEST_LOG_LEVEL = "-v=4";
     private static final List<String> KEYS = List.of("image", "namespace", "thresholdBytes", "thresholdSeconds",
-            "deletionLagMillis", "logRequests");
+            "deletionLagMillis", "logRequests", "seeks");
 
     /** Reads the {@code offload} section, which may be missing: null then, without offloading. */
     static OffloadSettings read(JsonNode offload) {
@@ -107,7 +110,7 @@ record OffloadSettings(String image, String namespace, long thresholdBytes, Long
             throw new IllegalArgumentException("offload.logRequests must be true or false");
         }
         return new OffloadSettings(image, namespace, thresholdBytes, thresholdSeconds, deletionLagMillis,
-                logRequests.asBoolean(false));
+                logRequests.asBoolean(false), SeekSettings.read(offload.path("seeks")));
     }
 
     /**

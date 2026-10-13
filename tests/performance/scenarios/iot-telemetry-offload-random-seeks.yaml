@@ -39,16 +39,16 @@ offload:
   thresholdBytes: 0
   deletionLagMillis: 0
   logRequests: true
+  seeks:
+    count: 500
+    seed: 1
+    peek: true
+    unloadFirst: true
 network:
   impairments:
     offload-storage-latency:
       between: [brokers, offload-storage]
       delay: 10ms
-seeks:
-  count: 500
-  seed: 1
-  peek: true
-  unloadFirst: true
 workloads:
   iotTelemetry:
     warmup:

@@ -157,7 +157,7 @@ report has these sections:
 - **Offloading**, in a run that offloads to tiered storage ([`offload`](offloading.md)): the topics' ledgers and how
   many of them the brokers had offloaded when the late applications joined and at the run's end, and with
   `offload.logRequests` the reads of offloaded data that the storage served.
-- **Seeks**, with a `seeks` section: the latencies of the launcher's seeks to random publish times and of reading the
+- **Seeks**, with an `offload.seeks` section: the latencies of the launcher's seeks to random publish times and of reading the
   message at each, and with the storage's request log the reads of offloaded data per seek.
 - **Join preparation**, when the launcher skipped messages, reset subscriptions by timestamp or unloaded the topics
   before the late applications joined: how long each took, and with the storage's request log the reads of offloaded
@@ -206,7 +206,7 @@ beside it, rendered with [commonmark-java](https://github.com/commonmark/commonm
 | `host-temperature.svg`, `.png`, `host-frequency.svg`, `.png` | The CPU package and hottest core temperature, and the mean and lowest core frequency, over the run |
 | `topic-stats.csv` | The broker's topic stats sampled once per second: backlog and message counters per subscription |
 | `offload-storage.log.txt` | In a run that offloads to tiered storage, the storage's log, with every request when `offload.logRequests` is set, see [Offloading](offloading.md) |
-| `seeks.csv` | With a `seeks` section, each seek to a random publish time: its topic, publish time, how long the reset and the read of the message took, and the position, see [Random seeks](offloading.md#random-seeks) |
+| `seeks.csv` | With an `offload.seeks` section, each seek to a random publish time: its topic, publish time, how long the reset and the read of the message took, and the position, see [Random seeks](offloading.md#random-seeks) |
 | `join-preparation.csv` | When the launcher prepared the late applications' join, each skip, reset and unload, and how long it took, see [Offloading](offloading.md) |
 | `offload-status.csv` | In a run that offloads to tiered storage, each topic's ledgers, offloaded ledgers and offloaded bytes when the late applications joined and at the run's end, see [Offloading](offloading.md) |
 | `host-stats.csv` | The launcher's host's CPU sampled once per second from Linux's sysfs files: package and hottest core temperature, mean and lowest core frequency, the kernel's thermal throttle counters and the fastest fan |
