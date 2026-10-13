@@ -36,6 +36,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
@@ -50,6 +51,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.TestZKServer;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
@@ -167,6 +169,36 @@ public class ScalableTopicControllerFailoverTest {
         assertThatThrownBy(() -> first.registerConsumer("sub", "consumer-1", 1L,
                 ScalableConsumerType.STREAM, mock(TransportCnx.class)))
                 .hasMessageContaining("not the leader");
+    }
+
+    /**
+     * A leader deposed by its election closes the election, as a follower does once elected: the
+     * election would otherwise take the lock back by itself once the new leader releases it, and for
+     * a topic being deleted, re-create the lock under the record the delete is about to remove.
+     */
+    @Test
+    public void testDeposedLeaderLeavesTheLockOfATopicBeingDeleted() throws Exception {
+        ScalableTopicController first = broker1.newController();
+        first.initialize().get();
+        ScalableTopicController second = broker2.newController();
+        second.initialize().get();
+        broker2.takeOverControllerLock();
+        Awaitility.await().until(() -> second.isLeader()
+                && first.getLeaderBrokerId().get().equals(Optional.of(broker2.brokerId)));
+
+        String lockPath = broker1.resources.controllerLockPath(topic);
+        List<NotificationType> lockEvents = new CopyOnWriteArrayList<>();
+        broker1.store.registerListener(notification -> {
+            if (notification.getPath().equals(lockPath)) {
+                lockEvents.add(notification.getType());
+            }
+        });
+        broker1.resources.markScalableTopicDeletedAsync(topic).get();
+        second.close().get();
+
+        Awaitility.await().until(() -> lockEvents.contains(NotificationType.Deleted));
+        Awaitility.await().during(Duration.ofSeconds(1)).atMost(Duration.ofSeconds(5))
+                .until(() -> !lockEvents.contains(NotificationType.Created));
     }
 
     /**
