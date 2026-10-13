@@ -229,7 +229,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                                     .exceptionMessage(actEx)
                                     .log("Put schema failed due to incompatible schema");
                         } else {
-                            log.error().attr("schemaId", schemaId).exceptionMessage(actEx).log("Put schema failed");
+                            log.error().attr("schemaId", schemaId).exception(actEx).log("Put schema failed");
                         }
                         if (start.longValue() != 0) {
                             this.stats.recordPutFailed(schemaId, latencyMs);
