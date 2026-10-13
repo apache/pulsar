@@ -29,7 +29,6 @@ import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.GetStatsOptions;
-import org.apache.pulsar.broker.transaction.metadata.TxnMetadataStore;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.api.proto.ScalableConsumerType;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -319,42 +318,26 @@ public class ScalableTopicService {
      * Delete a scalable topic and all its segment topics.
      */
     public CompletableFuture<Void> deleteScalableTopic(TopicName topic) {
-        // When transactions are enabled, the segments carry durable /txn/segment-state records
-        // (watermark + aborted-txn records). Delete them alongside the segment topics so they don't
-        // outlive the data.
-        TxnMetadataStore txnStore =
-                brokerService.getPulsar().getConfiguration().isTransactionCoordinatorEnabled()
-                        ? new TxnMetadataStore(brokerService.getPulsar().getLocalMetadataStore())
-                        : null;
         return releaseController(topic)
                 .thenCompose(__ -> resources.getScalableTopicMetadataAsync(topic))
+                // Delete the metadata before the segment topics, like the admin delete: the segment delete
+                // only deletes the durable transaction state of a segment no longer active in the layout.
+                .thenCompose(optMd -> resources.deleteScalableTopicAsync(topic).thenApply(__ -> optMd))
                 .thenCompose(optMd -> {
                     if (optMd.isEmpty()) {
                         return CompletableFuture.completedFuture(null);
                     }
                     ScalableTopicMetadata metadata = optMd.get();
-                    // Delete all underlying segment topics, then their durable transaction state.
+                    // Delete all underlying segment topics.
                     return FutureUtil.waitForAll(
                             metadata.getSegments().values().stream()
-                                    .map(segment -> deleteUnderlyingSegmentTopic(topic, segment)
-                                            .thenCompose(__ -> cleanupSegmentTxnState(txnStore, topic, segment)))
+                                    .map(segment -> deleteUnderlyingSegmentTopic(topic, segment))
                                     .toList()
                     );
                 })
                 // The segments share the schema of the scalable topic; deleting them leaves it in place.
                 .thenCompose(__ -> brokerService.deleteSchema(topic))
-                .thenCompose(__ -> resources.deleteScalableTopicAsync(topic));
-    }
-
-    /** Delete the durable {@code /txn/segment-state} records for a segment being dropped. */
-    private CompletableFuture<Void> cleanupSegmentTxnState(TxnMetadataStore txnStore,
-                                                          TopicName parentTopic, SegmentInfo segment) {
-        if (txnStore == null) {
-            return CompletableFuture.completedFuture(null);
-        }
-        String segmentName = SegmentTopicName.fromParent(
-                parentTopic, segment.hashRange(), segment.segmentId()).toString();
-        return txnStore.deleteAllSegmentState(segmentName);
+                .thenApply(__ -> null);
     }
 
     /**
