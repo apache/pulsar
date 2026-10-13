@@ -502,20 +502,45 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         hookedMap.putAll(consumerImpl.chunkedMessagesMap);
         consumerImpl.chunkedMessagesMap = hookedMap;
 
-        // Complete A.
-        sendSingleChunk(producer, "A", 1, 2);
-        Message<String> a = consumer.receive(10, TimeUnit.SECONDS);
-        assertNotNull(a);
-        assertEquals(a.getValue(), "chunk-A-0|chunk-A-1|");
+        try {
+            // Complete A.
+            sendSingleChunk(producer, "A", 1, 2);
+            Message<String> a = consumer.receive(10, TimeUnit.SECONDS);
+            assertNotNull(a);
+            assertEquals(a.getValue(), "chunk-A-0|chunk-A-1|");
 
-        assertTrue(raceTriggered.get(), "A's completion did not trigger the interleaving");
-        expiryThread.get().join(TimeUnit.SECONDS.toMillis(10));
-        assertNull(expiryError.get());
+            assertTrue(raceTriggered.get(), "A's completion did not trigger the interleaving");
+            expiryThread.get().join(TimeUnit.SECONDS.toMillis(10));
+            assertNull(expiryError.get());
 
-        // B is still pending, so the queue must still reference it for expiry/eviction to find it.
-        assertNotNull(consumerImpl.chunkedMessagesMap.get("B"));
-        assertEquals(consumerImpl.getPendingChunkedMessageUuidQueueSizeForTest(), 1,
-                "B's uuid was dropped from the queue while its context is still pending");
+            // B is still pending, so the queue must still reference it for expiry/eviction to find it.
+            ConsumerImpl.ChunkedMessageCtx b = consumerImpl.chunkedMessagesMap.get("B");
+            assertNotNull(b);
+            assertEquals(consumerImpl.getPendingChunkedMessageUuidQueueSizeForTest(), 1,
+                    "B's uuid was dropped from the queue while its context is still pending");
+
+            // Expire B explicitly: this proves it is still reachable for cleanup and releases its
+            // incomplete chunk buffer (closing the consumer does not release incomplete contexts).
+            ByteBuf bBuffer = b.chunkedMsgBuffer;
+            b.receivedTime = 0;
+            consumerImpl.removeExpireIncompleteChunkedMessages();
+            assertNull(consumerImpl.chunkedMessagesMap.get("B"));
+            assertEquals(consumerImpl.getPendingChunkedMessageUuidQueueSizeForTest(), 0);
+            assertEquals(bBuffer.refCnt(), 0);
+        } finally {
+            // On failure paths, stop the helper thread first, then release whatever is still pending
+            // so the test does not leak chunk buffers.
+            Thread t = expiryThread.get();
+            if (t != null) {
+                t.join(TimeUnit.SECONDS.toMillis(15));
+            }
+            for (ConsumerImpl.ChunkedMessageCtx ctx : consumerImpl.chunkedMessagesMap.values()) {
+                if (ctx.chunkedMsgBuffer != null && ctx.chunkedMsgBuffer.refCnt() > 0) {
+                    ctx.chunkedMsgBuffer.release();
+                }
+            }
+            consumerImpl.chunkedMessagesMap.clear();
+        }
     }
 
     /**
