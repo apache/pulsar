@@ -42,7 +42,11 @@ public class BlobStoreBackedInputStreamTest {
             }
         };
         ByteBuf buffer = Unpooled.buffer(20);
-        BlobStoreBackedInputStreamImpl.fillBuffer(buffer, is, 20);
-        assertEquals(buffer.readableBytes(), 10);
+        try {
+            BlobStoreBackedInputStreamImpl.fillBuffer(buffer, is, 20);
+            assertEquals(buffer.readableBytes(), 10);
+        } finally {
+            buffer.release();
+        }
     }
 }

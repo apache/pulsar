@@ -30,6 +30,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
@@ -37,6 +38,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.offload.jcloud.BlobStoreTestBase;
@@ -170,17 +172,58 @@ public class OffloadedDataChunkCacheTest extends BlobStoreTestBase {
             return bytes(key);
         };
         @Cleanup("shutdownNow")
-        ExecutorService readers = Executors.newSingleThreadExecutor();
-        Future<OffloadedDataChunkCache.Chunk> read = readers.submit(() -> cache.acquire(KEY, fetcher));
+        ExecutorService readers = Executors.newFixedThreadPool(2);
+        // the first read fetches on its thread, the second waits for that fetch
+        Future<OffloadedDataChunkCache.Chunk> fetching = readers.submit(() -> cache.acquire(KEY, fetcher));
         Awaitility.await().untilAsserted(() -> assertThat(cache.waiters(KEY)).isEqualTo(1));
-        read.cancel(true);
+        Future<OffloadedDataChunkCache.Chunk> waiting = readers.submit(() -> cache.acquire(KEY, fetcher));
+        Awaitility.await().untilAsserted(() -> assertThat(cache.waiters(KEY)).isEqualTo(2));
+        waiting.cancel(true);
         release.countDown();
-        Awaitility.await().untilAsserted(() -> assertThat(cache.waiters(KEY)).isEqualTo(-1));
-        OffloadedDataChunkCache.Chunk chunk = cache.acquire(KEY, fetcher);
-        // the cache's reference and this read's: the interrupted read's has been released
+        OffloadedDataChunkCache.Chunk chunk = fetching.get(10, TimeUnit.SECONDS);
+        // the cache's reference and the first read's: the interrupted read's has been released
         Awaitility.await().untilAsserted(() -> assertThat(chunk.references()).isEqualTo(2));
         chunk.release();
         assertThat(cache.fetches()).isEqualTo(1);
+    }
+
+    @Test
+    public void aReadThatStartsAFetchGetsItsChunkWithoutABudget() throws Exception {
+        @Cleanup
+        OffloadedDataChunkCache cache = new OffloadedDataChunkCache(0, 60, 0, 1);
+        // the read is the fetch's waiter from the start, so it can't miss the chunk that nothing else keeps
+        for (int i = 1; i <= 100; i++) {
+            OffloadedDataChunkCache.Chunk chunk = cache.acquire(KEY, OffloadedDataChunkCacheTest::bytes);
+            assertThat(chunk.references()).isEqualTo(1);
+            chunk.release();
+            assertThat(cache.fetches()).isEqualTo(i);
+        }
+        assertThat(cache.liveChunks()).isZero();
+    }
+
+    @Test
+    public void prefetchesAtMostAsManyChunksAtATimeAsThereAreThreads() throws Exception {
+        @Cleanup
+        OffloadedDataChunkCache cache = new OffloadedDataChunkCache(1 << 20, 60, 1, 2);
+        CountDownLatch release = new CountDownLatch(1);
+        OffloadedDataChunkCache.Fetcher blocked = key -> {
+            try {
+                release.await();
+            } catch (InterruptedException e) {
+                throw new IOException(e);
+            }
+            return bytes(key);
+        };
+        for (int i = 0; i < 5; i++) {
+            cache.prefetch(new OffloadedDataChunkCache.Key("bucket", "object", 16L * i, 16), blocked);
+        }
+        Awaitility.await().untilAsserted(() -> assertThat(cache.fetches()).isEqualTo(2));
+        // the others were skipped, not queued
+        assertThat(cache.waiters(new OffloadedDataChunkCache.Key("bucket", "object", 32, 16))).isEqualTo(-1);
+        release.countDown();
+        Awaitility.await().untilAsserted(() -> assertThat(cache.cachedBytes()).isEqualTo(32));
+        cache.prefetch(new OffloadedDataChunkCache.Key("bucket", "object", 32, 16), blocked);
+        Awaitility.await().untilAsserted(() -> assertThat(cache.cachedBytes()).isEqualTo(48));
     }
 
     @Test
@@ -221,27 +264,60 @@ public class OffloadedDataChunkCacheTest extends BlobStoreTestBase {
     @Test
     public void closingFailsTheReadsThatWaitForAFetch() throws Exception {
         OffloadedDataChunkCache cache = new OffloadedDataChunkCache(1024, 60, 0, 1);
-        CountDownLatch fetching = new CountDownLatch(1);
-        @Cleanup("shutdownNow")
-        ExecutorService readers = Executors.newSingleThreadExecutor();
-        // the only fetch thread is busy, so the fetch of KEY waits in its queue
-        readers.submit(() -> cache.acquire(new OffloadedDataChunkCache.Key("bucket", "other", 0, 16), key -> {
-            fetching.countDown();
+        CountDownLatch release = new CountDownLatch(1);
+        OffloadedDataChunkCache.Fetcher fetcher = key -> {
             try {
-                Thread.sleep(60_000);
+                release.await();
             } catch (InterruptedException e) {
                 throw new IOException(e);
             }
             return bytes(key);
-        }));
-        assertThat(fetching.await(10, TimeUnit.SECONDS)).isTrue();
+        };
         @Cleanup("shutdownNow")
-        ExecutorService waiter = Executors.newSingleThreadExecutor();
-        Future<OffloadedDataChunkCache.Chunk> read = waiter.submit(() -> cache.acquire(KEY,
-                OffloadedDataChunkCacheTest::bytes));
-        Awaitility.await().untilAsserted(() -> assertThat(cache.fetches()).isEqualTo(2));
+        ExecutorService readers = Executors.newFixedThreadPool(2);
+        Future<OffloadedDataChunkCache.Chunk> fetching = readers.submit(() -> cache.acquire(KEY, fetcher));
+        Awaitility.await().untilAsserted(() -> assertThat(cache.waiters(KEY)).isEqualTo(1));
+        Future<OffloadedDataChunkCache.Chunk> waiting = readers.submit(() -> cache.acquire(KEY, fetcher));
+        Awaitility.await().untilAsserted(() -> assertThat(cache.waiters(KEY)).isEqualTo(2));
         cache.close();
-        assertThatThrownBy(() -> read.get(10, TimeUnit.SECONDS)).hasCauseInstanceOf(IOException.class);
+        // both fail at once, without waiting for the fetch
+        assertThatThrownBy(() -> waiting.get(10, TimeUnit.SECONDS)).hasCauseInstanceOf(IOException.class);
+        assertThatThrownBy(() -> fetching.get(1, TimeUnit.SECONDS)).isInstanceOf(TimeoutException.class);
+        release.countDown();
+        assertThatThrownBy(() -> fetching.get(10, TimeUnit.SECONDS)).hasCauseInstanceOf(IOException.class);
+        // the chunk that the fetch completed after the close is released
+        Awaitility.await().untilAsserted(() -> assertThat(cache.liveChunks()).isZero());
+    }
+
+    @Test
+    public void aClosedStreamDoesNotRead() throws Exception {
+        String objectKey = "closedStream";
+        byte[] data = new byte[2_000];
+        blobStore.putBlob(BUCKET, blobStore.blobBuilder(objectKey).payload(data).contentLength(data.length).build());
+        @Cleanup
+        OffloadedDataChunkCache cache = new OffloadedDataChunkCache(1 << 20, 60, 0, 1);
+        BlobStoreBackedInputStreamImpl stream = new BlobStoreBackedInputStreamImpl(blobStore, BUCKET, objectKey,
+                (key, md) -> {}, data.length, 1000, cache);
+        stream.read();
+        stream.close();
+        stream.close();
+        stream.seek(1500);
+        assertThatThrownBy(stream::read).isInstanceOf(IOException.class).hasMessageContaining("closed");
+        // only the cache holds the chunk that the stream read
+        cache.clear();
+        assertThat(cache.liveChunks()).isZero();
+    }
+
+    @Test
+    public void failsAReadOfATruncatedRange() throws Exception {
+        String objectKey = "truncated";
+        byte[] data = new byte[500];
+        blobStore.putBlob(BUCKET, blobStore.blobBuilder(objectKey).payload(data).contentLength(data.length).build());
+        // the stream expects 1,000 bytes, of which the store has 500
+        @Cleanup
+        BlobStoreBackedInputStreamImpl stream = new BlobStoreBackedInputStreamImpl(blobStore, BUCKET, objectKey,
+                (key, md) -> {}, 1_000, 1000);
+        assertThatThrownBy(stream::read).isInstanceOf(IOException.class);
     }
 
     @Test
@@ -267,11 +343,11 @@ public class OffloadedDataChunkCacheTest extends BlobStoreTestBase {
         for (int i = 0; i < 75; i++) {
             long firstPosition = first.getCurrentPosition();
             assertThat(first.readNBytes(buffer, 0, 100)).isEqualTo(100);
-            assertThat(buffer).isEqualTo(java.util.Arrays.copyOfRange(data, (int) firstPosition,
+            assertThat(buffer).isEqualTo(Arrays.copyOfRange(data, (int) firstPosition,
                     (int) firstPosition + 100));
             long secondPosition = second.getCurrentPosition();
             assertThat(second.readNBytes(buffer, 0, 100)).isEqualTo(100);
-            assertThat(buffer).isEqualTo(java.util.Arrays.copyOfRange(data, (int) secondPosition,
+            assertThat(buffer).isEqualTo(Arrays.copyOfRange(data, (int) secondPosition,
                     (int) secondPosition + 100));
         }
         // each of the 10 chunks of 1,000 bytes once, although the readers alternate

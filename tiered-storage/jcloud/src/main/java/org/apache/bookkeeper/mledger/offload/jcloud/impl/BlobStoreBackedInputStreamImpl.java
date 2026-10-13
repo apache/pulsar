@@ -59,6 +59,7 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
     private OffloadedDataChunkCache.Chunk chunk;
     private long chunkStart = -1;
     private int chunkLength;
+    private boolean closed;
 
     public BlobStoreBackedInputStreamImpl(BlobStore blobStore, String bucket, String key,
                                           VersionCheck versionCheck,
@@ -102,6 +103,10 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
      * @return true if there are bytes to read, false otherwise
      */
     private boolean ensureChunk() throws IOException {
+        if (closed) {
+            // It would take a chunk that nothing releases
+            throw new IOException("The stream of " + key + " is closed");
+        }
         if (position >= objectLen) {
             return false;
         }
@@ -263,6 +268,7 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
 
     @Override
     public void close() {
+        closed = true;
         releaseChunk();
     }
 

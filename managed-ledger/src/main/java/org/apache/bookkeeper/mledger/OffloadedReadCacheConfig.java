@@ -31,20 +31,21 @@ import org.apache.bookkeeper.common.annotation.InterfaceStability.Evolving;
  * @param cacheExpirySeconds how long the cache keeps data that no read has used
  * @param prefetchChunks how many chunks after the one that a sequential read moves on to are fetched in the
  *                       background; 0 fetches none
- * @param fetchThreads the threads that fetch offloaded data
+ * @param prefetchThreads the threads that prefetch offloaded data, which also bound how many chunks are prefetched at
+ *                        a time; a read fetches the data that it needs on its own thread
  */
 @LimitedPrivate
 @Evolving
 public record OffloadedReadCacheConfig(long cacheSizeBytes, int cacheExpirySeconds, int prefetchChunks,
-                                       int fetchThreads) {
+                                       int prefetchThreads) {
     /** The defaults, for an offloader created without the broker's settings. */
     public static final OffloadedReadCacheConfig DEFAULT = new OffloadedReadCacheConfig(64L * 1024 * 1024, 60, 1, 4);
 
     public OffloadedReadCacheConfig {
-        if (cacheSizeBytes < 0 || cacheExpirySeconds < 1 || prefetchChunks < 0 || fetchThreads < 1) {
+        if (cacheSizeBytes < 0 || cacheExpirySeconds < 1 || prefetchChunks < 0 || prefetchThreads < 1) {
             throw new IllegalArgumentException("Invalid offloaded read cache settings: cacheSizeBytes="
                     + cacheSizeBytes + " cacheExpirySeconds=" + cacheExpirySeconds + " prefetchChunks="
-                    + prefetchChunks + " fetchThreads=" + fetchThreads);
+                    + prefetchChunks + " prefetchThreads=" + prefetchThreads);
         }
     }
 }

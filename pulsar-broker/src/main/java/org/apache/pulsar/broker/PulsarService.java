@@ -1805,7 +1805,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return new OffloadedReadCacheConfig(config.getManagedLedgerOffloadReadCacheSizeInMB() * 1024 * 1024,
                 config.getManagedLedgerOffloadReadCacheExpirySeconds(),
                 config.getManagedLedgerOffloadReadPrefetchChunks(),
-                config.getManagedLedgerOffloadReadFetchThreads());
+                config.getManagedLedgerOffloadReadPrefetchThreads());
     }
 
     protected synchronized OrderedScheduler getOffloaderReadScheduler(OffloadPoliciesImpl offloadPolicies) {
