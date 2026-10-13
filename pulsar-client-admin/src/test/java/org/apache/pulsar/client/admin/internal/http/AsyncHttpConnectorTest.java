@@ -195,7 +195,8 @@ public class AsyncHttpConnectorTest {
                 .isInstanceOf(ExecutionException.class)
                 .hasCauseInstanceOf(TimeoutException.class);
 
-        // the attempt that was in flight fails after the timeout, which must not trigger a retry
+        // whether or not the connector has already cancelled it, a failure of the in-flight attempt must not
+        // trigger a retry
         attempts.get(0).completeExceptionally(new IOException("Connection reset"));
         assertThat(attempts.size()).as("attempts sent for the request").isEqualTo(1);
     }

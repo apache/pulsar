@@ -504,20 +504,19 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
 
     private CompletableFuture<Response> retryOrTimeOut(ClientRequest request) {
         final CompletableFuture<Response> resultFuture = new CompletableFuture<>();
-        // AsyncHttpClient times out each attempt after the same duration, starting before the timer below, so an
-        // attempt can fail with its own request timeout before resultFuture times out: don't retry past the deadline
+        // The deadline and the timeout start before the first attempt, which can block this thread, e.g. to resolve
+        // the host name. AsyncHttpClient times out each attempt after the same duration, on its own timer, which can
+        // fire before ours: once the deadline has passed, a failed attempt is not retried
         final BooleanSupplier requestTimedOut;
         if (requestTimeout != null) {
             long deadlineNanos = nanoTime() + requestTimeout.toNanos();
             requestTimedOut = () -> nanoTime() - deadlineNanos >= 0;
+            FutureUtil.addTimeoutHandling(resultFuture, requestTimeout, delayer, () -> REQUEST_TIMEOUT_EXCEPTION);
         } else {
             requestTimedOut = () -> false;
         }
         retryOperation(resultFuture, () -> oneShot(serviceNameResolver.resolveHost(), request), maxRetries,
                 requestTimedOut);
-        if (requestTimeout != null) {
-            FutureUtil.addTimeoutHandling(resultFuture, requestTimeout, delayer, () -> REQUEST_TIMEOUT_EXCEPTION);
-        }
         return resultFuture;
     }
 
