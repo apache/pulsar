@@ -571,7 +571,17 @@ abstract class AbstractTableViewImpl<T, V> implements TableView<V> {
                     // handling the message fails below. That message is consumed already and is not read again:
                     // growing the delay would only hold back the messages behind it.
                     tailReadBackoff.reset();
-                    handleMessage(msg);
+                    // Taken first: a pooled message is released once handled.
+                    MessageId messageId = msg.getMessageId();
+                    try {
+                        handleMessage(msg);
+                    } catch (Throwable t) {
+                        log.warn().attr("reader", reader.getTopic())
+                                .attr("messageId", messageId)
+                                .exception(t)
+                                .log("Failed to apply message, skipping it");
+                        throw t;
+                    }
                     readTailMessages(reader);
                 }).exceptionally(ex -> {
                     if (read.isCompletedExceptionally()
@@ -600,18 +610,28 @@ abstract class AbstractTableViewImpl<T, V> implements TableView<V> {
                         stopTailReads(alreadyClosed("Client already closed"));
                     } else {
                         // Retry the other exceptions such as NotConnectedException after a backoff delay.
-                        scheduleTailReadRetry(reader, ex);
+                        scheduleTailReadRetry(reader, ex, read.isCompletedExceptionally());
                     }
                     return null;
                 });
     }
 
-    private void scheduleTailReadRetry(Reader<T> reader, Throwable ex) {
+    /**
+     * @param readFailed whether the read itself failed, rather than handling the message it returned; a handling
+     *                   failure has been logged with its message already
+     */
+    private void scheduleTailReadRetry(Reader<T> reader, Throwable ex, boolean readFailed) {
         long delayMillis = Math.max(tailReadBackoff.next().toMillis(), MIN_TAIL_READ_RETRY_DELAY_MS);
-        log.warn().attr("reader", reader.getTopic())
-                .attr("retryDelayMs", delayMillis)
-                .exception(ex)
-                .log("Reader was interrupted while reading tail messages. Retrying..");
+        if (readFailed) {
+            log.warn().attr("reader", reader.getTopic())
+                    .attr("retryDelayMs", delayMillis)
+                    .exception(ex)
+                    .log("Tail read failed, retrying");
+        } else {
+            log.debug().attr("reader", reader.getTopic())
+                    .attr("retryDelayMs", delayMillis)
+                    .log("Resuming tail reads after a message could not be applied");
+        }
         // readTailMessages() checks the stop cause itself: a retry still waiting at a stop reads nothing.
         runAfterDelay(delayMillis, () -> readTailMessages(reader));
     }
