@@ -199,6 +199,12 @@ public class TxnMetadataStore {
         return listWritesBySegment(segment, new ScanConsumer() {
             @Override
             public void onNext(GetResult r) {
+                // A store with a native index doesn't apply the scan's filter, and its point lookups also
+                // match the keys that extend the segment's: the writes of a segment whose id extends this one's.
+                TxnOp op = fromJson(r.getValue(), TxnOp.class);
+                if (op.getKind() != TxnOpKind.WRITE || !segment.equals(op.getSegment())) {
+                    return;
+                }
                 String txnIdKey = TxnPaths.txnIdFromOpPath(r.getStat().getPath());
                 if (txnIdKey != null) {
                     txnIdByPath.put(r.getStat().getPath(), txnIdKey);

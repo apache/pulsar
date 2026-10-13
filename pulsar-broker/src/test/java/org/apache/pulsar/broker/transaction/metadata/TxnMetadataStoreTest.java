@@ -25,15 +25,20 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.function.Predicate;
 import lombok.Cleanup;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
+import org.apache.pulsar.metadata.api.Option;
 import org.apache.pulsar.metadata.api.ScanConsumer;
 import org.apache.pulsar.metadata.api.Stat;
+import org.apache.pulsar.metadata.impl.LocalMemoryMetadataStore;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
@@ -48,6 +53,24 @@ public class TxnMetadataStoreTest {
     private static MetadataStore newMemoryStore() throws Exception {
         return MetadataStoreFactory.create("memory:local",
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
+    }
+
+    /**
+     * An in-memory store whose index scans return every record under the scanned prefix, like a store with a
+     * native index, which doesn't apply the scan's filter, matching more keys than asked for (Oxia's point lookups
+     * also match the keys that extend the one looked up).
+     */
+    private static MetadataStore newOverMatchingStore() throws Exception {
+        return new LocalMemoryMetadataStore("memory:local",
+                MetadataStoreConfig.builder().fsyncEnable(false).build()) {
+            @Override
+            protected CompletableFuture<Void> storeScanByIndex(String scanPathPrefix, String indexName,
+                                                               String fromKeyInclusive, String toKeyInclusive,
+                                                               Predicate<GetResult> fallbackFilter,
+                                                               ScanConsumer consumer, Set<Option> opts) {
+                return storeScanChildren(scanPathPrefix, consumer, opts);
+            }
+        };
     }
 
     private static TxnHeader open(long createdMs, long timeoutMs) {
@@ -132,6 +155,27 @@ public class TxnMetadataStoreTest {
         txn.listOpsByTxn("tx-1", collectOps(remaining)).get();
         txn.listOpsByTxn("tx-2", collectOps(remaining)).get();
         assertThat(remaining).containsExactlyInAnyOrder(otherSegmentWrite, ack);
+    }
+
+    @Test
+    public void deleteWriteOpsForSegment_keepsTheOtherRecordsAnIndexScanReturns() throws Exception {
+        @Cleanup MetadataStore store = newOverMatchingStore();
+        TxnMetadataStore txn = new TxnMetadataStore(store);
+
+        String seg = "segment://public/default/topic/0000-7fff-1";
+        // Its key extends the key of seg, so a point lookup on Oxia's index matches it too.
+        String extendingSeg = "segment://public/default/topic/0000-7fff-12";
+        txn.appendOp("tx-1", new TxnOp(TxnOpKind.WRITE, seg, null, 0L, 0L, null)).get();
+        TxnOp extendingSegmentWrite = new TxnOp(TxnOpKind.WRITE, extendingSeg, null, 0L, 0L, null);
+        txn.appendOp("tx-1", extendingSegmentWrite).get();
+        TxnOp ack = new TxnOp(TxnOpKind.ACK, seg, "sub", 1L, 5L, false);
+        txn.appendOp("tx-1", ack).get();
+
+        txn.deleteWriteOpsForSegment(seg).get();
+
+        List<TxnOp> remaining = new ArrayList<>();
+        txn.listOpsByTxn("tx-1", collectOps(remaining)).get();
+        assertThat(remaining).containsExactlyInAnyOrder(extendingSegmentWrite, ack);
     }
 
     @Test
