@@ -471,11 +471,6 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
     }
 
     private CompletableFuture<Void> applyTerminalNow(String txnIdKey, TxnState newState) {
-        if (deleted) {
-            // The segment is being deleted along with its state. Leave the op records in place too: should the
-            // topic delete fail, the next owner recovers the transaction from them.
-            return CompletableFuture.completedFuture(null);
-        }
         // Snapshot the entry under the lock — we need its positions / recovery flag to decide
         // what to persist.
         boolean alreadyTerminal;
@@ -512,6 +507,12 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
             // aborted txn stays there, a committed/unknown one correctly reads as visible). The
             // positions needed for the durable side-effects below were already captured above.
             txns.remove(txnIdKey);
+        }
+        if (deleted) {
+            // The segment is being deleted along with its state: skip the durable side effects. Should the topic
+            // delete fail, the topic keeps serving with the outcome applied in memory, and the op records left in
+            // place let the transaction be recovered when the topic is loaded again.
+            return CompletableFuture.completedFuture(null);
         }
 
         // Persist aborted record if this is an abort.
@@ -593,10 +594,14 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
                         // instead of looping on the stale one. Still propagate this failure so the
                         // caller logs+retries; the retry now has a fresh version to work with.
                         return txnStore.getSegmentWatermark(segmentName).thenAccept(opt -> {
-                            if (opt.isPresent()) {
-                                synchronized (lock) {
+                            synchronized (lock) {
+                                if (opt.isPresent()) {
                                     watermark = opt.get().value();
                                     watermarkVersion = opt.get().version();
+                                } else {
+                                    // The record was deleted (a versioned write of a missing record fails
+                                    // with BadVersion too): the next CAS creates it again.
+                                    watermarkVersion = -1L;
                                 }
                             }
                         }).thenCompose(__ -> FutureUtil.failedFuture(cause));

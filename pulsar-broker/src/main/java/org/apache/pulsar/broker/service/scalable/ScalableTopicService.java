@@ -269,13 +269,15 @@ public class ScalableTopicService {
     public CompletableFuture<Void> deleteScalableTopic(TopicName topic) {
         return releaseController(topic)
                 .thenCompose(__ -> resources.getScalableTopicMetadataAsync(topic))
+                // Delete the metadata before the segment topics, like the admin delete: the segment delete
+                // only deletes the durable transaction state of a segment no longer active in the layout.
+                .thenCompose(optMd -> resources.deleteScalableTopicAsync(topic).thenApply(__ -> optMd))
                 .thenCompose(optMd -> {
                     if (optMd.isEmpty()) {
                         return CompletableFuture.completedFuture(null);
                     }
                     ScalableTopicMetadata metadata = optMd.get();
-                    // Delete all underlying segment topics. The segment delete also deletes the
-                    // segments' durable transaction state.
+                    // Delete all underlying segment topics.
                     return FutureUtil.waitForAll(
                             metadata.getSegments().values().stream()
                                     .map(segment -> deleteUnderlyingSegmentTopic(topic, segment))
@@ -284,7 +286,7 @@ public class ScalableTopicService {
                 })
                 // The segments share the schema of the scalable topic; deleting them leaves it in place.
                 .thenCompose(__ -> brokerService.deleteSchema(topic))
-                .thenCompose(__ -> resources.deleteScalableTopicAsync(topic));
+                .thenApply(__ -> null);
     }
 
     /**

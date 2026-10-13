@@ -28,6 +28,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -35,6 +36,8 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
@@ -45,6 +48,7 @@ import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.metadata.AbortedTxnRecord;
+import org.apache.pulsar.broker.transaction.metadata.SegmentWatermark;
 import org.apache.pulsar.broker.transaction.metadata.TxnEvent;
 import org.apache.pulsar.broker.transaction.metadata.TxnHeader;
 import org.apache.pulsar.broker.transaction.metadata.TxnIds;
@@ -54,9 +58,11 @@ import org.apache.pulsar.broker.transaction.metadata.TxnOpKind;
 import org.apache.pulsar.broker.transaction.metadata.TxnPaths;
 import org.apache.pulsar.broker.transaction.metadata.TxnState;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
+import org.apache.pulsar.metadata.api.ScanConsumer;
 import org.apache.pulsar.metadata.api.Stat;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
@@ -344,7 +350,8 @@ public class MetadataTransactionBufferTest {
     @Test
     public void clearSnapshotAndClose_leavesStateOfTxnRecoveredAfterwards() throws Exception {
         // A terminal txn that recovery finds only once the topic delete has started: its outcome is neither
-        // persisted nor are its op records deleted, so that the next owner recovers it should the delete fail.
+        // persisted nor are its op records deleted, so that it is recovered when the topic is loaded again, should
+        // the delete fail.
         TxnID txnId = new TxnID(1, 1);
         createOpenHeader(txnId);
         Stat opRecord = txnStore.appendOp(TxnIds.toKey(txnId),
@@ -364,6 +371,75 @@ public class MetadataTransactionBufferTest {
 
         verify(spyStore, never()).putAbortedTxn(any(), any(), anyLong(), anyLong());
         assertThat(store.exists(opRecord.getPath()).get()).as("op record of the recovered txn").isTrue();
+    }
+
+    @Test
+    public void clearSnapshotAndClose_stillAppliesQueuedOutcomeInMemory() throws Exception {
+        // An outcome queued behind the state update in progress when the topic delete starts. Should the delete
+        // fail, the topic keeps serving with this buffer: the outcome must still apply in memory, or the txn stays
+        // open and keeps pinning maxReadPosition. Only its durable side effects are skipped.
+        TxnID txnId = new TxnID(1, 1);
+        createOpenHeader(txnId);
+        TxnMetadataStore spyStore = spy(txnStore);
+        CompletableFuture<Stat> watermarkWrite = new CompletableFuture<>();
+        doReturn(watermarkWrite).when(spyStore).casSegmentWatermark(eq(SEGMENT), any(), any());
+        MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic, spyStore);
+        tb.checkIfTBRecoverCompletely().get();
+        Position txnPos = tb.appendBufferToTxn(txnId, 0, payload("a")).get();
+        when(ledger.getLastConfirmedEntry()).thenReturn(PositionFactory.create(10, 2));
+        tb.syncMaxReadPositionForNormalPublish(PositionFactory.create(10, 2), false);
+        verify(spyStore).casSegmentWatermark(eq(SEGMENT), any(), any());
+
+        abortTxn(txnId);
+        txnStore.publishSegmentEvent(SEGMENT, new TxnEvent(TxnIds.toKey(txnId), TxnState.ABORTED)).get();
+        // The reconcile triggered by the event reads the header (the first read is the append's) and queues the
+        // outcome behind the watermark write
+        verify(spyStore, timeout(10_000).atLeast(2)).getHeader(TxnIds.toKey(txnId));
+        CompletableFuture<Void> deleted = tb.clearSnapshotAndClose();
+        watermarkWrite.complete(new Stat(TxnPaths.segmentWatermarkPath(SEGMENT), 0, 0, 0, false, true));
+        deleted.get();
+
+        Awaitility.await().untilAsserted(() -> {
+            assertThat(tb.getOngoingTxnCount()).as("open txns once the abort is applied").isZero();
+            assertThat(tb.isTxnAborted(txnId, txnPos)).isTrue();
+        });
+        assertThat(tb.getMaxReadPosition()).isEqualTo(PositionFactory.create(10, 2));
+        verify(spyStore, never()).putAbortedTxn(any(), any(), anyLong(), anyLong());
+        List<String> writeRecords = new ArrayList<>();
+        txnStore.listWritesBySegment(SEGMENT, new ScanConsumer() {
+            @Override
+            public void onNext(GetResult r) {
+                writeRecords.add(r.getStat().getPath());
+            }
+
+            @Override
+            public void onError(Throwable throwable) {
+            }
+
+            @Override
+            public void onCompleted() {
+            }
+        }).get();
+        assertThat(writeRecords).as("op records of the aborted txn").hasSize(1);
+    }
+
+    @Test
+    public void watermarkRecordDeletedUnderLiveBuffer_isCreatedAgain() throws Exception {
+        // A versioned write of a record that is gone fails with BadVersion, like one against a newer version: the
+        // buffer must then create the record again rather than keep writing against the version of the deleted one.
+        MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic, txnStore);
+        tb.checkIfTBRecoverCompletely().get();
+        publish(tb, 1);
+        Awaitility.await().untilAsserted(() -> assertThat(txnStore.getSegmentWatermark(SEGMENT).get()).isPresent());
+        txnStore.deleteSegmentWatermark(SEGMENT).get();
+
+        // The write after the delete finds the record gone, the next one creates it again
+        publish(tb, 2);
+        publish(tb, 3);
+
+        Awaitility.await().untilAsserted(() -> assertThat(txnStore.getSegmentWatermark(SEGMENT).get())
+                .as("watermark record after it was deleted under the live buffer")
+                .hasValueSatisfying(v -> assertThat(v.value()).isEqualTo(new SegmentWatermark(10, 3))));
     }
 
     @Test
@@ -517,6 +593,13 @@ public class MetadataTransactionBufferTest {
 
     private static ByteBuf payload(String s) {
         return Unpooled.copiedBuffer(s.getBytes());
+    }
+
+    /** A non-transactional publish at {@code 10:entryId}, the last entry of the segment from then on. */
+    private void publish(MetadataTransactionBuffer tb, long entryId) {
+        Position position = PositionFactory.create(10, entryId);
+        when(ledger.getLastConfirmedEntry()).thenReturn(position);
+        tb.syncMaxReadPositionForNormalPublish(position, false);
     }
 
     private void createOpenHeader(TxnID txnId) throws Exception {

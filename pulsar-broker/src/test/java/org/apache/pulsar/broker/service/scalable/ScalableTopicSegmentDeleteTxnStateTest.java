@@ -50,7 +50,8 @@ import org.testng.annotations.Test;
  * watermark record, written once anything is published on the segment, and one record per aborted
  * transaction whose data is still in the segment. Nothing reads or deletes them once the segment is
  * gone. The same goes for the {@link TxnPaths#TXN_OP_PREFIX} write records of the transactions still
- * open on the segment, which the buffer deletes as it applies their outcome.
+ * open on the segment, which the buffer deletes as it applies their outcome. Except while the segment
+ * is still active in the layout of its topic: a client can then load it again.
  */
 public class ScalableTopicSegmentDeleteTxnStateTest extends V5ClientBaseTest {
 
@@ -93,6 +94,51 @@ public class ScalableTopicSegmentDeleteTxnStateTest extends V5ClientBaseTest {
                 .as("transaction state of %s after deleting its backing topic", parent)
                 .isEmpty();
         assertChildrenKeepTxnState(children);
+    }
+
+    @Test
+    public void testDeleteActiveSegmentKeepsTxnState() throws Exception {
+        // A client can load a segment still active in the layout again right after its backing topic is deleted,
+        // and the new transaction buffer recovers from these records: they are left to the delete that takes the
+        // segment out of the layout. The re-created segment then follows the transaction still open on it.
+        String topic = newScalableTopic(1);
+        String segment = segmentTopicName(topic, singleActiveSegmentId(topic));
+        PulsarClient client = newTxnClient();
+        try (Producer<String> producer = client.newProducer(Schema.string()).topic(topic).create()) {
+            producer.newMessage().key("k").value("before").send();
+        }
+        Awaitility.await().untilAsserted(() -> assertThat(txnState(segment))
+                .as("transaction state of %s after a publish", segment)
+                .contains("watermark"));
+        Transaction txn = writeInOpenTransaction(topic, client);
+
+        admin.scalableTopics().deleteSegment(segment, true);
+
+        assertThat(txnState(segment))
+                .as("transaction state of the active segment %s after deleting its backing topic", segment)
+                .contains("watermark");
+        assertThat(writeRecords(segment))
+                .as("write records on the active segment %s after deleting its backing topic", segment)
+                .hasSize(1);
+
+        @Cleanup
+        QueueConsumer<String> consumer = client.newQueueConsumer(Schema.string())
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.EARLIEST)
+                .subscribe();
+        @Cleanup
+        Producer<String> producer = client.newProducer(Schema.string())
+                .topic(topic)
+                .create();
+        producer.newMessage().key("k").value("after").send();
+        txn.abort();
+
+        Message<String> msg = consumer.receive(Duration.ofSeconds(10));
+        assertThat(msg)
+                .as("message on the re-created segment %s once the transaction open on it is aborted", segment)
+                .isNotNull();
+        assertThat(msg.value()).isEqualTo("after");
     }
 
     @Test
