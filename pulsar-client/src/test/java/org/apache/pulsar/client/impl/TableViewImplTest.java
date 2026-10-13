@@ -395,7 +395,7 @@ public class TableViewImplTest {
 
     @Test(timeOut = 10_000)
     @SuppressWarnings("unchecked")
-    public void testProcessingFailureBacksOffLikeAReadFailure() throws Exception {
+    public void testProcessingFailureDoesNotGrowTheRetryDelay() throws Exception {
         TopicCompactionStrategy<String> strategy = mock(TopicCompactionStrategy.class);
         when(strategy.shouldKeepLeft(any(), any())).thenThrow(new IllegalStateException("strategy failure"));
         try (TailRetryFixture f = new TailRetryFixture(strategy)) {
@@ -415,9 +415,10 @@ public class TableViewImplTest {
 
             List<Long> delays = f.retryDelays;
             assertEquals(delays.size(), 2, "Each failed handling must be retried: " + delays);
-            // Doubling with the backoff's +-5% jitter; a reset would leave both near the initial delay.
-            assertTrue(delays.get(1) >= delays.get(0) * 1.5,
-                    "The delay must keep doubling while handling keeps failing: " + delays);
+            // The read succeeded each time, so both delays stay near the initial one; doubling with the backoff's
+            // +-5% jitter would give at least 1.5 times the first.
+            assertTrue(delays.get(1) < delays.get(0) * 1.5,
+                    "The delay must not grow while reads succeed and only handling fails: " + delays);
         }
     }
 

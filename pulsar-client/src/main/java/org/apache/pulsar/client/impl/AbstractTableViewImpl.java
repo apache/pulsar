@@ -560,10 +560,11 @@ abstract class AbstractTableViewImpl<T, V> implements TableView<V> {
         // Thrown from a retry, it would end this loop with no stop cause.
         CompletableFuture<Message<T>> read = FutureUtil.supplySafely(reader::readNextAsync);
         read.thenAccept(msg -> {
-                    handleMessage(msg);
-                    // Only a message that was read and handled ends the failure streak: a failure thrown while
-                    // handling it lands in exceptionally() below and must keep backing off.
+                    // A successful read shows that the reader is healthy, so it ends the failure streak even if
+                    // handling the message fails below. That message is consumed already and is not read again:
+                    // growing the delay would only hold back the messages behind it.
                     tailReadBackoff.reset();
+                    handleMessage(msg);
                     readTailMessages(reader);
                 }).exceptionally(ex -> {
                     if (ex.getCause() instanceof PulsarClientException.AlreadyClosedException) {
