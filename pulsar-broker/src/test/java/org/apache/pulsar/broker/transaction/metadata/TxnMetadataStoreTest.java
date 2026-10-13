@@ -179,6 +179,51 @@ public class TxnMetadataStoreTest {
     }
 
     @Test
+    public void deleteAckOpsForSegmentSubscription_removesTheSubscriptionsAckOpsOfEveryTxn() throws Exception {
+        @Cleanup MetadataStore store = newOverMatchingStore();
+        TxnMetadataStore txn = new TxnMetadataStore(store);
+
+        String seg = "segment://public/default/topic/0000-7fff-1";
+        String extendingSeg = "segment://public/default/topic/0000-7fff-12";
+        txn.appendOp("tx-1", new TxnOp(TxnOpKind.ACK, seg, "sub", 1L, 1L, false)).get();
+        txn.appendOp("tx-2", new TxnOp(TxnOpKind.ACK, seg, "sub", 1L, 2L, false)).get();
+        // Its key extends the key of (seg, "sub"), so a point lookup on Oxia's index matches it too.
+        TxnOp extendingSubscriptionAck = new TxnOp(TxnOpKind.ACK, seg, "sub2", 1L, 1L, false);
+        txn.appendOp("tx-1", extendingSubscriptionAck).get();
+        TxnOp extendingSegmentAck = new TxnOp(TxnOpKind.ACK, extendingSeg, "sub", 2L, 1L, false);
+        txn.appendOp("tx-1", extendingSegmentAck).get();
+        TxnOp write = new TxnOp(TxnOpKind.WRITE, seg, null, 0L, 0L, null);
+        txn.appendOp("tx-1", write).get();
+
+        txn.deleteAckOpsForSegmentSubscription(seg, "sub").get();
+
+        List<TxnOp> remaining = new ArrayList<>();
+        store.scanChildren(TxnPaths.TXN_OP_PREFIX, collectOps(remaining)).get();
+        assertThat(remaining).containsExactlyInAnyOrder(extendingSubscriptionAck, extendingSegmentAck, write);
+    }
+
+    @Test
+    public void deleteAckOpsForSegment_removesTheAckOpsOfEverySubscription() throws Exception {
+        @Cleanup MetadataStore store = newOverMatchingStore();
+        TxnMetadataStore txn = new TxnMetadataStore(store);
+
+        String seg = "segment://public/default/topic/0000-7fff-1";
+        String extendingSeg = "segment://public/default/topic/0000-7fff-12";
+        txn.appendOp("tx-1", new TxnOp(TxnOpKind.ACK, seg, "sub-a", 1L, 1L, false)).get();
+        txn.appendOp("tx-2", new TxnOp(TxnOpKind.ACK, seg, "sub-b", 1L, 2L, true)).get();
+        TxnOp extendingSegmentAck = new TxnOp(TxnOpKind.ACK, extendingSeg, "sub-a", 2L, 1L, false);
+        txn.appendOp("tx-1", extendingSegmentAck).get();
+        TxnOp write = new TxnOp(TxnOpKind.WRITE, seg, null, 0L, 0L, null);
+        txn.appendOp("tx-1", write).get();
+
+        txn.deleteAckOpsForSegment(seg).get();
+
+        List<TxnOp> remaining = new ArrayList<>();
+        store.scanChildren(TxnPaths.TXN_OP_PREFIX, collectOps(remaining)).get();
+        assertThat(remaining).containsExactlyInAnyOrder(extendingSegmentAck, write);
+    }
+
+    @Test
     public void appendAndScanAckOps() throws Exception {
         @Cleanup MetadataStore store = newMemoryStore();
         TxnMetadataStore txn = new TxnMetadataStore(store);

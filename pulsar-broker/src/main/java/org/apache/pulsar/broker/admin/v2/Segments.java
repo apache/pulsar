@@ -272,6 +272,7 @@ public class Segments extends AdminResource {
                     }
                     return sub.delete();
                 })
+                .thenCompose(__ -> deleteSubscriptionTxnState(segmentTopic, subscription))
                 .thenAccept(__ -> {
                     log.info().attr("clientAppId", clientAppId()).attr("segment", segmentTopic)
                             .attr("subscription", subscription)
@@ -521,11 +522,12 @@ public class Segments extends AdminResource {
 
     /**
      * Delete what the transactions on a segment keep in the metadata store, which deleting the topic leaves in
-     * place: the write records of the transactions still open on it, and the state of the segment's transaction
-     * buffer. The buffer deletes a transaction's write records as it applies its outcome; left behind, they keep
-     * the coordinator from garbage-collecting the transaction, and make a segment re-created with the same name
-     * recover it as open. Only once the segment's data is gone: the aborted-txn records are what hides the data of
-     * aborted transactions.
+     * place: the write records of the transactions still open on it, their ack records on its subscriptions, and
+     * the state of the segment's transaction buffer. The buffer and the pending-ack store of each subscription
+     * delete a transaction's records as they apply its outcome; left behind, they keep the coordinator from
+     * garbage-collecting the transaction, and make a segment re-created with the same name recover it as open.
+     * Only once the segment's data is gone: the aborted-txn records are what hides the data of aborted
+     * transactions.
      *
      * <p>Not while the segment is still active in the layout of its topic: a client can then load it again (see
      * {@code BrokerService#isAllowAutoTopicCreationAsync}), and its new transaction buffer recovers from these
@@ -545,11 +547,12 @@ public class Segments extends AdminResource {
                         return CompletableFuture.completedFuture(null);
                     }
                     TxnMetadataStore txnStore = new TxnMetadataStore(pulsar().getLocalMetadataStore());
-                    // Independently: the write records are the ones that matter. A leftover watermark or aborted
-                    // record is harmless to a later segment with the same name (ledger ids only grow, txn ids are
-                    // unique).
+                    // Independently: the write and ack records are the ones that matter. A leftover watermark or
+                    // aborted record is harmless to a later segment with the same name (ledger ids only grow, txn
+                    // ids are unique).
                     return FutureUtil.waitForAll(List.of(
                             txnStore.deleteWriteOpsForSegment(segment),
+                            txnStore.deleteAckOpsForSegment(segment),
                             txnStore.deleteAllSegmentState(segment)));
                 })
                 .exceptionally(ex -> {
@@ -572,5 +575,25 @@ public class Segments extends AdminResource {
                         .map(md -> md.getSegments().get(SegmentTopicName.getSegmentId(segmentTopic)))
                         .map(seg -> seg.isActive())
                         .orElse(false));
+    }
+
+    /**
+     * Delete the ack records of the transactions still open on a deleted subscription of a segment, which
+     * deleting the subscription leaves in place: its pending-ack store deletes a transaction's ack records as it
+     * applies its outcome. Left behind, they keep the coordinator from garbage-collecting the transaction. Best
+     * effort, like {@link #deleteSegmentTxnState}: the subscription is gone, and the controller doesn't retry.
+     */
+    private CompletableFuture<Void> deleteSubscriptionTxnState(TopicName segmentTopic, String subscription) {
+        if (!pulsar().getConfiguration().isTransactionCoordinatorEnabled()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return new TxnMetadataStore(pulsar().getLocalMetadataStore())
+                .deleteAckOpsForSegmentSubscription(segmentTopic.toString(), subscription)
+                .exceptionally(ex -> {
+                    log.warn().attr("segment", segmentTopic).attr("subscription", subscription)
+                            .exceptionMessage(ex)
+                            .log("Failed to delete the transaction state of the deleted subscription");
+                    return null;
+                });
     }
 }
