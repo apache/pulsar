@@ -1672,6 +1672,24 @@ public class ServerCnxTest {
     }
 
     /**
+     * A scalable topic controller that stops serving makes the consumers connected to it subscribe
+     * again. There's no command closing a single scalable consumer session: their connection is
+     * closed.
+     */
+    @Test(timeOut = 30000)
+    public void testCloseScalableConsumerSessionClosesTheConnection() throws Exception {
+        resetChannel();
+        channel.writeInbound(Commands.newConnect("none", "", null));
+        assertTrue(getResponse() instanceof CommandConnected);
+
+        serverCnx.closeScalableConsumerSession(7L);
+        serverCnx.closeScalableConsumerSession(8L);
+
+        assertFalse(channel.isActive());
+        channel.finish();
+    }
+
+    /**
      * PIP-486 clean leave: unsubscribe for an unknown consumer id is an idempotent success; a
      * failed unregister answers an error and keeps the per-connection registration ref (so the
      * grace fallback and a retry both still work); a successful retry then removes it, and a

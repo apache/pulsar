@@ -22,8 +22,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -33,9 +33,12 @@ import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import org.apache.pulsar.broker.PulsarService;
@@ -58,9 +61,11 @@ import org.apache.pulsar.common.policies.data.SegmentTopicStats;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
+import org.apache.pulsar.metadata.api.coordination.LeaderElection;
 import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.apache.pulsar.metadata.impl.LocalMemoryMetadataStore;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -238,12 +243,12 @@ public class ScalableTopicServiceTest {
     }
 
     @Test
-    public void testFailedInitializationStopsTheController() throws Exception {
+    public void testFailedInitializationLeavesNothingRunning() throws Exception {
         TopicName tn = scalableTopic("t-init-fails");
         service.createScalableTopic(tn, 1).get();
         String lockPath = resources.controllerLockPath(tn);
-        // Fail restoreSessionsFromStore(), which runs once the controller won the election and
-        // scheduled the leader's periodic tasks. The failure is injected once.
+        // Fail restoreSessionsFromStore(), which runs once the controller won the election. The
+        // failure is injected once, so the next attempt succeeds.
         String subscriptionsPath = resources.topicPath(tn) + "/subscriptions";
         store.failConditional(new MetadataStoreException("injected"), (op, path) ->
                 op == FaultInjectionMetadataStore.OperationType.GET_CHILDREN && path.equals(subscriptionsPath));
@@ -255,20 +260,29 @@ public class ScalableTopicServiceTest {
             assertTrue(e.getCause().getMessage().contains("Failed to initialize controller"),
                     "got: " + e.getCause().getMessage());
         }
-        assertFalse(store.exists(lockPath).get(), "the failed controller must release the controller lock");
-        assertTrue(scheduler.getQueue().isEmpty(), "the failed controller must stop its periodic tasks");
+        // The failed controller is closed: its election gives the lock back, and none of its tasks
+        // (takeover retries, leader ticks) stays scheduled.
+        Awaitility.await().untilAsserted(() -> {
+            assertFalse(store.exists(lockPath).get(), "the failed controller must give the lock back");
+            assertTrue(scheduler.getQueue().isEmpty(), "the failed controller must leave no task scheduled");
+        });
 
         // The retry runs the only controller of the topic: releasing it leaves nothing running.
-        service.getOrCreateController(tn).get();
-        assertTrue(store.exists(lockPath).get(), "the retry must win the election");
+        assertTrue(service.getOrCreateController(tn).get().isLeader(), "the retry must lead the topic");
         service.releaseController(tn).get();
         assertFalse(store.exists(lockPath).get());
-        assertTrue(scheduler.getQueue().isEmpty(), "no periodic task may outlive the released controller");
+        assertTrue(scheduler.getQueue().isEmpty(), "no task may outlive the released controller");
     }
 
     @Test
-    public void testSubscribeToMissingTopicsCreatesNoLeaderElection() throws Exception {
+    public void testSubscribeToMissingTopicsLeavesNoLeaderElectionOpen() throws Exception {
         CoordinationService observedCoordinationService = spy(coordinationService);
+        Map<String, LeaderElection<?>> elections = new ConcurrentHashMap<>();
+        doAnswer(inv -> {
+            LeaderElection<?> election = (LeaderElection<?>) inv.callRealMethod();
+            elections.put(inv.getArgument(1), election);
+            return election;
+        }).when(observedCoordinationService).getLeaderElection(any(), anyString(), any());
         ScalableTopicService observedService =
                 new ScalableTopicService(brokerService, resources, observedCoordinationService);
         try {
@@ -283,12 +297,43 @@ public class ScalableTopicServiceTest {
                             "got: " + e.getCause().getMessage());
                 }
             }
-            // A leader election is never dropped by the coordination service and keeps its metadata
-            // store listeners for the broker's lifetime.
-            verify(observedCoordinationService, never()).getLeaderElection(any(), anyString(), any());
+            assertEquals(elections.size(), 3);
+            // The coordination service hands out the same election for a path until it is closed: an
+            // election left open would stay with the broker until it restarts.
+            Map.copyOf(elections).forEach((path, election) -> assertNotSame(
+                    observedCoordinationService.getLeaderElection(String.class, path, state -> { }), election,
+                    "the election of a controller that failed to initialize must be closed: " + path));
         } finally {
             observedService.close();
         }
+    }
+
+    @Test
+    public void testControllerCreatedAfterFailedInitializationLeads() throws Exception {
+        TopicName tn = scalableTopic("t-late");
+        try {
+            service.getOrCreateController(tn).get();
+            fail("expected failure: the topic doesn't exist yet");
+        } catch (ExecutionException expected) {
+            // The failed controller must not leave its leader election to the next one.
+        }
+        service.createScalableTopic(tn, 1).get();
+
+        ScalableTopicController controller = service.getOrCreateController(tn).get();
+        assertTrue(controller.isLeader(), "the only controller of the topic must lead it");
+    }
+
+    @Test
+    public void testClosedControllerIsReplaced() throws Exception {
+        TopicName tn = scalableTopic("t-closed");
+        service.createScalableTopic(tn, 1).get();
+        // A controller closes itself when it finds its topic deleted while taking over.
+        ScalableTopicController closed = service.getOrCreateController(tn).get();
+        closed.close().get();
+
+        ScalableTopicController controller = service.getOrCreateController(tn).get();
+        assertNotSame(controller, closed);
+        assertTrue(controller.isLeader(), "the controller replacing the closed one must lead");
     }
 
     @Test
@@ -420,6 +465,59 @@ public class ScalableTopicServiceTest {
                 .deleteSegmentAsync(anyString(), anyBoolean());
         // Segment deletes leave the shared schema in place; the topic delete removes it.
         verify(brokerService).deleteSchema(tn);
+    }
+
+    @Test
+    public void testControllerReleasedWhenTopicRecordDeleted() throws Exception {
+        TopicName tn = scalableTopic("t-deleted-elsewhere");
+        service.createScalableTopic(tn, 1).get();
+        service.getOrCreateController(tn).get();
+        String lockPath = resources.controllerLockPath(tn);
+        assertTrue(store.exists(lockPath).get());
+
+        // Delete the metadata the way an admin delete served by another broker does, without
+        // releasing the controller held here first.
+        resources.deleteScalableTopicAsync(tn).get();
+
+        Awaitility.await().during(Duration.ofSeconds(2)).atMost(Duration.ofSeconds(10))
+                .untilAsserted(() -> assertFalse(store.exists(lockPath).get(),
+                        "the controller lock must not be re-acquired under the deleted topic"));
+        try {
+            service.getOrCreateController(tn).get();
+            fail("the deleted topic must not be served by its old controller");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause().getMessage().contains("Failed to initialize controller"),
+                    "got: " + e.getCause().getMessage());
+        }
+    }
+
+    /**
+     * A controller whose initialize() fails after winning the election is closed, or its election
+     * would keep the controller lock with no controller left to release it.
+     */
+    @Test
+    public void testControllerFailingAfterElectionGivesTheLockBack() throws Exception {
+        TopicName tn = scalableTopic("t-init-fails");
+        service.createScalableTopic(tn, 1).get();
+        ScalableTopicResources failingResources = new ScalableTopicResources(store, 30) {
+            @Override
+            public CompletableFuture<List<String>> listSubscriptionsAsync(TopicName topic) {
+                // Restoring the subscriptions runs once the controller won the election.
+                return CompletableFuture.failedFuture(new IllegalStateException("injected"));
+            }
+        };
+        ScalableTopicService failingService =
+                new ScalableTopicService(brokerService, failingResources, coordinationService);
+        try {
+            failingService.getOrCreateController(tn).get();
+            fail("expected the controller initialization to fail");
+        } catch (ExecutionException expected) {
+            // initialize() failed after the election
+        }
+        Awaitility.await().untilAsserted(() ->
+                assertFalse(store.get(resources.controllerLockPath(tn)).get().isPresent(),
+                        "the failed controller must give the lock back"));
+        failingService.close();
     }
 
     // --- concurrent topic isolation ---

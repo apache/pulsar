@@ -18,9 +18,11 @@
  */
 package org.apache.pulsar.metadata.coordination.impl;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
@@ -37,12 +39,14 @@ import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
 import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
 import org.apache.pulsar.metadata.api.coordination.LeaderElection;
 import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
 import org.apache.pulsar.metadata.api.coordination.LockManager;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
 
 @CustomLog
 @SuppressWarnings("unchecked")
@@ -55,7 +59,10 @@ public class CoordinationServiceImpl implements CoordinationService {
     private final MetadataStoreExtended store;
 
     private final Map<Object, LockManager<?>> lockManagers = new ConcurrentHashMap<>();
-    private final Map<String, LeaderElection<?>> leaderElections = new ConcurrentHashMap<>();
+    // The leader elections that are not closed, by path, to which the store notifications and session
+    // events are dispatched. A closed election is removed, and added back if it's re-opened.
+    private final Map<String, LeaderElectionImpl<?>> leaderElections = new ConcurrentHashMap<>();
+    private boolean leaderElectionListenersRegistered;
 
     private final ScheduledExecutorService executor;
 
@@ -161,7 +168,57 @@ public class CoordinationServiceImpl implements CoordinationService {
     public <T> LeaderElection<T> getLeaderElection(Class<T> clazz, String path,
             Consumer<LeaderElectionState> stateChangesListener) {
 
+        registerLeaderElectionListeners();
         return (LeaderElection<T>) leaderElections.computeIfAbsent(path,
-                key -> new LeaderElectionImpl<T>(store, clazz, path, stateChangesListener, executor));
+                key -> new LeaderElectionImpl<T>(this, store, clazz, path, stateChangesListener, executor));
+    }
+
+    /**
+     * Register the store listener and the session listener of the elections, once: the store can't unregister
+     * a listener, so the elections share them, and they dispatch to the elections that are not closed. The store
+     * calls its listeners in registration order, so every election sees a notification where the first election
+     * was created: after the listeners registered before it, like the one of the broker's metadata resources, and
+     * before the ones registered after it. That's why they are registered with the first election, rather than
+     * when this service is created.
+     */
+    private synchronized void registerLeaderElectionListeners() {
+        if (!leaderElectionListenersRegistered) {
+            store.registerListener(this::handleLeaderElectionNotification);
+            store.registerSessionListener(this::handleLeaderElectionSessionEvent);
+            leaderElectionListenersRegistered = true;
+        }
+    }
+
+    private void handleLeaderElectionNotification(Notification notification) {
+        LeaderElectionImpl<?> leaderElection = leaderElections.get(notification.getPath());
+        if (leaderElection != null) {
+            leaderElection.handlePathNotification(notification);
+        }
+    }
+
+    private void handleLeaderElectionSessionEvent(SessionEvent event) {
+        leaderElections.values().forEach(leaderElection -> leaderElection.handleSessionNotification(event));
+    }
+
+    /**
+     * Stop dispatching the store notifications and session events to a leader election that was closed.
+     */
+    void removeLeaderElection(String path, LeaderElectionImpl<?> leaderElection) {
+        leaderElections.remove(path, leaderElection);
+    }
+
+    /**
+     * Dispatch the store notifications and session events again to a closed leader election that is
+     * re-opened, unless another election was created for its path since it was closed.
+     *
+     * @return whether the election was added back
+     */
+    boolean readdLeaderElection(String path, LeaderElectionImpl<?> leaderElection) {
+        return leaderElections.putIfAbsent(path, leaderElection) == null;
+    }
+
+    @VisibleForTesting
+    Map<String, LeaderElectionImpl<?>> getLeaderElections() {
+        return Collections.unmodifiableMap(leaderElections);
     }
 }

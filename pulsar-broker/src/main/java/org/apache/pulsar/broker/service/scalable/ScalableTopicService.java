@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.scalable;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -60,6 +61,9 @@ public class ScalableTopicService {
      */
     public static final GetStatsOptions SEGMENT_STATS_OPTIONS =
             new GetStatsOptions(false, true, false, false, false);
+
+    /** How long a request waits for a controller taking over as the leader, before going on. */
+    private static final Duration TAKEOVER_WAIT = Duration.ofSeconds(10);
 
     private final BrokerService brokerService;
     private final ScalableTopicResources resources;
@@ -107,43 +111,76 @@ public class ScalableTopicService {
     /**
      * Get or create a controller for a scalable topic. The controller will attempt
      * leader election; only the leader actively coordinates consumers. A controller that
-     * fails to initialize is closed and dropped, so the next call starts over.
+     * closed itself, having found its topic deleted while taking over, is replaced. A takeover
+     * in progress is waited for, bounded, so that a request arriving meanwhile doesn't fail.
      */
     public CompletableFuture<ScalableTopicController> getOrCreateController(TopicName topic) {
         String key = topic.toString();
-        CompletableFuture<ScalableTopicController> stored = controllers.computeIfAbsent(key, k -> {
-            ScalableTopicController controller = new ScalableTopicController(
-                    topic, resources, brokerService, coordinationService);
-            return controller.initialize()
-                    // initialize() can fail after winning the election, with the controller lock
-                    // held and the leader's periodic tasks scheduled: close the controller before
-                    // dropping it, or it keeps acting as the leader next to the controller of the
-                    // next attempt.
-                    .exceptionallyCompose(ex -> controller.close()
-                            .handle((__, closeEx) -> {
-                                if (closeEx != null) {
-                                    log.warn().attr("topic", topic).exceptionMessage(closeEx)
-                                            .log("Failed to close a controller that failed to initialize");
-                                }
-                                throw FutureUtil.wrapToCompletionException(ex);
-                            }))
-                    .thenApply(__ -> controller);
-        });
+        CompletableFuture<ScalableTopicController> stored = controllers.compute(key,
+                (k, existing) -> existing == null || isClosed(existing) ? newController(key, topic) : existing);
         // Evict failed futures so subsequent callers can retry. This runs *outside*
-        // computeIfAbsent, so modifying the map here is safe.
+        // compute, so modifying the map here is safe.
         return stored.exceptionally(ex -> {
             controllers.remove(key, stored);
             throw new RuntimeException("Failed to initialize controller for " + topic, ex);
+        }).thenCompose(this::awaitTakeOver);
+    }
+
+    private CompletableFuture<ScalableTopicController> newController(String key, TopicName topic) {
+        ScalableTopicController controller = new ScalableTopicController(
+                topic, resources, brokerService, coordinationService);
+        CompletableFuture<ScalableTopicController> future = new CompletableFuture<>();
+        // Released once its topic is deleted: the admin delete stops the controller on the
+        // broker serving it, not the ones other brokers hold for the topic. Closed before it is
+        // removed, as in releaseController().
+        controller.setTopicDeletedAction(() -> controller.close()
+                .whenComplete((__, ___) -> controllers.remove(key, future)));
+        controller.initialize().whenComplete((__, ex) -> {
+            if (ex == null) {
+                future.complete(controller);
+            } else {
+                // Release its leader election, and the lock if it was elected: the next
+                // controller of the topic gets an election of its own once this one is closed.
+                controller.close().exceptionally(closeEx -> {
+                    log.warn().attr("topic", topic).exceptionMessage(closeEx)
+                            .log("Failed to close a controller that failed to initialize");
+                    return null;
+                });
+                future.completeExceptionally(ex);
+            }
         });
+        return future;
+    }
+
+    private static boolean isClosed(CompletableFuture<ScalableTopicController> controller) {
+        return controller.isDone() && !controller.isCompletedExceptionally() && controller.join().isClosed();
+    }
+
+    private CompletableFuture<ScalableTopicController> awaitTakeOver(ScalableTopicController controller) {
+        CompletableFuture<Void> takeover = controller.takeOverInProgress();
+        if (takeover.isDone()) {
+            return CompletableFuture.completedFuture(controller);
+        }
+        // Timed out, or the term ended without serving: the request goes on and finds that the
+        // controller doesn't serve.
+        return FutureUtil.addTimeoutHandling(takeover.thenApply(__ -> controller), TAKEOVER_WAIT,
+                        brokerService.getPulsar().getExecutor(),
+                        () -> FutureUtil.createTimeoutException("The controller of " + controller.getTopicName()
+                                + " did not take over in time", ScalableTopicService.class, "awaitTakeOver"))
+                .handle((__, ___) -> controller);
     }
 
     /**
-     * Release the controller for a topic (e.g., on topic unload).
+     * Release the controller for a topic (e.g., on topic unload). It is closed before it is
+     * removed, so that a controller created for the topic afterwards gets a leader election of
+     * its own, rather than this one's.
      */
     public CompletableFuture<Void> releaseController(TopicName topic) {
-        CompletableFuture<ScalableTopicController> future = controllers.remove(topic.toString());
+        String key = topic.toString();
+        CompletableFuture<ScalableTopicController> future = controllers.get(key);
         if (future != null) {
-            return future.thenCompose(ScalableTopicController::close);
+            return future.thenCompose(ScalableTopicController::close)
+                    .whenComplete((__, ___) -> controllers.remove(key, future));
         }
         return CompletableFuture.completedFuture(null);
     }
