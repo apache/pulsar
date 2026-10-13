@@ -28,6 +28,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.bookkeeper.client.BKException;
@@ -41,25 +42,61 @@ import org.testng.annotations.Test;
 
 public class ManagedLedgerDeleteRetryTest extends MockedBookKeeperTestCase {
 
+    @Test(timeOut = 15_000)
+    public void testOriginalFutureCompletesWhenRetrySchedulingIsRejected() throws Exception {
+        LedgerHandle handle = bkc.createLedger(BookKeeper.DigestType.CRC32C, new byte[0]);
+        long ledgerId = handle.getId();
+        handle.close();
+        OrderedScheduler retryScheduler = OrderedScheduler.newSchedulerBuilder()
+                .numThreads(1).name("delete-retry-rejected").build();
+        try {
+            ManagedLedgerImpl ledger = new ManagedLedgerImpl(factory, bkc, factory.getMetaStore(), defaultConfig(),
+                    retryScheduler, "delete-retry-rejected");
+            retryScheduler.shutdownNow();
+            bkc.failNow(BKException.Code.WriteException);
+
+            CompletableFuture<Void> result = ledger.asyncDeleteLedger(ledgerId,
+                    ManagedLedgerImpl.DEFAULT_LEDGER_DELETE_RETRIES);
+
+            assertThatThrownBy(() -> result.get(5, TimeUnit.SECONDS))
+                    .hasCauseInstanceOf(RejectedExecutionException.class);
+            assertThat(bkc.getLedgers()).contains(ledgerId);
+        } finally {
+            retryScheduler.shutdownNow();
+        }
+    }
+
     @DataProvider(name = "deleteFailures")
     public Object[][] deleteFailures() {
-        return new Object[][] {{0}, {1}, {2}, {3}};
+        return new Object[][] {{0, false}, {1, false}, {2, false}, {3, false}, {1, true}};
     }
 
     @Test(dataProvider = "deleteFailures", timeOut = 15_000)
-    public void testOriginalFutureCompletesAfterDeleteRetries(int failures) throws Exception {
+    public void testOriginalFutureCompletesAfterDeleteRetries(int failures, boolean deleteBeforeRetry)
+            throws Exception {
+        LedgerHandle handle = bkc.createLedger(BookKeeper.DigestType.CRC32C, new byte[0]);
+        long ledgerId = handle.getId();
+        handle.close();
         OrderedScheduler retryScheduler = mock(OrderedScheduler.class);
         AtomicInteger scheduledRetries = new AtomicInteger();
         // Execute the real retry tasks without waiting for the production backoff. Support both overloads
         // so the regression also exercises the original implementation, which schedules a Callable.
         doAnswer(invocation -> {
             scheduledRetries.incrementAndGet();
+            if (deleteBeforeRetry) {
+                // The first attempt failed, but the ledger is gone when the retry runs:
+                // PulsarMockBookKeeper will return NoSuchLedgerExistsException.
+                bkc.deleteLedger(ledgerId);
+            }
             Runnable task = invocation.getArgument(0);
             return executor.schedule(task, 0, TimeUnit.SECONDS);
         }).when(retryScheduler).schedule(any(Runnable.class),
                 eq((long) ManagedLedgerImpl.DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC), eq(TimeUnit.SECONDS));
         doAnswer(invocation -> {
             scheduledRetries.incrementAndGet();
+            if (deleteBeforeRetry) {
+                bkc.deleteLedger(ledgerId);
+            }
             Callable<?> task = invocation.getArgument(0);
             return executor.schedule(task, 0, TimeUnit.SECONDS);
         }).when(retryScheduler).schedule(ArgumentMatchers.<Callable<?>>any(),
@@ -67,9 +104,6 @@ public class ManagedLedgerDeleteRetryTest extends MockedBookKeeperTestCase {
 
         ManagedLedgerImpl ledger = new ManagedLedgerImpl(factory, bkc, factory.getMetaStore(), defaultConfig(),
                 retryScheduler, "delete-retry");
-        LedgerHandle handle = bkc.createLedger(BookKeeper.DigestType.CRC32C, new byte[0]);
-        long ledgerId = handle.getId();
-        handle.close();
         for (int i = 0; i < failures; i++) {
             bkc.failAfter(i, BKException.Code.WriteException);
         }
