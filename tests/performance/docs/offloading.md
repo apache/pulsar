@@ -78,7 +78,9 @@ their pods:
 - `applications.skipMessages`: how many messages of each topic each late application skips, a value for each
   application. The launcher moves each subscription forward by that many entries with the admin API's skip, so that
   the applications read the backlog from staggered positions, in different ledgers. The entries are the messages
-  because skipping needs `gateways.producer.batchingEnabled: false`. An application that skips messages expects every
+  because skipping needs `gateways.producer.batchingEnabled: false`, and the brokers' deduplication, which every IoT
+  telemetry scenario enables, keeps a resent message from taking a second entry. Each subscription's backlog has to
+  have the messages to skip when the applications join, or the run fails. An application that skips messages expects every
   message but the skipped ones, as many as follow its position, and each device's from the first one that it
   receives; its summary has `skippedMessages`, and the report's Catch-up section shows them.
 - `applications.unloadBeforeJoin: true`: after the skips, the launcher unloads every topic, so that the applications

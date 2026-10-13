@@ -33,6 +33,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.LedgerInfo;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.tests.performance.report.RunReport;
 import org.apache.pulsar.tests.performance.tools.IotScenario;
 import org.apache.pulsar.tests.performance.tools.JoinPreparedMarker;
@@ -105,7 +106,17 @@ final class JoinPreparation implements AutoCloseable {
                 long skipped = scenario.skipMessages(application);
                 if (skipped > 0) {
                     for (String topic : scenario.topicNames()) {
-                        admin.topics().skipMessages(topic, scenario.subscriptionName(application), skipped);
+                        String subscription = scenario.subscriptionName(application);
+                        // The broker skips no more than the backlog, and the application expects every message but
+                        // the skipped ones, so the backlog has to have them; it only grows, without consumers
+                        SubscriptionStats stats = admin.topics().getStats(topic).getSubscriptions().get(subscription);
+                        long backlog = stats != null ? stats.getMsgBacklog() : 0;
+                        if (backlog < skipped) {
+                            throw new IllegalStateException(String.format(Locale.ROOT, "%s of %s has a backlog of"
+                                    + " %,d message(s), fewer than the %,d to skip: join later, or skip fewer",
+                                    subscription, topic, backlog, skipped));
+                        }
+                        admin.topics().skipMessages(topic, subscription, skipped);
                     }
                 }
             }

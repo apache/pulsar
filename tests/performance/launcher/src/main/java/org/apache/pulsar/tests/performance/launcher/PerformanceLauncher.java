@@ -453,7 +453,8 @@ public class PerformanceLauncher implements Callable<Integer> {
                 ? offloadSettings.storageContainer(cluster.getNetwork()) : null;
         // The launcher closes the cluster's network after the storage, which is on it, when the network is the
         // cluster's own
-        boolean closeClusterNetwork = offloadStorage != null && remoteCluster == null;
+        boolean closeClusterNetwork = offloadStorage != null && remoteCluster == null
+                && !PulsarContainer.PULSAR_CONTAINERS_LEAVE_RUNNING;
         if (closeClusterNetwork) {
             cluster.closeNetworkOnExit = false;
         }
@@ -824,7 +825,7 @@ public class PerformanceLauncher implements Callable<Integer> {
             }
             status("Stopping the Pulsar cluster");
             shutDown("stopping the Pulsar cluster", cluster::stop);
-            if (offloadStorage != null) {
+            if (offloadStorage != null && !PulsarContainer.PULSAR_CONTAINERS_LEAVE_RUNNING) {
                 shutDown("stopping the offload storage", offloadStorage::stop);
             }
             if (closeClusterNetwork) {

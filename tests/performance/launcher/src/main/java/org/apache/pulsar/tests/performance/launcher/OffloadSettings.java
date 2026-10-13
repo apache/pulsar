@@ -23,6 +23,7 @@ import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.wait.strategy.Wait;
@@ -144,7 +145,7 @@ record OffloadSettings(String image, String namespace, long thresholdBytes, Long
         String s3Config = "{\"identities\": [{\"name\": \"" + CREDENTIAL + "\", \"credentials\": [{\"accessKey\": \""
                 + CREDENTIAL + "\", \"secretKey\": \"" + CREDENTIAL + "\"}],"
                 + " \"actions\": [\"Admin\", \"Read\", \"Write\", \"List\", \"Tagging\"]}]}";
-        return new GenericContainer<>(image)
+        GenericContainer<?> container = new GenericContainer<>(image)
                 .withNetwork(network)
                 .withNetworkAliases(STORAGE_HOST)
                 .withCopyToContainer(Transferable.of(s3Config), S3_CONFIG)
@@ -157,5 +158,8 @@ record OffloadSettings(String image, String namespace, long thresholdBytes, Long
                         .withStrategy(Wait.forSuccessfulCommand("wget -q -O /dev/null http://localhost:8888/buckets/"
                                 + BUCKET + "/"))
                         .withStartupTimeout(Duration.ofMinutes(2)));
+        // Left running with the cluster, whose brokers have offloaded to it, with PULSAR_CONTAINERS_LEAVE_RUNNING
+        PulsarContainer.configureLeaveContainerRunning(container);
+        return container;
     }
 }
