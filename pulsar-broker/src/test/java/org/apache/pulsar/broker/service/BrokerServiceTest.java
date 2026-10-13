@@ -379,33 +379,100 @@ public class BrokerServiceTest extends BrokerTestBase {
     /**
      * Regression test for the inner computeIfAbsent abort path (Bug 2).
      * <p>
-     * When the topicFuture times out between the outer {@code isDone()} guard and the
-     * {@code computeIfAbsent} mapper, the mapper returns {@code null} so the timed-out
-     * future is never inserted into {@code topics}. A subsequent retry then starts a
-     * completely fresh load chain.
+     * Exercises the race where timeout fires between the outer {@code isDone()} guard and
+     * the {@code computeIfAbsent} mapper. Uses two topic names that collide in the same
+     * ConcurrentHashMap bin so the first topic's blocking mapper holds the bin lock while
+     * the second topic's computeIfAbsent waits. The timeout fires while waiting; when the
+     * mapper finally runs, the second topic's future is already done and must return {@code null}
+     * so no stale entry is inserted into the cache. A subsequent retry starts a fresh load chain.
      */
-    @Test(timeOut = 15000)
-    public void testComputeIfAbsentNullMapperLeavesTopicsCleanForRetry() throws Exception {
-        final TopicName topicName = TopicName.get(
-                "persistent://public/default/null-mapper-" + UUID.randomUUID());
+    @Test(timeOut = 30000)
+    public void testComputeIfAbsentNullMapperWhenTimeoutFiresBetweenGuards() throws Exception {
+        final long originalTimeout = conf.getTopicLoadTimeoutSeconds();
+        conf.setTopicLoadTimeoutSeconds(1);
+
+        // Two topic names that collide in the same ConcurrentHashMap bin under default sizing.
+        // These were verified to share spread hash = 0 at table size 32.
+        final TopicName holderTopic = TopicName.get("persistent://public/default/collide-90625");
+        final TopicName targetTopic = TopicName.get("persistent://public/default/collide-28070");
+
+        final CountDownLatch holderMapperStarted = new CountDownLatch(1);
+        final CountDownLatch holderMapperRelease = new CountDownLatch(1);
+
         final BrokerService spyService = spy(pulsar.getBrokerService());
         final AtomicInteger loadInvocations = new AtomicInteger();
 
         doAnswer(invocation -> {
             loadInvocations.incrementAndGet();
             TopicLoadingContext ctx = invocation.getArgument(0);
+            String topicKey = ctx.getTopicName().toString();
+            if (topicKey.equals(holderTopic.toString())) {
+                // Block holder's mapper to hold the bin lock while target's computeIfAbsent waits.
+                holderMapperStarted.countDown();
+                holderMapperRelease.await(10, TimeUnit.SECONDS);
+            }
             return ctx.getTopicFuture();
         }).when(spyService).loadOrCreatePersistentTopic(any());
 
-        final CompletableFuture<Optional<Topic>> future = spyService.getTopic(topicName, true, null);
+        // Access private topics map via reflection for assertions.
+        final var topicsField = BrokerService.class.getDeclaredField("topics");
+        topicsField.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        final Map<String, CompletableFuture<Optional<Topic>>> topics =
+                (Map<String, CompletableFuture<Optional<Topic>>>) topicsField.get(spyService);
 
-        // Wait until the mapper has fired and invoked loadOrCreatePersistentTopic.
-        Awaitility.await().atMost(5, TimeUnit.SECONDS)
-                .until(() -> loadInvocations.get() >= 1);
+        try {
+            // Start both topic loads — policy lookups complete immediately (no mock delay),
+            // so thenRun fires quickly on both.
+            final CompletableFuture<Optional<Topic>> holderFuture = spyService.getTopic(holderTopic, true, null);
+            final CompletableFuture<Optional<Topic>> targetFuture = spyService.getTopic(targetTopic, true, null);
 
-        assertEquals(loadInvocations.get(), 1,
-                "computeIfAbsent mapper must invoke loadOrCreatePersistentTopic normally "
-                        + "when the future is not yet done");
+            // Holder's computeIfAbsent enters first, its mapper blocks → bin lock is held.
+            holderMapperStarted.await(5, TimeUnit.SECONDS);
+
+            // Wait for the 1-second timeout to fire on both futures while target waits for bin lock.
+            TimeUnit.MILLISECONDS.sleep(1500);
+
+            // Verify both futures have timed out.
+            assertTrue(holderFuture.isDone(), "holder future must have timed out");
+            assertTrue(targetFuture.isDone(), "target future must have timed out");
+
+            // Release holder's mapper. Target's mapper now runs and must return null
+            // because its topicFuture.isDone() is true.
+            holderMapperRelease.countDown();
+
+            // Give both computeIfAbsent and cleanup time to settle.
+            TimeUnit.MILLISECONDS.sleep(500);
+
+            // Assert: no stale entries were inserted into topics for either topic.
+            // Holder's mapper also returns null (its future timed out before mapper ran).
+            assertFalse(topics.containsKey(holderTopic.toString()),
+                    "Holder's timed-out future must not be cached — mapper returns null");
+            assertFalse(topics.containsKey(targetTopic.toString()),
+                    "Target's timed-out future must not be cached — null-mapper abort path");
+
+            // Only the holder's mapper should have reached loadOrCreatePersistentTopic;
+            // target was blocked waiting for the bin lock and its mapper returned null.
+            assertTrue(loadInvocations.get() >= 1,
+                    "Holder's mapper must have invoked loadOrCreatePersistentTopic");
+
+            // Now retry — cache is clean, so this starts a fresh load chain.
+            // Reset timeout to a longer value since we won't mock loadOrCreatePersistentTopic
+            // for the retry path (it uses the real spy which falls through to the actual impl).
+            conf.setTopicLoadTimeoutSeconds(30);
+            final CompletableFuture<Optional<Topic>> retryFuture = spyService.getTopic(targetTopic, true, null);
+
+            // The retry should also time out eventually since spy blocks loadOrCreatePersistentTopic
+            // on holderTopic only. But at minimum it should NOT return the old timed-out future.
+            Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                    .until(() -> loadInvocations.get() >= 2);
+
+            assertTrue(loadInvocations.get() >= 2,
+                    "Retry must invoke loadOrCreatePersistentTopic (fresh load), not return cached failed future");
+        } finally {
+            holderMapperRelease.countDown(); // ensure release even on failure
+            conf.setTopicLoadTimeoutSeconds(originalTimeout);
+        }
     }
 
     @Test

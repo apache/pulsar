@@ -3924,8 +3924,10 @@ public class BrokerService implements Closeable {
             log.debug().attr("topic", topicLoadingContext.getTopicName())
                     .log("Skipping already-completed pending topic loading context");
             // Identity-remove the cached future so subsequent retries aren't stuck with this expired entry.
-            // Use toString() because topics is keyed by the String form of the topic name.
-            topics.remove(topicLoadingContext.getTopicName().toString(), pendingFuture);
+            // Dispatch via executor to avoid reentrant ConcurrentHashMap mutation — this method can run
+            // inline inside another topic's computeIfAbsent, and synchronous remove inside an active mapper
+            // can detach the node to which the outer mapper subsequently appends its new mapping.
+            pulsar.getExecutor().execute(() -> topics.remove(topicLoadingContext.getTopicName().toString(), pendingFuture));
             topicLoadingContext.finishTrace(queuedPoint, null);
             createPendingLoadTopic();
             return;
