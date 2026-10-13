@@ -47,6 +47,29 @@ COPY target/java-test-functions.jar /pulsar/examples/
 # copy buildtools.jar to /pulsar/lib so that org.apache.pulsar.tests.ExtendedNettyLeakDetector can be used
 COPY target/buildtools.jar /pulsar/lib/
 
+# The tiered storage offloader, for the offloading performance tests: the Pulsar images of 4.x releases don't include the
+# offloaders, which a release publishes as apache-pulsar-offloaders-<version>-bin.tar.gz; install the jcloud offloader of
+# the image's Pulsar version when the image doesn't have it, from the download CDN, which has only the latest releases,
+# or else from the slower release archive. Images that include it, such as this repository's and those of 5.0 and later,
+# are left as they are.
+ARG PULSAR_RELEASE_DOWNLOAD_URL=https://dlcdn.apache.org/pulsar
+ARG PULSAR_RELEASE_ARCHIVE_URL=https://archive.apache.org/dist/pulsar
+RUN if ! ls /pulsar/offloaders/tiered-storage-jcloud-*.nar > /dev/null 2>&1; then \
+    version=$(ls /pulsar/lib | sed -n 's/^org\.apache\.pulsar-pulsar-broker-\([0-9][^-]*\)\.jar$/\1/p' | head -1) \
+    && if [ -n "${version}" ]; then \
+        file="pulsar-${version}/apache-pulsar-offloaders-${version}-bin.tar.gz" \
+        && mkdir -p /pulsar/offloaders /tmp/offloaders \
+        && { curl -fsSL -o /tmp/offloaders.tar.gz "${PULSAR_RELEASE_DOWNLOAD_URL}/${file}" \
+            || curl -fsSL -o /tmp/offloaders.tar.gz "${PULSAR_RELEASE_ARCHIVE_URL}/${file}"; } \
+        && tar -xzf /tmp/offloaders.tar.gz -C /tmp/offloaders \
+        && cp /tmp/offloaders/*/offloaders/tiered-storage-jcloud-*.nar /pulsar/offloaders/ \
+        && rm -rf /tmp/offloaders /tmp/offloaders.tar.gz \
+        && ls /pulsar/offloaders/tiered-storage-jcloud-*.nar; \
+    else \
+        echo "No offloader installed: the Pulsar version of the image wasn't found"; \
+    fi; \
+    fi
+
 ARG INSTALL_ASYNC_PROFILER=false
 ARG ASYNC_PROFILER_VERSION=4.5
 # install async-profiler from https://github.com/async-profiler/async-profiler/releases to /opt/async-profiler

@@ -94,6 +94,7 @@ impairs the packets from `from` to `to`. Each side is an endpoint or a list of t
 | `zookeeper` | the cluster's metadata store |
 | `configuration-store` | the configuration metadata store |
 | `metadata` | both stores |
+| `offload-storage` | the tiered storage that the brokers offload to, in a scenario with [`offload`](offloading.md) |
 
 With a [remote cluster](#geo-replication), its containers are endpoints too:
 

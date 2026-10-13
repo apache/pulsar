@@ -152,7 +152,10 @@ report has these sections:
   applications join later, the Throughput section's delivered throughput is mostly the last one's. The backlog chart
   shows each subscription's backlog building up until its application joins and falling as it catches up. A late
   application's end-to-end latency includes the time its messages waited in the backlog, so its lines dominate the
-  Latency section's charts.
+  Latency section's charts. Applications that skipped messages before they joined (`applications.skipMessages`) show
+  how many.
+- **Offloading**, in a run that offloads to tiered storage ([`offload`](offloading.md)): the topics' ledgers and how
+  many of them the brokers had offloaded when the late applications joined and at the run's end.
 - **Latency**: the publish latency (send to acknowledgment) and each application's end-to-end latency (publish to
   consume) at percentiles from p50 to the maximum, with charts by percentile and over time.
 - **Remote applications**, in a run with a remote cluster
@@ -196,6 +199,7 @@ beside it, rendered with [commonmark-java](https://github.com/commonmark/commonm
 | `latency-timeline.svg`, `.png` | The maximum latency of each logged interval over the run, publish and per application |
 | `host-temperature.svg`, `.png`, `host-frequency.svg`, `.png` | The CPU package and hottest core temperature, and the mean and lowest core frequency, over the run |
 | `topic-stats.csv` | The broker's topic stats sampled once per second: backlog and message counters per subscription |
+| `offload-status.csv` | In a run that offloads to tiered storage, each topic's ledgers, offloaded ledgers and offloaded bytes when the late applications joined and at the run's end, see [Offloading](offloading.md) |
 | `host-stats.csv` | The launcher's host's CPU sampled once per second from Linux's sysfs files: package and hottest core temperature, mean and lowest core frequency, the kernel's thermal throttle counters and the fastest fan |
 | `host-io.csv` | The Docker engine host's CPU utilization and disk throughput sampled once per second from Linux's `/proc/stat` and `/proc/diskstats`: the busy and I/O-wait share of all CPUs, and each physical disk's read and write MB/s and busy share. It shows whether a run is limited by the host's CPUs or its storage, which the bookies share. When the engine runs in a Linux VM, such as Docker Desktop's or OrbStack's on macOS, the files are read in the VM through the privileged perf stat sidecar, so the numbers describe the VM; the launcher compares the kernels' boot IDs to tell. Without the sidecar (`--no-perf-stat`) the launcher reads its own host's files |
 | `container-stats.csv` | Each container's CPU use and context switches, once per second: the CPUs it used, from its cgroup's `cpu.stat`, and its threads' voluntary and involuntary context switches per second, from `/proc/<tid>/status`. A voluntary switch is a thread that blocked or waited for work; an involuntary one a thread that the scheduler preempted, which grows when the host's CPUs are saturated. Read from the host's files on a Linux host, and through the perf sidecar in the Docker engine's VM elsewhere; the run report's Containers section summarizes the measurement |

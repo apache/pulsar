@@ -54,6 +54,8 @@ into the workload containers.
 - `network`: optional network conditions and faults between the containers, delay, jitter, loss, a rate,
   partitions, connection resets and silent disconnections, for the whole run or for a time, see
   [Network conditions and network faults](../../docs/network-conditions.md).
+- `offload`: optional; the brokers offload the topics' ledgers to an S3-compatible SeaweedFS in a container, with the
+  namespace's offload policies, see [Offloading to tiered storage](../../docs/offloading.md).
 - `metrics`: optional; `metrics.intervalSeconds`, 5 by default, is how often VictoriaMetrics scrapes the metrics of
   the brokers, the bookies and ZooKeeper, and the period of the broker's stats, see [Metrics](../../docs/metrics.md).
 - `output`: optional; `output.name` names the scenario's runs in the reports hierarchy instead of the file name, see

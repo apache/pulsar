@@ -21,6 +21,7 @@ package org.apache.pulsar.tests.performance.report;
 import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Files;
@@ -106,6 +107,45 @@ public class RunReportTest {
         StringBuilder none = new StringBuilder();
         RunReport.appendCatchUp(none, workload, consumers.subList(0, 1), samples, start, end);
         assertThat(none.toString()).isEmpty();
+    }
+
+    @Test
+    public void showsTheMessagesThatLateApplicationsSkipped() throws Exception {
+        JsonNode workload = mapper.readTree("{\"applications\": {\"subscriptionPrefix\": \"app-\"}}");
+        long start = 1_000_000;
+        ObjectNode skipped = (ObjectNode) late(1, start + 60_000, start + 70_000, 900_000, start + 120_000);
+        skipped.put("skippedMessages", 10_240);
+        StringBuilder report = new StringBuilder();
+        RunReport.appendCatchUp(report, workload, List.of(late(0, start + 60_000, start + 65_000, 900_000,
+                start + 120_000), skipped), null, start, start + 120_000);
+
+        assertThat(report.toString())
+                .contains("| Application | Joined | Backlog when it joined | Skipped | Caught up after |")
+                .contains("| `app-0` | 60.0 s | – | 0 | 5.0 s |")
+                .contains("| `app-1` | 60.0 s | – | 10,240 | 10.0 s |");
+    }
+
+    @Test
+    public void sumsTheOffloadStatusOfEachPhase() throws Exception {
+        Path status = Files.createTempFile("offload-status", ".csv");
+        try {
+            Files.writeString(status, RunReport.OFFLOAD_STATUS_HEADER + "\n"
+                    + "1000,join,persistent://public/default/t-0,14,12,629145600,700000\n"
+                    + "1000,join,persistent://public/default/t-1,2,1,1048576,20000\n"
+                    + "2000,end,persistent://public/default/t-0,26,25,1310720000,1300000\n");
+            StringBuilder report = new StringBuilder();
+            RunReport.appendOffloadStatus(report, status);
+
+            assertThat(report.toString())
+                    .contains("## Offloading")
+                    .contains("| The late applications joined | 2 | 16 | 13 | 601.0 MB | 720,000 |")
+                    .contains("| The run's end | 1 | 26 | 25 | 1,250.0 MB | 1,300,000 |");
+            StringBuilder none = new StringBuilder();
+            RunReport.appendOffloadStatus(none, status.resolveSibling("missing-offload-status.csv"));
+            assertThat(none.toString()).isEmpty();
+        } finally {
+            Files.delete(status);
+        }
     }
 
     private JsonNode late(int index, long joined, long caughtUp, long messages, long lastReceived) throws Exception {

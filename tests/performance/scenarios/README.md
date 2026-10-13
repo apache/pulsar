@@ -48,6 +48,7 @@ detail.
 | [`iot-telemetry-restarts.yaml`](iot-telemetry-restarts.yaml) | The full topology, restarting 10 % of each application's clients every 30 s | medium, about 11 GB |
 | [`iot-telemetry-high-rate.yaml`](iot-telemetry-high-rate.yaml) | A high rate: five million messages at 30,000 messages per second, from 500 preconnected producers to one topic, consumed by 5 applications with 10 pods each | high, about 14 GB |
 | [`iot-telemetry-catch-up.yaml`](iot-telemetry-catch-up.yaml) | Consumers joining a live stream: the high-rate scenario's 30,000 messages per second for 180 s, with 4 of its 5 applications joining 20, 22, 24 and 60 s after the measurement starts and reading their backlogs | high, about 14 GB |
+| [`iot-telemetry-offload.yaml`](iot-telemetry-offload.yaml) | Catch-up reads from tiered storage: 100,000 1 KiB messages at 10,000 messages per second to one topic, offloaded to SeaweedFS as each ledger rolls over, and six applications that join afterwards and read their backlog from positions 10,240 messages apart, after an unload of the topic; see [Offloading](../docs/offloading.md) | medium, about 11 GB |
 | [`iot-telemetry-max-rate.yaml`](iot-telemetry-max-rate.yaml) | The maximum rate: the 500 gateways of the high-rate scenario publish four million unbatched messages to one topic without a rate limit, consumed by one application with 20 pods, on single-copy ledgers | high, about 14 GB |
 
 ## Configurations

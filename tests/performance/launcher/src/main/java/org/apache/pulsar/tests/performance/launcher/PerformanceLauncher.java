@@ -259,7 +259,8 @@ public class PerformanceLauncher implements Callable<Integer> {
         ClusterSettings clusterSettings = ClusterSettings.read(loader.mapper(), resolved.path("cluster"));
         HeapDumpSettings heapDumpSettings = HeapDumpSettings.read(resolved.path("heapDumps"));
         MetricsSettings metricsSettings = MetricsSettings.read(resolved.path("metrics"));
-        NetworkSettings.Topology topology = clusterSettings.topology();
+        OffloadSettings offloadSettings = OffloadSettings.read(resolved.path("offload"));
+        NetworkSettings.Topology topology = clusterSettings.topology().withOffloadStorage(offloadSettings != null);
         ClusterSettings.Remote remote = clusterSettings.remote();
         NetworkSettings networkSettings = NetworkSettings.read(resolved.path("network"), topology,
                 measurementSeconds(workload));
@@ -349,6 +350,9 @@ public class PerformanceLauncher implements Callable<Integer> {
         // The brokers update the stats that their metrics show every metrics interval, also when no metrics are
         // collected, so that runs with and without them are alike
         Map<String, String> brokerEnv = metricsSettings.withBrokerStatsSettings(clusterSettings.brokers().env());
+        if (offloadSettings != null) {
+            brokerEnv = offloadSettings.withBrokerOffloadSettings(brokerEnv);
+        }
         Map<String, String> brokerMounts = new LinkedHashMap<>();
         if (heapDumpSettings.broker().any()) {
             brokerMounts.put(heapDumpDirectories.get(HeapDumpSettings.BROKER).toString(), HeapDumper.MOUNT);
@@ -444,6 +448,15 @@ public class PerformanceLauncher implements Callable<Integer> {
                 : PulsarCluster.forSpec(spec, configurationStore);
         PulsarCluster remoteCluster = configurationStore == null ? null
                 : PulsarCluster.forSpec(remoteSpec, configurationStore);
+        // The offloads' tiered storage, on the cluster's network
+        GenericContainer<?> offloadStorage = offloadSettings != null
+                ? offloadSettings.storageContainer(cluster.getNetwork()) : null;
+        // The launcher closes the cluster's network after the storage, which is on it, when the network is the
+        // cluster's own
+        boolean closeClusterNetwork = offloadStorage != null && remoteCluster == null;
+        if (closeClusterNetwork) {
+            cluster.closeNetworkOnExit = false;
+        }
         if (remoteCluster != null) {
             // The launcher closes the shared network after both clusters
             cluster.closeNetworkOnExit = false;
@@ -477,6 +490,7 @@ public class PerformanceLauncher implements Callable<Integer> {
                 ? new HeapDumper(runOutput, PulsarContainer.DEFAULT_IMAGE_NAME, heapDumpSettings.gzipLevel()) : null;
         MetricsCollection metricsCollection = null;
         NetworkImpairments network = null;
+        JoinPreparation joinPreparation = null;
         Exception networkCleanupFailure = null;
         Instant gatewaysStarted = null;
         String metricsBindAddress = System.getProperty("performance.metrics.bindAddress",
@@ -498,6 +512,11 @@ public class PerformanceLauncher implements Callable<Integer> {
             if (configurationStore != null) {
                 configurationStore.start();
             }
+            if (offloadStorage != null) {
+                // Before the brokers, which offload to it
+                status("Starting the offload storage: " + offloadSettings.image());
+                offloadStorage.start();
+            }
             cluster.start();
             status(String.format(Locale.ROOT, "Started the Pulsar cluster in %.0f s",
                     (System.nanoTime() - clusterStart) / 1e9));
@@ -516,6 +535,9 @@ public class PerformanceLauncher implements Callable<Integer> {
                 runInfo.write(runOutput);
                 status("The cluster runs Pulsar " + (clusterVersion.isEmpty() ? "of unknown version" : clusterVersion)
                         + " from " + clusterPulsarImage);
+            }
+            if (offloadSettings != null) {
+                setOffloadPolicies(cluster, offloadSettings);
             }
             if (metrics) {
                 String composeFile = System.getProperty("performance.metrics.composeFile");
@@ -569,6 +591,12 @@ public class PerformanceLauncher implements Callable<Integer> {
                 remoteTopicStatsSampler = startTopicStatsSampler(remoteCluster, workload, runOutput, false,
                         REMOTE_TOPIC_STATS);
             }
+            IotScenario iotScenario = loader.mapper().treeToValue(workload, IotScenario.class);
+            if (offloadSettings != null || iotScenario.preparesJoin()) {
+                // It records the offload status when the late applications join, and at the run's end
+                joinPreparation = JoinPreparation.start(cluster.getAnyBroker().getHttpServiceUrl(), iotScenario,
+                        offloadSettings != null, runOutput, coordinationDirectory, runId, PerformanceLauncher::status);
+            }
             TopicStatsSampler backlogSource = topicStatsSampler;
             progress = new ProgressMonitor(loader.mapper(), System.out,
                     workload.path("payload").path("size").intValue(),
@@ -609,8 +637,12 @@ public class PerformanceLauncher implements Callable<Integer> {
             if (network != null) {
                 // The gateways wait before they create their clients, so that their first lookups and connections
                 // already have the whole-run conditions
-                network.setUp(networkEndpoints(cluster, clusterName, producer, consumer, remoteCluster,
-                                remoteClusterName, remoteConsumer), cluster.getNetwork().getId());
+                Map<String, GenericContainer<?>> endpoints = networkEndpoints(cluster, clusterName, producer,
+                        consumer, remoteCluster, remoteClusterName, remoteConsumer);
+                if (offloadStorage != null) {
+                    endpoints.put(NetworkSettings.OFFLOAD_STORAGE, offloadStorage);
+                }
+                network.setUp(endpoints, cluster.getNetwork().getId());
                 network.startRun();
                 startRun(producer);
             }
@@ -620,6 +652,10 @@ public class PerformanceLauncher implements Callable<Integer> {
             if (remoteCluster != null) {
                 measured = new ArrayList<>(measured);
                 measured.addAll(remoteContainers(remoteCluster, remoteClusterName, remoteConsumer));
+            }
+            if (offloadStorage != null) {
+                measured = new ArrayList<>(measured);
+                measured.add(new MeasuredContainer(NetworkSettings.OFFLOAD_STORAGE, offloadStorage));
             }
             boolean counted = perfStatSidecar != null && countContainers(perfStatSidecar, measured);
             containerStatsSampler = startContainerStatsSampler(measured, engineOnThisHost,
@@ -639,11 +675,17 @@ public class PerformanceLauncher implements Callable<Integer> {
                 workloads.add(new Workload("The remote applications", remoteConsumer,
                         remoteApplicationsOutput.resolve(CONTAINER_LOG)));
             }
-            awaitWorkloads(workloads, workload.path("timeoutSeconds").intValue() + 60,
-                    network != null ? network.failure() : new CompletableFuture<>());
+            CompletableFuture<?> runFailure = network != null ? network.failure() : new CompletableFuture<>();
+            if (joinPreparation != null) {
+                runFailure = CompletableFuture.anyOf(runFailure, joinPreparation.failure());
+            }
+            awaitWorkloads(workloads, workload.path("timeoutSeconds").intValue() + 60, runFailure);
             if (network != null) {
                 // No traffic sees an impairment from now on; one that hasn't started is missed
                 network.finishRun();
+            }
+            if (joinPreparation != null && offloadSettings != null) {
+                joinPreparation.recordOffloadStatus("end");
             }
             progress.report();
             progress.close();
@@ -687,6 +729,12 @@ public class PerformanceLauncher implements Callable<Integer> {
             TopicStatsSampler topicStatsToClose = topicStatsSampler;
             TopicStatsSampler remoteTopicStatsToClose = remoteTopicStatsSampler;
             Thread gateToStop = measurementGate;
+            JoinPreparation joinPreparationToClose = joinPreparation;
+            shutDown("stopping the join preparation", () -> {
+                if (joinPreparationToClose != null) {
+                    joinPreparationToClose.close();
+                }
+            });
             GenericContainer<?> producerToStop = producer;
             GenericContainer<?> consumerToStop = consumer;
             GenericContainer<?> remoteConsumerToStop = remoteConsumer;
@@ -776,6 +824,12 @@ public class PerformanceLauncher implements Callable<Integer> {
             }
             status("Stopping the Pulsar cluster");
             shutDown("stopping the Pulsar cluster", cluster::stop);
+            if (offloadStorage != null) {
+                shutDown("stopping the offload storage", offloadStorage::stop);
+            }
+            if (closeClusterNetwork) {
+                shutDown("removing the cluster's network", () -> cluster.getNetwork().close());
+            }
             if (configurationStore != null) {
                 shutDown("stopping the configuration store", configurationStore::stop);
                 shutDown("removing the clusters' network", () -> configurationStore.getNetwork().close());
@@ -962,6 +1016,28 @@ public class PerformanceLauncher implements Callable<Integer> {
         } catch (IOException e) {
             System.out.println("Couldn't delete " + launcherLog + ": " + e);
         }
+    }
+
+    /**
+     * Sets the offload policies of the offloads' namespace, which make the brokers offload a topic's ledgers as they
+     * roll over, and delete them from BookKeeper after the deletion lag.
+     */
+    private static void setOffloadPolicies(PulsarCluster cluster, OffloadSettings offload)
+            throws PulsarClientException, PulsarAdminException {
+        try (PulsarAdmin admin = PulsarAdmin.builder()
+                .serviceHttpUrl(cluster.getAnyBroker().getHttpServiceUrl())
+                .build()) {
+            admin.namespaces().setOffloadThreshold(offload.namespace(), offload.thresholdBytes());
+            if (offload.thresholdSeconds() != null) {
+                admin.namespaces().setOffloadThresholdInSeconds(offload.namespace(), offload.thresholdSeconds());
+            }
+            admin.namespaces().setOffloadDeleteLag(offload.namespace(), offload.deletionLagMillis(),
+                    TimeUnit.MILLISECONDS);
+        }
+        status(String.format(Locale.ROOT, "Offloading the ledgers of %s: threshold %,d bytes%s, deletion lag %,d ms",
+                offload.namespace(), offload.thresholdBytes(), offload.thresholdSeconds() != null
+                        ? String.format(Locale.ROOT, " and %,d s", offload.thresholdSeconds()) : "",
+                offload.deletionLagMillis()));
     }
 
     // The version that a broker reports, or empty when it doesn't answer; it names a release such as latest, which
@@ -1187,6 +1263,9 @@ public class PerformanceLauncher implements Callable<Integer> {
             applications.put("podsPerApplication", remote.applications().podsPerApplication());
         }
         applications.remove("joinSeconds");
+        // which need the late joins
+        applications.remove("skipMessages");
+        applications.remove("unloadBeforeJoin");
         if (remote.applications().env() != null) {
             applications.set("env", new ObjectMapper().valueToTree(remote.applications().env()));
         }
@@ -1882,15 +1961,31 @@ public class PerformanceLauncher implements Callable<Integer> {
     private static void verifyStates(Path output, Path applicationsDirectory, JsonNode workload, int applications)
             throws Exception {
         long[] produced = readState(output.resolve("gateways/gateways-state.bin"));
+        JsonNode skipMessages = workload.path("applications").path("skipMessages");
         for (int application = 0; application < applications; application++) {
             long[] consumed = readState(applicationsDirectory.resolve(RunReport.applicationName(workload, application))
                     .resolve("application-state.bin"));
-            if (!java.util.Arrays.equals(produced, consumed)) {
+            // An application that skipped messages has no state for a device whose messages it all skipped; it has
+            // checked that it received as many messages as followed its position
+            boolean skipped = skipMessages.path(application).asLong() > 0;
+            if (!statesMatch(produced, consumed, skipped)) {
                 throw new IllegalStateException((applicationsDirectory.endsWith(REMOTE_APPLICATIONS_DIRECTORY)
                         ? "Remote application " : "Application ") + application
                         + " did not receive every device sequence");
             }
         }
+    }
+
+    static boolean statesMatch(long[] produced, long[] consumed, boolean skipped) {
+        if (produced.length != consumed.length) {
+            return false;
+        }
+        for (int device = 0; device < produced.length; device++) {
+            if (consumed[device] != produced[device] && !(skipped && consumed[device] == 0)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static long[] readState(Path path) throws Exception {

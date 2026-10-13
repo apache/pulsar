@@ -62,6 +62,13 @@ public final class RunReport {
     public static final String TOPIC_STATS_HEADER =
             "epochMillis,topic,subscription,msgBacklog,msgInCounter,msgOutCounter";
     /**
+     * With offloading, each topic's ledgers and how many of them the brokers had offloaded, when the late applications
+     * joined (phase {@code join}) and at the run's end (phase {@code end}).
+     */
+    public static final String OFFLOAD_STATUS_FILE = "offload-status.csv";
+    public static final String OFFLOAD_STATUS_HEADER =
+            "epochMillis,phase,topic,ledgers,offloadedLedgers,offloadedBytes,entries";
+    /**
      * The host's thermal state sampled during a run, one row per second: temperatures in °C, frequencies in MHz, the
      * thermal throttle counters since boot (summed over the cores, and over the packages) and the fastest fan in rpm.
      * A value the host doesn't provide is empty.
@@ -347,6 +354,7 @@ public final class RunReport {
         Path stats = runDirectory.resolve(TOPIC_STATS_FILE);
         Samples samples = Files.isRegularFile(stats) ? readSamples(stats) : null;
         appendCatchUp(report, run.workload(), consumers, samples, measurementStart, measurementEnd);
+        appendOffloadStatus(report, runDirectory.resolve(OFFLOAD_STATUS_FILE));
         appendLatency(report, runDirectory, run, consumerHistograms, measurementStart);
         appendRemoteApplications(report, runDirectory, run.workload(), mapper);
         if (samples != null) {
@@ -752,9 +760,16 @@ public final class RunReport {
                 .append(" ms of its publishing; the time includes opening its pods. Its catch-up rate is the messages"
                         + " that it received until then, warmup included, per second since it joined; for an"
                         + " application that didn't catch up, it is the rate until its last message. The backlog is"
-                        + " the sampled topic stats' last sample before the application joined.\n\n"
-                        + "| Application | Joined | Backlog when it joined | Caught up after | Catch-up rate"
-                        + " | Received its last message after |\n|---|---:|---:|---:|---:|---:|\n");
+                        + " the sampled topic stats' last sample before the application joined.");
+        boolean skipped = late.stream().anyMatch(consumer -> consumer.path("skippedMessages").asLong() > 0);
+        if (skipped) {
+            report.append(" Skipped are the messages that the application didn't receive: its subscription was moved"
+                    + " forward past them before it joined (`applications.skipMessages`), so its backlog when it"
+                    + " joined may include them.");
+        }
+        report.append("\n\n| Application | Joined | Backlog when it joined |").append(skipped ? " Skipped |" : "")
+                .append(" Caught up after | Catch-up rate | Received its last message after |\n|---|---:|---:|")
+                .append(skipped ? "---:|" : "").append("---:|---:|---:|\n");
         for (JsonNode consumer : late) {
             String application = applicationName(workload, consumer.path("applicationIndex").asInt());
             long joined = consumer.path("joinEpochMs").asLong();
@@ -782,11 +797,49 @@ public final class RunReport {
                 rate = lastReceived > joined ? String.format(Locale.ROOT, "%,.0f msg/s until its last message",
                         consumer.path("uniqueMessages").asLong() * 1000.0 / (lastReceived - joined)) : "–";
             }
-            report.append(String.format(Locale.ROOT, "| `%s` | %.1f s | %s | %s | %s | %s |%n", application,
-                    (joined - measurementStart) / 1000.0, backlog, caughtUpAfter, rate,
+            report.append(String.format(Locale.ROOT, "| `%s` | %.1f s | %s |%s %s | %s | %s |%n", application,
+                    (joined - measurementStart) / 1000.0, backlog, skipped ? String.format(Locale.ROOT, " %,d |",
+                            consumer.path("skippedMessages").asLong()) : "", caughtUpAfter, rate,
                     lastReceived > joined ? String.format(Locale.ROOT, "%.1f s", (lastReceived - joined) / 1000.0)
                             : "–"));
         }
+    }
+
+    /**
+     * With offloading ({@code offload}), the topics' ledgers and how many of them the brokers had offloaded when the
+     * late applications joined and at the run's end, summed over the topics.
+     */
+    static void appendOffloadStatus(StringBuilder report, Path status) throws IOException {
+        if (!Files.isRegularFile(status)) {
+            return;
+        }
+        // phase -> ledgers, offloaded ledgers, offloaded bytes, entries
+        Map<String, long[]> phases = new LinkedHashMap<>();
+        Map<String, Integer> topics = new LinkedHashMap<>();
+        List<String> lines = Files.readAllLines(status);
+        for (String line : lines.subList(Math.min(1, lines.size()), lines.size())) {
+            String[] fields = line.split(",");
+            if (fields.length != 7) {
+                continue;
+            }
+            long[] sums = phases.computeIfAbsent(fields[1], ignored -> new long[4]);
+            for (int i = 0; i < 4; i++) {
+                sums[i] += Long.parseLong(fields[3 + i]);
+            }
+            topics.merge(fields[1], 1, Integer::sum);
+        }
+        if (phases.isEmpty()) {
+            return;
+        }
+        report.append("\n## Offloading\n\nThe topics' ledgers, from their internal stats, and how many the brokers had"
+                + " offloaded to the tiered storage: when the late applications joined, and at the run's end. Their"
+                + " sums over the topics; `" + OFFLOAD_STATUS_FILE + "` has each topic's.\n\n"
+                + "| When | Topics | Ledgers | Offloaded ledgers | Offloaded | Entries |\n"
+                + "|---|---:|---:|---:|---:|---:|\n");
+        phases.forEach((phase, sums) -> report.append(String.format(Locale.ROOT, "| %s | %,d | %,d | %,d | %,.1f MB"
+                        + " | %,d |%n", phase.equals("join") ? "The late applications joined"
+                        : phase.equals("end") ? "The run's end" : phase, topics.get(phase), sums[0], sums[1],
+                sums[2] / (1024.0 * 1024.0), sums[3])));
     }
 
     /**
