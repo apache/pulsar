@@ -46,6 +46,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -693,9 +694,12 @@ public class PersistentTopicsBase extends AdminResource {
                                 }
                                 return namespaceResources()
                                     .getPartitionedTopicResources().updatePartitionedTopicAsync(topicName,
-                                        p -> new PartitionedTopicMetadata(p.partitions,
-                                            p.properties == null ? properties
-                                                : MapUtils.putAll(p.properties, properties.entrySet().toArray())));
+                                        p -> {
+                                            validateShadowSourcePropertyUpdate(p.properties, properties);
+                                            return new PartitionedTopicMetadata(p.partitions,
+                                                p.properties == null ? properties
+                                                    : MapUtils.putAll(p.properties, properties.entrySet().toArray()));
+                                        });
                             });
                     }
                 }).thenAccept(__ ->
@@ -703,6 +707,17 @@ public class PersistentTopicsBase extends AdminResource {
                             .attr("topic", topicName)
                             .attr("properties", properties)
                             .log("update properties success with properties"));
+    }
+
+    private static void validateShadowSourcePropertyUpdate(Map<String, String> currentProperties,
+                                                          Map<String, String> properties) {
+        // Changing a source (or adding one to a regular topic) cannot migrate its existing ledgers and cursors.
+        if (properties.containsKey(PROPERTY_SOURCE_TOPIC_KEY)
+                && !Objects.equals(MapUtils.getString(currentProperties, PROPERTY_SOURCE_TOPIC_KEY),
+                        properties.get(PROPERTY_SOURCE_TOPIC_KEY))) {
+            throw new RestException(Status.PRECONDITION_FAILED,
+                    "Property " + PROPERTY_SOURCE_TOPIC_KEY + " cannot be changed after topic creation");
+        }
     }
 
     private CompletableFuture<Void> internalUpdateNonPartitionedTopicProperties(Map<String, String> properties) {
@@ -716,6 +731,7 @@ public class PersistentTopicsBase extends AdminResource {
                     return;
                 }
                 ManagedLedger managedLedger = ((PersistentTopic) opt.get()).getManagedLedger();
+                validateShadowSourcePropertyUpdate(managedLedger.getProperties(), properties);
                 managedLedger.asyncSetProperties(properties, new AsyncCallbacks.UpdatePropertiesCallback() {
 
                     @Override
