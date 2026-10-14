@@ -22,8 +22,16 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.admin.v2.ScalableTopics;
+import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.scalable.SegmentTopicName;
 import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 
 /**
  * Decodes local names exactly once while retaining v2 behavior for older clients.
@@ -37,5 +45,28 @@ public class EncodedScalableTopics extends ScalableTopics {
     @Override
     protected String topicLocalName(String encodedTopic) {
         return Codec.decode(encodedTopic);
+    }
+
+    @Override
+    protected CompletableFuture<Void> checkInitialSegmentOwnersAsync(TopicName topic, ScalableTopicMetadata metadata) {
+        return pulsar().getPulsarResources().getScalableTopicResources()
+                .getScalableTopicMetadataAsync(topic, true).thenCompose(existing -> {
+                    if (existing.isPresent()) {
+                        return CompletableFuture.failedFuture(new MetadataStoreException.AlreadyExistsException(
+                                "Scalable topic already exists: " + topic));
+                    }
+                    try {
+                        var admin = pulsar().getAdminClient();
+                        List<CompletableFuture<Void>> checks = new ArrayList<>();
+                        for (var segment : metadata.getSegments().values()) {
+                            String segmentTopic = SegmentTopicName.fromParent(topic,
+                                    segment.hashRange(), segment.segmentId()).toString();
+                            checks.add(admin.scalableTopics().checkSegmentOwnerAsync(segmentTopic));
+                        }
+                        return FutureUtil.waitForAll(checks);
+                    } catch (Exception e) {
+                        return CompletableFuture.failedFuture(e);
+                    }
+                });
     }
 }

@@ -77,7 +77,7 @@ public class Segments extends AdminResource {
         return encodedTopic;
     }
 
-    private TopicName segmentTopicName(String tenant, String namespace,
+    protected TopicName segmentTopicName(String tenant, String namespace,
                                        String encodedTopic, String descriptor) {
         return TopicName.get(TopicDomain.segment.value() + "://" + tenant + "/" + namespace + "/"
                 + topicLocalName(encodedTopic) + "/" + descriptor);

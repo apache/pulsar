@@ -398,6 +398,17 @@ public interface ScalableTopics {
     // --- Segment topic operations ---
 
     /**
+     * Check that a segment's owning broker supports the v3 segment REST resource, without creating the segment.
+     * Used by brokers before committing a new scalable topic whose name requires encoding. Super-user only.
+     *
+     * @param segmentTopic Full segment topic name (segment://tenant/namespace/topic/descriptor)
+     */
+    default CompletableFuture<Void> checkSegmentOwnerAsync(String segmentTopic) {
+        return CompletableFuture.failedFuture(
+                new UnsupportedOperationException("Segment owner checks are unsupported"));
+    }
+
+    /**
      * Create a segment topic on the broker that owns its namespace bundle.
      * Optionally creates subscriptions on the new segment.
      *

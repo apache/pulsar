@@ -95,6 +95,11 @@ public class ScalableTopics extends AdminResource {
         return encodedTopic;
     }
 
+    /** V2 retains its existing creation contract; v3 checks the initial segment owners before committing metadata. */
+    protected CompletableFuture<Void> checkInitialSegmentOwnersAsync(TopicName topic, ScalableTopicMetadata metadata) {
+        return CompletableFuture.completedFuture(null);
+    }
+
     private ScalableTopicResources resources() {
         return pulsar().getPulsarResources().getScalableTopicResources();
     }
@@ -203,7 +208,8 @@ public class ScalableTopics extends AdminResource {
                             pulsar().getConfiguration().getScalableTopicEntryBucketBudget(),
                             pulsar().getConfiguration().getScalableTopicEntryBucketMaxPerSegment(),
                             props);
-                    return resources().createScalableTopicAsync(tn, metadata)
+                    return checkInitialSegmentOwnersAsync(tn, metadata)
+                            .thenCompose(ignored -> resources().createScalableTopicAsync(tn, metadata))
                             .thenCompose(ignored -> createInitialSegmentTopicsAsync(tn, metadata));
                 })
                 .thenAccept(__ -> {
@@ -229,11 +235,9 @@ public class ScalableTopics extends AdminResource {
     /**
      * Create the backing persistent topic for each segment in the initial layout.
      *
-     * <p>Segment topics are NEVER auto-created on client connect (see
-     * {@code BrokerService.isAllowAutoTopicCreationAsync}); they only come into
-     * existence through the controller's explicit-create path. So at scalable-topic
-     * creation time we have to materialize the initial segment(s) up front, before
-     * any producer or consumer arrives.
+     * <p>Metadata is committed first so every created segment has a parent. Eager
+     * materialization avoids latency on the first connect; a missing ACTIVE segment
+     * can also be reconciled on connect by {@code BrokerService.isAllowAutoTopicCreationAsync}.
      *
      * <p>Routes via the internal admin client so each segment's create lands on
      * its bundle's owning broker (segment bundles can hash to a different broker

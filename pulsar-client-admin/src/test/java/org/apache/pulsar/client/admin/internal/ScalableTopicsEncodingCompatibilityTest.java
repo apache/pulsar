@@ -21,13 +21,17 @@ package org.apache.pulsar.client.admin.internal;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.anyRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.put;
 import static com.github.tomakehurst.wiremock.client.WireMock.putRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlMatching;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.expectThrows;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
@@ -108,12 +112,19 @@ public class ScalableTopicsEncodingCompatibilityTest {
                 controllerBroker.stubFor(put(urlPathEqualTo(path)).willReturn(aResponse().withStatus(307)
                         .withHeader("Location", legacyBroker.baseUrl() + path)));
             }
+            String checkPath = "/admin/v3" + suffix + "/check";
+            controllerBroker.stubFor(get(urlPathEqualTo(checkPath)).willReturn(aResponse().withStatus(307)
+                    .withHeader("Location", legacyBroker.baseUrl() + checkPath)));
             @Cleanup
             PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(controllerBroker.baseUrl()).build();
 
             expectThrows(NotFoundException.class, () -> admin.scalableTopics().createSegment(segment, null));
+            assertThat(admin.scalableTopics().checkSegmentOwnerAsync(segment)).failsWithin(3, TimeUnit.SECONDS)
+                    .withThrowableOfType(ExecutionException.class).withCauseInstanceOf(NotFoundException.class);
             controllerBroker.verify(1, putRequestedFor(urlPathEqualTo("/admin/v3" + suffix)));
             legacyBroker.verify(1, putRequestedFor(urlPathEqualTo("/admin/v3" + suffix)));
+            controllerBroker.verify(1, getRequestedFor(urlPathEqualTo(checkPath)));
+            legacyBroker.verify(1, getRequestedFor(urlPathEqualTo(checkPath)));
             legacyBroker.verify(0, anyRequestedFor(urlMatching("/admin/v2/.*")));
         } finally {
             controllerBroker.stop();

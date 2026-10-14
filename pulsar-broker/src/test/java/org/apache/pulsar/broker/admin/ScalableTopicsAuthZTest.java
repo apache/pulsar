@@ -18,8 +18,11 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -141,6 +144,14 @@ public class ScalableTopicsAuthZTest extends AuthZTest {
         tenantManagerAdmin.scalableTopics().getMetadata(topic);
 
         String segment = segmentTopicOf(topic);
+        assertThat(nobody.scalableTopics().checkSegmentOwnerAsync(segment)).failsWithin(10, TimeUnit.SECONDS)
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(PulsarAdminException.NotAuthorizedException.class);
+        assertThat(tenantManagerAdmin.scalableTopics().checkSegmentOwnerAsync(segment))
+                .failsWithin(10, TimeUnit.SECONDS)
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(PulsarAdminException.NotAuthorizedException.class);
+        superUserAdmin.scalableTopics().checkSegmentOwnerAsync(segment).get(10, TimeUnit.SECONDS);
         assertNotAuthorized(() -> nobody.scalableTopics().createSegment(segment, null));
         assertNotAuthorized(() -> tenantManagerAdmin.scalableTopics().createSegment(segment, null));
         superUserAdmin.scalableTopics().createSegment(segment, null);

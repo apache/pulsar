@@ -416,6 +416,9 @@ public class WebServiceTest {
                     + "/admin/" + version + "/scalable/public/default").execute().get();
             assertEquals(response.getStatusCode(), 404);
         }
+        Response check = client.prepareGet(pulsar.getWebServiceAddress()
+                + "/admin/v3/segments/public/default/encoded%2Btopic/0000-ffff-0/check").execute().get();
+        assertEquals(check.getStatusCode(), 412);
     }
 
     @Test

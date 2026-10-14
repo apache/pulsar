@@ -371,6 +371,20 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
     // --- Segment topic operations ---
 
     @Override
+    public CompletableFuture<Void> checkSegmentOwnerAsync(String segmentTopic) {
+        return FutureUtil.supplySafely(() -> {
+            TopicName tn = TopicName.get(segmentTopic);
+            if (!tn.isSegment()) {
+                return FutureUtil.failedFuture(
+                        new IllegalArgumentException("Expected a segment name: " + segmentTopic));
+            }
+            WebTarget path = adminSegmentsV3.path(tn.getTenant()).path(tn.getNamespacePortion())
+                    .path(tn.getEncodedLocalName()).path(tn.getSegmentDescriptor()).path("check");
+            return asyncGetRequest(path, Void.class);
+        });
+    }
+
+    @Override
     public void createSegment(String segmentTopic, List<String> subscriptions) throws PulsarAdminException {
         sync(() -> createSegmentAsync(segmentTopic, subscriptions));
     }
