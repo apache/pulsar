@@ -381,6 +381,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
                 EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(messagesForC);
                 totalEntries += filterEntriesForConsumer(entriesWithSameKey, batchSizes, sendMessageInfo,
                         batchIndexesAcks, cursor, readType == ReadType.Replay, consumer);
+                // read before sendMessages: it hands batchIndexesAcks to the consumer's event loop, which recycles it
+                int totalAckedIndexCount = batchIndexesAcks.getTotalAckedIndexCount();
                 consumer.sendMessages(entriesWithSameKey, batchSizes, batchIndexesAcks,
                         sendMessageInfo.getTotalMessages(),
                         sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
@@ -391,7 +393,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
                 });
 
                 TOTAL_AVAILABLE_PERMITS_UPDATER.getAndAdd(this,
-                        -(sendMessageInfo.getTotalMessages() - batchIndexesAcks.getTotalAckedIndexCount()));
+                        -(sendMessageInfo.getTotalMessages() - totalAckedIndexCount));
                 totalMessagesSent += sendMessageInfo.getTotalMessages();
                 totalBytesSent += sendMessageInfo.getTotalBytes();
             } else {
@@ -594,6 +596,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
      */
     @Override
     protected boolean hasConsumersNeededNormalRead() {
+        if (!isReplayQueueSizeBelowLimit()) {
+            return false;
+        }
         // Classic out-of-order replay filtering is bypassed, so normal reads do not need the ordered-mode escape check.
         if (isAllowOutOfOrderDelivery()) {
             return true;
@@ -610,6 +615,14 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
             }
         }
         return false;
+    }
+
+    private boolean isReplayQueueSizeBelowLimit() {
+        int effectiveLookAheadLimit = PersistentStickyKeyDispatcherMultipleConsumers
+                .getEffectiveLookAheadLimit(serviceConfig, consumerList.size());
+        // The limit is checked before a normal read. A read that starts below the limit can add up to one read batch
+        // to the replay queue, so this provides a bounded look-ahead limit with an acceptable one-batch overflow.
+        return redeliveryMessages.size() < effectiveLookAheadLimit;
     }
 
     @Override

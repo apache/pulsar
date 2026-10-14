@@ -57,6 +57,8 @@ import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.PolicyName;
+import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentPartitionedTopicStatsImpl;
@@ -555,7 +557,8 @@ public class NonPersistentTopics extends PersistentTopics {
                                         + "broker. For internal use.")
                                 @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        validateTopicPolicyOperationAsync(topicName, PolicyName.ENTRY_FILTERS, PolicyOperation.READ)
+                .thenCompose(__ -> preValidation(authoritative))
                 .thenCompose(__ -> internalGetEntryFilters(applied, isGlobal))
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
@@ -585,7 +588,8 @@ public class NonPersistentTopics extends PersistentTopics {
                                 @ApiParam(value = "Enable sub types for the specified topic")
                                         EntryFilters entryFilters) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        validateTopicPolicyOperationAsync(topicName, PolicyName.ENTRY_FILTERS, PolicyOperation.WRITE)
+                .thenCompose(__ -> preValidation(authoritative))
                 .thenCompose(__ -> internalSetEntryFilters(entryFilters, isGlobal))
                 .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
@@ -613,7 +617,8 @@ public class NonPersistentTopics extends PersistentTopics {
                                            + "call to this broker. For internal use.")
                                    @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        validateTopicPolicyOperationAsync(topicName, PolicyName.ENTRY_FILTERS, PolicyOperation.WRITE)
+                .thenCompose(__ -> preValidation(authoritative))
                 .thenCompose(__ -> internalRemoveEntryFilters(isGlobal))
                 .thenRun(() -> {
                     log.info(

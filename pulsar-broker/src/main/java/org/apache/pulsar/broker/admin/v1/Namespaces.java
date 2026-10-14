@@ -1385,7 +1385,9 @@ public class Namespaces extends NamespacesBase {
         internalClearNamespaceBacklogAsync(authoritative)
                 .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
-                    log.error("[{}] Failed to clear backlog on namespace {}", clientAppId(), namespaceName, ex);
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to clear backlog on namespace {}", clientAppId(), namespaceName, ex);
+                    }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -1454,9 +1456,12 @@ public class Namespaces extends NamespacesBase {
             @PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
             @PathParam("subscription") String subscription, @PathParam("bundle") String bundleRange,
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @ApiParam(hidden = true) @QueryParam("subscriptionOnly") @DefaultValue("false")
+            boolean subscriptionOnly) {
         validateNamespaceName(property, cluster, namespace);
-        internalClearNamespaceBundleBacklogForSubscriptionAsync(subscription, bundleRange, authoritative)
+        internalClearNamespaceBundleBacklogForSubscriptionAsync(subscription, bundleRange, authoritative,
+                subscriptionOnly)
                 .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
                     log.error("[{}] Failed to clear backlog for subscription {} on namespace bundle {}/{}",

@@ -366,9 +366,8 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
                     @Override
                     public void closeComplete(int closeRc, LedgerHandle closedLedger, Object closeCtx) {
                         if (closeRc != BKException.Code.OK) {
-                            log.warn().attr("ledgerId", lh.getId())
-                                    .attr("status", BKException.getMessage(closeRc))
-                                    .log("Error when closing ledger after add-entry failure");
+                            log.warn("[{}] Error when closing ledger after add-entry failure. ledgerId={}, status={}",
+                                    finalMl.getName(), lh.getId(), BKException.getMessage(closeRc));
                         }
                         finalMl.getExecutor().execute(() -> finalMl.ledgerClosed(lh));
                     }

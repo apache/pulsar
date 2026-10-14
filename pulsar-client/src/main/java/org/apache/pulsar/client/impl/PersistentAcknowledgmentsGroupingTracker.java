@@ -166,7 +166,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                 }
             } finally {
                 readLock.ifPresent(Lock::unlock);
-                if (acknowledgementGroupTimeMicros == 0 || pendingIndividualAcks.size() >= maxAckGroupSize) {
+                if (acknowledgementGroupTimeMicros == 0 || isMaxAckGroupSizeReached()) {
                     flush();
                 }
             }
@@ -266,13 +266,18 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                 return readLock.map(__ -> currentIndividualAckFuture).orElse(CompletableFuture.completedFuture(null));
             } finally {
                 readLock.ifPresent(Lock::unlock);
-                if (pendingIndividualAcks.size() >= maxAckGroupSize) {
+                if (isMaxAckGroupSizeReached()) {
                     flush();
                 }
             }
         }
     }
 
+
+    private boolean isMaxAckGroupSizeReached() {
+        // Both collections are drained by the same flush; count pending entries across the entire group.
+        return (long) pendingIndividualAcks.size() + pendingIndividualBatchIndexAcks.size() >= maxAckGroupSize;
+    }
 
     private CompletableFuture<Void> doIndividualAckAsync(MessageIdAdv messageId) {
         pendingIndividualAcks.add(messageId);
@@ -302,7 +307,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             return readLock.map(__ -> currentIndividualAckFuture).orElse(CompletableFuture.completedFuture(null));
         } finally {
             readLock.ifPresent(Lock::unlock);
-            if (pendingIndividualBatchIndexAcks.size() >= maxAckGroupSize) {
+            if (isMaxAckGroupSizeReached()) {
                 flush();
             }
         }

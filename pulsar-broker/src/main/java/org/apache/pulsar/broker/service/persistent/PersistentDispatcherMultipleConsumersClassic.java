@@ -314,7 +314,8 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
         topic.getBrokerService().executor().execute(this::readMoreEntries);
     }
 
-    public synchronized void readMoreEntries() {
+    @Override
+    protected synchronized void internalReadMoreEntries() {
         if (cursor.isClosed()) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Cursor is already closed, skipping read more entries.", cursor.getName());
@@ -775,6 +776,8 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
             totalEntries += filterEntriesForConsumer(metadataArray, start,
                     entriesForThisConsumer, batchSizes, sendMessageInfo, batchIndexesAcks, cursor,
                     readType == ReadType.Replay, c);
+            // read before sendMessages: it hands batchIndexesAcks to the consumer's event loop, which recycles it
+            int totalAckedIndexCount = batchIndexesAcks.getTotalAckedIndexCount();
 
             c.sendMessages(entriesForThisConsumer, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
                     sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(), redeliveryTracker);
@@ -783,12 +786,11 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
             remainingMessages -= msgSent;
             start += messagesForC;
             entriesToDispatch -= messagesForC;
-            TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this,
-                    -(msgSent - batchIndexesAcks.getTotalAckedIndexCount()));
+            TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -(msgSent - totalAckedIndexCount));
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Added -({} minus {}) permits to TOTAL_AVAILABLE_PERMITS_UPDATER in "
                                 + "PersistentDispatcherMultipleConsumers",
-                        name, msgSent, batchIndexesAcks.getTotalAckedIndexCount());
+                        name, msgSent, totalAckedIndexCount);
             }
             totalMessagesSent += sendMessageInfo.getTotalMessages();
             totalBytesSent += sendMessageInfo.getTotalBytes();
@@ -853,6 +855,8 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
 
             totalEntries += filterEntriesForConsumer(entryAndMetadataList, batchSizes, sendMessageInfo,
                     batchIndexesAcks, cursor, readType == ReadType.Replay, consumer);
+            // read before sendMessages: it hands batchIndexesAcks to the consumer's event loop, which recycles it
+            final int totalAckedIndexCount = batchIndexesAcks.getTotalAckedIndexCount();
             consumer.sendMessages(entryAndMetadataList, batchSizes, batchIndexesAcks,
                     sendMessageInfo.getTotalMessages(), sendMessageInfo.getTotalBytes(),
                     sendMessageInfo.getTotalChunkedMessages(), getRedeliveryTracker()
@@ -863,7 +867,7 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
             });
 
             TOTAL_AVAILABLE_PERMITS_UPDATER.getAndAdd(this,
-                    -(sendMessageInfo.getTotalMessages() - batchIndexesAcks.getTotalAckedIndexCount()));
+                    -(sendMessageInfo.getTotalMessages() - totalAckedIndexCount));
             totalMessagesSent += sendMessageInfo.getTotalMessages();
             totalBytesSent += sendMessageInfo.getTotalBytes();
         }

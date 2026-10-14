@@ -101,6 +101,7 @@ import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.client.LedgerMetadataBuilder;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.client.PulsarMockLedgerHandle;
 import org.apache.bookkeeper.client.PulsarMockReadHandleInterceptor;
@@ -143,6 +144,8 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.mledger.util.Futures;
+import org.apache.bookkeeper.net.BookieId;
+import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.mutable.MutableBoolean;
@@ -782,6 +785,94 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         cursor.readEntries(0);
 
         fail("Should have thrown an exception in the above line");
+    }
+
+    @Test(timeOut = 30000)
+    public void testCloseManagedLedgerAfterRollover() throws Exception {
+        ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
+        config.setMaxCacheSize(0);
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, config);
+        ManagedLedgerImpl realLedger = (ManagedLedgerImpl) factory.open("my_test_ledger");
+        ManagedLedgerImpl ledger = Mockito.spy(realLedger);
+        AtomicBoolean onlyOnce = new AtomicBoolean(false);
+        when(ledger.currentLedgerIsFull()).thenAnswer(invocation -> onlyOnce.compareAndSet(false, true));
+        OpAddEntry realOp = OpAddEntry.createNoRetainBuffer(ledger,
+                    ByteBufAllocator.DEFAULT.buffer(128), null, null, new AtomicBoolean());
+        OpAddEntry op = spy(realOp);
+        CountDownLatch createLatch = new CountDownLatch(1);
+        CountDownLatch closeLatch = new CountDownLatch(1);
+        doAnswer(invocationOnMock -> {
+            // Simulate that before the rollover is completed, new write requests arrive,
+            // and after these write requests are added to pendingAddEntries, the ledger is closed.
+            log.info("before add, ledger state: " + ledger.getState());
+            for (int i = 0; i < 10; ++i) {
+                ledger.internalAsyncAddEntry(OpAddEntry.createNoRetainBuffer(ledger,
+                        ByteBufAllocator.DEFAULT.buffer(128), null, null, new AtomicBoolean()));
+            }
+            ledger.asyncClose(new CloseCallback() {
+                @Override
+                public void closeComplete(Object ctx) {
+                    log.info("closeComplete finished, ledger state: " + ledger.getState());
+                    closeLatch.countDown();
+                }
+
+                @Override
+                public void closeFailed(ManagedLedgerException exception, Object ctx) {
+                    log.info("closeFailed, ex: " + exception.getMessage() + ", state: " + ledger.getState());
+                    closeLatch.countDown();
+                }
+            }, null);
+            log.info("after add, ledger state: " + ledger.getState());
+            return invocationOnMock.callRealMethod();
+        }).when(ledger).asyncCreateLedger(any(), any(), any(), any(), any());
+        doAnswer(invocationOnMock -> {
+            Object o = invocationOnMock.callRealMethod();
+            log.info("createComplete finished, state: " + ledger.getState());
+            ledger.executor.execute(createLatch::countDown);
+            return o;
+        }).when(ledger).createComplete(anyInt(), any(), any());
+        ledger.internalAsyncAddEntry(op);
+        createLatch.await();
+        closeLatch.await();
+        Assert.assertEquals(ledger.pendingAddEntries.size(), 0);
+    }
+
+    @Test(timeOut = 20000)
+    public void testFencedManagedLedgerAfterAdd() throws Exception {
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory1 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedLedgerImpl realLedger = (ManagedLedgerImpl) factory1.open("my_test_ledger");
+        ManagedLedgerImpl ledger = spy(realLedger);
+
+        int sendNum = 10;
+        CountDownLatch sendLatch = new CountDownLatch(sendNum);
+        CountDownLatch fencedLatch = new CountDownLatch(1);
+        doAnswer(invocationOnMock -> {
+            stopBookKeeper();
+            stopMetadataStore();
+            for (int i = 0; i < sendNum; ++i) {
+                ledger.internalAsyncAddEntry(OpAddEntry.createNoRetainBuffer(ledger,
+                    ByteBufAllocator.DEFAULT.buffer(128), new AddEntryCallback() {
+                    @Override
+                    public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                        sendLatch.countDown();
+                    }
+
+                    @Override
+                    public void addFailed(ManagedLedgerException exception, Object ctx) {
+                        sendLatch.countDown();
+                    }
+                }, null, new AtomicBoolean()));
+            }
+            Object o = invocationOnMock.callRealMethod();
+            fencedLatch.countDown();
+            return o;
+        }).when(ledger).setFenced();
+        ledger.setFenced();
+        fencedLatch.await();
+        sendLatch.await();
+        assertEquals(ledger.pendingAddEntries.size(), 0);
     }
 
     @Test(timeOut = 20000)
@@ -4271,6 +4362,39 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         long lastLedger = managedLedger.ledgers.lastEntry().getKey();
         managedLedger.getEnsemblesAsync(lastLedger).join();
         Assert.assertFalse(managedLedger.ledgerCache.containsKey(lastLedger));
+    }
+
+    @Test
+    public void testInternalStatsUnderReplicated() throws Exception {
+        ManagedLedgerImpl ledger = spy((ManagedLedgerImpl) factory.open("testInternalStatsUnderReplicated",
+                new ManagedLedgerConfig()));
+        long ledgerId = ledger.ledgers.lastKey();
+        List<BookieId> registered = new ArrayList<>(PulsarMockBookKeeper.getMockEnsemble());
+        List<BookieId> withUnregistered = List.of(registered.get(0), registered.get(1),
+                new BookieSocketAddress("192.0.2.4", 1234).toBookieId());
+
+        mockEnsembles(ledger, ledgerId, registered, registered);
+        assertFalse(ledger.getManagedLedgerInternalStats(true).get().ledgers.get(0).underReplicated);
+
+        mockEnsembles(ledger, ledgerId, registered, withUnregistered);
+        assertTrue(ledger.getManagedLedgerInternalStats(true).get().ledgers.get(0).underReplicated);
+
+        mockEnsembles(ledger, ledgerId, withUnregistered, registered);
+        assertTrue(ledger.getManagedLedgerInternalStats(true).get().ledgers.get(0).underReplicated);
+
+        ledger.close();
+    }
+
+    private static void mockEnsembles(ManagedLedgerImpl ledger, long ledgerId, List<BookieId> olderEnsemble,
+                                      List<BookieId> currentEnsemble) {
+        LedgerMetadata metadata = LedgerMetadataBuilder.create()
+                .withDigestType(DigestType.CRC32C.toApiDigestType())
+                .withPassword(new byte[0])
+                .withId(ledgerId)
+                .newEnsembleEntry(0L, olderEnsemble)
+                .newEnsembleEntry(10L, currentEnsemble)
+                .build();
+        doReturn(CompletableFuture.completedFuture(metadata)).when(ledger).getLedgerMetadata(ledgerId);
     }
 
     @Test

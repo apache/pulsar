@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.authorization;
 
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import com.google.common.collect.Sets;
 import java.io.IOException;
@@ -44,8 +45,10 @@ import org.apache.pulsar.common.policies.data.AuthPolicies;
 import org.apache.pulsar.common.policies.data.BrokerOperation;
 import org.apache.pulsar.common.policies.data.ClusterOperation;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
+import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -205,6 +208,39 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                     }
                     return allowTheSpecifiedActionOpsAsync(namespaceName, role, authenticationData, AuthAction.produce);
                 });
+    }
+
+    /**
+     * Applies the namespace subscription policies, as {@link #canConsumeAsync} does for topic operations.
+     */
+    private CompletableFuture<Boolean> allowNamespaceSubscriptionOpsAsync(NamespaceName namespaceName, String role,
+                                                                          AuthenticationDataSource authData,
+                                                                          NamespaceOperation operation) {
+        final String subscription = authData != null ? authData.getSubscription() : null;
+        if (isBlank(subscription)) {
+            return allowTheSpecifiedActionOpsAsync(namespaceName, role, authData, AuthAction.consume);
+        }
+        return pulsarResources.getNamespaceResources().getPoliciesAsync(namespaceName).thenCompose(policies -> {
+            if (policies.isPresent() && !isSubscriptionAllowed(policies.get(), role, subscription)) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Role {} is not allowed to access the subscription {} of namespace {} for operation {}",
+                            role, subscription, namespaceName, operation);
+                }
+                return CompletableFuture.completedFuture(false);
+            }
+            return allowTheSpecifiedActionOpsAsync(namespaceName, role, authData, AuthAction.consume);
+        });
+    }
+
+    private static boolean isSubscriptionAllowed(Policies policies, String role, String subscription) {
+        Set<String> roles = policies.auth_policies.getSubscriptionAuthentication().get(subscription);
+        if (roles != null && !roles.isEmpty() && !roles.contains(role)) {
+            return false;
+        }
+        if (policies.subscription_auth_mode == SubscriptionAuthMode.Prefix) {
+            return role != null && subscription.startsWith(role);
+        }
+        return true;
     }
 
     private CompletableFuture<Boolean> allowTheSpecifiedActionOpsAsync(NamespaceName namespaceName, String role,
@@ -614,8 +650,9 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                             case GET_BUNDLE:
                                 return allowConsumeOrProduceOpsAsync(namespaceName, role, authData);
                             case UNSUBSCRIBE:
-                            case TRIM_TOPIC:
                             case CLEAR_BACKLOG:
+                                return allowNamespaceSubscriptionOpsAsync(namespaceName, role, authData, operation);
+                            case TRIM_TOPIC:
                                 return allowTheSpecifiedActionOpsAsync(
                                         namespaceName, role, authData, AuthAction.consume);
                             case CREATE_TOPIC:

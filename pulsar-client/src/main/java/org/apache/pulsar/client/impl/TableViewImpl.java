@@ -44,6 +44,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.common.naming.TopicDomain;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.topics.TopicCompactionStrategy;
 
 @Slf4j
@@ -83,7 +84,7 @@ public class TableViewImpl<T> implements TableView<T> {
 
     TableViewImpl(PulsarClientImpl client, Schema<T> schema, TableViewConfigurationData conf) {
         this.conf = conf;
-        this.isPersistentTopic = conf.getTopicName().startsWith(TopicDomain.persistent.toString());
+        this.isPersistentTopic = TopicName.get(conf.getTopicName()).getDomain() == TopicDomain.persistent;
         this.data = new ConcurrentHashMap<>();
         this.immutableData = Collections.unmodifiableMap(data);
         this.listeners = new ArrayList<>();

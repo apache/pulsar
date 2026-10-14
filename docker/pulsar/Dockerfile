@@ -49,7 +49,7 @@ RUN for SUBDIRECTORY in conf data download logs instances/deps packages-storage;
      done
 
 RUN chmod -R g+rx /pulsar/bin
-RUN chmod -R o+rx /pulsar
+RUN chmod -R go+rX /pulsar
 
 # Enable snappy-java to use system lib
 RUN echo 'OPTS="$OPTS -Dorg.xerial.snappy.use.systemlib=true"' >> /pulsar/conf/bkenv.sh

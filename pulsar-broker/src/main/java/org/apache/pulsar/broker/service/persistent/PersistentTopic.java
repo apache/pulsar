@@ -288,9 +288,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private final TopicTransactionBuffer.MaxReadPositionCallBack maxReadPositionCallBack =
             (oldPosition, newPosition) -> updateMaxReadPositionMovedForwardTimestamp();
 
-    // Record the last time max read position is moved forward, unless it's a marker message.
+    // Record the last time max read position moved forward while replicated-subscription snapshots are active.
+    // Controller creation seeds this timestamp so that data published before activation is included in a snapshot.
     @Getter
     private volatile long lastMaxReadPositionMovedForwardTimestamp = 0;
+
+    // Preserve data activity for this topic instance even if its entries are trimmed before controller activation.
+    private volatile boolean maxReadPositionMovedForward = false;
 
     @Getter
     private final ExecutorService orderedExecutor;
@@ -512,14 +516,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     isAllowAutoUpdateSchema = policies.is_allow_auto_update_schema;
                 }, getPoliciesNotifyThread())
                 .thenCompose(ignore -> initTopicPolicy())
-                .thenCompose(ignore -> removeOrphanReplicationCursors())
-                .exceptionally(ex -> {
-                    log.warn("[{}] Error loading topic policies during initialization. Ignoring the failure. "
-                                    + "isEncryptionRequired will be set to false. {}",
-                            topic, ex.getMessage());
-                    isEncryptionRequired = false;
-                    return null;
-                }));
+                .thenCompose(ignore -> removeOrphanReplicationCursors()));
     }
 
     private void initializeDispatchRateLimiterIfNeeded() {
@@ -741,7 +738,23 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     private void updateMaxReadPositionMovedForwardTimestamp() {
+        // Set this before checking the controller so that activation's second seed cannot miss an inactive publish.
+        // Once set, later callbacks only read this flag; ordinary topics still avoid reading the wall clock.
+        if (!maxReadPositionMovedForward) {
+            maxReadPositionMovedForward = true;
+        }
+        if (replicatedSubscriptionsController.isEmpty()) {
+            return;
+        }
         lastMaxReadPositionMovedForwardTimestamp = Clock.systemUTC().millis();
+    }
+
+    private void seedMaxReadPositionMovedForwardTimestamp() {
+        // Retained entries also cover topics loaded from storage. Activity observed by this instance must survive
+        // ledger trimming. Recheck after publishing the controller reference to cover advances during construction.
+        if (maxReadPositionMovedForward || ledger.getNumberOfEntries() > 0) {
+            lastMaxReadPositionMovedForwardTimestamp = Clock.systemUTC().millis();
+        }
     }
 
     @Override
@@ -767,18 +780,22 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
          Instead, we will rely on the service unit state channel's bundle(topic) transfer protocol.
          At the end of the transfer protocol, at Owned state, the source broker should close the topic properly.
          */
+        PublishContext callback = (PublishContext) ctx;
         if (transferring) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Failed to persist msg in store: {} while transferring.",
                         topic, exception.getMessage(), exception);
             }
+            callback.completed(new TopicClosedException(exception), -1, -1);
+            decrementPendingWriteOpsAndCheck();
             return;
         }
 
-        PublishContext callback = (PublishContext) ctx;
         if (exception instanceof ManagedLedgerFencedException) {
             // If the managed ledger has been fenced, we cannot continue using it. We need to close and reopen
             close();
+            callback.completed(new TopicFencedException(exception.getMessage()), -1, -1);
+            decrementPendingWriteOpsAndCheck();
         } else {
             // fence topic when failed to write a message to BK
             fence();
@@ -1276,7 +1293,19 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 .getTransactionPendingAckStoreSuffix(topic,
                         Codec.encode(subscriptionName)));
         if (brokerService.pulsar().getConfiguration().isTransactionCoordinatorEnabled()) {
-            ManagedLedgerConfig managedLedgerConfig = ledger.getConfig();
+            ManagedLedgerConfig topicConfig = ledger.getConfig();
+            // The pending ack store is a separate managed ledger that owns its ledgers. The config of a shadow
+            // topic carries its shadow source, so a config without topic properties is used in that case. The
+            // storage class and the offloader of the topic are kept, since new pending ack stores are created
+            // with the config of the topic.
+            CompletableFuture<ManagedLedgerConfig> pendingAckStoreConfigFuture = topicConfig.getShadowSource() == null
+                    ? CompletableFuture.completedFuture(topicConfig)
+                    : brokerService.getManagedLedgerConfig(tn).thenApply(pendingAckStoreConfig -> {
+                        pendingAckStoreConfig.setStorageClassName(topicConfig.getStorageClassName());
+                        pendingAckStoreConfig.setLedgerOffloader(topicConfig.getLedgerOffloader());
+                        return pendingAckStoreConfig;
+                    });
+            pendingAckStoreConfigFuture.thenAccept(managedLedgerConfig -> {
                 ManagedLedgerFactory managedLedgerFactory = getBrokerService()
                         .getManagedLedgerFactoryForTopic(tn, managedLedgerConfig.getStorageClassName());
                 managedLedgerFactory.asyncDelete(tn.getPersistenceNamingEncoding(),
@@ -1299,6 +1328,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                     topic, subscriptionName, exception);
                         }
                     }, null);
+            }).exceptionally(ex -> {
+                Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                unsubscribeFuture.completeExceptionally(cause);
+                log.error("[{}][{}] Error deleting subscription pending ack store",
+                        topic, subscriptionName, cause);
+                return null;
+            });
         } else {
             asyncDeleteCursorWithClearDelayedMessage(subscriptionName, unsubscribeFuture);
         }
@@ -2243,7 +2279,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     private CompletableFuture<Void> checkShadowReplication() {
-        if (CollectionUtils.isEmpty(shadowTopics)) {
+        if (!brokerService.pulsar().getConfiguration().isEnableShadowTopics()
+                || CollectionUtils.isEmpty(shadowTopics)) {
             return CompletableFuture.completedFuture(null);
         }
         List<String> configuredShadowTopics = shadowTopics;
@@ -3795,7 +3832,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         // Client permission check.
         subscriptions.forEach((subName, sub) -> {
-            sub.getConsumers().forEach(consumer -> applyPoliciesFutureList.add(consumer.checkPermissionsAsync()));
+            sub.getConsumers().forEach(consumer -> {
+                consumer.reconcileBlockedStateAfterPolicyUpdate();
+                applyPoliciesFutureList.add(consumer.checkPermissionsAsync());
+            });
         });
         producers.values().forEach(producer -> applyPoliciesFutureList.add(
                 producer.checkPermissionsAsync().thenRun(producer::checkEncryption)));
@@ -4804,8 +4844,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         if (shouldBeEnabled && !isCurrentlyEnabled && isEnableReplicatedSubscriptions && replicationEnabled) {
             log.info("[{}] Enabling replicated subscriptions controller", topic);
+            // Force the new controller's first snapshot to cover messages published before it was enabled.
+            // Seed before construction because the controller schedules its first snapshot from its constructor.
+            seedMaxReadPositionMovedForwardTimestamp();
             replicatedSubscriptionsController = Optional.of(new ReplicatedSubscriptionsController(this,
                     brokerService.pulsar().getConfiguration().getClusterName()));
+            // Cover a max-read-position advance racing with construction, before the controller became visible.
+            seedMaxReadPositionMovedForwardTimestamp();
         } else if (isCurrentlyEnabled && (!shouldBeEnabled || !isEnableReplicatedSubscriptions
                 || !replicationEnabled)) {
             log.info("[{}] Disabled replicated subscriptions controller", topic);

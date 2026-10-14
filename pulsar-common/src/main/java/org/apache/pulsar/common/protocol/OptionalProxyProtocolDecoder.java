@@ -26,6 +26,7 @@ import io.netty.handler.codec.ProtocolDetectionResult;
 import io.netty.handler.codec.ProtocolDetectionState;
 import io.netty.handler.codec.haproxy.HAProxyMessageDecoder;
 import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
+import io.netty.util.ReferenceCountUtil;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -72,10 +73,14 @@ public class OptionalProxyProtocolDecoder extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-        super.channelInactive(ctx);
-        if (cumulatedByteBuf != null) {
-            log.info("Release cumulated byte buffer when channel inactive.");
-            cumulatedByteBuf = null;
+        try {
+            super.channelInactive(ctx);
+        } finally {
+            if (cumulatedByteBuf != null) {
+                log.info("Release cumulated byte buffer when channel inactive.");
+                ReferenceCountUtil.safeRelease(cumulatedByteBuf);
+                cumulatedByteBuf = null;
+            }
         }
     }
 }

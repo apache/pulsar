@@ -67,16 +67,19 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import javax.naming.AuthenticationException;
+import javax.ws.rs.core.Response;
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -116,9 +119,13 @@ import org.apache.pulsar.broker.namespace.TopicExistsInfo;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.ServerCnx.State;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.utils.ClientChannelHelper;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
+import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.ProducerAccessMode;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.AuthMethod;
@@ -134,6 +141,8 @@ import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartitionResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscriptionResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandError;
+import org.apache.pulsar.common.api.proto.CommandGetOrCreateSchemaResponse;
+import org.apache.pulsar.common.api.proto.CommandGetSchemaResponse;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespaceResponse;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
@@ -155,9 +164,11 @@ import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicOperation;
+import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Commands.ChecksumType;
@@ -166,7 +177,9 @@ import org.apache.pulsar.common.protocol.schema.EmptyVersion;
 import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
+import org.apache.pulsar.utils.TestLogAppender;
 import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
@@ -3672,6 +3685,334 @@ public class ServerCnxTest {
         channel.finish();
     }
 
+    @DataProvider
+    public Object[][] partitionMetadataPolicyFailures() {
+        return new Object[][]{{true, true}, {true, false}, {false, true}, {false, false}};
+    }
+
+    @Test(dataProvider = "partitionMetadataPolicyFailures", timeOut = 30000)
+    public void testPartitionMetadataPolicyFailure(boolean metadataAutoCreationEnabled, boolean alreadyFailed)
+            throws Exception {
+        resetChannel();
+        channel.writeInbound(Commands.newConnect("none", "", null));
+        assertThat(getResponse()).isInstanceOf(CommandConnected.class);
+
+        var lookupSemaphore = brokerService.getLookupRequestSemaphore();
+        int initialPermits = lookupSemaphore.availablePermits();
+        TopicName topicName = TopicName.get(successTopicName);
+        for (long requestId = 1; requestId <= 3; requestId++) {
+            CompletableFuture<Boolean> policyFuture = new CompletableFuture<>();
+            doReturn(policyFuture).when(brokerService).isAllowAutoTopicCreationAsync(topicName);
+            MetadataStoreException failure = new MetadataStoreException("Namespace policy read failed");
+            if (alreadyFailed) {
+                policyFuture.completeExceptionally(failure);
+            }
+
+            channel.writeInbound(Commands.newPartitionMetadataRequest(successTopicName, requestId,
+                    metadataAutoCreationEnabled));
+            if (!alreadyFailed) {
+                assertThat(lookupSemaphore.availablePermits()).isEqualTo(initialPermits - 1);
+                assertThat(channel.outboundMessages()).isEmpty();
+                policyFuture.completeExceptionally(failure);
+            }
+
+            channel.runPendingTasks();
+            assertThat(channel.outboundMessages()).as("Immediate and single error response").hasSize(1);
+            CommandPartitionedTopicMetadataResponse response =
+                    (CommandPartitionedTopicMetadataResponse) getResponse();
+            assertThat(response.getRequestId()).isEqualTo(requestId);
+            assertThat(response.getError()).isEqualTo(ServerError.MetadataError);
+            assertThat(lookupSemaphore.availablePermits()).isEqualTo(initialPermits);
+            assertThat(channel.outboundMessages()).isEmpty();
+        }
+        verify(namespaceService, never()).checkTopicExistsAsync(topicName);
+        channel.finishAndReleaseAll();
+    }
+
+    @Test(timeOut = 30000)
+    public void testPartitionMetadataResponseCleanupFailure() throws Exception {
+        resetChannel();
+        channel.writeInbound(Commands.newConnect("none", "", null));
+        assertThat(getResponse()).isInstanceOf(CommandConnected.class);
+
+        TopicName topicName = TopicName.get(successTopicName);
+        doReturn(CompletableFuture.completedFuture(false)).when(brokerService)
+                .isAllowAutoTopicCreationAsync(topicName);
+        TopicExistsInfo topicExistsInfo = mock(TopicExistsInfo.class);
+        when(topicExistsInfo.isExists()).thenReturn(true);
+        when(topicExistsInfo.getTopicType()).thenReturn(TopicType.PARTITIONED);
+        when(topicExistsInfo.getPartitions()).thenReturn(3);
+        IllegalStateException cleanupFailure = new IllegalStateException("Recycle failed");
+        Mockito.doThrow(cleanupFailure).when(topicExistsInfo).recycle();
+        doReturn(CompletableFuture.completedFuture(topicExistsInfo)).when(namespaceService)
+                .checkTopicExistsAsync(topicName);
+
+        var lookupSemaphore = brokerService.getLookupRequestSemaphore();
+        int initialPermits = lookupSemaphore.availablePermits();
+        try (TestLogAppender appender = TestLogAppender.create(ServerCnx.class)) {
+            channel.writeInbound(Commands.newPartitionMetadataRequest(successTopicName, 1, false));
+            channel.runPendingTasks();
+            assertThat(channel.outboundMessages()).as("Cleanup must not send a second response").hasSize(1);
+            CommandPartitionedTopicMetadataResponse response =
+                    (CommandPartitionedTopicMetadataResponse) getResponse();
+            assertThat(response.hasError()).isFalse();
+            assertThat(response.getPartitions()).isEqualTo(3);
+            assertThat(lookupSemaphore.availablePermits()).isEqualTo(initialPermits);
+            verify(topicExistsInfo).recycle();
+            assertThat(channel.outboundMessages()).isEmpty();
+            assertThat(appender.getEvents())
+                    .filteredOn(event -> event.getThrown() == cleanupFailure)
+                    .as("Unexpected cleanup failures must remain visible")
+                    .hasSize(1);
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @DataProvider
+    public Object[][] partitionMetadataAuthorizationResults() {
+        return new Object[][]{
+                {CompletableFuture.completedFuture(false), ServerError.AuthorizationError},
+                {CompletableFuture.failedFuture(new IllegalStateException("Authorization failed")),
+                        ServerError.AuthorizationError},
+                {CompletableFuture.failedFuture(new RestException(Response.Status.NOT_FOUND, "Namespace not found")),
+                        ServerError.TopicNotFound}
+        };
+    }
+
+    @Test(dataProvider = "partitionMetadataAuthorizationResults", timeOut = 30000)
+    public void testPartitionMetadataAuthorizationResult(CompletableFuture<Boolean> authorizationFuture,
+                                                         ServerError expectedError) throws Exception {
+        resetChannel();
+        channel.writeInbound(Commands.newConnect("none", "", null));
+        assertThat(getResponse()).isInstanceOf(CommandConnected.class);
+        svcConfig.setAuthorizationEnabled(true);
+        AuthorizationService authorizationService = mock(AuthorizationService.class);
+        doReturn(authorizationService).when(brokerService).getAuthorizationService();
+        doReturn(authorizationFuture).when(authorizationService)
+                .allowTopicOperationAsync(any(), any(), any(), any(), any(), any());
+
+        var lookupSemaphore = brokerService.getLookupRequestSemaphore();
+        int initialPermits = lookupSemaphore.availablePermits();
+        channel.writeInbound(Commands.newPartitionMetadataRequest(successTopicName, 1, true));
+        channel.runPendingTasks();
+        assertThat(channel.outboundMessages()).hasSize(1);
+        CommandPartitionedTopicMetadataResponse response =
+                (CommandPartitionedTopicMetadataResponse) getResponse();
+        assertThat(response.getError()).isEqualTo(expectedError);
+        assertThat(lookupSemaphore.availablePermits()).isEqualTo(initialPermits);
+        verify(authorizationService).allowTopicOperationAsync(any(), any(), any(), any(), any(), any());
+        verify(namespaceService, never()).checkTopicExistsAsync(any());
+        assertThat(channel.outboundMessages()).isEmpty();
+        channel.finishAndReleaseAll();
+    }
+
+    @DataProvider
+    public Object[][] partitionMetadataExistingTopics() {
+        return new Object[][]{{true, 3}, {true, 0}, {false, 0}};
+    }
+
+    @Test(dataProvider = "partitionMetadataExistingTopics", timeOut = 30000)
+    public void testPartitionMetadataExistingTopicResult(boolean exists, int partitions) throws Exception {
+        resetChannel();
+        channel.writeInbound(Commands.newConnect("none", "", null));
+        assertThat(getResponse()).isInstanceOf(CommandConnected.class);
+
+        TopicName topicName = TopicName.get(successTopicName);
+        // The client disables creation even though the broker allows it.
+        doReturn(CompletableFuture.completedFuture(true)).when(brokerService)
+                .isAllowAutoTopicCreationAsync(topicName);
+        CompletableFuture<TopicExistsInfo> lookupFuture = new CompletableFuture<>();
+        doReturn(lookupFuture).when(namespaceService).checkTopicExistsAsync(topicName);
+        var lookupSemaphore = brokerService.getLookupRequestSemaphore();
+        int initialPermits = lookupSemaphore.availablePermits();
+        try {
+            channel.writeInbound(Commands.newPartitionMetadataRequest(successTopicName, 1, false));
+            assertThat(lookupSemaphore.availablePermits()).isEqualTo(initialPermits - 1);
+            assertThat(channel.outboundMessages()).isEmpty();
+
+            TopicExistsInfo info = mock(TopicExistsInfo.class);
+            when(info.isExists()).thenReturn(exists);
+            when(info.getTopicType()).thenReturn(partitions > 0 ? TopicType.PARTITIONED : TopicType.NON_PARTITIONED);
+            when(info.getPartitions()).thenReturn(partitions);
+            lookupFuture.complete(info);
+            channel.runPendingTasks();
+            assertThat(channel.outboundMessages()).hasSize(1);
+            CommandPartitionedTopicMetadataResponse response =
+                    (CommandPartitionedTopicMetadataResponse) getResponse();
+            assertThat(response.getRequestId()).isEqualTo(1);
+            assertThat(response.hasError()).isEqualTo(!exists);
+            if (exists) {
+                assertThat(response.getPartitions()).isEqualTo(partitions);
+            } else {
+                assertThat(response.getError()).isEqualTo(ServerError.TopicNotFound);
+            }
+            verify(info).recycle();
+            assertThat(lookupSemaphore.availablePermits()).isEqualTo(initialPermits);
+            assertThat(channel.outboundMessages()).isEmpty();
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @DataProvider
+    public Object[][] partitionMetadataCreationPolicies() {
+        return new Object[][]{{true}, {false}};
+    }
+
+    @Test(dataProvider = "partitionMetadataCreationPolicies", timeOut = 30000)
+    public void testPartitionMetadataDelayedStages(boolean brokerAllowAutoCreate) throws Exception {
+        resetChannel();
+        channel.writeInbound(Commands.newConnect("none", "", null));
+        assertThat(getResponse()).isInstanceOf(CommandConnected.class);
+        svcConfig.setAuthorizationEnabled(true);
+        AuthorizationService authorizationService = mock(AuthorizationService.class);
+        doReturn(authorizationService).when(brokerService).getAuthorizationService();
+        CompletableFuture<Boolean> authorizationFuture = new CompletableFuture<>();
+        doReturn(authorizationFuture).when(authorizationService)
+                .allowTopicOperationAsync(any(), any(), any(), any(), any(), any());
+
+        TopicName topicName = TopicName.get(successTopicName);
+        Policies policies = new Policies();
+        policies.replication_clusters.add(svcConfig.getClusterName());
+        pulsarTestContext.getPulsarResources().getNamespaceResources()
+                .createPolicies(topicName.getNamespaceObject(), policies);
+        CompletableFuture<Boolean> policyFuture = new CompletableFuture<>();
+        AtomicInteger policyReads = new AtomicInteger();
+        doAnswer(invocation -> {
+            policyReads.incrementAndGet();
+            return policyFuture;
+        }).when(brokerService).isAllowAutoTopicCreationAsync(topicName);
+        CompletableFuture<Void> lookupStarted = new CompletableFuture<>();
+        CompletableFuture<TopicExistsInfo> existingTopicFuture = new CompletableFuture<>();
+        CompletableFuture<PartitionedTopicMetadata> metadataFuture = new CompletableFuture<>();
+        doAnswer(invocation -> {
+            lookupStarted.complete(null);
+            return existingTopicFuture;
+        }).when(namespaceService).checkTopicExistsAsync(topicName);
+        doAnswer(invocation -> {
+            lookupStarted.complete(null);
+            return metadataFuture;
+        }).when(brokerService).fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName);
+
+        var lookupSemaphore = brokerService.getLookupRequestSemaphore();
+        int initialPermits = lookupSemaphore.availablePermits();
+        try {
+            channel.writeInbound(Commands.newPartitionMetadataRequest(successTopicName, 1, true));
+            assertThat(policyReads.get()).as("Policy lookup must wait for authorization").isZero();
+            assertThat(lookupStarted.isDone()).isFalse();
+            assertThat(lookupSemaphore.availablePermits()).isEqualTo(initialPermits - 1);
+            assertThat(channel.outboundMessages()).isEmpty();
+
+            authorizationFuture.complete(true);
+            assertThat(policyReads.get()).isEqualTo(1);
+            assertThat(lookupStarted.isDone()).as("Metadata lookup must wait for the policy").isFalse();
+            assertThat(lookupSemaphore.availablePermits()).isEqualTo(initialPermits - 1);
+            assertThat(channel.outboundMessages()).isEmpty();
+
+            policyFuture.complete(brokerAllowAutoCreate);
+            lookupStarted.get(10, TimeUnit.SECONDS);
+            assertThat(lookupSemaphore.availablePermits()).as("Lookup still owns the permit")
+                    .isEqualTo(initialPermits - 1);
+            assertThat(channel.outboundMessages()).isEmpty();
+            if (brokerAllowAutoCreate) {
+                verify(namespaceService, never()).checkTopicExistsAsync(topicName);
+                metadataFuture.complete(new PartitionedTopicMetadata(3));
+            } else {
+                verify(namespaceService).checkTopicExistsAsync(topicName);
+                existingTopicFuture.complete(TopicExistsInfo.newPartitionedTopicExists(3));
+            }
+
+            channel.runPendingTasks();
+            assertThat(channel.outboundMessages()).hasSize(1);
+            CommandPartitionedTopicMetadataResponse response =
+                    (CommandPartitionedTopicMetadataResponse) getResponse();
+            assertThat(response.getRequestId()).isEqualTo(1);
+            assertThat(response.hasError()).isFalse();
+            assertThat(response.getPartitions()).isEqualTo(3);
+            assertThat(lookupSemaphore.availablePermits()).isEqualTo(initialPermits);
+            assertThat(channel.outboundMessages()).isEmpty();
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @DataProvider
+    public Object[][] partitionMetadataLookupFailures() {
+        Object[][] failures = {
+                {new RestException(Response.Status.NOT_FOUND, "Not found"), ServerError.TopicNotFound},
+                {new RestException(Response.Status.BAD_REQUEST, "Invalid metadata"), ServerError.MetadataError},
+                {new RestException(Response.Status.INTERNAL_SERVER_ERROR, "Unavailable"), ServerError.ServiceNotReady},
+                {new MetadataStoreException("Metadata read failed"), ServerError.MetadataError},
+                {new PulsarClientException.AuthorizationException("Denied"), ServerError.AuthorizationError},
+                {new IllegalStateException("Lookup failed"), ServerError.ServiceNotReady}
+        };
+        List<Object[]> cases = new ArrayList<>();
+        for (Object[] failure : failures) {
+            // The same cause maps differently in the existing-topic and auto-creation paths.
+            cases.add(new Object[]{false, new CompletionException((Throwable) failure[0]), ServerError.MetadataError});
+            cases.add(new Object[]{true, new CompletionException((Throwable) failure[0]), failure[1]});
+        }
+        return cases.toArray(new Object[0][]);
+    }
+
+    @Test(dataProvider = "partitionMetadataLookupFailures", timeOut = 30000)
+    public void testPartitionMetadataLookupFailure(boolean brokerAllowAutoCreate, Throwable failure,
+                                                   ServerError expectedError) throws Exception {
+        resetChannel();
+        channel.writeInbound(Commands.newConnect("none", "", null));
+        assertThat(getResponse()).isInstanceOf(CommandConnected.class);
+
+        TopicName topicName = TopicName.get(successTopicName);
+        doReturn(CompletableFuture.completedFuture(brokerAllowAutoCreate)).when(brokerService)
+                .isAllowAutoTopicCreationAsync(topicName);
+        CompletableFuture<TopicExistsInfo> existingTopicFuture = new CompletableFuture<>();
+        CompletableFuture<PartitionedTopicMetadata> metadataFuture = new CompletableFuture<>();
+        CompletableFuture<Void> lookupStarted = new CompletableFuture<>();
+        if (brokerAllowAutoCreate) {
+            Policies policies = new Policies();
+            policies.replication_clusters.add(svcConfig.getClusterName());
+            pulsarTestContext.getPulsarResources().getNamespaceResources()
+                    .createPolicies(topicName.getNamespaceObject(), policies);
+            doAnswer(invocation -> {
+                lookupStarted.complete(null);
+                return metadataFuture;
+            }).when(brokerService).fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName);
+        } else {
+            doReturn(existingTopicFuture).when(namespaceService).checkTopicExistsAsync(topicName);
+        }
+
+        var lookupSemaphore = brokerService.getLookupRequestSemaphore();
+        int initialPermits = lookupSemaphore.availablePermits();
+        try {
+            // Broker policy chooses the branch while the client allows creation.
+            channel.writeInbound(Commands.newPartitionMetadataRequest(successTopicName, 1, true));
+            if (brokerAllowAutoCreate) {
+                lookupStarted.get(10, TimeUnit.SECONDS);
+                verify(namespaceService, never()).checkTopicExistsAsync(topicName);
+            } else {
+                verify(namespaceService).checkTopicExistsAsync(topicName);
+            }
+            assertThat(lookupSemaphore.availablePermits()).isEqualTo(initialPermits - 1);
+            assertThat(channel.outboundMessages()).isEmpty();
+            if (brokerAllowAutoCreate) {
+                metadataFuture.completeExceptionally(failure);
+            } else {
+                existingTopicFuture.completeExceptionally(failure);
+            }
+            channel.runPendingTasks();
+            assertThat(channel.outboundMessages()).hasSize(1);
+            CommandPartitionedTopicMetadataResponse response =
+                    (CommandPartitionedTopicMetadataResponse) getResponse();
+            assertThat(response.getRequestId()).isEqualTo(1);
+            assertThat(response.getError()).isEqualTo(expectedError);
+            assertThat(lookupSemaphore.availablePermits()).isEqualTo(initialPermits);
+            assertThat(channel.outboundMessages()).isEmpty();
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
     @Test(timeOut = 30000)
     public void sendAddPartitionToTxnResponse() throws Exception {
         final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
@@ -3818,6 +4159,176 @@ public class ServerCnxTest {
         channel.finish();
     }
 
+    private AuthorizationService mockTopicAuthorization(boolean allowed) {
+        AuthorizationService authorizationService = mock(AuthorizationService.class);
+        doReturn(CompletableFuture.completedFuture(allowed)).when(authorizationService)
+                .allowTopicOperationAsync(Mockito.any(),
+                        Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
+        doReturn(authorizationService).when(brokerService).getAuthorizationService();
+        svcConfig.setAuthenticationEnabled(true);
+        svcConfig.setAuthorizationEnabled(true);
+        return authorizationService;
+    }
+
+    private AtomicInteger countSchemaReads() {
+        AtomicInteger schemaReads = new AtomicInteger();
+        SchemaRegistryService schemaRegistryService = pulsar.getSchemaRegistryService();
+        doAnswer(invocation -> {
+            schemaReads.incrementAndGet();
+            return CompletableFuture.completedFuture(null);
+        }).when(schemaRegistryService).getSchema(any(), any());
+        return schemaReads;
+    }
+
+    @Test(timeOut = 30000)
+    public void testGetSchemaRequiresLookupPermission() throws Exception {
+        AuthorizationService authorizationService = mockTopicAuthorization(false);
+        AtomicInteger schemaReads = countSchemaReads();
+        resetChannel();
+        setChannelConnected();
+
+        channel.writeInbound(Commands.newGetSchema(1L, successTopicName, Optional.empty()));
+        CommandGetSchemaResponse response = (CommandGetSchemaResponse) getResponse();
+
+        assertEquals(response.getErrorCode(), ServerError.AuthorizationError);
+        verify(authorizationService, times(1)).allowTopicOperationAsync(eq(TopicName.get(successTopicName)),
+                eq(TopicOperation.LOOKUP), any(), any(), any(), any());
+        assertEquals(schemaReads.get(), 0);
+
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testGetSchemaWithLookupPermission() throws Exception {
+        mockTopicAuthorization(true);
+        AtomicInteger schemaReads = countSchemaReads();
+        resetChannel();
+        setChannelConnected();
+
+        channel.writeInbound(Commands.newGetSchema(1L, successTopicName, Optional.empty()));
+        CommandGetSchemaResponse response = (CommandGetSchemaResponse) getResponse();
+
+        // The registry holds no schema, so an authorized request reaches it and gets TopicNotFound.
+        assertEquals(response.getErrorCode(), ServerError.TopicNotFound);
+        assertEquals(schemaReads.get(), 1);
+
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testGetOrCreateSchemaRequiresProducePermission() throws Exception {
+        AuthorizationService authorizationService = mockTopicAuthorization(false);
+        AtomicBoolean topicLookedUp = new AtomicBoolean();
+        doAnswer(invocation -> {
+            topicLookedUp.set(true);
+            return CompletableFuture.completedFuture(Optional.empty());
+        }).when(brokerService).getTopicIfExists(any(String.class));
+        resetChannel();
+        setChannelConnected();
+
+        channel.writeInbound(Commands.newGetOrCreateSchema(1L, successTopicName,
+                Schema.STRING.getSchemaInfo()));
+        CommandGetOrCreateSchemaResponse response = (CommandGetOrCreateSchemaResponse) getResponse();
+
+        assertEquals(response.getErrorCode(), ServerError.AuthorizationError);
+        verify(authorizationService, times(1)).allowTopicOperationAsync(eq(TopicName.get(successTopicName)),
+                eq(TopicOperation.PRODUCE), any(), any(), any(), any());
+        assertFalse(topicLookedUp.get());
+
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testGetOrCreateSchemaWithProducePermission() throws Exception {
+        mockTopicAuthorization(true);
+        AtomicBoolean topicLookedUp = new AtomicBoolean();
+        doAnswer(invocation -> {
+            topicLookedUp.set(true);
+            return CompletableFuture.completedFuture(Optional.empty());
+        }).when(brokerService).getTopicIfExists(any(String.class));
+        resetChannel();
+        setChannelConnected();
+
+        channel.writeInbound(Commands.newGetOrCreateSchema(1L, successTopicName,
+                Schema.STRING.getSchemaInfo()));
+        CommandGetOrCreateSchemaResponse response = (CommandGetOrCreateSchemaResponse) getResponse();
+
+        // No topic is loaded, so an authorized request reaches the topic lookup and gets TopicNotFound.
+        assertEquals(response.getErrorCode(), ServerError.TopicNotFound);
+        assertTrue(topicLookedUp.get());
+
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testAddPartitionToTxnRefusedWhenOnePartitionIsDenied() throws Exception {
+        AuthorizationService authorizationService = mockTopicAuthorization(true);
+        doReturn(CompletableFuture.completedFuture(false)).when(authorizationService)
+                .allowTopicOperationAsync(eq(TopicName.get("tenant/ns/denied")),
+                        Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
+        final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
+        when(txnStore.verifyTxnOwnership(any(), any())).thenReturn(CompletableFuture.completedFuture(true));
+        when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
+        svcConfig.setTransactionCoordinatorEnabled(true);
+        resetChannel();
+        setChannelConnected();
+
+        channel.writeInbound(Commands.newAddPartitionToTxn(89L, 1L, 12L,
+                List.of("tenant/ns/allowed", "tenant/ns/denied")));
+        CommandAddPartitionToTxnResponse response = (CommandAddPartitionToTxnResponse) getResponse();
+
+        assertEquals(response.getError(), ServerError.AuthorizationError);
+        verify(txnStore, never()).addProducedPartitionToTxn(any(TxnID.class), any());
+
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testAddPartitionToTxnRequiresProducePermission() throws Exception {
+        AuthorizationService authorizationService = mockTopicAuthorization(false);
+        final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
+        when(txnStore.verifyTxnOwnership(any(), any())).thenReturn(CompletableFuture.completedFuture(true));
+        when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
+        svcConfig.setTransactionCoordinatorEnabled(true);
+        resetChannel();
+        setChannelConnected();
+
+        channel.writeInbound(Commands.newAddPartitionToTxn(89L, 1L, 12L, List.of("tenant/ns/topic1")));
+        CommandAddPartitionToTxnResponse response = (CommandAddPartitionToTxnResponse) getResponse();
+
+        assertEquals(response.getError(), ServerError.AuthorizationError);
+        verify(authorizationService, times(1)).allowTopicOperationAsync(eq(TopicName.get("tenant/ns/topic1")),
+                eq(TopicOperation.PRODUCE), any(), any(), any(), any());
+        verify(txnStore, never()).addProducedPartitionToTxn(any(TxnID.class), any());
+
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testAddSubscriptionToTxnRequiresConsumePermission() throws Exception {
+        AuthorizationService authorizationService = mockTopicAuthorization(false);
+        final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
+        when(txnStore.verifyTxnOwnership(any(), any())).thenReturn(CompletableFuture.completedFuture(true));
+        when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
+        svcConfig.setTransactionCoordinatorEnabled(true);
+        resetChannel();
+        setChannelConnected();
+        final Subscription sub = new Subscription();
+        sub.setTopic("topic1");
+        sub.setSubscription("sub1");
+
+        channel.writeInbound(Commands.newAddSubscriptionToTxn(89L, 1L, 12L, List.of(sub)));
+        CommandAddSubscriptionToTxnResponse response = (CommandAddSubscriptionToTxnResponse) getResponse();
+
+        assertEquals(response.getError(), ServerError.AuthorizationError);
+        verify(authorizationService, times(1)).allowTopicOperationAsync(eq(TopicName.get("topic1")),
+                eq(TopicOperation.CONSUME), any(), any(), any(), argThat(arg ->
+                        arg instanceof AuthenticationDataSubscription
+                                && "sub1".equals(((AuthenticationDataSubscription) arg).getSubscription())));
+        verify(txnStore, never()).addAckedPartitionToTxn(any(TxnID.class), any());
+
+        channel.finish();
+    }
 
     @Test(timeOut = 30000)
     public void sendEndTxnResponse() throws Exception {

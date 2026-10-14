@@ -37,6 +37,7 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import static org.testng.AssertJUnit.assertFalse;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.EventLoopGroup;
@@ -210,6 +211,64 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassicTest {
             orderedExecutor.shutdownNow();
             orderedExecutor = null;
         }
+    }
+
+    @Test
+    public void testNormalReadIsBoundedByKeySharedLookAheadLimit() throws Exception {
+        doReturn(5).when(configMock).getKeySharedLookAheadMsgInReplayThresholdPerConsumer();
+        doReturn(10).when(configMock).getKeySharedLookAheadMsgInReplayThresholdPerSubscription();
+        persistentDispatcher.addConsumer(consumerMock).get();
+
+        persistentDispatcher.redeliveryMessages.add(1, 1, 1);
+        persistentDispatcher.redeliveryMessages.add(1, 2, 1);
+        persistentDispatcher.redeliveryMessages.add(1, 3, 1);
+
+        assertTrue(persistentDispatcher.hasConsumersNeededNormalRead());
+
+        persistentDispatcher.redeliveryMessages.add(1, 4, 1);
+        persistentDispatcher.redeliveryMessages.add(1, 5, 1);
+
+        assertFalse(persistentDispatcher.hasConsumersNeededNormalRead());
+    }
+
+    @Test(timeOut = 10000)
+    public void testConsumerFlowResumesDispatchWhenReplayQueueIsFull() throws Exception {
+        doReturn(1).when(configMock).getKeySharedLookAheadMsgInReplayThresholdPerConsumer();
+        doReturn(1).when(configMock).getKeySharedLookAheadMsgInReplayThresholdPerSubscription();
+
+        AtomicInteger availablePermits = new AtomicInteger();
+        Consumer slowConsumer = createMockConsumer();
+        doReturn("slow-consumer").when(slowConsumer).consumerName();
+        doAnswer(invocation -> availablePermits.get()).when(slowConsumer).getAvailablePermits();
+        doReturn(true).when(slowConsumer).isWritable();
+        CountDownLatch messageSent = new CountDownLatch(1);
+        mockSendMessages(slowConsumer, entries -> messageSent.countDown());
+        persistentDispatcher.addConsumer(slowConsumer).get();
+
+        StickyKeyConsumerSelector selector = persistentDispatcher.getSelector();
+        String key = generateKeyForConsumer(selector, slowConsumer);
+        Entry entry = createEntry(1, 1, "message", 1, key);
+        int stickyKeyHash = selector.makeStickyKeyHash(key.getBytes(UTF_8));
+        persistentDispatcher.redeliveryMessages.add(1, 1, stickyKeyHash);
+        assertFalse(persistentDispatcher.hasConsumersNeededNormalRead());
+
+        doAnswer(invocation -> {
+            AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(1);
+            Object ctx = invocation.getArgument(2);
+            callback.readEntriesComplete(copyEntries(List.of(entry)), ctx);
+            return Collections.emptySet();
+        }).when(cursorMock).asyncReplayEntries(anySet(), any(), any(), anyBoolean());
+
+        availablePermits.set(1);
+        persistentDispatcher.consumerFlow(slowConsumer, 1);
+
+        assertTrue(messageSent.await(5, TimeUnit.SECONDS));
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(persistentDispatcher.redeliveryMessages.isEmpty());
+            assertTrue(persistentDispatcher.hasConsumersNeededNormalRead());
+        });
+
+        entry.release();
     }
 
     @Test(timeOut = 10000)

@@ -502,7 +502,7 @@ public class ClientCnx extends PulsarHandler {
                 producer.printWarnLogWhenCanNotDetermineDeduplication(ctx.channel(), sequenceId, highestSequenceId);
             }
 
-        } else {
+        } else if (producer != null) {
             if (log.isDebugEnabled()) {
                 log.debug("{} Got receipt for producer: [id:{}, name:{}] -- sequence-id: {}-{} -- entry-id: {}:{}",
                         ctx.channel(), producerId, producer.getProducerName(), sequenceId, highestSequenceId,

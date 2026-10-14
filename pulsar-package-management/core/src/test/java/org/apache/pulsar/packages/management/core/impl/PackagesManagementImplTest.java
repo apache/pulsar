@@ -23,6 +23,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -33,6 +34,7 @@ import org.apache.pulsar.packages.management.core.PackagesStorageProvider;
 import org.apache.pulsar.packages.management.core.common.PackageMetadata;
 import org.apache.pulsar.packages.management.core.common.PackageMetadataUtil;
 import org.apache.pulsar.packages.management.core.common.PackageName;
+import org.apache.pulsar.packages.management.core.common.PackageType;
 import org.apache.pulsar.packages.management.core.exceptions.PackagesManagementException;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -254,5 +256,24 @@ public class PackagesManagementImplTest {
         Assert.assertEquals(metaPath, "function/public/default/test/v1/meta");
         dataPath = impl.packagePath(pn);
         Assert.assertEquals(dataPath, "function/public/default/test/v1/tmp");
+    }
+
+    @Test
+    public void testListPackagesRejectsInvalidNamespace() throws Exception {
+        PackageName packageName = PackageName.get("function://tenant/ns/name@v1");
+        packagesManagement.upload(packageName, PackageMetadata.builder().description("test").build(),
+                new ByteArrayInputStream("test".getBytes())).get();
+        Assert.assertEquals(packagesManagement.list(PackageType.FUNCTION, "tenant", "ns").get(),
+                Collections.singletonList("name"));
+
+        for (String[] tenantAndNamespace : new String[][]{
+                {"tenant", ".."}, {"tenant", "."}, {"tenant", ""}, {"tenant", "ns/name"}, {"..", "tenant"}}) {
+            try {
+                packagesManagement.list(PackageType.FUNCTION, tenantAndNamespace[0], tenantAndNamespace[1]).get();
+                Assert.fail("Listing should have been rejected for " + String.join("/", tenantAndNamespace));
+            } catch (ExecutionException e) {
+                Assert.assertTrue(e.getCause() instanceof IllegalArgumentException, "Unexpected exception " + e);
+            }
+        }
     }
 }

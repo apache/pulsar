@@ -29,7 +29,6 @@ import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
-import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.proto.CompressionType;
 import org.apache.pulsar.common.api.proto.MessageIdData;
@@ -196,6 +195,7 @@ public class RawBatchMessageContainerImpl extends BatchMessageContainerImpl {
 
         ByteBuf encryptedPayload = encrypt(getCompressedBatchMetadataAndPayload());
         ByteBuf metadataAndPayload = null;
+        ByteBuf buf = null;
         try {
             updateAndReserveBatchAllocatedSize(encryptedPayload.capacity());
             metadataAndPayload = Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c,
@@ -211,15 +211,17 @@ public class RawBatchMessageContainerImpl extends BatchMessageContainerImpl {
             int idSize = idData.getSerializedSize();
             int headerSize = 4 /* IdSize */ + idSize + 4 /* metadataAndPayloadSize */;
             int totalSize = headerSize + metadataAndPayload.readableBytes();
-            ByteBuf buf = PulsarByteBufAllocator.DEFAULT.buffer(totalSize);
+            buf = allocator.buffer(totalSize);
             buf.writeInt(idSize);
             idData.writeTo(buf);
             buf.writeInt(metadataAndPayload.readableBytes());
             buf.writeBytes(metadataAndPayload);
-            return buf;
+            ByteBuf result = buf;
+            buf = null;
+            return result;
         } finally {
-            // Release everything allocated for this serialization on both success and failure, so a failure after
-            // the batch buffer was built (e.g. an OOM) cannot orphan it.
+            // buf is nulled on the success path, where its ownership moved to the returned buffer.
+            ReferenceCountUtil.safeRelease(buf);
             ReferenceCountUtil.safeRelease(metadataAndPayload);
             ReferenceCountUtil.safeRelease(encryptedPayload);
             clear();

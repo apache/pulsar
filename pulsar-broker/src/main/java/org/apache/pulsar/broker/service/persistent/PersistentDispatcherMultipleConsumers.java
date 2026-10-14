@@ -345,7 +345,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         }
     }
 
-    public synchronized void readMoreEntries() {
+    @Override
+    protected synchronized void internalReadMoreEntries() {
         if (cursor.isClosed()) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Cursor is already closed, skipping read more entries.", cursor.getName());
@@ -373,7 +374,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             return;
         }
 
-        // increment the counter for readMoreEntries calls, to track the number of times readMoreEntries is called
+        // Count executed passes, not conflated requests, for pending-read rescheduling.
         readMoreEntriesCallCount++;
 
         // totalAvailablePermits may be updated by other threads
@@ -398,6 +399,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 }
                 havePendingReplayRead = true;
                 updateMinReplayedPosition();
+                onReadStarted(ReadType.Replay);
                 Set<? extends Position> deletedMessages = topic.isDelayedDeliveryEnabled()
                         ? asyncReplayEntriesInOrder(messagesToReplayNow)
                         : asyncReplayEntries(messagesToReplayNow);
@@ -408,6 +410,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 // next entries as readCompletedEntries-callback was never called
                 if ((messagesToReplayNow.size() - deletedMessages.size()) == 0) {
                     havePendingReplayRead = false;
+                    onReadEnded(ReadType.Replay);
                     readMoreEntriesAsync();
                 }
             } else if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE) {
@@ -433,6 +436,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 }
                 havePendingRead = true;
                 updateMinReplayedPosition();
+                onReadStarted(ReadType.Normal);
 
                 messagesToRead = Math.min(messagesToRead, getMaxEntriesReadLimit());
                 cursor.asyncReadEntriesWithSkipOrWait(messagesToRead, bytesToRead, this, ReadType.Normal,
@@ -501,6 +505,31 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
     private void updateMinReplayedPosition() {
         minReplayedPosition = getFirstPositionInReplay().orElse(null);
+    }
+
+    /**
+     * Called under the dispatcher's monitor when a normal or a replay read starts. A normal read and a replay read
+     * can be in flight at the same time. With the default direct dispatch, a read of a type doesn't start before the
+     * previous read of the same type was dispatched; with {@code dispatcherDispatchMessagesInSubscriptionThread}, it
+     * can start while the previous one's dispatch is still queued, see {@link #onDispatchQueued(ReadType)}. A read
+     * ends with the dispatch of its entries, in {@link #trySendMessagesToConsumers(ReadType, List)}, or with
+     * {@link #onReadEnded(ReadType)}.
+     */
+    protected void onReadStarted(ReadType readType) {
+    }
+
+    /**
+     * Called under the dispatcher's monitor when a completed read's dispatch is queued on the subscription's thread,
+     * with {@code dispatcherDispatchMessagesInSubscriptionThread}.
+     */
+    protected void onDispatchQueued(ReadType readType) {
+    }
+
+    /**
+     * Called under the dispatcher's monitor when a read ends without its entries being dispatched: it failed, was
+     * cancelled, read only deleted entries, or completed after every consumer disconnected.
+     */
+    protected void onReadEnded(ReadType readType) {
     }
 
     private boolean shouldPauseOnAckStatePersist(ReadType readType) {
@@ -666,9 +695,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     }
 
     @Override
-    protected void cancelPendingRead() {
+    protected synchronized void cancelPendingRead() {
         if (havePendingRead && cursor.cancelPendingReadRequest()) {
             havePendingRead = false;
+            onReadEnded(ReadType.Normal);
         }
     }
 
@@ -716,6 +746,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         if (shouldRewindBeforeReadingOrReplaying && readType == ReadType.Normal) {
             // All consumers got disconnected before the completion of the read operation
             entries.forEach(Entry::release);
+            onReadEnded(ReadType.Normal);
             cursor.rewind();
             shouldRewindBeforeReadingOrReplaying = false;
             readMoreEntriesAsync();
@@ -736,6 +767,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             // setting sendInProgress here, because sendMessagesToConsumers will be executed
             // in a separate thread, and we want to prevent more reads
             acquireSendInProgress();
+            onDispatchQueued(readType);
             dispatchMessagesThread.execute(() -> {
                 handleSendingMessagesAndReadingMore(readType, entries, false, totalBytesSize);
             });
@@ -886,6 +918,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                     entriesForThisConsumer, batchSizes, sendMessageInfo, batchIndexesAcks, cursor,
                     readType == ReadType.Replay, c);
             totalEntriesProcessed += entriesForThisConsumer.size();
+            // read before sendMessages: it hands batchIndexesAcks to the consumer's event loop, which recycles it
+            int totalAckedIndexCount = batchIndexesAcks.getTotalAckedIndexCount();
 
             c.sendMessages(entriesForThisConsumer, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
                     sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(), redeliveryTracker);
@@ -894,12 +928,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             remainingMessages -= msgSent;
             start += maxEntriesInThisBatch;
             entriesToDispatch -= maxEntriesInThisBatch;
-            TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this,
-                    -(msgSent - batchIndexesAcks.getTotalAckedIndexCount()));
+            TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -(msgSent - totalAckedIndexCount));
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Added -({} minus {}) permits to TOTAL_AVAILABLE_PERMITS_UPDATER in "
                                 + "PersistentDispatcherMultipleConsumers",
-                        name, msgSent, batchIndexesAcks.getTotalAckedIndexCount());
+                        name, msgSent, totalAckedIndexCount);
             }
             totalMessagesSent += sendMessageInfo.getTotalMessages();
             totalBytesSent += sendMessageInfo.getTotalBytes();
@@ -995,6 +1028,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             totalEntries += filterEntriesForConsumer(entryAndMetadataList, batchSizes, sendMessageInfo,
                     batchIndexesAcks, cursor, readType == ReadType.Replay, consumer);
             totalEntriesProcessed += entryAndMetadataList.size();
+            // read before sendMessages: it hands batchIndexesAcks to the consumer's event loop, which recycles it
+            final int totalAckedIndexCount = batchIndexesAcks.getTotalAckedIndexCount();
             consumer.sendMessages(entryAndMetadataList, batchSizes, batchIndexesAcks,
                     sendMessageInfo.getTotalMessages(), sendMessageInfo.getTotalBytes(),
                     sendMessageInfo.getTotalChunkedMessages(), getRedeliveryTracker()
@@ -1005,7 +1040,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             });
 
             TOTAL_AVAILABLE_PERMITS_UPDATER.getAndAdd(this,
-                    -(sendMessageInfo.getTotalMessages() - batchIndexesAcks.getTotalAckedIndexCount()));
+                    -(sendMessageInfo.getTotalMessages() - totalAckedIndexCount));
             totalMessagesSent += sendMessageInfo.getTotalMessages();
             totalBytesSent += sendMessageInfo.getTotalBytes();
         }
@@ -1058,6 +1093,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             cursor.rewind();
         }
 
+        onReadEnded(readType);
         if (readType == ReadType.Normal) {
             havePendingRead = false;
         } else {

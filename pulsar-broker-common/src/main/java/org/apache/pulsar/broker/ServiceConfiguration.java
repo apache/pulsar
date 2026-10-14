@@ -547,6 +547,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
+            dynamic = true,
             doc = "Amount of seconds to timeout when loading a topic. In situations with many geo-replicated clusters, "
                     + "this may need raised."
     )
@@ -1308,7 +1309,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_SERVER,
             doc = "Dispatch messages and execute broker side filters in a per-subscription thread"
     )
-    private boolean dispatcherDispatchMessagesInSubscriptionThread = true;
+    private boolean dispatcherDispatchMessagesInSubscriptionThread = false;
 
     @FieldContext(
         dynamic = false,
@@ -1486,6 +1487,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Enable broker to load persistent topics"
     )
     private boolean enablePersistentTopics = true;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Enable shadow topic creation, loading and replication. Requires a broker restart."
+    )
+    private boolean enableShadowTopics = false;
 
     @FieldContext(
         category = CATEGORY_SERVER,

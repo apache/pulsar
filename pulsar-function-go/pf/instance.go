@@ -27,13 +27,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/empty"
-
 	"github.com/apache/pulsar-client-go/pulsar"
-
 	log "github.com/apache/pulsar/pulsar-function-go/logutil"
 	pb "github.com/apache/pulsar/pulsar-function-go/pb"
 	prometheus_client "github.com/prometheus/client_model/go"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type goInstance struct {
@@ -671,9 +669,9 @@ func (gi *goInstance) getAndResetMetrics() *pb.MetricsData {
 	return metricsData
 }
 
-func (gi *goInstance) resetMetrics() *empty.Empty {
+func (gi *goInstance) resetMetrics() *emptypb.Empty {
 	gi.stats.reset()
-	return &empty.Empty{}
+	return &emptypb.Empty{}
 }
 
 // This method is used to get the required metrics for Prometheus.

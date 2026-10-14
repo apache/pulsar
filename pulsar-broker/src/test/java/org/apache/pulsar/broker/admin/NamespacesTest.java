@@ -2560,7 +2560,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         // Test clear backlog for subscription on non-existent namespace - should return 404
         AsyncResponse clearSubResponse = mock(AsyncResponse.class);
         namespaces.clearNamespaceBundleBacklogForSubscription(clearSubResponse, testTenant, Constants.GLOBAL_CLUSTER,
-                nonExistentNs, bundleRange, "test-sub", false);
+                nonExistentNs, bundleRange, "test-sub", false, false);
         ArgumentCaptor<RestException> clearSubCaptor = ArgumentCaptor.forClass(RestException.class);
         verify(clearSubResponse, timeout(5000).times(1)).resume(clearSubCaptor.capture());
         assertEquals(clearSubCaptor.getValue().getResponse().getStatus(),

@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.metadata.bookkeeper;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
@@ -134,6 +136,127 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
             }
             executor = null;
         }
+    }
+
+    @Test(timeOut = 30000, dataProvider = "impl")
+    public void testExplicitLockRelease(String provider, Supplier<String> urlSupplier) throws Exception {
+        methodSetup(urlSupplier);
+        long ledgerId = 123L;
+        try (var other = lmf.newLedgerUnderreplicationManager()) {
+            assertThat(lum.getLedgerUnreplicationInfo(ledgerId)).isNull();
+            lum.acquireUnderreplicatedLedger(ledgerId);
+            assertThat(other.isLedgerBeingReplicated(ledgerId)).isTrue();
+
+            lum.releaseUnderreplicatedLedger(ledgerId);
+            assertThat(other.isLedgerBeingReplicated(ledgerId)).isFalse();
+            other.acquireUnderreplicatedLedger(ledgerId);
+
+            // Releasing again must not remove the new owner's lock.
+            lum.releaseUnderreplicatedLedger(ledgerId);
+            assertThat(other.isLedgerBeingReplicated(ledgerId)).isTrue();
+            other.releaseUnderreplicatedLedger(ledgerId);
+            assertThat(lum.isLedgerBeingReplicated(ledgerId)).isFalse();
+        }
+    }
+
+    @Test(timeOut = 30000, dataProvider = "impl")
+    public void testExplicitLockCloseWithSharedStore(String provider, Supplier<String> urlSupplier) throws Exception {
+        methodSetup(urlSupplier);
+        long polledLedgerId = 123L;
+        long explicitLedgerId = 456L;
+        try (var other = lmf.newLedgerUnderreplicationManager()) {
+            lum.markLedgerUnderreplicated(polledLedgerId, "bookie:3181");
+            assertThat(lum.pollLedgerToRereplicate()).isEqualTo(polledLedgerId);
+            lum.acquireUnderreplicatedLedger(explicitLedgerId);
+
+            lum.close();
+
+            // Both managers share the same store, which remains open after lum.close().
+            assertThat(other.isLedgerBeingReplicated(polledLedgerId)).isFalse();
+            assertThat(other.isLedgerBeingReplicated(explicitLedgerId)).isFalse();
+            other.acquireUnderreplicatedLedger(explicitLedgerId);
+            assertThat(other.pollLedgerToRereplicate()).isEqualTo(polledLedgerId);
+            other.releaseUnderreplicatedLedger(explicitLedgerId);
+            other.markLedgerReplicated(polledLedgerId);
+        }
+    }
+
+    @Test(timeOut = 30000, dataProvider = "impl")
+    public void testExplicitLockMarkPreservesUnderreplicatedRecord(String provider, Supplier<String> urlSupplier)
+            throws Exception {
+        methodSetup(urlSupplier);
+        long ledgerId = 123L;
+        lum.markLedgerUnderreplicated(ledgerId, "bookie:3181");
+        String ledgerPath = PulsarLedgerUnderreplicationManager.getUrLedgerPath(urLedgerPath, ledgerId);
+        GetResult original = store.get(ledgerPath).get(10, TimeUnit.SECONDS).orElseThrow();
+
+        lum.acquireUnderreplicatedLedger(ledgerId);
+        lum.markLedgerReplicated(ledgerId);
+
+        GetResult retained = store.get(ledgerPath).get(10, TimeUnit.SECONDS).orElseThrow();
+        assertThat(retained.getValue()).isEqualTo(original.getValue());
+        assertThat(retained.getStat().getVersion()).isEqualTo(original.getStat().getVersion());
+        assertThat(lum.isLedgerBeingReplicated(ledgerId)).isFalse();
+        try (var other = lmf.newLedgerUnderreplicationManager()) {
+            assertThat(other.pollLedgerToRereplicate()).isEqualTo(ledgerId);
+            other.markLedgerReplicated(ledgerId);
+            assertThat(other.getLedgerUnreplicationInfo(ledgerId)).isNull();
+            assertThat(other.isLedgerBeingReplicated(ledgerId)).isFalse();
+        }
+    }
+
+    @Test(timeOut = 30000, dataProvider = "impl")
+    public void testExplicitLockMarkWithoutUnderreplicatedRecord(String provider, Supplier<String> urlSupplier)
+            throws Exception {
+        methodSetup(urlSupplier);
+        long ledgerId = 123L;
+        lum.acquireUnderreplicatedLedger(ledgerId);
+        lum.markLedgerReplicated(ledgerId);
+
+        assertThat(lum.getLedgerUnreplicationInfo(ledgerId)).isNull();
+        assertThat(lum.isLedgerBeingReplicated(ledgerId)).isFalse();
+        try (var other = lmf.newLedgerUnderreplicationManager()) {
+            other.acquireUnderreplicatedLedger(ledgerId);
+            other.releaseUnderreplicatedLedger(ledgerId);
+        }
+    }
+
+    @Test(timeOut = 30000, dataProvider = "impl")
+    public void testFailedExplicitLockAcquireCannotReleaseOwner(String provider, Supplier<String> urlSupplier)
+            throws Exception {
+        methodSetup(urlSupplier);
+        long ledgerId = 123L;
+        lum.markLedgerUnderreplicated(ledgerId, "bookie:3181");
+        assertThat(lum.pollLedgerToRereplicate()).isEqualTo(ledgerId);
+        try (var other = lmf.newLedgerUnderreplicationManager()) {
+            assertThatThrownBy(() -> other.acquireUnderreplicatedLedger(ledgerId))
+                    .isInstanceOf(UnavailableException.class);
+            other.releaseUnderreplicatedLedger(ledgerId);
+            assertThat(lum.isLedgerBeingReplicated(ledgerId)).isTrue();
+            other.markLedgerReplicated(ledgerId);
+            assertThat(lum.getLedgerUnreplicationInfo(ledgerId)).isNotNull();
+            other.close();
+            assertThat(lum.isLedgerBeingReplicated(ledgerId)).isTrue();
+        }
+        lum.markLedgerReplicated(ledgerId);
+        assertThat(lum.getLedgerUnreplicationInfo(ledgerId)).isNull();
+        assertThat(lum.isLedgerBeingReplicated(ledgerId)).isFalse();
+    }
+
+    @Test(timeOut = 30000, dataProvider = "impl")
+    public void testFailedExplicitLockAcquirePreservesPolledVersion(String provider, Supplier<String> urlSupplier)
+            throws Exception {
+        methodSetup(urlSupplier);
+        long ledgerId = 123L;
+        lum.markLedgerUnderreplicated(ledgerId, "bookie:3181");
+        assertThat(lum.pollLedgerToRereplicate()).isEqualTo(ledgerId);
+        assertThatThrownBy(() -> lum.acquireUnderreplicatedLedger(ledgerId))
+                .isInstanceOf(UnavailableException.class);
+
+        lum.markLedgerReplicated(ledgerId);
+
+        assertThat(lum.getLedgerUnreplicationInfo(ledgerId)).isNull();
+        assertThat(lum.isLedgerBeingReplicated(ledgerId)).isFalse();
     }
 
     /**

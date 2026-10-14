@@ -100,6 +100,8 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
         }
 
         throwRestExceptionIfUnauthorizedForNamespace(tenant, namespace, sinkName, "register", authParams);
+        checkPackageSourcePermission(sinkPkgUrl, authParams);
+        checkPackageSourcePermission(sinkConfig.getTransformFunction(), authParams);
 
         try {
             // Check tenant exists
@@ -266,6 +268,8 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
         }
 
         throwRestExceptionIfUnauthorizedForNamespace(tenant, namespace, sinkName, "update", authParams);
+        checkPackageSourcePermission(sinkPkgUrl, authParams);
+        checkPackageSourcePermission(sinkConfig.getTransformFunction(), authParams);
 
         FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
 
