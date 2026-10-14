@@ -57,6 +57,7 @@ public class LookupProxyHandlerTest {
     private ConnectionPool connectionPool;
     private EmbeddedChannel channel;
     private LookupProxyHandler handler;
+    private ByteBuf forwardedRequest;
 
     @BeforeMethod
     public void setup() {
@@ -71,14 +72,7 @@ public class LookupProxyHandlerTest {
         doAnswer(invocation -> {
             ByteBuf request = invocation.getArgument(0);
             try {
-                BaseCommand command = decodeCommand(request);
-                assertThat(command.getType()).as("Forwarded command type")
-                        .isEqualTo(BaseCommand.Type.PARTITIONED_METADATA);
-                assertThat(command.getPartitionMetadata().getRequestId()).as("Broker request ID")
-                        .isEqualTo(BROKER_REQUEST_ID);
-                assertThat(command.getPartitionMetadata().getTopic()).as("Forwarded topic").isEqualTo(TOPIC);
-                assertThat(command.getPartitionMetadata().isMetadataAutoCreationEnabled())
-                        .as("Metadata auto creation flag").isFalse();
+                forwardedRequest = request.copy();
                 return metadataFuture;
             } finally {
                 request.release();
@@ -98,6 +92,10 @@ public class LookupProxyHandlerTest {
 
     @AfterMethod(alwaysRun = true)
     public void cleanup() {
+        if (forwardedRequest != null) {
+            forwardedRequest.release();
+            forwardedRequest = null;
+        }
         if (channel != null) {
             channel.finishAndReleaseAll();
         }
@@ -131,6 +129,7 @@ public class LookupProxyHandlerTest {
         }
         handler.handlePartitionMetadataResponse(newRequest());
         connectionFuture.complete(clientCnx);
+        assertForwardedRequest();
         if (!alreadyFailed) {
             assertThat(channel.outboundMessages()).as("Responses before the broker completes").isEmpty();
             metadataFuture.completeExceptionally(error);
@@ -150,6 +149,7 @@ public class LookupProxyHandlerTest {
     public void testPartitionMetadataSuccessResponse(int partitions) {
         handler.handlePartitionMetadataResponse(newRequest());
         connectionFuture.complete(clientCnx);
+        assertForwardedRequest();
         metadataFuture.complete(new LookupDataResult(partitions));
 
         CommandPartitionedTopicMetadataResponse response = readMetadataResponse();
@@ -177,6 +177,23 @@ public class LookupProxyHandlerTest {
                 .setTopic(TOPIC)
                 .setRequestId(CLIENT_REQUEST_ID)
                 .setMetadataAutoCreationEnabled(false);
+    }
+
+    private void assertForwardedRequest() {
+        assertThat(forwardedRequest).as("Forwarded request").isNotNull();
+        try {
+            BaseCommand command = decodeCommand(forwardedRequest);
+            assertThat(command.getType()).as("Forwarded command type")
+                    .isEqualTo(BaseCommand.Type.PARTITIONED_METADATA);
+            assertThat(command.getPartitionMetadata().getRequestId()).as("Broker request ID")
+                    .isEqualTo(BROKER_REQUEST_ID);
+            assertThat(command.getPartitionMetadata().getTopic()).as("Forwarded topic").isEqualTo(TOPIC);
+            assertThat(command.getPartitionMetadata().isMetadataAutoCreationEnabled())
+                    .as("Metadata auto creation flag").isFalse();
+        } finally {
+            forwardedRequest.release();
+            forwardedRequest = null;
+        }
     }
 
     private BaseCommand decodeCommand(ByteBuf buffer) {
