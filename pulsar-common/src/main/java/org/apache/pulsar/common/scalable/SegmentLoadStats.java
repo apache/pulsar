@@ -31,16 +31,16 @@ package org.apache.pulsar.common.scalable;
  * last-modified time via its {@code Stat}, and the controller uses that for the "cold for
  * at least mergeWindow" check.
  *
- * @param msgRateIn    inbound messages per second (60s rolling average, from {@code TopicStats})
- * @param bytesRateIn  inbound bytes per second
- * @param msgRateOut   outbound (dispatched) messages per second, summed across subscriptions
- * @param bytesRateOut outbound bytes per second
+ * @param msgRateIn   inbound messages per second (60s rolling average, from {@code TopicStats})
+ * @param byteRateIn  inbound bytes per second
+ * @param msgRateOut  outbound (dispatched) messages per second, summed across subscriptions
+ * @param byteRateOut outbound bytes per second
  */
 public record SegmentLoadStats(
         double msgRateIn,
-        double bytesRateIn,
+        double byteRateIn,
         double msgRateOut,
-        double bytesRateOut
+        double byteRateOut
 ) {
     public static final SegmentLoadStats ZERO = new SegmentLoadStats(0, 0, 0, 0);
 }

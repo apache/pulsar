@@ -21,45 +21,135 @@ package org.apache.pulsar.broker.service;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import lombok.Setter;
+import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
+import org.apache.pulsar.broker.service.BrokerServiceException.TopicMigratedException;
+import org.apache.pulsar.broker.stats.BrokerOperabilityMetrics.TopicLoadFailureReason;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.LatencyTracer;
+import org.apache.pulsar.common.util.LatencyTracer.TracePoint;
 import org.jspecify.annotations.Nullable;
 
-@RequiredArgsConstructor
-public class TopicLoadingContext {
+public class TopicLoadingContext extends LatencyTracer {
 
-    private static final String EXAMPLE_LATENCY_OUTPUTS = "1234 ms (queued: 567)";
-
-    private final long startNs = System.nanoTime();
     @Getter
     private final TopicName topicName;
     @Getter
     private final boolean createIfMissing;
     @Getter
     private final CompletableFuture<Optional<Topic>> topicFuture;
+    private final PulsarStats pulsarStats;
+    @Nullable
+    private volatile Long timeoutTimeInMillis;
     @Getter
     @Setter
     @Nullable private Map<String, String> properties;
-    private long polledFromQueueNs = -1L;
 
-    public void polledFromQueue() {
-        polledFromQueueNs = System.nanoTime();
+    public TopicLoadingContext(TopicName topicName, boolean createIfMissing,
+                               CompletableFuture<Optional<Topic>> topicFuture, PulsarStats pulsarStats) {
+        super(System::nanoTime, 32);
+        this.topicName = topicName;
+        this.createIfMissing = createIfMissing;
+        this.topicFuture = topicFuture;
+        this.pulsarStats = pulsarStats;
     }
 
-    public long latencyMs(long nowInNanos) {
-        return TimeUnit.NANOSECONDS.toMillis(nowInNanos - startNs);
-    }
-
-    public String latencyString(long nowInNanos) {
-        final var builder = new StringBuilder(EXAMPLE_LATENCY_OUTPUTS.length());
-        builder.append(latencyMs(nowInNanos));
-        builder.append(" ms");
-        if (polledFromQueueNs >= 0) {
-            builder.append(" (queued: ").append(latencyMs(polledFromQueueNs)).append(")");
+    public void close(boolean timedOut) {
+        if (timedOut) {
+            this.timeoutTimeInMillis = System.currentTimeMillis();
         }
-        return builder.toString();
+        super.close();
+    }
+
+    @Override
+    @Nullable
+    public Long getTimeoutTimeInMillis() {
+        return timeoutTimeInMillis;
+    }
+
+    public void recordTopicLoadFailureMetric(Throwable throwable) {
+        if (throwable instanceof TopicMigratedException) {
+            return;
+        }
+        if (throwable instanceof TimeoutException) {
+            pulsarStats.recordTopicLoadFailed(getTopicLoadTimeoutReason());
+        } else if (throwable instanceof ServiceUnitNotReadyException) {
+            pulsarStats.recordTopicLoadFailed(TopicLoadFailureReason.BUNDLE_UNLOADING);
+        } else {
+            TopicLoadFailureReason reason = getTopicLoadFailureReason();
+            pulsarStats.recordTopicLoadFailed(reason != null ? reason : TopicLoadFailureReason.OTHERS);
+        }
+    }
+
+    @Override
+    protected String resolveFailureReason(TracePoint tracePoint) {
+        Throwable throwable = getTracePointFailure(tracePoint);
+        TopicLoadFailureReason reason = throwable instanceof TimeoutException
+                ? getTimeoutReason(tracePoint.name()) : getFailureReason(tracePoint.name());
+        return reason == null ? super.resolveFailureReason(tracePoint) : reason.name();
+    }
+
+    public TopicLoadFailureReason getTopicLoadFailureReason() {
+        String reason = getFailureReason();
+        try {
+            return reason == null ? null : TopicLoadFailureReason.valueOf(reason);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    public TopicLoadFailureReason getTopicLoadTimeoutReason() {
+        // If closed, we can use the reverse convenience set to obtain the last pending action, as the subsequent ones
+        // are often sub-actions of the previous one.
+        if (isClosed()) {
+            for (int i = tracePoints.size() - 1; i >= 0; i--) {
+                if (tracePoints.get(i).isPending()) {
+                    TopicLoadFailureReason reason = getTimeoutReason(tracePoints.get(i).name());
+                    if (reason != null) {
+                        return reason;
+                    }
+                }
+            }
+        }
+        for (TracePoint pendingTracePoint : getPendingTracePoints()) {
+            TopicLoadFailureReason reason = getTimeoutReason(pendingTracePoint.name());
+            if (reason != null) {
+                return reason;
+            }
+        }
+        return TopicLoadFailureReason.TIMEOUT;
+    }
+
+    private static TopicLoadFailureReason getTimeoutReason(String pendingStep) {
+        return switch (pendingStep) {
+            case TopicLoadingTracePoints.NAMESPACE_POLICIES, TopicLoadingTracePoints.LOCAL_POLICIES ->
+                    TopicLoadFailureReason.TIMEOUT_LOAD_NAMESPACE_POLICIES;
+            case TopicLoadingTracePoints.LOCAL_TOPIC_POLICIES, TopicLoadingTracePoints.GLOBAL_TOPIC_POLICIES ->
+                    TopicLoadFailureReason.TIMEOUT_LOAD_TOPIC_POLICIES;
+            case TopicLoadingTracePoints.OPEN_ML -> TopicLoadFailureReason.TIMEOUT_LOAD_ML;
+            case TopicLoadingTracePoints.INIT, TopicLoadingTracePoints.PRE_CREATE_COMPACTED_SUB,
+                    TopicLoadingTracePoints.REPLICATION -> TopicLoadFailureReason.TIMEOUT_INIT;
+            case TopicLoadingTracePoints.DEDUPLICATION -> TopicLoadFailureReason.TIMEOUT_DEDUP;
+            default -> null;
+        };
+    }
+
+    private static TopicLoadFailureReason getFailureReason(String pendingStep) {
+        return switch (pendingStep) {
+            case TopicLoadingTracePoints.NAMESPACE_POLICIES, TopicLoadingTracePoints.LOCAL_POLICIES ->
+                    TopicLoadFailureReason.FAILED_LOAD_NAMESPACE_POLICIES;
+            case TopicLoadingTracePoints.LOCAL_TOPIC_POLICIES, TopicLoadingTracePoints.GLOBAL_TOPIC_POLICIES ->
+                    TopicLoadFailureReason.FAILED_LOAD_TOPIC_POLICIES;
+            case TopicLoadingTracePoints.OPEN_ML -> TopicLoadFailureReason.FAILED_LOAD_ML;
+            case TopicLoadingTracePoints.OWNERSHIP -> TopicLoadFailureReason.FAILED_CHECK_OWNERSHIP;
+            case TopicLoadingTracePoints.TOPIC_EXISTS, TopicLoadingTracePoints.PROPERTIES ->
+                    TopicLoadFailureReason.FAILED_ACCESS_METADATA_STORE;
+            case TopicLoadingTracePoints.INIT, TopicLoadingTracePoints.PRE_CREATE_COMPACTED_SUB,
+                    TopicLoadingTracePoints.REPLICATION, TopicLoadingTracePoints.DEDUPLICATION ->
+                    TopicLoadFailureReason.FAILED_INIT;
+            default -> null;
+        };
     }
 }

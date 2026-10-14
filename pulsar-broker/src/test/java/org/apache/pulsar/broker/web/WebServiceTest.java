@@ -73,7 +73,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.common.util.SecurityUtility;
+import org.apache.pulsar.common.util.tls.PemReader;
 import org.apache.pulsar.utils.ResourceUtils;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.BoundRequestBuilder;
@@ -471,8 +471,8 @@ public class WebServiceTest {
             if (useTls) {
                 KeyManager[] keyManagers = null;
                 if (useAuth) {
-                    Certificate[] tlsCert = SecurityUtility.loadCertificatesFromPemFile(CLIENT_CERT_FILE_PATH);
-                    PrivateKey tlsKey = SecurityUtility.loadPrivateKeyFromPemFile(CLIENT_KEY_FILE_PATH);
+                    Certificate[] tlsCert = PemReader.loadCertificatesFromPemFile(CLIENT_CERT_FILE_PATH);
+                    PrivateKey tlsKey = PemReader.loadPrivateKeyFromPemFile(CLIENT_KEY_FILE_PATH);
 
                     KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
                     ks.load(null, null);

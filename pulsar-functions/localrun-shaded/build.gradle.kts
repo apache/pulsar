@@ -27,12 +27,13 @@ dependencies {
 }
 
 val shadePrefix = "org.apache.pulsar.functions.runtime.shaded"
+val pulsarGroupPattern = Regex.escape(project.group.toString())
 
 tasks.shadowJar {
     isZip64 = true
 
     dependencies {
-        include(dependency("org.apache.pulsar:.*"))
+        include(dependency("$pulsarGroupPattern:.*"))
         include(project(":pulsar-functions:pulsar-functions-local-runner-original"))
         include(project(":pulsar-client-original"))
         include(project(":pulsar-common"))
@@ -56,7 +57,6 @@ tasks.shadowJar {
         include(dependency("net.java.dev.jna:.*"))
         include(dependency("org.apache.zookeeper:.*"))
         include(dependency("com.thoughtworks.paranamer:paranamer"))
-        include(dependency("jline:.*"))
         include(dependency("org.rocksdb:.*"))
         include(dependency("org.eclipse.jetty.*:.*"))
         include(dependency("org.apache.avro:avro"))
@@ -99,7 +99,6 @@ tasks.shadowJar {
     relocateWithPrefix(shadePrefix, "jakarta.servlet")
     relocateWithPrefix(shadePrefix, "jakarta.validation")
     relocateWithPrefix(shadePrefix, "jakarta.ws.rs")
-    relocateWithPrefix(shadePrefix, "jline")
     relocateWithPrefix(shadePrefix, "net.java.dev.jna")
     relocateWithPrefix(shadePrefix, "net.jodah")
     relocateWithPrefix(shadePrefix, "net.jpountz")

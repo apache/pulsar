@@ -36,7 +36,7 @@
             <name>Console</name>
             <target>SYSTEM_OUT</target>
             <PatternLayout>
-                <Pattern>%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg %X%n</Pattern>
+                <Pattern>%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg%equals{ %X}{ {}}{}%n</Pattern>
             </PatternLayout>
         </Console>
     </Appenders>
@@ -50,10 +50,9 @@
             </AppenderRef>
         </Logger>
         <Root>
-            <level>info</level>
+            <level>${sys:pulsar.log.level:-info}</level>
             <AppenderRef>
                 <ref>Console</ref>
-                <level>${sys:pulsar.log.level}</level>
             </AppenderRef>
         </Root>
     </Loggers>

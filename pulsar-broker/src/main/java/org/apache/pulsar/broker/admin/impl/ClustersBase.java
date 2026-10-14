@@ -902,16 +902,18 @@ public class ClustersBase extends AdminResource {
             List<CompletableFuture<Void>> futures = clusterLocalNamespaces.stream()
                     .map(namespaceName -> adminClient.namespaces().unloadAsync(namespaceName))
                     .collect(Collectors.toList());
-            return FutureUtil.waitForAll(futures).thenAccept(__ -> {
+            return FutureUtil.waitForAll(futures).thenAcceptAsync(__ -> {
                 try {
-                    // write load info to load manager to make the load happens fast
+                    // Write the load report so the unloaded namespaces rebalance quickly. Run it on the
+                    // broker executor rather than the admin-client callback thread that completes the
+                    // unload futures, because writeLoadReportOnZookeeper blocks on a metadata-store write.
                     pulsar().getLoadManager().get().writeLoadReportOnZookeeper(true);
                 } catch (Exception e) {
                     log.warn()
                             .exception(e)
                             .log("Failed to writeLoadReportOnZookeeper.");
                 }
-            });
+            }, pulsar().getExecutor());
         });
     }
 

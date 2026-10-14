@@ -28,8 +28,8 @@ import org.apache.pulsar.functions.utils.ValidatableFunctionPackage;
 
 public class Connector implements AutoCloseable {
     private final Path archivePath;
-    /** MD5 hex of archive file contents; empty when {@link #archivePath} is null (test doubles). */
-    private final String archiveMd5Hex;
+    /** SHA-256 hex of archive file contents; empty when {@link #archivePath} is null (test doubles). */
+    private final String archiveChecksumHex;
     private final String narExtractionDirectory;
     private final boolean enableClassloading;
     private ValidatableFunctionPackage connectorFunctionPackage;
@@ -44,25 +44,25 @@ public class Connector implements AutoCloseable {
     }
 
     /**
-     * @param precomputedArchiveMd5Hex MD5 hex of {@code archivePath} contents; if null and path is non-null,
+     * @param precomputedArchiveChecksumHex SHA-256 hex of {@code archivePath} contents; if null and path is non-null,
      *                                   the hash is computed once at construction time.
      */
     public Connector(Path archivePath, ConnectorDefinition connectorDefinition, String narExtractionDirectory,
-                     boolean enableClassloading, String precomputedArchiveMd5Hex) {
+                     boolean enableClassloading, String precomputedArchiveChecksumHex) {
         this.archivePath = archivePath;
         this.connectorDefinition = connectorDefinition;
         this.narExtractionDirectory = narExtractionDirectory;
         this.enableClassloading = enableClassloading;
         if (archivePath != null) {
             try {
-                this.archiveMd5Hex = precomputedArchiveMd5Hex != null
-                        ? precomputedArchiveMd5Hex
-                        : ConnectorUtils.computeArchiveMd5Hex(archivePath);
+                this.archiveChecksumHex = precomputedArchiveChecksumHex != null
+                        ? precomputedArchiveChecksumHex
+                        : ConnectorUtils.computeArchiveChecksumHex(archivePath);
             } catch (java.io.IOException e) {
                 throw new java.io.UncheckedIOException(e);
             }
         } else {
-            this.archiveMd5Hex = "";
+            this.archiveChecksumHex = "";
         }
     }
 
@@ -70,8 +70,8 @@ public class Connector implements AutoCloseable {
         return archivePath;
     }
 
-    public String getArchiveMd5Hex() {
-        return archiveMd5Hex;
+    public String getArchiveChecksumHex() {
+        return archiveChecksumHex;
     }
 
     public synchronized ValidatableFunctionPackage getConnectorFunctionPackage() {
