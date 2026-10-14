@@ -366,8 +366,17 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
         // If we get a write error, we will try to create a new ledger and re-submit the pending writes. If the
         // ledger creation fails (persistent bk failure, another instance owning the ML, ...), then the writes will
         // be marked as failed.
+
+        // Defensive check: this OpAddEntry may have been recycled (ml set to null) between the time it was
+        // peeked from the pending queue (e.g. by checkAddTimeout) and when handleAddFailure is invoked, because
+        // another thread could have already completed and recycled it. In that case, there is nothing to do.
         ManagedLedgerImpl finalMl = this.ml;
+        if (finalMl == null) {
+            return;
+        }
         finalMl.mbean.recordAddEntryError();
+
+        final LedgerHandle finalLh = lh;
 
         finalMl.getExecutor().execute(() -> {
             // Force the creation of a new ledger. Doing it in a background thread to avoid acquiring ML lock
@@ -377,19 +386,19 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
             // will handle it.
             if (rc != null && (rc.intValue() == BKException.Code.MetadataVersionException
                     || rc.intValue() == BKException.Code.LedgerFencedException)) {
-                finalMl.addEntryFailedDueToConcurrentlyModified(lh, rc);
-            } else {
+                finalMl.addEntryFailedDueToConcurrentlyModified(finalLh, rc);
+            } else if (finalLh != null) {
                 // Close the failed ledger before switching, or the abandoned handle leaks with its
                 // periodic explicit-LAC flush task.
-                lh.asyncClose(new CloseCallback() {
+                finalLh.asyncClose(new CloseCallback() {
                     @Override
                     public void closeComplete(int closeRc, LedgerHandle closedLedger, Object closeCtx) {
                         if (closeRc != BKException.Code.OK) {
-                            log.warn().attr("ledgerId", lh.getId())
+                            log.warn().attr("ledgerId", finalLh.getId())
                                     .attr("status", BKException.getMessage(closeRc))
                                     .log("Error when closing ledger after add-entry failure");
                         }
-                        finalMl.getExecutor().execute(() -> finalMl.ledgerClosed(lh));
+                        finalMl.getExecutor().execute(() -> finalMl.ledgerClosed(finalLh));
                     }
                 }, null);
             }
