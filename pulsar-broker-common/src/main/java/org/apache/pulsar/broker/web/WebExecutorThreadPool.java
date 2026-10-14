@@ -26,6 +26,7 @@ import org.eclipse.jetty.util.thread.ExecutorThreadPool;
 public class WebExecutorThreadPool extends ExecutorThreadPool {
 
     private final ThreadFactory threadFactory;
+    private volatile boolean startAttempted;
 
     public WebExecutorThreadPool(int maxThreads, String namePrefix) {
         this(maxThreads, namePrefix, 8192);
@@ -39,5 +40,24 @@ public class WebExecutorThreadPool extends ExecutorThreadPool {
     @Override
     protected Thread newThread(Runnable job) {
         return threadFactory.newThread(job);
+    }
+
+    @Override
+    protected void doStart() throws Exception {
+        startAttempted = true;
+        super.doStart();
+    }
+
+    /**
+     * {@link ExecutorThreadPool#join()} waits without a timeout for the executor to terminate, but the executor
+     * is shut down only in {@link #doStop()}, which Jetty skips for a pool that was never started. That happens
+     * when {@code Server.start()} fails to open a connector (e.g. the port is already in use), since connectors
+     * are opened before the server's beans are started. Joining such a pool would block forever.
+     */
+    @Override
+    public void join() throws InterruptedException {
+        if (startAttempted) {
+            super.join();
+        }
     }
 }
