@@ -1794,7 +1794,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         LedgerHandle lh = currentLedger;
 
         if (lh == null) {
-            // No ledger to close, proceed with next step
+            // No current write ledger to close, but still invalidate cached read handles
+            ledgerCache.forEach((ledgerId, readHandle) -> {
+                invalidateReadHandle(ledgerId);
+            });
             closeAllCursors(callback, ctx);
             return;
         }
