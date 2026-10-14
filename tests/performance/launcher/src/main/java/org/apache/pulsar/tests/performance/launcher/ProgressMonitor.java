@@ -75,9 +75,15 @@ final class ProgressMonitor implements AutoCloseable {
     private final Map<String, JsonNode> latest = new LinkedHashMap<>();
     private final Histogram producerLatency = new Histogram(MAX_LATENCY_MICROS, 3);
     private final Histogram consumerLatency = new Histogram(MAX_LATENCY_MICROS, 3);
+    // The sources in the remote cluster, whose messages are the replicated ones, with their applications
+    private final Map<String, Integer> remoteSources = new LinkedHashMap<>();
+    // The remote subscriptions' backlog, null when not sampled
+    private Supplier<TopicStatsSampler.Backlog> remoteBacklog = () -> null;
+    private final Histogram remoteLatency = new Histogram(MAX_LATENCY_MICROS, 3);
     private long lastReportNanos = startedNanos;
     private long lastSent;
     private long lastReceived;
+    private long lastRemoteReceived;
     private volatile boolean closed;
 
     /**
@@ -143,6 +149,25 @@ final class ProgressMonitor implements AutoCloseable {
         }
     }
 
+    /**
+     * Follows the progress stream of the {@code applications} in the remote cluster, which receive the replicated
+     * messages: they get a line of their own.
+     */
+    void followRemote(String source, int applications, Supplier<TopicStatsSampler.Backlog> backlog,
+                      String controlUrl, BooleanSupplier running) {
+        addRemote(source, applications, backlog);
+        follow(source, controlUrl, running);
+    }
+
+    /**
+     * Reports the lines of {@code source} as those of {@code applications} in the remote cluster, with the remote
+     * subscriptions' {@code backlog}.
+     */
+    synchronized void addRemote(String source, int applications, Supplier<TopicStatsSampler.Backlog> backlog) {
+        remoteSources.put(source, applications);
+        remoteBacklog = backlog;
+    }
+
     synchronized void accept(String source, JsonNode line) {
         latest.put(source, line);
         JsonNode histogram = line.path("latency").path("histogram");
@@ -150,7 +175,8 @@ final class ProgressMonitor implements AutoCloseable {
             try {
                 Histogram interval = Histogram.decodeFromCompressedByteBuffer(
                         ByteBuffer.wrap(Base64.getDecoder().decode(histogram.textValue())), MAX_LATENCY_MICROS);
-                (PRODUCER.equals(line.path("role").asText()) ? producerLatency : consumerLatency).add(interval);
+                (PRODUCER.equals(line.path("role").asText()) ? producerLatency
+                        : remoteSources.containsKey(source) ? remoteLatency : consumerLatency).add(interval);
             } catch (DataFormatException | RuntimeException e) {
                 // A garbled interval only leaves a gap in the latencies
             }
@@ -171,7 +197,7 @@ final class ProgressMonitor implements AutoCloseable {
         int finishedApplications = 0;
         for (Map.Entry<String, JsonNode> entry : latest.entrySet()) {
             JsonNode line = entry.getValue();
-            if (!PRODUCER.equals(entry.getKey())) {
+            if (!PRODUCER.equals(entry.getKey()) && !remoteSources.containsKey(entry.getKey())) {
                 received += line.path("received").asLong();
                 receivedTarget += line.path("messageCount").asLong();
                 duplicates += line.path("duplicates").asLong();
@@ -196,14 +222,8 @@ final class ProgressMonitor implements AutoCloseable {
                 (received - lastReceived) / seconds, bitRate((received - lastReceived) / seconds)));
         TopicStatsSampler.Backlog currentBacklog = backlog.get();
         if (currentBacklog != null) {
-            receivedLine.append(String.format(Locale.ROOT, " --- backlog: %,d msg (max per application: %,d",
-                    currentBacklog.total(), currentBacklog.maxSubscription()));
-            // The sampler samples every second, unless the broker answers slowly; an old sample says so
-            long ageSeconds = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - currentBacklog.epochMs());
-            if (ageSeconds >= STALE_BACKLOG_SECONDS) {
-                receivedLine.append(", sampled ").append(ageSeconds).append(" s ago");
-            }
-            receivedLine.append(')');
+            receivedLine.append(String.format(Locale.ROOT, " --- backlog: %,d msg (max per application: %,d%s)",
+                    currentBacklog.total(), currentBacklog.maxSubscription(), age(currentBacklog)));
         }
         if (finishedApplications > 0 && finishedApplications < applications) {
             receivedLine.append(" --- finished applications: ").append(finishedApplications).append('/')
@@ -217,11 +237,74 @@ final class ProgressMonitor implements AutoCloseable {
         }
         receivedLine.append(latency(consumerLatency));
         out.println(receivedLine);
+        if (!remoteSources.isEmpty()) {
+            out.println(remoteLine(prefix, seconds));
+        }
 
         lastSent = sent;
         lastReceived = received;
         producerLatency.reset();
         consumerLatency.reset();
+        remoteLatency.reset();
+    }
+
+    /** The remote applications' line: what they received of the replicated messages. */
+    private String remoteLine(String prefix, double seconds) {
+        long received = 0;
+        long receivedTarget = 0;
+        long duplicates = 0;
+        long orderingViolations = 0;
+        int finishedApplications = 0;
+        int remoteApplications = 0;
+        for (Map.Entry<String, Integer> source : remoteSources.entrySet()) {
+            remoteApplications += source.getValue();
+            JsonNode line = latest.get(source.getKey());
+            if (line != null) {
+                received += line.path("received").asLong();
+                receivedTarget += line.path("messageCount").asLong();
+                duplicates += line.path("duplicates").asLong();
+                orderingViolations += line.path("orderingViolations").asLong();
+                finishedApplications += line.path("finishedApplications").asInt();
+            }
+        }
+        StringBuilder remoteLine = new StringBuilder(prefix).append(String.format(Locale.ROOT,
+                "Replicated, received in the remote cluster: %,d msg%s --- %,.1f msg/s", received,
+                of(receivedTarget, received), (received - lastRemoteReceived) / seconds));
+        TopicStatsSampler.Backlog remote = remoteBacklog.get();
+        if (remote != null) {
+            remoteLine.append(String.format(Locale.ROOT, " --- backlog: %,d msg (max per application: %,d%s)",
+                    remote.total(), remote.maxSubscription(), age(remote)));
+        }
+        TopicStatsSampler.Backlog currentBacklog = backlog.get();
+        if (currentBacklog != null && currentBacklog.replication() >= 0) {
+            String age = age(currentBacklog);
+            remoteLine.append(String.format(Locale.ROOT, " --- replication backlog: %,d msg%s",
+                    currentBacklog.replication(), age.isEmpty() ? "" : " (" + age.substring(2) + ")"));
+        }
+        if (finishedApplications > 0 && finishedApplications < remoteApplications) {
+            remoteLine.append(" --- finished applications: ").append(finishedApplications).append('/')
+                    .append(remoteApplications);
+        }
+        if (duplicates > 0) {
+            remoteLine.append(String.format(Locale.ROOT, " --- duplicates: %,d", duplicates));
+        }
+        if (orderingViolations > 0) {
+            remoteLine.append(String.format(Locale.ROOT, " --- ordering violations: %,d", orderingViolations));
+        }
+        remoteLine.append(latency(remoteLatency));
+        lastRemoteReceived = received;
+        return remoteLine.toString();
+    }
+
+    /**
+     * ", sampled N s ago" for a sample at least {@link #STALE_BACKLOG_SECONDS} or two of the sampler's intervals old,
+     * whichever is longer: the sampler samples every second, or less often with many topics, and keeps its latest
+     * complete sample while its rounds fail or the broker answers slowly. Empty for a recent sample.
+     */
+    static String age(TopicStatsSampler.Backlog sample) {
+        long ageSeconds = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - sample.epochMs());
+        return ageSeconds >= Math.max(STALE_BACKLOG_SECONDS, 2 * TimeUnit.MILLISECONDS.toSeconds(
+                sample.intervalMillis())) ? ", sampled " + ageSeconds + " s ago" : "";
     }
 
     /** The producer's phase with its progress, such as "warmup round 1/2" or "measurement 45/120 s". */
@@ -235,7 +318,9 @@ final class ProgressMonitor implements AutoCloseable {
         return switch (phase) {
             case "warmup" -> clock + " warmup round " + (producer.path("warmupRound").asInt() + 1) + "/"
                     + producer.path("warmupRounds").asInt();
-            case "awaiting-measurement-start" -> clock + " cooling down";
+            // The launcher lets the host cool down, or applies the network impairments of the measurement's start
+            case "awaiting-measurement-start" -> clock + " before the measurement";
+            case "awaiting-run-start" -> clock + " applying the network conditions";
             case "measurement" -> {
                 long start = producer.path("measurementStartEpochMs").asLong(-1);
                 yield start > 0 ? String.format(Locale.ROOT, "%s measurement %d s", clock,

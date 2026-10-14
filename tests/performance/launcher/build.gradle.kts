@@ -66,6 +66,23 @@ tasks.named<Test>("test") {
     inputs.dir(layout.projectDirectory.dir("../scenarios"))
         .withPropertyName("scenarios")
         .withPathSensitivity(PathSensitivity.RELATIVE)
+    // It needs a Docker engine that runs privileged containers; networkCheck runs it
+    exclude("**/NetworkImpairmentsCheck*")
+}
+
+// Checks the network impairments on small containers, with ping and iperf3, see docs/network-conditions.md
+val networkCheck by tasks.registering(Test::class) {
+    description = "Checks that the network impairments do what their settings ask, on small Docker containers"
+    group = "verification"
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    useTestNG()
+    include("**/NetworkImpairmentsCheck*")
+    outputs.upToDateWhen { false }
+    testLogging {
+        events("passed", "failed", "skipped")
+        showStandardStreams = true
+    }
 }
 
 // Profiled containers use the same Alpine image as every other run, which is also Pulsar's default image, since a

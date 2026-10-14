@@ -22,6 +22,9 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -35,12 +38,14 @@ import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.admin.GetStatsOptions;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.tests.performance.report.RunReport;
 
 /**
- * Samples the workload topics' stats once per second into {@code topic-stats.csv}: each subscription's backlog, the
+ * Samples the workload topics' stats once per second, or less often with many topics, into {@code topic-stats.csv}:
+ * each subscription's backlog, the
  * topic's published-message counter and the subscription's dispatched-message counter. The report derives
  * per-second publish and dispatch rates from the counter deltas, because the broker's own rates refresh only once
  * per stats interval, and the sampled maximum backlog, which is not the exact peak between samples.
@@ -48,19 +53,35 @@ import org.apache.pulsar.tests.performance.report.RunReport;
  * <p>One sample is one REST call per topic, all topics in parallel, that reads the broker's in-memory counters and its
  * estimated backlog (the default, not the precise backlog that scans the ledger), without the stats of the topic's
  * publishers and consumers, so once per second has no measurable cost next to a workload of about 100,000 messages
- * per second. A failed sample is reported and skipped; sampling never fails the
- * run.
+ * per second with a few topics. Each call costs the broker an HTTP request and a topic ownership check, though: at
+ * 1,000 topics, sampling every second took 16 % of the broker's CPU. So with more topics than
+ * {@value #MAX_REQUESTS_PER_SECOND}, the sampler samples every {@code topics / MAX_REQUESTS_PER_SECOND} seconds,
+ * rounded up, {@value #MAX_REQUESTS_PER_SECOND} calls per second on average, and a round makes at most
+ * {@value #MAX_IN_FLIGHT} calls at a time over all the brokers. A round's samples have the time of its end, which
+ * follows all of them. A failed sample is reported and skipped; sampling never fails the run. The random seeks'
+ * subscription is left out: it exists only while the seeks run.
  *
  * <p>A broker redirects the stats request of a topic that another broker owns to that broker's name in the cluster's
  * network, which the launcher's host can't resolve. So the sampler asks each broker through its port on the host: for
  * a topic whose request fails, it asks the other brokers, of which only the owner answers, and samples the topic
  * through that broker from then on.
+ *
+ * <p>With a remote cluster, it also samples each topic's replicators into {@code replication-stats.csv}: the backlog
+ * that the topic has yet to replicate, whether the replicator is connected, the delay in seconds of the message it
+ * replicates next, and its replicated-message counter.
  */
 final class TopicStatsSampler implements AutoCloseable {
     // The CSV the run report reads; its name and columns are the report tool's
     static final String FILE_NAME = RunReport.TOPIC_STATS_FILE;
     static final String HEADER = RunReport.TOPIC_STATS_HEADER;
     private static final long INTERVAL_MILLIS = 1000;
+    static final int MAX_REQUESTS_PER_SECOND = 100;
+    // The most requests of a round in flight at a time, over all the brokers: the admin clients' own limit of 16
+    // connections applies to each broker's client separately
+    static final int MAX_IN_FLIGHT = 16;
+    static final String REPLICATION_FILE_NAME = RunReport.REPLICATION_STATS_FILE;
+    static final String REPLICATION_HEADER = "epochMs,topic,remoteCluster,replicationBacklog,connected,"
+            + "replicationDelaySeconds,msgOutCounter";
 
     // The first broker's
     private final PulsarAdmin admin;
@@ -70,22 +91,34 @@ final class TopicStatsSampler implements AutoCloseable {
     private final Map<String, PulsarAdmin> owners = new ConcurrentHashMap<>();
     private final List<String> topics;
     private final BufferedWriter writer;
+    // Null without a remote cluster
+    private final BufferedWriter replicationWriter;
     private final ScheduledExecutorService executor;
     private int failedSamples;
     private volatile Backlog latestBacklog;
 
     /**
      * The backlog of a sampling round: the sum over every topic and subscription, and the largest subscription's,
-     * summed over the topics, which is the application that is furthest behind.
+     * summed over the topics, which is the application that is furthest behind; and the replication backlog summed
+     * over the topics and remote clusters, or -1 without a remote cluster.
      */
-    record Backlog(long epochMs, long total, long maxSubscription) {
+    record Backlog(long epochMs, long total, long maxSubscription, long replication, long intervalMillis) {
+        Backlog(long epochMs, long total, long maxSubscription) {
+            this(epochMs, total, maxSubscription, -1);
+        }
+
+        Backlog(long epochMs, long total, long maxSubscription, long replication) {
+            this(epochMs, total, maxSubscription, replication, INTERVAL_MILLIS);
+        }
     }
 
-    private TopicStatsSampler(Map<String, PulsarAdmin> brokerAdmins, List<String> topics, BufferedWriter writer) {
+    private TopicStatsSampler(Map<String, PulsarAdmin> brokerAdmins, List<String> topics, BufferedWriter writer,
+                              BufferedWriter replicationWriter) {
         this.brokerAdmins = brokerAdmins;
         this.admin = brokerAdmins.values().iterator().next();
         this.topics = topics;
         this.writer = writer;
+        this.replicationWriter = replicationWriter;
         this.executor = Executors.newSingleThreadScheduledExecutor(runnable -> {
             Thread thread = new Thread(runnable, "topic-stats-sampler");
             thread.setDaemon(true);
@@ -93,53 +126,105 @@ final class TopicStatsSampler implements AutoCloseable {
         });
     }
 
+    /** Every second, or with more topics than {@link #MAX_REQUESTS_PER_SECOND}, every so many seconds. */
+    static long intervalMillis(int topicCount) {
+        long seconds = Math.max(1, (topicCount + MAX_REQUESTS_PER_SECOND - 1) / MAX_REQUESTS_PER_SECOND);
+        return TimeUnit.SECONDS.toMillis(seconds);
+    }
+
     /**
-     * Starts sampling {@code topics} through the brokers' HTTP services into {@code runDirectory}.
+     * Starts sampling {@code topics} through the brokers' HTTP services into the file {@code fileName} of
+     * {@code runDirectory}, such as {@code topic-stats.csv}, and with {@code replicated} the topics' replicators into
+     * {@code replication-stats.csv}.
      *
      * @param brokerHttpUrls each broker's HTTP service on the host, by the broker's name in the cluster's network, the
      *                       first broker first
      */
-    static TopicStatsSampler start(Map<String, String> brokerHttpUrls, List<String> topics, Path runDirectory)
-            throws IOException {
+    static TopicStatsSampler start(Map<String, String> brokerHttpUrls, List<String> topics, Path runDirectory,
+                                   boolean replicated, String fileName) throws IOException {
         Map<String, PulsarAdmin> brokerAdmins = new LinkedHashMap<>();
-        for (Map.Entry<String, String> broker : brokerHttpUrls.entrySet()) {
-            brokerAdmins.put(broker.getKey(), PulsarAdmin.builder()
-                    .serviceHttpUrl(broker.getValue())
-                    .connectionTimeout(5, TimeUnit.SECONDS)
-                    .readTimeout(5, TimeUnit.SECONDS)
-                    .build());
+        BufferedWriter writer = null;
+        BufferedWriter replicationWriter = null;
+        try {
+            for (Map.Entry<String, String> broker : brokerHttpUrls.entrySet()) {
+                brokerAdmins.put(broker.getKey(), PulsarAdmin.builder()
+                        .serviceHttpUrl(broker.getValue())
+                        .connectionTimeout(5, TimeUnit.SECONDS)
+                        .readTimeout(5, TimeUnit.SECONDS)
+                        .build());
+            }
+            writer = Files.newBufferedWriter(runDirectory.resolve(fileName));
+            writer.write(HEADER);
+            writer.newLine();
+            if (replicated) {
+                replicationWriter = Files.newBufferedWriter(runDirectory.resolve(REPLICATION_FILE_NAME));
+                replicationWriter.write(REPLICATION_HEADER);
+                replicationWriter.newLine();
+            }
+        } catch (IOException | RuntimeException e) {
+            // The launcher goes on without the sampler, so it releases what it opened
+            closeAll(e, writer, replicationWriter, brokerAdmins.values());
+            throw e;
         }
-        BufferedWriter writer = Files.newBufferedWriter(runDirectory.resolve(FILE_NAME));
-        writer.write(HEADER);
-        writer.newLine();
-        TopicStatsSampler sampler = new TopicStatsSampler(brokerAdmins, topics, writer);
+        TopicStatsSampler sampler = new TopicStatsSampler(brokerAdmins, topics, writer, replicationWriter);
         // Fixed delay on one thread: a slow call delays the next sample instead of piling up requests.
-        sampler.executor.scheduleWithFixedDelay(sampler::sample, 0, INTERVAL_MILLIS, TimeUnit.MILLISECONDS);
+        long intervalMillis = intervalMillis(topics.size());
+        if (intervalMillis > INTERVAL_MILLIS) {
+            System.out.println("Sampling the stats of the " + topics.size() + " topics every "
+                    + intervalMillis / 1000 + " s, " + MAX_REQUESTS_PER_SECOND + " requests per second on average");
+        }
+        sampler.executor.scheduleWithFixedDelay(sampler::sample, 0, intervalMillis, TimeUnit.MILLISECONDS);
         return sampler;
     }
 
+    private CompletableFuture<TopicStats> requestStats(String topic) {
+        return owners.getOrDefault(topic, admin).topics().getStatsAsync(topic, STATS_OPTIONS);
+    }
+
     private void sample() {
-        // One timestamp per round, so that the topics of a round line up in the report.
-        long now = System.currentTimeMillis();
+        // One timestamp per round, so that the topics of a round line up in the report: its end, which follows every
+        // observation of the round, so that none appears to precede an event that happened during the round
+        StringBuilder rows = new StringBuilder();
+        StringBuilder replicationRows = new StringBuilder();
         Map<String, Long> backlogs = new HashMap<>();
+        long replicationBacklog = 0;
         boolean complete = true;
-        // In parallel, so that a round takes as long as the slowest topic rather than all of them together
-        List<CompletableFuture<TopicStats>> requests = topics.stream()
-                .map(topic -> owners.getOrDefault(topic, admin).topics().getStatsAsync(topic, STATS_OPTIONS))
-                .toList();
+        // In parallel, so that a round takes as long as the slowest topics rather than all of them together, but at
+        // most MAX_IN_FLIGHT at a time, so that many topics' requests don't reach the broker in one burst
+        List<CompletableFuture<TopicStats>> requests = new ArrayList<>(Collections.nCopies(topics.size(), null));
+        for (int i = 0; i < Math.min(MAX_IN_FLIGHT - 1, topics.size()); i++) {
+            requests.set(i, requestStats(topics.get(i)));
+        }
         for (int i = 0; i < topics.size(); i++) {
             String topic = topics.get(i);
+            // With the one awaited next, MAX_IN_FLIGHT at most
+            if (i + MAX_IN_FLIGHT - 1 < topics.size()) {
+                requests.set(i + MAX_IN_FLIGHT - 1, requestStats(topics.get(i + MAX_IN_FLIGHT - 1)));
+            }
             try {
                 TopicStats stats = unwrap(requests.get(i));
                 for (Map.Entry<String, ? extends SubscriptionStats> subscription : stats.getSubscriptions()
                         .entrySet()) {
+                    if (RandomSeeks.SUBSCRIPTION.equals(subscription.getKey())) {
+                        continue;
+                    }
                     backlogs.merge(subscription.getKey(), subscription.getValue().getMsgBacklog(), Long::sum);
-                    writer.write(now + "," + topic + "," + subscription.getKey() + ","
-                            + subscription.getValue().getMsgBacklog() + "," + stats.getMsgInCounter() + ","
-                            + subscription.getValue().getMsgOutCounter());
-                    writer.newLine();
+                    rows.append(',').append(topic).append(',').append(subscription.getKey()).append(',')
+                            .append(subscription.getValue().getMsgBacklog()).append(',')
+                            .append(stats.getMsgInCounter()).append(',')
+                            .append(subscription.getValue().getMsgOutCounter()).append('\n');
                 }
-                writer.flush();
+                if (replicationWriter != null) {
+                    for (Map.Entry<String, ? extends ReplicatorStats> replicator : stats.getReplication().entrySet()) {
+                        ReplicatorStats replication = replicator.getValue();
+                        replicationBacklog += replication.getReplicationBacklog();
+                        replicationRows.append(',').append(topic).append(',').append(replicator.getKey()).append(',')
+                                .append(replication.getReplicationBacklog()).append(',')
+                                .append(replication.isConnected()).append(',')
+                                .append(replication.getReplicationDelayInSeconds()).append(',')
+                                .append(replication.getMsgOutCount()).append('\n');
+                    }
+                }
             } catch (PulsarAdminException.NotFoundException e) {
                 // The producer creates the topic with its first message to it
                 complete = false;
@@ -160,10 +245,34 @@ final class TopicStatsSampler implements AutoCloseable {
                 }
             }
         }
-        if (complete) {
-            latestBacklog = new Backlog(now, backlogs.values().stream().mapToLong(Long::longValue).sum(),
-                    backlogs.values().stream().mapToLong(Long::longValue).max().orElse(0));
+        long end = System.currentTimeMillis();
+        try {
+            writeRows(writer, end, rows);
+            if (replicationWriter != null) {
+                writeRows(replicationWriter, end, replicationRows);
+            }
+        } catch (IOException e) {
+            complete = false;
+            System.out.println("Couldn't write a topic stats sample: " + e);
         }
+        if (complete) {
+            latestBacklog = new Backlog(end, backlogs.values().stream().mapToLong(Long::longValue).sum(),
+                    backlogs.values().stream().mapToLong(Long::longValue).max().orElse(0),
+                    replicationWriter != null ? replicationBacklog : -1, intervalMillis(topics.size()));
+        }
+    }
+
+    // Writes a round's rows, each with the round's timestamp before it
+    private static void writeRows(BufferedWriter writer, long epochMs, StringBuilder rows) throws IOException {
+        int start = 0;
+        while (start < rows.length()) {
+            int end = rows.indexOf("\n", start);
+            writer.write(Long.toString(epochMs));
+            writer.append(rows, start, end);
+            writer.newLine();
+            start = end + 1;
+        }
+        writer.flush();
     }
 
     /**
@@ -216,10 +325,48 @@ final class TopicStatsSampler implements AutoCloseable {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
-        try {
-            writer.close();
-        } finally {
-            brokerAdmins.values().forEach(PulsarAdmin::close);
+        IOException failure = closeAll(null, writer, replicationWriter, brokerAdmins.values());
+        if (failure != null) {
+            throw failure;
         }
+    }
+
+    /**
+     * Closes each writer and admin client, whichever fails. Adds the failures to {@code failure} when there is one;
+     * otherwise returns the first, with the others suppressed by it, or null when everything closed.
+     */
+    private static IOException closeAll(Exception failure, BufferedWriter writer, BufferedWriter replicationWriter,
+                                        Collection<PulsarAdmin> admins) {
+        IOException first = null;
+        for (BufferedWriter toClose : new BufferedWriter[] {writer, replicationWriter}) {
+            if (toClose == null) {
+                continue;
+            }
+            try {
+                toClose.close();
+            } catch (IOException e) {
+                if (failure != null) {
+                    failure.addSuppressed(e);
+                } else if (first == null) {
+                    first = e;
+                } else {
+                    first.addSuppressed(e);
+                }
+            }
+        }
+        for (PulsarAdmin admin : admins) {
+            try {
+                admin.close();
+            } catch (RuntimeException e) {
+                if (failure != null) {
+                    failure.addSuppressed(e);
+                } else if (first == null) {
+                    first = new IOException("Closing an admin client failed", e);
+                } else {
+                    first.addSuppressed(e);
+                }
+            }
+        }
+        return first;
     }
 }
