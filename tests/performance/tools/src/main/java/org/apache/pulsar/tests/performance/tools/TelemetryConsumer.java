@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
@@ -62,7 +63,10 @@ import picocli.CommandLine.Command;
  * <p>An application with {@code applications.joinSeconds} after the measurement's start creates its subscription at
  * startup, so that the backlog builds up from the start, and opens its pods when it joins. It records when it joined
  * and when it caught up: when it first received a measured message within {@code applications.caughtUpLatencyMillis}
- * of its publishing.
+ * of its publishing. When the launcher prepares the join, by moving the late applications' subscriptions forward with
+ * {@code applications.skipMessages} or unloading the topics with {@code applications.unloadBeforeJoin}, the late
+ * applications wait for it at their join time; one that skips messages expects every message but those, each
+ * device's from the first one it receives.
  */
 @Command(name = "iot-consume", description = "Run the IoT applications, each consuming and validating its own "
         + "subscription")
@@ -247,7 +251,9 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
         line.put("duplicates", duplicates);
         line.put("orderingViolations", orderingViolations);
         line.put("invalidMessages", invalidMessages);
-        line.put("messageCount", Math.multiplyExact(scenario.messageCount(), (long) applications.size()));
+        // without the messages that the applications skip, which they don't receive
+        line.put("messageCount", applications.stream()
+                .mapToLong(Application::expectedMessagesSoFar).sum());
     }
 
     /** An application: its subscription, the pods that consume it, and the checks of what it received. */
@@ -256,6 +262,9 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
         private final int index;
         private final Path output;
         private final DeviceSequenceTracker tracker;
+        // The messages that the application receives; -1 until the launcher tells them, for an application that
+        // resets its subscription
+        private volatile long expectedMessages;
         private final HdrLatencyRecorder receiveLatency;
         private final AtomicLong firstMeasurementReceiptEpochMs = new AtomicLong();
         private final AtomicLong lastMeasurementReceiptEpochMs = new AtomicLong();
@@ -276,11 +285,19 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
             this.scenario = scenario;
             this.index = index;
             this.output = output;
-            tracker = new DeviceSequenceTracker(scenario.deviceCount());
+            tracker = new DeviceSequenceTracker(scenario.deviceCount(), scenario.startsAtFirstSequence(index));
+            // Unknown until the launcher has reset the subscription, which it tells with the prepared join
+            expectedMessages = scenario.resetToMillis(index) >= 0 ? -1 : scenario.expectedMessageCount(index);
             catchUp = new CatchUpTracker(scenario.topicCount(), scenario.applications().caughtUpLatencyMillis());
             pods = new ArrayList<>(scenario.podsPerApplication());
             receiveLatency = new HdrLatencyRecorder(output.resolve("application-latency.hdr"),
                     PerformanceTool.MAX_LATENCY_MICROS);
+        }
+
+        /** The messages that the application expects, or all of them while it doesn't know yet. */
+        long expectedMessagesSoFar() {
+            long expected = expectedMessages;
+            return expected >= 0 ? expected : scenario.messageCount();
         }
 
         HdrLatencyRecorder receiveLatency() {
@@ -329,6 +346,19 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
                     if (waitMillis > 0) {
                         Thread.sleep(waitMillis);
                     }
+                    if (scenario.preparesJoin()) {
+                        // the launcher skips the late applications' messages and unloads the topics first
+                        Map<Integer, Long> expected = JoinPreparedMarker.await(coordinationDirectory, runId,
+                                deadlineNanos);
+                        if (scenario.resetToMillis(index) >= 0) {
+                            Long messages = expected.get(index);
+                            if (messages == null) {
+                                throw new IllegalStateException("The launcher didn't tell the messages that"
+                                        + " application " + index + " expects after resetting its subscription");
+                            }
+                            expectedMessages = messages;
+                        }
+                    }
                     // when it starts to open its pods, so the catch-up includes connecting them
                     long joinEpochMs = System.currentTimeMillis();
                     catchUp.joined(joinEpochMs);
@@ -337,9 +367,9 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
                     startRestarts(sharedResources);
                 } catch (InterruptedException interrupted) {
                     Thread.currentThread().interrupt();
-                } catch (TimeoutException measurementDidNotStart) {
+                } catch (TimeoutException notStarted) {
                     // the receive loop's timeout reports the run as failed and writes the applications' summaries
-                    System.out.println("JOIN application=" + index + " didn't join: the measurement didn't start");
+                    System.out.println("JOIN application=" + index + " didn't join: " + notStarted.getMessage());
                 } catch (Throwable error) {
                     joinFailure.compareAndSet(null, error);
                 }
@@ -394,7 +424,7 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
         }
 
         boolean receivedEveryMessage() {
-            return tracker.uniqueMessages() >= scenario.messageCount();
+            return expectedMessages >= 0 && tracker.uniqueMessages() >= expectedMessages;
         }
 
         /**
@@ -412,6 +442,8 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
             Files.writeString(output.resolve("application-summary.json"), "{\n"
                     + "  \"applicationIndex\": " + index + ",\n"
                     + "  \"uniqueMessages\": " + summary.uniqueMessages() + ",\n"
+                    + "  \"skippedMessages\": " + (scenario.messageCount() - expectedMessagesSoFar())
+                    + ",\n"
                     + "  \"duplicates\": " + summary.duplicates() + ",\n"
                     + "  \"redeliveredDuplicates\": " + summary.redeliveredDuplicates() + ",\n"
                     + "  \"republishedDuplicates\": " + summary.republishedDuplicates() + ",\n"
@@ -428,7 +460,8 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
                     + "  \"messagesWhenCaughtUp\": " + catchUp.messagesWhenCaughtUp() + "\n}\n");
             closePods();
             finished = true;
-            return summary.valid() && summary.uniqueMessages() == scenario.messageCount();
+            // with skipped messages, the count tells a lost message from a skipped one
+            return summary.valid() && expectedMessages >= 0 && summary.uniqueMessages() == expectedMessages;
         }
 
         /** Closes the application's pods, when it hasn't finished, such as after a failure. */
