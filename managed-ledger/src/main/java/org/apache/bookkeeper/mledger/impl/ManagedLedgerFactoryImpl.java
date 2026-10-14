@@ -48,6 +48,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.CustomLog;
@@ -1388,6 +1389,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         final CountDownLatch allCursorsCounter = new CountDownLatch(1);
         final long errorInReadingCursor = -1;
         final var ledgerRetryMap = new ConcurrentHashMap<String, Long>();
+        final var cursorBacklogs = new ConcurrentHashMap<String, CursorBacklog>();
 
         final LedgerInfo ledgerInfo = ledgers.lastEntry().getValue();
         final Position lastLedgerPosition =
@@ -1409,9 +1411,11 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                     return;
                 }
 
-                final CountDownLatch cursorCounter = new CountDownLatch(cursors.size());
+                final List<CompletableFuture<Void>> cursorResults = new ArrayList<>(cursors.size());
 
                 for (final String cursorName : cursors) {
+                    CompletableFuture<Void> cursorComplete = new CompletableFuture<>();
+                    cursorResults.add(cursorComplete);
                     // determine subscription position from cursor ledger
                     log.debug().attr("managedLedger", managedLedgerName)
                             .attr("cursor", cursorName)
@@ -1443,7 +1447,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                     .attr("ledgerId", ledgerId)
                                     .log("Cursor LAC read from ledger");
                             ManagedLedgerImpl.closeReadHandleAsync(lh, log);
-                            cursorCounter.countDown();
+                            cursorComplete.complete(null);
                             return;
                         }
                         final long entryId = lac;
@@ -1461,8 +1465,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                                 .attr("result", BKException.getMessage(rc))
                                                 .log("Error reading from metadata ledger for cursor");
                                         // indicate that this cursor should be excluded
-                                        offlineTopicStats.addCursorDetails(cursorName, errorInReadingCursor,
-                                                lh.getId());
+                                        cursorBacklogs.put(cursorName,
+                                                new CursorBacklog(errorInReadingCursor, lh.getId()));
                                     } else {
                                         LedgerEntry entry = seq.nextElement();
                                         PositionInfo positionInfo;
@@ -1475,8 +1479,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                                     .attr("cursor", cursorName)
                                                     .exception(e)
                                                     .log("Error reading position from metadata ledger for cursor");
-                                            offlineTopicStats.addCursorDetails(cursorName, errorInReadingCursor,
-                                                    lh.getId());
+                                            cursorBacklogs.put(cursorName,
+                                                    new CursorBacklog(errorInReadingCursor, lh.getId()));
                                             return;
                                         }
                                         final Position lastAckedMessagePosition =
@@ -1495,12 +1499,11 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                                 .attr("range", range)
                                                 .log("Calculating backlog for cursor");
                                         long cursorBacklog = getNumberOfEntries(range, ledgers);
-                                        offlineTopicStats.messageBacklog += cursorBacklog;
-                                        offlineTopicStats.addCursorDetails(cursorName, cursorBacklog, lh.getId());
+                                        cursorBacklogs.put(cursorName, new CursorBacklog(cursorBacklog, lh.getId()));
                                     }
                                 } finally {
                                     ManagedLedgerImpl.closeReadHandleAsync(lh, log);
-                                    cursorCounter.countDown();
+                                    cursorComplete.complete(null);
                                 }
                             }
                         }, null);
@@ -1532,7 +1535,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                                                 .attr("cursor", cursorName)
                                                                 .exception(ex)
                                                                 .log("Error opening metadata ledger for cursor");
-                                                        cursorCounter.countDown();
+                                                        cursorComplete.complete(null);
                                                     } else {
                                                         ManagedLedgerImpl.completeOpenCallback(openLog,
                                                                 cursorLedgerId, cursorLedgerOpenCb, rh, null);
@@ -1548,9 +1551,9 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                                 .attr("range", range)
                                                 .log("Calculating backlog for cursor");
                                         long cursorBacklog = getNumberOfEntries(range, ledgers);
-                                        offlineTopicStats.messageBacklog += cursorBacklog;
-                                        offlineTopicStats.addCursorDetails(cursorName, cursorBacklog, cursorLedgerId);
-                                        cursorCounter.countDown();
+                                        cursorBacklogs.put(cursorName,
+                                                new CursorBacklog(cursorBacklog, cursorLedgerId));
+                                        cursorComplete.complete(null);
                                     }
 
                                 }
@@ -1561,23 +1564,13 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                             .attr("cursor", cursorName)
                                             .exception(e)
                                             .log("Unable to obtain cursor ledger for cursor");
-                                    cursorCounter.countDown();
+                                    cursorComplete.complete(null);
                                 }
                             });
                 } // for every cursor find backlog
-                try {
-                    if (accurate) {
-                        cursorCounter.await();
-                    } else {
-                        cursorCounter.await(META_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-                    }
-                } catch (Exception e) {
-                    log.warn().attr("managedLedger", managedLedgerName)
-                            .exception(e)
-                            .log("Error reading subscription positions");
-                } finally {
-                    allCursorsCounter.countDown();
-                }
+                // Cursor metadata callbacks use the same ordered executor as this callback. Notify
+                // the waiting caller asynchronously instead of blocking that executor.
+                FutureUtil.waitForAll(cursorResults).whenComplete((ignored, error) -> allCursorsCounter.countDown());
             }
 
             @Override
@@ -1592,9 +1585,21 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
             allCursorsCounter.await(META_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         }
 
+        // Only the caller mutates the returned statistics. Late callbacks after a timeout can
+        // complete their own results without changing an already returned snapshot.
+        cursorBacklogs.forEach((cursorName, backlog) -> {
+            if (backlog.entries() >= 0) {
+                offlineTopicStats.messageBacklog += backlog.entries();
+            }
+            offlineTopicStats.addCursorDetails(cursorName, backlog.entries(), backlog.ledgerId());
+        });
+
         // go through ledgers where LAC was -1
         if (accurate && ledgerRetryMap.size() > 0) {
             ledgerRetryMap.forEach((cursorName, ledgerId) -> {
+                if (Thread.currentThread().isInterrupted()) {
+                    return;
+                }
                 log.debug().attr("cursor", cursorName)
                         .attr("ledgerId", ledgerId)
                         .log("Trying to obtain mark-delete position from cursor ledger");
@@ -1622,6 +1627,9 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 }
             });
         }
+    }
+
+    private record CursorBacklog(long entries, long ledgerId) {
     }
 
     // need a better way than to duplicate the functionality below from ML
@@ -1668,17 +1676,18 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         ReadHandle readHandle = null;
         Position lastAckedMessagePosition = null;
         try {
-            readHandle = bookKeeper.newOpenLedgerOp()
+            readHandle = awaitOrClose(bookKeeper.newOpenLedgerOp()
                     .withRecovery(false)
                     .withLedgerId(ledgerId)
                     .withDigestType(digestType.toApiDigestType())
                     .withPassword(password)
                     .withLoggerContext(log.with().attr("cursor", cursorName).build())
-                    .execute().get();
+                    .execute(), handle -> ManagedLedgerImpl.closeReadHandleAsync(handle, log));
             // Recheck LAC after each read, as BookKeeperAdmin's iterator does: reading an entry can
             // discover a newer LAC while the cursor ledger is still open.
             for (long entryId = 0; entryId <= readHandle.getLastAddConfirmed(); entryId++) {
-                try (LedgerEntries entries = readHandle.readUnconfirmedAsync(entryId, entryId).get()) {
+                try (LedgerEntries entries = awaitOrClose(readHandle.readUnconfirmedAsync(entryId, entryId),
+                        LedgerEntries::close)) {
                     log.debug().attr("entryId", entryId)
                             .attr("ledgerId", ledgerId)
                             .attr("cursor", cursorName)
@@ -1697,6 +1706,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                     throw e;
                 }
             }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         } catch (Exception e) {
             log.warn().attr("ledgerId", ledgerId)
                     .attr("cursor", cursorName)
@@ -1708,6 +1719,18 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
             }
         }
         return lastAckedMessagePosition;
+    }
+
+    private static <T> T awaitOrClose(CompletableFuture<T> future, Consumer<T> close)
+            throws InterruptedException, ExecutionException {
+        try {
+            return future.get();
+        } catch (InterruptedException e) {
+            // An interrupted wait does not cancel BookKeeper's operation. Its eventual result
+            // still owns resources, even though this caller can no longer receive them.
+            future.thenAccept(close);
+            throw e;
+        }
     }
 
     private static final int META_READ_TIMEOUT_SECONDS = 60;

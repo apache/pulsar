@@ -3025,6 +3025,9 @@ public class ManagedCursorImpl implements ManagedCursor {
                 @Override
                 public void operationFailed(MetaStoreException e) {
                     log.warn().attr("errorMessage", e.getMessage()).log("Failed to update cursor info when closing");
+                    // The cursor cannot be reused after a failed close. Release the local read handle,
+                    // but preserve the ledger because its position is still needed for recovery.
+                    closeReadOnlyCursorLedger();
                     callback.closeFailed(e, ctx);
                 }
             }, true);

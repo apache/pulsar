@@ -133,6 +133,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoundException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
@@ -3371,6 +3372,89 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         // Check cursor recovered successfully.
         cursor = ledger.openCursor("testCursor");
         assertEquals(cursor.getMarkDeletedPosition(), p1);
+    }
+
+    @DataProvider(name = "cursorCreationCloseOrdering")
+    public Object[][] cursorCreationCloseOrdering() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "cursorCreationCloseOrdering", timeOut = 30000)
+    @SuppressWarnings("unchecked")
+    public void testCloseWaitsForPendingCursorCreation(boolean closeBeforeCreation) throws Exception {
+        String ledgerName = "pending-cursor-creation-close";
+        String cursorPath = "/managed-ledgers/" + ledgerName + "/cursor";
+        CompletableFuture<Void> releaseWrite = new CompletableFuture<>();
+        CompletableFuture<Void> writeStarted = new CompletableFuture<>();
+        AtomicInteger cursorWrites = new AtomicInteger();
+        FaultInjectionMetadataStore spyStore = spy(metadataStore);
+        doAnswer(invocation -> {
+            CompletableFuture<Stat> write = (CompletableFuture<Stat>) invocation.callRealMethod();
+            if (cursorWrites.incrementAndGet() == 1) {
+                return write.thenCompose(stat -> {
+                    writeStarted.complete(null);
+                    return releaseWrite.thenApply(ignore -> stat);
+                });
+            }
+            return write;
+        }).when(spyStore).put(eq(cursorPath), any(byte[].class), any());
+
+        ManagedLedgerFactoryImpl localFactory = new ManagedLedgerFactoryImpl(spyStore, bkc);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) localFactory.open(ledgerName,
+                initManagedLedgerConfig(defaultConfig()));
+        CompletableFuture<ManagedCursor> opening = new CompletableFuture<>();
+        AtomicInteger openCallbacks = new AtomicInteger();
+        ManagedCursor created = null;
+        try {
+            ledger.asyncOpenCursor("cursor", new OpenCursorCallback() {
+                @Override
+                public void openCursorComplete(ManagedCursor cursor, Object ctx) {
+                    openCallbacks.incrementAndGet();
+                    opening.complete(cursor);
+                }
+
+                @Override
+                public void openCursorFailed(ManagedLedgerException exception, Object ctx) {
+                    openCallbacks.incrementAndGet();
+                    opening.completeExceptionally(exception);
+                }
+            }, null);
+            writeStarted.get(5, TimeUnit.SECONDS);
+            assertThat(opening).isNotDone();
+            Futures.CloseFuture closing = new Futures.CloseFuture();
+            Futures.CloseFuture repeatedClose = new Futures.CloseFuture();
+            if (closeBeforeCreation) {
+                ledger.asyncClose(closing, null);
+                ledger.asyncClose(repeatedClose, null);
+                assertThat(closing).isNotDone();
+                assertThat(repeatedClose).isNotDone();
+            }
+            releaseWrite.complete(null);
+            if (closeBeforeCreation) {
+                assertThatThrownBy(() -> opening.get(5, TimeUnit.SECONDS))
+                        .hasCauseInstanceOf(ManagedLedgerAlreadyClosedException.class);
+            } else {
+                created = opening.get(5, TimeUnit.SECONDS);
+                ledger.asyncClose(closing, null);
+            }
+            closing.get(5, TimeUnit.SECONDS);
+            if (closeBeforeCreation) {
+                repeatedClose.get(5, TimeUnit.SECONDS);
+                assertThat(ledger.getCursors()).isEmpty();
+            } else {
+                assertThat(created.isClosed()).isTrue();
+            }
+            assertThat(ledger.getActiveCursors()).isEmpty();
+            assertThat(cursorWrites).hasValue(2);
+            assertThat(openCallbacks).hasValue(1);
+        } finally {
+            releaseWrite.complete(null);
+            try {
+                ledger.close();
+            } finally {
+                localFactory.shutdown();
+            }
+        }
     }
 
     @Test
