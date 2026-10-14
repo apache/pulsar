@@ -27,6 +27,7 @@ import com.google.common.base.Strings;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -46,6 +47,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.api.KeySharedPolicy;
+import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -1132,6 +1134,42 @@ public class Commands {
         return serializeWithSize(cmd);
     }
 
+    /**
+     * Serialize existing message IDs without allocating a tuple and boxed coordinates for each acknowledgement.
+     * Individual IDs are written first, followed by batch-index IDs with their supplied acknowledgement masks.
+     * Both lists and the masks are read synchronously and are not retained by the returned command.
+     */
+    public static ByteBuf newMultiMessageAck(long consumerId,
+                                            List<? extends MessageIdAdv> individualAcks,
+                                            List<? extends Map.Entry<? extends MessageIdAdv, ConcurrentBitSet>>
+                                                    batchIndexAcks,
+                                            long requestId) {
+        BaseCommand cmd = localCmd(Type.ACK);
+        CommandAck ack = cmd.setAck()
+                .setConsumerId(consumerId)
+                .setAckType(AckType.Individual);
+        for (int i = 0; i < individualAcks.size(); i++) {
+            MessageIdAdv id = individualAcks.get(i);
+            ack.addMessageId().setLedgerId(id.getLedgerId()).setEntryId(id.getEntryId());
+        }
+        for (int i = 0; i < batchIndexAcks.size(); i++) {
+            Map.Entry<? extends MessageIdAdv, ConcurrentBitSet> entry = batchIndexAcks.get(i);
+            MessageIdAdv id = entry.getKey();
+            MessageIdData msgId = ack.addMessageId().setLedgerId(id.getLedgerId()).setEntryId(id.getEntryId());
+            ConcurrentBitSet bitSet = entry.getValue();
+            if (bitSet != null) {
+                long[] ackSet = bitSet.toLongArray();
+                for (int j = 0; j < ackSet.length; j++) {
+                    msgId.addAckSet(ackSet[j]);
+                }
+            }
+        }
+        if (requestId >= 0) {
+            ack.setRequestId(requestId);
+        }
+        return serializeWithSize(cmd);
+    }
+
     public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, BitSetRecyclable ackSet, AckType ackType,
                                  ValidationError validationError, Map<String, Long> properties, long requestId) {
         return newAck(consumerId, ledgerId, entryId, ackSet, ackType, validationError,
@@ -2040,36 +2078,44 @@ public class Commands {
         int checksumReaderIndex = -1;
 
         ByteBuf headers = PulsarByteBufAllocator.DEFAULT.buffer(headersSize, headersSize);
-        headers.writeInt(totalSize); // External frame
+        try {
+            headers.writeInt(totalSize); // External frame
 
-        // Write cmd
-        headers.writeInt(cmdSize);
-        cmd.writeTo(headers);
+            // Write cmd
+            headers.writeInt(cmdSize);
+            cmd.writeTo(headers);
 
-        // Create checksum placeholder
-        if (includeChecksum) {
-            headers.writeShort(magicCrc32c);
-            checksumReaderIndex = headers.writerIndex();
-            headers.writerIndex(headers.writerIndex() + checksumSize); // skip 4 bytes of checksum
+            // Create checksum placeholder
+            if (includeChecksum) {
+                headers.writeShort(magicCrc32c);
+                checksumReaderIndex = headers.writerIndex();
+                headers.writerIndex(headers.writerIndex() + checksumSize); // skip 4 bytes of checksum
+            }
+
+            // Write metadata
+            headers.writeInt(msgMetadataSize);
+            msgMetadata.writeTo(headers);
+
+            // write checksum at created checksum-placeholder
+            if (includeChecksum) {
+                headers.markReaderIndex();
+                headers.readerIndex(checksumReaderIndex + checksumSize);
+                int metadataChecksum = computeChecksum(headers);
+                int computedChecksum = resumeChecksum(metadataChecksum, payload);
+                // set computed checksum
+                headers.setInt(checksumReaderIndex, computedChecksum);
+                headers.resetReaderIndex();
+            }
+
+            // Create the pair last so it becomes the single owner of both buffers on success: if anything above
+            // throws (e.g. an OOM while serializing the command or metadata), the header is released here instead
+            // of being orphaned. The payload is deliberately not touched on failure; releasing it on a failed
+            // send remains a pre-existing gap on the caller side.
+            return ByteBufPair.get(headers, payload);
+        } catch (Throwable t) {
+            ReferenceCountUtil.safeRelease(headers);
+            throw t;
         }
-
-        // Write metadata
-        headers.writeInt(msgMetadataSize);
-        msgMetadata.writeTo(headers);
-
-        ByteBufPair command = ByteBufPair.get(headers, payload);
-
-        // write checksum at created checksum-placeholder
-        if (includeChecksum) {
-            headers.markReaderIndex();
-            headers.readerIndex(checksumReaderIndex + checksumSize);
-            int metadataChecksum = computeChecksum(headers);
-            int computedChecksum = resumeChecksum(metadataChecksum, payload);
-            // set computed checksum
-            headers.setInt(checksumReaderIndex, computedChecksum);
-            headers.resetReaderIndex();
-        }
-        return command;
     }
 
     public static ByteBuf addBrokerEntryMetadata(ByteBuf headerAndPayload,
@@ -2398,12 +2444,17 @@ public class Commands {
         int headersSize = 4 + 4 + cmdSize;
 
         ByteBuf headers = PulsarByteBufAllocator.DEFAULT.buffer(headersSize);
-        headers.writeInt(totalSize); // External frame
+        try {
+            headers.writeInt(totalSize); // External frame
 
-        // Write cmd
-        headers.writeInt(cmdSize);
-        cmd.writeTo(headers);
-        return ByteBufPair.get(headers, metadataAndPayload);
+            // Write cmd
+            headers.writeInt(cmdSize);
+            cmd.writeTo(headers);
+            return ByteBufPair.get(headers, metadataAndPayload);
+        } catch (Throwable t) {
+            ReferenceCountUtil.safeRelease(headers);
+            throw t;
+        }
     }
 
     public static MessageMetadata peekMessageMetadata(ByteBuf metadataAndPayload, String subscription,

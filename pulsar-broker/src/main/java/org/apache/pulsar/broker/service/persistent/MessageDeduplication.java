@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
@@ -113,12 +114,12 @@ public class MessageDeduplication {
     // Map that contains the highest sequenceId that have been sent by each producers. The map will be updated before
     // the messages are persisted
     @VisibleForTesting
-    final Map<String, Long> highestSequencedPushed = new ConcurrentHashMap<>();
+    final ConcurrentMap<String, Long> highestSequencedPushed = new ConcurrentHashMap<>();
 
     // Map that contains the highest sequenceId that have been persistent by each producers. The map will be updated
     // after the messages are persisted
     @VisibleForTesting
-    final Map<String, Long> highestSequencedPersisted = new ConcurrentHashMap<>();
+    final ConcurrentMap<String, Long> highestSequencedPersisted = new ConcurrentHashMap<>();
 
     @VisibleForTesting
     final Map<String, ReplSourcePosition> highestReplPositionPushed = new ConcurrentHashMap<>();
@@ -284,6 +285,7 @@ public class MessageDeduplication {
         // Load the sequence ids from the snapshot in the cursor properties
         recoverDeduplicationStateFromSnapshot(managedCursor.getProperties());
         // Replay all the entries and apply all the sequence ids updates
+        final long startTimeReplayDedup = System.currentTimeMillis();
         log.info()
                 .attr("numberOfEntries", managedCursor.getNumberOfEntries())
                 .log("Replaying entries for deduplication");
@@ -307,13 +309,14 @@ public class MessageDeduplication {
             }
             snapshotCounter = replayTask.getNumEntriesProcessed();
             if (snapshotCounter >= snapshotInterval) {
+                log.info("Taking snapshot of sequence ids map");
                 return takeSnapshot(optPosition.get());
             } else {
                 return CompletableFuture.completedFuture(null);
             }
         }).thenRun(() -> {
             status = Status.Enabled;
-            log.info("Enabled deduplication");
+            log.info().attr("cost ms", System.currentTimeMillis() - startTimeReplayDedup).log("Enabled deduplication");
         });
     }
 
@@ -608,9 +611,10 @@ public class MessageDeduplication {
             publishContext.setProperty(IS_LAST_CHUNK, Boolean.FALSE);
             return MessageDupStatus.NotDup;
         }
-        // Synchronize the get() and subsequent put() on the map. This would only be relevant if the producer
-        // disconnects and re-connects very quickly. At that point the call can be coming from a different thread
-        synchronized (highestSequencedPushed) {
+        // A producer that disconnects and reconnects quickly can publish from two threads. Update its sequence
+        // atomically without serializing unrelated producers on one topic-wide monitor.
+        Long newHighestSequenceId = null;
+        while (true) {
             Long lastSequenceIdPushed = highestSequencedPushed.get(producerName);
             if (lastSequenceIdPushed != null && sequenceId <= lastSequenceIdPushed) {
                 log.debug()
@@ -632,7 +636,17 @@ public class MessageDeduplication {
                     return MessageDupStatus.Unknown;
                 }
             }
-            highestSequencedPushed.put(producerName, highestSequenceId);
+            if (newHighestSequenceId == null) {
+                newHighestSequenceId = highestSequenceId;
+            }
+            if (lastSequenceIdPushed == null) {
+                if (highestSequencedPushed.putIfAbsent(producerName, newHighestSequenceId) == null) {
+                    break;
+                }
+            } else if (highestSequencedPushed.replace(producerName, lastSequenceIdPushed,
+                    newHighestSequenceId)) {
+                break;
+            }
         }
         // Only put sequence ID into highestSequencedPushed and
         // highestSequencedPersisted until receive and persistent the last chunk.

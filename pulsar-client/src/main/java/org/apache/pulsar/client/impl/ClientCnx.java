@@ -866,7 +866,7 @@ public class ClientCnx extends PulsarHandler {
                 producer.printWarnLogWhenCanNotDetermineDeduplication(ctx.channel(), sequenceId, highestSequenceId);
             }
 
-        } else {
+        } else if (producer != null) {
                 log.debug().attr("producerId", producerId)
                         .attr("producerName", producer.getProducerName())
                         .attr("sequenceId", sequenceId).attr("highestSequenceId", highestSequenceId)

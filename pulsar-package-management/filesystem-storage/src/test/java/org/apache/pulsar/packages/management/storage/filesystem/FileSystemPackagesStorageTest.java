@@ -19,6 +19,7 @@
 package org.apache.pulsar.packages.management.storage.filesystem;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.io.ByteArrayInputStream;
@@ -175,12 +176,43 @@ public class FileSystemPackagesStorageTest {
     @Test(timeOut = 60000)
     public void testExistOperation() throws ExecutionException, InterruptedException {
         Boolean exist = storage.existAsync("test-path").get();
-        org.testng.Assert.assertFalse(exist);
+        assertFalse(exist);
 
         storage.writeAsync("test-path", new ByteArrayInputStream("test".getBytes())).get();
 
         exist = storage.existAsync("test-path").get();
         assertTrue(exist);
+    }
+
+    @Test(timeOut = 60000)
+    public void testPathOutsideStorageRootIsRejected() throws Exception {
+        Path siblingPath = storagePath.resolveSibling(storagePath.getFileName() + "_sibling");
+        String siblingRelativePath = "../" + siblingPath.getFileName() + "/data";
+        try {
+            try {
+                storage.writeAsync(siblingRelativePath, new ByteArrayInputStream("test".getBytes())).join();
+                fail("should throw exception");
+            } catch (CompletionException e) {
+                assertEquals(e.getCause().getClass(), IOException.class);
+            }
+            assertFalse(Files.exists(siblingPath.resolve("data")));
+
+            try {
+                storage.existAsync("../outside").join();
+                fail("should throw exception");
+            } catch (CompletionException e) {
+                assertEquals(e.getCause().getClass(), IOException.class);
+            }
+        } finally {
+            Files.deleteIfExists(siblingPath.resolve("data"));
+            Files.deleteIfExists(siblingPath);
+        }
+    }
+
+    @Test(timeOut = 60000)
+    public void testNormalizedPathWithinStorageRoot() throws Exception {
+        storage.writeAsync("a/b/../c", new ByteArrayInputStream("test".getBytes())).get();
+        assertTrue(storage.existAsync("a/c").get());
     }
 
 }

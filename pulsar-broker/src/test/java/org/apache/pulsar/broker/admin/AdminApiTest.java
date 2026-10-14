@@ -591,11 +591,11 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // wait config to be updated
         Awaitility.await().until(() -> {
-            return conf.getLoadBalancerSheddingIntervalMinutes() == 10;
+            return pulsar.getConfiguration().getLoadBalancerSheddingIntervalMinutes() == 10;
         });
 
         // verify value is updated
-        assertEquals(conf.getLoadBalancerSheddingIntervalMinutes(), 10);
+        assertEquals(pulsar.getConfiguration().getLoadBalancerSheddingIntervalMinutes(), 10);
     }
 
     @Test

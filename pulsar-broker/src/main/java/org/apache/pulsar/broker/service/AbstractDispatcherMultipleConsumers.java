@@ -23,6 +23,7 @@ import com.carrotsearch.hppc.ObjectSet;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.function.Predicate;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 
@@ -31,8 +32,12 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
  */
 public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDispatcher {
 
+    // Use the membership helpers below for mutations so the selector priority counts stay consistent.
     protected final CopyOnWriteArrayList<Consumer> consumerList = new CopyOnWriteArrayList<>();
-    protected final ObjectSet<Consumer> consumerSet = new ObjectHashSet<>();
+    private final ConsumerPrioritySelector<Consumer> consumerPrioritySelector =
+            new ConsumerPrioritySelector<>(consumerList, Consumer::getPriorityLevel, this::isConsumerAvailable);
+    private final ObjectHashSet<Consumer> consumerSetImpl = new ObjectHashSet<>();
+    protected final ObjectSet<Consumer> consumerSet = consumerSetImpl;
     protected volatile int currentConsumerRoundRobinIndex = 0;
 
     protected static final int FALSE = 0;
@@ -46,6 +51,19 @@ public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDi
         super(subscription, serviceConfig);
     }
 
+    // Keep membership and priority counts under the same monitor used for selection.
+    protected final synchronized void addConsumerToList(Consumer consumer) {
+        consumerPrioritySelector.add(consumer);
+    }
+
+    protected final synchronized void removeConsumerFromList(Consumer consumer) {
+        consumerPrioritySelector.remove(consumer);
+    }
+
+    protected final synchronized void removeConsumersFromList(Predicate<Consumer> predicate) {
+        consumerPrioritySelector.removeIf(predicate);
+    }
+
     public boolean isConsumerConnected() {
         return !consumerList.isEmpty();
     }
@@ -56,6 +74,18 @@ public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDi
 
     public synchronized boolean canUnsubscribe(Consumer consumer) {
         return consumerList.size() == 1 && consumerSet.contains(consumer);
+    }
+
+    /**
+     * Checks whether the exact Consumer instance is still connected.
+     *
+     * <p>This differs from {@link ObjectSet#contains(Object)}, which uses {@link Consumer#equals(Object)} and can
+     * match a replacement Consumer that reuses the same protocol identity.
+     * The caller must hold the dispatcher monitor while checking membership and acting on the result.
+     */
+    protected final boolean containsConsumerInstance(Consumer consumer) {
+        int index = consumerSetImpl.indexOf(consumer);
+        return consumerSetImpl.indexExists(index) && consumerSetImpl.indexGet(index) == consumer;
     }
 
     public boolean isClosed() {
@@ -112,7 +142,7 @@ public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDi
      *
      * @return nextAvailableConsumer
      */
-    public Consumer getNextConsumer() {
+    public synchronized Consumer getNextConsumer() {
         if (consumerList.isEmpty() || IS_CLOSED_UPDATER.get(this) == TRUE) {
             // abort read if no consumers are connected or if disconnect is initiated
             return null;
@@ -122,26 +152,11 @@ public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDi
             currentConsumerRoundRobinIndex = 0;
         }
 
-        int currentRoundRobinConsumerPriority = consumerList.get(currentConsumerRoundRobinIndex).getPriorityLevel();
-
-        // first find available-consumer on higher level unless currentIndex is not on highest level which is 0
-        if (currentRoundRobinConsumerPriority != 0) {
-            int higherPriorityConsumerIndex = getConsumerFromHigherPriority(currentRoundRobinConsumerPriority);
-            if (higherPriorityConsumerIndex != -1) {
-                currentConsumerRoundRobinIndex = higherPriorityConsumerIndex + 1;
-                return consumerList.get(higherPriorityConsumerIndex);
-            }
-        }
-
-        // currentIndex is already on highest level or couldn't find consumer on higher level so, find consumer on same
-        // or lower level
-        int availableConsumerIndex = getNextConsumerFromSameOrLowerLevel(currentConsumerRoundRobinIndex);
+        int availableConsumerIndex = consumerPrioritySelector.select(currentConsumerRoundRobinIndex);
         if (availableConsumerIndex != -1) {
             currentConsumerRoundRobinIndex = availableConsumerIndex + 1;
             return consumerList.get(availableConsumerIndex);
         }
-
-        // couldn't find available consumer
         return null;
     }
 
@@ -159,85 +174,5 @@ public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDi
         return consumerList.get(ThreadLocalRandom.current().nextInt(consumerList.size()));
     }
 
-
-    /**
-     * Finds index of first available consumer which has higher priority then given targetPriority.
-     *
-     * @param targetPriority
-     * @return -1 if couldn't find any available consumer
-     */
-    private int getConsumerFromHigherPriority(int targetPriority) {
-        for (int i = 0; i < currentConsumerRoundRobinIndex; i++) {
-            Consumer consumer = consumerList.get(i);
-            if (consumer.getPriorityLevel() < targetPriority) {
-                if (isConsumerAvailable(consumerList.get(i))) {
-                    return i;
-                }
-            } else {
-                break;
-            }
-        }
-        return -1;
-    }
-
-    /**
-     * Finds index of round-robin available consumer that present on same level as consumer on
-     * currentRoundRobinIndex if doesn't find consumer on same level then it finds first available consumer on lower
-     * priority level else returns
-     * index=-1 if couldn't find any available consumer in the list.
-     *
-     * @param currentRoundRobinIndex
-     * @return
-     */
-    private int getNextConsumerFromSameOrLowerLevel(int currentRoundRobinIndex) {
-        Consumer currentRRConsumer = consumerList.get(currentRoundRobinIndex);
-        if (isConsumerAvailable(currentRRConsumer)) {
-            return currentRoundRobinIndex;
-        }
-
-        // scan the consumerList, if consumer in currentRoundRobinIndex is unavailable
-        int targetPriority = currentRRConsumer.getPriorityLevel();
-        int scanIndex = currentRoundRobinIndex + 1;
-        int endPriorityLevelIndex = currentRoundRobinIndex;
-        do {
-            Consumer scanConsumer = scanIndex < consumerList.size() ? consumerList.get(scanIndex)
-                    : null /* reached to last consumer of list */;
-
-            // if reached to last consumer of list then check from beginning to currentRRIndex of the list
-            if (scanConsumer == null || scanConsumer.getPriorityLevel() != targetPriority) {
-                endPriorityLevelIndex = scanIndex; // last consumer on this level
-                scanIndex = getFirstConsumerIndexOfPriority(targetPriority);
-            } else {
-                if (isConsumerAvailable(scanConsumer)) {
-                    return scanIndex;
-                }
-                scanIndex++;
-            }
-        } while (scanIndex != currentRoundRobinIndex);
-
-        // it means: didn't find consumer in the same priority-level so, check available consumer lower than this level
-        for (int i = endPriorityLevelIndex; i < consumerList.size(); i++) {
-            if (isConsumerAvailable(consumerList.get(i))) {
-                return i;
-            }
-        }
-
-        return -1;
-    }
-
-    /**
-     * Finds index of first consumer in list which has same priority as given targetPriority.
-     *
-     * @param targetPriority
-     * @return
-     */
-    private int getFirstConsumerIndexOfPriority(int targetPriority) {
-        for (int i = 0; i < consumerList.size(); i++) {
-            if (consumerList.get(i).getPriorityLevel() == targetPriority) {
-                return i;
-            }
-        }
-        return -1;
-    }
 
 }

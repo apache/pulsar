@@ -72,6 +72,13 @@ message FunctionDetails {
         SOURCE = 2;
         SINK = 3;
     }
+    // Pulsar client API that the Java runtime uses for the component's own topics.
+    enum ClientApi {
+        // V5 if any of the component's topics is a topic:// (scalable) topic, otherwise V4
+        AUTO = 0;
+        V4 = 1;
+        V5 = 2;
+    }
     string tenant = 1;
     string namespace = 2;
     string name = 3;
@@ -98,6 +105,7 @@ message FunctionDetails {
     bool retainOrdering = 21;
     bool retainKeyOrdering = 22;
     SubscriptionPosition subscriptionPosition = 23;
+    ClientApi clientApi = 24;
 }
 
 message ConsumerSpec {

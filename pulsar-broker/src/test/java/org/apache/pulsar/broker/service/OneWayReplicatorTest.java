@@ -522,8 +522,8 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         waitReplicatorStarted(topicName);
         admin1.namespaces().setSchemaCompatibilityStrategy(ns, SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE);
         admin2.namespaces().setSchemaCompatibilityStrategy(ns, SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE);
-        admin1.namespaces().setIsAllowAutoUpdateSchemaAsync(ns, true, null);
-        admin2.namespaces().setIsAllowAutoUpdateSchemaAsync(ns, isAllowAutoUpdateSchema, null);
+        admin1.namespaces().setIsAllowAutoUpdateSchema(ns, true, null);
+        admin2.namespaces().setIsAllowAutoUpdateSchema(ns, isAllowAutoUpdateSchema, null);
         RetentionPolicies retentionPolicies = new RetentionPolicies(10, 1);
         admin1.namespaces().setRetention(ns, retentionPolicies);
         admin2.namespaces().setRetention(ns, retentionPolicies);
@@ -598,8 +598,8 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         });
 
         // Change policies.
-        admin1.namespaces().setIsAllowAutoUpdateSchemaAsync(ns, true, null);
-        admin2.namespaces().setIsAllowAutoUpdateSchemaAsync(ns, isAllowAutoUpdateSchema,
+        admin1.namespaces().setIsAllowAutoUpdateSchema(ns, true, null);
+        admin2.namespaces().setIsAllowAutoUpdateSchema(ns, isAllowAutoUpdateSchema,
                 allowAutoUpdateSchemaWithReplicator);
         Awaitility.await().untilAsserted(() -> {
             assertTrue(topic1.get().isAllowAutoUpdateSchema);
@@ -624,7 +624,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             TopicStats topicStats = admin1.topics().getStats(topicName);
             assertEquals(topicStats.getReplication().get(cluster2).getReplicationBacklog(), 1);
             // Change the policy to allow replicator update schemas.
-            admin2.namespaces().setIsAllowAutoUpdateSchemaAsync(ns, isAllowAutoUpdateSchema, true);
+            admin2.namespaces().setIsAllowAutoUpdateSchema(ns, isAllowAutoUpdateSchema, true);
             Awaitility.await().untilAsserted(() -> {
                 assertEquals(topic2.isAllowAutoUpdateSchema, isAllowAutoUpdateSchema);
                 assertTrue(topic2.isAllowAutoUpdateSchemaWithReplicator);
@@ -930,13 +930,16 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             producer1.send("msg" + i);
         }
 
-        // Inject a probable error.
-        AtomicInteger roundrobin = new  AtomicInteger();
+        // Smoke-test progress while failures keep alternating with successful reads. The deterministic
+        // owner-loop tests verify that ACK demand resumes reads before the fallback timer.
+        AtomicInteger readAttempts = new AtomicInteger();
+        AtomicInteger injectedFailures = new AtomicInteger();
         Supplier<ManagedLedgerException> bkErrorOrNot = () -> {
-            if (roundrobin.incrementAndGet() % 2 == 0) {
-                return null;
+            if (readAttempts.incrementAndGet() % 2 == 1) {
+                injectedFailures.incrementAndGet();
+                return new ManagedLedgerException.TooManyRequestsException("mocked error");
             }
-            return new ManagedLedgerException.TooManyRequestsException("mocked error");
+            return null;
         };
         // bkErrorOrNot doesn't block, so evaluate it inline on the calling read thread via directExecutor().
         ManagedLedgerTest.makeReadEntryProbFail(ml1, bkErrorOrNot, MoreExecutors.directExecutor());
@@ -945,7 +948,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         pulsar1.getConfig().setReplicationStartAt("earliest");
         admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1, cluster2));
         waitReplicatorStarted(topicName);
-        Awaitility.await().atMost(Duration.ofSeconds(600)).pollInterval(Duration.ofSeconds(1)).untilAsserted(() -> {
+        Awaitility.await().atMost(Duration.ofSeconds(30)).pollInterval(Duration.ofSeconds(1)).untilAsserted(() -> {
             TopicStats topicStats = admin1.topics().getStats(topicName);
             assertEquals(topicStats.getReplication().get(cluster2).getReplicationBacklog(), 0);
         });
@@ -964,6 +967,8 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         }
         assertEquals(received.size(), msgPublished.size());
         assertEquals(received, msgPublished);
+        // Smoke check that the ledger fault hook ran; it does not identify which cursor observed a failure.
+        assertTrue(injectedFailures.get() > 0, "The ledger read fault hook must inject at least one failure");
 
         // cleanup.
         producer1.close();

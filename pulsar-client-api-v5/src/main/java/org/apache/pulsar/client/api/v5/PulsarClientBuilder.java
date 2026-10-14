@@ -21,6 +21,7 @@ package org.apache.pulsar.client.api.v5;
 import io.opentelemetry.api.OpenTelemetry;
 import java.time.Duration;
 import org.apache.pulsar.client.api.v5.auth.Authentication;
+import org.apache.pulsar.client.api.v5.config.BackoffPolicy;
 import org.apache.pulsar.client.api.v5.config.ConnectionPolicy;
 import org.apache.pulsar.client.api.v5.config.MemorySize;
 import org.apache.pulsar.client.api.v5.config.TransactionPolicy;
@@ -101,6 +102,10 @@ public interface PulsarClientBuilder {
     /**
      * Configure connection-level settings such as timeouts, pool size, threading,
      * keep-alive, and proxy configuration.
+     *
+     * <p>The reconnection backoff's initial and max intervals are applied. A backoff whose
+     * multiplier is not 2, or whose jitter is not {@link BackoffPolicy#DEFAULT_JITTER_PERCENT},
+     * is rejected rather than ignored. The client doubles the delay on each attempt.
      *
      * @param policy the connection policy
      * @return this builder instance for chaining
@@ -191,9 +196,15 @@ public interface PulsarClientBuilder {
     PulsarClientBuilder openTelemetry(OpenTelemetry openTelemetry);
 
     /**
-     * Maximum amount of direct memory the client can use for pending messages.
+     * Maximum amount of memory the client may hold in pending messages, across all of its producers
+     * and consumers.
      *
-     * @param size the memory limit for pending messages across all producers
+     * <p>A message a producer has accepted is charged its payload size plus a fixed allowance for the
+     * per-message bookkeeping, until the send completes, so the limit bounds how many messages can be
+     * pending as well as how many bytes. It is the only bound on a producer's pending messages: see
+     * {@link ProducerBuilder#blockIfQueueFull(boolean)} for what a send does when it is reached.
+     *
+     * @param size the memory limit for pending messages
      * @return this builder instance for chaining
      * @see MemorySize#ofMegabytes(long)
      * @see MemorySize#ofGigabytes(long)

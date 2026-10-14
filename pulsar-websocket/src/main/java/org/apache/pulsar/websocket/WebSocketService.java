@@ -109,16 +109,17 @@ public class WebSocketService implements Closeable {
             pulsarResources = new PulsarResources(null, configMetadataStore);
         }
 
+        // Start authentication first so authorization can reuse the initialized token provider.
+        authenticationService = new AuthenticationService(this.config);
         // start authorizationService
         if (config.isAuthorizationEnabled()) {
             if (pulsarResources == null) {
                 throw new PulsarServerException(
                         "Failed to initialize authorization manager due to empty ConfigurationStoreServers");
             }
-            authorizationService = new AuthorizationService(this.config, pulsarResources);
+            authorizationService = new AuthorizationService(this.config, pulsarResources,
+                    authenticationService);
         }
-        // start authentication service
-        authenticationService = new AuthenticationService(this.config);
         // initialize crypto key reader
         String cryptoFactoryClassName = (String) config.getProperties().get("cryptoKeyReaderFactoryClassName");
         if (StringUtils.isNotBlank(cryptoFactoryClassName)) {
