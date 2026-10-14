@@ -24,6 +24,7 @@ import io.oxia.client.api.AsyncOxiaClient;
 import io.oxia.client.api.Notification;
 import io.oxia.client.api.OxiaClientBuilder;
 import io.oxia.client.api.PutResult;
+import io.oxia.client.api.RangeScanConsumer;
 import io.oxia.client.api.Version;
 import io.oxia.client.api.exceptions.KeyAlreadyExistsException;
 import io.oxia.client.api.exceptions.UnexpectedVersionIdException;
@@ -256,7 +257,7 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
             ScanConsumer consumer, Set<Option> opts) {
         // Index entries are stored at "<parentPath>/<secondaryKey>" by doStorePut, where
         // parentPath == scanPathPrefix for records directly under the prefix. The API uses
-        // inclusive-on-both-sides bounds; Oxia's list(start, end, ...) is half-open, and it compares
+        // inclusive-on-both-sides bounds; Oxia's rangeScan(start, end, ...) is half-open, and it compares
         // the bounds with whole index entries, which Oxia stores as the secondary key, a 0x01
         // separator and the escaped primary key. So the end that follows the entries of
         // `toKeyInclusive`, and precedes those of the keys that extend it (e.g. "k-12" for "k-1"),
@@ -272,31 +273,57 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
         String scopedTo = toKeyInclusive == null
                 ? scanPathPrefix + "//"
                 : scanPathPrefix + "/" + toKeyInclusive + "\u0002";
-        Set<ListOption> listOpts = new HashSet<>(listOptions(opts));
-        listOpts.add(ListOption.UseIndex(indexName));
+        // The scan reads the records along with the index: each shard returns the records it holds.
+        // Getting them by their key afterwards would miss the records written with a partition key,
+        // since a get without that key goes to the shard of the record's key, not of its partition key.
+        // Native indexes already enforced the range; fallbackFilter is unused here (it's the
+        // scan-and-filter compat-path predicate).
+        Set<RangeScanOption> scanOpts = new HashSet<>(rangeScanOptions(opts));
+        scanOpts.add(RangeScanOption.UseIndex(indexName));
         CompletableFuture<Void> done = new CompletableFuture<>();
-        client.list(scopedFrom, scopedTo, listOpts)
-                .thenCompose(primaryKeys -> {
-                    // Native indexes already enforced the range; fallbackFilter is unused here
-                    // (it's the scan-and-filter compat-path predicate).
-                    CompletableFuture<Void> chain = CompletableFuture.completedFuture(null);
-                    for (String key : primaryKeys) {
-                        chain = chain
-                                .thenCompose(__ -> storeGet(key, opts))
-                                .thenAccept(opt -> opt.ifPresent(consumer::onNext));
+        try {
+            client.rangeScan(scopedFrom, scopedTo, new RangeScanConsumer() {
+                private Throwable consumerError;
+
+                @Override
+                public boolean onNext(io.oxia.client.api.GetResult result) {
+                    if (result.version().createdTimestamp() == 0) {
+                        // A record deleted after the scan read its index entry: Oxia returns it as
+                        // not found, without a version or a value
+                        return true;
                     }
-                    return chain;
-                })
-                .whenComplete((v, ex) -> {
-                    if (ex != null) {
-                        Throwable cause = FutureUtil.unwrapCompletionException(ex);
-                        consumer.onError(cause);
-                        done.completeExceptionally(cause);
+                    try {
+                        consumer.onNext(new GetResult(result.value(),
+                                convertStat(result.key(), result.version())));
+                        return true;
+                    } catch (Throwable t) {
+                        // Stopping the scan makes the client call onCompleted, which fails it
+                        consumerError = t;
+                        return false;
+                    }
+                }
+
+                @Override
+                public void onError(Throwable throwable) {
+                    Throwable cause = FutureUtil.unwrapCompletionException(throwable);
+                    consumer.onError(cause);
+                    done.completeExceptionally(cause);
+                }
+
+                @Override
+                public void onCompleted() {
+                    if (consumerError != null) {
+                        onError(consumerError);
                     } else {
                         consumer.onCompleted();
                         done.complete(null);
                     }
-                });
+                }
+            }, scanOpts);
+        } catch (Throwable t) {
+            consumer.onError(t);
+            done.completeExceptionally(t);
+        }
         return done;
     }
 
