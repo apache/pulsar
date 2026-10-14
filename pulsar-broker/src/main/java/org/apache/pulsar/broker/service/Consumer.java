@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
@@ -334,6 +335,17 @@ public class Consumer {
         return readCompacted;
     }
 
+    /** A send task rejected before ownership transfer, after this consumer has charged its permits. */
+    public static final class SendMessageTaskRejectedException extends RejectedExecutionException {
+        @Getter
+        private final int permitsUsed;
+
+        private SendMessageTaskRejectedException(int permitsUsed, RejectedExecutionException cause) {
+            super(cause);
+            this.permitsUsed = permitsUsed;
+        }
+    }
+
     public Future<Void> sendMessages(final List<? extends Entry> entries, EntryBatchSizes batchSizes,
                                      EntryBatchIndexesAcks batchIndexesAcks,
                                      int totalMessages, long totalBytes, long totalChunkedMessages,
@@ -452,9 +464,16 @@ public class Consumer {
                 .attr("avgMessagesPerEntry", avgMessagesPerEntry.get())
                 .log("Added minus messages to MESSAGE_PERMITS_UPDATER");
         incrementUnackedMessages(unackedMessages);
-        Future<Void> writeAndFlushPromise =
-                cnx.getCommandSender().sendMessagesToConsumer(consumerId, topicName, subscription, partitionIdx,
-                        entries, batchSizes, batchIndexesAcks, redeliveryTracker, epoch);
+        Future<Void> writeAndFlushPromise;
+        try {
+            writeAndFlushPromise = cnx.getCommandSender().sendMessagesToConsumer(consumerId, topicName, subscription,
+                    partitionIdx, entries, batchSizes, batchIndexesAcks, redeliveryTracker, epoch);
+        } catch (RejectedExecutionException e) {
+            if (shouldTrackPendingDispatcherFlowPermits()) {
+                throw new SendMessageTaskRejectedException(totalMessages - ackedCount, e);
+            }
+            throw e;
+        }
         writeAndFlushPromise.addListener(status -> {
             // only increment counters after the messages have been successfully written to the TCP/IP connection
             if (status.isSuccess()) {

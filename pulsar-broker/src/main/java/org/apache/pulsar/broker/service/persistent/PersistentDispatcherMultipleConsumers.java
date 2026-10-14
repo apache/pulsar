@@ -64,6 +64,7 @@ import org.apache.pulsar.broker.service.AbstractDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.service.Consumer.SendMessageTaskRejectedException;
 import org.apache.pulsar.broker.service.EntryAndMetadata;
 import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
@@ -148,6 +149,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     private final Backoff retryBackoff;
     private final Backoff dispatchFailureBackoff;
     private boolean dispatchRetryPending;
+    private int pendingConsumerSendFailures;
     protected enum ReadType {
         Normal, Replay
     }
@@ -255,6 +257,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             // debits the same messages again and drives the subscription counter negative.
             addUnAckedMessages(-consumer.getUnackedMessages());
             removeConsumerFromList(consumer);
+            assignor.removeConsumer(consumer);
             log.info()
                     .attr("consumer", consumer)
                     .attr("pendingAcks", consumer.getPendingAcks().size())
@@ -375,7 +378,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
     @Override
     protected synchronized void internalReadMoreEntries() {
-        if (dispatchRetryPending) {
+        if (dispatchRetryPending || pendingConsumerSendFailures > 0) {
             // ACKs, Flow and completed writes must not bypass failure recovery's backoff.
             return;
         }
@@ -824,11 +827,27 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             for (int i = 0; i < ownedEntries.size(); i++) {
                 ownedEntries.set(i, EntryAndMetadata.create(ownedEntries.get(i)));
             }
+            if (pendingConsumerSendFailures > 0) {
+                // A read can already be in flight when another batch's send fails. Preserve its entries without
+                // sending them through a consumer whose bookkeeping has not been removed yet.
+                onDispatchAborted(readType);
+                replayAndReleaseEntries(ownedEntries);
+                return;
+            }
             List<Entry> entriesForDispatch = new ArrayList<>(ownedEntries);
             dispatchStarted = true;
             triggerReadingMore = sendMessagesToConsumers(readType, entriesForDispatch,
                     needAcquireSendInProgress);
         } catch (ConsumerSendException e) {
+            if (e.getCause() instanceof SendMessageTaskRejectedException) {
+                pendingConsumerSendFailures++;
+                try {
+                    handleDispatchFailure(ownedEntries, e.getCause());
+                } finally {
+                    disconnectFailedConsumer(e.consumer);
+                }
+                return;
+            }
             // Consumer.sendMessages can mutate pending ACKs, permits and unacked counts before throwing. Without
             // rolling those changes back, these entries cannot safely enter dispatcher replay recovery.
             if (e.getCause() instanceof Error error) {
@@ -873,6 +892,27 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
     private void handleDispatchFailure(List<Entry> entries, Throwable error) {
         log.debug().exception(error).log("Failed to dispatch entries; scheduling replay with backoff");
+        replayAndReleaseEntries(entries);
+        lastNumberOfEntriesProcessed = 0;
+        skipNextBackoff = false;
+        if (dispatchRetryPending || cursor.isClosed() || IS_CLOSED_UPDATER.get(this) == TRUE) {
+            return;
+        }
+        dispatchRetryPending = true;
+        try {
+            topic.getBrokerService().executor().schedule(() -> {
+                synchronized (PersistentDispatcherMultipleConsumers.this) {
+                    dispatchRetryPending = false;
+                }
+                readMoreEntries();
+            }, Math.max(1, dispatchFailureBackoff.next().toMillis()), TimeUnit.MILLISECONDS);
+        } catch (RejectedExecutionException e) {
+            dispatchRetryPending = false;
+            log.debug().exception(e).log("Dispatch retry executor is shutting down");
+        }
+    }
+
+    private void replayAndReleaseEntries(List<Entry> entries) {
         for (Entry entry : entries) {
             if (entry instanceof EntryAndMetadata entryAndMetadata && !entryAndMetadata.isOwnedByDispatcher()) {
                 continue;
@@ -894,28 +934,44 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 entry.release();
             }
         }
-        lastNumberOfEntriesProcessed = 0;
-        skipNextBackoff = false;
-        if (dispatchRetryPending || cursor.isClosed() || IS_CLOSED_UPDATER.get(this) == TRUE) {
-            return;
-        }
-        dispatchRetryPending = true;
+    }
+
+    private void disconnectFailedConsumer(Consumer consumer) {
         try {
-            topic.getBrokerService().executor().schedule(() -> {
-                synchronized (PersistentDispatcherMultipleConsumers.this) {
-                    dispatchRetryPending = false;
+            // Consumer.close takes the subscription lock before the dispatcher lock. Disconnect outside the
+            // dispatcher's monitor to preserve that lock order, and keep reads paused until removal finishes.
+            topic.getBrokerService().pulsar().getExecutor().execute(() -> {
+                try {
+                    // Unregister before notifying the client, so a fast reconnect cannot register its replacement
+                    // while the old consumer is still present. Notification failure must not prevent removal.
+                    try {
+                        consumer.close();
+                    } finally {
+                        consumer.cnx().closeConsumer(consumer, Optional.empty());
+                    }
+                } catch (BrokerServiceException e) {
+                    log.debug().exception(e).log("Failed consumer was already removed");
+                } catch (RuntimeException | Error e) {
+                    log.debug().exception(e).log("Unable to notify client of failed consumer removal");
+                } finally {
+                    synchronized (PersistentDispatcherMultipleConsumers.this) {
+                        pendingConsumerSendFailures--;
+                    }
+                    readMoreEntries();
                 }
-                readMoreEntries();
-            }, Math.max(1, dispatchFailureBackoff.next().toMillis()), TimeUnit.MILLISECONDS);
+            });
         } catch (RejectedExecutionException e) {
-            dispatchRetryPending = false;
-            log.debug().exception(e).log("Dispatch retry executor is shutting down");
+            // During shutdown, do not resume reads against the consumer whose removal could not be scheduled.
+            log.debug().exception(e).log("Failed consumer cleanup executor is shutting down");
         }
     }
 
     private static final class ConsumerSendException extends RuntimeException {
-        private ConsumerSendException(Throwable cause) {
+        private final Consumer consumer;
+
+        private ConsumerSendException(Consumer consumer, Throwable cause) {
             super(cause);
+            this.consumer = consumer;
         }
     }
 
@@ -928,8 +984,17 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             writeFuture = consumer.sendMessages(entries, batchSizes, batchIndexesAcks,
                     sendMessageInfo.getTotalMessages(), sendMessageInfo.getTotalBytes(),
                     sendMessageInfo.getTotalChunkedMessages(), getRedeliveryTracker());
+        } catch (SendMessageTaskRejectedException e) {
+            // The consumer debit already happened, but the normal dispatcher debit below the send call did not.
+            // Settle it before removal subtracts the consumer's remaining balance.
+            TOTAL_AVAILABLE_PERMITS_UPDATER.getAndAdd(this, -e.getPermitsUsed());
+            batchSizes.recyle();
+            if (batchIndexesAcks != null) {
+                batchIndexesAcks.recycle();
+            }
+            throw new ConsumerSendException(consumer, e);
         } catch (RuntimeException | Error e) {
-            throw new ConsumerSendException(e);
+            throw new ConsumerSendException(consumer, e);
         }
         transferEntriesToConsumer(entries);
         return writeFuture;

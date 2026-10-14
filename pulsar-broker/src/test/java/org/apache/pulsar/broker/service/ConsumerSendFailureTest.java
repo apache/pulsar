@@ -24,15 +24,21 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
+import io.netty.buffer.ByteBuf;
 import io.prometheus.client.CollectorRegistry;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.persistent.SharedDispatcherPermitAccountingTest.PermitAssertions;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -46,43 +52,64 @@ public class ConsumerSendFailureTest extends SharedPulsarBaseTest {
     @DataProvider(name = "sendFailureModes")
     public Object[][] sendFailureModes() {
         return new Object[][] {
-                {SubscriptionType.Shared, false, false}, {SubscriptionType.Shared, true, false},
-                {SubscriptionType.Key_Shared, false, false}, {SubscriptionType.Key_Shared, true, false},
-                {SubscriptionType.Shared, false, true}, {SubscriptionType.Shared, true, true}
+                {SubscriptionType.Shared, false, false, false}, {SubscriptionType.Shared, true, false, false},
+                {SubscriptionType.Key_Shared, false, false, false}, {SubscriptionType.Key_Shared, true, false, false},
+                {SubscriptionType.Shared, false, true, false}, {SubscriptionType.Shared, true, true, false},
+                {SubscriptionType.Shared, false, false, true}, {SubscriptionType.Shared, true, false, true},
+                {SubscriptionType.Key_Shared, false, false, true}, {SubscriptionType.Key_Shared, true, false, true},
+                {SubscriptionType.Shared, false, true, true}, {SubscriptionType.Shared, true, true, true}
         };
     }
 
     @Test(dataProvider = "sendFailureModes", timeOut = 30_000)
-    public void testSynchronousSendFailureDoesNotReplayConsumerPendingAcks(
-            SubscriptionType type, boolean subscriptionThread, boolean chunked) throws Exception {
+    public void testRejectedSendReleasesBatchAndRecovers(
+            SubscriptionType type, boolean subscriptionThread, boolean chunked, boolean additionalConsumer)
+            throws Exception {
         boolean oldSubscriptionThread = getConfig().isDispatcherDispatchMessagesInSubscriptionThread();
         int oldReadBatchSize = getConfig().getDispatcherMaxReadBatchSize();
+        int oldInitialBackoff = getConfig().getDispatcherReadFailureBackoffInitialTimeInMs();
+        int oldMaxBackoff = getConfig().getDispatcherReadFailureBackoffMaxTimeInMs();
         getConfig().setDispatcherDispatchMessagesInSubscriptionThread(subscriptionThread);
         getConfig().setDispatcherMaxReadBatchSize(1);
+        getConfig().setDispatcherReadFailureBackoffInitialTimeInMs(50);
+        getConfig().setDispatcherReadFailureBackoffMaxTimeInMs(200);
         try {
             String topicName = newTopicName();
             admin.topics().createNonPartitionedTopic(topicName);
-            try (var clientConsumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
-                    .subscriptionName("sub").subscriptionType(type).receiverQueueSize(1).subscribe()) {
+            LinkedBlockingQueue<Message<String>> received = new LinkedBlockingQueue<>();
+            var consumerBuilder = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+                    .subscriptionName("sub").subscriptionType(type).receiverQueueSize(1)
+                    .messageListener((client, message) -> {
+                        received.add(message);
+                        client.acknowledgeAsync(message);
+                    });
+            try (var clientConsumer = consumerBuilder.clone().consumerName("primary").subscribe();
+                 var otherClient = additionalConsumer
+                         ? consumerBuilder.clone().consumerName("secondary").subscribe() : null) {
                 PersistentTopic topic = (PersistentTopic) getTopic(topicName, false).join().orElseThrow();
                 PersistentSubscription subscription = topic.getSubscription("sub");
                 PersistentDispatcherMultipleConsumers dispatcher =
                         (PersistentDispatcherMultipleConsumers) subscription.getDispatcher();
-                Consumer consumer = dispatcher.getConsumers().get(0);
-                Awaitility.await().untilAsserted(() -> assertThat(consumer.getAvailablePermits()).isOne());
-                ServerCnx cnx = (ServerCnx) consumer.cnx();
+                Awaitility.await().untilAsserted(() -> dispatcher.getConsumers()
+                        .forEach(consumer -> assertThat(consumer.getAvailablePermits()).isOne()));
+                ServerCnx cnx = (ServerCnx) dispatcher.getConsumers().get(0).cnx();
+                dispatcher.getConsumers().forEach(consumer -> assertThat(consumer.cnx()).isSameAs(cnx));
                 PulsarCommandSender originalSender = cnx.getCommandSender();
                 PulsarCommandSender sender = Mockito.spy(originalSender);
                 AtomicInteger sends = new AtomicInteger();
+                AtomicReference<Consumer> failedConsumer = new AtomicReference<>();
                 List<Entry> failedEntries = new CopyOnWriteArrayList<>();
-                List<EntryBatchSizes> failedBatchSizes = new CopyOnWriteArrayList<>();
-                List<EntryBatchIndexesAcks> failedBatchIndexes = new CopyOnWriteArrayList<>();
+                List<ByteBuf> failedBuffers = new CopyOnWriteArrayList<>();
                 doAnswer(invocation -> {
+                    if (sends.incrementAndGet() != 1) {
+                        return invocation.callRealMethod();
+                    }
+                    long consumerId = invocation.getArgument(0);
+                    failedConsumer.set(dispatcher.getConsumers().stream()
+                            .filter(consumer -> consumer.consumerId() == consumerId).findFirst().orElseThrow());
                     List<? extends Entry> entries = invocation.getArgument(4);
                     failedEntries.addAll(entries);
-                    failedBatchSizes.add(invocation.getArgument(5));
-                    failedBatchIndexes.add(invocation.getArgument(6));
-                    sends.incrementAndGet();
+                    entries.forEach(entry -> failedBuffers.add(entry.getDataBuffer()));
                     // Only the external send fails; Consumer has already registered its pending ACK and charged
                     // its permit. Dispatcher construction, managed-ledger reads and callbacks remain real.
                     throw new RejectedExecutionException("send event loop rejected the task");
@@ -104,42 +131,47 @@ public class ConsumerSendFailureTest extends SharedPulsarBaseTest {
                         producer.newMessage().key("key").value("m0").send();
                     }
                     Awaitility.await().untilAsserted(() -> {
-                        assertThat(sends.get()).isOne();
+                        assertThat(sends.get()).isPositive();
                         assertThat(CollectorRegistry.defaultRegistry
                                 .getSampleValue("pulsar_broker_pending_bytes_to_dispatch")).isEqualTo(pendingBytes);
                     });
                     synchronized (dispatcher) {
-                        // The failed batch is still registered on this Consumer. Replaying it here would charge
-                        // its bookkeeping again or stall on its exhausted permit instead of handling a send failure.
-                        assertThat(dispatcher.getNumberOfMessagesInReplay()).isZero();
-                        assertThat(consumer.getAvailablePermits()).isZero();
-                        assertThat(consumer.getPendingAcks().size()).isOne();
-                        assertThat(consumer.getStats().unackedMessages).isOne();
+                        assertThat(failedEntries).hasSize(1);
+                        assertThat(((EntryAndMetadata) failedEntries.get(0)).isOwnedByDispatcher()).isFalse();
+                        // A surviving consumer prevents the last-consumer reset from hiding a missed permit debit.
+                        PermitAssertions.assertAvailablePermitsConsistent(dispatcher);
                     }
-                    assertThat(failedEntries).hasSize(1);
                     assertThat(((EntryAndMetadata) failedEntries.get(0)).getMetadata().hasChunkId())
                             .isEqualTo(chunked);
+                    Message<String> message = received.poll(10, TimeUnit.SECONDS);
+                    assertThat(message).as("delivery after the rejected send").isNotNull();
+                    assertThat(message.getValue()).isEqualTo("m0");
+                    Awaitility.await().untilAsserted(() -> {
+                        assertThat(subscription.getCursor().getNumberOfEntriesInBacklog(false)).isZero();
+                        assertThat(dispatcher.getTotalUnackedMessages()).isZero();
+                        assertThat(dispatcher.getConsumers().stream()
+                                .noneMatch(consumer -> consumer == failedConsumer.get())).isTrue();
+                        assertThat(CollectorRegistry.defaultRegistry
+                                .getSampleValue("pulsar_broker_pending_bytes_to_dispatch")).isEqualTo(pendingBytes);
+                    });
+                    assertThat(received).isEmpty();
                 } finally {
                     synchronized (dispatcher) {
                         cnx.setCommandSender(originalSender);
-                        // The injected sender deliberately throws without taking ownership. Release the test's
-                        // captured batch; on the old recovery path it has already been released by the dispatcher.
-                        for (Entry entry : failedEntries) {
-                            if (((EntryAndMetadata) entry).isOwnedByDispatcher()) {
-                                entry.release();
-                            }
-                        }
-                        failedBatchSizes.forEach(EntryBatchSizes::recyle);
-                        failedBatchIndexes.stream().filter(indexes -> indexes != null)
-                                .forEach(EntryBatchIndexesAcks::recycle);
                     }
                     Mockito.reset(sender);
                     Mockito.framework().clearInlineMock(sender);
                 }
+                // Only production cleanup releases the rejected read; invalidating the cache must free its buffers.
+                admin.topics().unload(topicName);
+                Awaitility.await().untilAsserted(() ->
+                        failedBuffers.forEach(buffer -> assertThat(buffer.refCnt()).isZero()));
             }
         } finally {
             getConfig().setDispatcherDispatchMessagesInSubscriptionThread(oldSubscriptionThread);
             getConfig().setDispatcherMaxReadBatchSize(oldReadBatchSize);
+            getConfig().setDispatcherReadFailureBackoffInitialTimeInMs(oldInitialBackoff);
+            getConfig().setDispatcherReadFailureBackoffMaxTimeInMs(oldMaxBackoff);
         }
     }
 }

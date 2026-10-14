@@ -54,6 +54,11 @@ public class SharedConsumerAssignor {
 
     private final Subscription subscription;
 
+    public void removeConsumer(Consumer consumer) {
+        // A retry must assign the first chunk to a live consumer, including when a rejected send removed its owner.
+        uuidToConsumer.values().removeIf(owner -> owner == consumer);
+    }
+
     public Map<Consumer, List<EntryAndMetadata>> assign(final List<EntryAndMetadata> entryAndMetadataList,
                                                         final int numConsumers) {
         assert numConsumers >= 0;
