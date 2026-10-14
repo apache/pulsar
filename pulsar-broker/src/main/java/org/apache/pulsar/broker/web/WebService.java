@@ -232,7 +232,7 @@ public class WebService implements AutoCloseable {
         }
         if (!pulsar.getConfiguration().isScalableTopicsEnabled()) {
             config = new ResourceConfig(config.getClasses().stream()
-                    .filter(resource -> resource != ScalableTopics.class).toArray(Class<?>[]::new));
+                    .filter(resource -> !ScalableTopics.class.isAssignableFrom(resource)).toArray(Class<?>[]::new));
         }
         addResourceServlet(basePath, requiresAuthentication, attributeMap, config, useSharedJsonMapperProvider);
     }

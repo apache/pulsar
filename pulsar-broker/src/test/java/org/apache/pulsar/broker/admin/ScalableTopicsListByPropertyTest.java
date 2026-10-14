@@ -66,6 +66,51 @@ public class ScalableTopicsListByPropertyTest extends SharedPulsarBaseTest {
         return new Object[][] {{"a b"}, {"a+b"}, {"café"}, {"x%20y"}, {"nested/topic"}};
     }
 
+    @DataProvider
+    public Object[][] legacyTopicNames() {
+        return new Object[][] {{"a+b", "a b"}, {"x%20y", "x y"}};
+    }
+
+    @Test(dataProvider = "legacyTopicNames")
+    public void testLegacyMetadataPathPreservesTopicIdentity(String localName, String decodedName) throws Exception {
+        String topic = topicName(localName);
+        String otherTopic = topic.replace(localName, decodedName);
+        admin.scalableTopics().createScalableTopic(topic, 1, Map.of("owner", "literal"));
+        admin.scalableTopics().createScalableTopic(otherTopic, 1, Map.of("owner", "decoded"));
+
+        // Match an older admin client's WebTarget.path(rawLocalName), including literal percent escapes.
+        @Cleanup
+        Client client = ClientBuilder.newClient();
+        try (Response response = client.target(getWebServiceUrl()).path("/admin/v2/scalable")
+                .path(namespace()).path(TopicName.get(topic).getLocalName())
+                .request(MediaType.APPLICATION_JSON).get()) {
+            assertEquals(response.getStatus(), Response.Status.OK.getStatusCode());
+            assertThat(response.readEntity(String.class)).contains("literal").doesNotContain("decoded");
+        }
+        getPulsar().getBrokerService().getScalableTopicService().releaseController(TopicName.get(topic)).get();
+        getPulsar().getBrokerService().getScalableTopicService().releaseController(TopicName.get(otherTopic)).get();
+        admin.scalableTopics().deleteScalableTopic(topic, true);
+        admin.scalableTopics().deleteScalableTopic(otherTopic, true);
+    }
+
+    @Test(dataProvider = "legacyTopicNames")
+    public void testLegacySegmentPathPreservesParentIdentity(String localName, String decodedName) throws Exception {
+        TopicName parent = TopicName.get(topicName(localName));
+        TopicName segment = SegmentTopicName.fromParent(parent, HashRange.full(), 0);
+        TopicName otherSegment = SegmentTopicName.fromParent(
+                TopicName.get(parent.toString().replace(localName, decodedName)), HashRange.full(), 0);
+        @Cleanup
+        Client client = ClientBuilder.newClient();
+        try (Response response = client.target(getWebServiceUrl()).path("/admin/v2/segments")
+                .path(namespace()).path(parent.getLocalName()).path(segment.getSegmentDescriptor())
+                .request(MediaType.APPLICATION_JSON).put(Entity.json(""))) {
+            assertEquals(response.getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+        }
+        assertThat(getTopicIfExists(segment.toString()).get()).as("literal legacy parent").isPresent();
+        assertThat(getTopicIfExists(otherSegment.toString()).get()).as("decoded parent must not be created").isEmpty();
+        admin.scalableTopics().deleteSegment(segment.toString(), true);
+    }
+
     @Test(dataProvider = "encodedTopicNames")
     public void testEncodedTopicNameRoundTrip(String localName) throws Exception {
         String topic = topicName(localName);

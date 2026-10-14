@@ -52,7 +52,6 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.scalable.SegmentTopicName;
-import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 
 /**
@@ -73,10 +72,15 @@ import org.apache.pulsar.common.util.FutureUtil;
 @Tag(name = "segments", description = "Segment topic admin APIs")
 public class Segments extends AdminResource {
 
+    /** Preserve the v2 path interpretation used by older controller brokers. */
+    protected String topicLocalName(String encodedTopic) {
+        return encodedTopic;
+    }
+
     private TopicName segmentTopicName(String tenant, String namespace,
                                        String encodedTopic, String descriptor) {
         return TopicName.get(TopicDomain.segment.value() + "://" + tenant + "/" + namespace + "/"
-                + Codec.decode(encodedTopic) + "/" + descriptor);
+                + topicLocalName(encodedTopic) + "/" + descriptor);
     }
 
     @PUT

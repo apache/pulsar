@@ -132,6 +132,23 @@ public class ScalableTopicsAuthZTest extends AuthZTest {
     }
 
     @Test
+    public void testEncodedTopicAndSegmentAuthZ() throws Exception {
+        String topic = NAMESPACE + "/encoded+topic-" + UUID.randomUUID();
+        superUserAdmin.scalableTopics().createScalableTopic(topic, 1);
+        @Cleanup
+        PulsarAdmin nobody = nobodyAdmin();
+        assertNotAuthorized(() -> nobody.scalableTopics().getMetadata(topic));
+        tenantManagerAdmin.scalableTopics().getMetadata(topic);
+
+        String segment = segmentTopicOf(topic);
+        assertNotAuthorized(() -> nobody.scalableTopics().createSegment(segment, null));
+        assertNotAuthorized(() -> tenantManagerAdmin.scalableTopics().createSegment(segment, null));
+        superUserAdmin.scalableTopics().createSegment(segment, null);
+        superUserAdmin.scalableTopics().deleteSegment(segment, true);
+        superUserAdmin.scalableTopics().deleteScalableTopic(topic, true);
+    }
+
+    @Test
     public void testDeleteScalableTopicAuthZ() throws Exception {
         final String topic = randomTopic();
         superUserAdmin.scalableTopics().createScalableTopic(topic, 1);

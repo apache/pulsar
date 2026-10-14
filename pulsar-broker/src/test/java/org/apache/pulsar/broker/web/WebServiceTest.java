@@ -401,6 +401,24 @@ public class WebServiceTest {
     }
 
     @Test
+    public void testScalableTopicResourcesDisabledForBothVersions() throws Exception {
+        ServiceConfiguration config = new ServiceConfiguration();
+        config.setScalableTopicsEnabled(false);
+        config.setBrokerServicePort(Optional.of(0));
+        config.setWebServicePort(Optional.of(0));
+        config.setClusterName("local");
+        pulsarTestContext = PulsarTestContext.builder().config(config).build();
+        pulsar = pulsarTestContext.getPulsarService();
+        @Cleanup
+        AsyncHttpClient client = new DefaultAsyncHttpClient();
+        for (String version : new String[] {"v2", "v3"}) {
+            Response response = client.prepareGet(pulsar.getWebServiceAddress()
+                    + "/admin/" + version + "/scalable/public/default").execute().get();
+            assertEquals(response.getStatusCode(), 404);
+        }
+    }
+
+    @Test
     public void testCompressOutputMetricsInPrometheus() throws Exception {
         setupEnv(true, false, false, false, -1, false);
 
