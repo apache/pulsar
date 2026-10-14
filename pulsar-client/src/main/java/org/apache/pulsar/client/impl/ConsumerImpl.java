@@ -1513,6 +1513,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         // and return undecrypted payload
         if (isMessageUndecryptable || (numMessages == 1 && !msgMetadata.hasNumMessagesInBatch())) {
 
+            MessageIdImpl[] chunkedMessageIds = null;
             if (isChunkedMessage) {
                 uncompressedPayload = processMessageChunk(uncompressedPayload, msgMetadata, msgId, messageId, cnx);
                 if (uncompressedPayload == null) {
@@ -1532,8 +1533,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     msgId = new ChunkMessageIdImpl(chunkedMsgCtx.chunkedMessageIds[0],
                             chunkedMsgCtx.chunkedMessageIds[chunkedMsgCtx.chunkedMessageIds.length - 1]);
                 }
-                // add chunked messageId to unack-message tracker, and reduce pending-chunked-message count
-                unAckedChunkedMessageIdSequenceMap.put(msgId, chunkedMsgCtx.chunkedMessageIds);
+                chunkedMessageIds = chunkedMsgCtx.chunkedMessageIds;
                 pendingChunkedMessageCount--;
                 chunkedMsgCtx.recycle();
             }
@@ -1546,6 +1546,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
                 uncompressedPayload.release();
                 return;
+            }
+
+            if (chunkedMessageIds != null) {
+                // Only register messages that pass filtering and can be acknowledged by the application.
+                unAckedChunkedMessageIdSequenceMap.put(msgId, chunkedMessageIds);
             }
 
             final MessageImpl<T> message =

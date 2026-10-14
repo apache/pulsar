@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
@@ -45,8 +46,10 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
@@ -667,6 +670,92 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         producer.close();
 
         log.info().attr("method", methodName).log("Exiting test");
+    }
+
+    @DataProvider(name = "seekInclusive")
+    public Object[][] seekInclusive() {
+        return new Object[][] { { false }, { true } };
+    }
+
+    @Test(dataProvider = "seekInclusive")
+    public void testRepeatedSeekDoesNotRetainFilteredChunkMessageIds(boolean inclusive) throws Exception {
+        final String topicName = "persistent://my-property/my-ns/seek-chunk-message-ids";
+        final int totalMessages = 4;
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .enableChunking(true)
+                .enableBatching(false)
+                .chunkMaxMessageSize(100)
+                .create();
+        List<MessageId> messageIds = new ArrayList<>();
+        for (int i = 0; i < totalMessages; i++) {
+            MessageId messageId = producer.send(("message-" + i).repeat(30));
+            assertThat(messageId).isInstanceOf(ChunkMessageIdImpl.class);
+            messageIds.add(messageId);
+        }
+        MessageId markerId = producer.send("marker");
+        assertThat(markerId).isNotInstanceOf(ChunkMessageIdImpl.class);
+
+        // Subscribe after publishing so no chunk mappings exist before the first seek.
+        ConsumerBuilder<String> consumerBuilder = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("my-sub")
+                .receiverQueueSize(32)
+                .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS);
+        if (inclusive) {
+            consumerBuilder.startMessageIdInclusive();
+        }
+        @Cleanup
+        ConsumerImpl<String> consumer = (ConsumerImpl<String>) consumerBuilder.subscribe();
+        assertThat(consumer.unAckedChunkedMessageIdSequenceMap).isEmpty();
+
+        for (int boundary = 0; boundary < totalMessages; boundary++) {
+            consumer.seek(messageIds.get(boundary));
+            for (int i = inclusive ? boundary : boundary + 1; i < totalMessages; i++) {
+                Message<String> message = consumer.receive(5, TimeUnit.SECONDS);
+                assertThat(message).isNotNull();
+                MessageIdAdv messageId = (MessageIdAdv) message.getMessageId();
+                assertThat(messageId).isEqualTo(messageIds.get(i));
+                assertThat(message.getValue()).isEqualTo(("message-" + i).repeat(30));
+                // Delivered messages must keep their chunk sequence until the application ACKs them.
+                assertThat(consumer.unAckedChunkedMessageIdSequenceMap).containsKey(messageId);
+                consumer.acknowledge(message);
+                assertThat(consumer.unAckedChunkedMessageIdSequenceMap).doesNotContainKey(messageId);
+            }
+            // Receiving the following marker proves the boundary has been assembled and filtered.
+            Message<String> marker = consumer.receive(5, TimeUnit.SECONDS);
+            assertThat(marker).isNotNull();
+            assertThat(marker.getMessageId()).isEqualTo(markerId);
+            consumer.acknowledge(marker);
+        }
+
+        assertThat(consumer.unAckedChunkedMessageIdSequenceMap)
+                .as("filtered seek boundaries must not accumulate chunk message ID sequences")
+                .isEmpty();
+
+        if (!inclusive) {
+            // A filtered redelivery must not remove the sequence of an earlier application-held message.
+            consumer.seek(MessageId.earliest);
+            Message<String> outstanding = consumer.receive(5, TimeUnit.SECONDS);
+            assertThat(outstanding).isNotNull();
+            MessageIdAdv outstandingId = (MessageIdAdv) outstanding.getMessageId();
+            assertThat(outstandingId).isEqualTo(messageIds.get(0));
+            consumer.seek(outstandingId);
+            for (int i = 1; i < totalMessages; i++) {
+                Message<String> message = consumer.receive(5, TimeUnit.SECONDS);
+                assertThat(message).isNotNull();
+                assertThat(message.getMessageId()).isEqualTo(messageIds.get(i));
+                consumer.acknowledge(message);
+            }
+            Message<String> marker = consumer.receive(5, TimeUnit.SECONDS);
+            assertThat(marker).isNotNull();
+            assertThat(marker.getMessageId()).isEqualTo(markerId);
+            consumer.acknowledge(marker);
+            assertThat(consumer.unAckedChunkedMessageIdSequenceMap).containsOnlyKeys(outstandingId);
+            consumer.acknowledge(outstanding);
+            assertThat(consumer.unAckedChunkedMessageIdSequenceMap).isEmpty();
+        }
     }
 
     @Test
