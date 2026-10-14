@@ -29,6 +29,7 @@ import io.netty.channel.EventLoopGroup;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.CustomLog;
@@ -45,6 +46,7 @@ import org.apache.pulsar.bookie.rackawareness.IsolatedBookieEnsemblePlacementPol
 import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.bookkeeper.AbstractMetadataDriver;
@@ -79,11 +81,58 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
             setDefaultEnsemblePlacementPolicy(bkConf, conf, store);
         }
 
-        return CompletableFuture.supplyAsync(() -> {
+        CompletableFuture<BookKeeper> creation = CompletableFuture.supplyAsync(() -> {
             try {
                 return getBookKeeperBuilder(conf, eventLoopGroup, statsLogger, bkConf).build();
             } catch (InterruptedException | BKException | IOException e) {
                 throw new RuntimeException(e);
+            }
+        }).thenCompose(bk -> waitForPlacementPolicyInitialization(bk, bkConf));
+        // Keep the initialization chain alive if its caller cancels, so a late client is still closed.
+        CompletableFuture<BookKeeper> result = new CompletableFuture<>();
+        creation.whenComplete((bk, error) -> {
+            if (error != null) {
+                result.completeExceptionally(error);
+            } else if (!result.complete(bk)) {
+                closeBookKeeperAsync(bk, new CancellationException("BookKeeper client creation was cancelled"));
+            }
+        });
+        return result;
+    }
+
+    // The default client is awaited during broker startup, and lazy namespace clients are awaited before ML opens.
+    private CompletableFuture<BookKeeper> waitForPlacementPolicyInitialization(BookKeeper bk,
+                                                                               ClientConfiguration bkConf) {
+        CompletableFuture<Void> initialization;
+        try {
+            EnsemblePlacementPolicy policy = bk.getClientCtx().getPlacementPolicy();
+            if (!(policy instanceof IsolatedBookieEnsemblePlacementPolicy isolatedPolicy)) {
+                return CompletableFuture.completedFuture(bk);
+            }
+            // Time out only this client's wait, without modifying the policy's metadata-load future.
+            initialization = isolatedPolicy.getInitializationFuture().copy()
+                    .orTimeout(bkConf.getZkTimeout(), TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            initialization = CompletableFuture.failedFuture(e);
+        }
+        return initialization.thenApply(__ -> bk).exceptionallyCompose(error -> {
+            Throwable cause = FutureUtil.unwrapCompletionException(error);
+            return closeBookKeeperAsync(bk, cause).thenCompose(__ -> CompletableFuture.failedFuture(cause));
+        });
+    }
+
+    private CompletableFuture<Void> closeBookKeeperAsync(BookKeeper bk, Throwable error) {
+        // BookKeeper.close() can block. Never run it on the metadata callback or timeout thread.
+        return CompletableFuture.runAsync(() -> {
+            try {
+                bk.close();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                error.addSuppressed(e);
+                log.debug().exception(e).log("Interrupted while closing an unpublished BookKeeper client");
+            } catch (Exception e) {
+                error.addSuppressed(e);
+                log.debug().exception(e).log("Failed to close an unpublished BookKeeper client");
             }
         });
     }

@@ -30,8 +30,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import lombok.CustomLog;
 import org.apache.bookkeeper.client.DefaultBookieAddressResolver;
 import org.apache.bookkeeper.client.ITopologyAwareEnsemblePlacementPolicy;
@@ -62,7 +60,6 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
         implements RackChangeNotifier {
 
-    private static final int DEFAULT_ZK_TIMEOUT_MILLIS = 10_000;
     public static final String BOOKIE_INFO_ROOT_PATH = "/bookies";
     public static final String METADATA_STORE_INSTANCE = "METADATA_STORE_INSTANCE";
 
@@ -101,7 +98,7 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                 url = zkServers;
             }
             try {
-                int zkTimeout = conf.getInt("zkTimeout", DEFAULT_ZK_TIMEOUT_MILLIS);
+                int zkTimeout = Integer.parseInt((String) conf.getProperty("zkTimeout"));
                 store = MetadataStoreExtended.create(url,
                         MetadataStoreConfig.builder()
                                 .metadataStoreName(MetadataStoreConfig.METADATA_STORE)
@@ -130,7 +127,7 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
         try {
             var racksWithHost = bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH)
                     .thenApply(optRes -> optRes.orElseGet(BookiesRackConfiguration::new))
-                    .get(conf.getInt("zkTimeout", DEFAULT_ZK_TIMEOUT_MILLIS), TimeUnit.MILLISECONDS);
+                    .get();
 
             for (var bookieMapping : racksWithHost.values()) {
                 for (String address : bookieMapping.keySet()) {
@@ -141,11 +138,7 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                         .log("BookieRackAffinityMapping init, bookieAddressListLastTime");
             }
             updateRacksWithHost(racksWithHost);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            log.error().exception(e).log("Interrupted while loading the initial rack info");
-            throw new RuntimeException(e);
-        } catch (ExecutionException | TimeoutException e) {
+        } catch (ExecutionException | InterruptedException e) {
             log.error().exception(e).log("Failed to update rack info");
             throw new RuntimeException(e);
         }
