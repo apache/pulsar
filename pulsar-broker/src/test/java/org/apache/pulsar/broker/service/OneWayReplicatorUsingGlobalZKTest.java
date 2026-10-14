@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.service.TopicPoliciesService.GetType.GLOBAL_ONLY;
 import static org.apache.pulsar.broker.service.TopicPoliciesService.GetType.LOCAL_ONLY;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -28,6 +29,7 @@ import static org.testng.Assert.fail;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -51,6 +53,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
@@ -118,6 +121,27 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
     @Test(dataProvider = "isPartitioned")
     public void testReplicatorCreateTopic(boolean isPartitioned) throws Exception {
         super.testReplicatorCreateTopic(isPartitioned);
+    }
+
+    @Test
+    public void testDeletingTopicOnOneClusterKeepsSharedTopicPermissions() throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/topic-permissions-");
+        String role = "test-role";
+        Set<AuthAction> permissions = EnumSet.of(AuthAction.produce, AuthAction.consume);
+
+        admin1.topics().createNonPartitionedTopic(topic);
+        admin2.topics().createNonPartitionedTopic(topic);
+        try {
+            admin2.topics().grantPermission(topic, role, permissions);
+            assertThat(admin1.topics().getPermissions(topic)).containsEntry(role, permissions);
+
+            admin2.topics().delete(topic, true);
+
+            assertThat(admin1.topics().getStats(topic)).isNotNull();
+            assertThat(admin1.topics().getPermissions(topic)).containsEntry(role, permissions);
+        } finally {
+            admin1.topics().delete(topic, true);
+        }
     }
 
     @Override
