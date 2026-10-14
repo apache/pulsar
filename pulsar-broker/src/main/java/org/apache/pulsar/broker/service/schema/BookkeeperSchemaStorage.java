@@ -654,6 +654,8 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                 .thenCompose(id -> {
                     Optional<TopicName> topicName = getOwnerTopicName(id);
                     if (topicName.isEmpty()) {
+                        log.debug().attr("schemaId", id)
+                                .log("Using default schema client for a key without a canonical topic owner");
                         return createLedger(id, bookKeeper, LedgerMetadataUtils.buildMetadataForSchema(id));
                     }
                     return pulsar.getBookKeeperClientContext(topicName.get(), () -> bookKeeper)
@@ -670,7 +672,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
             String localName = Codec.decode(parts[2]);
             TopicDomain domain = localName.indexOf('/') >= 0 ? TopicDomain.topic : TopicDomain.persistent;
             TopicName topicName = TopicName.get(domain.value(), parts[0], parts[1], localName);
-            return schemaId.equals(topicName.getSchemaName()) ? Optional.of(topicName) : Optional.empty();
+            return parts[2].equals(Codec.encode(localName)) ? Optional.of(topicName) : Optional.empty();
         } catch (IllegalArgumentException e) {
             // SchemaStorage historically accepts arbitrary keys, including legacy topic names.
             // Non-canonical keys have no unambiguous owner namespace, so use the default schema client.

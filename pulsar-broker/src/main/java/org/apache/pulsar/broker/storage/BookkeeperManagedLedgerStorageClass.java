@@ -38,7 +38,18 @@ public interface BookkeeperManagedLedgerStorageClass extends ManagedLedgerStorag
     /**
      * Return the BookKeeper client for the specified ensemble placement policy.
      *
-     * <p>The returned client is owned by the storage class and must not be closed by the caller.
+     * <p>The returned client is borrowed from the storage class and must not be closed by the caller. It must access
+     * the same BookKeeper backend as {@link #getBookKeeperClient()}, so existing clients can read and delete the
+     * ledgers it creates.
+     *
+     * <p>The default implementation delegates to {@link #getBookKeeperClient()} when the configuration or its policy
+     * class is {@code null}. For a custom policy, it returns a future completed exceptionally with
+     * {@link UnsupportedOperationException}.
+     *
+     * <p>Implementations must override this method to support custom policies. When namespace bookie affinity is
+     * configured or {@code strictBookieAffinityEnabled} is enabled, auxiliary schema, compaction, and delayed bucket
+     * ledgers require a custom policy. Existing implementations that inherit this default method fail those
+     * operations rather than silently ignoring the policy.
      *
      * @param ensemblePlacementPolicyConfig the ensemble placement policy configuration
      * @return a future that completes with the BookKeeper client

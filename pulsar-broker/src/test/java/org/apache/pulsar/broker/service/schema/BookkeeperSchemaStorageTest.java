@@ -111,7 +111,16 @@ public class BookkeeperSchemaStorageTest {
         return new Object[][] {
                 {"tenant/namespace/topic", TopicName.get("persistent://tenant/namespace/topic")},
                 {"tenant/namespace/a%3Ab", TopicName.get("persistent://tenant/namespace/a:b")},
-                {"tenant/namespace/a%2Fb", TopicName.get("topic://tenant/namespace/a/b")}
+                {"tenant/namespace/a%2Bb", TopicName.get("persistent://tenant/namespace/a+b")},
+                {"tenant/namespace/a+b", TopicName.get("persistent://tenant/namespace/a b")},
+                {"tenant/namespace/a%252Fb", TopicName.get("persistent://tenant/namespace/a%2Fb")},
+                {"tenant/namespace/a%2Fb", TopicName.get("topic://tenant/namespace/a/b")},
+                {"tenant/namespace/__change_events", TopicName.get("persistent://tenant/namespace/__change_events")},
+                {TopicName.get("persistent://tenant/namespace/topic-partition-0-partition-0").getSchemaName(),
+                        TopicName.get("persistent://tenant/namespace/topic-partition-0")},
+                {TopicName.get("persistent://tenant/namespace/topic-partition-0-partition-0-partition-0")
+                        .getSchemaName(),
+                        TopicName.get("persistent://tenant/namespace/topic-partition-0-partition-0")}
         };
     }
 
@@ -129,6 +138,16 @@ public class BookkeeperSchemaStorageTest {
         doReturn(createBuilder).when(placementBookKeeper).newCreateLedgerOp();
         doReturn(createResult).when(createBuilder).execute();
 
+        BookKeeper defaultBookKeeper = mock(BookKeeper.class);
+        CreateBuilder defaultCreateBuilder = mock(CreateBuilder.class, Mockito.RETURNS_SELF);
+        LedgerHandle defaultLedgerHandle = mock(LedgerHandle.class);
+        doReturn(defaultCreateBuilder).when(defaultBookKeeper).newCreateLedgerOp();
+        doReturn(CompletableFuture.completedFuture(defaultLedgerHandle)).when(defaultCreateBuilder).execute();
+        BookKeeperClientFactory bookKeeperClientFactory = mock(BookKeeperClientFactory.class);
+        when(pulsar.getBookKeeperClientFactory()).thenReturn(bookKeeperClientFactory);
+        doReturn(CompletableFuture.completedFuture(defaultBookKeeper))
+                .when(bookKeeperClientFactory).create(any(), any(), any(), any(), any());
+
         EnsemblePlacementPolicyConfig placementPolicy = new EnsemblePlacementPolicyConfig(
                 IsolatedBookieEnsemblePlacementPolicy.class,
                 Map.of(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, "primary",
@@ -139,18 +158,24 @@ public class BookkeeperSchemaStorageTest {
                 .thenReturn(CompletableFuture.completedFuture(clientContext));
 
         BookkeeperSchemaStorage schemaStorage = new BookkeeperSchemaStorage(pulsar);
-        assertThat(schemaStorage.createLedger(schemaId).join()).isSameAs(ledgerHandle);
+        schemaStorage.start();
+        try {
+            assertThat(schemaStorage.createLedger(schemaId).join()).isSameAs(ledgerHandle);
 
-        verify(pulsar).getBookKeeperClientContext(eq(ownerTopic), any());
-        verify(placementBookKeeper).newCreateLedgerOp();
-        ArgumentCaptor<Map<String, byte[]>> metadataCaptor = ArgumentCaptor.captor();
-        verify(createBuilder).withCustomMetadata(metadataCaptor.capture());
-        Map<String, byte[]> metadata = metadataCaptor.getValue();
-        LedgerMetadataUtils.buildMetadataForSchema(schemaId)
-                .forEach((key, value) -> assertThat(metadata.get(key)).containsExactly(value));
-        assertThat(EnsemblePlacementPolicyConfig.decode(metadata.get(
-                EnsemblePlacementPolicyConfig.ENSEMBLE_PLACEMENT_POLICY_CONFIG)))
-                .isEqualTo(placementPolicy);
+            verify(pulsar).getBookKeeperClientContext(eq(ownerTopic), any());
+            verify(placementBookKeeper).newCreateLedgerOp();
+            verify(defaultBookKeeper, never()).newCreateLedgerOp();
+            ArgumentCaptor<Map<String, byte[]>> metadataCaptor = ArgumentCaptor.captor();
+            verify(createBuilder).withCustomMetadata(metadataCaptor.capture());
+            Map<String, byte[]> metadata = metadataCaptor.getValue();
+            LedgerMetadataUtils.buildMetadataForSchema(schemaId)
+                    .forEach((key, value) -> assertThat(metadata.get(key)).containsExactly(value));
+            assertThat(EnsemblePlacementPolicyConfig.decode(metadata.get(
+                    EnsemblePlacementPolicyConfig.ENSEMBLE_PLACEMENT_POLICY_CONFIG)))
+                    .isEqualTo(placementPolicy);
+        } finally {
+            schemaStorage.close();
+        }
     }
 
     @DataProvider(name = "nonCanonicalSchemaIds")
@@ -158,7 +183,9 @@ public class BookkeeperSchemaStorageTest {
         return new Object[][] {
                 {"tenant/cluster/namespace/topic"},
                 {"id2"},
-                {"tenant/namespace/a:b"}
+                {"tenant/namespace/a:b"},
+                {"tenant/namespace/a%3ab"},
+                {"tenant/namespace/a%"}
         };
     }
 
@@ -183,7 +210,7 @@ public class BookkeeperSchemaStorageTest {
         CompletableFuture<LedgerHandle> createFuture = schemaStorage.createLedger(schemaId);
 
         assertThat(createFuture.join()).isSameAs(ledgerHandle);
-        verify(pulsar, never()).getBookKeeperClientContext(any());
+        verify(pulsar, never()).getBookKeeperClientContext(any(), any());
         ArgumentCaptor<Map<String, byte[]>> metadataCaptor = ArgumentCaptor.captor();
         verify(createBuilder).withCustomMetadata(metadataCaptor.capture());
         Map<String, byte[]> metadata = metadataCaptor.getValue();
