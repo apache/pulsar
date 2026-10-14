@@ -363,12 +363,13 @@ public class ProtobufNativeSchemaCompatibilityTest {
                 .setOptions(FileOptions.newBuilder().setFeatures(features))
                 .addMessageType(message("Order", field("id", 1, TYPE_INT32, LABEL_OPTIONAL))).build();
         SchemaData schema = rawSchema(file);
-        try {
-            checker.checkCompatible(schema, differentEncoding(schema), SchemaCompatibilityStrategy.BACKWARD);
-            fail("Unknown wire feature must not resolve to a default");
-        } catch (IncompatibleSchemaException e) {
-            assertTrue(e.getMessage().contains("UNSUPPORTED_FEATURE"), e.getMessage());
-        }
+        assertThatThrownBy(() -> checker.checkCompatible(schema, differentEncoding(schema),
+                SchemaCompatibilityStrategy.BACKWARD))
+                .isInstanceOf(IncompatibleSchemaException.class)
+                .hasMessageContaining("UNSUPPORTED_FEATURE")
+                .hasMessageContaining("side=writer")
+                .hasMessageContaining("schema=existing")
+                .hasMessageContaining("detail=unknown FeatureSet field " + FeatureSet.FIELD_PRESENCE_FIELD_NUMBER);
     }
 
     @DataProvider
@@ -399,7 +400,9 @@ public class ProtobufNativeSchemaCompatibilityTest {
                 .isInstanceOf(IncompatibleSchemaException.class)
                 .hasMessageContaining("UNSUPPORTED_FEATURE")
                 .hasMessageContaining("side=writer")
-                .hasMessageContaining("detail=feature ");
+                .hasMessageContaining("schema=existing")
+                .hasMessageContaining("detail=")
+                .satisfies(error -> assertThat(error.getMessage()).doesNotContain("detail=feature "));
     }
 
     @Test
@@ -409,16 +412,24 @@ public class ProtobufNativeSchemaCompatibilityTest {
         SchemaData unsupported = schema(root(message.toBuilder().addExtensionRange(
                 DescriptorProto.ExtensionRange.newBuilder().setStart(100).setEnd(200)).build()));
         for (SchemaCompatibilityStrategy strategy : List.of(SchemaCompatibilityStrategy.BACKWARD,
-                SchemaCompatibilityStrategy.FORWARD)) {
-            boolean backward = strategy == SchemaCompatibilityStrategy.BACKWARD;
+                SchemaCompatibilityStrategy.FORWARD, SchemaCompatibilityStrategy.FULL,
+                SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE, SchemaCompatibilityStrategy.FORWARD_TRANSITIVE,
+                SchemaCompatibilityStrategy.FULL_TRANSITIVE)) {
+            boolean backward = strategy != SchemaCompatibilityStrategy.FORWARD
+                    && strategy != SchemaCompatibilityStrategy.FORWARD_TRANSITIVE;
             assertThatThrownBy(() -> checker.checkCompatible(supported, unsupported, strategy))
                     .isInstanceOf(IncompatibleSchemaException.class)
                     .hasMessageContaining("UNSUPPORTED_FEATURE")
+                    .hasMessageContaining("strategy=" + strategy)
+                    .hasMessageContaining("direction=" + (backward ? "BACKWARD" : "FORWARD"))
                     .hasMessageContaining("side=" + (backward ? "reader" : "writer"))
+                    .hasMessageContaining("schema=proposed")
                     .hasMessageContaining("detail=extension range or MessageSet");
             assertThatThrownBy(() -> checker.checkCompatible(unsupported, supported, strategy))
                     .isInstanceOf(IncompatibleSchemaException.class)
+                    .hasMessageContaining("direction=" + (backward ? "BACKWARD" : "FORWARD"))
                     .hasMessageContaining("side=" + (backward ? "writer" : "reader"))
+                    .hasMessageContaining("schema=existing")
                     .hasMessageContaining("detail=extension range or MessageSet");
         }
     }
@@ -431,7 +442,14 @@ public class ProtobufNativeSchemaCompatibilityTest {
                 .isInstanceOf(SchemaSerializationException.class);
         assertThatThrownBy(() -> checker.checkCompatible(schema, differentEncoding(schema),
                 SchemaCompatibilityStrategy.BACKWARD))
-                .isInstanceOf(IncompatibleSchemaException.class).hasMessageContaining("UNSUPPORTED_FEATURE");
+                .isInstanceOf(IncompatibleSchemaException.class)
+                .hasMessageContaining("UNSUPPORTED_FEATURE")
+                .hasMessageContaining("schema=proposed");
+        SchemaData supported = schema(root(message("Order")));
+        assertThatThrownBy(() -> checker.checkCompatible(schema, supported, SchemaCompatibilityStrategy.BACKWARD))
+                .isInstanceOf(IncompatibleSchemaException.class)
+                .hasMessageContaining("UNSUPPORTED_FEATURE")
+                .hasMessageContaining("schema=existing");
     }
 
     @Test
@@ -471,7 +489,11 @@ public class ProtobufNativeSchemaCompatibilityTest {
         assertTrue(roundTrip(root).getFile().toProto().getOptions().getFeatures()
                 .getExtension(JavaFeaturesProto.java_).getUnknownFields().asMap()
                 .containsKey(JavaFeatures.UTF8_VALIDATION_FIELD_NUMBER));
-        fails(root, root, "UNSUPPORTED_FEATURE");
+        assertThatThrownBy(() -> accepts(root, root))
+                .isInstanceOf(IncompatibleSchemaException.class)
+                .hasMessageContaining("UNSUPPORTED_FEATURE")
+                .hasMessageContaining("side=writer")
+                .hasMessageContaining("detail=unknown Java feature field " + JavaFeatures.UTF8_VALIDATION_FIELD_NUMBER);
     }
 
     @Test
@@ -595,6 +617,25 @@ public class ProtobufNativeSchemaCompatibilityTest {
                 .hasMessageContaining("limit=100000");
     }
 
+    @Test(timeOut = 30000)
+    public void testWorkLimitIsEnforcedDuringSupportGraphScan() throws Exception {
+        EnumDescriptorProto.Builder enumeration = EnumDescriptorProto.newBuilder().setName("State");
+        for (int i = 0; i < 100000; i++) {
+            enumeration.addValue(EnumValueDescriptorProto.newBuilder().setName("VALUE_" + i).setNumber(i));
+        }
+        Descriptor writer = root(message("Order", field("state", 1, TYPE_ENUM, LABEL_OPTIONAL).toBuilder()
+                .setTypeName(".example.State").build()), enumeration.build());
+        Descriptor reader = root(message("Order"));
+        // The writer's support scan exceeds the cap before the reader scan or any pair comparison starts.
+        assertThatThrownBy(() -> checker.checkCompatible(schema(writer), schema(reader),
+                SchemaCompatibilityStrategy.BACKWARD))
+                .isInstanceOf(IncompatibleSchemaException.class)
+                .hasMessageContaining("COMPARISON_LIMIT_EXCEEDED")
+                .hasMessageContaining("direction=BACKWARD")
+                .hasMessageContaining("path=example.Order.state")
+                .hasMessageContaining("work=100006, limit=100000");
+    }
+
     @DataProvider
     public Object[][] largeSchemaBudgetExamples() {
         return new Object[][]{
@@ -669,6 +710,37 @@ public class ProtobufNativeSchemaCompatibilityTest {
         }
         Descriptor descriptor = root(message.build(), enumeration.build());
         accepts(descriptor, descriptor);
+    }
+
+    @Test
+    public void testSharedWriterEnumIsComparedWithEachReaderEnum() throws Exception {
+        EnumDescriptorProto enumeration = EnumDescriptorProto.newBuilder().setName("State")
+                .addValue(EnumValueDescriptorProto.newBuilder().setName("A").setNumber(0))
+                .addValue(EnumValueDescriptorProto.newBuilder().setName("B").setNumber(1)).build();
+        DescriptorProto message = message("Order",
+                field("first", 1, TYPE_ENUM, LABEL_OPTIONAL).toBuilder().setTypeName(".example.State").build(),
+                field("second", 2, TYPE_ENUM, LABEL_OPTIONAL).toBuilder().setTypeName(".example.State").build());
+        Descriptor writer = root(message, enumeration);
+        EnumDescriptorProto.Builder otherEnum = EnumDescriptorProto.newBuilder().setName("OtherState")
+                .addValue(EnumValueDescriptorProto.newBuilder().setName("OTHER_A").setNumber(0));
+        FileDescriptorProto.Builder readerFile = writer.getFile().toProto().toBuilder()
+                .setMessageType(0, message.toBuilder().setField(1,
+                        message.getField(1).toBuilder().setTypeName(".example.OtherState")))
+                .addEnumType(otherEnum);
+        Descriptor reader = FileDescriptor.buildFrom(readerFile.build(), new FileDescriptor[0])
+                .findMessageTypeByName("Order");
+        assertThatThrownBy(() -> checker.checkCompatible(schema(writer), schema(reader),
+                SchemaCompatibilityStrategy.BACKWARD))
+                .isInstanceOf(IncompatibleSchemaException.class)
+                .hasMessageContaining("ENUM_VALUE_NOT_READABLE")
+                .hasMessageContaining("path=example.Order.second, field=2")
+                .hasMessageContaining("writer=1, reader=absent");
+
+        readerFile.setEnumType(1, otherEnum.addValue(
+                EnumValueDescriptorProto.newBuilder().setName("OTHER_B").setNumber(1)));
+        Descriptor compatibleReader = FileDescriptor.buildFrom(readerFile.build(), new FileDescriptor[0])
+                .findMessageTypeByName("Order");
+        checker.checkCompatible(schema(writer), schema(compatibleReader), SchemaCompatibilityStrategy.BACKWARD);
     }
 
     @Test

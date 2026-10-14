@@ -154,7 +154,7 @@ final class ProtobufNativeSchemaCompatibility {
             throws IncompatibleSchemaException {
         String unsupported = findUnsupportedFeature(features);
         if (unsupported != null) {
-            throw unsupportedFeature(path, 0, side, "feature " + unsupported);
+            throw unsupportedFeature(path, 0, side, unsupported);
         }
     }
 
@@ -162,7 +162,7 @@ final class ProtobufNativeSchemaCompatibility {
         // Unknown feature values and extensions cannot be interpreted as resolved wire behavior.
         if (!features.getUnknownFields().asMap().isEmpty()) {
             int number = Collections.min(features.getUnknownFields().asMap().keySet());
-            return Integer.toString(number);
+            return "unknown FeatureSet field " + number;
         }
         // Only inspect explicitly set wire features; absent options inherit their enclosing or edition defaults.
         if (features.hasFieldPresence()
@@ -189,7 +189,7 @@ final class ProtobufNativeSchemaCompatibility {
             var unknownJavaFeatures = javaFeatures.getUnknownFields().asMap();
             if (!unknownJavaFeatures.isEmpty()) {
                 int number = Collections.min(unknownJavaFeatures.keySet());
-                return "Java feature " + number;
+                return "unknown Java feature field " + number;
             }
             if (javaFeatures.hasUtf8Validation()
                     && javaFeatures.getUtf8Validation() == JavaFeatures.Utf8Validation.UTF8_VALIDATION_UNKNOWN) {
@@ -470,8 +470,8 @@ final class ProtobufNativeSchemaCompatibility {
     }
 
     private static IncompatibleSchemaException unsupportedFeature(String path, int field, String side, String detail) {
-        return new IncompatibleSchemaException(diagnosticPrefix("UNSUPPORTED_FEATURE", path, field)
-                + ", side=" + side + ", detail=" + bounded(detail, MAX_DETAIL_LENGTH));
+        return new UnsupportedFeatureException(diagnosticPrefix("UNSUPPORTED_FEATURE", path, field)
+                + ", side=" + side + ", detail=" + bounded(detail, MAX_DETAIL_LENGTH), side);
     }
 
     private static IncompatibleSchemaException comparisonLimitExceeded(String path, long work, long limit) {
@@ -481,6 +481,21 @@ final class ProtobufNativeSchemaCompatibility {
 
     private static String diagnosticPrefix(String rule, String path, int field) {
         return rule + ": path=" + bounded(path, MAX_PATH_LENGTH) + (field == 0 ? "" : ", field=" + field);
+    }
+
+    /** Preserves the affected side for the checker to identify the existing or proposed schema. */
+    static final class UnsupportedFeatureException extends IncompatibleSchemaException {
+        private static final long serialVersionUID = 1L;
+        private final boolean writer;
+
+        private UnsupportedFeatureException(String message, String side) {
+            super(message);
+            writer = "writer".equals(side);
+        }
+
+        boolean isWriter() {
+            return writer;
+        }
     }
 
     private record MessagePair(Descriptor writer, Descriptor reader, String path) {

@@ -3891,9 +3891,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "activation: reconnecting consumers can be rejected, even with an unchanged schema, when another "
             + "selected historical version is incompatible or unsupported. A configured checker that cannot be "
             + "instantiated fails broker startup. Restore the default entry before downgrading broker binaries. "
-            + "Advanced checks have a fixed 100,000-work-unit cap per historical version and direction. Even a "
-            + "compatible optional-field addition under BACKWARD can exceed it for a flat message around 14,500 "
-            + "fields or a referenced enum around 16,700 values; the threshold depends on the descriptor graph. "
+            + "Advanced checks allow up to 100,000 work units per historical version and direction, with a lower "
+            + "limit for smaller descriptor graphs. Even a compatible optional-field addition under BACKWARD can "
+            + "exceed the cap for a flat message around 14,500 fields or a referenced enum around 16,700 values; "
+            + "the threshold depends on the descriptor graph. "
             + "Check representative large schemas in staging before activation; the cap is not configurable."
     )
     private Set<String> schemaRegistryCompatibilityCheckers = Sets.newHashSet(

@@ -35,6 +35,7 @@ import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HexFormat;
+import org.apache.pulsar.broker.service.schema.ProtobufNativeSchemaCompatibility.UnsupportedFeatureException;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.impl.schema.ProtobufNativeSchemaUtils;
@@ -81,10 +82,10 @@ public class ProtobufNativeSchemaAdvancedCompatibilityCheck implements SchemaCom
                 continue;
             }
             if (proposed == null) {
-                proposed = deserialize(to);
+                proposed = deserialize(to, "proposed");
             }
             try {
-                Descriptor existing = deserialize(existingData);
+                Descriptor existing = deserialize(existingData, "existing");
                 if (isBackward(strategy)) {
                     compare(existing, proposed, existingData, strategy, "BACKWARD");
                 }
@@ -105,13 +106,17 @@ public class ProtobufNativeSchemaAdvancedCompatibilityCheck implements SchemaCom
         } catch (IncompatibleSchemaException e) {
             String prefix = "strategy=" + strategy + ", direction=" + direction
                     + ", existingSchemaSha256=" + fingerprint(existing.getData()) + ", ";
+            if (e instanceof UnsupportedFeatureException unsupported) {
+                boolean existingIsWriter = "BACKWARD".equals(direction);
+                prefix += "schema=" + (unsupported.isWriter() == existingIsWriter ? "existing" : "proposed") + ", ";
+            }
             String message = e.getMessage();
             throw new IncompatibleSchemaException(limit(message.substring(0, message.indexOf(':') + 1)
                     + " " + prefix + message.substring(message.indexOf(':') + 1).stripLeading()), e);
         }
     }
 
-    private static Descriptor deserialize(SchemaData data) throws IncompatibleSchemaException {
+    private static Descriptor deserialize(SchemaData data, String schema) throws IncompatibleSchemaException {
         if (data == null || data.getData() == null) {
             throw new IncompatibleSchemaException("SCHEMA_RECONSTRUCTION_FAILED: missing schema data");
         }
@@ -119,8 +124,8 @@ public class ProtobufNativeSchemaAdvancedCompatibilityCheck implements SchemaCom
             return ProtobufNativeSchemaUtils.deserialize(data.getData());
         } catch (SchemaSerializationException e) {
             if (hasUnsupportedMetadata(data.getData())) {
-                throw new IncompatibleSchemaException(
-                        "UNSUPPORTED_FEATURE: unsupported Protobuf language or feature", e);
+                throw new IncompatibleSchemaException("UNSUPPORTED_FEATURE: schema=" + schema
+                        + ", detail=unsupported Protobuf language or feature", e);
             }
             throw new IncompatibleSchemaException("SCHEMA_RECONSTRUCTION_FAILED: invalid native descriptor", e);
         }
