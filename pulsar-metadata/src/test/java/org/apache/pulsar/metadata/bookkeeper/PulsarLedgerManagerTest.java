@@ -42,6 +42,7 @@ import org.apache.bookkeeper.client.LedgerMetadataBuilder;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.net.BookieId;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.pulsar.metadata.BaseMetadataStoreTest;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -90,13 +91,20 @@ public class PulsarLedgerManagerTest extends BaseMetadataStoreTest {
     }
 
     @Test(dataProvider = "nonConflictFailures", timeOut = 30000)
-    public void testOtherCreationFailuresArePreserved(Throwable failure, Throwable cause) throws Exception {
+    public void testOtherCreationFailuresAreNotLedgerConflicts(Throwable failure, Throwable cause) throws Exception {
         MetadataStore store = mock(MetadataStore.class);
         doReturn(CompletableFuture.failedFuture(failure)).when(store)
                 .put(anyString(), any(byte[].class), eq(Optional.of(-1L)));
         try (var manager = new PulsarLedgerManager(store, "/ledgers")) {
             assertThatThrownBy(() -> manager.createLedgerMetadata(123L, metadata(123L, "value"))
-                    .get(10, TimeUnit.SECONDS)).cause().isSameAs(cause);
+                    .get(10, TimeUnit.SECONDS)).cause().satisfies(error -> {
+                        assertThat(BKException.getExceptionCode(error))
+                                .as("Non-conflict failures must not trigger ledger ID regeneration")
+                                .isNotEqualTo(BKException.Code.LedgerExistException);
+                        assertThat(ExceptionUtils.getThrowableList(error))
+                                .as("The metadata store failure remains in the cause chain")
+                                .contains(cause);
+                    });
         }
     }
 

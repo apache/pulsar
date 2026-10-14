@@ -19,8 +19,10 @@
 package org.apache.pulsar.metadata.bookkeeper;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
@@ -40,6 +42,7 @@ import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.api.WriteHandle;
+import org.apache.bookkeeper.meta.CleanupLedgerManager;
 import org.apache.bookkeeper.meta.LedgerManager;
 import org.apache.pulsar.metadata.BaseMetadataStoreTest;
 import org.testng.Assert;
@@ -92,6 +95,46 @@ public class EndToEndTest extends BaseMetadataStoreTest {
                  var entries = readHandle.read(0, 0)) {
                 assertThat(entries.getEntry(0).getEntryBytes()).isEqualTo(entry);
             }
+        }
+    }
+
+    @Test(dataProvider = "impl", timeOut = 60000)
+    public void testCreateLedgerWithExistingExplicitIdFails(String provider, Supplier<String> urlSupplier)
+            throws Exception {
+        try (var cluster = BKCluster.builder().metadataServiceUri(urlSupplier.get()).build();
+             var client = spy(cluster.newClient())) {
+            long ledgerId;
+            try (var handle = client.newCreateLedgerOp()
+                    .withEnsembleSize(1)
+                    .withWriteQuorumSize(1)
+                    .withAckQuorumSize(1)
+                    .withDigestType(DigestType.CRC32C)
+                    .withPassword(new byte[0])
+                    .execute().get(10, TimeUnit.SECONDS)) {
+                ledgerId = handle.getId();
+                handle.appendAsync("original".getBytes(StandardCharsets.UTF_8)).get(10, TimeUnit.SECONDS);
+            }
+            CleanupLedgerManager ledgerManager = (CleanupLedgerManager) client.getLedgerManager();
+            String ledgerPath = ((PulsarLedgerManager) ledgerManager.getUnderlying()).getLedgerPath(ledgerId);
+            var original = cluster.getStore().get(ledgerPath).get(10, TimeUnit.SECONDS).orElseThrow();
+            LedgerManager recordingManager = spy(ledgerManager);
+            doReturn(recordingManager).when(client).getLedgerManager();
+
+            assertThatThrownBy(() -> client.newCreateLedgerOp()
+                    .withEnsembleSize(1)
+                    .withWriteQuorumSize(1)
+                    .withAckQuorumSize(1)
+                    .withDigestType(DigestType.CRC32C)
+                    .withPassword(new byte[0])
+                    .makeAdv().withLedgerId(ledgerId)
+                    .execute().get(10, TimeUnit.SECONDS))
+                    .hasCauseInstanceOf(BKException.BKLedgerExistException.class);
+            verify(recordingManager).createLedgerMetadata(eq(ledgerId), any(LedgerMetadata.class));
+            verify(recordingManager, times(1)).createLedgerMetadata(anyLong(), any(LedgerMetadata.class));
+
+            var persisted = cluster.getStore().get(ledgerPath).get(10, TimeUnit.SECONDS).orElseThrow();
+            assertThat(persisted.getValue()).isEqualTo(original.getValue());
+            assertThat(persisted.getStat().getVersion()).isEqualTo(original.getStat().getVersion());
         }
     }
 

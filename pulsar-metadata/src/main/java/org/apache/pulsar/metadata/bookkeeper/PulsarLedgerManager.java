@@ -144,7 +144,9 @@ public class PulsarLedgerManager implements LedgerManager {
                                 || cause instanceof MetadataStoreException.AlreadyExistsException) {
                             log.debug().attr("ledgerId", ledgerId).exceptionMessage(cause)
                                     .log("Ledger metadata already exists");
-                            // A create-if-absent conflict means the ledger already exists.
+                            // The path may belong to another creator, or to our own create if its response
+                            // was lost before a retry. Until creator-token recovery is implemented
+                            // (https://github.com/apache/pulsar/issues/26793), report both as an existing ledger.
                             BKException bke = BKException.create(BKException.Code.LedgerExistException);
                             bke.initCause(cause);
                             promise.completeExceptionally(bke);
