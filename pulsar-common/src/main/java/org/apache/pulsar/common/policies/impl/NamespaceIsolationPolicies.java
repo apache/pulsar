@@ -131,7 +131,8 @@ public class NamespaceIsolationPolicies {
 
     /**
      * Check to see whether a broker id ({@code host:port}) is the primary broker of any policy because of an
-     * entry that names a specific port. Such a broker is not part of the shared broker pool.
+     * entry that names a port, see {@link NamespaceIsolationPolicyImpl#isPrimaryBrokerId(String)}. Such a
+     * broker is not part of the shared broker pool.
      *
      * @param brokerId the broker id, in the form {@code host:port}
      * @return true if any policy has a primary broker entry with a port that matches the broker id

@@ -18,13 +18,13 @@
  */
 package org.apache.pulsar.common.policies.impl;
 
+import com.google.common.net.HostAndPort;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.SortedSet;
 import java.util.TreeSet;
-import java.util.regex.Pattern;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.AutoFailoverPolicy;
 import org.apache.pulsar.common.policies.NamespaceIsolationPolicy;
@@ -36,10 +36,6 @@ import org.apache.pulsar.common.policies.data.NamespaceIsolationPolicyUnloadScop
  * Implementation of the namespace isolation policy.
  */
 public class NamespaceIsolationPolicyImpl implements NamespaceIsolationPolicy {
-
-    // A broker regex that names a specific port, e.g. "broker1:8080" or "^broker1:8080$". IPv6 host regexes
-    // contain more than one colon and are therefore always treated as host regexes.
-    private static final Pattern HOST_PORT_REGEX = Pattern.compile("[^:]*:\\d+\\$?");
 
     private List<String> namespaces;
     private List<String> primary;
@@ -59,9 +55,14 @@ public class NamespaceIsolationPolicyImpl implements NamespaceIsolationPolicy {
     private List<URL> getMatchedBrokers(List<String> brkRegexList, List<URL> availableBrokers) {
         List<URL> matchedBrokers = new ArrayList<URL>();
         for (URL brokerUrl : availableBrokers) {
-            if (this.matchesBrokerRegex(brkRegexList, brokerUrl.getHost())
-                    || (brokerUrl.getPort() != -1 && matchesBrokerIdRegex(brkRegexList,
-                            brokerUrl.getHost() + ":" + brokerUrl.getPort()))) {
+            // URL#getHost keeps the brackets around an IPv6 host; match the bare host and, as before, the
+            // bracketed one
+            String host = brokerUrl.getHost();
+            String bareHost = stripBrackets(host);
+            if (this.matchesBrokerRegex(brkRegexList, bareHost)
+                    || (!bareHost.equals(host) && this.matchesBrokerRegex(brkRegexList, host))
+                    || (brokerUrl.getPort() != -1 && matchesHostAndPortRegex(brkRegexList,
+                            HostAndPort.fromParts(bareHost, brokerUrl.getPort()).toString()))) {
                 matchedBrokers.add(brokerUrl);
             }
         }
@@ -125,20 +126,50 @@ public class NamespaceIsolationPolicyImpl implements NamespaceIsolationPolicy {
     }
 
     /**
-     * Checks whether the broker id ({@code host:port}) matches any of the given regexes that names a specific
-     * port ({@code host:port}). Regexes without a port are only ever matched against the broker host, so this
-     * doesn't change how they are applied.
+     * Checks whether the broker id matches any of the given regexes that contains a {@code :}, i.e. that may
+     * name a port. Regexes without a {@code :} are only ever matched against the broker host, so this doesn't
+     * change how they are applied.
      */
     private static boolean matchesBrokerIdRegex(List<String> brkRegexList, String brokerId) {
-        if (brokerId == null) {
-            return false;
-        }
+        String hostAndPort = toHostAndPort(brokerId);
+        return hostAndPort != null && matchesHostAndPortRegex(brkRegexList, hostAndPort);
+    }
+
+    private static boolean matchesHostAndPortRegex(List<String> brkRegexList, String hostAndPort) {
         for (String brkRegex : brkRegexList) {
-            if (HOST_PORT_REGEX.matcher(brkRegex).matches() && brokerId.matches(brkRegex)) {
+            if (brkRegex.indexOf(':') >= 0 && hostAndPort.matches(brkRegex)) {
                 return true;
             }
         }
         return false;
+    }
+
+    /**
+     * Converts a broker id ({@code host:port}, where an IPv6 host has no brackets) to the {@code host:port} form
+     * that policy entries are matched against, with an IPv6 host in brackets, e.g. {@code [2001:db8::1]:8080}.
+     * Returns {@code null} if the value isn't a valid broker id.
+     */
+    private static String toHostAndPort(String brokerId) {
+        if (brokerId == null) {
+            return null;
+        }
+        // the port follows the last ':', as in LoadManagerShared#parseBrokerHost
+        int idx = brokerId.lastIndexOf(':');
+        if (idx <= 0) {
+            return null;
+        }
+        try {
+            String host = stripBrackets(brokerId.substring(0, idx));
+            int port = Integer.parseInt(brokerId.substring(idx + 1));
+            return HostAndPort.fromParts(host, port).toString();
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    private static String stripBrackets(String host) {
+        return host.length() > 1 && host.startsWith("[") && host.endsWith("]")
+                ? host.substring(1, host.length() - 1) : host;
     }
 
     @Override

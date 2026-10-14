@@ -139,6 +139,13 @@ public class LoadManagerSharedTest {
         NamespaceName namespace = NamespaceName.get("tenant1/ns1");
         assertPlacement(policiesWithPrimary(namespace, "broker1:8080"), namespace,
                 Set.of("broker1:8080", "broker1:8081", "broker2:8080"), Set.of("broker1:8080"));
+        assertPlacement(policiesWithPrimary(namespace, "broker1:8080|broker2:8080"), namespace,
+                Set.of("broker1:8080", "broker1:8081", "broker2:8080"), Set.of("broker1:8080", "broker2:8080"));
+        assertPlacement(policiesWithPrimary(namespace, "broker1:80[0-9]{2}"), namespace,
+                Set.of("broker1:8080", "broker1:9090", "broker2:8080"), Set.of("broker1:8080"));
+        // IPv6 broker ids are matched in the bracketed form
+        assertPlacement(policiesWithPrimary(namespace, "\\[2001:db8::1\\]:8080"), namespace,
+                Set.of("2001:db8::1:8080", "2001:db8::1:8081", "2001:db8::2:8080"), Set.of("2001:db8::1:8080"));
     }
 
     @Test

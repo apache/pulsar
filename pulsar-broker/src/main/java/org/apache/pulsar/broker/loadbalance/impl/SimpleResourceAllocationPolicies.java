@@ -124,16 +124,9 @@ public class SimpleResourceAllocationPolicies {
     }
 
     public boolean isPrimaryBrokerIdInAnyPolicy(String brokerId) {
-        try {
-            Optional<NamespaceIsolationPolicies> policies =
-                    getIsolationPolicies(pulsar.getConfiguration().getClusterName());
-            return policies.map(isolationPolicies -> isolationPolicies.isPrimaryBrokerIdInAnyPolicy(brokerId))
-                    .orElse(false);
-        } catch (Exception e) {
-            log.warn().exception(e).log("isPrimaryBrokerIdInAnyPolicy");
-        }
-        // like isSharedBroker, don't consider the broker as shared if the policies can't be read
-        return true;
+        return getIsolationPolicies(pulsar.getConfiguration().getClusterName())
+                .map(isolationPolicies -> isolationPolicies.isPrimaryBrokerIdInAnyPolicy(brokerId))
+                .orElse(false);
     }
 
     public boolean shouldFailoverToSecondaries(NamespaceName namespace, int totalPrimaryCandidates) {

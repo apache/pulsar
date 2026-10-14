@@ -160,8 +160,8 @@ public class LoadManagerShared {
         }
     }
 
-    // Policy entries without a port are matched against the broker host. Entries that name a specific port
-    // (host:port, as brokers are listed by `pulsar-admin brokers list`) are matched against the broker id.
+    // Policy entries are matched against the broker host. Entries that contain a ':' may name a port
+    // (host:port, as brokers are listed by `pulsar-admin brokers list`) and are also matched against the broker id.
     private static boolean isPrimaryBroker(SimpleResourceAllocationPolicies policies, NamespaceName namespace,
                                            String brokerHost, String brokerId) {
         return policies.isPrimaryBroker(namespace, brokerHost) || policies.isPrimaryBrokerId(namespace, brokerId);
@@ -173,7 +173,7 @@ public class LoadManagerShared {
                 || policies.isSecondaryBrokerId(namespace, brokerId);
     }
 
-    // A broker reserved as primary by a port-specific policy entry is not part of the shared broker pool.
+    // A broker reserved as primary by a policy entry with a port is not part of the shared broker pool.
     private static boolean isSharedBroker(SimpleResourceAllocationPolicies policies, String brokerHost,
                                           String brokerId) {
         return policies.isSharedBroker(brokerHost) && !policies.isPrimaryBrokerIdInAnyPolicy(brokerId);
