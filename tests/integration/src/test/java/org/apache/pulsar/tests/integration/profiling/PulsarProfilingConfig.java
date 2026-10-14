@@ -19,7 +19,11 @@
 package org.apache.pulsar.tests.integration.profiling;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.File;
 import java.io.IOException;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.Path;
 import java.util.Map;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -27,14 +31,17 @@ import org.apache.pulsar.tests.performance.common.YamlScenarioLoader;
 
 /** Configuration for the profiling scenario harness. */
 final class PulsarProfilingConfig {
+    /**
+     * The scenario: the name of one of the scenarios in this package's test resources, such as
+     * {@code read-completion-isolation}, or the path of a scenario file.
+     */
     static final String CONFIG_ENV = "PULSAR_PROFILING_CONFIG";
     static final String ENV_PREFIX = "PULSAR_PROFILING_";
 
     record Config(Cluster cluster, Load load, Profiling profiling, Output output) {
         static Config read() {
-            String configFile = System.getenv(CONFIG_ENV);
-            return read(configFile == null || configFile.isBlank() ? null : Path.of(configFile),
-                    System.getenv());
+            String config = System.getenv(CONFIG_ENV);
+            return read(config == null || config.isBlank() ? null : scenarioFile(config), System.getenv());
         }
 
         static Config read(Path configFile, Map<String, String> environment) {
@@ -119,6 +126,29 @@ final class PulsarProfilingConfig {
     }
 
     record Output(String directory) {
+    }
+
+    /**
+     * The scenario file that {@code config} selects: a scenario in this package's test resources by its name, the
+     * file name without {@code .yaml}, or else a scenario file by its path. The scenarios are files on the class path
+     * when Gradle runs the tests, so that their {@code extends} resolve against each other.
+     */
+    static Path scenarioFile(String config) {
+        if (config.contains("/") || config.contains(File.separator) || config.endsWith(".yaml")
+                || config.endsWith(".yml")) {
+            return Path.of(config);
+        }
+        URL scenario = PulsarProfilingConfig.class.getResource(config + ".yaml");
+        if (scenario == null) {
+            throw new IllegalArgumentException("No profiling scenario named '" + config + "' in the test resources "
+                    + "of " + PulsarProfilingConfig.class.getPackageName() + "; pass a scenario's name or the path "
+                    + "of a scenario file in " + CONFIG_ENV);
+        }
+        try {
+            return Path.of(scenario.toURI());
+        } catch (URISyntaxException | FileSystemNotFoundException e) {
+            throw new IllegalArgumentException("Profiling scenario " + scenario + " isn't a file", e);
+        }
     }
 
     /** Empty options disable profiling for that client process. */

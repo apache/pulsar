@@ -38,7 +38,6 @@ public class HealthCheckTest extends TestRetrySupport {
 
     private final PulsarClusterSpec spec = PulsarClusterSpec.builder()
         .clusterName("HealthCheckTest-" + UUID.randomUUID().toString().substring(0, 8))
-        .numProxies(0)
         .numFunctionWorkers(0)
         .build();
 
