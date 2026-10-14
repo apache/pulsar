@@ -473,11 +473,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
 
     private void updateTopicPolicyByBrokerConfig() {
         ServiceConfiguration config = brokerService.pulsar().getConfiguration();
-        topicPolicies.getInactiveTopicPolicies().updateBrokerValue(new InactiveTopicPolicies(
-                config.getBrokerDeleteInactiveTopicsMode(),
-                config.getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(),
-                config.isBrokerDeleteInactiveTopicsEnabled()));
-
+        updateBrokerInactiveTopicPolicies();
         updateBrokerSubscriptionTypesEnabled();
         topicPolicies.getMaxSubscriptionsPerTopic().updateBrokerValue(config.getMaxSubscriptionsPerTopic());
         topicPolicies.getMaxProducersPerTopic().updateBrokerValue(config.getMaxProducersPerTopic());
@@ -1415,6 +1411,15 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
             }
         }
         this.topicPublishRateLimiter.update(publishRate);
+    }
+
+    // brokerDeleteInactiveTopicsEnabled is dynamic and can be updated online.
+    public void updateBrokerInactiveTopicPolicies() {
+        ServiceConfiguration config = brokerService.pulsar().getConfiguration();
+        topicPolicies.getInactiveTopicPolicies().updateBrokerValue(new InactiveTopicPolicies(
+                config.getBrokerDeleteInactiveTopicsMode(),
+                config.getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(),
+                config.isBrokerDeleteInactiveTopicsEnabled()));
     }
 
     // subscriptionTypesEnabled is dynamic and can be updated online.
