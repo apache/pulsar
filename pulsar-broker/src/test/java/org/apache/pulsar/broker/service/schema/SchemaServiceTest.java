@@ -45,6 +45,11 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import org.apache.bookkeeper.client.BKException;
+import org.apache.bookkeeper.client.PulsarMockBookKeeper;
+import org.apache.bookkeeper.client.PulsarMockLedgerHandle;
+import org.apache.bookkeeper.mledger.impl.LedgerMetadataUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -52,6 +57,7 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
+import org.apache.pulsar.broker.service.schema.exceptions.SchemaException;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo;
 import org.apache.pulsar.common.naming.TopicName;
@@ -66,10 +72,12 @@ import org.apache.pulsar.common.schema.SchemaInfoWithVersion;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.assertj.core.api.InstanceOfAssertFactories;
+import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
@@ -213,6 +221,129 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         deleteSchema(schemaId1, version(1));
 
         assertNull(schemaRegistryService.getSchema(schemaId1).get());
+    }
+
+    @DataProvider
+    public Object[][] schemaWriteFailureCases() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "schemaWriteFailureCases")
+    public void testSchemaWriteFailureDeletesOrphanLedger(boolean existingSchema) throws Exception {
+        String schemaId = "public/default/" + UUID.randomUUID();
+        PulsarMockBookKeeper bookKeeper = pulsarTestContext.getMockBookKeeper();
+        if (existingSchema) {
+            putSchema(schemaId, schemaData1, version(0));
+        }
+        String path = "/schemas/" + schemaId;
+        byte[] locatorBefore = pulsar.getLocalMetadataStore().get(path).get(10, TimeUnit.SECONDS)
+                .map(result -> result.getValue()).orElse(null);
+
+        bookKeeper.addEntryFailAfter(0, BKException.Code.WriteException);
+        CompletableFuture<SchemaVersion> put = schemaRegistryService.putSchemaIfAbsent(
+                schemaId, schemaData2, SchemaCompatibilityStrategy.FULL);
+
+        assertThatThrownBy(() -> put.get(10, TimeUnit.SECONDS))
+                .hasRootCauseInstanceOf(SchemaException.class)
+                .rootCause().hasMessageContaining("operation=Failed to add entry");
+        byte[] locatorAfter = pulsar.getLocalMetadataStore().get(path).get(10, TimeUnit.SECONDS)
+                .map(result -> result.getValue()).orElse(null);
+        assertThat(locatorAfter).isEqualTo(locatorBefore);
+        assertThat(schemaLedgers(bookKeeper, schemaId))
+                .as("A failed schema write must not leave an unreferenced ledger")
+                .hasSize(existingSchema ? 1 : 0);
+
+        putSchema(schemaId, schemaData2, version(existingSchema ? 1 : 0));
+        assertThat(schemaLedgers(bookKeeper, schemaId)).hasSize(existingSchema ? 2 : 1);
+    }
+
+    @DataProvider
+    public Object[][] schemaCleanupFailureCases() {
+        return new Object[][] {{true, true}, {true, false}, {false, true}, {false, false}};
+    }
+
+    @Test(dataProvider = "schemaCleanupFailureCases")
+    public void testSchemaWriteFailurePreservesExceptionDuringCleanup(boolean closeSucceeds, boolean deleteSucceeds)
+            throws Exception {
+        String schemaId = "public/default/" + UUID.randomUUID();
+        PulsarMockBookKeeper bookKeeper = pulsarTestContext.getMockBookKeeper();
+        bookKeeper.addEntryFailAfter(0, BKException.Code.WriteException);
+        // Creation is the first operation; the add failure has its own queue.
+        CompletableFuture<Void> close = bookKeeper.promiseAfter(1);
+        CompletableFuture<Void> deletion = bookKeeper.promiseAfter(2);
+        CompletableFuture<SchemaVersion> put = schemaRegistryService.putSchemaIfAbsent(
+                schemaId, schemaData1, SchemaCompatibilityStrategy.FULL);
+        try {
+            Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+                assertThat(schemaLedgers(bookKeeper, schemaId)).hasSize(1);
+                assertThat(schemaLedgers(bookKeeper, schemaId).get(0).getAsyncCloseCount()).hasValue(1);
+            });
+            PulsarMockLedgerHandle ledger = schemaLedgers(bookKeeper, schemaId).get(0);
+            assertThat(put).isNotDone();
+            assertThat(pulsar.getLocalMetadataStore().exists("/schemas/" + schemaId).get(10, TimeUnit.SECONDS))
+                    .isFalse();
+
+            if (closeSucceeds) {
+                close.complete(null);
+            } else {
+                close.completeExceptionally(BKException.create(BKException.Code.NoSuchLedgerExistsException));
+            }
+            Awaitility.await().atMost(Duration.ofSeconds(10)).until(() -> deletion.getNumberOfDependents() > 0);
+            assertThat(put).isNotDone();
+            if (deleteSucceeds) {
+                deletion.complete(null);
+            } else {
+                deletion.completeExceptionally(BKException.create(BKException.Code.UnexpectedConditionException));
+            }
+            assertThatThrownBy(() -> put.get(10, TimeUnit.SECONDS))
+                    .hasRootCauseInstanceOf(SchemaException.class)
+                    .rootCause().hasMessage(BookkeeperSchemaStorage.bkException("Failed to add entry",
+                            BKException.Code.WriteException, ledger.getId(), -1, false).getMessage());
+            assertThat(ledger.getAsyncCloseCount()).hasValue(1);
+            assertThat(schemaLedgers(bookKeeper, schemaId)).hasSize(deleteSucceeds ? 0 : 1);
+            assertThat(pulsar.getLocalMetadataStore().exists("/schemas/" + schemaId).get(10, TimeUnit.SECONDS))
+                    .isFalse();
+        } finally {
+            close.complete(null);
+            deletion.complete(null);
+        }
+    }
+
+    @Test
+    public void testSchemaCloseFailureDeletesOrphanLedger() throws Exception {
+        String schemaId = "public/default/" + UUID.randomUUID();
+        PulsarMockBookKeeper bookKeeper = pulsarTestContext.getMockBookKeeper();
+        // Creation and the successful add precede close.
+        CompletableFuture<Void> close = bookKeeper.promiseAfter(2);
+        CompletableFuture<SchemaVersion> put = schemaRegistryService.putSchemaIfAbsent(
+                schemaId, schemaData1, SchemaCompatibilityStrategy.FULL);
+        try {
+            Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+                assertThat(schemaLedgers(bookKeeper, schemaId)).hasSize(1);
+                assertThat(schemaLedgers(bookKeeper, schemaId).get(0).getAsyncCloseCount()).hasValue(1);
+            });
+            assertThat(put).isNotDone();
+            assertThat(pulsar.getLocalMetadataStore().exists("/schemas/" + schemaId).get(10, TimeUnit.SECONDS))
+                    .isFalse();
+            close.completeExceptionally(BKException.create(BKException.Code.WriteException));
+
+            assertThatThrownBy(() -> put.get(10, TimeUnit.SECONDS))
+                    .hasRootCauseInstanceOf(BKException.BKWriteException.class);
+            assertThat(schemaLedgers(bookKeeper, schemaId)).isEmpty();
+            assertThat(pulsar.getLocalMetadataStore().exists("/schemas/" + schemaId).get(10, TimeUnit.SECONDS))
+                    .isFalse();
+        } finally {
+            close.complete(null);
+        }
+    }
+
+    private List<PulsarMockLedgerHandle> schemaLedgers(PulsarMockBookKeeper bookKeeper, String schemaId) {
+        return bookKeeper.getLedgerMap().values().stream()
+                .filter(ledger -> {
+                    byte[] id = ledger.getLedgerMetadata().getCustomMetadata()
+                            .get(LedgerMetadataUtils.METADATA_PROPERTY_SCHEMAID);
+                    return id != null && schemaId.equals(new String(id, StandardCharsets.UTF_8));
+                }).toList();
     }
 
     @Test
