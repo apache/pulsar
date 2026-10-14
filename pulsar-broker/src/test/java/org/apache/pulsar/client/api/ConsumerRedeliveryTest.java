@@ -29,7 +29,9 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -39,6 +41,8 @@ import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
+import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
+import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.api.proto.CommandAck;
@@ -54,6 +58,127 @@ public class ConsumerRedeliveryTest extends SharedPulsarBaseTest {
     @DataProvider(name = "individualRedeliverySubscriptionTypes")
     public Object[][] individualRedeliverySubscriptionTypes() {
         return new Object[][] { { SubscriptionType.Shared }, { SubscriptionType.Key_Shared } };
+    }
+
+    @DataProvider(name = "zeroCountRedeliveryVariants")
+    public Object[][] zeroCountRedeliveryVariants() {
+        return new Object[][] {
+                { SubscriptionType.Shared, false }, { SubscriptionType.Shared, true },
+                { SubscriptionType.Key_Shared, false }, { SubscriptionType.Key_Shared, true }
+        };
+    }
+
+    @Test(dataProvider = "zeroCountRedeliveryVariants", timeOut = 90_000)
+    public void testZeroCountSelectiveRedeliveryPreservesBackpressure(SubscriptionType subscriptionType,
+                                                                     boolean includePendingPosition) throws Exception {
+        String topic = newTopicName();
+        int maxUnackedMessages = 10;
+        int batchSize = 2;
+        admin.namespaces().setMaxUnackedMessagesPerConsumer(getNamespace(), maxUnackedMessages);
+        @Cleanup
+        PulsarClient transactionClient = PulsarClient.builder().serviceUrl(getBrokerServiceUrl())
+                .enableTransaction(true).build();
+        @Cleanup
+        Producer<Integer> producer = transactionClient.newProducer(Schema.INT32).topic(topic)
+                .batcherBuilder(BatcherBuilder.KEY_BASED).batchingMaxMessages(batchSize)
+                .batchingMaxPublishDelay(1, TimeUnit.HOURS).create();
+        @Cleanup
+        ConsumerImpl<Integer> consumer = (ConsumerImpl<Integer>) transactionClient.newConsumer(Schema.INT32)
+                .topic(topic).subscriptionName("sub").subscriptionType(subscriptionType)
+                .receiverQueueSize(maxUnackedMessages).enableBatchIndexAcknowledgment(true)
+                .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS).subscribe();
+        PersistentSubscription subscription = (PersistentSubscription) getTopic(topic, false)
+                .get(10, TimeUnit.SECONDS).orElseThrow().getSubscription("sub");
+        var brokerConsumer = subscription.getConsumers().get(0);
+        Awaitility.await().untilAsserted(() ->
+                assertThat(brokerConsumer.getMaxUnackedMessages()).isEqualTo(maxUnackedMessages));
+        List<CompletableFuture<MessageId>> sends = new ArrayList<>();
+        for (int i = 0; i < batchSize; i++) {
+            sends.add(producer.newMessage().key("key").value(i).sendAsync());
+        }
+        FutureUtil.waitForAll(sends).get(10, TimeUnit.SECONDS);
+        Message<Integer> first = consumer.receive(10, TimeUnit.SECONDS);
+        Message<Integer> last = consumer.receive(10, TimeUnit.SECONDS);
+        assertThat(first).isNotNull();
+        assertThat(last).isNotNull();
+        MessageIdImpl zeroCountPosition = (MessageIdImpl) last.getMessageId();
+        Transaction transaction = transactionClient.newTransaction().withTransactionTimeout(2, TimeUnit.MINUTES)
+                .build().get(10, TimeUnit.SECONDS);
+        CountDownLatch executorPaused = new CountDownLatch(1);
+        CountDownLatch releaseExecutor = new CountDownLatch(1);
+        Future<?> pauseTask = null;
+        CompletableFuture<Void> finalAck = null;
+        try {
+            consumer.acknowledgeAsync(first.getMessageId(), transaction).get(10, TimeUnit.SECONDS);
+            PendingAckHandleImpl handle = (PendingAckHandleImpl) subscription.getPendingAckHandle();
+            // Hold the transaction completion path while the real ACK command updates consumer accounting.
+            pauseTask = handle.getInternalPinnedExecutor().submit(() -> {
+                executorPaused.countDown();
+                assertThat(releaseExecutor.await(60, TimeUnit.SECONDS)).isTrue();
+                return null;
+            });
+            assertThat(executorPaused.await(10, TimeUnit.SECONDS)).isTrue();
+            finalAck = consumer.acknowledgeAsync(last.getMessageId(), transaction);
+            Awaitility.await().untilAsserted(() -> {
+                AtomicInteger remainingUnacked = new AtomicInteger(-1);
+                brokerConsumer.getPendingAcks().forEach((ledgerId, entryId, count, stickyKeyHash) -> {
+                    if (ledgerId == zeroCountPosition.getLedgerId() && entryId == zeroCountPosition.getEntryId()) {
+                        remainingUnacked.set(count);
+                    }
+                });
+                assertThat(remainingUnacked).hasValue(0);
+            });
+            assertThat(finalAck).isNotDone();
+
+            sends.clear();
+            for (int i = 0; i < maxUnackedMessages; i++) {
+                sends.add(producer.newMessage().key("key").value(i + batchSize).sendAsync());
+            }
+            FutureUtil.waitForAll(sends).get(10, TimeUnit.SECONDS);
+            List<Message<Integer>> unacked = new ArrayList<>();
+            for (int i = 0; i < maxUnackedMessages; i++) {
+                Message<Integer> message = consumer.receive(10, TimeUnit.SECONDS);
+                assertThat(message).isNotNull();
+                unacked.add(message);
+            }
+            consumer.getLastMessageIdsAsync().get(10, TimeUnit.SECONDS);
+            assertThat(brokerConsumer.isBlocked()).isTrue();
+            assertThat(brokerConsumer.getUnackedMessages()).isEqualTo(maxUnackedMessages);
+            consumer.increaseAvailablePermits(maxUnackedMessages);
+            consumer.getLastMessageIdsAsync().get(10, TimeUnit.SECONDS);
+            int availablePermits = brokerConsumer.getAvailablePermits();
+            Set<MessageId> requested = new HashSet<>();
+            requested.add(last.getMessageId());
+            if (includePendingPosition) {
+                requested.add(unacked.get(0).getMessageId());
+            }
+            consumer.redeliverUnacknowledgedMessages(requested);
+            if (includePendingPosition) {
+                Set<MessageId> redelivered = new HashSet<>();
+                for (int i = 0; i < batchSize; i++) {
+                    Message<Integer> message = consumer.receive(10, TimeUnit.SECONDS);
+                    assertThat(message).isNotNull();
+                    redelivered.add(message.getMessageId());
+                }
+                assertThat(redelivered).containsExactlyInAnyOrder(
+                        unacked.get(0).getMessageId(), unacked.get(1).getMessageId());
+            }
+            consumer.getLastMessageIdsAsync().get(10, TimeUnit.SECONDS);
+            assertThat(brokerConsumer.isBlocked()).as("zero-count positions must not release backpressure").isTrue();
+            assertThat(brokerConsumer.getUnackedMessages()).isEqualTo(maxUnackedMessages);
+            if (!includePendingPosition) {
+                assertThat(brokerConsumer.getAvailablePermits()).isEqualTo(availablePermits);
+            }
+        } finally {
+            releaseExecutor.countDown();
+            if (pauseTask != null) {
+                pauseTask.get(10, TimeUnit.SECONDS);
+            }
+            if (finalAck != null) {
+                finalAck.get(10, TimeUnit.SECONDS);
+            }
+            transaction.commit().get(10, TimeUnit.SECONDS);
+        }
     }
 
     @Test(dataProvider = "individualRedeliverySubscriptionTypes", timeOut = 30_000)

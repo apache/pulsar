@@ -1514,14 +1514,14 @@ public class Consumer {
             Position position = PositionFactory.create(msg.getLedgerId(), msg.getEntryId());
             int remainingUnacked = pendingAcks.removeAndGetRemainingUnacked(
                     position.getLedgerId(), position.getEntryId());
-            if (remainingUnacked != PENDING_ACK_NOT_FOUND) {
+            if (remainingUnacked > 0) {
                 totalRedeliveryMessages += remainingUnacked;
                 pendingPositions.add(position);
             }
         }
 
-        if (pendingPositions.isEmpty()) {
-            // Stale redelivery requests must not release unacked backpressure or deferred permits.
+        if (totalRedeliveryMessages == 0) {
+            // Only removing unacknowledged messages can release backpressure and deferred permits.
             return;
         }
 
