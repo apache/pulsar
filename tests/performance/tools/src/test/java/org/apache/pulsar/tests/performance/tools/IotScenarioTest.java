@@ -137,6 +137,73 @@ public class IotScenarioTest {
     }
 
     @Test
+    public void preparesTheJoinOfApplicationsThatSkipMessages() {
+        IotScenario scenario = unbatched(new IotScenario.Applications(3, 2, "app-", new IotScenario.Client(2, 2), null,
+                List.of(0, 30, 20), null, List.of(0L, 100L, 0L), true));
+        assertThat(scenario.skipMessages(1)).isEqualTo(100);
+        assertThat(scenario.skipMessages(2)).isZero();
+        // 100 of each of the 2 topics
+        assertThat(scenario.expectedMessageCount(1)).isEqualTo(800);
+        assertThat(scenario.expectedMessageCount(2)).isEqualTo(1_000);
+        assertThat(scenario.preparesJoin()).isTrue();
+        assertThat(scenario.earliestLateJoinSeconds()).isEqualTo(20);
+        IotScenario withoutPreparation = scenario(new IotScenario.Applications(3, 2, "app-",
+                new IotScenario.Client(2, 2), null, List.of(0, 30, 20), null));
+        assertThat(withoutPreparation.skipMessages(1)).isZero();
+        assertThat(withoutPreparation.expectedMessageCount(1)).isEqualTo(1_000);
+        assertThat(withoutPreparation.preparesJoin()).isFalse();
+    }
+
+    @Test
+    public void rejectsInvalidJoinPreparations() {
+        assertThatThrownBy(() -> unbatched(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, List.of(0, 20), null, List.of(10L), false)))
+                .hasMessageContaining("skipMessages must have a value for each of the 2 applications");
+        assertThatThrownBy(() -> unbatched(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, List.of(0, 20), null, List.of(0L, -1L), false))).hasMessageContaining("must be at least 0");
+        // an application that receives from the start can't skip
+        assertThatThrownBy(() -> unbatched(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, List.of(0, 20), null, List.of(10L, 10L), false)))
+                .hasMessageContaining("only an application that joins later");
+        assertThatThrownBy(() -> unbatched(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, null, null, List.of(0L, 10L), false))).hasMessageContaining("only an application that joins");
+        // 500 of each of the 2 topics are all of the 1,000 messages
+        assertThatThrownBy(() -> unbatched(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, List.of(0, 20), null, List.of(0L, 500L), false))).hasMessageContaining("must leave messages");
+        // the launcher skips entries, which are messages only without batching
+        assertThatThrownBy(() -> scenario(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, List.of(0, 20), null, List.of(0L, 10L), false)))
+                .hasMessageContaining("needs gateways.producer.batchingEnabled: false");
+        assertThatThrownBy(() -> scenario(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, List.of(0, 0), null, null, true))).hasMessageContaining("unloadBeforeJoin needs an application");
+    }
+
+    @Test
+    public void resetsTheSubscriptionsOfLateApplications() {
+        IotScenario scenario = unbatched(new IotScenario.Applications(3, 2, "app-", new IotScenario.Client(2, 2), null,
+                List.of(0, 30, 30), null, null, false, List.of(-1L, 5_000L, -1L)));
+        assertThat(scenario.resetToMillis(0)).isEqualTo(-1);
+        assertThat(scenario.resetToMillis(1)).isEqualTo(5_000);
+        assertThat(scenario.resetsSubscriptions()).isTrue();
+        assertThat(scenario.preparesJoin()).isTrue();
+        assertThat(scenario.startsAtFirstSequence(1)).isTrue();
+        assertThat(scenario.startsAtFirstSequence(2)).isFalse();
+        // only a late application resets, unbatched, and doesn't also skip
+        assertThatThrownBy(() -> unbatched(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, List.of(0, 30), null, null, false, List.of(5_000L, -1L))))
+                .hasMessageContaining("only an application that joins later");
+        assertThatThrownBy(() -> unbatched(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, List.of(0, 30), null, List.of(0L, 10L), false, List.of(-1L, 5_000L))))
+                .hasMessageContaining("can't also skip messages");
+        assertThatThrownBy(() -> scenario(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, List.of(0, 30), null, null, false, List.of(-1L, 5_000L))))
+                .hasMessageContaining("resetToMillis needs gateways.producer.batchingEnabled: false");
+        assertThatThrownBy(() -> unbatched(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, List.of(0, 30), null, null, false, List.of(-2L, 5_000L))))
+                .hasMessageContaining("-1 for none, or at least 0");
+    }
+
+    @Test
     public void rejectsInvalidJoinSettings() {
         assertThatThrownBy(() -> scenario(new IotScenario.Applications(3, 2, "app-", new IotScenario.Client(2, 2),
                 null, List.of(0, 20), null))).hasMessageContaining("a value for each of the 3 applications");
@@ -208,6 +275,14 @@ public class IotScenarioTest {
 
     private static IotScenario scenario(IotScenario.Applications applications) {
         return scenario(applications, new IotScenario.Warmup(0, 0, 1, 0));
+    }
+
+    // The gateways without batching, as skipping messages needs
+    private static IotScenario unbatched(IotScenario.Applications applications) {
+        return new IotScenario("pulsar://localhost:6650", new IotScenario.Warmup(0, 0, 1, 0),
+                new IotScenario.Measurement(120, 1_000), 0, new IotScenario.Payload(64), new IotScenario.Devices(1_000),
+                new IotScenario.Gateways(10, new IotScenario.Producer(2, 2, 100, false, true, null), null),
+                new IotScenario.Topics(2, "persistent://public/default/iot-"), applications, null, 300);
     }
 
     private static IotScenario scenario(IotScenario.Applications applications, IotScenario.Warmup warmup) {

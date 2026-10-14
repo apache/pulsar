@@ -38,6 +38,24 @@ public class DeviceSequenceTrackerTest {
     }
 
     @Test
+    public void startsAtEachDevicesFirstSequenceAfterSkippedMessages() {
+        DeviceSequenceTracker tracker = new DeviceSequenceTracker(3, true);
+        tracker.received(0, 5);
+        tracker.received(0, 6);
+        tracker.received(1, 0);
+        tracker.received(1, 1);
+        // a gap after the first message is still a violation
+        tracker.received(2, 3);
+        tracker.received(2, 5);
+
+        assertThat(tracker.uniqueMessages()).isEqualTo(6);
+        assertThat(tracker.summary().orderingViolations()).isEqualTo(1);
+        // an earlier sequence than the first is a duplicate
+        tracker.received(0, 4);
+        assertThat(tracker.summary().duplicates()).isEqualTo(1);
+    }
+
+    @Test
     public void rejectsGapAndInvalidDevice() {
         DeviceSequenceTracker tracker = new DeviceSequenceTracker(1);
         tracker.received(0, 1);

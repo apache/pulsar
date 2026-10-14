@@ -94,6 +94,7 @@ impairs the packets from `from` to `to`. Each side is an endpoint or a list of t
 | `zookeeper` | the cluster's metadata store |
 | `configuration-store` | the configuration metadata store |
 | `metadata` | both stores |
+| `offload-storage` | the tiered storage that the brokers offload to, in a scenario with [`offload`](offloading.md) |
 
 With a [remote cluster](#geo-replication), its containers are endpoints too:
 
@@ -281,8 +282,8 @@ replicates while the first cluster's clients disconnect.
 | `network-events.jsonl` | Every event, one JSON object per line, written as it happens, also in a failed run: the resolved containers and devices, the offloads, each impairment's application and removal with its queues' counters, a reset's destroyed connections, failures and the cleanup |
 | `gateways/pulsar-client.log.txt`, `applications/pulsar-client.log.txt` | The Pulsar client's warnings in the workloads, such as its reconnections and timeouts, when it logged any; `PULSAR_CLIENT_LOG_LEVEL: info` in a workload's `env` logs more |
 | `remote-applications/` | The remote applications' outputs, as in `applications/`, their configuration in `resolved-config-remote-applications.yaml` |
-| `remote-topic-stats.csv` | With a remote cluster, its topics' stats once a second, as `topic-stats.csv` has the first cluster's: a remote subscription's backlog that stays after the run tells a message that the remote applications didn't receive from one that the remote topic lacks |
-| `replication-stats.csv` | With a remote cluster, each topic's replicators once a second: the backlog to replicate, whether the replicator is connected, the delay of the message it replicates next, and its replicated-message counter |
+| `remote-topic-stats.csv` | With a remote cluster, its topics' stats as often as `topic-stats.csv` has the first cluster's: a remote subscription's backlog that stays after the run tells a message that the remote applications didn't receive from one that the remote topic lacks |
+| `replication-stats.csv` | With a remote cluster, each topic's replicators as often as the topic stats: the backlog to replicate, whether the replicator is connected, the delay of the message it replicates next, and its replicated-message counter |
 | `network-summary.json` | Each impairment's settings, status, times and its queues' final counters, and each impaired container's TCP segments sent and retransmitted during the run |
 
 The run report's **Network conditions** section shows each impairment, when it was applied and removed relative to
