@@ -713,6 +713,8 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
                             heldLocks.remove(entry.getKey(), entry.getValue());
                             return null;
                         }
+                        log.warn().attr("ledgerId", entry.getKey()).attr("lockPath", entry.getValue().getLockPath())
+                                .exception(cause).log("Error deleting underreplicated ledger lock");
                         return new ExecutionException(cause);
                     }));
         }

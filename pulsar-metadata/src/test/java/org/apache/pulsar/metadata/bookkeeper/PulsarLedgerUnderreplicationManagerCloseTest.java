@@ -23,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
 import java.util.ArrayList;
 import java.util.List;
@@ -301,6 +302,49 @@ public class PulsarLedgerUnderreplicationManagerCloseTest extends BaseMetadataSt
 
                 assertThat(attempts.get()).isEqualTo(1);
                 assertThat(other.isLedgerBeingReplicated(ledgerId)).isTrue();
+            }
+        }
+    }
+
+    @Test(dataProvider = "impl", timeOut = 30000)
+    public void testLateSuccessfulDeletePreservesLockReacquiredBySameManager(
+            String provider, Supplier<String> urlSupplier) throws Exception {
+        String root = "/ledgers-" + UUID.randomUUID();
+        long ledgerId = 1L;
+        String path = lockPath(root, ledgerId);
+        try (var store = newStore(urlSupplier)) {
+            var observed = spy(store);
+            try (var owner = newManager(observed, root)) {
+                owner.acquireUnderreplicatedLedger(ledgerId);
+                CompletableFuture<Void> delayedAcknowledgement = new CompletableFuture<>();
+                doAnswer(invocation -> {
+                    store.delete(invocation.getArgument(0), invocation.getArgument(1)).get(5, TimeUnit.SECONDS);
+                    return delayedAcknowledgement;
+                }).when(observed).delete(anyString(), any());
+
+                try {
+                    assertThatThrownBy(() -> owner.close(100, TimeUnit.MILLISECONDS))
+                            .isInstanceOf(UnavailableException.class)
+                            .hasCauseInstanceOf(TimeoutException.class);
+                    assertThat(store.get(path).get(5, TimeUnit.SECONDS))
+                            .as("the original lock was deleted before its acknowledgement")
+                            .isEmpty();
+                    owner.acquireUnderreplicatedLedger(ledgerId);
+                    assertThat(store.get(path).get(5, TimeUnit.SECONDS))
+                            .as("the same manager reacquired the lock")
+                            .isPresent();
+                    delayedAcknowledgement.complete(null);
+                    reset(observed);
+
+                    owner.releaseUnderreplicatedLedger(ledgerId);
+
+                    assertThat(store.get(path).get(5, TimeUnit.SECONDS))
+                            .as("late acknowledgement preserves ownership of the replacement lock")
+                            .isEmpty();
+                } finally {
+                    reset(observed);
+                    delayedAcknowledgement.completeExceptionally(new MetadataStoreException("delete failed"));
+                }
             }
         }
     }
