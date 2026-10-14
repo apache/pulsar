@@ -18,60 +18,41 @@
  */
 package org.apache.pulsar.tests.integration.containers;
 
-import org.apache.pulsar.tests.integration.utils.DockerUtils;
-
 /**
  * A pulsar container that runs zookeeper.
  */
-public class ZKContainer<SelfT extends PulsarContainer<SelfT>> extends PulsarContainer<SelfT> {
+public class ZKContainer extends PulsarContainer<ZKContainer> {
 
     public static final String NAME = "zookeeper";
 
-    private volatile boolean dumpZkDataBeforeStop = false;
-
     public ZKContainer(String clusterName) {
+        this(clusterName, DEFAULT_IMAGE_NAME);
+    }
+
+    public ZKContainer(String clusterName, String imageName) {
+        this(clusterName, NAME, imageName);
+    }
+
+    public ZKContainer(String clusterName, String hostName, String imageName) {
         super(
             clusterName,
-            NAME,
+            hostName,
             NAME,
             "bin/run-local-zk.sh",
             ZK_PORT,
-            INVALID_PORT);
-    }
-
-    public ZKContainer(String clusterName,
-                       String hostname,
-                       String serviceName,
-                       String serviceEntryPoint,
-                       int servicePort,
-                       int httpPort) {
-        super(
-            clusterName,
-            hostname,
-            serviceName,
-            serviceEntryPoint,
-            servicePort,
-            httpPort);
-    }
-
-    public void enableDumpZkDataBeforeStop(boolean enabled) {
-        this.dumpZkDataBeforeStop = enabled;
-    }
-
-    @Override
-    protected void beforeStop() {
-        super.beforeStop();
-        if (null != getContainerId() && dumpZkDataBeforeStop) {
-            DockerUtils.dumpContainerDirToTargetCompressed(
-                getDockerClient(),
-                getContainerId(),
-                "/pulsar/data/zookeeper"
-            );
-        }
+            INVALID_PORT,
+            "/metrics",
+            imageName);
     }
 
     @Override
     protected boolean isCodeCoverageEnabled() {
+        return false;
+    }
+
+
+    @Override
+    protected boolean isPassNettyLeakDetectionSystemProperties() {
         return false;
     }
 }

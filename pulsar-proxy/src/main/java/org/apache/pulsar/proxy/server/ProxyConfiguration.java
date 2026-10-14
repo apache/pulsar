@@ -43,6 +43,7 @@ import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.sasl.SaslConstants;
 
+
 @Getter
 @Setter
 public class ProxyConfiguration implements PulsarConfiguration {
@@ -173,35 +174,43 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
-        doc = "The service url points to the broker cluster. URL must have the pulsar:// prefix."
+        doc = "If does not set metadataStoreUrl or configurationMetadataStoreUrl, this url should point to the"
+                + " discovery service provider."
+                + " URL must have the pulsar:// prefix. And does not support multi url yet."
     )
     private String brokerServiceURL;
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
-        doc = "The tls service url points to the broker cluster. URL must have the pulsar+ssl:// prefix."
+            doc = "If does not set metadataStoreUrl or configurationMetadataStoreUrl, this url should point to the"
+                    + " discovery service provider."
+                + " URL must have the pulsar+ssl:// prefix. And does not support multi url yet."
     )
     private String brokerServiceURLTLS;
 
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
-        doc = "The web service url points to the broker cluster"
+        doc = "The web service url points to the discovery service provider of the broker cluster, and does not support"
+                + " multi url yet."
     )
     private String brokerWebServiceURL;
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
-        doc = "The tls web service url points to the broker cluster"
+        doc = "The tls web service url points to the discovery service provider of the broker cluster, and does not"
+                + " support multi url yet."
     )
     private String brokerWebServiceURLTLS;
 
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
-        doc = "The web service url points to the function worker cluster."
+        doc = "The web service url points to the discovery service provider of the function worker cluster, and does"
+                + " not support multi url yet."
             + " Only configure it when you setup function workers in a separate cluster"
     )
     private String functionWorkerWebServiceURL;
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
-        doc = "The tls web service url points to the function worker cluster."
+        doc = "The tls web service url points to the discovery service provider of the function worker cluster, and"
+                + " does not support multi url yet."
             + " Only configure it when you setup function workers in a separate cluster"
     )
     private String functionWorkerWebServiceURLTLS;
@@ -256,9 +265,41 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private String advertisedAddress;
 
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Specifies the interval (in seconds) for sending ping messages to the client. Set to 0 to disable "
+                    + "ping messages. This setting applies to client connections used for topic lookups and "
+                    + "partition metadata requests. When a client establishes a broker connection via the proxy, "
+                    + "the client and broker will communicate directly without the proxy intercepting the messages. "
+                    + "In that case, the broker's keepAliveIntervalSeconds configuration becomes relevant.")
+    private int keepAliveIntervalSeconds = 30;
+
     @FieldContext(category = CATEGORY_SERVER,
             doc = "Enable or disable the proxy protocol.")
     private boolean haProxyProtocolEnabled;
+
+    @FieldContext(category = CATEGORY_SERVER,
+            doc = "Enable or disable the use of HA proxy protocol for resolving the client IP for http/https "
+                    + "requests. Default is false.")
+    private boolean webServiceHaProxyProtocolEnabled = false;
+
+    @FieldContext(category = CATEGORY_SERVER, doc =
+            "Trust X-Forwarded-For header for resolving the client IP for http/https requests.\n"
+                    + "Default is false.")
+    private boolean webServiceTrustXForwardedFor = false;
+
+    @FieldContext(category = CATEGORY_SERVER, doc =
+            "Add detailed client/remote and server/local addresses and ports to http/https request logging.\n"
+                    + "Defaults to true when either webServiceHaProxyProtocolEnabled or webServiceTrustXForwardedFor "
+                    + "is enabled.")
+    private Boolean webServiceLogDetailedAddresses;
+
+    @FieldContext(category = CATEGORY_SERVER, doc =
+            "Defines how the broker will anonymize the role and originalAuthRole before logging. "
+                    + "Possible values are: NONE (no anonymization), REDACTED (replaces with '[REDACTED]'), "
+                    + "hash:SHA256 (hashes using SHA-256), and hash:MD5 (hashes using MD5). Default is NONE."
+    )
+    private String authenticationRoleLoggingAnonymizer = "NONE";
 
     @FieldContext(category = CATEGORY_SERVER,
             doc = "Enables zero-copy transport of data across network interfaces using the spice. "
@@ -289,9 +330,18 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
-            doc = "Specify the TLS provider for the web service, available values can be SunJSSE, Conscrypt and etc."
+            doc = "Specify the TLS provider for the web service, available values can be SunJSSE, Conscrypt and etc.\n"
+                    + "This names a JSSE (SSLContext) security provider for a Jetty-based web service, which has\n"
+                    + "no native TLS engine, so Netty engine values (JDK, OPENSSL, OPENSSL_REFCNT) are not valid\n"
+                    + "provider names here. The proxy's own HTTPS listener prefers this setting and falls back to\n"
+                    + "tlsProvider when it is unset, matching the broker. Leave unset (the default) to use\n"
+                    + "Conscrypt when it is available on this\n"
+                    + "platform, else the JVM's default provider; a configured name is pinned and startup fails\n"
+                    + "if it cannot be resolved. Conscrypt ships native libraries for x86_64 and, since 2.6.1,\n"
+                    + "aarch64 — but not for every platform, which is why the default falls back instead of failing\n"
+                    + "where it cannot load; pinning it explicitly there does fail."
     )
-    private String webServiceTlsProvider = "Conscrypt";
+    private String webServiceTlsProvider = "";
 
     @FieldContext(
             category = CATEGORY_TLS,
@@ -363,7 +413,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
             + "Authentication must be enabled via configuring `authenticationEnabled` to be true for this"
             + "to take effect"
     )
-    private boolean forwardAuthorizationCredentials = false;
+    private boolean forwardAuthorizationCredentials = true;
 
     @FieldContext(
             category = CATEGORY_AUTHENTICATION,
@@ -372,12 +422,24 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private int authenticationRefreshCheckSeconds = 60;
 
     @FieldContext(
+        category = CATEGORY_HTTP,
+        doc = "Whether to enable the proxy's /metrics and /proxy-stats http endpoints"
+    )
+    private boolean enableProxyStatsEndpoints = true;
+
+    @FieldContext(
         category = CATEGORY_AUTHENTICATION,
         doc = "Whether the '/metrics' endpoint requires authentication. Defaults to true."
             + "'authenticationEnabled' must also be set for this to take effect."
     )
     private boolean authenticateMetricsEndpoint = true;
 
+    @FieldContext(
+            category = CATEGORY_HTTP,
+            doc = "Time in milliseconds that metrics endpoint would time out. Default is 30s.\n"
+                    + " Set it to 0 to disable timeout."
+    )
+    private long metricsServletTimeoutMs = 30000;
 
     @FieldContext(
         category = CATEGORY_SASL_AUTH,
@@ -427,6 +489,42 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private int maxConcurrentLookupRequests = 50000;
 
     @FieldContext(
+            category = CATEGORY_RATE_LIMITING,
+            doc = "Maximum heap memory for inflight topic list operations (MB).\n"
+                    + "Default: 100 MB (supports ~1M topic names assuming 100 bytes each)")
+    private int maxTopicListInFlightHeapMemSizeMB = 100;
+
+    @FieldContext(
+            category = CATEGORY_RATE_LIMITING,
+            doc = "Maximum direct memory for inflight topic list responses (MB).\n"
+                    + "Default: 100 MB (network buffers for serialized responses)")
+    private int maxTopicListInFlightDirectMemSizeMB = 100;
+
+    @FieldContext(
+            category = CATEGORY_RATE_LIMITING,
+            doc = "Timeout for acquiring heap memory permits (milliseconds).\n"
+                    + "Default: 25000 (25 seconds)")
+    private int maxTopicListInFlightHeapMemSizePermitsAcquireTimeoutMillis = 25000;
+
+    @FieldContext(
+            category = CATEGORY_RATE_LIMITING,
+            doc = "Maximum queue size for heap memory permit requests.\n"
+                    + "Default: 10000 (prevent unbounded queueing)")
+    private int maxTopicListInFlightHeapMemSizePermitsAcquireQueueSize = 10000;
+
+    @FieldContext(
+            category = CATEGORY_RATE_LIMITING,
+            doc = "Timeout for acquiring direct memory permits (milliseconds).\n"
+                    + "Default: 25000 (25 seconds)")
+    private int maxTopicListInFlightDirectMemSizePermitsAcquireTimeoutMillis = 25000;
+
+    @FieldContext(
+            category = CATEGORY_RATE_LIMITING,
+            doc = "Maximum queue size for direct memory permit requests.\n"
+                    + "Default: 10000 (prevent unbounded queueing)")
+    private int maxTopicListInFlightDirectMemSizePermitsAcquireQueueSize = 10000;
+
+    @FieldContext(
         category = CATEGORY_CLIENT_AUTHENTICATION,
         doc = "The authentication plugin used by the Pulsar proxy to authenticate with Pulsar brokers"
     )
@@ -471,7 +569,8 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private boolean tlsEnabledInProxy = false;
     @FieldContext(
         category = CATEGORY_TLS,
-        doc = "Tls cert refresh duration in seconds (set 0 to check on every new connection)"
+        doc = "Tls cert refresh duration in seconds. Set 0 to disable the background rotation "
+            + "check, so the TLS material loaded at startup is kept until restart."
     )
     private long tlsCertRefreshCheckDurationSec = 300; // 5 mins
     @FieldContext(
@@ -502,9 +601,11 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private boolean tlsAllowInsecureConnection = false;
     @FieldContext(
         category = CATEGORY_TLS,
-        doc = "Whether the hostname is validated when the proxy creates a TLS connection with brokers"
+        doc = "Whether the hostname is validated when the proxy creates a TLS connection with brokers."
+                + " Enabled by default since Pulsar 5.0 (PIP-478): a broker whose certificate does not match"
+                + " its hostname/SAN is rejected."
     )
-    private boolean tlsHostnameVerificationEnabled = false;
+    private boolean tlsHostnameVerificationEnabled = true;
     @FieldContext(
         category = CATEGORY_TLS,
         doc = "Specify the tls protocols the broker will use to negotiate during TLS handshake"
@@ -538,9 +639,36 @@ public class ProxyConfiguration implements PulsarConfiguration {
             category = CATEGORY_KEYSTORE_TLS,
             doc = "Specify the TLS provider for the broker service: \n"
                     + "When using TLS authentication with CACert, the valid value is either OPENSSL or JDK.\n"
-                    + "When using TLS authentication with KeyStore, available values can be SunJSSE, Conscrypt and etc."
+                    + "When using TLS authentication with KeyStore, available values can be SunJSSE, Conscrypt\n"
+                    + "and etc.\n"
+                    + "Leave unset (the default) to let Pulsar choose the engine: the native OpenSSL engine when a\n"
+                    + "netty-tcnative binary is available for the platform, otherwise the JDK engine.\n"
+                    + "This key is overloaded across two axes. An engine literal (JDK, OPENSSL, OPENSSL_REFCNT)\n"
+                    + "selects the TLS engine; any other value is read as a JSSE (SSLContext) provider name (e.g.\n"
+                    + "Conscrypt) and selects no native engine."
     )
     private String tlsProvider = null;
+
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "PIP-478: the name of a JSSE (SSLContext) provider — a java.security.Provider that supplies "
+                    + "an SSLContext (TLS) implementation (e.g. the BouncyCastle JSSE provider BCJSSE for FIPS, "
+                    + "with BCFIPS registered separately as the crypto provider it uses) — used to build the "
+                    + "proxy's server-side (binary front-end / web) TLS SSLContext. A distinct axis from "
+                    + "tlsProvider (the JDK-vs-OpenSSL engine switch): when set, the default factory builds the "
+                    + "JDK engine with this provider as the SSLContext provider, overriding the engine choice. "
+                    + "Resolved by preferring a provider already registered in the JVM (Security.getProvider), "
+                    + "falling back to the ServiceLoader mechanism, and failing loudly when unresolvable.")
+    private String jsseProvider = null;
+
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "PIP-478: the name of a JCA (material) provider — a java.security.Provider supplying the "
+                    + "KeyStore, CertificateFactory and KeyFactory engines that parse the TLS material (e.g. "
+                    + "BCFIPS for FIPS, alongside jsseProvider=BCJSSE). A distinct axis from jsseProvider, "
+                    + "which supplies the SSLContext: JSSE service types are never taken from this provider. "
+                    + "Unset uses the JVM provider search order. Applies to the proxy's listeners.")
+    private String jcaProvider = null;
 
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
@@ -578,6 +706,21 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private String tlsTrustStorePassword = null;
 
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "PIP-478 TLS factory (PulsarTlsFactory) class name for the proxy's server-side TLS "
+                    + "(binary front-end and web server; purposes PROXY/WEB). An empty value or the literal "
+                    + "'default' selects the built-in default factory composed from these tls* settings, "
+                    + "otherwise the named class is instantiated via its public no-arg constructor. This is "
+                    + "the only server TLS path; the removed PIP-337 sslFactoryPlugin keys are rejected at "
+                    + "startup when set to a non-default value.")
+    private String tlsFactoryClassName = "";
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "PIP-478 configuration parameters for tlsFactoryClassName. Accepts a JSON object or a "
+                    + "comma-separated key=value list.")
+    private String tlsFactoryConfig = "";
+
     /**
      * KeyStore TLS config variables used for proxy to auth with broker.
      */
@@ -591,6 +734,25 @@ public class ProxyConfiguration implements PulsarConfiguration {
             doc = "The TLS Provider used by the Pulsar proxy to authenticate with Pulsar brokers"
     )
     private String brokerClientSslProvider = null;
+
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "PIP-478: the name of a JSSE (SSLContext) provider — a java.security.Provider that supplies "
+                    + "an SSLContext (TLS) implementation (e.g. the BouncyCastle JSSE provider BCJSSE for FIPS, "
+                    + "with BCFIPS registered separately as the crypto provider it uses) — used to build the "
+                    + "proxy's own outbound (proxy-to-broker) client TLS SSLContext. When set, the default "
+                    + "factory builds the JDK engine with this provider as the SSLContext provider, overriding "
+                    + "the engine choice. Resolved by preferring a provider already registered in the JVM "
+                    + "(Security.getProvider), falling back to the ServiceLoader mechanism, and failing loudly "
+                    + "when unresolvable.")
+    private String brokerClientJsseProvider = null;
+
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "PIP-478: the JCA (material) provider for the proxy's own outbound (proxy-to-broker) "
+                    + "client connections — the outbound counterpart of jcaProvider, on the same axis. "
+                    + "Unset uses the JVM provider search order.")
+    private String brokerClientJcaProvider = null;
 
     // needed when client auth is required
     @FieldContext(
@@ -647,6 +809,22 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private Set<String> brokerClientTlsProtocols = new TreeSet<>();
 
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "PIP-478 TLS factory (PulsarTlsFactory) class name for the proxy's own outbound "
+                    + "(proxy-to-broker) client connections (purpose BROKER_CLIENT). An empty value or the "
+                    + "literal 'default' selects the built-in default factory composed from the brokerClient "
+                    + "tls* settings, otherwise the named class is instantiated via its public no-arg "
+                    + "constructor. This is the only outbound-client TLS path; the removed PIP-337 "
+                    + "brokerClientSslFactoryPlugin keys are rejected at startup when set to a non-default "
+                    + "value.")
+    private String brokerClientTlsFactoryClassName = "";
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "PIP-478 configuration parameters for brokerClientTlsFactoryClassName. Accepts a JSON "
+                    + "object or a comma-separated key=value list.")
+    private String brokerClientTlsFactoryConfig = "";
+
     // HTTP
 
     @FieldContext(
@@ -683,6 +861,19 @@ public class ProxyConfiguration implements PulsarConfiguration {
     @FieldContext(
             minValue = 1,
             category = CATEGORY_HTTP,
+            doc = """
+                The maximum size in bytes of the response header.
+                Larger headers will allow for larger response headers such as message properties
+                in the Admin API message inspection endpoints (getMessageById, peekNthMessage,
+                examineMessage). However, larger headers consume more memory and can make a server
+                more vulnerable to denial of service attacks.
+              """
+    )
+    private int httpMaxResponseHeaderSize = 8 * 1024;
+
+    @FieldContext(
+            minValue = 1,
+            category = CATEGORY_HTTP,
             doc = "Http input buffer max size.\n\n"
                     + "The maximum amount of data that will be buffered for incoming http requests "
                     + "so that the request body can be replayed when the backend broker "
@@ -697,6 +888,14 @@ public class ProxyConfiguration implements PulsarConfiguration {
                     + "The timeout value for HTTP proxy is in millisecond."
     )
     private int httpProxyTimeout = 5 * 60 * 1000;
+
+    @FieldContext(
+            minValue = 0,
+            category = CATEGORY_HTTP,
+            doc = "Http proxy idle timeout.\n\n"
+                    + "The idle timeout value for HTTP proxy is in millisecond."
+    )
+    private int httpProxyIdleTimeout = 30 * 1000;
 
     @FieldContext(
            minValue = 1,
@@ -721,6 +920,13 @@ public class ProxyConfiguration implements PulsarConfiguration {
                     + " Default is set to 8192."
     )
     private int httpServerAcceptQueueSize = 8192;
+
+    @FieldContext(
+            minValue = 0,
+            category = CATEGORY_HTTP,
+            doc = "Idle timeout for HTTP server connections in milliseconds."
+    )
+    private int httpServerIdleTimeout = 30 * 1000;
 
     @FieldContext(category = CATEGORY_SERVER, doc = "Maximum number of inbound http connections. "
             + "(0 to disable limiting)")
@@ -759,6 +965,13 @@ public class ProxyConfiguration implements PulsarConfiguration {
             doc = "List of proxy additional servlet to load, which is a list of proxy additional servlet names"
     )
     private Set<String> proxyAdditionalServlets = new TreeSet<>();
+
+    @FieldContext(
+            category = CATEGORY_PLUGIN,
+            doc = "Default http header map to add into http-proxy for the any security requirements "
+                    + "eg: { \"header1\": \"val1\", \"header2\": \"val2\" }"
+    )
+    private String proxyHttpResponseHeadersJson;
 
     @FieldContext(
             category = CATEGORY_PLUGIN,
@@ -804,7 +1017,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
         }
     )
 
-    /***** --- Protocol Handlers --- ****/
+    // --- Protocol Handlers ---
     @FieldContext(
             category = CATEGORY_PLUGIN,
             doc = "The directory to locate proxy extensions"

@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.nonpersistent;
 
 import com.google.common.base.MoreObjects;
+import io.github.merlimat.slog.Logger;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -27,18 +28,17 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.service.AbstractSubscription;
 import org.apache.pulsar.broker.service.AnalyzeBacklogResult;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
-import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionFencedException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
-import org.apache.pulsar.broker.service.Subscription;
+import org.apache.pulsar.broker.service.GetStatsOptions;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
@@ -48,10 +48,12 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentSubscriptionStatsImpl;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-public class NonPersistentSubscription extends AbstractSubscription implements Subscription {
+public class NonPersistentSubscription extends AbstractSubscription {
+
+    private static final Logger LOG = Logger.get(NonPersistentSubscription.class);
+    private final Logger log;
+
     private final NonPersistentTopic topic;
     private volatile NonPersistentDispatcher dispatcher;
     private final String topicName;
@@ -79,6 +81,10 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
         IS_FENCED_UPDATER.set(this, FALSE);
         this.subscriptionProperties = properties != null
                 ? Collections.unmodifiableMap(properties) : Collections.emptyMap();
+        this.log = LOG.with()
+                .attr("topic", topicName)
+                .attr("subscription", subName)
+                .build();
     }
 
     @Override
@@ -104,7 +110,7 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
     @Override
     public synchronized CompletableFuture<Void> addConsumer(Consumer consumer) {
         if (IS_FENCED_UPDATER.get(this) == TRUE) {
-            log.warn("Attempting to add consumer {} on a fenced subscription", consumer);
+            log.warn().attr("consumer", consumer).log("Attempting to add consumer on a fenced subscription");
             return FutureUtil.failedFuture(new SubscriptionFencedException("Subscription is fenced"));
         }
 
@@ -152,15 +158,20 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
 
             if (previousDispatcher != null) {
                 previousDispatcher.close().thenRun(() -> {
-                    log.info("[{}][{}] Successfully closed previous dispatcher", topicName, subName);
+                    log.info()
+                            .log("Successfully closed previous dispatcher");
                 }).exceptionally(ex -> {
-                    log.error("[{}][{}] Failed to close previous dispatcher", topicName, subName, ex);
+                    log.error()
+                            .exception(ex)
+                            .log("Failed to close previous dispatcher");
                     return null;
                 });
             }
         } else {
-            if (consumer.subType() != dispatcher.getType()) {
-                return FutureUtil.failedFuture(new SubscriptionBusyException("Subscription is of different type"));
+            Optional<CompletableFuture<Void>> compatibilityError =
+                    checkForConsumerCompatibilityErrorWithDispatcher(dispatcher, consumer);
+            if (compatibilityError.isPresent()) {
+                return compatibilityError.get();
             }
         }
 
@@ -184,10 +195,10 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
         // invalid consumer remove will throw an exception
         // decrement usage is triggered only for valid consumer close
         topic.decrementUsageCount();
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] [{}] [{}] Removed consumer -- count: {}", topic.getName(), subName, consumer.consumerName(),
-                    topic.currentUsageCount());
-        }
+        log.debug()
+                .attr("consumerName", consumer.consumerName())
+                .attr("currentUsageCount", topic.currentUsageCount())
+                .log("Removed consumer");
     }
 
     @Override
@@ -196,8 +207,10 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
     }
 
     @Override
-    public void acknowledgeMessage(List<Position> position, AckType ackType, Map<String, Long> properties) {
+    public CompletableFuture<Void> acknowledgeMessageAsync(List<Position> position, AckType ackType,
+                                                           Map<String, Long> properties) {
         // No-op
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
@@ -272,39 +285,77 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
     }
 
     @Override
-    public CompletableFuture<Void> close() {
+    public boolean isSubscriptionMigrated() {
+        return topic.isMigrated();
+    }
+
+    /**
+     * Disconnect all consumers from this subscription.
+     *
+     * @return CompletableFuture indicating the completion of the operation.
+     */
+    @Override
+    public synchronized CompletableFuture<Void> disconnect(Optional<BrokerLookupData> assignedBrokerLookupData) {
+        CompletableFuture<Void> closeFuture = new CompletableFuture<>();
+
+        (dispatcher != null
+                ? dispatcher.disconnectAllConsumers(false, assignedBrokerLookupData)
+                : CompletableFuture.completedFuture(null))
+                .thenRun(() -> {
+                    log.info()
+                            .log("Successfully disconnected subscription consumers");
+                    closeFuture.complete(null);
+                }).exceptionally(exception -> {
+                    log.error()
+                            .exception(exception)
+                            .log("Error disconnecting subscription consumers");
+                    closeFuture.completeExceptionally(exception);
+                    return null;
+                });
+
+        return closeFuture;
+
+    }
+
+    private CompletableFuture<Void> fence() {
         IS_FENCED_UPDATER.set(this, TRUE);
         return CompletableFuture.completedFuture(null);
     }
 
+
     /**
-     * Disconnect all consumers attached to the dispatcher and close this subscription.
+     * Fence this subscription and optionally disconnect all consumers.
      *
-     * @return CompletableFuture indicating the completion of disconnect operation
+     * @return CompletableFuture indicating the completion of the operation.
      */
     @Override
-    public synchronized CompletableFuture<Void> disconnect() {
-        CompletableFuture<Void> disconnectFuture = new CompletableFuture<>();
+    public synchronized CompletableFuture<Void> close(boolean disconnectConsumers,
+                                                      Optional<BrokerLookupData> assignedBrokerLookupData) {
+        CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
         // block any further consumers on this subscription
         IS_FENCED_UPDATER.set(this, TRUE);
 
-        (dispatcher != null ? dispatcher.close() : CompletableFuture.completedFuture(null)).thenCompose(v -> close())
+        (dispatcher != null
+                ? dispatcher.close(disconnectConsumers, assignedBrokerLookupData)
+                : CompletableFuture.completedFuture(null))
                 .thenRun(() -> {
-                    log.info("[{}][{}] Successfully disconnected and closed subscription", topicName, subName);
-                    disconnectFuture.complete(null);
+                    log.info()
+                            .log("Successfully closed subscription");
+                    closeFuture.complete(null);
                 }).exceptionally(exception -> {
                     IS_FENCED_UPDATER.set(this, FALSE);
                     if (dispatcher != null) {
                         dispatcher.reset();
                     }
-                    log.error("[{}][{}] Error disconnecting consumers from subscription", topicName, subName,
-                            exception);
-                    disconnectFuture.completeExceptionally(exception);
+                    log.error()
+                            .exception(exception)
+                            .log("Error closing subscription");
+                    closeFuture.completeExceptionally(exception);
                     return null;
                 });
 
-        return disconnectFuture;
+        return closeFuture;
     }
 
     /**
@@ -338,23 +389,27 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
     private CompletableFuture<Void> delete(boolean closeIfConsumersConnected) {
         CompletableFuture<Void> deleteFuture = new CompletableFuture<>();
 
-        log.info("[{}][{}] Unsubscribing", topicName, subName);
+        log.info().attr("topic", topicName).attr("subscription", subName).log("Unsubscribing");
 
         CompletableFuture<Void> closeSubscriptionFuture = new CompletableFuture<>();
 
         if (closeIfConsumersConnected) {
-            this.disconnect().thenRun(() -> {
+            this.close(true, Optional.empty()).thenRun(() -> {
                 closeSubscriptionFuture.complete(null);
             }).exceptionally(ex -> {
-                log.error("[{}][{}] Error disconnecting and closing subscription", topicName, subName, ex);
+                log.error()
+                        .exception(ex)
+                        .log("Error disconnecting and closing subscription");
                 closeSubscriptionFuture.completeExceptionally(ex);
                 return null;
             });
         } else {
-            this.close().thenRun(() -> {
+            this.fence().thenRun(() -> {
                 closeSubscriptionFuture.complete(null);
             }).exceptionally(exception -> {
-                log.error("[{}][{}] Error closing subscription", topicName, subName, exception);
+                log.error()
+                        .exception(exception)
+                        .log("Error closing subscription");
                 closeSubscriptionFuture.completeExceptionally(exception);
                 return null;
             });
@@ -364,21 +419,26 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
         closeSubscriptionFuture.thenCompose(v -> topic.unsubscribe(subName)).thenAccept(v -> {
             synchronized (this) {
                 (dispatcher != null ? dispatcher.close() : CompletableFuture.completedFuture(null)).thenRun(() -> {
-                    log.info("[{}][{}] Successfully deleted subscription", topicName, subName);
+                    log.info()
+                            .log("Successfully deleted subscription");
                     deleteFuture.complete(null);
                 }).exceptionally(ex -> {
                     IS_FENCED_UPDATER.set(this, FALSE);
                     if (dispatcher != null) {
                         dispatcher.reset();
                     }
-                    log.error("[{}][{}] Error deleting subscription", topicName, subName, ex);
+                    log.error()
+                            .exception(ex)
+                            .log("Error deleting subscription");
                     deleteFuture.completeExceptionally(ex);
                     return null;
                 });
             }
         }).exceptionally(exception -> {
             IS_FENCED_UPDATER.set(this, FALSE);
-            log.error("[{}][{}] Error deleting subscription", topicName, subName, exception);
+            log.error()
+                    .exception(exception)
+                    .log("Error deleting subscription");
             deleteFuture.completeExceptionally(exception);
             return null;
         });
@@ -395,16 +455,29 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
      */
     @Override
     public CompletableFuture<Void> doUnsubscribe(Consumer consumer) {
+        return doUnsubscribe(consumer, false);
+    }
+
+    /**
+     * Handle unsubscribe command from the client API Check with the dispatcher is this consumer can proceed with
+     * unsubscribe.
+     *
+     * @param consumer consumer object that is initiating the unsubscribe operation
+     * @param force unsubscribe forcefully by disconnecting consumers and closing subscription
+     * @return CompletableFuture indicating the completion of unsubscribe operation
+     */
+    @Override
+    public CompletableFuture<Void> doUnsubscribe(Consumer consumer, boolean force) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         try {
-            if (dispatcher.canUnsubscribe(consumer)) {
+            if (force || dispatcher.canUnsubscribe(consumer)) {
                 consumer.close();
-                return delete();
+                return delete(force);
             }
             future.completeExceptionally(
                     new ServerMetadataException("Unconnected or shared consumer attempting to unsubscribe"));
         } catch (BrokerServiceException e) {
-            log.warn("Error removing consumer {}", consumer);
+            log.warn().attr("consumer", consumer).log("Error removing consumer");
             future.completeExceptionally(e);
         }
         return future;
@@ -427,12 +500,18 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
     }
 
     @Override
+    public CompletableFuture<Boolean> expireMessagesAsync(int messageTTLInSeconds) {
+        return CompletableFuture.failedFuture(new UnsupportedOperationException("Expire message by timestamp is not"
+                + " supported for non-persistent topic."));
+    }
+
+    @Override
     public boolean expireMessages(Position position) {
         throw new UnsupportedOperationException("Expire message by position is not supported for"
                 + " non-persistent topic.");
     }
 
-    public NonPersistentSubscriptionStatsImpl getStats() {
+    public NonPersistentSubscriptionStatsImpl getStats(GetStatsOptions getStatsOptions) {
         NonPersistentSubscriptionStatsImpl subStats = new NonPersistentSubscriptionStatsImpl();
         subStats.bytesOutCounter = bytesOutFromRemovedConsumers.longValue();
         subStats.msgOutCounter = msgOutFromRemovedConsumer.longValue();
@@ -441,7 +520,9 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
         if (dispatcher != null) {
             dispatcher.getConsumers().forEach(consumer -> {
                 ConsumerStatsImpl consumerStats = consumer.getStats();
-                subStats.consumers.add(consumerStats);
+                if (!getStatsOptions.isExcludeConsumers()) {
+                    subStats.consumers.add(consumerStats);
+                }
                 subStats.msgRateOut += consumerStats.msgRateOut;
                 subStats.messageAckRate += consumerStats.messageAckRate;
                 subStats.msgThroughputOut += consumerStats.msgThroughputOut;
@@ -454,6 +535,18 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
             subStats.filterAcceptedMsgCount = dispatcher.getFilterAcceptedMsgCount();
             subStats.filterRejectedMsgCount = dispatcher.getFilterRejectedMsgCount();
             subStats.filterRescheduledMsgCount = dispatcher.getFilterRescheduledMsgCount();
+            subStats.dispatchThrottledMsgEventsBySubscriptionLimit =
+                    dispatcher.getDispatchThrottledMsgEventsBySubscriptionLimit();
+            subStats.dispatchThrottledBytesEventsBySubscriptionLimit =
+                    dispatcher.getDispatchThrottledBytesBySubscriptionLimit();
+            subStats.dispatchThrottledMsgEventsByBrokerLimit =
+                    dispatcher.getDispatchThrottledMsgEventsByBrokerLimit();
+            subStats.dispatchThrottledBytesEventsByBrokerLimit =
+                    dispatcher.getDispatchThrottledBytesEventsByBrokerLimit();
+            subStats.dispatchThrottledMsgEventsByTopicLimit =
+                    dispatcher.getDispatchThrottledMsgEventsByTopicLimit();
+            subStats.dispatchThrottledBytesEventsByTopicLimit =
+                    dispatcher.getDispatchThrottledBytesEventsByTopicLimit();
         }
 
         subStats.type = getTypeString();
@@ -473,7 +566,7 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
     }
 
     @Override
-    public synchronized void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions) {
+    public synchronized void redeliverUnacknowledgedMessages(Consumer consumer, List<Position> positions) {
         // No-op
     }
 
@@ -513,9 +606,6 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
                 new Exception("Unsupported operation analyzeBacklog for NonPersistentSubscription"));
         return completableFuture;
     }
-
-    private static final Logger log = LoggerFactory.getLogger(NonPersistentSubscription.class);
-
     public Map<String, String> getSubscriptionProperties() {
         return subscriptionProperties;
     }

@@ -18,9 +18,14 @@
  */
 package org.apache.pulsar.tests.integration;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -34,10 +39,6 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-
 public class SmokeTest extends TestRetrySupport {
 
     private PulsarContainer pulsarContainer;
@@ -48,6 +49,14 @@ public class SmokeTest extends TestRetrySupport {
         incrementSetupNumber();
         pulsarContainer = new PulsarContainer();
         pulsarContainer.start();
+    }
+
+    @Test
+    public void checkAuthenticationPluginName() throws Exception {
+        try (Authentication authentication = AuthenticationFactory.create(
+                "org.apache.pulsar.client.impl.auth.AuthenticationToken", "test-token")) {
+            Assert.assertEquals(authentication.getAuthMethodName(), "token");
+        }
     }
 
     @Test
@@ -81,11 +90,13 @@ public class SmokeTest extends TestRetrySupport {
 
     @Test
     public void checkAdmin() throws PulsarClientException, PulsarAdminException {
+        @Cleanup
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarContainer.getPulsarAdminUrl()).build();
         List<String> expectedNamespacesList = new ArrayList<>();
         expectedNamespacesList.add("public/default");
         expectedNamespacesList.add("public/functions");
         Assert.assertEquals(admin.namespaces().getNamespaces("public"), expectedNamespacesList);
+        admin.brokerStats().getLoadReport();
     }
 
     @Override
