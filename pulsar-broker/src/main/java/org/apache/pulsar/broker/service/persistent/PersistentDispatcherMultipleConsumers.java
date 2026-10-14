@@ -25,6 +25,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import io.github.merlimat.slog.Logger;
 import io.netty.channel.EventLoopGroup;
+import io.netty.util.concurrent.Future;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -827,6 +828,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             dispatchStarted = true;
             triggerReadingMore = sendMessagesToConsumers(readType, entriesForDispatch,
                     needAcquireSendInProgress);
+        } catch (ConsumerSendException e) {
+            // Consumer.sendMessages can mutate pending ACKs, permits and unacked counts before throwing. Without
+            // rolling those changes back, these entries cannot safely enter dispatcher replay recovery.
+            if (e.getCause() instanceof Error error) {
+                throw error;
+            }
+            throw (RuntimeException) e.getCause();
         } catch (RuntimeException | Error e) {
             if (!dispatchStarted) {
                 onDispatchAborted(readType);
@@ -905,7 +913,29 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         }
     }
 
-    protected final void transferEntriesToConsumer(List<? extends Entry> entries) {
+    private static final class ConsumerSendException extends RuntimeException {
+        private ConsumerSendException(Throwable cause) {
+            super(cause);
+        }
+    }
+
+    protected final Future<Void> sendMessagesToConsumer(Consumer consumer, List<? extends Entry> entries,
+                                                       EntryBatchSizes batchSizes,
+                                                       EntryBatchIndexesAcks batchIndexesAcks,
+                                                       SendMessageInfo sendMessageInfo) {
+        Future<Void> writeFuture;
+        try {
+            writeFuture = consumer.sendMessages(entries, batchSizes, batchIndexesAcks,
+                    sendMessageInfo.getTotalMessages(), sendMessageInfo.getTotalBytes(),
+                    sendMessageInfo.getTotalChunkedMessages(), getRedeliveryTracker());
+        } catch (RuntimeException | Error e) {
+            throw new ConsumerSendException(e);
+        }
+        transferEntriesToConsumer(entries);
+        return writeFuture;
+    }
+
+    private void transferEntriesToConsumer(List<? extends Entry> entries) {
         for (Entry entry : entries) {
             if (entry instanceof EntryAndMetadata entryAndMetadata) {
                 entryAndMetadata.transferToConsumer();
@@ -1045,9 +1075,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             // read before sendMessages: it hands batchIndexesAcks to the consumer's event loop, which recycles it
             int totalAckedIndexCount = batchIndexesAcks.getTotalAckedIndexCount();
 
-            c.sendMessages(entriesForThisConsumer, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
-                    sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(), redeliveryTracker);
-            transferEntriesToConsumer(entriesForThisConsumer);
+            sendMessagesToConsumer(c, entriesForThisConsumer, batchSizes, batchIndexesAcks, sendMessageInfo);
 
             int msgSent = sendMessageInfo.getTotalMessages();
             remainingMessages -= msgSent;
@@ -1151,11 +1179,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             totalEntriesProcessed += entryAndMetadataList.size();
             // read before sendMessages: it hands batchIndexesAcks to the consumer's event loop, which recycles it
             final int totalAckedIndexCount = batchIndexesAcks.getTotalAckedIndexCount();
-            var writeFuture = consumer.sendMessages(entryAndMetadataList, batchSizes, batchIndexesAcks,
-                    sendMessageInfo.getTotalMessages(), sendMessageInfo.getTotalBytes(),
-                    sendMessageInfo.getTotalChunkedMessages(), getRedeliveryTracker()
-            );
-            transferEntriesToConsumer(entryAndMetadataList);
+            var writeFuture = sendMessagesToConsumer(consumer, entryAndMetadataList, batchSizes, batchIndexesAcks,
+                    sendMessageInfo);
             writeFuture.addListener(future -> {
                 if (future.isDone() && numConsumers.decrementAndGet() == 0) {
                     readMoreEntriesAsync();

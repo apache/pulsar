@@ -459,11 +459,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             totalEntriesProcessed += entriesForConsumer.size();
             // read before sendMessages: it hands batchIndexesAcks to the consumer's event loop, which recycles it
             int totalAckedIndexCount = batchIndexesAcks.getTotalAckedIndexCount();
-            var writeFuture = consumer.sendMessages(entriesForConsumer, batchSizes, batchIndexesAcks,
-                    sendMessageInfo.getTotalMessages(),
-                    sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
-                    getRedeliveryTracker());
-            transferEntriesToConsumer(entriesForConsumer);
+            var writeFuture = sendMessagesToConsumer(consumer, entriesForConsumer, batchSizes, batchIndexesAcks,
+                    sendMessageInfo);
             writeFuture.addListener(future -> {
                 // One blocked socket must not hold up consumers whose writes have completed.
                 // The conflated read loop rechecks writability and permits before selecting a consumer.
