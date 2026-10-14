@@ -375,9 +375,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         // because this method can run inside another topic's computeIfAbsent mapper.
         // Await the async removal so the assertion does not race the executor.
         Awaitility.await().atMost(5, TimeUnit.SECONDS)
-                .until(() -> !topics.containsKey(topicKey),
-                        () -> "createPendingLoadTopic must eventually remove the expired queued future from topics cache "
-                                + "using the String form of the topic name as the key");
+                .until(() -> !topics.containsKey(topicKey));
     }
 
     /**
