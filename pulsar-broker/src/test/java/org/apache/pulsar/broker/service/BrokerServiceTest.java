@@ -25,6 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -143,6 +144,7 @@ import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @CustomLog
@@ -2553,6 +2555,77 @@ public class BrokerServiceTest extends BrokerTestBase {
         MockTopicPoliciesService.FAILED_TOPICS.add(topicName);
         @Cleanup final var producer = pulsarClient.newProducer().topic(topicName.toString()).create();
         assertFalse(MockTopicPoliciesService.FAILED_TOPICS.contains(topicName));
+    }
+
+    @DataProvider
+    public Object[][] nonPersistentPolicyFailureTypes() {
+        return new Object[][] {{TopicPoliciesService.GetType.LOCAL_ONLY},
+                {TopicPoliciesService.GetType.GLOBAL_ONLY}};
+    }
+
+    @Test(dataProvider = "nonPersistentPolicyFailureTypes", timeOut = 60000)
+    public void testNonPersistentPolicyLoadFailureClosesTopicAndAllowsRetry(TopicPoliciesService.GetType failureType)
+            throws Exception {
+        restartBroker(configuration -> {
+            configuration.setSystemTopicEnabled(true);
+            configuration.setTopicPoliciesServiceClassName(SystemTopicBasedTopicPoliciesService.class.getName());
+        });
+        String topic = "non-persistent://prop/ns-abc/policy-load-failure-" + UUID.randomUUID();
+        TopicName topicName = TopicName.get(topic);
+        SystemTopicBasedTopicPoliciesService policiesService =
+                (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+        CompletableFuture<Optional<TopicPolicies>> failedRead = new CompletableFuture<>();
+        try {
+            BrokerService brokerService = pulsar.getBrokerService();
+            admin.lookups().lookupTopic(topic);
+            Topic initialTopic = brokerService.getTopic(topic, true).get(10, TimeUnit.SECONDS).orElseThrow();
+            admin.topicPolicies().setMaxProducers(topic, 1);
+            Awaitility.await().untilAsserted(() -> assertThat(policiesService
+                    .getTopicPoliciesAsync(topicName, TopicPoliciesService.GetType.LOCAL_ONLY)
+                    .get(10, TimeUnit.SECONDS))
+                    .hasValueSatisfying(policies -> assertThat(policies.getMaxProducerPerTopic()).isEqualTo(1)));
+            initialTopic.close(false).get(10, TimeUnit.SECONDS);
+            Awaitility.await().untilAsserted(() -> assertThat(brokerService.getTopics()).doesNotContainKey(topic));
+
+            SystemTopicBasedTopicPoliciesService failingPoliciesService = spy(policiesService);
+            // Fail the read after the real service has registered the listener for the new topic instance.
+            AtomicBoolean readStarted = new AtomicBoolean();
+            doAnswer(invocation -> {
+                readStarted.set(true);
+                return failedRead;
+            }).when(failingPoliciesService).getTopicPoliciesAsync(topicName, failureType);
+            doReturn(failingPoliciesService).when(pulsar).getTopicPoliciesService();
+
+            CompletableFuture<Optional<Topic>> load = brokerService.getTopic(topic, true);
+            Awaitility.await().untilTrue(readStarted);
+            assertThat(policiesService.getListeners().get(topicName)).hasSize(1);
+            TopicPolicyListener failedListener = policiesService.getListeners().get(topicName).get(0);
+            RuntimeException failure = new RuntimeException("Injected topic policy read failure");
+            failedRead.completeExceptionally(failure);
+            assertThatThrownBy(() -> load.get(10, TimeUnit.SECONDS)).hasRootCause(failure);
+            Awaitility.await().untilAsserted(() -> {
+                assertThat(brokerService.getTopics()).doesNotContainKey(topic);
+                assertThat(policiesService.getListeners()).doesNotContainKey(topicName);
+            });
+
+            doReturn(policiesService).when(pulsar).getTopicPoliciesService();
+            Topic recoveredTopic = brokerService.getTopic(topic, true).get(10, TimeUnit.SECONDS).orElseThrow();
+            assertThat(policiesService.getListeners().get(topicName)).hasSize(1).doesNotContain(failedListener);
+            try (Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create()) {
+                assertThatThrownBy(() -> pulsarClient.newProducer().topic(topic).createAsync()
+                        .get(10, TimeUnit.SECONDS))
+                        .hasRootCauseInstanceOf(PulsarClientException.ProducerBusyException.class);
+            }
+            recoveredTopic.close(false).get(10, TimeUnit.SECONDS);
+            assertThat(policiesService.getListeners()).doesNotContainKey(topicName);
+        } finally {
+            failedRead.completeExceptionally(new RuntimeException("Test cleanup"));
+            doReturn(policiesService).when(pulsar).getTopicPoliciesService();
+            restartBroker(configuration -> {
+                configuration.setSystemTopicEnabled(false);
+                configuration.setTopicPoliciesServiceClassName(MockTopicPoliciesService.class.getName());
+            });
+        }
     }
 
     @Test
