@@ -3909,30 +3909,39 @@ public class BrokerService implements Closeable {
      * permit if it was successful to acquire it.
      */
     private void createPendingLoadTopic() {
-        Pair<TopicLoadingContext, LatencyTracer.TracePoint> contextAndPointPair = pendingTopicLoadingQueue.poll();
-        if (contextAndPointPair == null) {
-            return;
-        }
+        // Drain expired queued entries in a loop rather than by recursion. The queue can hold thousands
+        // of stalled contexts after a broker stall, so skipping them one-at-a-time via recursion would
+        // blow the stack. Normal entries still kick off an async load chain and then return; subsequent
+        // draining is driven by the future completion callback.
+        while (true) {
+            Pair<TopicLoadingContext, LatencyTracer.TracePoint> contextAndPointPair = pendingTopicLoadingQueue.poll();
+            if (contextAndPointPair == null) {
+                return;
+            }
 
-        TopicLoadingContext topicLoadingContext = contextAndPointPair.getLeft();
-        LatencyTracer.TracePoint queuedPoint = contextAndPointPair.getRight();
-        // Skip entries whose future is already completed (e.g. timed out while sitting in the queue).
-        // Starting the real load chain for an abandoned attempt would race with the cleanup of
-        // the timed-out future and with any retry that may already be in flight.
-        final CompletableFuture<Optional<Topic>> pendingFuture = topicLoadingContext.getTopicFuture();
-        if (pendingFuture.isDone()) {
-            log.debug().attr("topic", topicLoadingContext.getTopicName())
-                    .log("Skipping already-completed pending topic loading context");
-            // Identity-remove the cached future so subsequent retries aren't stuck with this expired entry.
-            // Dispatch via executor to avoid reentrant ConcurrentHashMap mutation — this method can run
-            // inline inside another topic's computeIfAbsent, and synchronous remove inside an active mapper
-            // can detach the node to which the outer mapper subsequently appends its new mapping.
-            pulsar.getExecutor().execute(() -> topics.remove(topicLoadingContext.getTopicName().toString(), pendingFuture));
+            TopicLoadingContext topicLoadingContext = contextAndPointPair.getLeft();
+            LatencyTracer.TracePoint queuedPoint = contextAndPointPair.getRight();
+            // Skip entries whose future is already completed (e.g. timed out while sitting in the queue).
+            // Starting the real load chain for an abandoned attempt would race with the cleanup of
+            // the timed-out future and with any retry that may already be in flight.
+            final CompletableFuture<Optional<Topic>> pendingFuture = topicLoadingContext.getTopicFuture();
+            if (pendingFuture.isDone()) {
+                log.debug().attr("topic", topicLoadingContext.getTopicName())
+                        .log("Skipping already-completed pending topic loading context");
+                // Identity-remove the cached future so subsequent retries aren't stuck with this expired
+                // entry. Dispatch via executor to avoid reentrant ConcurrentHashMap mutation — this method
+                // can run inline inside another topic's computeIfAbsent, and synchronous remove inside an
+                // active mapper can detach the node the outer mapper subsequently appends to.
+                final String expiredTopic = topicLoadingContext.getTopicName().toString();
+                pulsar.getExecutor().execute(() -> topics.remove(expiredTopic, pendingFuture));
+                topicLoadingContext.finishTrace(queuedPoint, null);
+                // Loop to drain the next stalled entry; do not recurse.
+                continue;
+            }
             topicLoadingContext.finishTrace(queuedPoint, null);
-            createPendingLoadTopic();
-            return;
+            break;
         }
-        topicLoadingContext.finishTrace(queuedPoint, null);
+        // After draining any expired queued entries above, continue with the normal load path.
         final String topic = topicLoadingContext.getTopicName().toString();
         // ServiceUnitNotReadyException is classified as bundle_unloading when the topic future completes.
         topicLoadingContext.trace(TopicLoadingTracePoints.OWNERSHIP, checkTopicNsOwnership(topic)).thenRun(() -> {
