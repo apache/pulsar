@@ -133,9 +133,21 @@ public class ShadowReplicator extends PersistentReplicator {
                 msg.setReplicatedFrom(localCluster);
 
                 msg.setMessageId(new MessageIdImpl(entry.getLedgerId(), entry.getEntryId(), -1));
-                // Add props for sequence checking.
-                msg.getMessageBuilder().addProperty().setKey(MSG_PROP_REPL_SOURCE_POSITION)
-                        .setValue(String.format("%s:%s", entry.getLedgerId(), entry.getEntryId()));
+                // An entry received through geo-replication can already carry an upstream position.
+                // Every copy of this property must refer to the ledger shared with the shadow topic.
+                var metadata = msg.getMessageBuilder();
+                String sourcePosition = entry.getLedgerId() + ":" + entry.getEntryId();
+                boolean hasSourcePosition = false;
+                for (int j = 0; j < metadata.getPropertiesCount(); j++) {
+                    var property = metadata.getPropertyAt(j);
+                    if (MSG_PROP_REPL_SOURCE_POSITION.equals(property.getKey())) {
+                        property.setValue(sourcePosition);
+                        hasSourcePosition = true;
+                    }
+                }
+                if (!hasSourcePosition) {
+                    metadata.addProperty().setKey(MSG_PROP_REPL_SOURCE_POSITION).setValue(sourcePosition);
+                }
 
                 // Increment pending messages for messages produced locally
                 producer.sendAsync(msg, ProducerSendCallback.create(this, entry, msg, inFlightTask));

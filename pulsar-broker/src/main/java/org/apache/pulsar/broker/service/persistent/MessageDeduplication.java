@@ -135,7 +135,7 @@ public class MessageDeduplication {
     // The timestamp when the snapshot was taken by the scheduled task last time
     private volatile long lastSnapshotTimestamp = 0L;
 
-    // Max number of producer for which to persist the sequence id information
+    // Independent snapshot limits for producer sequence IDs and replication source positions.
     private final int maxNumberOfProducers;
 
     // Map used to track the inactive producer along with the timestamp of their last activity
@@ -291,6 +291,17 @@ public class MessageDeduplication {
             final var metadata = Commands.parseMessageMetadata(buffer);
             recoverDeduplicationStateFromMetadata(metadata);
         }).thenCompose(optPosition -> {
+            // Shadow topics read the source ledger itself, whose metadata does not contain the position
+            // added by the shadow replicator. The physical replay/snapshot boundary is authoritative,
+            // including when an old snapshot has a missing or incorrect watermark and replay is empty.
+            topic.getShadowSourceTopic().ifPresent(sourceTopic -> {
+                Position position = optPosition.orElseGet(cursor::getMarkDeletedPosition);
+                if (position.getLedgerId() >= 0 && position.getEntryId() >= 0) {
+                    String producerName = ShadowReplicator.getShadowProducerName(replicatorPrefix,
+                            sourceTopic.toString(), topic.getName());
+                    recoverReplWatermark(producerName, position.getLedgerId(), position.getEntryId());
+                }
+            });
             if (optPosition.isEmpty()) {
                 return CompletableFuture.completedFuture(null);
             }
@@ -311,7 +322,11 @@ public class MessageDeduplication {
         Map<String, Long> replLedgerIds = new HashMap<>();
         Map<String, Long> replEntryIds = new HashMap<>();
         snapshot.forEach((k, v) -> {
-            // Geo-replication V2 keys are source-position watermarks, not producer lifecycle state.
+            // Historical snapshots do not distinguish producer names from replication position keys.
+            // Keep the original sequence state as well as recovering complete replication positions.
+            highestSequencedPushed.put(k, v);
+            highestSequencedPersisted.put(k, v);
+            producerRemoved(k);
             if (isReplSequenceKey(k)) {
                 String baseProducerName = getBaseProducerName(k);
                 if (k.endsWith(REPL_LEDGER_ID_SUFFIX)) {
@@ -319,11 +334,7 @@ public class MessageDeduplication {
                 } else {
                     replEntryIds.put(baseProducerName, v);
                 }
-                return;
             }
-            highestSequencedPushed.put(k, v);
-            highestSequencedPersisted.put(k, v);
-            producerRemoved(k);
         });
         replLedgerIds.forEach((producerName, ledgerId) -> {
             Long entryId = replEntryIds.get(producerName);
@@ -454,22 +465,19 @@ public class MessageDeduplication {
 
     private void recoverReplWatermark(String producerName, long ledgerId, long entryId) {
         ReplSourcePosition replSourcePosition = new ReplSourcePosition(ledgerId, entryId);
-        highestReplPositionPushed.merge(producerName, replSourcePosition, this::maxReplPosition);
-        highestReplPositionPersisted.merge(producerName, replSourcePosition, this::maxReplPosition);
+        highestReplPositionPushed.put(producerName, replSourcePosition);
+        highestReplPositionPersisted.put(producerName, replSourcePosition);
     }
 
     private void recordReplWatermarkPersisted(String producerName, long ledgerId, long entryId) {
         highestReplPositionPersisted.merge(producerName, new ReplSourcePosition(ledgerId, entryId),
-                this::maxReplPosition);
+                (current, candidate) -> isReplPositionAtOrBefore(candidate.ledgerId(), candidate.entryId(), current)
+                        ? current : candidate);
     }
 
     private boolean isReplPositionAtOrBefore(long ledgerId, long entryId, ReplSourcePosition watermark) {
         return ledgerId < watermark.ledgerId()
                 || (ledgerId == watermark.ledgerId() && entryId <= watermark.entryId());
-    }
-
-    private ReplSourcePosition maxReplPosition(ReplSourcePosition current, ReplSourcePosition candidate) {
-        return isReplPositionAtOrBefore(candidate.ledgerId(), candidate.entryId(), current) ? current : candidate;
     }
 
     private void logUnexpectedReplSourcePosition(String producerName, String value) {
@@ -481,28 +489,28 @@ public class MessageDeduplication {
     }
 
     private void logIncompleteReplSourcePositionSnapshot(String producerName, Long ledgerId, Long entryId) {
-        log.error()
+        log.debug()
                 .attr("producerName", producerName)
                 .attr("ledgerId", ledgerId)
                 .attr("entryId", entryId)
-                .log("Incomplete geo-replication deduplication snapshot");
+                .log("Snapshot key has no matching replication position component; retaining its sequence state");
     }
 
     private void recoverProducerSequenceIdFromMetadata(MessageMetadata md) {
         final var producerName = md.getProducerName();
         final var sequenceId = Math.max(md.getHighestSequenceId(), md.getSequenceId());
-        highestSequencedPushed.merge(producerName, sequenceId, Math::max);
-        highestSequencedPersisted.merge(producerName, sequenceId, Math::max);
+        // Replay is in log order. A purged producer can reuse its name with a lower sequence id.
+        highestSequencedPushed.put(producerName, sequenceId);
+        highestSequencedPersisted.put(producerName, sequenceId);
         producerRemoved(producerName);
     }
 
     @VisibleForTesting
     void recoverDeduplicationStateFromMetadata(MessageMetadata md) {
-        // Markers keep using their sequence id. Legacy V1 replicated entries do not have a valid source-position
-        // property, so they must also retain the original producer sequence state during replay.
-        if (md.hasMarkerType() || !recoverReplWatermarkFromMetadata(md)) {
-            recoverProducerSequenceIdFromMetadata(md);
-        }
+        // The source-position property is also present when a modern source negotiates V1.
+        // Preserve sequence recovery for historical entries whose negotiated mode was not persisted.
+        recoverProducerSequenceIdFromMetadata(md);
+        recoverReplWatermarkFromMetadata(md);
     }
 
     @VisibleForTesting
@@ -523,10 +531,10 @@ public class MessageDeduplication {
 
     @VisibleForTesting
     String getReplProducerName(MessageMetadata md) {
-        final var shadowSourceTopic = topic.getShadowSourceTopic();
-        if (md.hasReplicatedFrom() && shadowSourceTopic.isPresent()) {
-            return ShadowReplicator.getShadowProducerName(replicatorPrefix,
-                    shadowSourceTopic.get().toString(), topic.getName());
+        if (topic.getShadowSourceTopic().isPresent()) {
+            // Any replication metadata here belongs to the source topic's upstream cluster.
+            // Shadow recovery uses its own physical ledger position after replay completes.
+            return null;
         }
         if (md.hasReplicatedFrom()) {
             return AbstractReplicator.getReplicatorName(replicatorPrefix, md.getReplicatedFrom())
@@ -714,20 +722,27 @@ public class MessageDeduplication {
         }
 
         Map<String, Long> snapshot = new TreeMap<>();
-        int producerCount = 0;
+        int replicationProducerCount = 0;
         for (Map.Entry<String, ReplSourcePosition> entry : highestReplPositionPersisted.entrySet()) {
-            if (producerCount >= maxNumberOfProducers) {
+            if (replicationProducerCount >= maxNumberOfProducers) {
                 break;
             }
             String producerName = entry.getKey();
             ReplSourcePosition replSourcePosition = entry.getValue();
             snapshot.put(producerName + REPL_LEDGER_ID_SUFFIX, replSourcePosition.ledgerId());
             snapshot.put(producerName + REPL_ENTRY_ID_SUFFIX, replSourcePosition.entryId());
-            producerCount++;
+            replicationProducerCount++;
         }
+        // A replayed entry can need both sequence and position state because its negotiated replication mode
+        // was not persisted. Give each kind its own budget so inferred positions cannot evict V1 sequence state.
+        int producerCount = 0;
         for (Map.Entry<String, Long> entry : highestSequencedPersisted.entrySet()) {
             String producerName = entry.getKey();
-            if (isReplSequenceKey(producerName)) {
+            // Historical snapshots also load complete replication pairs as raw sequence keys. Such aliases
+            // must not consume ordinary producers' capacity, including when their pair was omitted by the
+            // replication-producer limit. Preserve suffix-shaped V1 names without a matching position pair.
+            if (snapshot.containsKey(producerName) || (isReplSequenceKey(producerName)
+                    && highestReplPositionPersisted.containsKey(getBaseProducerName(producerName)))) {
                 continue;
             }
             if (producerCount >= maxNumberOfProducers) {
@@ -783,7 +798,7 @@ public class MessageDeduplication {
         }
 
         // Producer is no-longer active
-        inactiveProducers.put(getBaseProducerName(producerName), System.currentTimeMillis());
+        inactiveProducers.put(producerName, System.currentTimeMillis());
     }
 
     /**
@@ -810,19 +825,13 @@ public class MessageDeduplication {
 
             if (lastActiveTimestamp < minimumActiveTimestamp) {
                 mapIterator.remove();
-                if (Producer.isRemoteOrShadow(producerName, replicatorPrefix)) {
-                    // Keep the geo-replication watermark; the source can replay this producer after failover.
-                    log.info()
-                            .attr("producerName", producerName)
-                            .log("Keeping geo-replication deduplication state for inactive producer");
-                } else {
-                    log.info()
-                            .attr("producerName", producerName)
-                            .log("Purging dedup information for producer");
-                    highestSequencedPushed.remove(producerName);
-                    highestSequencedPersisted.remove(producerName);
-                    hasInactive = true;
-                }
+                // Replication positions have a separate lifecycle in highestReplPosition*.
+                log.debug()
+                        .attr("producerName", producerName)
+                        .log("Purging dedup information for producer");
+                highestSequencedPushed.remove(producerName);
+                highestSequencedPersisted.remove(producerName);
+                hasInactive = true;
             }
         }
         if (hasInactive && isEnabled()) {

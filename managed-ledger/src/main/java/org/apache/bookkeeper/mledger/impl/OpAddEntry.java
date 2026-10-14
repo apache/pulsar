@@ -285,7 +285,11 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
 
         Position lastEntry = PositionFactory.create(ledgerId, entryId);
         ManagedLedgerImpl.ENTRIES_ADDED_COUNTER_UPDATER.incrementAndGet(ml);
-        ml.lastConfirmedEntry = lastEntry;
+        // Opening a source ledger can expose entries before their shadow notifications arrive.
+        // Retried notifications, including markers, must not move that readable boundary backwards.
+        if (!(ml instanceof ShadowManagedLedgerImpl) || lastEntry.compareTo(ml.lastConfirmedEntry) > 0) {
+            ml.lastConfirmedEntry = lastEntry;
+        }
 
         if (closeWhenDone) {
             log.info().attr("managedLedger", ml.getName())

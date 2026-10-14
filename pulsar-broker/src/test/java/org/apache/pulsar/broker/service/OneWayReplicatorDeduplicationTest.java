@@ -273,12 +273,35 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
         admin2.topics().unload(topicName);
     }
 
-    @Test
-    public void testGeoReplDedupAfterTargetUnloadBeforeSnapshot() throws Exception {
+    @DataProvider
+    public Object[][] replicationDeduplicationProtocols() {
+        return new Object[][]{{true}, {false}};
+    }
+
+    @Test(dataProvider = "replicationDeduplicationProtocols")
+    public void testGeoReplDedupAfterTargetUnloadBeforeSnapshot(boolean supportsReplDedupByLidAndEid)
+            throws Exception {
         // Drop send receipts so the source replication cursor cannot advance while target messages are persisted.
         AtomicBoolean stuckSendReceipt = new AtomicBoolean(true);
         Runnable cleanInjection = injectReplicatorClientCnx((conf, eventLoopGroup) -> new ClientCnx(
                 InstrumentProvider.NOOP, conf, eventLoopGroup) {
+            @Override
+            protected ByteBuf buildConnectCommand(AuthData authData) throws Exception {
+                if (supportsReplDedupByLidAndEid) {
+                    return super.buildConnectCommand(authData);
+                }
+                BaseCommand cmd = Commands.newConnectWithoutSerialize(authMethodName(), authData,
+                        this.protocolVersion, clientVersion, proxyToTargetBrokerAddress,
+                        null, null, null, null, null);
+                cmd.getConnect().getFeatureFlags().setSupportsReplDedupByLidAndEid(false);
+                return Commands.serializeWithSize(cmd);
+            }
+
+            @Override
+            public boolean isBrokerSupportsReplDedupByLidAndEid() {
+                return supportsReplDedupByLidAndEid;
+            }
+
             @Override
             protected void handleSendReceipt(CommandSendReceipt sendReceipt) {
                 if (!stuckSendReceipt.get()) {
@@ -291,6 +314,7 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
         final String subscription = "s1";
         Producer<Integer> producer = null;
         Consumer<Integer> consumer = null;
+        Throwable testFailure = null;
         try {
             admin1.topics().createNonPartitionedTopic(topicName);
             admin2.topics().createNonPartitionedTopic(topicName);
@@ -338,6 +362,12 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
                 assertTrue(currentReplicator.getCursor().getNumberOfEntriesInBacklog(true) >= messageCount);
                 ClientCnx clientCnx = currentReplicator.producer.getClientCnx();
                 assertNotNull(clientCnx);
+                assertEquals(clientCnx.isBrokerSupportsReplDedupByLidAndEid(), supportsReplDedupByLidAndEid);
+                var targetProducer = persistentTopic2.getProducers()
+                        .get(currentReplicator.producer.getProducerName());
+                assertNotNull(targetProducer);
+                assertEquals(targetProducer.getCnx().isClientSupportsReplDedupByLidAndEid(),
+                        supportsReplDedupByLidAndEid);
                 replicatorClientCnx.set(clientCnx);
             });
 
@@ -373,6 +403,14 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
                         (GeoPersistentReplicator) currentSourceTopic.getReplicators().get(cluster2);
                 assertNotNull(currentReplicator);
                 assertEquals(currentReplicator.getCursor().getNumberOfEntriesInBacklog(true), 0);
+                assertNotNull(currentReplicator.producer);
+                PersistentTopic currentTargetTopic =
+                        (PersistentTopic) pulsar2.getBrokerService().getTopic(topicName, false).join().orElseThrow();
+                var targetProducer = currentTargetTopic.getProducers()
+                        .get(currentReplicator.producer.getProducerName());
+                assertNotNull(targetProducer);
+                assertEquals(targetProducer.getCnx().isClientSupportsReplDedupByLidAndEid(),
+                        supportsReplDedupByLidAndEid);
             });
 
             consumer = client2.newConsumer(Schema.INT32).topic(topicName).subscriptionName(subscription).subscribe();
@@ -385,19 +423,32 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
                 received.add(msg.getValue());
             }
             assertEquals(received, Arrays.asList(0, 1, 2, 3));
+        } catch (Exception | Error failure) {
+            testFailure = failure;
+            throw failure;
         } finally {
-            if (consumer != null) {
-                consumer.close();
+            try {
+                try {
+                    stuckSendReceipt.set(false);
+                    if (consumer != null) {
+                        consumer.close();
+                    }
+                    if (producer != null) {
+                        producer.close();
+                    }
+                    admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1));
+                    waitReplicatorStopped(pulsar1, pulsar2, topicName);
+                    admin1.topics().delete(topicName, true);
+                    admin2.topics().delete(topicName, true);
+                } finally {
+                    cleanInjection.run();
+                }
+            } catch (Exception | Error cleanupFailure) {
+                if (testFailure == null) {
+                    throw cleanupFailure;
+                }
+                testFailure.addSuppressed(cleanupFailure);
             }
-            if (producer != null) {
-                producer.close();
-            }
-            cleanInjection.run();
-            cleanupTopics(nonReplicatedNamespace, () -> {
-                admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1));
-                admin1.topics().delete(topicName, true);
-                admin2.topics().delete(topicName, true);
-            });
         }
     }
 

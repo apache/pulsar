@@ -989,7 +989,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = "Maximum number of producer information that it's going to be persisted for deduplication purposes"
+        doc = "Maximum number of producer sequence IDs and, independently, replication source positions persisted "
+                + "in a deduplication snapshot. Each source position uses two properties (ledger ID and entry ID), "
+                + "so a snapshot contains at most three times this number of properties."
     )
     private int brokerDeduplicationMaxNumberOfProducers = 10000;
 
