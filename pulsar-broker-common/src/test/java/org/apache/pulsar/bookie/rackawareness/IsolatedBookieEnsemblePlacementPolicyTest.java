@@ -576,6 +576,11 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
                 Arrays.asList(primaryBookie, offlineSecondaryBookie), offlineSecondaryBookie,
                 new HashSet<>()).getResult();
         assertEquals(replacement, ungroupedBookie);
+
+        isolationPolicy.onClusterChanged(Collections.singleton(primaryBookie), Collections.emptySet());
+        assertThatThrownBy(() -> isolationPolicy.newEnsemble(2, 2, 2, Collections.emptyMap(), new HashSet<>()))
+                .as("Placement must fail without a writable ungrouped bookie")
+                .isInstanceOf(BKNotEnoughBookiesException.class);
     }
 
     @Test
