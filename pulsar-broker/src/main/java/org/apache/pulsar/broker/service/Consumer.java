@@ -1520,6 +1520,11 @@ public class Consumer {
             }
         }
 
+        if (pendingPositions.isEmpty()) {
+            // Stale redelivery requests must not release unacked backpressure or deferred permits.
+            return;
+        }
+
         addAndGetUnackedMessages(-totalRedeliveryMessages);
         int blockedPermits = unblockAndTransferBlockedPermits();
 
