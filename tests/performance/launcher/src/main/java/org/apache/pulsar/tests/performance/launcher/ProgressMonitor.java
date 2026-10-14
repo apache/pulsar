@@ -224,9 +224,11 @@ final class ProgressMonitor implements AutoCloseable {
         if (currentBacklog != null) {
             receivedLine.append(String.format(Locale.ROOT, " --- backlog: %,d msg (max per application: %,d",
                     currentBacklog.total(), currentBacklog.maxSubscription()));
-            // The sampler samples every second, unless the broker answers slowly; an old sample says so
+            // The sampler samples every second, or less often with many topics, unless the broker answers slowly; an
+            // older sample than two intervals says so
             long ageSeconds = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - currentBacklog.epochMs());
-            if (ageSeconds >= STALE_BACKLOG_SECONDS) {
+            if (ageSeconds >= Math.max(STALE_BACKLOG_SECONDS,
+                    2 * TimeUnit.MILLISECONDS.toSeconds(currentBacklog.intervalMillis()))) {
                 receivedLine.append(", sampled ").append(ageSeconds).append(" s ago");
             }
             receivedLine.append(')');

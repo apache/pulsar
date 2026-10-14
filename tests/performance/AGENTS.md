@@ -365,7 +365,7 @@ commit segment can be absent). Use the exact recording names linked from the pro
 | `gateways/container.log.txt`, `applications/container.log.txt` | The workload containers' logs | Read |
 | `gateways/gateways-latency.hgrm`, `applications/<application>/application-latency.hgrm` | The publish and end-to-end latency percentile distributions, in milliseconds, as text | Read |
 | `gateways/gateways-latency.hdr`, `applications/<application>/application-latency.hdr` | The latency interval logs | `renderHdrHistograms`, HistogramLogAnalyzer |
-| `topic-stats.csv` | The broker's topic stats, sampled once per second: backlog and message counters per subscription | DuckDB, or any CSV reader |
+| `topic-stats.csv` | The broker's topic stats, sampled once per second, or every topics / 100 seconds with more than 100 topics: backlog and message counters per subscription | DuckDB, or any CSV reader |
 | `join-preparation.csv` | When the launcher prepared the late applications' join, each skip, reset and unload, and how long it took, see [Offloading](docs/offloading.md) | DuckDB, or any CSV reader |
 | `offload-status.csv` | In a run that offloads to tiered storage, each topic's ledgers, offloaded ledgers and offloaded bytes when the late applications joined and at the run's end | DuckDB, or any CSV reader |
 | `offload-storage.log.txt` | In a run that offloads to tiered storage, the storage's log, with every S3 request when `offload.logRequests` is set | `rg` |
@@ -380,7 +380,7 @@ commit segment can be absent). Use the exact recording names linked from the pro
 | `network-events.jsonl`, `network-summary.json` | With a `network` section: every impairment's application, removal and queue counters as they happened, and each impaired container's TCP segments sent and retransmitted, see [Network conditions](docs/network-conditions.md#files) | `jq` |
 | `gateways/pulsar-client.log.txt`, `applications/pulsar-client.log.txt` | The workloads' Pulsar client logs, at the level of `PULSAR_CLIENT_LOG_LEVEL` in a workload's `env`, `warn` by default | `rg` |
 | `applications/<application>/republished-duplicates.txt` | Samples of the duplicates that the broker persisted twice, when there were any | Read |
-| `remote-applications/`, `remote-topic-stats.csv`, `replication-stats.csv`, `resolved-config-remote-applications.yaml` | With a remote cluster: the remote applications' outputs, laid out as in `applications/`, the remote topics' stats and each topic's replicators once a second, and the remote applications' configuration, see [Geo-replication](docs/network-conditions.md#geo-replication) | As their `applications/` counterparts; DuckDB for the CSV |
+| `remote-applications/`, `remote-topic-stats.csv`, `replication-stats.csv`, `resolved-config-remote-applications.yaml` | With a remote cluster: the remote applications' outputs, laid out as in `applications/`, the remote topics' stats and each topic's replicators as often as the topic stats, and the remote applications' configuration, see [Geo-replication](docs/network-conditions.md#geo-replication) | As their `applications/` counterparts; DuckDB for the CSV |
 
 ### Profiles
 
