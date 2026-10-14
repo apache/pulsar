@@ -229,12 +229,12 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
     @Override
     public synchronized void removeConsumer(Consumer consumer) throws BrokerServiceException {
-        if (consumerSet.removeAll(consumer) == 1) {
+        if (removeConsumerInstance(consumer)) {
             // decrement unack-message count for removed consumer. Only the removal that actually
             // unregisters the consumer may debit it, otherwise removing an already-removed consumer
             // debits the same messages again and drives the subscription counter negative.
             addUnAckedMessages(-consumer.getUnackedMessages());
-            consumerList.remove(consumer);
+            removeConsumerInstanceFromList(consumer);
             log.info("Removed consumer {} with pending {} acks", consumer, consumer.getPendingAcks().size());
             if (consumerList.isEmpty()) {
                 clearComponentsAfterRemovedAllConsumers();
@@ -272,7 +272,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             // The debit belongs to the removal that unregisters the consumer; do not repeat it here.
             // The add-consumer failure path can also unregister via internalRemoveConsumer, but that
             // consumer has not received any messages and therefore has nothing to debit.
-            consumerList.removeIf(c -> consumer.equals(c));
+            consumerList.removeIf(c -> c == consumer);
             if (consumerList.isEmpty()) {
                 clearComponentsAfterRemovedAllConsumers();
             }
@@ -280,8 +280,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     }
 
     protected synchronized void internalRemoveConsumer(Consumer consumer) {
-        consumerSet.removeAll(consumer);
-        consumerList.remove(consumer);
+        removeConsumerInstance(consumer);
+        removeConsumerInstanceFromList(consumer);
     }
 
     protected synchronized void clearComponentsAfterRemovedAllConsumers() {
