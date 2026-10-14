@@ -30,6 +30,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import lombok.CustomLog;
@@ -120,36 +121,76 @@ public class PulsarLedgerManager implements LedgerManager {
     @Override
     public CompletableFuture<Versioned<LedgerMetadata>> createLedgerMetadata(long ledgerId,
                                                                              LedgerMetadata inputMetadata) {
-        final LedgerMetadata metadata;
-        if (inputMetadata.getMetadataFormatVersion() > LedgerMetadataSerDe.METADATA_FORMAT_VERSION_2) {
-            metadata = LedgerMetadataBuilder.from(inputMetadata).withId(ledgerId).build();
-        } else {
-            metadata = inputMetadata;
-        }
+        return FutureUtil.supplySafely(() -> {
+            final LedgerMetadata metadata;
+            final boolean supportsCToken =
+                    inputMetadata.getMetadataFormatVersion() > LedgerMetadataSerDe.METADATA_FORMAT_VERSION_2;
+            if (supportsCToken) {
+                // Generate once per logical create. Backend retries must use the same serialized token.
+                metadata = LedgerMetadataBuilder.from(inputMetadata).withId(ledgerId)
+                        .withCToken(ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE)).build();
+            } else {
+                metadata = inputMetadata;
+            }
 
-        final byte[] data;
-        try {
-            data = serde.serialize(metadata);
-        } catch (IOException ioe) {
-            return FutureUtil.failedFuture(new BKException.BKMetadataSerializationException(ioe));
-        }
+            final byte[] data;
+            try {
+                data = serde.serialize(metadata);
+            } catch (IOException ioe) {
+                return FutureUtil.failedFuture(new BKException.BKMetadataSerializationException(ioe));
+            }
 
-        CompletableFuture<Versioned<LedgerMetadata>> promise = new CompletableFuture<>();
-
-        store.put(getLedgerPath(ledgerId), data, Optional.of(-1L))
-                .whenComplete((stat, ex) -> {
-                    if (ex != null) {
-                        log.error().attr("ledgerId", ledgerId).exceptionMessage(ex)
+            String path = getLedgerPath(ledgerId);
+            return FutureUtil.supplySafely(() -> store.put(path, data, Optional.of(-1L)))
+                    .thenApply(stat -> new Versioned<>(metadata, new LongVersion(stat.getVersion())))
+                    .exceptionallyCompose(ex -> {
+                        Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                        if (supportsCToken && (cause instanceof MetadataStoreException.BadVersionException
+                                || cause instanceof MetadataStoreException.AlreadyExistsException)) {
+                            log.debug().attr("ledgerId", ledgerId).exceptionMessage(cause)
+                                    .log("Ledger metadata exists, checking creator token");
+                            return recoverLedgerCreation(ledgerId, path, metadata.getCToken(), cause);
+                        }
+                        log.error().attr("ledgerId", ledgerId).exceptionMessage(cause)
                                 .log("Failed to create ledger");
-                        promise.completeExceptionally(mapToBkException(ex));
-                        return;
+                        return FutureUtil.failedFuture(mapToBkException(cause));
+                    });
+        });
+    }
+
+    private CompletableFuture<Versioned<LedgerMetadata>> recoverLedgerCreation(long ledgerId, String path,
+                                                                              long cToken, Throwable conflict) {
+        // A cached value (including absence) cannot establish ownership after an ambiguous create.
+        return FutureUtil.supplySafely(() -> store.sync(path))
+                .thenCompose(ignored -> store.get(path))
+                .exceptionallyCompose(ex -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                    // A read-back error cannot establish a collision and trigger allocation of another ID.
+                    return FutureUtil.failedFuture(cause instanceof MetadataStoreException.AlreadyExistsException
+                            ? new BKException.ZKException(cause) : mapToBkException(cause));
+                })
+                .thenCompose(optResult -> {
+                    if (optResult.isEmpty()) {
+                        return FutureUtil.<Versioned<LedgerMetadata>>failedFuture(
+                                new BKException.BKNoSuchLedgerExistsOnMetadataServerException());
                     }
-
-                    Versioned<LedgerMetadata> result = new Versioned<>(metadata, new LongVersion(stat.getVersion()));
-                    promise.complete(result);
+                    var result = optResult.get();
+                    final LedgerMetadata persisted;
+                    try {
+                        persisted = serde.parseConfig(result.getValue(), ledgerId,
+                                Optional.of(result.getStat().getCreationTimestamp()));
+                    } catch (IOException ioe) {
+                        return FutureUtil.failedFuture(new BKException.BKMetadataSerializationException(ioe));
+                    }
+                    if (persisted.getCToken() != cToken) {
+                        BKException bke = new BKException.BKLedgerExistException();
+                        bke.initCause(conflict);
+                        return FutureUtil.failedFuture(bke);
+                    }
+                    cache.invalidate(path);
+                    return CompletableFuture.completedFuture(
+                            new Versioned<>(persisted, new LongVersion(result.getStat().getVersion())));
                 });
-
-        return promise;
     }
 
     @Override
