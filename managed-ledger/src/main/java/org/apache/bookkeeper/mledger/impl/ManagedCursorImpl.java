@@ -3017,6 +3017,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 public void operationComplete(Void result, Stat stat) {
                     log.info().attr("markDeletePosition", markDeletePosition).log("Closed cursor");
                     // At this point the position had already been safely stored in the cursor z-node
+                    closeReadOnlyCursorLedger();
                     callback.closeComplete(ctx);
                     asyncDeleteLedger(cursorLedger);
                 }
@@ -3698,6 +3699,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                         .attr("readPosition", readPosition)
                         .log("Updated cursor with new ledger");
                 final LedgerHandle oldLedger = cursorLedger;
+                closeReadOnlyCursorLedger();
                 cursorLedger = lh;
                 isCursorLedgerReadOnly = false;
 
@@ -3812,6 +3814,14 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
+    private void closeReadOnlyCursorLedger() {
+        LedgerHandle lh = cursorLedger;
+        if (lh != null && isCursorLedgerReadOnly) {
+            // A recovered handle no longer has an owner; release its listener even if ledger deletion fails.
+            ManagedLedgerImpl.closeReadHandleAsync(lh, log);
+        }
+    }
+
     void asyncDeleteLedger(final LedgerHandle lh) {
         asyncDeleteLedger(lh, DEFAULT_LEDGER_DELETE_RETRIES);
     }
@@ -3844,6 +3854,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     void asyncDeleteCursorLedger() {
+        closeReadOnlyCursorLedger();
         asyncDeleteCursorLedger(DEFAULT_LEDGER_DELETE_RETRIES);
     }
 

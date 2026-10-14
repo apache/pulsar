@@ -46,6 +46,8 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.meta.LedgerManager;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.proto.BookkeeperInternalCallbacks.LedgerMetadataListener;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
@@ -94,7 +96,17 @@ public class TemporaryReadHandleLifecycleTest extends MockedBookKeeperTestCase {
                 LedgerHandle readHandle = new ReadOnlyLedgerHandle(context, handle.getId(),
                         new Versioned<>(handle.getLedgerMetadata(), new LongVersion(0)),
                         BookKeeper.DigestType.fromApiDigestType(handle.getLedgerMetadata().getDigestType()),
-                        handle.getLedgerMetadata().getPassword(), keepUpdateMetadata.get());
+                        handle.getLedgerMetadata().getPassword(), keepUpdateMetadata.get()) {
+                    @Override
+                    public void asyncReadEntries(long firstEntry, long lastEntry, AsyncCallback.ReadCallback callback,
+                                                 Object ctx) {
+                        // Use the in-memory ledger's entries while retaining the real handle lifecycle.
+                        ((LedgerHandle) handle).asyncReadEntries(firstEntry, lastEntry,
+                                (rc, originalHandle, entries, readCtx) ->
+                                        callback.readComplete(rc, this, entries, readCtx),
+                                ctx);
+                    }
+                };
                 openedHandles.add(readHandle);
                 return readHandle;
             } catch (GeneralSecurityException e) {
@@ -132,6 +144,68 @@ public class TemporaryReadHandleLifecycleTest extends MockedBookKeeperTestCase {
         }
         reopened.close();
         assertListenerReleased(handle, listener);
+    }
+
+    @DataProvider(name = "cursorOwnershipEnds")
+    public Object[][] cursorOwnershipEnds() {
+        return new Object[][] {{"close", false}, {"close", true}, {"switch", false}, {"switch", true},
+                {"delete", false}, {"delete", true}};
+    }
+
+    @Test(dataProvider = "cursorOwnershipEnds")
+    public void testCursorReleasesListenerBeforeLedgerDeletion(String action, boolean failDelete)
+            throws Exception {
+        ManagedLedgerConfig config = defaultConfig().setRetentionTime(1, TimeUnit.DAYS).setRetentionSizeInMB(-1)
+                .setMaxUnackedRangesToPersistInMetadataStore(0);
+        ManagedLedger ledger = factory.open("cursor-listener", config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("cursor");
+        Position first = ledger.addEntry(new byte[] {1});
+        Position second = ledger.addEntry(new byte[] {2});
+        cursor.delete(second);
+        long cursorLedgerId = cursor.getCursorLedger();
+        assertThat(cursorLedgerId).isNotEqualTo(-1);
+        ledger.close();
+
+        ManagedLedger reopened = factory.open(ledger.getName(), config);
+        ManagedCursorImpl recovered = (ManagedCursorImpl) reopened.openCursor("cursor");
+        LedgerHandle handle = openedHandles.stream().filter(h -> h.getId() == cursorLedgerId).findFirst().orElseThrow();
+        LedgerMetadataListener listener = (LedgerMetadataListener) handle;
+        try {
+            assertThat(activeListeners).containsExactly(listener);
+            verify(ledgerManager).registerLedgerMetadataListener(eq(cursorLedgerId), same(listener));
+            verify(ledgerManager, never()).unregisterLedgerMetadataListener(eq(cursorLedgerId), same(listener));
+            CompletableFuture<Void> deleteStarted = new CompletableFuture<>();
+            doAnswer(invocation -> {
+                if (failDelete) {
+                    AsyncCallback.DeleteCallback callback = invocation.getArgument(1);
+                    callback.deleteComplete(BKException.Code.UnexpectedConditionException, invocation.getArgument(2));
+                }
+                // Otherwise leave deletion pending: handle cleanup must not wait for its callback.
+                deleteStarted.complete(null);
+                return null;
+            }).when(bkc).asyncDeleteLedger(eq(cursorLedgerId), any(), any());
+
+            if (action.equals("switch")) {
+                recovered.markDelete(first);
+                assertThat(recovered.getCursorLedger()).isNotEqualTo(cursorLedgerId).isNotEqualTo(-1);
+                Position third = reopened.addEntry(new byte[] {3});
+                recovered.markDelete(third);
+                assertThat(recovered.getMarkDeletedPosition()).isEqualTo(third);
+            } else if (action.equals("delete")) {
+                reopened.deleteCursor("cursor");
+            } else {
+                recovered.close();
+            }
+            deleteStarted.get(5, TimeUnit.SECONDS);
+            assertListenerReleased(handle, listener);
+            assertThat(bkc.getLedgers()).contains(cursorLedgerId);
+        } finally {
+            try {
+                reopened.close();
+            } finally {
+                handle.close();
+            }
+        }
     }
 
     private void assertListenerReleased(LedgerHandle handle, LedgerMetadataListener listener) {

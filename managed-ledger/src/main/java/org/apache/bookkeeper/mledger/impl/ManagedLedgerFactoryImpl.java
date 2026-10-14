@@ -1424,15 +1424,6 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                 .attr("cursor", cursorName)
                                 .attr("rc", rc)
                                 .log("Opened cursor ledger");
-                        if (rc != BKException.Code.OK) {
-                            log.warn().attr("managedLedger", managedLedgerName)
-                                    .attr("ledgerId", ledgerId)
-                                    .attr("cursor", cursorName)
-                                    .attr("result", BKException.getMessage(rc))
-                                    .log("Error opening metadata ledger for cursor");
-                            cursorCounter.countDown();
-                            return;
-                        }
                         long lac = lh.getLastAddConfirmed();
                         log.debug().attr("managedLedger", managedLedgerName)
                                 .attr("cursor", cursorName)
@@ -1535,8 +1526,18 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                                 .withPassword(password)
                                                 .withLoggerContext(openLog)
                                                 .execute()
-                                                .whenComplete((rh, ex) -> ManagedLedgerImpl.completeOpenCallback(
-                                                        openLog, cursorLedgerId, cursorLedgerOpenCb, rh, ex));
+                                                .whenComplete((rh, ex) -> {
+                                                    if (ex != null) {
+                                                        openLog.warn().attr("ledgerId", cursorLedgerId)
+                                                                .attr("cursor", cursorName)
+                                                                .exception(ex)
+                                                                .log("Error opening metadata ledger for cursor");
+                                                        cursorCounter.countDown();
+                                                    } else {
+                                                        ManagedLedgerImpl.completeOpenCallback(openLog,
+                                                                cursorLedgerId, cursorLedgerOpenCb, rh, null);
+                                                    }
+                                                });
                                     } else {
                                         Position lastAckedMessagePosition = PositionFactory.create(
                                                 info.getMarkDeleteLedgerId(), info.getMarkDeleteEntryId());

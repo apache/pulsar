@@ -441,6 +441,65 @@ public class TemporaryReadHandleTest extends MockedBookKeeperTestCase {
         assertClosed(handle);
     }
 
+    @Test
+    public void testOfflineCursorStatisticsCompletesWhenCursorLedgerOpenFails() throws Exception {
+        TopicName topic = TopicName.get("persistent://public/default/offline-cursor-open-failure");
+        ManagedLedgerConfig config = retainedConfig();
+        ManagedLedger ledger = factory.open(topic.getPersistenceNamingEncoding(), config);
+        try {
+            Position position = ledger.addEntry(new byte[] {1});
+            LedgerHandle cursorLedger = bkc.createLedger(3, 2, 2,
+                    BookKeeper.DigestType.fromApiDigestType(config.getDigestType()), config.getPassword());
+            long cursorLedgerId = cursorLedger.getId();
+            cursorLedger.close();
+            ManagedCursorInfo cursorInfo = new ManagedCursorInfo().setCursorsLedgerId(cursorLedgerId)
+                    .setMarkDeleteLedgerId(position.getLedgerId()).setMarkDeleteEntryId(-1);
+            CompletableFuture<Void> persisted = new CompletableFuture<>();
+            factory.getMetaStore().asyncUpdateCursorInfo(ledger.getName(), "cursor", cursorInfo, null,
+                    new MetaStore.MetaStoreCallback<>() {
+                        @Override
+                        public void operationComplete(Void result, Stat stat) {
+                            persisted.complete(null);
+                        }
+
+                        @Override
+                        public void operationFailed(ManagedLedgerException.MetaStoreException exception) {
+                            persisted.completeExceptionally(exception);
+                        }
+                    });
+            persisted.get(5, TimeUnit.SECONDS);
+            bkc.deleteLedger(cursorLedgerId);
+
+            // Run the cursor listing callback on the estimator's thread, away from the ordered executor
+            // used by cursor-info reads. Interrupting the estimator can then release its wait on failure.
+            MetaStore metaStore = spy(factory.getMetaStore());
+            doAnswer(invocation -> {
+                MetaStore.MetaStoreCallback<List<String>> callback = invocation.getArgument(1);
+                callback.operationComplete(List.of("cursor"), null);
+                return null;
+            }).when(metaStore).getCursors(eq(ledger.getName()), any());
+            factory = spy(factory);
+            doReturn(metaStore).when(factory).getMetaStore();
+            PersistentOfflineTopicStats stats = new PersistentOfflineTopicStats(topic.toString(), "broker");
+            var estimation = cachedExecutor.submit(() -> {
+                factory.estimateUnloadedTopicBacklog(stats, topic, true,
+                        List.of(BookKeeper.DigestType.fromApiDigestType(config.getDigestType()), config.getPassword()));
+                return null;
+            });
+            try {
+                estimation.get(5, TimeUnit.SECONDS);
+                assertThat(stats.totalMessages).isEqualTo(1);
+                assertThat(stats.messageBacklog).isZero();
+                assertThat(stats.cursorDetails).doesNotContainKey("cursor");
+                assertThat(openedHandles).hasSize(1).allSatisfy(this::assertClosed);
+            } finally {
+                estimation.cancel(true);
+            }
+        } finally {
+            ledger.close();
+        }
+    }
+
     @DataProvider(name = "offlineCursorRetryResults")
     public Object[][] offlineCursorRetryResults() {
         return new Object[][] {{"success"}, {"lac-growth"}, {"read-failure"}, {"parse-failure"},
