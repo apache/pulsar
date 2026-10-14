@@ -55,9 +55,9 @@ import lombok.Getter;
 import org.apache.bookkeeper.client.AsyncCallback;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
-import org.apache.bookkeeper.client.BookKeeperAdmin;
 import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.conf.ClientConfiguration;
@@ -1596,8 +1596,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
             ledgerRetryMap.forEach((cursorName, ledgerId) -> {
                 log.debug().attr("cursor", cursorName)
                         .attr("ledgerId", ledgerId)
-                        .log("Trying to obtain mark-delete position from BkAdmin");
-                Position lastAckedMessagePosition = tryGetMDPosition(bk, ledgerId, cursorName);
+                        .log("Trying to obtain mark-delete position from cursor ledger");
+                Position lastAckedMessagePosition = tryGetMDPosition(bk, ledgerId, cursorName, digestType, password);
                 if (lastAckedMessagePosition == null) {
                     log.warn().attr("managedLedger", managedLedgerName)
                             .attr("cursor", cursorName)
@@ -1608,7 +1608,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                             .attr("cursor", cursorName)
                             .attr("ledgerId", ledgerId)
                             .attr("position", lastAckedMessagePosition)
-                            .log("Cursor read from ledger using bk admin");
+                            .log("Cursor read from ledger");
                     // calculate cursor backlog
                     Range<Position> range = Range.openClosed(lastAckedMessagePosition, lastLedgerPosition);
                     log.debug().attr("managedLedger", managedLedgerName)
@@ -1662,25 +1662,39 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     }
 
 
-    private Position tryGetMDPosition(BookKeeper bookKeeper, long ledgerId, String cursorName) {
-        BookKeeperAdmin bookKeeperAdmin = null;
-        long lastEntry = LedgerHandle.INVALID_ENTRY_ID;
+    private Position tryGetMDPosition(BookKeeper bookKeeper, long ledgerId, String cursorName,
+                                      BookKeeper.DigestType digestType, byte[] password) {
+        ReadHandle readHandle = null;
         Position lastAckedMessagePosition = null;
         try {
-            bookKeeperAdmin = new BookKeeperAdmin(bookKeeper);
-            for (LedgerEntry ledgerEntry : bookKeeperAdmin.readEntries(ledgerId, 0, lastEntry)) {
-                lastEntry = ledgerEntry.getEntryId();
-                log.debug().attr("entryId", lastEntry)
-                        .attr("ledgerId", ledgerId)
-                        .attr("cursor", cursorName)
-                        .log("Read entry from ledger for cursor");
-                PositionInfo positionInfo = new PositionInfo();
-                positionInfo.parseFrom(ledgerEntry.getEntry());
-                lastAckedMessagePosition =
-                        PositionFactory.create(positionInfo.getLedgerId(), positionInfo.getEntryId());
-                log.debug().attr("cursor", cursorName)
-                        .attr("position", lastAckedMessagePosition)
-                        .log("Cursor read position");
+            readHandle = bookKeeper.newOpenLedgerOp()
+                    .withRecovery(false)
+                    .withLedgerId(ledgerId)
+                    .withDigestType(digestType.toApiDigestType())
+                    .withPassword(password)
+                    .withLoggerContext(log.with().attr("cursor", cursorName).build())
+                    .execute().get();
+            // Recheck LAC after each read, as BookKeeperAdmin's iterator does: reading an entry can
+            // discover a newer LAC while the cursor ledger is still open.
+            for (long entryId = 0; entryId <= readHandle.getLastAddConfirmed(); entryId++) {
+                try (LedgerEntries entries = readHandle.readUnconfirmedAsync(entryId, entryId).get()) {
+                    log.debug().attr("entryId", entryId)
+                            .attr("ledgerId", ledgerId)
+                            .attr("cursor", cursorName)
+                            .log("Read entry from ledger for cursor");
+                    PositionInfo positionInfo = new PositionInfo();
+                    positionInfo.parseFrom(entries.getEntry(entryId).getEntryBytes());
+                    lastAckedMessagePosition =
+                            PositionFactory.create(positionInfo.getLedgerId(), positionInfo.getEntryId());
+                    log.debug().attr("cursor", cursorName)
+                            .attr("position", lastAckedMessagePosition)
+                            .log("Cursor read position");
+                } catch (ExecutionException e) {
+                    if (BKException.getExceptionCode(e) == BKException.Code.NoSuchEntryException) {
+                        break;
+                    }
+                    throw e;
+                }
             }
         } catch (Exception e) {
             log.warn().attr("ledgerId", ledgerId)
@@ -1688,17 +1702,9 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                     .exception(e)
                     .log("Unable to determine LAC");
         } finally {
-            if (bookKeeperAdmin != null) {
-                try {
-                    bookKeeperAdmin.close();
-                } catch (Exception e) {
-                    log.warn().attr("ledgerId", ledgerId)
-                            .attr("cursor", cursorName)
-                            .exception(e)
-                            .log("Unable to close bk admin");
-                }
+            if (readHandle != null) {
+                ManagedLedgerImpl.closeReadHandleAsync(readHandle, log);
             }
-
         }
         return lastAckedMessagePosition;
     }

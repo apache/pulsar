@@ -676,28 +676,31 @@ public class ManagedCursorImpl implements ManagedCursor {
                     return;
                 }
 
-                LedgerEntry entry = seq.nextElement();
-                mbean.addReadCursorLedgerSize(entry.getLength());
-                PositionInfo positionInfo = new PositionInfo();
                 try {
+                    LedgerEntry entry = seq.nextElement();
+                    mbean.addReadCursorLedgerSize(entry.getLength());
+                    PositionInfo positionInfo = new PositionInfo();
                     positionInfo.parseFrom(entry.getEntry());
+
+                    Map<String, Long> recoveredProperties =
+                            recoverProperties(positionInfo.getPropertiesCount(), positionInfo::getPropertyAt);
+
+                    Position position = PositionFactory.create(positionInfo.getLedgerId(), positionInfo.getEntryId());
+                    recoverIndividualDeletedMessages(positionInfo);
+                    if (getConfig().isDeletionAtBatchIndexLevelEnabled()
+                            && positionInfo.getBatchedEntryDeletionIndexInfosCount() > 0) {
+                        recoverBatchDeletedIndexes(positionInfo.getBatchedEntryDeletionIndexInfosCount(),
+                                positionInfo::getBatchedEntryDeletionIndexInfoAt);
+                    }
+                    recoveredCursor(position, recoveredProperties, cursorProperties, lh);
                 } catch (Exception e) {
-                    ManagedLedgerImpl.closeReadHandleAsync(lh, log);
+                    // Recovery owns the handle until recoveredCursor transfers it to the cursor.
+                    if (cursorLedger != lh) {
+                        ManagedLedgerImpl.closeReadHandleAsync(lh, log);
+                    }
                     callback.operationFailed(new ManagedLedgerException(e));
                     return;
                 }
-
-                Map<String, Long> recoveredProperties =
-                        recoverProperties(positionInfo.getPropertiesCount(), positionInfo::getPropertyAt);
-
-                Position position = PositionFactory.create(positionInfo.getLedgerId(), positionInfo.getEntryId());
-                recoverIndividualDeletedMessages(positionInfo);
-                if (getConfig().isDeletionAtBatchIndexLevelEnabled()
-                    && positionInfo.getBatchedEntryDeletionIndexInfosCount() > 0) {
-                    recoverBatchDeletedIndexes(positionInfo.getBatchedEntryDeletionIndexInfosCount(),
-                            positionInfo::getBatchedEntryDeletionIndexInfoAt);
-                }
-                recoveredCursor(position, recoveredProperties, cursorProperties, lh);
                 callback.operationComplete();
             }, null);
         };
