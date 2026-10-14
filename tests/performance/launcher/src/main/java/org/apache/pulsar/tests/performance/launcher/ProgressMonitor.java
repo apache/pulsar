@@ -222,14 +222,8 @@ final class ProgressMonitor implements AutoCloseable {
                 (received - lastReceived) / seconds, bitRate((received - lastReceived) / seconds)));
         TopicStatsSampler.Backlog currentBacklog = backlog.get();
         if (currentBacklog != null) {
-            receivedLine.append(String.format(Locale.ROOT, " --- backlog: %,d msg (max per application: %,d",
-                    currentBacklog.total(), currentBacklog.maxSubscription()));
-            // The sampler samples every second, unless the broker answers slowly; an old sample says so
-            long ageSeconds = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - currentBacklog.epochMs());
-            if (ageSeconds >= STALE_BACKLOG_SECONDS) {
-                receivedLine.append(", sampled ").append(ageSeconds).append(" s ago");
-            }
-            receivedLine.append(')');
+            receivedLine.append(String.format(Locale.ROOT, " --- backlog: %,d msg (max per application: %,d%s)",
+                    currentBacklog.total(), currentBacklog.maxSubscription(), age(currentBacklog)));
         }
         if (finishedApplications > 0 && finishedApplications < applications) {
             receivedLine.append(" --- finished applications: ").append(finishedApplications).append('/')
@@ -303,12 +297,14 @@ final class ProgressMonitor implements AutoCloseable {
     }
 
     /**
-     * ", sampled N s ago" for a sample at least {@link #STALE_BACKLOG_SECONDS} old: the sampler keeps its latest
-     * complete sample while its rounds fail. Empty for a recent sample.
+     * ", sampled N s ago" for a sample at least {@link #STALE_BACKLOG_SECONDS} or two of the sampler's intervals old,
+     * whichever is longer: the sampler samples every second, or less often with many topics, and keeps its latest
+     * complete sample while its rounds fail or the broker answers slowly. Empty for a recent sample.
      */
-    private static String age(TopicStatsSampler.Backlog sample) {
+    static String age(TopicStatsSampler.Backlog sample) {
         long ageSeconds = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - sample.epochMs());
-        return ageSeconds >= STALE_BACKLOG_SECONDS ? ", sampled " + ageSeconds + " s ago" : "";
+        return ageSeconds >= Math.max(STALE_BACKLOG_SECONDS, 2 * TimeUnit.MILLISECONDS.toSeconds(
+                sample.intervalMillis())) ? ", sampled " + ageSeconds + " s ago" : "";
     }
 
     /** The producer's phase with its progress, such as "warmup round 1/2" or "measurement 45/120 s". */

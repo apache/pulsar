@@ -479,6 +479,8 @@ charts that it writes, in one diagram and in separate panels.
 - [Network conditions and network faults](docs/network-conditions.md): delay, jitter, packet loss and limited
   bandwidth between the containers, partitions, connection resets and silent disconnections, applied with Linux
   traffic control, and the network scenarios.
+- [Offloading to tiered storage](docs/offloading.md): offloading the topics' ledgers to an S3-compatible SeaweedFS as
+  they roll over, and late applications that read their backlog from it from staggered positions.
 - [The performance testing environment setup](environment/README.md): configuring a Linux host for consistent
   results, taking the disk out of the way of large-message runs, and freeing Docker disk space.
 - [The legacy TestNG profiling runner](docs/legacy-testng-runner/README.md): the deprecated `pulsar-perf` based runner

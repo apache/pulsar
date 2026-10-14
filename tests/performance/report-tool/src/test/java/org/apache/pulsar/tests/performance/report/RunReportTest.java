@@ -21,6 +21,7 @@ package org.apache.pulsar.tests.performance.report;
 import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Files;
@@ -106,6 +107,165 @@ public class RunReportTest {
         StringBuilder none = new StringBuilder();
         RunReport.appendCatchUp(none, workload, consumers.subList(0, 1), samples, start, end);
         assertThat(none.toString()).isEmpty();
+    }
+
+    @Test
+    public void showsTheMessagesThatLateApplicationsSkipped() throws Exception {
+        JsonNode workload = mapper.readTree("{\"applications\": {\"subscriptionPrefix\": \"app-\"}}");
+        long start = 1_000_000;
+        ObjectNode skipped = (ObjectNode) late(1, start + 60_000, start + 70_000, 900_000, start + 120_000);
+        skipped.put("skippedMessages", 10_240);
+        StringBuilder report = new StringBuilder();
+        RunReport.appendCatchUp(report, workload, List.of(late(0, start + 60_000, start + 65_000, 900_000,
+                start + 120_000), skipped), null, start, start + 120_000);
+
+        assertThat(report.toString())
+                .contains("| Application | Joined | Backlog when it joined | Skipped | Caught up after |")
+                .contains("| `app-0` | 60.0 s | – | 0 | 5.0 s |")
+                .contains("| `app-1` | 60.0 s | – | 10,240 | 10.0 s |");
+    }
+
+    @Test
+    public void sumsTheOffloadStatusOfEachPhase() throws Exception {
+        Path status = Files.createTempFile("offload-status", ".csv");
+        try {
+            Files.writeString(status, RunReport.OFFLOAD_STATUS_HEADER + "\n"
+                    + "1000,join,persistent://public/default/t-0,14,12,629145600,700000\n"
+                    + "1000,join,persistent://public/default/t-1,2,1,1048576,20000\n"
+                    + "2000,end,persistent://public/default/t-0,26,25,1310720000,1300000\n");
+            StringBuilder report = new StringBuilder();
+            RunReport.appendOffloadStatus(report, status, null);
+
+            assertThat(report.toString())
+                    .contains("## Offloading")
+                    .contains("| The late applications joined | 2 | 16 | 13 | 601.0 MB | 720,000 |")
+                    .contains("| The run's end | 1 | 26 | 25 | 1,250.0 MB | 1,300,000 |");
+            StringBuilder none = new StringBuilder();
+            RunReport.appendOffloadStatus(none, status.resolveSibling("missing-offload-status.csv"), null);
+            assertThat(none.toString()).isEmpty();
+        } finally {
+            Files.delete(status);
+        }
+    }
+
+    @Test
+    public void reportsTheJoinPreparationAndTheStoragesReadsDuringTheResets() throws Exception {
+        Path directory = Files.createTempDirectory("join-preparation");
+        try {
+            // 2026-10-13T11:00:00Z
+            long start = 1_791_889_200_000L;
+            Path preparation = directory.resolve(RunReport.JOIN_PREPARATION_FILE);
+            Files.writeString(preparation, RunReport.JOIN_PREPARATION_HEADER + "\n"
+                    + start + "," + (start + 1_500) + ",reset,app-0,persistent://public/default/t-0,5123,1500\n"
+                    + (start + 1_600) + "," + (start + 2_000)
+                    + ",reset,app-1,persistent://public/default/t-0,21777,400\n"
+                    + (start + 2_100) + "," + (start + 2_150) + ",unload,,persistent://public/default/t-0,0,50\n");
+            Path log = directory.resolve(RunReport.OFFLOAD_STORAGE_LOG_FILE);
+            Files.writeString(log, String.join("\n",
+                    // before the resets: a whole object, the index
+                    "I1013 10:59:59.900123 stats.go:42 \"performance\" GET \"/pulsar/x-ledger-2-index\" 200 3.1ms",
+                    // during the resets: two ranged reads of 1 MiB
+                    "I1013 11:00:00.400000 s3api_object_handlers.go:981 streamFromVolumeServers: entry has 7 chunks,"
+                            + " totalSize=27483616, isRange=true, offset=0, size=1048576",
+                    "I1013 11:00:00.410000 stats.go:42 \"performance\" GET \"/pulsar/x-ledger-2\" 206 10ms",
+                    "I1013 11:00:01.900000 s3api_object_handlers.go:981 streamFromVolumeServers: entry has 7 chunks,"
+                            + " totalSize=27483616, isRange=true, offset=1048576, size=1048576",
+                    "I1013 11:00:01.910000 stats.go:42 \"performance\" GET \"/pulsar/x-ledger-2\" 206 10ms",
+                    // not a read of an object
+                    "I1013 11:00:01.950000 stats.go:42 \"performance\" GET \"/pulsar\" 200 1ms",
+                    // after the resets
+                    "I1013 11:00:05.000000 stats.go:42 \"performance\" PUT \"/pulsar/y\" 200 1ms", ""));
+            RunReport.StorageRequests requests = RunReport.StorageRequests.read(log, start);
+            assertThat(requests.reads()).hasSize(3);
+
+            StringBuilder report = new StringBuilder();
+            RunReport.appendJoinPreparation(report, preparation, requests);
+            assertThat(report.toString())
+                    .contains("## Join preparation")
+                    .contains("| reset | `app-0` | `persistent://public/default/t-0` | 5,123 | 1,500 ms |")
+                    .contains("| unload | – | `persistent://public/default/t-0` | – | 50 ms |")
+                    .contains("During the resets, the storage served 2 reads of objects, 2.0 MB in ranged reads.");
+            StringBuilder none = new StringBuilder();
+            RunReport.appendJoinPreparation(none, directory.resolve("missing.csv"), requests);
+            assertThat(none.toString()).isEmpty();
+        } finally {
+            try (Stream<Path> paths = Files.walk(directory)) {
+                for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
+                    Files.delete(path);
+                }
+            }
+        }
+    }
+
+    @Test
+    public void reportsTheSeeksLatenciesAndTheStoragesReadsDuringThem() throws Exception {
+        Path directory = Files.createTempDirectory("seeks");
+        try {
+            // 2026-10-13T11:00:00Z
+            long start = 1_791_889_200_000L;
+            StringBuilder csv = new StringBuilder(RunReport.SEEKS_HEADER).append('\n');
+            // 100 seeks of 1 to 100 ms each, and a read of 2 ms
+            for (int i = 0; i < 100; i++) {
+                csv.append(i).append(',').append(start + i * 10L).append(',').append(start + i * 10L + 5)
+                        .append(",persistent://public/default/t-0,").append(1_000_000 + i).append(',')
+                        .append((i + 1) * 1000L).append(",2000,12:").append(i).append(":-1\n");
+            }
+            Path seeks = directory.resolve(RunReport.SEEKS_FILE);
+            Files.writeString(seeks, csv);
+            Path log = directory.resolve(RunReport.OFFLOAD_STORAGE_LOG_FILE);
+            Files.writeString(log, String.join("\n",
+                    "I1013 11:00:00.400000 s3api_object_handlers.go:981 streamFromVolumeServers: entry has 7 chunks,"
+                            + " totalSize=27483616, isRange=true, offset=0, size=1048576",
+                    "I1013 11:00:00.410000 stats.go:42 \"performance\" GET \"/pulsar/x-ledger-2\" 206 10ms",
+                    "I1013 11:00:09.000000 stats.go:42 \"performance\" GET \"/pulsar/x-ledger-2\" 206 10ms", ""));
+            StringBuilder report = new StringBuilder();
+            RunReport.appendSeeks(report, seeks, RunReport.StorageRequests.read(log, start));
+            assertThat(report.toString())
+                    .contains("## Seeks")
+                    .contains("The launcher's 100 seeks to random publish times after the workloads, in 1.0 s")
+                    .contains("| Reset by timestamp | 100 | 50.0 ms | 90.0 ms | 99.0 ms | 100.0 ms | 50.5 ms |")
+                    .contains("| Read of the message | 100 | 2.0 ms |")
+                    .contains("During the seeks, the storage served 1 reads of objects, 0.01 per seek, 1.0 MB");
+        } finally {
+            try (Stream<Path> paths = Files.walk(directory)) {
+                for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
+                    Files.delete(path);
+                }
+            }
+        }
+    }
+
+    @Test
+    public void countsTheStoragesInterleavedRequestsAndRequestsAcrossANewYear() throws Exception {
+        Path log = Files.createTempFile("offload-storage", ".log");
+        try {
+            // two ranged reads whose lines interleave, and a read of a whole object between them
+            Files.writeString(log, String.join("\n",
+                    "I1231 23:59:59.100000 s3api_object_handlers.go:981 streamFromVolumeServers: isRange=true,"
+                            + " offset=0, size=100",
+                    "I1231 23:59:59.200000 s3api_object_handlers.go:981 streamFromVolumeServers: isRange=true,"
+                            + " offset=100, size=200",
+                    "I1231 23:59:59.300000 stats.go:42 \"performance\" GET \"/pulsar/x-index\" 200 1ms",
+                    "I1231 23:59:59.400000 stats.go:42 \"performance\" GET \"/pulsar/x\" 206 10ms",
+                    // after the new year
+                    "I0101 00:00:00.500000 stats.go:42 \"performance\" GET \"/pulsar/x\" 206 10ms", ""));
+            // 2026-12-31T23:59:59Z, the run's reference
+            long reference = 1_798_761_599_000L;
+            RunReport.StorageRequests requests = RunReport.StorageRequests.read(log, reference);
+            assertThat(requests.reads()).hasSize(3);
+            assertThat(requests.rangeBytes(Long.MIN_VALUE, Long.MAX_VALUE)).isEqualTo(300);
+            // the request after midnight is in the next year, just after the reference
+            assertThat(requests.reads(reference, reference + 2_000)).isEqualTo(3);
+
+            // February 29 of a leap year, near a reference in the year before it
+            Files.writeString(log, "I0229 12:00:00.000000 stats.go:42 \"performance\" GET \"/pulsar/x\" 206 1ms\n");
+            // 2027-12-31T00:00:00Z
+            RunReport.StorageRequests leapDay = RunReport.StorageRequests.read(log, 1_830_211_200_000L);
+            // 2028-02-29T12:00:00Z
+            assertThat(leapDay.reads()).containsExactly(1_835_438_400_000L);
+        } finally {
+            Files.delete(log);
+        }
     }
 
     private JsonNode late(int index, long joined, long caughtUp, long messages, long lastReceived) throws Exception {
