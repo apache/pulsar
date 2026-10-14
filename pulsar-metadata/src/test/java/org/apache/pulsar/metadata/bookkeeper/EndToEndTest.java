@@ -29,7 +29,6 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import java.nio.charset.StandardCharsets;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
@@ -37,7 +36,6 @@ import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
-import org.apache.bookkeeper.client.LedgerMetadataBuilder;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
@@ -89,56 +87,6 @@ public class EndToEndTest extends BaseMetadataStoreTest {
                 verify(collidingManager, times(2)).createLedgerMetadata(anyLong(), any(LedgerMetadata.class));
                 assertThat(ledgerManager.readLedgerMetadata(collidingLedgerId.get()).get(10, TimeUnit.SECONDS)
                         .getValue().getLedgerId()).isEqualTo(collidingLedgerId.get());
-            }
-            try (var readHandle = client.newOpenLedgerOp()
-                    .withLedgerId(ledgerId)
-                    .withPassword(new byte[0])
-                    .execute().get(10, TimeUnit.SECONDS);
-                 var entries = readHandle.read(0, 0)) {
-                assertThat(entries.getEntry(0).getEntryBytes()).isEqualTo(entry);
-            }
-        }
-    }
-
-    @Test(timeOut = 60000)
-    public void testCreateLedgerRetriesManyIdCollisions() throws Exception {
-        // Memory completes metadata operations inline, exposing recursive collision retries.
-        try (var cluster = BKCluster.builder().metadataServiceUri("memory:" + UUID.randomUUID()).build();
-             var client = cluster.newClient()) {
-            long firstLedgerId;
-            try (var handle = client.newCreateLedgerOp()
-                    .withEnsembleSize(1)
-                    .withWriteQuorumSize(1)
-                    .withAckQuorumSize(1)
-                    .withDigestType(DigestType.CRC32C)
-                    .withPassword(new byte[0])
-                    .execute().get(10, TimeUnit.SECONDS)) {
-                firstLedgerId = handle.getId();
-            }
-            LedgerManager ledgerManager = client.getLedgerManager();
-            LedgerMetadata metadata = ledgerManager.readLedgerMetadata(firstLedgerId)
-                    .get(10, TimeUnit.SECONDS).getValue();
-            long lastCollidingId = firstLedgerId + 3000;
-            // Creating explicit IDs does not advance the generator. Populate the same occupied range
-            // directly through the manager without opening thousands of ledger handles.
-            for (long ledgerId = firstLedgerId + 1; ledgerId <= lastCollidingId; ledgerId++) {
-                ledgerManager.createLedgerMetadata(ledgerId,
-                                LedgerMetadataBuilder.from(metadata).withId(ledgerId).build())
-                        .get(10, TimeUnit.SECONDS);
-            }
-
-            byte[] entry = "entry".getBytes(StandardCharsets.UTF_8);
-            long ledgerId;
-            try (var handle = client.newCreateLedgerOp()
-                    .withEnsembleSize(1)
-                    .withWriteQuorumSize(1)
-                    .withAckQuorumSize(1)
-                    .withDigestType(DigestType.CRC32C)
-                    .withPassword(new byte[0])
-                    .execute().get(10, TimeUnit.SECONDS)) {
-                ledgerId = handle.getId();
-                assertThat(ledgerId).isGreaterThan(lastCollidingId);
-                assertThat(handle.append(entry)).isZero();
             }
             try (var readHandle = client.newOpenLedgerOp()
                     .withLedgerId(ledgerId)

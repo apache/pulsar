@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.metadata.bookkeeper;
 
-import io.netty.util.concurrent.ImmediateEventExecutor;
 import java.io.IOException;
 import java.util.EnumSet;
 import java.util.Optional;
@@ -65,16 +64,13 @@ public class PulsarLedgerIdGenerator implements LedgerIdGenerator {
                         // We've not moved onto 63-bit ledgers yet.
                         return generateShortLedgerId();
                     }
-                })
-                // BookKeeper retries ID collisions from this callback. Queue reentrant callbacks on
-                // the same thread so synchronous metadata stores cannot grow the stack on every retry.
-                .thenAcceptAsync(ledgerId -> genericCallback.operationComplete(BKException.Code.OK, ledgerId),
-                        ImmediateEventExecutor.INSTANCE)
-                .exceptionally(ex -> {
-                    log.error().exceptionMessage(ex).log("Error generating ledger id");
-                    genericCallback.operationComplete(BKException.Code.MetaStoreException, -1L);
-                    return null;
-                });
+                }).thenAccept(ledgerId ->
+                genericCallback.operationComplete(BKException.Code.OK, ledgerId)
+        ).exceptionally(ex -> {
+            log.error().exceptionMessage(ex).log("Error generating ledger id");
+            genericCallback.operationComplete(BKException.Code.MetaStoreException, -1L);
+            return null;
+        });
 
     }
 
