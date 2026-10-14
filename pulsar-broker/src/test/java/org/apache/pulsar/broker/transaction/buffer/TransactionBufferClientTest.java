@@ -164,6 +164,8 @@ public class TransactionBufferClientTest extends TransactionTestBase {
             }
             assertThat(admin.lookups().lookupTopic(snapshotTopicName)).isEqualTo(snapshotBroker.getBrokerServiceUrl());
         }
+        // Exercise the existence check for a snapshot topic owned by another broker.
+        admin.topics().createNonPartitionedTopic(NAMESPACE1 + "/" + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
         admin.topics().createNonPartitionedTopic(topic1);
         assertThat(admin.lookups().lookupTopic(topic1)).isEqualTo(topicBroker.getBrokerServiceUrl());
         @Cleanup
