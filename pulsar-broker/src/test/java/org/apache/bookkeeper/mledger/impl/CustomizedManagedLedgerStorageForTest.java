@@ -49,7 +49,7 @@ import org.apache.bookkeeper.mledger.PositionBound;
 import org.apache.bookkeeper.mledger.ReadOnlyCursor;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
 import org.apache.pulsar.broker.ManagedLedgerClientFactory;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -600,6 +600,7 @@ public class CustomizedManagedLedgerStorageForTest extends ManagedLedgerClientFa
             delegate.trimConsumedLedgersInBackground(promise);
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public void rollCurrentLedgerIfFull() {
             delegate.rollCurrentLedgerIfFull();
@@ -616,12 +617,12 @@ public class CustomizedManagedLedgerStorageForTest extends ManagedLedgerClientFa
         }
 
         @Override
-        public CompletableFuture<MLDataFormats.ManagedLedgerInfo.LedgerInfo> getLedgerInfo(long ledgerId) {
+        public CompletableFuture<LedgerInfo> getLedgerInfo(long ledgerId) {
             return delegate.getLedgerInfo(ledgerId);
         }
 
         @Override
-        public Optional<MLDataFormats.ManagedLedgerInfo.LedgerInfo> getOptionalLedgerInfo(long ledgerId) {
+        public Optional<LedgerInfo> getOptionalLedgerInfo(long ledgerId) {
             return delegate.getOptionalLedgerInfo(ledgerId);
         }
 
@@ -652,7 +653,7 @@ public class CustomizedManagedLedgerStorageForTest extends ManagedLedgerClientFa
         }
 
         @Override
-        public NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> getLedgersInfo() {
+        public NavigableMap<Long, LedgerInfo> getLedgersInfo() {
             return delegate.getLedgersInfo();
         }
 

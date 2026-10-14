@@ -28,7 +28,7 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import lombok.Builder;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 
 /**
  * A Rate Limiter that distributes permits at a configurable rate. Each {@link #acquire()} blocks if necessary until a
@@ -51,7 +51,7 @@ import lombok.extern.slf4j.Slf4j;
  * <li><b>Faster: </b>RateLimiter is light-weight and faster than Guava-RateLimiter</li>
  * </ul>
  */
-@Slf4j
+@CustomLog
 public class RateLimiter implements AutoCloseable{
     private final ScheduledExecutorService executorService;
     private long rateTime;

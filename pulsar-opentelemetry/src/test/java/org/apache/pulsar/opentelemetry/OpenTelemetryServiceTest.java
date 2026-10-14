@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import lombok.Cleanup;
 import org.apache.commons.lang3.StringUtils;
@@ -154,6 +155,26 @@ public class OpenTelemetryServiceTest {
     }
 
     @Test
+    public void testPrometheusExporterDefaultsToAllInterfacesHost() {
+        // OpenTelemetry 1.62.0 changed the Prometheus exporter's default server host from "0.0.0.0" to "localhost".
+        // Pulsar restores the previous "0.0.0.0" default so the metrics endpoint stays reachable from outside the
+        // local host (e.g. another container or a remote Prometheus scraper). The default must remain overridable
+        // via the standard OTEL_EXPORTER_PROMETHEUS_HOST / otel.exporter.prometheus.host configuration.
+        var capturedHost = new AtomicReference<String>();
+        @Cleanup
+        var ots = OpenTelemetryService.builder()
+                .builderCustomizer(getBuilderCustomizer(null,
+                        Map.of(OpenTelemetryService.OTEL_SDK_DISABLED_KEY, "false"))
+                        .andThen(builder -> builder.addPropertiesCustomizer(config -> {
+                            capturedHost.set(config.getString(OpenTelemetryService.OTEL_EXPORTER_PROMETHEUS_HOST_KEY));
+                            return Map.of();
+                        })))
+                .clusterName("openTelemetryServicePrometheusHostTestCluster")
+                .build();
+        assertThat(capturedHost.get()).isEqualTo("0.0.0.0");
+    }
+
+    @Test
     public void testLongCounter() {
         var longCounter = meter.counterBuilder("dummyLongCounter").build();
         var attributes = Attributes.of(AttributeKey.stringKey("dummyAttr"), "dummyValue");
@@ -204,7 +225,12 @@ public class OpenTelemetryServiceTest {
 
     @Test
     public void testJvmRuntimeMetrics() {
-        // Attempt collection of GC metrics. The metrics should be populated regardless if GC is triggered or not.
+        // Force GC by creating memory pressure. Runtime.getRuntime().gc() is just a hint that the JVM
+        // can ignore, especially in a fresh JVM with plenty of heap. Allocating and discarding memory
+        // ensures at least one GC cycle occurs, so that jvm.gc.duration metric is populated.
+        for (int i = 0; i < 100; i++) {
+            byte[] waste = new byte[1024 * 1024]; // 1MB
+        }
         Runtime.getRuntime().gc();
 
         var metrics = reader.collectAllMetrics();

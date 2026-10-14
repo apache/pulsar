@@ -44,6 +44,59 @@ import org.testng.annotations.Test;
  */
 public class ConfigurationDataUtilsTest {
 
+    // PIP-478: a stale, removed PIP-337 sslFactoryPlugin key in a loadConf map is rejected loudly with an
+    // actionable migration message pointing to the tlsFactoryClassName successor.
+    @Test
+    public void testRemovedPip337SslFactoryPluginKeysRejectedLoudly() {
+        for (String key : new String[] {"sslFactoryPlugin", "sslFactoryPluginParams"}) {
+            Map<String, Object> config = new HashMap<>();
+            config.put(key, "com.example.CustomSslFactory");
+            try {
+                ConfigurationDataUtils.rejectRemovedPip337TlsFactoryKeys(config);
+                fail("expected IllegalArgumentException for removed key " + key);
+            } catch (IllegalArgumentException e) {
+                assertTrue(e.getMessage().contains(key), "message should name the removed key: " + e.getMessage());
+                assertTrue(e.getMessage().contains("tlsFactoryClassName"),
+                        "message should point to the successor: " + e.getMessage());
+            }
+        }
+        // A blank value (the default) or an absent key is tolerated.
+        Map<String, Object> tolerated = new HashMap<>();
+        tolerated.put("sslFactoryPlugin", "");
+        ConfigurationDataUtils.rejectRemovedPip337TlsFactoryKeys(tolerated);
+        ConfigurationDataUtils.rejectRemovedPip337TlsFactoryKeys(new HashMap<>());
+        ConfigurationDataUtils.rejectRemovedPip337TlsFactoryKeys(null);
+    }
+
+    // PIP-478 (FIX): the OLD DEFAULT factory FQCN on the *Plugin key is equivalent to "unset" (no custom
+    // factory) and is tolerated; a custom value is still rejected, and the default FQCN is not a valid
+    // *PluginParams value so a non-blank params value is still rejected.
+    @Test
+    public void testRemovedPip337DefaultSslFactoryFqcnTolerated() {
+        String defaultFqcn = "org.apache.pulsar.common.util.DefaultPulsarSslFactory";
+        Map<String, Object> defaulted = new HashMap<>();
+        defaulted.put("sslFactoryPlugin", defaultFqcn);
+        ConfigurationDataUtils.rejectRemovedPip337TlsFactoryKeys(defaulted); // tolerated -> no throw
+
+        Map<String, Object> custom = new HashMap<>();
+        custom.put("sslFactoryPlugin", "com.acme.CustomFactory");
+        try {
+            ConfigurationDataUtils.rejectRemovedPip337TlsFactoryKeys(custom);
+            fail("expected IllegalArgumentException for a custom sslFactoryPlugin");
+        } catch (IllegalArgumentException expected) {
+            // ok
+        }
+
+        Map<String, Object> params = new HashMap<>();
+        params.put("sslFactoryPluginParams", defaultFqcn);
+        try {
+            ConfigurationDataUtils.rejectRemovedPip337TlsFactoryKeys(params);
+            fail("expected IllegalArgumentException for a non-blank sslFactoryPluginParams");
+        } catch (IllegalArgumentException expected) {
+            // ok
+        }
+    }
+
     @Test
     public void testLoadClientConfigurationData() {
         ClientConfigurationData confData = new ClientConfigurationData();
@@ -77,7 +130,15 @@ public class ConfigurationDataUtilsTest {
         assertEquals("v2", confData.getAuthParamMap().get("k2"));
         assertEquals("0.0.0.0", confData.getDnsLookupBindAddress());
         assertEquals(0, confData.getDnsLookupBindPort());
-        assertEquals(dnsServerAddresses, confData.getDnsServerAddresses());
+        // jackson-databind 2.22+ defers DNS resolution when deserializing InetSocketAddress
+        // (CVE-2026-54514 fix), which changes the resolved/unresolved representation. Compare host
+        // and port — the values that must survive the config round-trip — instead of object equality.
+        List<InetSocketAddress> loadedDnsServerAddresses = confData.getDnsServerAddresses();
+        assertEquals(loadedDnsServerAddresses.size(), dnsServerAddresses.size());
+        for (int i = 0; i < dnsServerAddresses.size(); i++) {
+            assertEquals(loadedDnsServerAddresses.get(i).getHostString(), dnsServerAddresses.get(i).getHostString());
+            assertEquals(loadedDnsServerAddresses.get(i).getPort(), dnsServerAddresses.get(i).getPort());
+        }
     }
 
     @Test
@@ -100,7 +161,7 @@ public class ConfigurationDataUtilsTest {
 
     @Test
     public void testLoadConsumerConfigurationData() {
-        ConsumerConfigurationData confData = new ConsumerConfigurationData();
+        ConsumerConfigurationData<?> confData = new ConsumerConfigurationData();
         confData.setSubscriptionName("unknown-subscription");
         confData.setPriorityLevel(10000);
         confData.setConsumerName("unknown-consumer");
@@ -117,7 +178,7 @@ public class ConfigurationDataUtilsTest {
 
     @Test
     public void testLoadReaderConfigurationData() {
-        ReaderConfigurationData confData = new ReaderConfigurationData();
+        ReaderConfigurationData<?> confData = new ReaderConfigurationData();
         confData.setTopicName("unknown");
         confData.setReceiverQueueSize(1000000);
         confData.setReaderName("unknown-reader");
@@ -132,7 +193,7 @@ public class ConfigurationDataUtilsTest {
 
     @Test
     public void testLoadConfigurationDataWithUnknownFields() {
-        ReaderConfigurationData confData = new ReaderConfigurationData();
+        ReaderConfigurationData<?> confData = new ReaderConfigurationData();
         confData.setTopicName("unknown");
         confData.setReceiverQueueSize(1000000);
         confData.setReaderName("unknown-reader");
@@ -166,6 +227,7 @@ public class ConfigurationDataUtilsTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testLoadSecretParams() {
         ClientConfigurationData confData = new ClientConfigurationData();
         Map<String, String> authParamMap = new HashMap<>();

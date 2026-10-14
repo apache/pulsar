@@ -117,7 +117,7 @@ public class ConcurrentBitmapSortedLongPairSet {
             result.setValue(Optional.of(item));
             return false;
         });
-        return result.getValue();
+        return result.get();
     }
 
     public <T extends Comparable<T>> NavigableSet<T> items(int numberOfItems,

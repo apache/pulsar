@@ -23,7 +23,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
@@ -42,7 +42,7 @@ import org.testng.annotations.Test;
 /**
  * Source Property related test cases.
  */
-@Slf4j
+@CustomLog
 public class PulsarSourcePropertyTest extends PulsarStandaloneTestSuite {
     @Test(groups = {"source"})
     public void testSourceProperty() throws Exception {
@@ -100,7 +100,7 @@ public class PulsarSourcePropertyTest extends PulsarStandaloneTestSuite {
                 "--archive", archive,
                 "--classname", className
         };
-        log.info("Run command : {}", StringUtils.join(commands, ' '));
+        log.info().attr("command", StringUtils.join(commands, ' ')).log("Run command");
         ContainerExecResult result = container.execCmd(commands);
         assertTrue(
                 result.getStdout().contains("Created successfully"),

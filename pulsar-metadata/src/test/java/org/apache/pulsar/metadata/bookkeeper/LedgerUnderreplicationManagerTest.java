@@ -18,13 +18,13 @@
  */
 package org.apache.pulsar.metadata.bookkeeper;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import com.google.protobuf.TextFormat;
 import java.lang.reflect.Field;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -44,7 +44,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.meta.LayoutManager;
 import org.apache.bookkeeper.meta.LedgerManagerFactory;
@@ -52,7 +52,7 @@ import org.apache.bookkeeper.meta.LedgerUnderreplicationManager;
 import org.apache.bookkeeper.meta.UnderreplicatedLedger;
 import org.apache.bookkeeper.meta.ZkLedgerUnderreplicationManager;
 import org.apache.bookkeeper.net.DNS;
-import org.apache.bookkeeper.proto.DataFormats.UnderreplicatedLedgerFormat;
+import org.apache.bookkeeper.proto.UnderreplicatedLedgerFormat;
 import org.apache.bookkeeper.replication.ReplicationException.UnavailableException;
 import org.apache.bookkeeper.util.BookKeeperConstants;
 import org.apache.commons.lang3.StringUtils;
@@ -68,7 +68,7 @@ import org.testng.annotations.Test;
 /**
  * Test the zookeeper implementation of the ledger replication manager.
  */
-@Slf4j
+@CustomLog
 public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
 
     private Future<Long> getLedgerToReplicate(LedgerUnderreplicationManager m) {
@@ -76,10 +76,10 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
             try {
                 log.info("Starting thread checking for ledgers");
                 long l = m.getLedgerToRereplicate();
-                log.info("Get ledger id: {}", Long.toHexString(l));
+                log.info().attr("ledgerId", Long.toHexString(l)).log("Get ledger id");
                 return l;
             } catch (Exception e) {
-                log.error("Error getting ledger id", e);
+                log.error().exception(e).log("Error getting ledger id");
                 return -1L;
             }
         }, executor);
@@ -94,6 +94,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
     private String urLedgerPath;
     private ExecutorService executor;
 
+    @SuppressWarnings("deprecation")
     private void methodSetup(Supplier<String> urlSupplier) throws Exception {
         this.executor = Executors.newSingleThreadExecutor();
         String ledgersRoot = "/ledgers-" + UUID.randomUUID();
@@ -133,6 +134,127 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
             }
             executor = null;
         }
+    }
+
+    @Test(timeOut = 30000, dataProvider = "impl")
+    public void testExplicitLockRelease(String provider, Supplier<String> urlSupplier) throws Exception {
+        methodSetup(urlSupplier);
+        long ledgerId = 123L;
+        try (var other = lmf.newLedgerUnderreplicationManager()) {
+            assertThat(lum.getLedgerUnreplicationInfo(ledgerId)).isNull();
+            lum.acquireUnderreplicatedLedger(ledgerId);
+            assertThat(other.isLedgerBeingReplicated(ledgerId)).isTrue();
+
+            lum.releaseUnderreplicatedLedger(ledgerId);
+            assertThat(other.isLedgerBeingReplicated(ledgerId)).isFalse();
+            other.acquireUnderreplicatedLedger(ledgerId);
+
+            // Releasing again must not remove the new owner's lock.
+            lum.releaseUnderreplicatedLedger(ledgerId);
+            assertThat(other.isLedgerBeingReplicated(ledgerId)).isTrue();
+            other.releaseUnderreplicatedLedger(ledgerId);
+            assertThat(lum.isLedgerBeingReplicated(ledgerId)).isFalse();
+        }
+    }
+
+    @Test(timeOut = 30000, dataProvider = "impl")
+    public void testExplicitLockCloseWithSharedStore(String provider, Supplier<String> urlSupplier) throws Exception {
+        methodSetup(urlSupplier);
+        long polledLedgerId = 123L;
+        long explicitLedgerId = 456L;
+        try (var other = lmf.newLedgerUnderreplicationManager()) {
+            lum.markLedgerUnderreplicated(polledLedgerId, "bookie:3181");
+            assertThat(lum.pollLedgerToRereplicate()).isEqualTo(polledLedgerId);
+            lum.acquireUnderreplicatedLedger(explicitLedgerId);
+
+            lum.close();
+
+            // Both managers share the same store, which remains open after lum.close().
+            assertThat(other.isLedgerBeingReplicated(polledLedgerId)).isFalse();
+            assertThat(other.isLedgerBeingReplicated(explicitLedgerId)).isFalse();
+            other.acquireUnderreplicatedLedger(explicitLedgerId);
+            assertThat(other.pollLedgerToRereplicate()).isEqualTo(polledLedgerId);
+            other.releaseUnderreplicatedLedger(explicitLedgerId);
+            other.markLedgerReplicated(polledLedgerId);
+        }
+    }
+
+    @Test(timeOut = 30000, dataProvider = "impl")
+    public void testExplicitLockMarkPreservesUnderreplicatedRecord(String provider, Supplier<String> urlSupplier)
+            throws Exception {
+        methodSetup(urlSupplier);
+        long ledgerId = 123L;
+        lum.markLedgerUnderreplicated(ledgerId, "bookie:3181");
+        String ledgerPath = PulsarLedgerUnderreplicationManager.getUrLedgerPath(urLedgerPath, ledgerId);
+        GetResult original = store.get(ledgerPath).get(10, TimeUnit.SECONDS).orElseThrow();
+
+        lum.acquireUnderreplicatedLedger(ledgerId);
+        lum.markLedgerReplicated(ledgerId);
+
+        GetResult retained = store.get(ledgerPath).get(10, TimeUnit.SECONDS).orElseThrow();
+        assertThat(retained.getValue()).isEqualTo(original.getValue());
+        assertThat(retained.getStat().getVersion()).isEqualTo(original.getStat().getVersion());
+        assertThat(lum.isLedgerBeingReplicated(ledgerId)).isFalse();
+        try (var other = lmf.newLedgerUnderreplicationManager()) {
+            assertThat(other.pollLedgerToRereplicate()).isEqualTo(ledgerId);
+            other.markLedgerReplicated(ledgerId);
+            assertThat(other.getLedgerUnreplicationInfo(ledgerId)).isNull();
+            assertThat(other.isLedgerBeingReplicated(ledgerId)).isFalse();
+        }
+    }
+
+    @Test(timeOut = 30000, dataProvider = "impl")
+    public void testExplicitLockMarkWithoutUnderreplicatedRecord(String provider, Supplier<String> urlSupplier)
+            throws Exception {
+        methodSetup(urlSupplier);
+        long ledgerId = 123L;
+        lum.acquireUnderreplicatedLedger(ledgerId);
+        lum.markLedgerReplicated(ledgerId);
+
+        assertThat(lum.getLedgerUnreplicationInfo(ledgerId)).isNull();
+        assertThat(lum.isLedgerBeingReplicated(ledgerId)).isFalse();
+        try (var other = lmf.newLedgerUnderreplicationManager()) {
+            other.acquireUnderreplicatedLedger(ledgerId);
+            other.releaseUnderreplicatedLedger(ledgerId);
+        }
+    }
+
+    @Test(timeOut = 30000, dataProvider = "impl")
+    public void testFailedExplicitLockAcquireCannotReleaseOwner(String provider, Supplier<String> urlSupplier)
+            throws Exception {
+        methodSetup(urlSupplier);
+        long ledgerId = 123L;
+        lum.markLedgerUnderreplicated(ledgerId, "bookie:3181");
+        assertThat(lum.pollLedgerToRereplicate()).isEqualTo(ledgerId);
+        try (var other = lmf.newLedgerUnderreplicationManager()) {
+            assertThatThrownBy(() -> other.acquireUnderreplicatedLedger(ledgerId))
+                    .isInstanceOf(UnavailableException.class);
+            other.releaseUnderreplicatedLedger(ledgerId);
+            assertThat(lum.isLedgerBeingReplicated(ledgerId)).isTrue();
+            other.markLedgerReplicated(ledgerId);
+            assertThat(lum.getLedgerUnreplicationInfo(ledgerId)).isNotNull();
+            other.close();
+            assertThat(lum.isLedgerBeingReplicated(ledgerId)).isTrue();
+        }
+        lum.markLedgerReplicated(ledgerId);
+        assertThat(lum.getLedgerUnreplicationInfo(ledgerId)).isNull();
+        assertThat(lum.isLedgerBeingReplicated(ledgerId)).isFalse();
+    }
+
+    @Test(timeOut = 30000, dataProvider = "impl")
+    public void testFailedExplicitLockAcquirePreservesPolledVersion(String provider, Supplier<String> urlSupplier)
+            throws Exception {
+        methodSetup(urlSupplier);
+        long ledgerId = 123L;
+        lum.markLedgerUnderreplicated(ledgerId, "bookie:3181");
+        assertThat(lum.pollLedgerToRereplicate()).isEqualTo(ledgerId);
+        assertThatThrownBy(() -> lum.acquireUnderreplicatedLedger(ledgerId))
+                .isInstanceOf(UnavailableException.class);
+
+        lum.markLedgerReplicated(ledgerId);
+
+        assertThat(lum.getLedgerUnreplicationInfo(ledgerId)).isNull();
+        assertThat(lum.isLedgerBeingReplicated(ledgerId)).isFalse();
     }
 
     /**
@@ -300,8 +422,8 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         assertEquals(l, lB.get(), "Should be the ledger I marked");
     }
 
-    @Test(dataProvider = "zkImpls", timeOut = 10000)
-    public void testZkMetasStoreMarkReplicatedDeleteEmptyParentNodes(String provider, Supplier<String> urlSupplier)
+    @Test(dataProvider = "distributedImpl", timeOut = 10000)
+    public void testMarkReplicatedDeletesEmptyParentNodes(String provider, Supplier<String> urlSupplier)
             throws Exception {
         methodSetup(urlSupplier);
 
@@ -499,11 +621,10 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         m2.markLedgerUnderreplicated(ledgerA, missingReplica1);
 
         // verify duplicate missing replica
-        UnderreplicatedLedgerFormat.Builder builderA = UnderreplicatedLedgerFormat
-                .newBuilder();
+        UnderreplicatedLedgerFormat builderA = new UnderreplicatedLedgerFormat();
         byte[] data = store.get(getUrLedgerZnode(ledgerA)).join().get().getValue();
-        TextFormat.merge(new String(data, Charset.forName("UTF-8")), builderA);
-        List<String> replicaList = builderA.getReplicaList();
+        builderA.parseFromTextFormat(data);
+        List<String> replicaList = builderA.getReplicasList();
         assertEquals(replicaList.size(), 1, "Published duplicate missing replica : " + replicaList);
         assertTrue(replicaList.contains(missingReplica1), "Published duplicate missing replica : " + replicaList);
 
@@ -623,7 +744,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         try {
             lum.markLedgerUnderreplicated(ledgerA, missingReplica);
         } catch (UnavailableException e) {
-            log.error("Unexpected exception while marking urLedger", e);
+            log.error().exception(e).log("Unexpected exception while marking urLedger");
             fail("Unexpected exception while marking urLedger" + e.getMessage());
         }
 
@@ -652,7 +773,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         try {
             lum.markLedgerUnderreplicated(ledgerA, missingReplica);
         } catch (UnavailableException e) {
-            log.debug("Unexpected exception while marking urLedger", e);
+            log.debug().exception(e).log("Unexpected exception while marking urLedger");
             fail("Unexpected exception while marking urLedger" + e.getMessage());
         }
         AtomicInteger callbackCount = new AtomicInteger();
@@ -668,8 +789,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         store.registerListener(n -> {
             if (n.getType() == NotificationType.Created && n.getPath().equals(urLockLedgerA)) {
                 znodeLatch.countDown();
-                log.debug("Recieved node creation event for the zNodePath:"
-                        + n.getPath());
+                log.debug("Recieved node creation event for the zNodePath:" + n.getPath());
             }
         });
 
@@ -774,12 +894,11 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         }
 
         String urLedgerA = new String(store.get(znodeA).join().get().getValue());
-        UnderreplicatedLedgerFormat.Builder builderA = UnderreplicatedLedgerFormat
-                .newBuilder();
+        UnderreplicatedLedgerFormat builderA = new UnderreplicatedLedgerFormat();
         for (String replica : missingReplica) {
             builderA.addReplica(replica);
         }
-        List<String> replicaList = builderA.getReplicaList();
+        List<String> replicaList = builderA.getReplicasList();
 
         for (String replica : missingReplica) {
             assertTrue(replicaList.contains(replica),
@@ -798,8 +917,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
                 long ledgerToRereplicate = m.getLedgerToRereplicate();
                 m.releaseUnderreplicatedLedger(ledgerToRereplicate);
             } catch (UnavailableException e) {
-                log.error("UnavailableException when "
-                        + "taking or releasing lock", e);
+                log.error().exception(e).log("UnavailableException when taking or releasing lock");
             }
             latch.countDown();
         }

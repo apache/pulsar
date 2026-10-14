@@ -59,6 +59,7 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
+        setupDefaultTenantAndNamespace();
         brokerPort = pulsar.getBrokerListenPort().get();
         serviceUrl = "pulsar://non-existing-dns-name:" + brokerPort;
     }
@@ -88,7 +89,7 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
                         brokerPort)))
                 .thenReturn(CompletableFuture.completedFuture(result));
 
-        client.newProducer().topic("persistent://sample/standalone/ns/my-topic").create();
+        client.newProducer().topic("persistent://public/default/my-topic").create();
 
         client.close();
         eventLoop.shutdownGracefully();
@@ -96,7 +97,7 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testSelectConnectionForSameProducer() throws Exception {
-        final String topicName = BrokerTestUtil.newUniqueName("persistent://sample/standalone/ns/tp_");
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/tp_");
         admin.topics().createNonPartitionedTopic(topicName);
         final CommandCloseProducer commandCloseProducer = new CommandCloseProducer();
         // 10 connection per broker.
@@ -146,7 +147,7 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
                 .thenReturn(CompletableFuture.completedFuture(result));
 
         // Create producer should succeed by trying the 2nd IP
-        client.newProducer().topic("persistent://sample/standalone/ns/my-topic").create();
+        client.newProducer().topic("persistent://public/default/my-topic").create();
         client.close();
 
         eventLoop.shutdownGracefully();
@@ -210,6 +211,7 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
 
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSetProxyToTargetBrokerAddress() throws Exception {
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setConnectionsPerBroker(1);
@@ -233,10 +235,12 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
             }
 
             @Override
+            @SuppressWarnings("unchecked")
             protected void doResolveAll(SocketAddress socketAddress, Promise promise) throws Exception {
                 final InetSocketAddress socketAddress1 = (InetSocketAddress) socketAddress;
                 String hostName = socketAddress1.getHostName();
                 final boolean isProxy = hostName.equals("proxy");
+                @SuppressWarnings("unchecked")
                 final boolean isBroker = hostName.startsWith("broker");
                 if (!isProxy && !isBroker) {
                     promise.setFailure(new IllegalStateException());

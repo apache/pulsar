@@ -26,34 +26,15 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.client.impl.ConsumerBuilderImpl;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-public class ReplicateSubscriptionTest extends ProducerConsumerBase {
-
-    @BeforeClass
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
-
-    @Override
-    protected void doInitConf() throws Exception {
-        super.doInitConf();
-    }
+public class ReplicateSubscriptionTest extends SharedPulsarBaseTest {
 
     @DataProvider
     public Object[] replicateSubscriptionState() {
@@ -67,7 +48,7 @@ public class ReplicateSubscriptionTest extends ProducerConsumerBase {
     @Test(dataProvider = "replicateSubscriptionState")
     public void testReplicateSubscriptionState(Boolean replicateSubscriptionState)
             throws Exception {
-        String topic = "persistent://my-property/my-ns/" + System.nanoTime();
+        String topic = newTopicName();
         String subName = "sub-" + System.nanoTime();
         ConsumerBuilder<String> consumerBuilder = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
@@ -79,7 +60,7 @@ public class ReplicateSubscriptionTest extends ProducerConsumerBase {
         assertEquals(consumerBuilderImpl.getConf().getReplicateSubscriptionState(), replicateSubscriptionState);
         @Cleanup
         Consumer<String> ignored = consumerBuilder.subscribe();
-        CompletableFuture<Optional<Topic>> topicIfExists = pulsar.getBrokerService().getTopicIfExists(topic);
+        CompletableFuture<Optional<Topic>> topicIfExists = getTopicIfExists(topic);
         assertThat(topicIfExists)
                 .succeedsWithin(3, TimeUnit.SECONDS)
                 .matches(optionalTopic -> {

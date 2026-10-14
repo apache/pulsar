@@ -21,7 +21,7 @@ package org.apache.pulsar.metadata.bookkeeper;
 import java.nio.charset.StandardCharsets;
 import java.util.function.Supplier;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.api.DigestType;
@@ -36,7 +36,7 @@ import org.testng.annotations.Test;
 /**
  * Test the Bookie and Client end-to-end with MetadataStore backend.
  */
-@Slf4j
+@CustomLog
 public class EndToEndTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void testBasic(String provider, Supplier<String> urlSupplier) throws Exception {
@@ -62,7 +62,7 @@ public class EndToEndTest extends BaseMetadataStoreTest {
 
             for (int i = 0; i < 10; i++) {
                 wh.append(("entry-" + i).getBytes(StandardCharsets.UTF_8));
-                log.info("Written entry {}", i);
+                log.info().attr("entry", i).log("Written entry");
             }
 
             ledgerId = wh.getId();

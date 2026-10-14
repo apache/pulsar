@@ -18,12 +18,12 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import jakarta.ws.rs.client.WebTarget;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import javax.ws.rs.client.WebTarget;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.Lookup;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -54,8 +54,7 @@ public class LookupImpl extends BaseResource implements Lookup {
     @Override
     public CompletableFuture<String> lookupTopicAsync(String topic) {
         TopicName topicName = TopicName.get(topic);
-        String prefix = topicName.isV2() ? "/topic" : "/destination";
-        WebTarget path = v2lookup.path(prefix).path(topicName.getLookupName());
+        WebTarget path = v2lookup.path("/topic").path(topicName.getLookupName());
 
         return asyncGetRequest(path, new FutureCallback<LookupData>() {})
                 .thenApply(lookupData -> useTls && StringUtils.isNotBlank(lookupData.getBrokerUrlTls())
@@ -117,8 +116,7 @@ public class LookupImpl extends BaseResource implements Lookup {
     @Override
     public CompletableFuture<String> getBundleRangeAsync(String topic) {
         TopicName topicName = TopicName.get(topic);
-        String prefix = topicName.isV2() ? "/topic" : "/destination";
-        WebTarget path = v2lookup.path(prefix).path(topicName.getLookupName()).path("bundle");
+        WebTarget path = v2lookup.path("/topic").path(topicName.getLookupName()).path("bundle");
         return asyncGetRequest(path, new FutureCallback<String>(){});
     }
 

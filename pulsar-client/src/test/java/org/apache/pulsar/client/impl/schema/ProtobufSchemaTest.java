@@ -24,6 +24,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.protobuf.Any;
+import com.google.protobuf.StringValue;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import java.util.ArrayList;
@@ -32,14 +34,15 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.avro.Schema;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.apache.pulsar.functions.proto.Function;
+import org.json.JSONException;
+import org.skyscreamer.jsonassert.JSONAssert;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class ProtobufSchemaTest {
 
     private static final String NAME = "foo";
@@ -50,7 +53,7 @@ public class ProtobufSchemaTest {
             + "\"avro.java.string\":\"String\"},\"default\":\"\"},{\"name\":\"doubleField\","
             + "\"type\":\"double\",\"default\":0.0},{\"name\":\"intField\",\"type\":\"int\","
             + "\"default\":0},{\"name\":\"testEnum\",\"type\":{\"type\":\"enum\","
-            + "\"name\":\"TestEnum\",\"symbols\":[\"SHARED\",\"FAILOVER\"]},"
+            + "\"name\":\"TestEnum\",\"symbols\":[\"SHARED\",\"FAILOVER\"],\"default\":\"SHARED\"},"
             + "\"default\":\"SHARED\"},{\"name\":\"nestedField\","
             + "\"type\":[\"null\",{\"type\":\"record\",\"name\":\"SubMessage\","
             + "\"fields\":[{\"name\":\"foo\",\"type\":{\"type\":\"string\","
@@ -110,19 +113,32 @@ public class ProtobufSchemaTest {
 
     @Test
     public void testEncodeAndDecode() {
-        Function.FunctionDetails functionDetails = Function.FunctionDetails.newBuilder().setName(NAME).build();
+        org.apache.pulsar.client.schema.proto.Test.TestMessage testMessage =
+                org.apache.pulsar.client.schema.proto.Test.TestMessage.newBuilder().setStringField(NAME).build();
 
-        ProtobufSchema<Function.FunctionDetails> protobufSchema = ProtobufSchema.of(Function.FunctionDetails.class);
+        ProtobufSchema<org.apache.pulsar.client.schema.proto.Test.TestMessage> protobufSchema =
+                ProtobufSchema.of(org.apache.pulsar.client.schema.proto.Test.TestMessage.class);
 
-        byte[] bytes = protobufSchema.encode(functionDetails);
+        byte[] bytes = protobufSchema.encode(testMessage);
 
-        Function.FunctionDetails message = protobufSchema.decode(bytes);
+        org.apache.pulsar.client.schema.proto.Test.TestMessage message = protobufSchema.decode(bytes);
 
-        Assert.assertEquals(message.getName(), NAME);
+        Assert.assertEquals(message.getStringField(), NAME);
     }
 
     @Test
-    public void testSchema() {
+    public void testSchemaApiSupportsMessageBound() {
+        Any any = Any.pack(StringValue.newBuilder().setValue(NAME).build());
+        org.apache.pulsar.client.api.Schema<Any> protobufSchema =
+                org.apache.pulsar.client.api.Schema.PROTOBUF(Any.class);
+
+        byte[] bytes = protobufSchema.encode(any);
+        Any message = protobufSchema.decode(bytes);
+        Assert.assertEquals(message, any);
+    }
+
+    @Test
+    public void testSchema() throws JSONException {
         ProtobufSchema<org.apache.pulsar.client.schema.proto.Test.TestMessage> protobufSchema =
                 ProtobufSchema.of(org.apache.pulsar.client.schema.proto.Test.TestMessage.class);
 
@@ -131,11 +147,11 @@ public class ProtobufSchemaTest {
         String schemaJson = new String(protobufSchema.getSchemaInfo().getSchema());
         Schema.Parser parser = new Schema.Parser();
         Schema schema = parser.parse(schemaJson);
-
-        Assert.assertEquals(schema.toString(), EXPECTED_SCHEMA_JSON);
+        JSONAssert.assertEquals(schema.toString(), EXPECTED_SCHEMA_JSON, false);
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testGenericOf() {
         try {
             ProtobufSchema<org.apache.pulsar.client.schema.proto.Test.TestMessage> protobufSchema =

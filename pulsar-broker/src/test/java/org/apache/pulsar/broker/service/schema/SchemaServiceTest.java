@@ -173,12 +173,16 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         String metricsStr = output.toString(StandardCharsets.UTF_8);
         Multimap<String, Metric> metrics = parseMetrics(metricsStr);
 
+        // The *_ops_failed_total counters are registered on the default Prometheus
+        // registry (a JVM-wide static), so labels accumulated by other tests in the
+        // same JVM persist here. Only assert that no failed metric exists for THIS
+        // test's namespace.
         Collection<Metric> delMetrics = metrics.get("pulsar_schema_del_ops_failed_total");
-        Assert.assertEquals(delMetrics.size(), 0);
+        assertThat(delMetrics).noneMatch(metric -> namespace.equals(metric.tags.get("namespace")));
         Collection<Metric> getMetrics = metrics.get("pulsar_schema_get_ops_failed_total");
-        Assert.assertEquals(getMetrics.size(), 0);
+        assertThat(getMetrics).noneMatch(metric -> namespace.equals(metric.tags.get("namespace")));
         Collection<Metric> putMetrics = metrics.get("pulsar_schema_put_ops_failed_total");
-        Assert.assertEquals(putMetrics.size(), 0);
+        assertThat(putMetrics).noneMatch(metric -> namespace.equals(metric.tags.get("namespace")));
 
         Collection<Metric> deleteLatency = metrics.get("pulsar_schema_del_ops_latency_count");
         assertThat(deleteLatency).anySatisfy(metric -> {
