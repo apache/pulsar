@@ -39,6 +39,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -2290,6 +2291,202 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertTrue(ledger.isMigrated());
         assertTrue(ledger.isTerminated());
         assertEquals(ledger.getProperties(), Map.of("migrated", "true"));
+    }
+
+    @Test
+    public void testAsyncMigrateCanRetryAfterMarkerFailureDuringConcurrentTermination() throws Exception {
+        String ledgerName = "migration-marker-failure-during-termination-test";
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(ledgerName);
+        Position expectedPosition = ledger.addEntry("entry".getBytes(UTF_8));
+        CompletableFuture<Integer> closeResult = new CompletableFuture<>();
+        CompletableFuture<Position> terminationResult = asyncTerminateWithBlockedLedgerClose(ledger, closeResult);
+
+        try {
+            metadataStore.failConditional(new MetadataStoreException("injected marker failure"),
+                    (operation, path) -> operation == FaultInjectionMetadataStore.OperationType.PUT
+                            && path.equals("/managed-ledgers/" + ledgerName));
+
+            assertThatThrownBy(() -> ledger.asyncMigrate().get(5, TimeUnit.SECONDS))
+                    .isInstanceOf(ExecutionException.class)
+                    .hasCauseInstanceOf(ManagedLedgerException.class);
+            assertThat(terminationResult).isNotDone();
+            assertThat(ledger.isMigrated()).isFalse();
+            assertThat(ledger.getProperties()).isEmpty();
+
+            closeResult.complete(BKException.Code.OK);
+            assertThat(terminationResult.get(5, TimeUnit.SECONDS)).isEqualTo(expectedPosition);
+            assertThat(ledger.asyncMigrate().get(5, TimeUnit.SECONDS)).isEqualTo(expectedPosition);
+
+            ledger.close();
+            ManagedLedger reopenedLedger = factory.open(ledgerName);
+            assertThat(reopenedLedger.isMigrated()).isTrue();
+            assertThat(reopenedLedger.isTerminated()).isTrue();
+            assertThat(reopenedLedger.getLastConfirmedEntry()).isEqualTo(expectedPosition);
+        } finally {
+            closeResult.complete(BKException.Code.OK);
+        }
+    }
+
+    @DataProvider(name = "concurrentTerminationResults")
+    public Object[][] concurrentTerminationResults() {
+        return new Object[][]{
+                {"success", BKException.Code.OK, false, false},
+                {"close-failure", BKException.Code.UnexpectedConditionException, false, false},
+                {"metadata-failure", BKException.Code.OK, true, false},
+                {"synchronous-metadata-failure", BKException.Code.OK, true, true}
+        };
+    }
+
+    @Test(dataProvider = "concurrentTerminationResults")
+    @SuppressWarnings("unchecked")
+    public void testAsyncMigrateWaitsForConcurrentTermination(String scenario, int closeRc,
+                                                             boolean failTerminationMetadata,
+                                                             boolean throwTerminationMetadata) throws Exception {
+        String ledgerName = "migration-during-termination-" + scenario;
+        String ledgerPath = "/managed-ledgers/" + ledgerName;
+        CompletableFuture<Stat> markerStored = new CompletableFuture<>();
+        CompletableFuture<Stat> markerResult = new CompletableFuture<>();
+        CompletableFuture<Stat> terminationMetadataStored = new CompletableFuture<>();
+        CompletableFuture<Stat> terminationMetadataResult = new CompletableFuture<>();
+        AtomicBoolean interceptNextPut = new AtomicBoolean();
+        AtomicBoolean interceptTerminationPut = new AtomicBoolean();
+        AtomicBoolean throwNextPut = new AtomicBoolean();
+        FaultInjectionMetadataStore spyStore = spy(metadataStore);
+        doAnswer(invocation -> {
+            if (throwNextPut.compareAndSet(true, false)) {
+                throw new IllegalStateException("injected synchronous termination metadata failure");
+            }
+            if (interceptNextPut.compareAndSet(true, false)) {
+                CompletableFuture<Stat> realResult = (CompletableFuture<Stat>) invocation.callRealMethod();
+                realResult.whenComplete((stat, error) -> {
+                    if (error != null) {
+                        markerStored.completeExceptionally(error);
+                    } else {
+                        markerStored.complete(stat);
+                    }
+                });
+                return markerResult;
+            }
+            if (interceptTerminationPut.compareAndSet(true, false)) {
+                CompletableFuture<Stat> realResult = (CompletableFuture<Stat>) invocation.callRealMethod();
+                realResult.whenComplete((stat, error) -> {
+                    if (error != null) {
+                        terminationMetadataStored.completeExceptionally(error);
+                    } else {
+                        terminationMetadataStored.complete(stat);
+                    }
+                });
+                return terminationMetadataResult;
+            }
+            return invocation.callRealMethod();
+        }).when(spyStore).put(eq(ledgerPath), any(byte[].class), any());
+
+        ManagedLedgerFactoryImpl gatedFactory = new ManagedLedgerFactoryImpl(spyStore, bkc);
+        CompletableFuture<Integer> closeResult = new CompletableFuture<>();
+        try {
+            ManagedLedgerImpl ledger = (ManagedLedgerImpl) gatedFactory.open(ledgerName);
+            Position expectedPosition = ledger.addEntry("entry".getBytes(UTF_8));
+            CompletableFuture<Position> terminationResult = asyncTerminateWithBlockedLedgerClose(ledger, closeResult);
+
+            interceptNextPut.set(true);
+            CompletableFuture<Position> migrationResult = ledger.asyncMigrate();
+            markerResult.complete(markerStored.get(5, TimeUnit.SECONDS));
+            // The marker completion queues its callback on this same ordered executor. Wait until that callback
+            // has returned before asserting that migration still waits for the independent termination.
+            gatedFactory.scheduledExecutor.chooseThread(ledgerName).submit(() -> { }).get(5, TimeUnit.SECONDS);
+            assertThat(ledger.getProperties()).containsEntry("migrated", "true");
+            assertThat(terminationResult).isNotDone();
+            assertThat(migrationResult).as("Migration must wait for the pending ledger close").isNotDone();
+            assertThat(ledger.isMigrated()).isFalse();
+
+            if (throwTerminationMetadata) {
+                throwNextPut.set(true);
+            } else if (failTerminationMetadata) {
+                metadataStore.failConditional(new MetadataStoreException("injected termination metadata failure"),
+                        (operation, path) -> operation == FaultInjectionMetadataStore.OperationType.PUT
+                                && path.equals(ledgerPath));
+            } else if (closeRc == BKException.Code.OK) {
+                interceptTerminationPut.set(true);
+            }
+            closeResult.complete(closeRc);
+
+            if (closeRc != BKException.Code.OK || failTerminationMetadata) {
+                assertThatThrownBy(() -> terminationResult.get(5, TimeUnit.SECONDS))
+                        .isInstanceOf(ExecutionException.class)
+                        .hasCauseInstanceOf(ManagedLedgerException.class);
+                assertThatThrownBy(() -> migrationResult.get(5, TimeUnit.SECONDS))
+                        .isInstanceOf(ExecutionException.class)
+                        .hasCauseInstanceOf(ManagedLedgerException.class);
+                assertThat(ledger.isMigrated()).isFalse();
+                if (closeRc != BKException.Code.OK) {
+                    assertThatThrownBy(() -> ledger.asyncMigrate().get(5, TimeUnit.SECONDS))
+                            .isInstanceOf(ExecutionException.class)
+                            .hasCauseInstanceOf(ManagedLedgerException.class);
+                    return;
+                }
+                assertThat(ledger.asyncMigrate().get(5, TimeUnit.SECONDS)).isEqualTo(expectedPosition);
+            } else {
+                Stat terminationStat = terminationMetadataStored.get(5, TimeUnit.SECONDS);
+                AsyncCallbacks.TerminateCallback concurrentTermination = mock(AsyncCallbacks.TerminateCallback.class);
+                ledger.asyncTerminate(concurrentTermination, null);
+                verifyNoInteractions(concurrentTermination);
+                assertThat(terminationResult).isNotDone();
+                assertThat(migrationResult).as("Migration must wait for termination metadata completion").isNotDone();
+                terminationMetadataResult.complete(terminationStat);
+                assertThat(terminationResult.get(5, TimeUnit.SECONDS)).isEqualTo(expectedPosition);
+                assertThat(migrationResult.get(5, TimeUnit.SECONDS)).isEqualTo(expectedPosition);
+                verify(concurrentTermination, Mockito.timeout(5000)).terminateComplete(expectedPosition, null);
+            }
+
+            ledger.close();
+            ManagedLedger reopenedLedger = gatedFactory.open(ledgerName);
+            assertThat(reopenedLedger.isMigrated()).isTrue();
+            assertThat(reopenedLedger.isTerminated()).isTrue();
+            assertThat(reopenedLedger.getLastConfirmedEntry()).isEqualTo(expectedPosition);
+        } finally {
+            markerResult.completeExceptionally(new MetadataStoreException("test cleanup"));
+            terminationMetadataResult.completeExceptionally(new MetadataStoreException("test cleanup"));
+            closeResult.complete(BKException.Code.OK);
+            gatedFactory.shutdown();
+        }
+    }
+
+    private CompletableFuture<Position> asyncTerminateWithBlockedLedgerClose(ManagedLedgerImpl ledger,
+                                                                            CompletableFuture<Integer> closeResult)
+            throws InterruptedException {
+        LedgerHandle currentLedger = ledger.currentLedger;
+        LedgerHandle spyLedgerHandle = spy(currentLedger);
+        CountDownLatch closeIntercepted = new CountDownLatch(1);
+        doAnswer(invocation -> {
+            AsyncCallback.CloseCallback callback = invocation.getArgument(0);
+            Object closeContext = invocation.getArgument(1);
+            closeResult.thenAccept(rc -> {
+                if (rc == BKException.Code.OK) {
+                    currentLedger.asyncClose((result, lh, ctx) ->
+                            callback.closeComplete(result, spyLedgerHandle, closeContext), closeContext);
+                } else {
+                    callback.closeComplete(rc, spyLedgerHandle, closeContext);
+                }
+            });
+            closeIntercepted.countDown();
+            return null;
+        }).when(spyLedgerHandle).asyncClose(any(AsyncCallback.CloseCallback.class), any());
+        ledger.currentLedger = spyLedgerHandle;
+
+        CompletableFuture<Position> result = new CompletableFuture<>();
+        ledger.asyncTerminate(new AsyncCallbacks.TerminateCallback() {
+            @Override
+            public void terminateComplete(Position lastCommittedPosition, Object ctx) {
+                result.complete(lastCommittedPosition);
+            }
+
+            @Override
+            public void terminateFailed(ManagedLedgerException exception, Object ctx) {
+                result.completeExceptionally(exception);
+            }
+        }, null);
+        assertThat(closeIntercepted.await(5, TimeUnit.SECONDS)).as("Termination must reach the ledger close").isTrue();
+        return result;
     }
 
     @Test
