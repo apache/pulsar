@@ -482,6 +482,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         }
 
         // Ensure only one managed ledger is created and initialized
+        long startTimeOfCreation = System.currentTimeMillis();
         ledgers.computeIfAbsent(name, (mlName) -> {
             // Create the managed ledger
             CompletableFuture<ManagedLedgerImpl> future = new CompletableFuture<>();
@@ -496,7 +497,9 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                         newledger.initialize(new ManagedLedgerInitializeLedgerCallback() {
                             @Override
                             public void initializeComplete() {
-                                log.info().attr("managedLedger", name).log("Successfully initialize managed ledger");
+                                log.info().attr("managedLedger", name)
+                                    .attr("cost", System.currentTimeMillis() - startTimeOfCreation)
+                                    .log("Successfully initialize managed ledger");
                                 pendingInitializeLedgers.remove(name, pendingLedger);
                                 // May need to update the cursor position and wait them finished
                                 newledger.maybeUpdateCursorBeforeTrimmingConsumedLedger().whenComplete((__, ex) -> {
@@ -1020,6 +1023,38 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                          org.apache.bookkeeper.mledger.ManagedLedgerInfo info,
                                          CompletableFuture<ManagedLedgerConfig> mlConfigFuture,
                                          DeleteLedgerCallback callback, Object ctx) {
+        mlConfigFuture.handle((mlConfig, ex) -> mlConfig).thenAccept(mlConfig -> {
+            if (isShadowManagedLedger(info, mlConfig)) {
+                // The ledgers listed by a shadow managed ledger belong to its source managed ledger,
+                // so only the metadata of the shadow managed ledger is removed.
+                log.info().attr("managedLedger", managedLedgerName)
+                        .log("Keeping ledgers of the source managed ledger while deleting shadow managed ledger");
+                removeManagedLedgerMetadata(managedLedgerName, callback, ctx);
+            } else {
+                deleteOwnedManagedLedgerData(bkc, managedLedgerName, info, mlConfigFuture, callback, ctx);
+            }
+        }).exceptionally(ex -> {
+            callback.deleteLedgerFailed(new ManagedLedgerException(ex), ctx);
+            return null;
+        });
+    }
+
+    /**
+     * A managed ledger is a shadow managed ledger when its stored properties or the config supplied for its
+     * deletion (for example resolved from the partitioned topic metadata) contain the shadow source property.
+     */
+    private static boolean isShadowManagedLedger(org.apache.bookkeeper.mledger.ManagedLedgerInfo info,
+                                                 ManagedLedgerConfig mlConfig) {
+        if (info.properties != null && info.properties.containsKey(ManagedLedgerConfig.PROPERTY_SOURCE_TOPIC_KEY)) {
+            return true;
+        }
+        return mlConfig != null && mlConfig.getShadowSource() != null;
+    }
+
+    private void deleteOwnedManagedLedgerData(BookKeeper bkc, String managedLedgerName,
+                                              org.apache.bookkeeper.mledger.ManagedLedgerInfo info,
+                                              CompletableFuture<ManagedLedgerConfig> mlConfigFuture,
+                                              DeleteLedgerCallback callback, Object ctx) {
         final CompletableFuture<Map<Long, LedgerInfo>>
                 ledgerInfosFuture = new CompletableFuture<>();
         store.getManagedLedgerInfo(managedLedgerName, false, null,
@@ -1098,21 +1133,25 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 .collect(Collectors.toList()))
                 .thenRun(() -> {
                     // Delete the metadata
-                    store.removeManagedLedger(managedLedgerName, new MetaStoreCallback<Void>() {
-                        @Override
-                        public void operationComplete(Void result, Stat stat) {
-                            callback.deleteLedgerComplete(ctx);
-                        }
-
-                        @Override
-                        public void operationFailed(MetaStoreException e) {
-                            callback.deleteLedgerFailed(new ManagedLedgerException(e), ctx);
-                        }
-                    });
+                    removeManagedLedgerMetadata(managedLedgerName, callback, ctx);
                 }).exceptionally(ex -> {
                     callback.deleteLedgerFailed(new ManagedLedgerException(ex), ctx);
                     return null;
                 });
+    }
+
+    private void removeManagedLedgerMetadata(String managedLedgerName, DeleteLedgerCallback callback, Object ctx) {
+        store.removeManagedLedger(managedLedgerName, new MetaStoreCallback<Void>() {
+            @Override
+            public void operationComplete(Void result, Stat stat) {
+                callback.deleteLedgerComplete(ctx);
+            }
+
+            @Override
+            public void operationFailed(MetaStoreException e) {
+                callback.deleteLedgerFailed(new ManagedLedgerException(e), ctx);
+            }
+        });
     }
 
     private CompletableFuture<Void> deleteCursor(BookKeeper bkc, String managedLedgerName, String cursorName,
@@ -1152,9 +1191,10 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                    future.completeExceptionally(e);
                 }
             });
+        }).exceptionally(ex -> {
+            future.completeExceptionally(ex);
+            return null;
         });
-
-
 
         return future;
     }

@@ -948,7 +948,8 @@ message ScalableAssignedSegment {
     required uint64 segment_id             = 1;
     required uint32 hash_start             = 2;
     required uint32 hash_end               = 3;
-    // Fully-qualified segment:// topic name the consumer should attach to.
+    // Fully-qualified name of the topic the consumer should attach to: the segment:// topic, or for a legacy
+    // segment of a topic migrated to scalable (PIP-475), the persistent:// topic it wraps.
     required string segment_topic          = 4;
     // PIP-486: the segment's full entry-bucket boundary list (16-bit inclusive ranges tiling
     // 0x0000-0xFFFF). Empty means this consumer is the segment's sole owner and subscribes

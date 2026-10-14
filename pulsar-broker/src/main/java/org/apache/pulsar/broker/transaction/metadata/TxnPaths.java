@@ -198,6 +198,24 @@ public final class TxnPaths {
         return segmentKey(segment) + ":" + Codec.encode(subscription);
     }
 
+    /**
+     * @return the lower bound of the {@link #IDX_ACKS_BY_SEGMENT_SUBSCRIPTION} keys of {@code segment}, of any
+     *     subscription. The key of a segment whose id extends this one's continues with a digit, which sorts before
+     *     the {@code :} separator.
+     */
+    public static String ackIndexSegmentLowerBound(String segment) {
+        return segmentKey(segment) + ":";
+    }
+
+    /**
+     * @return the upper bound of the {@link #IDX_ACKS_BY_SEGMENT_SUBSCRIPTION} keys of {@code segment}, of any
+     *     subscription. URL encoding escapes {@code ~}, which sorts after every character it leaves in a
+     *     subscription name.
+     */
+    public static String ackIndexSegmentUpperBound(String segment) {
+        return segmentKey(segment) + ":~";
+    }
+
     /** Parent path for per-segment watermark records. Records are direct children of this. */
     public static final String TXN_SEGMENT_WATERMARK_PREFIX = TXN_SEGMENT_STATE_PREFIX + "/watermark";
 

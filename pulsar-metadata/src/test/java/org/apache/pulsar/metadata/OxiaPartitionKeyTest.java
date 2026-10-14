@@ -50,8 +50,7 @@ public class OxiaPartitionKeyTest {
 
     @BeforeClass
     public void start() {
-        oxiaServer = new OxiaContainer(OxiaContainer.DEFAULT_IMAGE_NAME).withShards(SHARDS);
-        oxiaServer.start();
+        oxiaServer = OxiaTestServer.start(SHARDS);
     }
 
     @AfterClass(alwaysRun = true)

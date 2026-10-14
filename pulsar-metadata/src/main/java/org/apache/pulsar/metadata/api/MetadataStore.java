@@ -348,9 +348,13 @@ public interface MetadataStore extends AutoCloseable {
      * </ul>
      *
      * <p>On stores that support secondary indexes natively (e.g. Oxia), this is a single store-side
-     * range scan over the index. On stores that don't (e.g. ZooKeeper), it falls back to listing
-     * all children under {@code scanPathPrefix}, fetching each record, and applying
-     * {@code fallbackFilter}; the fallback also enforces the {@code [fromKey, toKey]} bounds.
+     * range scan over the index: the index range decides which records are returned, and
+     * {@code fallbackFilter} is not applied, so callers that need every returned record to pass it
+     * should re-check it on the results. On stores that don't (e.g. ZooKeeper), it falls back to
+     * listing all children under {@code scanPathPrefix}, fetching each record, and returning those
+     * that pass {@code fallbackFilter}. The fallback ignores {@code indexName}, {@code fromKeyInclusive}
+     * and {@code toKeyInclusive}, so {@code fallbackFilter} is its only criterion: it must itself reject
+     * the records whose {@code indexName} key is missing or outside the bounds.
      *
      * <p>Results are streamed to {@code consumer} as they become available — {@link ScanConsumer#onNext}
      * once per match, then exactly one of {@link ScanConsumer#onCompleted} or
@@ -361,7 +365,8 @@ public interface MetadataStore extends AutoCloseable {
      * @param indexName         the secondary-index name
      * @param fromKeyInclusive  lower bound on the secondary-key value, or {@code null} for unbounded
      * @param toKeyInclusive    upper bound on the secondary-key value, or {@code null} for unbounded
-     * @param fallbackFilter    additional predicate applied during fallback scan; ignored by native implementations
+     * @param fallbackFilter    the only criterion of the fallback scan, so it must match the index key and
+     *                          enforce the bounds itself; not applied by native implementations
      * @param consumer          callback receiving records, completion, or an error
      * @param opts              the set of {@link Option options} for this operation
      * @return a future that completes when the scan terminates
