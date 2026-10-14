@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
@@ -35,6 +36,12 @@ import lombok.Cleanup;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
+import org.apache.pulsar.common.policies.data.ScalableSubscriptionType;
+import org.apache.pulsar.common.scalable.HashRange;
+import org.apache.pulsar.common.scalable.SegmentTopicName;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -52,6 +59,69 @@ public class ScalableTopicsListByPropertyTest extends SharedPulsarBaseTest {
 
     private String topicName(String suffix) {
         return "topic://" + namespace() + "/" + suffix + "-" + UUID.randomUUID().toString().substring(0, 8);
+    }
+
+    @DataProvider
+    public Object[][] encodedTopicNames() {
+        return new Object[][] {{"a b"}, {"a+b"}, {"café"}, {"x%20y"}, {"nested/topic"}};
+    }
+
+    @Test(dataProvider = "encodedTopicNames")
+    public void testEncodedTopicNameRoundTrip(String localName) throws Exception {
+        String topic = topicName(localName);
+        admin.scalableTopics().createScalableTopic(topic, 1, Map.of("owner", "encoded-name"));
+
+        assertThat(admin.scalableTopics().getMetadata(topic).getProperties())
+                .containsEntry("owner", "encoded-name");
+        assertThat(admin.scalableTopics().listScalableTopicsByProperties(namespace(),
+                Map.of("owner", "encoded-name"))).containsExactly(topic);
+        String segment = SegmentTopicName.fromParent(TopicName.get(topic), HashRange.full(), 0).toString();
+        assertThat(getTopicIfExists(segment).get()).as("canonical initial segment").isPresent();
+        assertThat(admin.scalableTopics().getStats(topic)).isNotNull();
+        assertThat(admin.scalableTopics().getSegmentStats(topic, 0)).isNotNull();
+
+        AutoScalePolicyOverride override = AutoScalePolicyOverride.builder().enabled(false).build();
+        admin.scalableTopics().setAutoScalePolicy(topic, override);
+        assertThat(admin.scalableTopics().getAutoScalePolicy(topic)).isEqualTo(override);
+        admin.scalableTopics().removeAutoScalePolicy(topic);
+        assertThat(admin.scalableTopics().getAutoScalePolicy(topic)).isNull();
+
+        // Slash-containing parents have a separate pending-ack topic naming limitation.
+        if (!localName.contains("/")) {
+            admin.scalableTopics().createSubscription(topic, "sub", ScalableSubscriptionType.QUEUE);
+            assertThat(admin.scalableTopics().getSegmentSubscriptionBacklogAsync(segment, "sub").get()).isZero();
+            admin.scalableTopics().seekSubscription(topic, "sub", System.currentTimeMillis());
+            admin.scalableTopics().clearBacklog(topic, "sub");
+            admin.scalableTopics().deleteSubscription(topic, "sub");
+        }
+        // Quiesce the fixture controller before deletion: the memory store's child listing
+        // treats '+' in an encoded parent path as a regex, failing to strip the path prefix.
+        getPulsar().getBrokerService().getScalableTopicService()
+                .releaseController(TopicName.get(topic)).get();
+        admin.scalableTopics().deleteScalableTopic(topic, true);
+        assertThat(getPulsar().getPulsarResources().getScalableTopicResources()
+                .getScalableTopicMetadataAsync(TopicName.get(topic)).get()).isEmpty();
+        assertThat(getTopicIfExists(segment).get()).as("deleted canonical segment").isEmpty();
+    }
+
+    @Test
+    public void testLayoutChangesPreserveEncodedTopicName() throws Exception {
+        String topic = topicName("layout + café%20/nested");
+        admin.scalableTopics().createScalableTopic(topic, 1);
+        admin.scalableTopics().setAutoScalePolicy(topic,
+                AutoScalePolicyOverride.builder().enabled(false).build());
+        admin.scalableTopics().splitSegment(topic, 0);
+        admin.scalableTopics().mergeSegments(topic, 1, 2);
+        admin.scalableTopics().rebucketSegment(topic, 3, 8);
+
+        var metadata = admin.scalableTopics().getMetadata(topic);
+        assertThat(metadata.getSegments().get(4L).isActive()).isTrue();
+        String segment = SegmentTopicName.fromParent(TopicName.get(topic), HashRange.full(), 4).toString();
+        assertThat(getTopicIfExists(segment).get()).as("canonical rebucketed segment").isPresent();
+        getPulsar().getBrokerService().getScalableTopicService()
+                .releaseController(TopicName.get(topic)).get();
+        admin.scalableTopics().deleteScalableTopic(topic, true);
+        assertThat(getTopicIfExists(segment).get()).isEmpty();
     }
 
     @Test

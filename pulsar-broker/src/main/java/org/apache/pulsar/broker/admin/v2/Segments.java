@@ -52,6 +52,7 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.scalable.SegmentTopicName;
+import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 
 /**
@@ -75,7 +76,7 @@ public class Segments extends AdminResource {
     private TopicName segmentTopicName(String tenant, String namespace,
                                        String encodedTopic, String descriptor) {
         return TopicName.get(TopicDomain.segment.value() + "://" + tenant + "/" + namespace + "/"
-                + encodedTopic + "/" + descriptor);
+                + Codec.decode(encodedTopic) + "/" + descriptor);
     }
 
     @PUT
