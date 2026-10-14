@@ -68,6 +68,9 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
 
     private final long ledgerId;
     private final OffloadIndexBlock index;
+    // Copied at open time since the index is recycled on close, while the managed ledger may still use the handle,
+    // which it closes when it no longer reads the ledger
+    private final LedgerMetadata ledgerMetadata;
     private final BackedInputStream inputStream;
     private final DataInputStream dataStream;
     private final ExecutorService executor;
@@ -91,6 +94,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
                                           OffsetsCache entryOffsetsCache) {
         this.ledgerId = ledgerId;
         this.index = index;
+        this.ledgerMetadata = index.getLedgerMetadata();
         this.inputStream = inputStream;
         this.dataStream = new DataInputStream(inputStream);
         this.executor = executor;
@@ -105,7 +109,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
 
     @Override
     public LedgerMetadata getLedgerMetadata() {
-        return index.getLedgerMetadata();
+        return ledgerMetadata;
     }
 
     @Override
