@@ -33,6 +33,8 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelPromise;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.List;
@@ -490,11 +492,12 @@ public class ConsumerImplTest {
      */
     @Test
     public void testResumeFlushesPermitsToBroker() {
-        // Setup mock connection
+        // Setup mock connection using the shared fixture that releases ByteBufs on write/writeAndFlush
         ClientCnx cnx = mock(ClientCnx.class);
-        io.netty.channel.ChannelHandlerContext ctx = mock(io.netty.channel.ChannelHandlerContext.class);
+        ChannelHandlerContext ctx = ClientTestFixtures.mockChannelHandlerContext();
+        ChannelPromise voidPromise = mock(ChannelPromise.class);
+        when(ctx.voidPromise()).thenReturn(voidPromise);
         when(cnx.ctx()).thenReturn(ctx);
-        when(ctx.writeAndFlush(any(), any())).thenReturn(io.netty.util.concurrent.DefaultChannelPromise.succeededFuture());
 
         consumer.setClientCnx(cnx);
         consumer.setState(HandlerState.State.Ready);
@@ -519,7 +522,7 @@ public class ConsumerImplTest {
                 "resume() should have flushed all permits to broker");
 
         // Verify the flow command was sent
-        verify(ctx, times(1)).writeAndFlush(any(io.netty.buffer.ByteBuf.class), any());
+        verify(ctx, times(1)).writeAndFlush(any(ByteBuf.class), any(ChannelPromise.class));
     }
 
 }
