@@ -22,7 +22,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -32,13 +34,17 @@ import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -56,10 +62,15 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ScalableSubscriptionType;
 import org.apache.pulsar.common.policies.data.ScalableTopicStats;
 import org.apache.pulsar.common.policies.data.SegmentTopicStats;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.Option;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
+import org.apache.pulsar.metadata.api.coordination.LeaderElection;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
+import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.apache.pulsar.metadata.impl.LocalMemoryMetadataStore;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
@@ -74,10 +85,11 @@ public class ScalableTopicServiceTest {
 
     private static final String BROKER_ID = "broker-service-test";
 
-    private MetadataStoreExtended store;
+    private HoldingMetadataStore store;
     private CoordinationService coordinationService;
     private ScalableTopicResources resources;
-    private ScheduledExecutorService scheduler;
+    /** The broker executor; cancelled tasks leave its queue, so the queue holds the live periodic tasks. */
+    private ScheduledThreadPoolExecutor scheduler;
 
     private BrokerService brokerService;
     private PulsarService pulsar;
@@ -89,11 +101,12 @@ public class ScalableTopicServiceTest {
 
     @BeforeMethod
     public void setUp() throws Exception {
-        store = new LocalMemoryMetadataStore("memory:local",
-                MetadataStoreConfig.builder().build());
+        store = new HoldingMetadataStore(new LocalMemoryMetadataStore("memory:local",
+                MetadataStoreConfig.builder().build()));
         coordinationService = new CoordinationServiceImpl(store);
         resources = new ScalableTopicResources(store, 30);
-        scheduler = Executors.newSingleThreadScheduledExecutor();
+        scheduler = new ScheduledThreadPoolExecutor(1);
+        scheduler.setRemoveOnCancelPolicy(true);
 
         brokerService = mock(BrokerService.class);
         pulsar = mock(PulsarService.class);
@@ -233,6 +246,137 @@ public class ScalableTopicServiceTest {
             assertTrue(cause instanceof RuntimeException);
             assertTrue(cause.getMessage().contains("Failed to initialize controller"),
                     "got: " + cause.getMessage());
+        }
+    }
+
+    /**
+     * A controller whose initialize() fails after winning the election is closed, or its election
+     * would keep the controller lock with no controller left to release it, and the consumer
+     * sessions it restored would keep their grace timers.
+     */
+    @Test
+    public void testFailedInitializationLeavesNothingRunning() throws Exception {
+        // With a broker configuration, a serving leader schedules its auto split/merge tick next to
+        // the GC tick. Neither fires during the test (60s).
+        when(pulsar.getConfig()).thenReturn(new ServiceConfiguration());
+        TopicName tn = scalableTopic("t-init-fails-partial-restore");
+        service.createScalableTopic(tn, 1).get();
+        String lockPath = resources.controllerLockPath(tn);
+        resources.createSubscriptionAsync(tn, "sub-a", SubscriptionType.STREAM).get();
+        resources.registerConsumerAsync(tn, "sub-a", "c1").get();
+        resources.createSubscriptionAsync(tn, "sub-b", SubscriptionType.STREAM).get();
+        resources.registerConsumerAsync(tn, "sub-b", "c2").get();
+        // Restoring the consumer sessions runs once the controller won the election. Fail it on
+        // sub-b, while sub-a's consumer is restored with a grace timer. The failure is injected
+        // once, so the next attempt succeeds.
+        MetadataStoreException injected = new MetadataStoreException("injected");
+        String consumersPath = resources.subscriptionPath(tn, "sub-b") + "/consumers";
+        store.failConditional(injected, (op, path) ->
+                op == FaultInjectionMetadataStore.OperationType.GET_CHILDREN && path.equals(consumersPath));
+
+        try {
+            service.getOrCreateController(tn).get();
+            fail("expected the controller initialization to fail");
+        } catch (ExecutionException e) {
+            assertSame(FutureUtil.unwrapCompletionException(e.getCause().getCause()), injected,
+                    "the attempt must fail restoring the sessions, got: " + e.getCause());
+        }
+        // The failed attempt never served, so it scheduled no GC or auto split/merge tick. It left
+        // c1's grace timer, which the close cancels, and a takeover retry, which the close doesn't
+        // cancel but makes a no-op: the queue empties once that retry ran.
+        Awaitility.await().untilAsserted(() -> {
+            assertFalse(store.exists(lockPath).get(), "the failed controller must give the lock back");
+            assertTrue(scheduler.getQueue().isEmpty(), "the failed controller must leave no task scheduled");
+        });
+        // The close leaves the persisted registrations to the next controller.
+        assertEquals(resources.listConsumersAsync(tn, "sub-a").get(), List.of("c1"));
+        assertEquals(resources.listConsumersAsync(tn, "sub-b").get(), List.of("c2"));
+
+        // The retry runs the only controller of the topic. Serving, it schedules the GC and auto
+        // split/merge ticks, and restores c1 and c2 with grace timers: releasing it cancels them.
+        assertTrue(service.getOrCreateController(tn).get().isLeader(), "the retry must lead the topic");
+        assertFalse(scheduler.getQueue().isEmpty(), "the serving controller must have scheduled its tasks");
+        service.releaseController(tn).get();
+        assertFalse(store.exists(lockPath).get());
+        assertTrue(scheduler.getQueue().isEmpty(), "no task may outlive the released controller");
+    }
+
+    /**
+     * A controller that fails to initialize is closed without waiting for its election to delete the
+     * lock, so the next attempt can start while that delete is in flight: its election finds the lock
+     * of this broker's session and keeps it, and takes it again once the delete went through.
+     */
+    @Test
+    public void testRetryWhileTheFailedControllerDeletesTheLock() throws Exception {
+        TopicName tn = scalableTopic("t-init-fails-retry");
+        service.createScalableTopic(tn, 1).get();
+        String lockPath = resources.controllerLockPath(tn);
+        // Fail the session restore once, before any subscription is restored.
+        String subscriptionsPath = resources.topicPath(tn) + "/subscriptions";
+        store.failConditional(new MetadataStoreException("injected"), (op, path) ->
+                op == FaultInjectionMetadataStore.OperationType.GET_CHILDREN && path.equals(subscriptionsPath));
+        store.holdNextDelete(lockPath);
+
+        try {
+            service.getOrCreateController(tn).get();
+            fail("expected the controller initialization to fail");
+        } catch (ExecutionException expected) {
+            // initialize() failed after the election
+        }
+        assertTrue(store.isHoldingDelete(), "the failed controller must be deleting the lock");
+
+        ScalableTopicController controller = service.getOrCreateController(tn).get();
+        assertTrue(controller.isLeader(), "the retry must lead with the lock it finds");
+
+        store.releaseHeldDelete();
+        Awaitility.await().untilAsserted(() ->
+                assertTrue(store.exists(lockPath).get(), "the retry's election must take the lock again"));
+        assertTrue(controller.isLeader(), "the retry must keep leading");
+        assertSame(service.getOrCreateController(tn).get(), controller, "the retry's controller must be the only one");
+
+        service.releaseController(tn).get();
+        assertFalse(store.exists(lockPath).get());
+        // Once the failed attempt's takeover retry ran, as a no-op.
+        Awaitility.await().untilAsserted(() ->
+                assertTrue(scheduler.getQueue().isEmpty(), "no task may outlive the released controller"));
+    }
+
+    @Test
+    public void testSubscribeToMissingTopicsLeavesNoLeaderElectionOpen() throws Exception {
+        CoordinationService observedCoordinationService = spy(coordinationService);
+        Map<String, LeaderElection<?>> elections = new ConcurrentHashMap<>();
+        doAnswer(inv -> {
+            LeaderElection<?> election = (LeaderElection<?>) inv.callRealMethod();
+            elections.put(inv.getArgument(1), election);
+            return election;
+        }).when(observedCoordinationService).getLeaderElection(any(), anyString(), any());
+        ScalableTopicService observedService =
+                new ScalableTopicService(brokerService, resources, observedCoordinationService);
+        List<String> lockPaths = new ArrayList<>();
+        try {
+            for (int i = 0; i < 3; i++) {
+                TopicName missing = scalableTopic("t-missing-" + i);
+                lockPaths.add(resources.controllerLockPath(missing));
+                try {
+                    observedService.registerConsumer(missing, "sub", "c1", i, ScalableConsumerType.STREAM,
+                            mock(TransportCnx.class)).get();
+                    fail("expected the subscribe to a missing topic to fail");
+                } catch (ExecutionException e) {
+                    assertTrue(e.getCause().getMessage().contains("Failed to initialize controller"),
+                            "got: " + e.getCause().getMessage());
+                }
+            }
+            // The coordination service hands out the same election for a path until it is closed: an
+            // election left open would stay with the broker until it restarts. A controller that
+            // created none passes too. Snapshot first: the probes' own elections are recorded.
+            Map<String, LeaderElection<?>> handedOut = Map.copyOf(elections);
+            for (String path : lockPaths) {
+                assertNotSame(observedCoordinationService.getLeaderElection(String.class, path, state -> { }),
+                        handedOut.get(path),
+                        "the election of a controller that failed to initialize must be closed: " + path);
+            }
+        } finally {
+            observedService.close();
         }
     }
 
@@ -419,35 +563,6 @@ public class ScalableTopicServiceTest {
         }
     }
 
-    /**
-     * A controller whose initialize() fails after winning the election is closed, or its election
-     * would keep the controller lock with no controller left to release it.
-     */
-    @Test
-    public void testControllerFailingAfterElectionGivesTheLockBack() throws Exception {
-        TopicName tn = scalableTopic("t-init-fails");
-        service.createScalableTopic(tn, 1).get();
-        ScalableTopicResources failingResources = new ScalableTopicResources(store, 30) {
-            @Override
-            public CompletableFuture<List<String>> listSubscriptionsAsync(TopicName topic) {
-                // Restoring the subscriptions runs once the controller won the election.
-                return CompletableFuture.failedFuture(new IllegalStateException("injected"));
-            }
-        };
-        ScalableTopicService failingService =
-                new ScalableTopicService(brokerService, failingResources, coordinationService);
-        try {
-            failingService.getOrCreateController(tn).get();
-            fail("expected the controller initialization to fail");
-        } catch (ExecutionException expected) {
-            // initialize() failed after the election
-        }
-        Awaitility.await().untilAsserted(() ->
-                assertFalse(store.get(resources.controllerLockPath(tn)).get().isPresent(),
-                        "the failed controller must give the lock back"));
-        failingService.close();
-    }
-
     // --- concurrent topic isolation ---
 
     @Test
@@ -463,5 +578,47 @@ public class ScalableTopicServiceTest {
         assertNotSame(c1, c2);
         assertEquals(c1.getTopicName(), tn1);
         assertEquals(c2.getTopicName(), tn2);
+    }
+
+    /**
+     * Holds back the next delete of a path until it is released: {@link FaultInjectionMetadataStore}
+     * can fail an operation, but not delay it.
+     */
+    private static class HoldingMetadataStore extends FaultInjectionMetadataStore {
+        private final AtomicReference<String> pathToHold = new AtomicReference<>();
+        private final CompletableFuture<Void> release = new CompletableFuture<>();
+        private final CompletableFuture<Void> heldDelete = new CompletableFuture<>();
+        private volatile boolean holding;
+
+        HoldingMetadataStore(MetadataStoreExtended store) {
+            super(store);
+        }
+
+        /** Hold back the next delete of {@code path}, until {@link #releaseHeldDelete()}. */
+        void holdNextDelete(String path) {
+            pathToHold.set(path);
+        }
+
+        boolean isHoldingDelete() {
+            return holding && !release.isDone();
+        }
+
+        /** Let the delete held back go through, and wait for it. */
+        void releaseHeldDelete() throws Exception {
+            release.complete(null);
+            heldDelete.get(10, TimeUnit.SECONDS);
+        }
+
+        @Override
+        public CompletableFuture<Void> delete(String path, Optional<Long> expectedVersion, Set<Option> opts) {
+            String held = pathToHold.get();
+            // compareAndSet() compares references: pass it the instance it holds.
+            if (!path.equals(held) || !pathToHold.compareAndSet(held, null)) {
+                return super.delete(path, expectedVersion, opts);
+            }
+            holding = true;
+            FutureUtil.completeAfter(heldDelete, release.thenCompose(__ -> super.delete(path, expectedVersion, opts)));
+            return heldDelete;
+        }
     }
 }

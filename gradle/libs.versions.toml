@@ -175,7 +175,7 @@ felix-http-wrappers = "1.1.10"
 oxia = "0.9.5"
 oxia-testcontainers = "0.7.4"
 # Build plugins
-lightproto = "0.8.2"
+lightproto = "0.9.3"
 graalvm-buildtools = "1.1.14"
 errorprone = "2.50.0"
 spotbugs = "4.10.3"
