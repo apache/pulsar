@@ -118,6 +118,19 @@ public class ProgressMonitorTest {
                 .contains("backlog: 1,241 msg (max per application: 73, sampled 30 s ago)");
     }
 
+    @Test
+    public void allowsTwoSamplingIntervalsBeforeASampleIsOld() {
+        long now = System.currentTimeMillis();
+        // Sampled every second: 5 s old
+        assertThat(ProgressMonitor.age(new TopicStatsSampler.Backlog(now - 3_000, 0, 0))).isEmpty();
+        assertThat(ProgressMonitor.age(new TopicStatsSampler.Backlog(now - 6_000, 0, 0)))
+                .isEqualTo(", sampled 6 s ago");
+        // 1,000 topics, sampled every 10 s: 20 s old, for the backlog and the replication backlog alike
+        assertThat(ProgressMonitor.age(new TopicStatsSampler.Backlog(now - 8_000, 0, 0, 0, 10_000))).isEmpty();
+        assertThat(ProgressMonitor.age(new TopicStatsSampler.Backlog(now - 21_000, 0, 0, 0, 10_000)))
+                .isEqualTo(", sampled 21 s ago");
+    }
+
     private ObjectNode line(String role, int count, long latencyMicros) {
         Histogram histogram = new Histogram(3);
         histogram.recordValueWithCount(latencyMicros, count);

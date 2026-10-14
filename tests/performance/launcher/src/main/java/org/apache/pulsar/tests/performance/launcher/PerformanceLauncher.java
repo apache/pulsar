@@ -109,9 +109,12 @@ public class PerformanceLauncher implements Callable<Integer> {
     private static final String COORDINATION_MOUNT = "/performance-coordination";
     // The producer's measurement control endpoints, inside its container
     private static final int CONTROL_PORT = 8089;
-    // The proxy only forwards the launcher's admin requests, which needs little memory
+    // The proxy only forwards the launcher's admin requests, which needs little memory. Its idle timeout, 30 s by
+    // default, would cut a request short before the launcher's own timeouts, such as a reset by timestamp that reads
+    // the tiered storage over a slow link; 4.0.x proxies don't have the setting
     static final Map<String, String> PROXY_ENV =
-            Map.of("PULSAR_MEM", "-Xms96m -Xmx256m -XX:MaxDirectMemorySize=128m");
+            Map.of("PULSAR_MEM", "-Xms96m -Xmx256m -XX:MaxDirectMemorySize=128m",
+                    "httpProxyIdleTimeout", "150000");
     private static final String OUTPUT_MOUNT = "/performance-output";
     // Where the one-off container that merges the JFR configurations sees the .jfc files and its output directory
     private static final String JFC_MOUNT = "/jfr";
@@ -420,14 +423,17 @@ public class PerformanceLauncher implements Callable<Integer> {
                 "workloads.iotTelemetry.gateways.env");
         Map<String, String> applicationsEnv = ClusterSettings.env(loader.mapper(),
                 workload.path("applications").path("env"), "workloads.iotTelemetry.applications.env");
+        IotScenario iotScenario = loader.mapper().treeToValue(workload, IotScenario.class);
+        // The launcher's topic admin requests go through a proxy, which forwards each to the broker that owns the
+        // topic: a broker redirects them to the owner's name in the cluster's network, which the launcher's host
+        // can't resolve. Only offloading and the late applications' join preparation send them, which the random
+        // seeks are part of
+        boolean sendsTopicRequests = offloadSettings != null || iotScenario.preparesJoin();
         PulsarClusterSpec spec = PulsarClusterSpec.builder()
                 .clusterName(clusterName)
                 .numBrokers(clusterSettings.brokers().replicas())
                 .numBookies(clusterSettings.bookies().replicas())
-                // The launcher's admin requests go through the proxy, which forwards each to the broker that owns
-                // the topic: a broker redirects them to the owner's name in the cluster's network, which the
-                // launcher's host can't resolve
-                .numProxies(1)
+                .numProxies(sendsTopicRequests ? 1 : 0)
                 .proxyEnvs(PROXY_ENV)
                 .profileBroker(profilingSettings.broker().profiled())
                 .profileDirectory(brokerProfileDirectory.toString())
@@ -443,11 +449,8 @@ public class PerformanceLauncher implements Callable<Integer> {
                 .clusterName(remoteClusterName)
                 .numBrokers(remote.brokers().replicas())
                 .numBookies(remote.bookies().replicas())
-                // The launcher's admin requests go through the proxy, which forwards each to the broker that owns
-                // the topic: a broker redirects them to the owner's name in the cluster's network, which the
-                // launcher's host can't resolve
-                .numProxies(1)
-                .proxyEnvs(PROXY_ENV)
+                // The launcher sends the remote cluster no topic admin requests
+                .numProxies(0)
                 .clusterImage(clusterImage)
                 .brokerEnvs(metricsSettings.withBrokerStatsSettings(remote.brokers().env()))
                 .bookkeeperEnvs(metricsSettings.withBookieStatsSettings(remote.bookies().containerEnv()))
@@ -524,8 +527,8 @@ public class PerformanceLauncher implements Callable<Integer> {
         ZonedDateTime workloadFinished;
         try {
             String journalTmpfs = clusterSettings.bookies().journalTmpfs();
-            status(String.format(Locale.ROOT, "Starting the Pulsar cluster: %d broker(s), %d bookie(s), %d proxy%s",
-                    spec.numBrokers(), spec.numBookies(), spec.numProxies(),
+            status(String.format(Locale.ROOT, "Starting the Pulsar cluster: %d broker(s), %d bookie(s)%s%s",
+                    spec.numBrokers(), spec.numBookies(), spec.numProxies() > 0 ? ", 1 proxy" : "",
                     journalTmpfs != null ? ", with each bookie's journal on a tmpfs of " + journalTmpfs : ""));
             if (networkSettings.any()) {
                 // Before the cluster, so that a Docker engine that can't apply them fails the run at once
@@ -549,8 +552,8 @@ public class PerformanceLauncher implements Callable<Integer> {
             if (remoteCluster != null) {
                 long remoteStart = System.nanoTime();
                 status(String.format(Locale.ROOT, "Starting the remote cluster %s, which public/default replicates"
-                        + " to: %d broker(s), %d bookie(s), %d proxy", remoteClusterName, remoteSpec.numBrokers(),
-                        remoteSpec.numBookies(), remoteSpec.numProxies()));
+                        + " to: %d broker(s), %d bookie(s)", remoteClusterName, remoteSpec.numBrokers(),
+                        remoteSpec.numBookies()));
                 remoteCluster.start();
                 status(String.format(Locale.ROOT, "Started the remote cluster in %.0f s",
                         (System.nanoTime() - remoteStart) / 1e9));
@@ -617,8 +620,7 @@ public class PerformanceLauncher implements Callable<Integer> {
                 remoteTopicStatsSampler = startTopicStatsSampler(remoteCluster, workload, runOutput, false,
                         REMOTE_TOPIC_STATS);
             }
-            IotScenario iotScenario = loader.mapper().treeToValue(workload, IotScenario.class);
-            if (offloadSettings != null || iotScenario.preparesJoin()) {
+            if (sendsTopicRequests) {
                 // It records the offload status when the late applications join, and at the run's end
                 joinPreparation = JoinPreparation.start(cluster.getHttpServiceUrl(), iotScenario,
                         offloadSettings != null, runOutput, coordinationDirectory, runId, PerformanceLauncher::status);

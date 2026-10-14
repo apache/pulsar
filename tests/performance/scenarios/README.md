@@ -72,6 +72,9 @@ is the memory of Docker's virtual machine:
 | [`iot-telemetry-medium-mem.yaml`](configs/iot-telemetry-medium-mem.yaml) | [`cluster-medium-mem.yaml`](configs/cluster-medium-mem.yaml): one broker and two bookies | about 11 GB. The default, which `iot-telemetry-base.yaml` extends |
 | [`iot-telemetry-high-mem.yaml`](configs/iot-telemetry-high-mem.yaml) | [`cluster-high-mem.yaml`](configs/cluster-high-mem.yaml): one broker and three bookies, with a larger heap and direct memory for each | about 14 GB. For the high-rate scenarios |
 
+A scenario that offloads, or prepares its late applications' join, also runs a Pulsar proxy for the launcher's admin
+requests, which needs about 350 MB more; see [the scenario format](docs/scenario-format.md).
+
 A scenario that needs another memory configuration than the default extends it after the scenario it builds on, as
 [`iot-telemetry-high-rate.yaml`](iot-telemetry-high-rate.yaml) does: `extends: [iot-telemetry.yaml,
 configs/iot-telemetry-high-mem.yaml]`. To run a scenario with another memory configuration without a new file, add it

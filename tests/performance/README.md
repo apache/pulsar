@@ -216,7 +216,7 @@ Run directory: .../build/performance/2026-09-26/master/iot-telemetry/09-26-12-00
     brokers:
       replicas: 1
       ...
-12:00:00 Starting the Pulsar cluster: 1 broker(s), 2 bookie(s), 1 proxy
+12:00:00 Starting the Pulsar cluster: 1 broker(s), 2 bookie(s)
 12:00:23 Started the Pulsar cluster in 23 s
 12:00:23 Metrics: starting the metrics stack for this run, since it doesn't run
 12:00:34 Metrics: VictoriaMetrics scrapes the brokers, the bookies and ZooKeeper every 5 s, as the cluster 2026-09-26/master/iot-telemetry/09-26-12-00-00

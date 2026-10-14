@@ -35,10 +35,11 @@ into the workload containers.
   cluster that the workload's topics replicate to, with applications that consume there, see
   [Geo-replication](../../docs/network-conditions.md#geo-replication). The IoT telemetry scenarios get it from a
   [memory configuration](../README.md#memory-configurations), which also sets the workload containers' `PULSAR_MEM`.
-  Each cluster also has one Pulsar proxy, through which the launcher sends its admin requests, such as setting the
-  offload policies and skipping or resetting subscriptions: the proxy forwards a topic's request to the broker that
-  owns the topic, whose name in the cluster's network the launcher's host can't resolve. The workloads connect to the
-  brokers directly.
+  A scenario with `offload`, or whose late applications skip messages, reset their subscriptions or unload their
+  topics before they join, also starts one Pulsar proxy, through which the launcher sends its admin requests, such as
+  setting the offload policies and skipping or resetting subscriptions: the proxy forwards a topic's request to the
+  broker that owns the topic, whose name in the cluster's network the launcher's host can't resolve. The workloads
+  connect to the brokers directly, and the remote cluster has no proxy.
 - `workloads`: named workload configurations, currently `iotTelemetry`, see [the IoT telemetry
   scenario](iot-telemetry.md#settings). Its `gateways.env` and `applications.env` are the environment variables of the
   gateways' and the applications' containers, such as `PULSAR_MEM`, which sets the JVM's heap and direct memory, or

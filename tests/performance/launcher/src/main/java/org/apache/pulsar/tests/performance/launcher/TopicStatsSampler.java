@@ -57,8 +57,9 @@ import org.apache.pulsar.tests.performance.report.RunReport;
  * 1,000 topics, sampling every second took 16 % of the broker's CPU. So with more topics than
  * {@value #MAX_REQUESTS_PER_SECOND}, the sampler samples every {@code topics / MAX_REQUESTS_PER_SECOND} seconds,
  * rounded up, {@value #MAX_REQUESTS_PER_SECOND} calls per second on average, and a round makes at most
- * {@value #MAX_IN_FLIGHT} calls at a time. A round's samples have the time of its end, which follows all of them. A
- * failed sample is reported and skipped; sampling never fails the run.
+ * {@value #MAX_IN_FLIGHT} calls at a time over all the brokers. A round's samples have the time of its end, which
+ * follows all of them. A failed sample is reported and skipped; sampling never fails the run. The random seeks'
+ * subscription is left out: it exists only while the seeks run.
  *
  * <p>A broker redirects the stats request of a topic that another broker owns to that broker's name in the cluster's
  * network, which the launcher's host can't resolve. So the sampler asks each broker through its port on the host: for
@@ -75,7 +76,8 @@ final class TopicStatsSampler implements AutoCloseable {
     static final String HEADER = RunReport.TOPIC_STATS_HEADER;
     private static final long INTERVAL_MILLIS = 1000;
     static final int MAX_REQUESTS_PER_SECOND = 100;
-    // The most requests of a round in flight at a time
+    // The most requests of a round in flight at a time, over all the brokers: the admin clients' own limit of 16
+    // connections applies to each broker's client separately
     static final int MAX_IN_FLIGHT = 16;
     static final String REPLICATION_FILE_NAME = RunReport.REPLICATION_STATS_FILE;
     static final String REPLICATION_HEADER = "epochMs,topic,remoteCluster,replicationBacklog,connected,"
@@ -203,6 +205,9 @@ final class TopicStatsSampler implements AutoCloseable {
                 TopicStats stats = unwrap(requests.get(i));
                 for (Map.Entry<String, ? extends SubscriptionStats> subscription : stats.getSubscriptions()
                         .entrySet()) {
+                    if (RandomSeeks.SUBSCRIPTION.equals(subscription.getKey())) {
+                        continue;
+                    }
                     backlogs.merge(subscription.getKey(), subscription.getValue().getMsgBacklog(), Long::sum);
                     rows.append(',').append(topic).append(',').append(subscription.getKey()).append(',')
                             .append(subscription.getValue().getMsgBacklog()).append(',')
