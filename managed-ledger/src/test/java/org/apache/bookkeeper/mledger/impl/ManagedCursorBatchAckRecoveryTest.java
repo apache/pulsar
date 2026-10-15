@@ -34,6 +34,7 @@ import org.apache.bookkeeper.mledger.proto.BatchedEntryDeletionIndexInfo;
 import org.apache.bookkeeper.mledger.proto.ManagedCursorInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.metadata.api.Stat;
+import org.awaitility.Awaitility;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -49,6 +50,40 @@ public class ManagedCursorBatchAckRecoveryTest extends MockedBookKeeperTestCase 
     @DataProvider(name = "booleans")
     public Object[][] booleans() {
         return new Object[][] {{false}, {true}};
+    }
+
+    @Test
+    public void testIsCursorDataFullyPersistableReflectsBatchDeletedIndexLimit() throws Exception {
+        ManagedLedgerConfig config = defaultConfig();
+        config.setDeletionAtBatchIndexLevelEnabled(true);
+        config.setMaxBatchDeletedIndexToPersist(2);
+        config.setThrottleMarkDelete(0);
+        String name = "tenant/ns/persistent/cursor-data-fully-persistable-batch-index";
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(name, config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("sub");
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i <= 3; i++) {
+            positions.add(ledger.addEntry(new byte[] {(byte) i}));
+        }
+        cursor.delete(positions.get(0));
+        Awaitility.await().until(() -> cursor.getStats().getPersistLedgerSucceed() > 0);
+
+        long[][] ackSets = {{2L}, {Long.MIN_VALUE, 1L}, {5L, 0L, 3L}};
+        for (int i = 1; i < positions.size(); i++) {
+            Position position = positions.get(i);
+            cursor.delete(AckSetStateUtil.createPositionWithAckSet(
+                    position.getLedgerId(), position.getEntryId(), ackSets[i - 1]));
+            if (i < 3) {
+                assertThat(cursor.isCursorDataFullyPersistable())
+                        .as("batch deleted index count %s is within limit 2", i)
+                        .isTrue();
+            } else {
+                assertThat(cursor.isCursorDataFullyPersistable())
+                        .as("third batch deleted index record exceeds limit 2")
+                        .isFalse();
+            }
+        }
     }
 
     @Test(dataProvider = "batchRecovery")
