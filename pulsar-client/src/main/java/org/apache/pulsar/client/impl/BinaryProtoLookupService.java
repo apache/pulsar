@@ -266,6 +266,7 @@ public class BinaryProtoLookupService implements LookupService {
                             + "since the target broker does not support PIP-344 and fallback is enabled.", topicName);
                     finalAutoCreationEnabled = true;
                 } else {
+                    client.getCnxPool().releaseConnection(clientCnx);
                     partitionFuture.completeExceptionally(
                             new PulsarClientException.FeatureNotSupportedException("The feature of "
                                     + "getting partitions without auto-creation is not supported by the broker. "
