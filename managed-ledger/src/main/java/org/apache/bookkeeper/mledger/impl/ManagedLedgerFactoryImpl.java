@@ -482,7 +482,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         }
 
         // Ensure only one managed ledger is created and initialized
-        ledgers.computeIfAbsent(name, (mlName) -> {
+        CompletableFuture<ManagedLedgerImpl> ledgerFuture = ledgers.computeIfAbsent(name, (mlName) -> {
             // Create the managed ledger
             CompletableFuture<ManagedLedgerImpl> future = new CompletableFuture<>();
             bookkeeperFactory.get(
@@ -544,6 +544,12 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                         return null;
                     });
             return future;
+        });
+        // Register after computeIfAbsent installs the future, including an already failed client future.
+        ledgerFuture.whenComplete((ledger, exception) -> {
+            if (exception != null) {
+                ledgers.remove(name, ledgerFuture);
+            }
         }).thenAccept(ml -> callback.openLedgerComplete(ml, ctx)).exceptionally(exception -> {
             callback.openLedgerFailed(ManagedLedgerException
                     .getManagedLedgerException(FutureUtil.unwrapCompletionException(exception)), ctx);

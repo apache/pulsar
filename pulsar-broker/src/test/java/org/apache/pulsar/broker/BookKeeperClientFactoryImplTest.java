@@ -34,6 +34,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -43,7 +44,9 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import io.opentelemetry.api.OpenTelemetry;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -62,6 +65,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.net.CachedDNSToSwitchMapping;
@@ -74,6 +78,7 @@ import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.zookeeper.ZkIsolatedBookieEnsemblePlacementPolicy;
+import org.awaitility.Awaitility;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -298,6 +303,86 @@ public class BookKeeperClientFactoryImplTest {
         when(clientContext.getPlacementPolicy()).thenReturn(policy);
         doReturn(clientContext).when(client).getClientCtx();
         return new ClientInitialization(factoryReturning(client), client, readiness, readinessRequested);
+    }
+
+    @DataProvider
+    public Object[][] rackInitializationRecoveryFailures() {
+        return new Object[][] {{"immediate"}, {"delayed"}, {"timeout"}};
+    }
+
+    @Test(dataProvider = "rackInitializationRecoveryFailures")
+    public void testManagedLedgerOpenRecoversAfterClientRackInitializationFailure(String failureMode) throws Exception {
+        OrderedExecutor executor = OrderedExecutor.newBuilder().numThreads(1).name("test-rack-recovery-bk").build();
+        try (MetadataStoreExtended store = MetadataStoreExtended.create("memory:rack-recovery-" + failureMode,
+                MetadataStoreConfig.builder().build());
+             PulsarMockBookKeeper defaultClient = new PulsarMockBookKeeper(executor);
+             PulsarMockBookKeeper recoveredClient = new PulsarMockBookKeeper(executor)) {
+            ClientInitialization initialization = newClientInitialization(mock(BookKeeper.class));
+            BookKeeper.Builder builder = mock(BookKeeper.Builder.class);
+            when(builder.build()).thenReturn(defaultClient, initialization.client(), recoveredClient);
+            doReturn(builder).when(initialization.factory()).getBookKeeperBuilder(any(), any(), any(), any());
+            RuntimeException loadFailure = new RuntimeException("temporary rack metadata failure");
+            if (failureMode.equals("immediate")) {
+                initialization.readiness().completeExceptionally(loadFailure);
+            }
+
+            ServiceConfiguration conf = new ServiceConfiguration();
+            conf.setMetadataStoreUrl("memory:rack-recovery-" + failureMode);
+            conf.setBookkeeperClientExposeStatsToPrometheus(false);
+            conf.setMetadataStoreSessionTimeoutMillis(failureMode.equals("timeout") ? 100 : 10_000);
+            try (ManagedLedgerClientFactory storage = new ManagedLedgerClientFactory()) {
+                storage.initialize(conf, store, initialization.factory(), mock(EventLoopGroup.class),
+                        OpenTelemetry.noop());
+                ManagedLedgerFactory ledgerFactory = storage.getDefaultStorageClass().getManagedLedgerFactory();
+                ManagedLedgerConfig config = new ManagedLedgerConfig();
+                config.setBookKeeperEnsemblePlacementPolicyClassName(IsolatedBookieEnsemblePlacementPolicy.class);
+                config.setBookKeeperEnsemblePlacementPolicyProperties(
+                        Map.of(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, "group1"));
+
+                CompletableFuture<ManagedLedger> firstOpen = openManagedLedger(ledgerFactory, "rack-recovery", config);
+                initialization.readinessRequested().get(5, TimeUnit.SECONDS);
+                if (failureMode.equals("delayed")) {
+                    initialization.readiness().completeExceptionally(loadFailure);
+                }
+                if (failureMode.equals("timeout")) {
+                    assertThatThrownBy(() -> firstOpen.get(5, TimeUnit.SECONDS))
+                            .hasRootCauseInstanceOf(TimeoutException.class);
+                } else {
+                    assertThatThrownBy(() -> firstOpen.get(5, TimeUnit.SECONDS)).hasRootCause(loadFailure);
+                }
+                verify(initialization.client()).close();
+                Awaitility.await().atMost(Duration.ofSeconds(5)).untilAsserted(() ->
+                        assertThat(storage.getBkEnsemblePolicyToBookKeeperMap()).isEmpty());
+
+                ManagedLedger recovered = openManagedLedger(ledgerFactory, "rack-recovery", config)
+                        .get(5, TimeUnit.SECONDS);
+                assertThat(recovered.addEntry("recovered".getBytes(StandardCharsets.UTF_8)).getEntryId()).isZero();
+                assertThat(storage.getBkEnsemblePolicyToBookKeeperMap().values()).containsExactly(recoveredClient);
+                verify(builder, times(3)).build();
+                recovered.close();
+            } finally {
+                initialization.readiness().complete(null);
+            }
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    private CompletableFuture<ManagedLedger> openManagedLedger(ManagedLedgerFactory factory, String name,
+                                                               ManagedLedgerConfig config) {
+        CompletableFuture<ManagedLedger> future = new CompletableFuture<>();
+        factory.asyncOpen(name, config, new OpenLedgerCallback() {
+            @Override
+            public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
+                future.complete(ledger);
+            }
+
+            @Override
+            public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                future.completeExceptionally(exception);
+            }
+        }, null, null);
+        return future;
     }
 
     private BookKeeperClientFactoryImpl factoryReturning(BookKeeper client) throws Exception {

@@ -24,16 +24,20 @@ import com.google.common.annotations.VisibleForTesting;
 import io.netty.channel.EventLoopGroup;
 import io.opentelemetry.api.OpenTelemetry;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.function.Supplier;
 import lombok.CustomLog;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.conf.ClientConfiguration;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFactoryClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
@@ -49,6 +53,7 @@ import org.apache.pulsar.broker.storage.ManagedLedgerStorageClass;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.stats.CacheMetricsCollector;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 @CustomLog
@@ -60,6 +65,10 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
     private BookKeeper defaultBkClient;
     private final AsyncCache<EnsemblePlacementPolicyConfig, BookKeeper>
             bkEnsemblePolicyToBkClientMap = Caffeine.newBuilder().recordStats().buildAsync();
+    private final Object clientCreationLock = new Object();
+    private final Map<CompletableFuture<BookKeeper>, EnsemblePlacementPolicyConfig> policyClientFutures =
+            new HashMap<>();
+    private volatile boolean closed;
     private StatsProvider statsProvider = new NullStatsProvider();
 
     public ManagedLedgerClientFactory() {
@@ -158,6 +167,9 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
 
         BookkeeperFactoryForCustomEnsemblePlacementPolicy bkFactory = (
                 EnsemblePlacementPolicyConfig ensemblePlacementPolicyConfig) -> {
+            if (closed) {
+                return CompletableFuture.failedFuture(new ManagedLedgerFactoryClosedException());
+            }
             if (ensemblePlacementPolicyConfig == null || ensemblePlacementPolicyConfig.getPolicyClass() == null) {
                 return CompletableFuture.completedFuture(defaultBkClient);
             }
@@ -167,9 +179,10 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
             Optional<Class<? extends EnsemblePlacementPolicy>> policyClass =
                     (Optional) Optional.ofNullable(ensemblePlacementPolicyConfig.getPolicyClass());
             return bkEnsemblePolicyToBkClientMap.get(ensemblePlacementPolicyConfig,
-                    (config, executor) -> bookkeeperProvider.create(conf, metadataStore, eventLoopGroup,
+                    (config, executor) -> createPolicyClient(config, () -> bookkeeperProvider.create(
+                            conf, metadataStore, eventLoopGroup,
                             policyClass,
-                            ensemblePlacementPolicyConfig.getProperties(), statsLogger));
+                            ensemblePlacementPolicyConfig.getProperties(), statsLogger)));
         };
 
         try {
@@ -239,8 +252,59 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
         return bkEnsemblePolicyToBkClientMap.synchronous().asMap();
     }
 
+    private CompletableFuture<BookKeeper> createPolicyClient(EnsemblePlacementPolicyConfig policy,
+                                                            Supplier<CompletableFuture<BookKeeper>> creator) {
+        CompletableFuture<BookKeeper> result = new CompletableFuture<>();
+        synchronized (clientCreationLock) {
+            if (closed) {
+                return CompletableFuture.failedFuture(new ManagedLedgerFactoryClosedException());
+            }
+            policyClientFutures.put(result, policy);
+        }
+        result.whenComplete((bk, error) -> {
+            if (error != null) {
+                synchronized (clientCreationLock) {
+                    policyClientFutures.remove(result);
+                }
+            }
+        });
+        // Keep ownership of the provider's future even if shutdown or cancellation fails the cached wrapper.
+        FutureUtil.supplySafely(creator).whenComplete((bk, error) -> {
+            if (error != null) {
+                result.completeExceptionally(error);
+            } else if (!result.complete(bk)) {
+                closePolicyClientAsync(policy, bk);
+            }
+        });
+        return result;
+    }
+
+    private CompletableFuture<Void> closePolicyClientAsync(EnsemblePlacementPolicyConfig policy, BookKeeper bk) {
+        return CompletableFuture.runAsync(() -> {
+            try {
+                bk.close();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.warn().attr("policy", policy).exception(e).log("Interrupted while closing bookkeeper-client");
+            } catch (Exception e) {
+                log.warn().attr("policy", policy).exception(e).log("Failed to close bookkeeper-client for policy");
+            }
+        });
+    }
+
     @Override
     public void close() throws IOException {
+        Map<CompletableFuture<BookKeeper>, EnsemblePlacementPolicyConfig> clients;
+        synchronized (clientCreationLock) {
+            if (closed) {
+                return;
+            }
+            closed = true;
+            clients = new HashMap<>(policyClientFutures);
+            policyClientFutures.clear();
+        }
+        // Fail opens before shutting down ML, without cancelling the provider's late-client cleanup.
+        clients.keySet().forEach(future -> future.completeExceptionally(new ManagedLedgerFactoryClosedException()));
         try {
             if (null != managedLedgerFactory) {
                 managedLedgerFactory.shutdown();
@@ -264,19 +328,16 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
                 // factory, however that might be introducing more unknowns.
                 log.warn().attr("client", ree).log("Encountered exceptions on closing bookkeeper client");
             }
-            bkEnsemblePolicyToBkClientMap.synchronous().asMap().forEach((policy, bk) -> {
-                try {
-                    if (bk != null) {
-                        bk.close();
-                    }
-                } catch (Exception e) {
-                    log.warn().attr("policy", policy).exception(e).log("Failed to close bookkeeper-client for policy");
-                }
-            });
-            log.info("Closed BookKeeper client");
         } catch (Exception e) {
             log.warn().exception(e).log("Failed to close ManagedLedgerClientFactory");
             throw new IOException(e);
+        } finally {
+            List<CompletableFuture<Void>> closingClients = new ArrayList<>(clients.size());
+            clients.forEach((future, policy) -> closingClients.add(future.handle((bk, error) ->
+                    bk == null ? CompletableFuture.<Void>completedFuture(null) : closePolicyClientAsync(policy, bk))
+                    .thenCompose(close -> close)));
+            FutureUtil.waitForAll(closingClients).join();
+            log.info("Closed BookKeeper client");
         }
     }
 }

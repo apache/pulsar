@@ -59,6 +59,7 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
     // Using a pair to save the isolation groups, the left value is the primary group and the right value is
     // the secondary group.
     private ImmutablePair<Set<String>, Set<String>> defaultIsolationGroups;
+    private boolean defaultIsolationGroupsConfigured;
 
     @Getter
     @VisibleForTesting
@@ -90,20 +91,16 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
         }
         Set<String> primaryIsolationGroups = new HashSet<>();
         Set<String> secondaryIsolationGroups = new HashSet<>();
-        if (conf.getProperty(ISOLATION_BOOKIE_GROUPS) != null) {
+        defaultIsolationGroupsConfigured = conf.getProperty(ISOLATION_BOOKIE_GROUPS) != null;
+        if (defaultIsolationGroupsConfigured) {
             String isolationGroupsString = ConfigurationStringUtil
                     .castToString(conf.getProperty(ISOLATION_BOOKIE_GROUPS));
             if (!isolationGroupsString.isEmpty()) {
                 Collections.addAll(primaryIsolationGroups, isolationGroupsString.split(","));
             }
-            // Only add the bookieMappingCache if we have defined an isolation group
-            bookieMappingCache = store.getMetadataCache(BookiesRackConfiguration.class);
-            initialRackConfigurationLoadFuture = loadRackConfiguration();
-            initialRackConfigurationLoadFuture.exceptionally(e -> {
-                log.warn().exception(e)
-                        .log("Failed to asynchronously load the initial bookies rack configuration");
-                return null;
-            });
+        } else {
+            // An absent default has always allowed every bookie. Keep it distinct from an explicitly empty group.
+            primaryIsolationGroups.add(PULSAR_SYSTEM_TOPIC_ISOLATION_GROUP);
         }
         if (conf.getProperty(SECONDARY_ISOLATION_BOOKIE_GROUPS) != null) {
             String secondaryIsolationGroupsString = ConfigurationStringUtil
@@ -113,6 +110,14 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
             }
         }
         defaultIsolationGroups = ImmutablePair.of(primaryIsolationGroups, secondaryIsolationGroups);
+        // A ledger can carry isolation groups even when this client has no default groups.
+        bookieMappingCache = store.getMetadataCache(BookiesRackConfiguration.class);
+        initialRackConfigurationLoadFuture = loadRackConfiguration();
+        initialRackConfigurationLoadFuture.exceptionally(e -> {
+            log.warn().exception(e)
+                    .log("Failed to asynchronously load the initial bookies rack configuration");
+            return null;
+        });
         return super.initialize(conf, optionalDnsResolver, timer, featureProvider, statsLogger, bookieAddressResolver);
     }
 
@@ -122,7 +127,7 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
      * when the metadata node does not exist, or exceptionally when that initial load fails. A later successful
      * refresh can restore placement without changing the result of this initial attempt.
      *
-     * <p>The default wildcard policy is ready immediately because it does not require rack metadata. A ledger
+     * <p>An absent default or wildcard policy is ready immediately because it does not require rack metadata. A ledger
      * overriding the default groups still requires a loaded configuration before selecting or replacing bookies.
      * This method must be called after {@link #initialize} returns. Callers should apply timeouts to their own
      * dependent future rather than complete or cancel this shared future.
@@ -210,6 +215,14 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
         if (IsolatedBookieEnsemblePlacementPolicy.class.isAssignableFrom(policyClass)) {
             MutablePair<Set<String>, Set<String>> pair = new MutablePair<>(emptySet(), emptySet());
             Map<String, Object> properties = ensemblePlacementPolicyConfig.getProperties();
+            if (properties == null) {
+                properties = Collections.emptyMap();
+            }
+            if (!defaultIsolationGroupsConfigured
+                    && !properties.containsKey(ISOLATION_BOOKIE_GROUPS)
+                    && !properties.containsKey(SECONDARY_ISOLATION_BOOKIE_GROUPS)) {
+                return defaultIsolationGroups;
+            }
             String primaryIsolationGroupString = ConfigurationStringUtil
                     .castToString(properties.getOrDefault(ISOLATION_BOOKIE_GROUPS, ""));
             String secondaryIsolationGroupString = ConfigurationStringUtil
