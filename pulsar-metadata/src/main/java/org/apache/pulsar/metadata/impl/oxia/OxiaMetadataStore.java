@@ -476,6 +476,13 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
         }
     }
 
+    @Override
+    public boolean isCreatorIdentitySessionScoped() {
+        // The oxia backend scopes the creator identity to the client, not the session: a
+        // self-created record may still be bound to an expired session.
+        return false;
+    }
+
     public Optional<MetadataEventSynchronizer> getMetadataEventSynchronizer() {
         return synchronizer;
     }

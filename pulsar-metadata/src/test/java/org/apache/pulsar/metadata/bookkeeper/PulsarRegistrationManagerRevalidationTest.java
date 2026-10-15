@@ -297,6 +297,58 @@ public class PulsarRegistrationManagerRevalidationTest {
         store.releaseHeldOperations();
     }
 
+    /**
+     * A register whose caller stopped waiting while the mutation was still running is
+     * reconciled when the mutation completes late: the caller observed a failure, so the
+     * registration the late completion left behind is undone — and the undo is the
+     * register's own cleanup, not a registration expiry.
+     */
+    @Test
+    public void lateRegisterCompletionAfterCallerTimeoutIsUndone() throws Exception {
+        // A long blocking-call timeout lets the internal acquire wait outlive the caller
+        // budget below, so the mutation completes successfully after the caller gave up.
+        recreateManagerWithBlockingCallTimeout(1000);
+
+        store.holdNextPuts(1);
+        assertThrows(BookieException.MetadataStoreException.class,
+                () -> registrationManager.registerBookieWithBudget(
+                        bookieId, false, bookieServiceInfo(), 100));
+
+        store.releaseHeldOperations();
+
+        // The mutation completes late: the registration it left behind is undone...
+        await().atMost(5, SECONDS).untilAsserted(() -> assertFalse(store.getRecord(regPath).isPresent()));
+        // ...without being reported as a registration expiry.
+        await().during(1, SECONDS).atMost(2, SECONDS)
+                .untilAsserted(() -> assertEquals(expiredCount.get(), 0));
+    }
+
+    /**
+     * An acquire whose synchronous wait times out may still land in the background: the
+     * lock that lands late is released as it lands, instead of leaving a registration
+     * record behind that nobody tracks.
+     */
+    @Test
+    public void acquireLandingAfterItsWaitTimedOutIsReleased() throws Exception {
+        // A short blocking-call timeout lets the internal acquire wait time out while its
+        // put is held in flight; the caller budget below outlasts that wait.
+        recreateManagerWithBlockingCallTimeout(300);
+
+        store.holdNextPuts(1);
+        assertThrows(BookieException.MetadataStoreException.class,
+                () -> registrationManager.registerBookieWithBudget(
+                        bookieId, false, bookieServiceInfo(), 10_000));
+
+        store.releaseHeldOperations();
+
+        // The acquire lands late: the landed lock is released, removing the record it
+        // wrote...
+        await().atMost(5, SECONDS).untilAsserted(() -> assertFalse(store.getRecord(regPath).isPresent()));
+        // ...without being reported as a registration expiry.
+        await().during(1, SECONDS).atMost(2, SECONDS)
+                .untilAsserted(() -> assertEquals(expiredCount.get(), 0));
+    }
+
     private void recreateManagerWithBlockingCallTimeout(long timeoutMs) throws Exception {
         registrationManager.close();
         registrationManager = new PulsarRegistrationManager(store, LEDGERS_ROOT, new ServerConfiguration(),

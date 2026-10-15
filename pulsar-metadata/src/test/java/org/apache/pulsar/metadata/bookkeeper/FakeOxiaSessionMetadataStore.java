@@ -232,6 +232,15 @@ class FakeOxiaSessionMetadataStore extends AbstractMetadataStore {
                 record.ephemeral, createdBySelf);
     }
 
+    /**
+     * The creator identity is session-scoped only under the zk ownership semantics; in the
+     * default oxia semantics it outlives the session (see {@link #zkOwnershipSemantics}).
+     */
+    @Override
+    public boolean isCreatorIdentitySessionScoped() {
+        return zkOwnershipSemantics;
+    }
+
     private long ensureSession() {
         if (currentSessionId == null) {
             currentSessionId = nextSessionId++;

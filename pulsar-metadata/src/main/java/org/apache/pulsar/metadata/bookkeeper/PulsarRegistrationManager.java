@@ -230,7 +230,53 @@ public class PulsarRegistrationManager implements RegistrationManager {
             throws BookieException {
         log.info().attr("bookieId", bookieId).attr("readOnly", readOnly).attr("info", bookieServiceInfo)
                 .log("RegisterBookie");
-        runBlockingMutation(() -> doRegisterBookie(bookieId, readOnly, bookieServiceInfo));
+        runBlockingMutation(newRegistrationMutation(bookieId, readOnly, bookieServiceInfo));
+    }
+
+    /**
+     * Visible for testing: registers with a shortened caller budget, so that the
+     * reconciliation of a registration whose caller gave up waiting can be exercised without
+     * waiting out the real budget.
+     */
+    void registerBookieWithBudget(BookieId bookieId, boolean readOnly,
+                                  BookieServiceInfo bookieServiceInfo, long budgetMillis)
+            throws BookieException {
+        runBlockingMutation(newRegistrationMutation(bookieId, readOnly, bookieServiceInfo), budgetMillis);
+    }
+
+    /**
+     * The register mutation, together with its give-up undo: when the caller stopped waiting
+     * but the mutation still completed, the registration it left behind must not stand — the
+     * caller observed a failure. The undo releases the very handle the mutation acquired; a
+     * retry that already replaced the handle is left alone.
+     */
+    private RegistrationMutation newRegistrationMutation(BookieId bookieId, boolean readOnly,
+                                                         BookieServiceInfo bookieServiceInfo) {
+        return new RegistrationMutation() {
+            /** The handle this mutation acquired, captured for the undo. Only accessed on the
+             * mutation executor. */
+            private ResourceLock<BookieServiceInfo> acquired;
+
+            @Override
+            public void run() throws BookieException {
+                doRegisterBookie(bookieId, readOnly, bookieServiceInfo);
+                acquired = registrationMap(readOnly).get(bookieId);
+            }
+
+            @Override
+            public void undoAfterCallerGaveUp() {
+                if (acquired != null && registrationMap(readOnly).remove(bookieId, acquired)) {
+                    log.info().attr("bookieId", bookieId).attr("readOnly", readOnly)
+                            .log("Undoing the registration whose caller gave up waiting");
+                    try {
+                        releaseRegistrationLock(bookieId, readOnly, acquired);
+                    } catch (BookieException e) {
+                        log.warn().attr("bookieId", bookieId).exception(e.getCause())
+                                .log("Cannot undo the registration whose caller gave up waiting");
+                    }
+                }
+            }
+        };
     }
 
     /**
@@ -300,9 +346,28 @@ public class PulsarRegistrationManager implements RegistrationManager {
     private ResourceLock<BookieServiceInfo> acquireRegistrationLock(
             BookieId bookieId, boolean readOnly, BookieServiceInfo bookieServiceInfo)
             throws InterruptedException, ExecutionException, TimeoutException {
-        ResourceLock<BookieServiceInfo> lock = lockManager
-                .acquireLock(registrationPath(bookieId, readOnly), bookieServiceInfo)
-                .get(blockingCallTimeout, MILLISECONDS);
+        CompletableFuture<ResourceLock<BookieServiceInfo>> acquireFuture =
+                lockManager.acquireLock(registrationPath(bookieId, readOnly), bookieServiceInfo);
+        ResourceLock<BookieServiceInfo> lock;
+        try {
+            lock = acquireFuture.get(blockingCallTimeout, MILLISECONDS);
+        } catch (TimeoutException e) {
+            // The acquire may still complete in the background: a lock that lands after this
+            // wait gave up is tracked by nobody here, so release it when it lands instead of
+            // leaving a registration record behind.
+            acquireFuture.whenComplete((lateLock, ex) -> {
+                if (ex == null) {
+                    log.info().attr("bookieId", bookieId)
+                            .log("Releasing the registration lock acquired after the wait gave up");
+                    lateLock.release().exceptionally(re -> {
+                        log.warn().attr("bookieId", bookieId).exception(re)
+                                .log("Cannot release the lock acquired after the wait gave up");
+                        return null;
+                    });
+                }
+            });
+            throw e;
+        }
         lock.getLockExpiredFuture().thenRun(() -> scheduleOnMutationExecutor(
                 () -> handleRegistrationExpired(bookieId, readOnly, lock)));
         return lock;
@@ -585,7 +650,17 @@ public class PulsarRegistrationManager implements RegistrationManager {
         // the delete of the BadVersion direct-record cleanup — before acquiring the new one,
         // each step bounded by blockingCallTimeout, plus margin for queueing behind other
         // work on the single-thread executor.
-        long deadline = System.currentTimeMillis() + 4 * blockingCallTimeout + 5_000;
+        runBlockingMutation(mutation, 4 * blockingCallTimeout + 5_000);
+    }
+
+    /**
+     * Runs the mutation with the given caller budget. The no-budget overload computes the
+     * budget from the blocking-call timeout; tests reach the budgeted form through
+     * {@link #registerBookieWithBudget}.
+     */
+    private void runBlockingMutation(RegistrationMutation mutation, long budgetMillis)
+            throws BookieException {
+        long deadline = System.currentTimeMillis() + budgetMillis;
         MutationTask task = new MutationTask(mutation);
         try {
             mutationExecutor.execute(task);
@@ -594,7 +669,7 @@ public class PulsarRegistrationManager implements RegistrationManager {
         }
 
         try {
-            task.future.get(deadline - System.currentTimeMillis(), MILLISECONDS);
+            task.future.get(Math.max(1, deadline - System.currentTimeMillis()), MILLISECONDS);
         } catch (ExecutionException e) {
             if (e.getCause() instanceof BookieException) {
                 throw (BookieException) e.getCause();
@@ -604,8 +679,13 @@ public class PulsarRegistrationManager implements RegistrationManager {
             Thread.currentThread().interrupt();
             throw new BookieException.MetadataStoreException(ie);
         } catch (TimeoutException te) {
+            // The caller gives up while the mutation may still be running in the background:
+            // reconcile its late completion, so that the store state converges with the
+            // failure the caller observed here.
+            task.giveUp();
             log.warn().log("The registration mutation did not complete within the waiting"
-                    + " budget; it may still be running in the background");
+                    + " budget; it may still be running in the background and its late"
+                    + " completion will be reconciled");
             throw new BookieException.MetadataStoreException(te);
         }
     }
@@ -613,6 +693,14 @@ public class PulsarRegistrationManager implements RegistrationManager {
     private interface RegistrationMutation {
 
         void run() throws BookieException;
+
+        /**
+         * Reconciles a successful mutation whose caller already gave up waiting: the caller
+         * observed a failure, so the effect of the mutation must not stand. Runs on the
+         * mutation executor. Failures of the mutation itself need no reconciliation.
+         */
+        default void undoAfterCallerGaveUp() {
+        }
     }
 
     /**
@@ -624,6 +712,9 @@ public class PulsarRegistrationManager implements RegistrationManager {
 
         private final RegistrationMutation mutation;
         private final CompletableFuture<Void> future = new CompletableFuture<>();
+        /** Guarded by this: whether the caller stopped waiting, and whether the undo ran. */
+        private boolean callerGaveUp;
+        private boolean undoDone;
 
         MutationTask(RegistrationMutation mutation) {
             this.mutation = mutation;
@@ -637,9 +728,45 @@ public class PulsarRegistrationManager implements RegistrationManager {
             }
             try {
                 mutation.run();
-                future.complete(null);
             } catch (Throwable t) {
                 future.completeExceptionally(t);
+                return;
+            }
+            synchronized (this) {
+                if (callerGaveUp) {
+                    undoSafely();
+                }
+                future.complete(null);
+            }
+        }
+
+        /**
+         * Marks that the caller stopped waiting for the result. A mutation still running is
+         * reconciled by {@link #run()} when it completes; one that already completed
+         * successfully is reconciled on the mutation executor, to keep the undo serialized
+         * with later mutations. The give-up and the completion are mutually exclusive under
+         * this monitor, so a successful mutation is reconciled exactly once.
+         */
+        synchronized void giveUp() {
+            callerGaveUp = true;
+            if (future.isDone()) {
+                if (!future.isCompletedExceptionally()) {
+                    scheduleOnMutationExecutor(this::undoSafely);
+                }
+            }
+        }
+
+        private synchronized void undoSafely() {
+            if (undoDone) {
+                return;
+            }
+            undoDone = true;
+            try {
+                mutation.undoAfterCallerGaveUp();
+            } catch (Throwable t) {
+                log.warn().exception(t)
+                        .log("Cannot reconcile the registration mutation that completed"
+                                + " after its caller gave up");
             }
         }
 
