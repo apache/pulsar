@@ -309,12 +309,18 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
-    public void testSchemaCloseFailureDeletesOrphanLedger() throws Exception {
+    @DataProvider
+    public Object[][] schemaDeleteResults() {
+        return new Object[][] {{true}, {false}};
+    }
+
+    @Test(dataProvider = "schemaDeleteResults")
+    public void testSchemaCloseFailurePreservesExceptionDuringCleanup(boolean deleteSucceeds) throws Exception {
         String schemaId = "public/default/" + UUID.randomUUID();
         PulsarMockBookKeeper bookKeeper = pulsarTestContext.getMockBookKeeper();
         // Creation and the successful add precede close.
         CompletableFuture<Void> close = bookKeeper.promiseAfter(2);
+        CompletableFuture<Void> deletion = bookKeeper.promiseAfter(3);
         CompletableFuture<SchemaVersion> put = schemaRegistryService.putSchemaIfAbsent(
                 schemaId, schemaData1, SchemaCompatibilityStrategy.FULL);
         try {
@@ -322,18 +328,28 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
                 assertThat(schemaLedgers(bookKeeper, schemaId)).hasSize(1);
                 assertThat(schemaLedgers(bookKeeper, schemaId).get(0).getAsyncCloseCount()).hasValue(1);
             });
+            PulsarMockLedgerHandle ledger = schemaLedgers(bookKeeper, schemaId).get(0);
+            assertThat(ledger.getLastAddConfirmed()).isZero();
             assertThat(put).isNotDone();
             assertThat(pulsar.getLocalMetadataStore().exists("/schemas/" + schemaId).get(10, TimeUnit.SECONDS))
                     .isFalse();
             close.completeExceptionally(BKException.create(BKException.Code.WriteException));
-
+            Awaitility.await().atMost(Duration.ofSeconds(10)).until(() -> deletion.getNumberOfDependents() > 0);
+            assertThat(put).isNotDone();
+            if (deleteSucceeds) {
+                deletion.complete(null);
+            } else {
+                deletion.completeExceptionally(BKException.create(BKException.Code.UnexpectedConditionException));
+            }
             assertThatThrownBy(() -> put.get(10, TimeUnit.SECONDS))
                     .hasRootCauseInstanceOf(BKException.BKWriteException.class);
-            assertThat(schemaLedgers(bookKeeper, schemaId)).isEmpty();
+            assertThat(ledger.getAsyncCloseCount()).hasValue(1);
+            assertThat(schemaLedgers(bookKeeper, schemaId)).hasSize(deleteSucceeds ? 0 : 1);
             assertThat(pulsar.getLocalMetadataStore().exists("/schemas/" + schemaId).get(10, TimeUnit.SECONDS))
                     .isFalse();
         } finally {
             close.complete(null);
+            deletion.complete(null);
         }
     }
 
