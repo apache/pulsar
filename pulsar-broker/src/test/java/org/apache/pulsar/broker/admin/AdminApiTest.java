@@ -4117,6 +4117,31 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    @SneakyThrows
+    public void testDeleteTopicAlsoDeletePermissionGranted() {
+        String namespace = BrokerTestUtil.newUniqueName("prop-xyz/ns");
+        admin.namespaces().createNamespace(namespace);
+        String topic = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/tp");
+        String role = "test-role";
+        Set<AuthAction> permissions = EnumSet.of(AuthAction.produce, AuthAction.consume);
+
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topics().grantPermission(topic, role, permissions);
+        Awaitility.await().untilAsserted(() -> {
+            Policies nsPolicies = admin.namespaces().getPolicies(namespace);
+            assertTrue(nsPolicies.auth_policies.getTopicAuthentication().containsKey(topic));
+            assertThat(admin.topics().getPermissions(topic)).containsEntry(role, permissions);
+        });
+
+        // Verify: the permission record will be removed after the topic was removed.
+        admin.topics().delete(topic);
+        Awaitility.await().untilAsserted(() -> {
+            Policies nsPolicies = admin.namespaces().getPolicies(namespace);
+            assertFalse(nsPolicies.auth_policies.getTopicAuthentication().containsKey(topic));
+        });
+    }
+
+    @Test
     public void testRecreatePartitionedTopicAfterMetadataLoss()
             throws PulsarAdminException, ExecutionException, InterruptedException {
         String namespace = "prop-xyz/ns1/";

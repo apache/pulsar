@@ -28,6 +28,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
+import com.google.common.primitives.Bytes;
 import com.google.gson.Gson;
 import java.lang.reflect.Field;
 import java.util.Arrays;
@@ -923,6 +924,18 @@ public class FunctionConfigUtilsTest {
         assertThatThrownBy(() -> FunctionConfigUtils.convert(functionConfig))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("clientApi V4 cannot be used with topic 'topic://public/default/in'");
+    }
+
+    @Test
+    public void testConvertFromDetailsWithUnknownClientApi() {
+        byte[] details = FunctionConfigUtils.convert(createFunctionConfig()).toByteArray();
+        // clientApi (field 24, varint) set to 9, a number that no ClientApi value has
+        byte[] unknownClientApi = {(byte) 0xC0, 0x01, 0x09};
+        FunctionDetails functionDetails = new FunctionDetails();
+        functionDetails.parseFrom(Bytes.concat(details, unknownClientApi));
+
+        assertThat(functionDetails.getClientApi()).isEqualTo(FunctionDetails.ClientApi.UNRECOGNIZED);
+        assertThat(FunctionConfigUtils.convertFromDetails(functionDetails).getClientApi()).isNull();
     }
 
     @Test

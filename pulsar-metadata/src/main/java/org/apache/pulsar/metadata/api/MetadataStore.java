@@ -357,7 +357,7 @@ public interface MetadataStore extends AutoCloseable {
      * the records whose {@code indexName} key is missing or outside the bounds.
      *
      * <p>Results are streamed to {@code consumer} as they become available — {@link ScanConsumer#onNext}
-     * once per match, then exactly one of {@link ScanConsumer#onCompleted} or
+     * once per match, in no particular order, then exactly one of {@link ScanConsumer#onCompleted} or
      * {@link ScanConsumer#onError}. The returned future completes when the scan terminates and
      * mirrors the terminal callback.
      *

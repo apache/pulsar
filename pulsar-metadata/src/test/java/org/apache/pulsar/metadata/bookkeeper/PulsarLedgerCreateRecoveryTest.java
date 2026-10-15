@@ -246,7 +246,7 @@ public class PulsarLedgerCreateRecoveryTest {
             assertThat(fixture.persisted.get().getValue()).isEqualTo(SERDE.serialize(input));
             assertThat(fixture.readPersisted().getCToken()).isZero();
             assertThatThrownBy(() -> fixture.manager.createLedgerMetadata(LEDGER_ID, input).get(10, TimeUnit.SECONDS))
-                    .hasCauseInstanceOf(BKException.BKMetadataVersionException.class);
+                    .hasCauseInstanceOf(BKException.BKLedgerExistException.class);
             doReturn(CompletableFuture.failedFuture(new MetadataStoreException.AlreadyExistsException("exists")))
                     .when(fixture.store).put(eq(fixture.path), any(byte[].class), eq(Optional.of(-1L)));
             assertThatThrownBy(() -> fixture.manager.createLedgerMetadata(LEDGER_ID, input).get(10, TimeUnit.SECONDS))

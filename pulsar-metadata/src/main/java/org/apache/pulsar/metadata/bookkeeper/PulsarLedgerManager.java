@@ -145,11 +145,19 @@ public class PulsarLedgerManager implements LedgerManager {
                     .thenApply(stat -> new Versioned<>(metadata, new LongVersion(stat.getVersion())))
                     .exceptionallyCompose(ex -> {
                         Throwable cause = FutureUtil.unwrapCompletionException(ex);
-                        if (supportsCToken && (cause instanceof MetadataStoreException.BadVersionException
-                                || cause instanceof MetadataStoreException.AlreadyExistsException)) {
+                        if (cause instanceof MetadataStoreException.BadVersionException
+                                || cause instanceof MetadataStoreException.AlreadyExistsException) {
+                            if (supportsCToken) {
+                                log.debug().attr("ledgerId", ledgerId).exceptionMessage(cause)
+                                        .log("Ledger metadata exists, checking creator token");
+                                return recoverLedgerCreation(ledgerId, path, metadata.getCToken(), cause);
+                            }
+                            // v1/v2 must preserve the collision contract introduced by #26669.
                             log.debug().attr("ledgerId", ledgerId).exceptionMessage(cause)
-                                    .log("Ledger metadata exists, checking creator token");
-                            return recoverLedgerCreation(ledgerId, path, metadata.getCToken(), cause);
+                                    .log("Ledger metadata already exists");
+                            BKException bke = new BKException.BKLedgerExistException();
+                            bke.initCause(cause);
+                            return FutureUtil.failedFuture(bke);
                         }
                         log.error().attr("ledgerId", ledgerId).exceptionMessage(cause)
                                 .log("Failed to create ledger");

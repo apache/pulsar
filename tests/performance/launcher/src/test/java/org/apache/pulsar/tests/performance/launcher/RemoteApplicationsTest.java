@@ -43,6 +43,8 @@ public class RemoteApplicationsTest {
                   count: 20
                   podsPerApplication: 10
                   joinSeconds: [0, 30]
+                  skipMessages: [0, 100]
+                  unloadBeforeJoin: true
                   env:
                     PULSAR_MEM: "-Xmx1g"
                 """);
@@ -61,6 +63,9 @@ public class RemoteApplicationsTest {
         assertThat(remoteWorkload.path("applications").path("count").asInt()).isEqualTo(4);
         assertThat(remoteWorkload.path("applications").path("podsPerApplication").asInt()).isEqualTo(10);
         assertThat(remoteWorkload.path("applications").has("joinSeconds")).isFalse();
+        // which the join preparation needs
+        assertThat(remoteWorkload.path("applications").has("skipMessages")).isFalse();
+        assertThat(remoteWorkload.path("applications").has("unloadBeforeJoin")).isFalse();
         // The workload itself is unchanged
         assertThat(workload.path("applications").path("count").asInt()).isEqualTo(20);
         assertThat(PerformanceLauncher.remoteApplicationsEnv(Map.of("PULSAR_MEM", "-Xmx1g"), remote))
