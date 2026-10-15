@@ -66,6 +66,15 @@ final class ConsumerPrioritySelector<T> {
         }
     }
 
+    void removeInstance(T consumer) {
+        for (int index = 0; index < consumerList.size(); index++) {
+            if (consumerList.get(index) == consumer) {
+                decrementPriorityCount(consumerList.remove(index));
+                return;
+            }
+        }
+    }
+
     void removeIf(Predicate<T> predicate) {
         consumerList.removeIf(predicate);
         // Bulk removal repairs inconsistent dispatcher membership. Rebuild from survivors so even an

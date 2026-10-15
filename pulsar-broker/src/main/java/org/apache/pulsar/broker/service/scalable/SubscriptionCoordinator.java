@@ -189,10 +189,17 @@ public class SubscriptionCoordinator {
      * is preserved and the new connection is attached; otherwise the registration is
      * persisted and a rebalance is triggered.
      *
+     * <p>Both paths push the registering consumer its assignment while holding the monitor. The
+     * connection answers the consumer's subscribe with that push, which orders the response with
+     * every later push (see {@code ServerCnx#sendScalableConsumerAssignment}).
+     *
      * @return assignment map for all consumers (unchanged on reconnect, recomputed on fresh register)
      */
     public synchronized CompletableFuture<Map<ConsumerSession, ConsumerAssignment>> registerConsumer(
             String consumerName, long consumerId, TransportCnx cnx) {
+        if (closed) {
+            return CompletableFuture.failedFuture(notServing());
+        }
         ConsumerSession existing = sessions.get(consumerName);
         if (existing != null) {
             // Reconnect: attach the new connection, cancel any grace timer, and push the
@@ -212,6 +219,10 @@ public class SubscriptionCoordinator {
         return resources.registerConsumerAsync(topicName, subscriptionName, consumerName)
                 .thenApply(__ -> {
                     synchronized (this) {
+                        if (closed) {
+                            // The registration is persisted: the next leader restores it.
+                            throw notServing();
+                        }
                         sessions.put(consumerName, session);
                         Map<ConsumerSession, ConsumerAssignment> result = rebalanceAndNotify();
                         // First consumer (or rejoining one) — kick off drain checks at the
@@ -246,6 +257,9 @@ public class SubscriptionCoordinator {
         return resources.unregisterConsumerAsync(topicName, subscriptionName, consumerName)
                 .thenApply(__ -> {
                     synchronized (this) {
+                        if (closed) {
+                            return Map.<ConsumerSession, ConsumerAssignment>of();
+                        }
                         ConsumerSession current = sessions.get(consumerName);
                         if (current != null && current.getConsumerId() != expectedConsumerId) {
                             // A same-name consumer rejoined while the delete was in flight
@@ -284,7 +298,7 @@ public class SubscriptionCoordinator {
      */
     public synchronized void onConsumerDisconnect(String consumerName) {
         ConsumerSession session = sessions.get(consumerName);
-        if (session == null || !session.isConnected()) {
+        if (closed || session == null || !session.isConnected()) {
             return;
         }
         session.markDisconnected();
@@ -297,6 +311,9 @@ public class SubscriptionCoordinator {
      */
     public synchronized Map<ConsumerSession, ConsumerAssignment> restoreConsumers(
             Collection<String> persistedConsumerNames) {
+        if (closed) {
+            return Map.of();
+        }
         for (String name : persistedConsumerNames) {
             if (sessions.containsKey(name)) {
                 continue;
@@ -323,6 +340,9 @@ public class SubscriptionCoordinator {
      */
     public synchronized CompletableFuture<Map<ConsumerSession, ConsumerAssignment>> onLayoutChange(
             SegmentLayout newLayout) {
+        if (closed) {
+            return CompletableFuture.completedFuture(Map.of());
+        }
         this.currentLayout = newLayout;
         if (sessions.isEmpty()) {
             segmentAssignments.clear();
@@ -342,7 +362,7 @@ public class SubscriptionCoordinator {
      * defaulted to "no enforcement"). No-op if a checker is already installed.
      */
     synchronized void installDrainChecker(SegmentDrainChecker checker) {
-        if (this.drainChecker != null || checker == null) {
+        if (closed || this.drainChecker != null || checker == null) {
             return;
         }
         this.drainChecker = checker;
@@ -372,9 +392,13 @@ public class SubscriptionCoordinator {
     }
 
     /**
-     * Stop the periodic drain-status poller. Called by the controller on close. Idempotent.
-     * Also flips a {@code closed} flag so any {@link #pollDrainStatus()} iteration that's
-     * mid-flight aborts its rearm step instead of leaking a task into the executor.
+     * Stop the periodic drain-status poller and the grace-period timers. Called by the
+     * controller on close and when it stops serving as the leader. Idempotent. Also flips a
+     * {@code closed} flag so any {@link #pollDrainStatus()} iteration that's mid-flight aborts
+     * its rearm step instead of leaking a task into the executor. Nothing that completes after
+     * it (a drain poll, a grace timer, a registration in flight) acts on the sessions or pushes
+     * an assignment, and new registrations fail: the sessions are left, persisted, to the next
+     * leader.
      */
     public synchronized void close() {
         closed = true;
@@ -382,6 +406,7 @@ public class SubscriptionCoordinator {
             drainPollTask.cancel(false);
             drainPollTask = null;
         }
+        sessions.values().forEach(ConsumerSession::cancelGraceTimer);
     }
 
     // --- Drain tracking ---
@@ -433,6 +458,9 @@ public class SubscriptionCoordinator {
      * goes through {@link #pollDrainStatus()}, which queries the broker.
      */
     synchronized void markSegmentsDrained(Set<Long> segmentIds) {
+        if (closed) {
+            return;
+        }
         boolean changed = false;
         for (long id : segmentIds) {
             if (drainedSegmentIds.add(id)) {
@@ -572,7 +600,7 @@ public class SubscriptionCoordinator {
     private void evictExpiredConsumer(String consumerName) {
         synchronized (this) {
             ConsumerSession session = sessions.get(consumerName);
-            if (session == null) {
+            if (closed || session == null) {
                 return;
             }
             if (session.isConnected()) {
@@ -592,6 +620,9 @@ public class SubscriptionCoordinator {
                 })
                 .thenRun(() -> {
                     synchronized (this) {
+                        if (closed) {
+                            return;
+                        }
                         if (!sessions.isEmpty()) {
                             rebalanceAndNotify();
                         } else {
@@ -599,6 +630,11 @@ public class SubscriptionCoordinator {
                         }
                     }
                 });
+    }
+
+    private IllegalStateException notServing() {
+        return new IllegalStateException("The controller no longer serves subscription " + subscriptionName
+                + " of topic " + topicName);
     }
 
     /**
@@ -665,11 +701,11 @@ public class SubscriptionCoordinator {
         if (consumerCount <= segmentCount || checkpointGroup) {
             int consumerIndex = 0;
             for (SegmentInfo segment : sortedSegments) {
-                TopicName segmentTopic = SegmentTopicName.fromParent(topicName, segment.hashRange(),
-                        segment.segmentId());
+                // A legacy segment of a migrated topic is read from the persistent:// topic it wraps.
+                String segmentTopic = SegmentTopicName.backingTopicName(topicName, segment);
                 ConsumerSession consumer = sortedConsumers.get(consumerIndex % sortedConsumers.size());
                 assignmentLists.get(consumer).add(new ConsumerAssignment.AssignedSegment(
-                        segment.segmentId(), segment.hashRange(), segmentTopic.toString(), List.of()));
+                        segment.segmentId(), segment.hashRange(), segmentTopic, List.of()));
                 consumerIndex++;
             }
         } else {
@@ -692,13 +728,12 @@ public class SubscriptionCoordinator {
             int consumerIndex = 0;
             for (int i = 0; i < segmentCount; i++) {
                 SegmentInfo segment = sortedSegments.get(i);
-                TopicName segmentTopic = SegmentTopicName.fromParent(topicName, segment.hashRange(),
-                        segment.segmentId());
+                String segmentTopic = SegmentTopicName.backingTopicName(topicName, segment);
                 int k = owners[i];
                 if (k == 1) {
                     ConsumerSession consumer = sortedConsumers.get(consumerIndex++);
                     assignmentLists.get(consumer).add(new ConsumerAssignment.AssignedSegment(
-                            segment.segmentId(), segment.hashRange(), segmentTopic.toString(), List.of()));
+                            segment.segmentId(), segment.hashRange(), segmentTopic, List.of()));
                 } else {
                     // Shared segment: every attached consumer subscribes Key_Shared declaring the
                     // segment's full (immutable) bucket boundary list — WHO owns WHICH bucket is
@@ -709,8 +744,7 @@ public class SubscriptionCoordinator {
                     for (int c = 0; c < k; c++) {
                         ConsumerSession consumer = sortedConsumers.get(consumerIndex++);
                         assignmentLists.get(consumer).add(new ConsumerAssignment.AssignedSegment(
-                                segment.segmentId(), segment.hashRange(), segmentTopic.toString(),
-                                boundaries));
+                                segment.segmentId(), segment.hashRange(), segmentTopic, boundaries));
                     }
                 }
             }
