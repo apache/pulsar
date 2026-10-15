@@ -1528,9 +1528,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         // and return undecrypted payload
         if (isMessageUndecryptable || (numMessages == 1 && !msgMetadata.hasNumMessagesInBatch())) {
 
+            MessageIdImpl[] chunkedMessageIds = null;
             if (isChunkedMessage) {
                 ByteBuf compressedAssembledPayload;
-                MessageIdImpl[] chunkedMessageIds = null;
                 // Acks decided under the lock are issued only after it is released, see acknowledgeChunkedMessageIds.
                 // They are issued in a finally: once a path has queued them it has already removed the ctx they belong
                 // to, so if chunk processing then throws (a malformed chunk overflowing the buffer, say) nothing else
@@ -1576,8 +1576,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     return;
                 }
 
-                // Outside the lock: set the chunk message id, decompress the assembled payload, and (only on success)
-                // register it with the unack tracker.
+                // Outside the lock: set the chunk message id and decompress the assembled payload. The chunk ids are
+                // registered with the unack tracker below, only if the message also passes the startMessageId filter.
                 if (chunkedMessageIds.length > 0) {
                     msgId = new ChunkMessageIdImpl(chunkedMessageIds[0],
                             chunkedMessageIds[chunkedMessageIds.length - 1]);
@@ -1605,8 +1605,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     }
                     return;
                 }
-                // add chunked messageId to unack-message tracker
-                unAckedChunkedMessageIdSequenceMap.put(msgId, chunkedMessageIds);
             }
 
             // If the topic is non-persistent, we should not ignore any messages.
@@ -1625,6 +1623,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 final int chargedPermits = ackSet.length > 0 ? BitSet.valueOf(ackSet).cardinality() : numMessages;
                 increaseAvailablePermits(cnx, chargedPermits);
                 return;
+            }
+
+            if (chunkedMessageIds != null) {
+                // Only register messages that pass filtering and can be acknowledged by the application.
+                unAckedChunkedMessageIdSequenceMap.put(msgId, chunkedMessageIds);
             }
 
             final MessageImpl<T> message =
