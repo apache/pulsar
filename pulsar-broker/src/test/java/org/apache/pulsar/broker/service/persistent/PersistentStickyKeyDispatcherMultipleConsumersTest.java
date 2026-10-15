@@ -27,6 +27,7 @@ import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.anyList;
 import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.anySet;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -624,6 +625,26 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
             assertThat(positions).containsExactly(entry3.getPosition());
         } finally {
             entries.forEach(Entry::release);
+        }
+    }
+
+    @Test(timeOut = 10000)
+    public void testGetMessagesToReplayNowSkipsSizeCapWithNothingToReplay() {
+        persistentDispatcher.addConsumer(consumerMock).join();
+        clearInvocations(cursorMock);
+        // nothing to replay: the size cap isn't estimated, the normal read estimates it
+        assertThat(persistentDispatcher.getMessagesToReplayNow(10, 1000)).isEmpty();
+        verify(cursorMock, never()).applyMaxSizeCap(anyInt(), anyLong());
+
+        String key = generateKeyForConsumer(persistentDispatcher.getSelector(), consumerMock);
+        EntryImpl entry = createEntry(1, 1, "message1", 1, key);
+        try {
+            entry.retain();
+            persistentDispatcher.addEntryToReplay(entry);
+            assertThat(persistentDispatcher.getMessagesToReplayNow(10, 1000)).containsExactly(entry.getPosition());
+            verify(cursorMock).applyMaxSizeCap(10, 1000);
+        } finally {
+            entry.release();
         }
     }
 
