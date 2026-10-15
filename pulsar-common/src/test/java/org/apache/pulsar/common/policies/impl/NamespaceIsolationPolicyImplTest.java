@@ -18,12 +18,14 @@
  */
 package org.apache.pulsar.common.policies.impl;
 
+import static java.util.Arrays.asList;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableMap;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -101,6 +103,87 @@ public class NamespaceIsolationPolicyImplTest {
         assertFalse(defaultPolicy.isPrimaryBroker("prod1-broker5.messaging.use.example.com"));
         assertTrue(defaultPolicy.isSecondaryBroker("prod1-broker5.messaging.use.example.com"));
         assertFalse(defaultPolicy.isSecondaryBroker("broker-X.messaging.use.example.com"));
+    }
+
+    private static NamespaceIsolationPolicyImpl policy(List<String> primary, List<String> secondary) {
+        return new NamespaceIsolationPolicyImpl(NamespaceIsolationData.builder()
+                .namespaces(Collections.singletonList("pulsar/test.*"))
+                .primary(primary)
+                .secondary(secondary)
+                .autoFailoverPolicy(AutoFailoverPolicyData.builder()
+                        .policyType(AutoFailoverPolicyType.min_available)
+                        .parameters(ImmutableMap.of("min_limit", "1", "usage_threshold", "100"))
+                        .build())
+                .build());
+    }
+
+    @Test
+    public void testIsPrimaryOrSecondaryBrokerId() throws Exception {
+        // entries with a port are matched against the broker id
+        NamespaceIsolationPolicyImpl portPolicy = policy(asList("broker1:8080"), asList("broker[2-3]:8080"));
+        assertTrue(portPolicy.isPrimaryBrokerId("broker1:8080"));
+        assertFalse(portPolicy.isPrimaryBrokerId("broker1:8081"));
+        assertFalse(portPolicy.isPrimaryBroker("broker1"));
+        assertTrue(portPolicy.isSecondaryBrokerId("broker3:8080"));
+        assertFalse(portPolicy.isSecondaryBrokerId("broker4:8080"));
+
+        // any entry that contains ':' may name a port
+        for (String entry : asList("^broker1:8080$", "broker1:8080|broker2:8080", "broker1:(8080|8081)",
+                "broker1:80[0-9]{2}", "broker1:\\d+", "broker1:8080.*")) {
+            NamespaceIsolationPolicyImpl entryPolicy = policy(asList(entry), Collections.emptyList());
+            assertTrue(entryPolicy.isPrimaryBrokerId("broker1:8080"), entry);
+            assertFalse(entryPolicy.isPrimaryBrokerId("broker3:8080"), entry);
+        }
+
+        // entries without ':' are never matched against the broker id
+        NamespaceIsolationPolicyImpl hostPolicy = this.getDefaultPolicy();
+        assertTrue(hostPolicy.isPrimaryBroker("prod1-broker2.messaging.use.example.com"));
+        assertFalse(hostPolicy.isPrimaryBrokerId("prod1-broker2.messaging.use.example.com:8080"));
+        assertFalse(hostPolicy.isSecondaryBrokerId("prod1-broker5.messaging.use.example.com:8080"));
+
+        // a host regex must not match through the port of a broker id
+        NamespaceIsolationPolicyImpl suffixPolicy = policy(asList("broker.*[13]"), Collections.emptyList());
+        assertFalse(suffixPolicy.isPrimaryBroker("broker2"));
+        assertFalse(suffixPolicy.isPrimaryBrokerId("broker2:8081"));
+
+        // IPv6: the broker id is matched in its bracketed form, so the last address segment is never taken
+        // for a port
+        NamespaceIsolationPolicyImpl ipv6HostPolicy = policy(asList("2001:db8::1"), Collections.emptyList());
+        assertTrue(ipv6HostPolicy.isPrimaryBroker("2001:db8::1"));
+        assertFalse(ipv6HostPolicy.isPrimaryBroker("2001:db8::1:1234"));
+        assertFalse(ipv6HostPolicy.isPrimaryBrokerId("2001:db8::1:1234:8080"));
+        NamespaceIsolationPolicyImpl ipv6PortPolicy = policy(asList("\\[2001:db8::1\\]:8080"), Collections.emptyList());
+        assertTrue(ipv6PortPolicy.isPrimaryBrokerId("2001:db8::1:8080"));
+        assertFalse(ipv6PortPolicy.isPrimaryBrokerId("2001:db8::1:8081"));
+        assertFalse(ipv6PortPolicy.isPrimaryBrokerId("2001:db8::1:1234:8080"));
+
+        // values that aren't broker ids
+        assertFalse(portPolicy.isPrimaryBrokerId(null));
+        assertFalse(portPolicy.isPrimaryBrokerId("broker1"));
+        assertFalse(portPolicy.isPrimaryBrokerId("broker1:http"));
+    }
+
+    @Test
+    public void testFindBrokersWithPort() throws Exception {
+        NamespaceName ns = NamespaceName.get("pulsar/testns-1");
+        List<URL> brokers = asList(new URL("http://broker1:8080"), new URL("http://broker1:8081"),
+                new URL("http://broker2:8080"));
+        NamespaceIsolationPolicyImpl portPolicy = policy(asList("broker1:8080"), asList("broker[2-3]:8080"));
+        assertEquals(portPolicy.findPrimaryBrokers(brokers, ns), asList(new URL("http://broker1:8080")));
+        assertEquals(portPolicy.findSecondaryBrokers(brokers, ns), asList(new URL("http://broker2:8080")));
+
+        List<URL> ipv6Brokers = asList(new URL("http://[2001:db8::1]:8080"), new URL("http://[2001:db8::1]:8081"),
+                new URL("http://[2001:db8::2]:8080"));
+        // host-only IPv6 entry
+        assertEquals(policy(asList("2001:db8::1"), Collections.emptyList()).findPrimaryBrokers(ipv6Brokers, ns),
+                asList(new URL("http://[2001:db8::1]:8080"), new URL("http://[2001:db8::1]:8081")));
+        // IPv6 entry with a port
+        assertEquals(policy(asList("\\[2001:db8::1\\]:8080"), Collections.emptyList())
+                        .findPrimaryBrokers(ipv6Brokers, ns),
+                asList(new URL("http://[2001:db8::1]:8080")));
+        // the bracketed host is still matched as before
+        assertEquals(policy(asList("\\[2001:db8::2\\]"), Collections.emptyList()).findPrimaryBrokers(ipv6Brokers, ns),
+                asList(new URL("http://[2001:db8::2]:8080")));
     }
 
     @Test

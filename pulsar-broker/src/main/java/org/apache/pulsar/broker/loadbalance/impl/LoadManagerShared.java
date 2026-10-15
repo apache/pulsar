@@ -113,13 +113,13 @@ public class LoadManagerShared {
             // todo: in future check if the resource unit has resources to take the namespace
             if (isIsolationPoliciesPresent) {
                 // note: serviceUnitID is namespace name and ResourceID is brokerName
-                if (policies.isPrimaryBroker(namespace, brokerHost)) {
+                if (isPrimaryBroker(policies, namespace, brokerHost, brokerId)) {
                     primariesCache.add(brokerId);
                     if (LOG.isDebugEnabled()) {
                         LOG.debug("Added Primary Broker - [{}] as possible Candidates for"
                                 + " namespace - [{}] with policies", brokerHost, namespace.toString());
                     }
-                } else if (policies.isSecondaryBroker(namespace, brokerHost)) {
+                } else if (isSecondaryBroker(policies, namespace, brokerHost, brokerId)) {
                     secondaryCache.add(brokerId);
                     if (LOG.isDebugEnabled()) {
                         LOG.debug(
@@ -147,7 +147,7 @@ public class LoadManagerShared {
                         LOG.debug("Filter broker- [{}] because broker only supports non-persistent namespace - [{}]",
                                 brokerHost, namespace.toString());
                     }
-                } else if (policies.isSharedBroker(brokerHost)) {
+                } else if (isSharedBroker(policies, brokerHost, brokerId)) {
                     secondaryCache.add(brokerId);
                     if (LOG.isDebugEnabled()) {
                         LOG.debug("Added Shared Broker - [{}] as possible Candidates for namespace - [{}]",
@@ -172,6 +172,25 @@ public class LoadManagerShared {
                     namespace.toString(), secondaryCache.size());
             brokerCandidateCache.addAll(secondaryCache);
         }
+    }
+
+    // Policy entries are matched against the broker host. Entries that contain a ':' may name a port
+    // (host:port, as brokers are listed by `pulsar-admin brokers list`) and are also matched against the broker id.
+    private static boolean isPrimaryBroker(SimpleResourceAllocationPolicies policies, NamespaceName namespace,
+                                           String brokerHost, String brokerId) {
+        return policies.isPrimaryBroker(namespace, brokerHost) || policies.isPrimaryBrokerId(namespace, brokerId);
+    }
+
+    private static boolean isSecondaryBroker(SimpleResourceAllocationPolicies policies, NamespaceName namespace,
+                                             String brokerHost, String brokerId) {
+        return policies.isSecondaryBroker(namespace, brokerHost)
+                || policies.isSecondaryBrokerId(namespace, brokerId);
+    }
+
+    // A broker reserved as primary by a policy entry with a port is not part of the shared broker pool.
+    private static boolean isSharedBroker(SimpleResourceAllocationPolicies policies, String brokerHost,
+                                          String brokerId) {
+        return policies.isSharedBroker(brokerHost) && !policies.isPrimaryBrokerIdInAnyPolicy(brokerId);
     }
 
     private static String parseBrokerHost(String brokerId) {
@@ -213,13 +232,13 @@ public class LoadManagerShared {
                 // todo: in future check if the resource unit has resources to take the namespace
                 if (isIsolationPoliciesPresent) {
                     // note: serviceUnitID is namespace name and ResourceID is brokerName
-                    if (policies.isPrimaryBroker(namespace, brokerHost)) {
+                    if (isPrimaryBroker(policies, namespace, brokerHost, brokerId)) {
                         primariesCache.add(brokerId);
                         if (LOG.isDebugEnabled()) {
                             LOG.debug("Added Primary Broker - [{}] as possible Candidates for"
                                     + " namespace - [{}] with policies", brokerHost, namespace.toString());
                         }
-                    } else if (policies.isSecondaryBroker(namespace, brokerHost)) {
+                    } else if (isSecondaryBroker(policies, namespace, brokerHost, brokerId)) {
                         secondaryCache.add(brokerId);
                         if (LOG.isDebugEnabled()) {
                             LOG.debug(
@@ -248,7 +267,7 @@ public class LoadManagerShared {
                             LOG.debug("Filter broker- [{}] because broker only supports non-persistent "
                                             + "namespace - [{}]", brokerId, namespace.toString());
                         }
-                    } else if (policies.isSharedBroker(brokerHost)) {
+                    } else if (isSharedBroker(policies, brokerHost, brokerId)) {
                         secondaryCache.add(brokerId);
                         if (LOG.isDebugEnabled()) {
                             LOG.debug("Added Shared Broker - [{}] as possible Candidates for namespace - [{}]",
