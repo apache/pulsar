@@ -784,20 +784,31 @@ public class ConsumerImplTest {
      */
     private void deliverChunk(ClientCnx cnx, String uuid, int chunkId, int numChunks, int totalChunkMsgSize,
                               CompressionType compressionType, int uncompressedSize, byte[] chunkBytes) {
+        ByteBuf headersAndPayload = frameChunk(uuid, chunkId, numChunks, totalChunkMsgSize, compressionType,
+                uncompressedSize, chunkBytes);
+        try {
+            consumer.messageReceived(chunkCommand(chunkId), headersAndPayload, cnx);
+        } finally {
+            headersAndPayload.release();
+        }
+    }
+
+    /** Frames one chunk as the broker would send it: checksum, metadata and the given payload bytes. */
+    private static ByteBuf frameChunk(String uuid, int chunkId, int numChunks, int totalChunkMsgSize,
+                                      CompressionType compressionType, int uncompressedSize, byte[] chunkBytes) {
         MessageMetadata md = new MessageMetadata()
                 .setProducerName("p").setSequenceId(0).setPublishTime(System.currentTimeMillis())
                 .setUuid(uuid).setChunkId(chunkId).setNumChunksFromMsg(numChunks)
                 .setTotalChunkMsgSize(totalChunkMsgSize)
                 .setCompression(compressionType).setUncompressedSize(uncompressedSize);
-        ByteBuf headersAndPayload = Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, md,
+        return Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, md,
                 Unpooled.wrappedBuffer(chunkBytes));
+    }
+
+    private CommandMessage chunkCommand(long entryId) {
         CommandMessage cmd = new CommandMessage().setConsumerId(consumer.consumerId);
-        cmd.setMessageId().setLedgerId(1L).setEntryId(chunkId);
-        try {
-            consumer.messageReceived(cmd, headersAndPayload, cnx);
-        } finally {
-            headersAndPayload.release();
-        }
+        cmd.setMessageId().setLedgerId(1L).setEntryId(entryId);
+        return cmd;
     }
 
     private static byte[] zlibCompress(byte[] data) {
@@ -1049,6 +1060,41 @@ public class ConsumerImplTest {
 
             assertThat(interceptor.acked).as("ids of the replaced context are acked despite the failure")
                     .containsExactly(new MessageIdImpl(1L, 10L, -1), new MessageIdImpl(1L, 11L, -1));
+        } finally {
+            releasePendingChunkedMessages();
+        }
+    }
+
+    /**
+     * The same failure as {@link #testAcksQueuedUnderLockAreIssuedWhenChunkProcessingThrows}, delivered through the
+     * real {@code messageReceived} entry point so that its own acknowledgment {@code finally} is the one under test,
+     * rather than the one in the {@code processMessageChunk} wrapper. The failed chunk must also give up its reference
+     * to the frame.
+     */
+    @Test(timeOut = 30000)
+    public void testAcksQueuedUnderLockAreIssuedWhenFramedChunkProcessingThrows() throws Exception {
+        RecordingAckInterceptor interceptor = new RecordingAckInterceptor();
+        createConsumer(consumerConf, PERSISTENT_TOPIC, interceptor);
+        consumer.expireTimeOfIncompleteChunkedMessageMillis = 0L;
+        ClientCnx cnx = ClientTestFixtures.mockClientCnx();
+
+        byte[] chunk = new byte[] {1, 2, 3, 4};
+        try {
+            deliverChunk(cnx, "uuid-framed-throw", 0, 3, CHUNK_TOTAL_MSG_SIZE, CompressionType.NONE, 0, chunk);
+            deliverChunk(cnx, "uuid-framed-throw", 1, 3, CHUNK_TOTAL_MSG_SIZE, CompressionType.NONE, 0, chunk);
+            // replacement chunk 0 under a new entry id, larger than the buffer it allocates for itself
+            ByteBuf oversized = frameChunk("uuid-framed-throw", 0, 3, CHUNK_TOTAL_MSG_SIZE, CompressionType.NONE, 0,
+                    new byte[CHUNK_TOTAL_MSG_SIZE + 1]);
+            try {
+                assertThatThrownBy(() -> consumer.messageReceived(chunkCommand(20L), oversized, cnx))
+                        .isInstanceOf(IndexOutOfBoundsException.class);
+                assertThat(oversized.refCnt()).as("the failed chunk keeps no reference to the frame").isEqualTo(1);
+            } finally {
+                oversized.release();
+            }
+
+            assertThat(interceptor.acked).as("ids of the replaced context are acked despite the failure")
+                    .containsExactly(new MessageIdImpl(1L, 0L, -1), new MessageIdImpl(1L, 1L, -1));
         } finally {
             releasePendingChunkedMessages();
         }

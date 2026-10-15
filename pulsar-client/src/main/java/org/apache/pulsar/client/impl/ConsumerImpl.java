@@ -1822,7 +1822,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         chunkedMsgCtx.chunkedMessageIds[msgMetadata.getChunkId()] = msgId;
         // append the chunked payload and update lastChunkedMessage-id
-        chunkedMsgCtx.chunkedMsgBuffer.writeBytes(compressedPayload);
+        try {
+            chunkedMsgCtx.chunkedMsgBuffer.writeBytes(compressedPayload);
+        } catch (RuntimeException e) {
+            // A malformed chunk that overflows the advertised total size: the incoming chunk is still owned here.
+            compressedPayload.release();
+            throw e;
+        }
         chunkedMsgCtx.lastChunkedMessageId = msgMetadata.getChunkId();
 
         // if final chunk is not received yet then release payload and return
