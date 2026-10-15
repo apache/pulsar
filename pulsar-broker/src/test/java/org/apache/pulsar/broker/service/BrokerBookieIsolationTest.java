@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import static org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicyImpl.REPP_DNS_RESOLVER_CLASS;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.fail;
@@ -44,6 +45,7 @@ import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.meta.LedgerManager;
+import org.apache.bookkeeper.mledger.impl.LedgerMetadataUtils;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.net.BookieId;
@@ -51,18 +53,25 @@ import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.versioning.Versioned;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
+import org.apache.pulsar.bookie.rackawareness.IsolatedBookieEnsemblePlacementPolicy;
 import org.apache.pulsar.broker.ManagedLedgerClientFactory;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.delayed.bucket.BookkeeperBucketSnapshotStorage;
+import org.apache.pulsar.broker.delayed.proto.SnapshotMetadata;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException.BrokerPersistenceException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
@@ -71,6 +80,8 @@ import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.compaction.PulsarCompactionServiceFactory;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
@@ -110,6 +121,126 @@ public class BrokerBookieIsolationTest {
         if (bkEnsemble != null) {
             bkEnsemble.stop();
             bkEnsemble = null;
+        }
+    }
+
+    @Test
+    public void testAuxiliaryLedgerBookieIsolation() throws Exception {
+        String cluster = "auxiliary-ledger-isolation";
+        String defaultGroup = "default-group";
+        String isolatedGroup = "isolated-group";
+        Set<BookieId> defaultBookies = Set.of(bkEnsemble.getBookies()[0].getBookieId(),
+                bkEnsemble.getBookies()[1].getBookieId());
+        Set<BookieId> isolatedBookies = Set.of(bkEnsemble.getBookies()[2].getBookieId(),
+                bkEnsemble.getBookies()[3].getBookieId());
+        setDefaultIsolationGroup(defaultGroup, bkEnsemble.getZkClient(), defaultBookies);
+        setDefaultIsolationGroup(isolatedGroup, bkEnsemble.getZkClient(), isolatedBookies);
+
+        ServiceConfiguration config = new ServiceConfiguration();
+        config.setClusterName(cluster);
+        config.setWebServicePort(Optional.of(0));
+        config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
+        config.setBrokerServicePort(Optional.of(0));
+        config.setAdvertisedAddress("localhost");
+        config.setBrokerShutdownTimeoutMs(0L);
+        config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
+        config.setNumIOThreads(1);
+        config.setBookkeeperClientNumWorkerThreads(1);
+        config.setBookkeeperClientNumIoThreads(1);
+        config.setBookkeeperClientIsolationGroups(defaultGroup);
+        config.setManagedLedgerDefaultEnsembleSize(2);
+        config.setManagedLedgerDefaultWriteQuorum(2);
+        config.setManagedLedgerDefaultAckQuorum(2);
+        config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
+        pulsarService = new PulsarService(config);
+        pulsarService.start();
+
+        try (PulsarAdmin admin = PulsarAdmin.builder()
+                .serviceHttpUrl(pulsarService.getWebServiceAddress()).build();
+                PulsarClient client = PulsarClient.builder()
+                        .serviceUrl(pulsarService.getBrokerServiceUrl()).build()) {
+            admin.clusters().createCluster(cluster,
+                    ClusterData.builder().serviceUrl(pulsarService.getWebServiceAddress()).build());
+            admin.tenants().createTenant("auxiliary", new TenantInfoImpl(null, Set.of(cluster)));
+            String isolatedNamespace = "auxiliary/isolated";
+            String defaultNamespace = "auxiliary/default";
+            admin.namespaces().createNamespace(isolatedNamespace);
+            admin.namespaces().createNamespace(defaultNamespace);
+            admin.namespaces().setBookieAffinityGroup(isolatedNamespace,
+                    BookieAffinityGroupData.builder().bookkeeperAffinityGroupPrimary(isolatedGroup).build());
+
+            // Register the schema before publishing so topic ledgers do not prewarm the isolated client.
+            assertAuxiliaryLedgerPlacement(admin, client, isolatedNamespace, isolatedBookies, isolatedGroup);
+            assertAuxiliaryLedgerPlacement(admin, client, defaultNamespace, defaultBookies, null);
+        }
+    }
+
+    private void assertAuxiliaryLedgerPlacement(PulsarAdmin admin, PulsarClient client, String namespace,
+                                                Set<BookieId> expectedBookies, String isolationGroup) throws Exception {
+        String schemaTopic = "persistent://" + namespace + "/schema";
+        admin.schemas().createSchema(schemaTopic, Schema.STRING.getSchemaInfo());
+        String schemaName = TopicName.get(schemaTopic).getSchemaName();
+        List<Long> schemaLedgers = ((BookkeeperSchemaStorage) pulsarService.getSchemaStorage())
+                .getSchemaLedgerList(schemaName);
+        assertThat(schemaLedgers).hasSize(1);
+        assertAuxiliaryLedgerMetadata(schemaLedgers.get(0), expectedBookies, isolationGroup,
+                LedgerMetadataUtils.buildMetadataForSchema(schemaName));
+        assertThat(admin.schemas().getSchemaInfo(schemaTopic).getType())
+                .isEqualTo(Schema.STRING.getSchemaInfo().getType());
+
+        String compactionTopic = "persistent://" + namespace + "/compaction";
+        MessageId lastMessageId;
+        try (Producer<byte[]> producer = client.newProducer().topic(compactionTopic).enableBatching(false).create()) {
+            producer.newMessage().key("key").value(new byte[] {1}).send();
+            lastMessageId = producer.newMessage().key("key").value(new byte[] {2}).send();
+        }
+        Compactor compactor = ((PulsarCompactionServiceFactory) pulsarService.getCompactionServiceFactory())
+                .getCompactor();
+        long compactedLedger = compactor.compact(compactionTopic).get(30, TimeUnit.SECONDS);
+        assertAuxiliaryLedgerMetadata(compactedLedger, expectedBookies, isolationGroup,
+                LedgerMetadataUtils.buildMetadataForCompactedLedger(compactionTopic, lastMessageId.toByteArray()));
+
+        String bucketTopic = "persistent://" + namespace + "/bucket";
+        String bucketKey = "bucket-key";
+        String cursorName = "subscription";
+        BookkeeperBucketSnapshotStorage storage = new BookkeeperBucketSnapshotStorage(pulsarService);
+        try {
+            storage.start();
+            SnapshotMetadata snapshotMetadata = new SnapshotMetadata();
+            long bucketLedger = storage.createBucketSnapshot(snapshotMetadata, List.of(), bucketKey, bucketTopic,
+                    cursorName).get(30, TimeUnit.SECONDS);
+            assertAuxiliaryLedgerMetadata(bucketLedger, expectedBookies, isolationGroup,
+                    LedgerMetadataUtils.buildMetadataForDelayedIndexBucket(bucketKey, bucketTopic, cursorName));
+            assertThat(storage.getBucketSnapshotMetadata(bucketLedger).get(30, TimeUnit.SECONDS).toByteArray())
+                    .containsExactly(snapshotMetadata.toByteArray());
+            storage.deleteBucketSnapshot(bucketLedger).get(30, TimeUnit.SECONDS);
+        } finally {
+            storage.close();
+        }
+    }
+
+    private void assertAuxiliaryLedgerMetadata(long ledgerId, Set<BookieId> expectedBookies, String isolationGroup,
+                                               Map<String, byte[]> expectedMetadata) throws Exception {
+        LedgerMetadata metadata = pulsarService.getBookKeeperClient().getLedgerMetadata(ledgerId)
+                .get(30, TimeUnit.SECONDS);
+        assertThat(metadata.isClosed()).isTrue();
+        assertThat(metadata.getAllEnsembles()).isNotEmpty();
+        metadata.getAllEnsembles().forEach((firstEntry, ensemble) -> assertThat(ensemble)
+                .as("ledger %s ensemble at entry %s", ledgerId, firstEntry)
+                .containsExactlyInAnyOrderElementsOf(expectedBookies));
+        Map<String, byte[]> customMetadata = metadata.getCustomMetadata();
+        expectedMetadata.forEach((key, value) -> assertThat(customMetadata.get(key)).as(key).containsExactly(value));
+        byte[] encodedPolicy = customMetadata.get(EnsemblePlacementPolicyConfig.ENSEMBLE_PLACEMENT_POLICY_CONFIG);
+        if (isolationGroup == null) {
+            assertThat(encodedPolicy).isNull();
+        } else {
+            assertThat(encodedPolicy).isNotNull();
+            EnsemblePlacementPolicyConfig placementPolicy = EnsemblePlacementPolicyConfig.decode(encodedPolicy);
+            assertThat(placementPolicy.getPolicyClass()).isEqualTo(IsolatedBookieEnsemblePlacementPolicy.class);
+            assertThat(placementPolicy.getProperties())
+                    .containsEntry(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, isolationGroup);
+            assertThat(placementPolicy.getProperties()
+                    .get(IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS)).isNull();
         }
     }
 
