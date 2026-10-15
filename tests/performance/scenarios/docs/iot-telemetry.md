@@ -118,8 +118,13 @@ outputs are in different directories, pass a common shared coordination director
 process in that run. Reusing the directory is fine; use a new run ID for each invocation of the workload.
 
 Set `gateways.producer.batchingEnabled` in the workload section to compare batched and unbatched keyed messages without
-changing the tool implementation. Batched runs use `BatcherBuilder.KEY_BASED`, which keeps each batch to
-one key as required for Key_Shared delivery.
+changing the tool implementation. With Key_Shared subscriptions, batched runs use `BatcherBuilder.KEY_BASED`, which
+keeps each batch to one key as Key_Shared delivery requires; with Shared and Failover subscriptions, they use the
+default batcher, which batches messages of any device together. A gateway has a producer for each topic, and the
+gateways send each message through a random gateway, so a producer receives a message every `gateways.count *
+topics.count / rate` seconds on average. A batch has more than one message only when that is shorter than the
+producer's batching delay, `gateways.producer.batchingMaxPublishDelayMillis`, which is the client's default, 1 ms, when
+the scenario doesn't set it.
 
 Warmup messages exercise the same producer, client, connection, topic and consumer paths as measured messages. They
 remain in the monotonic device sequences and end-to-end delivery checks, but are excluded from throughput. For a
@@ -191,15 +196,17 @@ workloads:
         batchingEnabled: true
         precreate: false       # open every producer before the first message
         precreateConcurrency: 32  # with precreate, producers created at the same time, in a random order
+        # batchingMaxPublishDelayMillis: 10  # how long a batch waits for more messages; the client's default is 1 ms
       env:                     # the gateways' container, which runs every gateway; from the memory configuration
         PULSAR_MEM: -Xms512m -Xmx512m -XX:MaxDirectMemorySize=256m -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch
     topics:
       count: 30
       prefix: persistent://public/default/iot-telemetry-
-    applications:              # each a Key_Shared subscription, consumed through its pods
+    applications:              # each a subscription of its own, consumed through its pods
       count: 20
       podsPerApplication: 100  # a Pulsar client with a consumer of the subscription each
       subscriptionPrefix: iot-application-
+      subscriptionType: Key_Shared  # not set in the base file: Key_Shared, Shared or Failover
       client:                  # the client resources that every pod's client shares
         ioThreads: 8
         listenerThreads: 16
@@ -236,6 +243,13 @@ had. Skipping and resetting need `gateways.producer.batchingEnabled: false`,
 since the launcher skips entries. An application that skips messages expects every message but the skipped ones, each
 device's from the first one that it receives. [Offloading](../../docs/offloading.md) uses them to read a backlog from
 tiered storage from staggered positions.
+
+`applications.subscriptionType` is the subscriptions' type, Key_Shared by default. With Shared, a device's messages
+arrive in any order, so the applications check for lost and duplicated messages but not for their order, and the
+gateways batch messages of any device together, with the producer's default batcher; with Key_Shared and Failover the
+applications check each device's order, and with Key_Shared the gateways keep a batch to one device, as the next
+section describes. Skipping messages and resetting subscriptions need Key_Shared or Failover, since an application
+then expects each device's messages from the first one that it receives.
 
 `timeoutSeconds` bounds the whole workload: the applications stop waiting for messages after it and the run fails,
 the gateways give up waiting for a warmup round or the measurement's start, and the launcher waits for the containers
@@ -305,9 +319,10 @@ application. It must report zero invalid messages and zero ordering violations. 
 for Pulsar's at-least-once delivery model and are counted separately so comparisons can detect changes in their
 frequency. The persisted gateway and application state checks for missing tail messages after all clients stop.
 
-Key_Shared scenarios use the key-based producer batcher. It keeps every batch to one key so the broker can
-route all messages for a device through the same Key_Shared hash range. Changing the batcher changes the
-ordering contract exercised by the scenario and should not be mixed into a performance comparison.
+Key_Shared scenarios use the key-based producer batcher, which keeps every batch to one key so the broker can route
+all messages for a device through the same Key_Shared hash range; the other subscription types use the default
+batcher. Comparing subscription types with batching on therefore also changes the batches, and changing the batcher
+changes the ordering contract exercised by the scenario, so neither should be mixed into a performance comparison.
 
 The full topology opens 100 gateway clients and 2,000 application clients, all in the applications' container. Across
 30 topics and 20 applications, this creates 60,000 internal topic consumers. The medium-memory configuration gives the

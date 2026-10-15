@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import org.apache.pulsar.client.api.SubscriptionType;
 
 /**
  * Configuration selected from the {@code workloads.iotTelemetry} scenario subtree.
@@ -80,9 +81,14 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
      * @param precreateConcurrency with {@code precreate}, the most producers that the gateways create at the same
      *                             time, in a random order of the gateways and topics; 1 creates them one at a time in
      *                             order
+     * @param batchingMaxPublishDelayMillis with {@code batchingEnabled}, how long a producer's open batch waits for
+     *                                      more messages, in milliseconds; null for the client's default, 1 ms. A
+     *                                      producer receives a message every {@code gateways.count * topics.count /
+     *                                      rate} seconds on average, so a batch has more than one message only when
+     *                                      the delay is longer than that
      */
     public record Producer(int ioThreads, int listenerThreads, int maxOutstanding, boolean batchingEnabled,
-                           boolean precreate, Integer precreateConcurrency) {
+                           boolean precreate, Integer precreateConcurrency, Integer batchingMaxPublishDelayMillis) {
         /** The default of {@code precreateConcurrency}, for scenarios written before it existed. */
         public static final int DEFAULT_PRECREATE_CONCURRENCY = 32;
 
@@ -91,6 +97,12 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
                 precreateConcurrency = DEFAULT_PRECREATE_CONCURRENCY;
             }
         }
+
+        /** Settings with the client's default batching delay. */
+        public Producer(int ioThreads, int listenerThreads, int maxOutstanding, boolean batchingEnabled,
+                        boolean precreate, Integer precreateConcurrency) {
+            this(ioThreads, listenerThreads, maxOutstanding, batchingEnabled, precreate, precreateConcurrency, null);
+        }
     }
 
     /** The telemetry topics, named {@code <prefix><index>}. */
@@ -98,10 +110,9 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
     }
 
     /**
-     * The applications, in one container, as the gateways are. Each application is a Key_Shared subscription of its
-     * own on every topic, named {@code <subscriptionPrefix><index>}, consumed through {@code podsPerApplication}
-     * pods, each a Pulsar client with a consumer of the subscription; the applications differ only in their
-     * subscription.
+     * The applications, in one container, as the gateways are. Each application is a subscription of its own on every
+     * topic, named {@code <subscriptionPrefix><index>}, consumed through {@code podsPerApplication} pods, each a Pulsar
+     * client with a consumer of the subscription; the applications differ only in their subscription.
      *
      * @param client the client resources that every pod's client shares
      * @param env the environment variables of the applications' container, which the launcher sets, such as
@@ -124,12 +135,19 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
      *                      -1 for none, and empty for none at all. An application that resets its subscription
      *                      expects as many messages as its backlog then has, each device's from the first one that it
      *                      receives
+     * @param subscriptionType the subscriptions' type: {@code Key_Shared}, the default, {@code Shared} or
+     *                         {@code Failover}. A Shared subscription doesn't keep a device's messages in order, so
+     *                         the applications check it for lost and duplicated messages only
      */
     public record Applications(int count, int podsPerApplication, String subscriptionPrefix, Client client,
                                Map<String, String> env, List<Integer> joinSeconds, Integer caughtUpLatencyMillis,
-                               List<Long> skipMessages, boolean unloadBeforeJoin, List<Long> resetToMillis) {
+                               List<Long> skipMessages, boolean unloadBeforeJoin, List<Long> resetToMillis,
+                               String subscriptionType) {
         /** The default of {@code caughtUpLatencyMillis}. */
         public static final int DEFAULT_CAUGHT_UP_LATENCY_MILLIS = 1000;
+        /** The subscription types that the applications support. */
+        static final List<SubscriptionType> SUBSCRIPTION_TYPES =
+                List.of(SubscriptionType.Key_Shared, SubscriptionType.Shared, SubscriptionType.Failover);
 
         public Applications {
             // kept with any nulls, which the scenario's validation rejects with its message
@@ -140,6 +158,9 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
                     : List.of();
             if (caughtUpLatencyMillis == null) {
                 caughtUpLatencyMillis = DEFAULT_CAUGHT_UP_LATENCY_MILLIS;
+            }
+            if (subscriptionType == null) {
+                subscriptionType = SubscriptionType.Key_Shared.name();
             }
         }
 
@@ -154,6 +175,13 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
                             List<Long> skipMessages, boolean unloadBeforeJoin) {
             this(count, podsPerApplication, subscriptionPrefix, client, env, joinSeconds, caughtUpLatencyMillis,
                     skipMessages, unloadBeforeJoin, null);
+        }
+
+        public Applications(int count, int podsPerApplication, String subscriptionPrefix, Client client,
+                            Map<String, String> env, List<Integer> joinSeconds, Integer caughtUpLatencyMillis,
+                            List<Long> skipMessages, boolean unloadBeforeJoin, List<Long> resetToMillis) {
+            this(count, podsPerApplication, subscriptionPrefix, client, env, joinSeconds, caughtUpLatencyMillis,
+                    skipMessages, unloadBeforeJoin, resetToMillis, null);
         }
 
         public Applications(int count, int podsPerApplication, String subscriptionPrefix, Client client,
@@ -295,7 +323,20 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
         require(!applications.unloadBeforeJoin() || applications.joinSeconds().stream()
                         .anyMatch(seconds -> seconds != null && seconds > 0),
                 "applications.unloadBeforeJoin needs an application that joins later, with joinSeconds above 0");
+        require(Applications.SUBSCRIPTION_TYPES.stream()
+                        .anyMatch(type -> type.name().equals(applications.subscriptionType())),
+                "applications.subscriptionType must be one of " + Applications.SUBSCRIPTION_TYPES + ", not "
+                        + applications.subscriptionType());
+        // An application that skips messages or resets its subscription expects each device's messages from the first
+        // one that it receives, which is the device's first one only when the subscription keeps the device's order
+        require(!SubscriptionType.Shared.name().equals(applications.subscriptionType())
+                        || applications.skipMessages().stream().allMatch(skipped -> skipped == null || skipped == 0)
+                        && applications.resetToMillis().stream().allMatch(resetTo -> resetTo == null || resetTo == -1),
+                "applications.skipMessages and applications.resetToMillis need a subscription type that keeps each"
+                        + " device's order, not Shared");
         require(producer.precreateConcurrency() >= 1, "gateways.producer.precreateConcurrency must be at least 1");
+        require(producer.batchingMaxPublishDelayMillis() == null || producer.batchingMaxPublishDelayMillis() >= 1,
+                "gateways.producer.batchingMaxPublishDelayMillis must be at least 1");
         if (timeoutSeconds < minimumRuntimeSeconds) {
             throw new IllegalArgumentException(String.format(Locale.ROOT, "Invalid IoT scenario: timeoutSeconds is %d,"
                             + " but the workload needs %d s: %d s of warmup (%d round(s) of %d s%s) and %d s of"
@@ -356,6 +397,16 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
 
     public int podsPerApplication() {
         return applications.podsPerApplication();
+    }
+
+    /** The applications' subscription type. */
+    public SubscriptionType subscriptionType() {
+        return SubscriptionType.valueOf(applications.subscriptionType());
+    }
+
+    /** Whether the subscription type keeps each device's messages in order, which the applications then check. */
+    public boolean keepsDeviceOrder() {
+        return subscriptionType() != SubscriptionType.Shared;
     }
 
     /** When the application opens its pods, in seconds after the measurement starts; 0 for at the start. */
@@ -436,9 +487,14 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
     public List<String> topicNames() {
         List<String> result = new ArrayList<>(topics.count());
         for (int i = 0; i < topics.count(); i++) {
-            result.add(topics.prefix() + i);
+            result.add(topicName(i));
         }
         return result;
+    }
+
+    /** The topic with the index, from 0 to {@code topics.count} - 1. */
+    public String topicName(int topicIndex) {
+        return topics.prefix() + topicIndex;
     }
 
     public String subscriptionName(int applicationIndex) {

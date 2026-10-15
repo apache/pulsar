@@ -65,6 +65,15 @@ public class RunReportTest {
     }
 
     @Test
+    public void describesTheGatewaysBatching() throws Exception {
+        assertThat(RunReport.batching(mapper.readTree("{\"batchingEnabled\": false}"))).isEqualTo("off");
+        assertThat(RunReport.batching(mapper.readTree("{\"batchingEnabled\": true}"))).isEqualTo("on");
+        assertThat(RunReport.batching(mapper.readTree(
+                "{\"batchingEnabled\": true, \"batchingMaxPublishDelayMillis\": 10}")))
+                .isEqualTo("on, 10 ms delay");
+    }
+
+    @Test
     public void reportsTheCatchUpOfTheApplicationsThatJoinedLater() throws Exception {
         JsonNode workload = mapper.readTree("{\"applications\": {\"subscriptionPrefix\": \"app-\"}}");
         long start = 1_000_000;
