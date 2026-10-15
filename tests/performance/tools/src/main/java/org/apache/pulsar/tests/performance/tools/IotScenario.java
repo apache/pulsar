@@ -81,9 +81,14 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
      * @param precreateConcurrency with {@code precreate}, the most producers that the gateways create at the same
      *                             time, in a random order of the gateways and topics; 1 creates them one at a time in
      *                             order
+     * @param batchingMaxPublishDelayMillis with {@code batchingEnabled}, how long a producer's open batch waits for
+     *                                      more messages, in milliseconds; null for the client's default, 1 ms. A
+     *                                      producer receives a message every {@code gateways.count * topics.count /
+     *                                      rate} seconds on average, so a batch has more than one message only when
+     *                                      the delay is longer than that
      */
     public record Producer(int ioThreads, int listenerThreads, int maxOutstanding, boolean batchingEnabled,
-                           boolean precreate, Integer precreateConcurrency) {
+                           boolean precreate, Integer precreateConcurrency, Integer batchingMaxPublishDelayMillis) {
         /** The default of {@code precreateConcurrency}, for scenarios written before it existed. */
         public static final int DEFAULT_PRECREATE_CONCURRENCY = 32;
 
@@ -91,6 +96,12 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
             if (precreateConcurrency == null) {
                 precreateConcurrency = DEFAULT_PRECREATE_CONCURRENCY;
             }
+        }
+
+        /** Settings with the client's default batching delay. */
+        public Producer(int ioThreads, int listenerThreads, int maxOutstanding, boolean batchingEnabled,
+                        boolean precreate, Integer precreateConcurrency) {
+            this(ioThreads, listenerThreads, maxOutstanding, batchingEnabled, precreate, precreateConcurrency, null);
         }
     }
 
@@ -324,6 +335,8 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
                 "applications.skipMessages and applications.resetToMillis need a subscription type that keeps each"
                         + " device's order, not Shared");
         require(producer.precreateConcurrency() >= 1, "gateways.producer.precreateConcurrency must be at least 1");
+        require(producer.batchingMaxPublishDelayMillis() == null || producer.batchingMaxPublishDelayMillis() >= 1,
+                "gateways.producer.batchingMaxPublishDelayMillis must be at least 1");
         if (timeoutSeconds < minimumRuntimeSeconds) {
             throw new IllegalArgumentException(String.format(Locale.ROOT, "Invalid IoT scenario: timeoutSeconds is %d,"
                             + " but the workload needs %d s: %d s of warmup (%d round(s) of %d s%s) and %d s of"

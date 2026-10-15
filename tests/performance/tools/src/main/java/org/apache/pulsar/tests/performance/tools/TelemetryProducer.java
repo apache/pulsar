@@ -371,7 +371,7 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
 
     private ProducerBuilder<byte[]> producerBuilder(IotScenario scenario, List<PulsarClient> clients,
                                                     int gateway, int topic) {
-        return clients.get(gateway).newProducer()
+        ProducerBuilder<byte[]> builder = clients.get(gateway).newProducer()
                 .topic(scenario.topicName(topic))
                 .producerName("iot-gateway-" + gateway + "-topic-" + topic)
                 // Key_Shared delivers a batch to one consumer, so a batch keeps to one key, its device. With the
@@ -381,6 +381,11 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
                 .enableBatching(scenario.gateways().producer().batchingEnabled())
                 .blockIfQueueFull(true)
                 .sendTimeout(0, TimeUnit.SECONDS);
+        Integer batchingMaxPublishDelayMillis = scenario.gateways().producer().batchingMaxPublishDelayMillis();
+        if (batchingMaxPublishDelayMillis != null) {
+            builder.batchingMaxPublishDelay(batchingMaxPublishDelayMillis, TimeUnit.MILLISECONDS);
+        }
+        return builder;
     }
 
     private void writeState(long[] sequences) throws Exception {

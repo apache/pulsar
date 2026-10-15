@@ -120,7 +120,11 @@ process in that run. Reusing the directory is fine; use a new run ID for each in
 Set `gateways.producer.batchingEnabled` in the workload section to compare batched and unbatched keyed messages without
 changing the tool implementation. With Key_Shared subscriptions, batched runs use `BatcherBuilder.KEY_BASED`, which
 keeps each batch to one key as Key_Shared delivery requires; with Shared and Failover subscriptions, they use the
-default batcher, which batches messages of any device together.
+default batcher, which batches messages of any device together. A gateway has a producer for each topic, and the
+gateways send each message through a random gateway, so a producer receives a message every `gateways.count *
+topics.count / rate` seconds on average. A batch has more than one message only when that is shorter than the
+producer's batching delay, `gateways.producer.batchingMaxPublishDelayMillis`, which is the client's default, 1 ms, when
+the scenario doesn't set it.
 
 Warmup messages exercise the same producer, client, connection, topic and consumer paths as measured messages. They
 remain in the monotonic device sequences and end-to-end delivery checks, but are excluded from throughput. For a
@@ -192,6 +196,7 @@ workloads:
         batchingEnabled: true
         precreate: false       # open every producer before the first message
         precreateConcurrency: 32  # with precreate, producers created at the same time, in a random order
+        # batchingMaxPublishDelayMillis: 10  # how long a batch waits for more messages; the client's default is 1 ms
       env:                     # the gateways' container, which runs every gateway; from the memory configuration
         PULSAR_MEM: -Xms512m -Xmx512m -XX:MaxDirectMemorySize=256m -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch
     topics:

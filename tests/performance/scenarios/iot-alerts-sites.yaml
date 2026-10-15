@@ -18,7 +18,8 @@
 # and 10 backend applications each consume every site's alerts through a Shared subscription of their own, with four
 # worker pods that each subscribe to all of the topics. The gateways publish 5,000 alerts per second in all, five per
 # site, with deduplication on, so the broker carries 5,000 producers with deduplication state, 10,000 subscriptions
-# and 40,000 consumers of light traffic each: it measures the per-topic, per-producer and per-consumer overhead.
+# and 40,000 consumers of light traffic each: it measures the per-topic, per-producer and per-consumer overhead. Each
+# producer, of a gateway and a site, receives an alert a second on average, so its batches hold one alert each.
 extends: iot-alerts-fanout.yaml
 workloads:
   iotTelemetry:

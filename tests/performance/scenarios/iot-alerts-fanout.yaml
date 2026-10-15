@@ -20,7 +20,9 @@
 # ticketing, an audit log, analytics and a digital twin, each read every alert through a Shared subscription of their
 # own, handled by a pool of four stateless worker pods: 250,000 messages per second of dispatch from one topic's
 # managed ledger to 200 consumers. A Shared subscription doesn't keep a device's alerts in order, so the applications
-# check for lost and duplicated alerts only, and the gateways batch alerts of any device together.
+# check for lost and duplicated alerts only, and the gateways batch alerts of any device together. Each of the 20
+# gateways' producers receives an alert every 4 ms on average, longer than the client's default batching delay of 1 ms,
+# so the producers wait 10 ms for more alerts: about two or three alerts a batch.
 extends: [iot-telemetry-base.yaml, configs/iot-telemetry-high-mem.yaml]
 workloads:
   iotTelemetry:
@@ -33,6 +35,7 @@ workloads:
       count: 20
       producer:
         precreate: true
+        batchingMaxPublishDelayMillis: 10
     topics:
       count: 1
       prefix: persistent://public/default/iot-alerts-

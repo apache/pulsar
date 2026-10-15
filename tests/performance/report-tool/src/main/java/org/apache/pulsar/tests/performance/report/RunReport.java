@@ -440,8 +440,7 @@ public final class RunReport {
                         messageCount(producer, "warmupMessages", workload.path("warmup").path("messages").asLong()
                                 * Math.max(1, workload.path("warmup").path("rounds").asInt())))))
                 .append(row("Payload", workload.path("payload").path("size").asInt() + " bytes, batching "
-                        + (workload.path("gateways").path("producer").path("batchingEnabled").asBoolean()
-                        ? "on" : "off")))
+                        + batching(workload.path("gateways").path("producer"))))
                 .append(row("Rate limit", workload.path("rate").asLong() > 0
                         ? String.format(Locale.ROOT, "%,d msg/s", workload.path("rate").asLong()) : "none"));
         if (host != null) {
@@ -1499,6 +1498,15 @@ public final class RunReport {
      */
     private static long messageCount(JsonNode producer, String field, long configured) {
         return producer.has(field) ? producer.path(field).asLong() : configured;
+    }
+
+    /** Whether the gateways batch, with the batching delay when the scenario sets one. */
+    static String batching(JsonNode producerSettings) {
+        if (!producerSettings.path("batchingEnabled").asBoolean()) {
+            return "off";
+        }
+        JsonNode delay = producerSettings.path("batchingMaxPublishDelayMillis");
+        return delay.isNumber() ? "on, " + delay.asInt() + " ms delay" : "on";
     }
 
     /**
