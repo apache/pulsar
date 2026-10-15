@@ -2457,6 +2457,25 @@ public class Commands {
         }
     }
 
+    /**
+     * Writes a message command and a copy of its metadata and payload into {@code out}, in the wire format of
+     * {@link #serializeCommandMessageWithSize(BaseCommand, ByteBuf)}. The reader index of {@code metadataAndPayload}
+     * is left unchanged, and its reference count too, since its bytes are copied.
+     */
+    public static void serializeCommandMessageWithSize(BaseCommand cmd, ByteBuf metadataAndPayload, ByteBuf out) {
+        int cmdSize = cmd.getSerializedSize();
+        int payloadSize = metadataAndPayload.readableBytes();
+        out.ensureWritable(4 + 4 + cmdSize + payloadSize);
+        out.writeInt(4 + cmdSize + payloadSize); // External frame
+        out.writeInt(cmdSize);
+        cmd.writeTo(out);
+        // out.writeBytes isn't used, since it has a performance issue with the adaptive allocator until
+        // https://github.com/netty/netty/pull/17840 has been merged: an adaptive buffer copies from a buffer of
+        // another kind, such as a slice of a cached entry, through NIO buffer views that it allocates for each copy
+        metadataAndPayload.getBytes(metadataAndPayload.readerIndex(), out, out.writerIndex(), payloadSize);
+        out.writerIndex(out.writerIndex() + payloadSize);
+    }
+
     public static MessageMetadata peekMessageMetadata(ByteBuf metadataAndPayload, String subscription,
             long consumerId) {
         // save the reader index and restore after parsing
