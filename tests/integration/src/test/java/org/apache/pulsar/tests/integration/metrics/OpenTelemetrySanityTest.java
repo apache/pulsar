@@ -72,7 +72,7 @@ public class OpenTelemetrySanityTest {
 
         // TODO: Validate cluster name and service version are present once
         // https://github.com/open-telemetry/opentelemetry-java/issues/6108 is solved.
-        var metricName = "queueSize_ratio"; // Sent automatically by the OpenTelemetry SDK.
+        var metricName = "jvm_cpu_count"; // Configured by the OpenTelemetryService.
         waitAtMost(90, TimeUnit.SECONDS).ignoreExceptions().pollInterval(1, TimeUnit.SECONDS).until(() -> {
             var metrics = getMetricsFromPrometheus(
                     openTelemetryCollectorContainer, OpenTelemetryCollectorContainer.PROMETHEUS_EXPORTER_PORT);

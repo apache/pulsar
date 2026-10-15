@@ -40,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
@@ -57,6 +58,8 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.functions.instance.AuthenticationConfig;
+import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
 import org.apache.pulsar.functions.worker.FileServer;
@@ -67,16 +70,14 @@ import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.utils.ResourceUtils;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+@CustomLog
 public abstract class AbstractPulsarE2ETest {
 
-    public static final Logger LOG = LoggerFactory.getLogger(AbstractPulsarE2ETest.class);
 
     protected static final String TLS_SERVER_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.cert.pem");
@@ -104,6 +105,21 @@ public abstract class AbstractPulsarE2ETest {
     protected PulsarFunctionTestTemporaryDirectory tempDirectory;
     protected FileServer fileServer;
 
+    /**
+     * Creates a V5 client with the same service URL, authentication and TLS settings as the function worker.
+     */
+    protected org.apache.pulsar.client.api.v5.PulsarClient newV5Client() throws Exception {
+        AuthenticationConfig authConfig = AuthenticationConfig.builder()
+                .clientAuthenticationPlugin(workerConfig.getBrokerClientAuthenticationPlugin())
+                .clientAuthenticationParameters(workerConfig.getBrokerClientAuthenticationParameters())
+                .useTls(workerConfig.isUseTls())
+                .tlsAllowInsecureConnection(workerConfig.isTlsAllowInsecureConnection())
+                .tlsTrustCertsFilePath(workerConfig.getTlsTrustCertsFilePath())
+                .build();
+        return InstanceUtils.createPulsarClientV5Builder(workerConfig.getPulsarServiceUrl(), authConfig,
+                Optional.empty()).build();
+    }
+
     @DataProvider(name = "validRoleName")
     public Object[][] validRoleName() {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
@@ -112,10 +128,10 @@ public abstract class AbstractPulsarE2ETest {
 
     @BeforeMethod(alwaysRun = true)
     public void setup(Method method) throws Exception {
-        LOG.info("--- Setting up method {} ---", method.getName());
+        log.info().attr("method", method.getName()).log("--- Setting up method ---");
 
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble.start();
 
         config = new ServiceConfiguration();
@@ -239,7 +255,7 @@ public abstract class AbstractPulsarE2ETest {
 
     @AfterMethod(alwaysRun = true)
     void shutdown() throws Exception {
-        LOG.info("--- Shutting down ---");
+        log.info("--- Shutting down ---");
         try {
             if (fileServer != null) {
                 fileServer.stop();

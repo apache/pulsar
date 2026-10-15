@@ -29,6 +29,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -1365,6 +1366,72 @@ public interface Namespaces {
      *            Namespace name
      */
     CompletableFuture<Void> removeAutoTopicCreationAsync(String namespace);
+
+    /**
+     * Sets the scalable-topic auto split/merge policy override for a namespace (PIP-483),
+     * overriding the broker's defaults for every scalable topic in the namespace that does
+     * not carry its own per-topic override.
+     *
+     * @param namespace
+     *            Namespace name
+     * @param override
+     *            the override; unset fields fall through to the broker configuration
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setScalableTopicAutoScalePolicy(String namespace, AutoScalePolicyOverride override)
+            throws PulsarAdminException;
+
+    /**
+     * Sets the scalable-topic auto split/merge policy override for a namespace asynchronously.
+     *
+     * @param namespace
+     *            Namespace name
+     * @param override
+     *            the override; unset fields fall through to the broker configuration
+     */
+    CompletableFuture<Void> setScalableTopicAutoScalePolicyAsync(
+            String namespace, AutoScalePolicyOverride override);
+
+    /**
+     * Get the scalable-topic auto split/merge policy override for a namespace.
+     *
+     * @param namespace
+     *            Namespace name
+     * @return the override, or {@code null} if none is set
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    AutoScalePolicyOverride getScalableTopicAutoScalePolicy(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the scalable-topic auto split/merge policy override for a namespace asynchronously.
+     *
+     * @param namespace
+     *            Namespace name
+     * @return the override, or {@code null} if none is set
+     */
+    CompletableFuture<AutoScalePolicyOverride> getScalableTopicAutoScalePolicyAsync(String namespace);
+
+    /**
+     * Removes the scalable-topic auto split/merge policy override from a namespace, letting
+     * the broker configuration apply.
+     *
+     * @param namespace
+     *            Namespace name
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void removeScalableTopicAutoScalePolicy(String namespace) throws PulsarAdminException;
+
+    /**
+     * Removes the scalable-topic auto split/merge policy override from a namespace
+     * asynchronously.
+     *
+     * @param namespace
+     *            Namespace name
+     */
+    CompletableFuture<Void> removeScalableTopicAutoScalePolicyAsync(String namespace);
 
     /**
      * Sets the autoSubscriptionCreation policy for a given namespace, overriding broker settings.
@@ -4105,6 +4172,7 @@ public interface Namespaces {
      *
      * @param namespace pulsar namespace name
      * @param isAllowAutoUpdateSchema flag to enable or disable auto update schema
+     * @param allowAutoUpdateSchemaWithReplicator whether replicator can auto update schema
      * @throws NotAuthorizedException
      *             Don't have admin permission
      * @throws NotFoundException
@@ -4112,19 +4180,20 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void setIsAllowAutoUpdateSchema(String namespace, boolean isAllowAutoUpdateSchema)
+    void setIsAllowAutoUpdateSchema(String namespace, boolean isAllowAutoUpdateSchema,
+                                    Boolean allowAutoUpdateSchemaWithReplicator)
             throws PulsarAdminException;
 
+
     /**
-     * Set whether to allow automatic schema updates asynchronously.
-     * <p/>
-     * The flag is when producer bring a new schema and the schema pass compatibility check
-     * whether allow schema auto registered
+     * Set whether to allow automatic schema updates and replicator schema updates in one call asynchronously.
      *
      * @param namespace pulsar namespace name
      * @param isAllowAutoUpdateSchema flag to enable or disable auto update schema
+     * @param allowAutoUpdateSchemaWithReplicator whether replicator can auto update schema
      */
-    CompletableFuture<Void> setIsAllowAutoUpdateSchemaAsync(String namespace, boolean isAllowAutoUpdateSchema);
+    CompletableFuture<Void> setIsAllowAutoUpdateSchemaAsync(String namespace, boolean isAllowAutoUpdateSchema,
+                                                            Boolean allowAutoUpdateSchemaWithReplicator);
 
     /**
      * Set the offload configuration for all the topics in a namespace.

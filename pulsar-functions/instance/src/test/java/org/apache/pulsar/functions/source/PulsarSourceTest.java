@@ -35,9 +35,9 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
@@ -60,7 +60,7 @@ import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class PulsarSourceTest {
 
 
@@ -242,10 +242,10 @@ public class PulsarSourceTest {
             pulsarSource.open(new HashMap<>(), Mockito.mock(SourceContext.class));
             fail();
         } catch (RuntimeException ex) {
-            log.error("RuntimeException: {}", ex, ex);
+            log.error().exception(ex).log("RuntimeException");
             assertEquals(ex.getMessage(), "Input type of Pulsar Function cannot be Void");
         } catch (Exception ex) {
-            log.error("Exception: {}", ex, ex);
+            log.error().exception(ex).log("Exception");
             fail();
         }
     }
@@ -267,11 +267,11 @@ public class PulsarSourceTest {
             pulsarSource.open(new HashMap<>(), Mockito.mock(SourceContext.class));
             fail("Should fail constructing java instance if function type is inconsistent with serde type");
         } catch (RuntimeException ex) {
-            log.error("RuntimeException: {}", ex, ex);
+            log.error().exception(ex).log("RuntimeException");
             assertTrue(
                     ex.getMessage().startsWith("Inconsistent types found between function input type and serde type:"));
         } catch (Exception ex) {
-            log.error("Exception: {}", ex, ex);
+            log.error().exception(ex).log("Exception");
             fail();
         }
     }

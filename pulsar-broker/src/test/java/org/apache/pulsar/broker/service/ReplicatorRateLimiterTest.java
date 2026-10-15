@@ -29,6 +29,7 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
@@ -37,8 +38,6 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -50,6 +49,7 @@ import org.testng.annotations.Test;
  * Starts 3 brokers that are in 3 different clusters.
  */
 @Test(groups = "broker-replication")
+@CustomLog
 public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
 
     protected String methodName;
@@ -321,7 +321,7 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
     @SuppressWarnings("deprecation")
     @Test
     public void testReplicatorRateLimiterDynamicallyChange() throws Exception {
-        log.info("--- Starting ReplicatorTest::{} --- ", methodName);
+        log.info().attr("methodName", methodName).log("--- Starting ReplicatorTest::");
 
         final String namespace = "pulsar/replicatorchange-" + System.currentTimeMillis();
         final String topicName = "persistent://" + namespace + "/ratechange";
@@ -387,7 +387,7 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
     @Test(dataProvider =  "dispatchRateType")
     public void testReplicatorRateLimiterMessageNotReceivedAllMessages(DispatchRateType dispatchRateType)
             throws Exception {
-        log.info("--- Starting ReplicatorTest::{} --- ", methodName);
+        log.info().attr("methodName", methodName).log("--- Starting ReplicatorTest::");
 
         final String namespace = "pulsar/replicatorbyteandmsg-" + dispatchRateType.toString() + "-"
                 + System.currentTimeMillis();
@@ -444,7 +444,7 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
                 .subscriptionName("sub2-in-cluster2").messageListener((c1, msg) -> {
             Assert.assertNotNull(msg, "Message cannot be null");
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message [{}] in the listener", receivedMessage);
+            log.debug().attr("receivedMessage", receivedMessage).log("Received message [] in the listener");
             totalReceived.incrementAndGet();
         }).subscribe();
 
@@ -454,7 +454,7 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
             producer.send(new byte[80]);
         }
 
-        log.info("Received message number: [{}]", totalReceived.get());
+        log.info().attr("get", totalReceived.get()).log("Received message number: []");
 
         Assert.assertTrue(totalReceived.get() < messageRate * 2);
 
@@ -475,7 +475,7 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
     @SuppressWarnings("deprecation")
     @Test
     public void testReplicatorRateLimiterMessageReceivedAllMessages() throws Exception {
-        log.info("--- Starting ReplicatorTest::{} --- ", methodName);
+        log.info().attr("methodName", methodName).log("--- Starting ReplicatorTest::");
 
         final String namespace = "pulsar/replicatormsg-" + System.currentTimeMillis();
         final String topicName = "persistent://" + namespace + "/notReceivedAll";
@@ -518,7 +518,7 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
                 .subscriptionName("sub2-in-cluster2").messageListener((c1, msg) -> {
             Assert.assertNotNull(msg, "Message cannot be null");
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message [{}] in the listener", receivedMessage);
+            log.debug().attr("receivedMessage", receivedMessage).log("Received message [] in the listener");
             totalReceived.incrementAndGet();
         }).subscribe();
 
@@ -529,7 +529,7 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
         }
 
         Awaitility.await().pollDelay(1, TimeUnit.SECONDS).untilAsserted(()->{
-            log.info("Received message number: [{}]", totalReceived.get());
+            log.info().attr("get", totalReceived.get()).log("Received message number: []");
 
             Assert.assertEquals(totalReceived.get(), numMessages);
         });
@@ -539,7 +539,7 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
             producer.send(new byte[80]);
         }
         Awaitility.await().pollDelay(1, TimeUnit.SECONDS).untilAsserted(() -> {
-            log.info("Received message number: [{}]", totalReceived.get());
+            log.info().attr("get", totalReceived.get()).log("Received message number: []");
 
             // The rate limiter is not perfectly precise — allow +/- 20% tolerance.
             int received = totalReceived.get();
@@ -597,7 +597,7 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
                 .messageListener((c1, msg) -> {
                     Assert.assertNotNull(msg, "Message cannot be null");
                     String receivedMessage = new String(msg.getData());
-                    log.debug("Received message [{}] in the listener", receivedMessage);
+                    log.debug().attr("receivedMessage", receivedMessage).log("Received message [] in the listener");
                     totalReceived.incrementAndGet();
                 }).subscribe();
 
@@ -618,5 +618,4 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
         return topic.getReplicators().values().stream().findFirst().map(Replicator::getRateLimiter).orElseThrow();
     }
 
-    private static final Logger log = LoggerFactory.getLogger(ReplicatorRateLimiterTest.class);
 }

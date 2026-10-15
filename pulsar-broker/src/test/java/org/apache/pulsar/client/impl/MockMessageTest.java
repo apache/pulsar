@@ -27,7 +27,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
@@ -37,7 +37,7 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-impl")
 public class MockMessageTest extends SharedPulsarBaseTest {
 
@@ -88,7 +88,7 @@ public class MockMessageTest extends SharedPulsarBaseTest {
             public Thread newThread(Runnable r) {
                 final var thread = super.newThread(r);
                 thread.setUncaughtExceptionHandler((t, e) -> {
-                    log.error("Unexpected exception in {}", t.getName(), e);
+                    log.error().attr("exception", t.getName()).exception(e).log("Unexpected exception in");
                     threadFailures.computeIfAbsent(t, __ -> new CopyOnWriteArrayList<>()).add(e);
                 });
                 return thread;

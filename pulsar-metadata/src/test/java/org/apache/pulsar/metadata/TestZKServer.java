@@ -27,8 +27,8 @@ import java.io.OutputStream;
 import java.lang.reflect.Field;
 import java.net.Socket;
 import java.util.Properties;
+import lombok.CustomLog;
 import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.apache.zookeeper.server.ContainerManager;
 import org.apache.zookeeper.server.ServerCnxnFactory;
@@ -38,7 +38,7 @@ import org.apache.zookeeper.server.embedded.ExitHandler;
 import org.apache.zookeeper.server.embedded.ZooKeeperServerEmbedded;
 import org.assertj.core.util.Files;
 
-@Slf4j
+@CustomLog
 @SuppressWarnings("try")
 public class TestZKServer implements AutoCloseable {
 
@@ -71,7 +71,8 @@ public class TestZKServer implements AutoCloseable {
                 .build();
 
         zooKeeperServerEmbedded.start(60_000);
-        log.info("Started test ZK server on at {}", zooKeeperServerEmbedded.getConnectionString());
+        log.info().attr("connectionString", zooKeeperServerEmbedded.getConnectionString())
+                .log("Started test ZK server");
 
         ZooKeeperServerMain zooKeeperServerMain = getZooKeeperServerMain(zooKeeperServerEmbedded);
         ServerCnxnFactory serverCnxnFactory = getServerCnxnFactory(zooKeeperServerMain);
@@ -183,7 +184,7 @@ public class TestZKServer implements AutoCloseable {
                 }
             } catch (IOException e) {
                 // ignore as this is expected
-                log.info("ZK server {} not up: {}", hp, e.getMessage());
+                log.info().attr("server", hp).exceptionMessage(e).log("ZK server not up");
             }
 
             if (System.currentTimeMillis() > start + timeout) {

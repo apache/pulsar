@@ -31,10 +31,10 @@ import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.AllArgsConstructor;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.description.type.TypeDefinition;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.pool.TypePool;
@@ -55,7 +55,7 @@ import org.apache.pulsar.functions.proto.SourceSpec;
 import org.apache.pulsar.io.core.BatchSource;
 import org.apache.pulsar.io.core.Source;
 
-@Slf4j
+@CustomLog
 public class SourceConfigUtils {
 
     @Getter
@@ -185,6 +185,9 @@ public class SourceConfigUtils {
             functionDetails.setCustomRuntimeOptions(sourceConfig.getCustomRuntimeOptions());
         }
 
+        functionDetails.setClientApi(FunctionCommon.convertClientApi(sourceConfig.getClientApi()));
+        ClientApiResolver.resolve(functionDetails);
+
         return FunctionConfigUtils.validateFunctionDetails(functionDetails);
     }
 
@@ -240,6 +243,7 @@ public class SourceConfigUtils {
         if (!isEmpty(functionDetails.getLogTopic())) {
             sourceConfig.setLogTopic(functionDetails.getLogTopic());
         }
+        sourceConfig.setClientApi(FunctionCommon.convertClientApi(functionDetails.getClientApi()));
         if (functionDetails.hasResources()) {
             Resources resources = new Resources();
             resources.setCpu(functionDetails.getResources().getCpu());
@@ -409,6 +413,9 @@ public class SourceConfigUtils {
         if (!StringUtils.isEmpty(newConfig.getLogTopic())) {
             mergedConfig.setLogTopic(newConfig.getLogTopic());
         }
+        if (newConfig.getClientApi() != null) {
+            mergedConfig.setClientApi(newConfig.getClientApi());
+        }
         if (newConfig.getProcessingGuarantees() != null && !newConfig.getProcessingGuarantees()
                 .equals(existingConfig.getProcessingGuarantees())) {
             throw new IllegalArgumentException("Processing Guarantees cannot be altered");
@@ -457,7 +464,8 @@ public class SourceConfigUtils {
             try {
                 return ObjectMapperFactory.getMapper().reader().forType(typeRef).readValue(sourceSpec.getConfigs());
             } catch (IOException e) {
-                log.error("Failed to read configs for source {}", fqfn, e);
+                log.error().attr("source", fqfn).exception(e)
+                        .log("Failed to read configs for source");
                 throw new RuntimeException(e);
             }
         } else {

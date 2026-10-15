@@ -27,7 +27,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
@@ -40,7 +40,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.testng.annotations.Test;
 
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-api")
 public class ConsumerDecryptFailListenerTest extends SharedPulsarBaseTest {
 
@@ -234,7 +234,7 @@ public class ConsumerDecryptFailListenerTest extends SharedPulsarBaseTest {
                     keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
                     return keyInfo;
                 } catch (IOException e) {
-                    log.error("Failed to read certificate from {}", certFilePath);
+                    log.error().attr("certificate", certFilePath).log("Failed to read certificate from");
                 }
             }
             return null;
@@ -248,7 +248,7 @@ public class ConsumerDecryptFailListenerTest extends SharedPulsarBaseTest {
                     keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
                     return keyInfo;
                 } catch (IOException e) {
-                    log.error("Failed to read certificate from {}", certFilePath);
+                    log.error().attr("certificate", certFilePath).log("Failed to read certificate from");
                 }
             }
             return null;
@@ -267,7 +267,7 @@ public class ConsumerDecryptFailListenerTest extends SharedPulsarBaseTest {
                     keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
                     return keyInfo;
                 } catch (IOException e) {
-                    log.error("Failed to read certificate from {}", certFilePath);
+                    log.error().attr("certificate", certFilePath).log("Failed to read certificate from");
                 }
             }
             return null;
@@ -281,7 +281,7 @@ public class ConsumerDecryptFailListenerTest extends SharedPulsarBaseTest {
                     keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
                     return keyInfo;
                 } catch (IOException e) {
-                    log.error("Failed to read certificate from {}", certFilePath);
+                    log.error().attr("certificate", certFilePath).log("Failed to read certificate from");
                 }
             }
             return null;

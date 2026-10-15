@@ -30,8 +30,6 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  */
@@ -112,6 +110,4 @@ public class ManagedLedgerOfflineBacklog {
 
         return offlineTopicStats;
     }
-
-    private static final Logger log = LoggerFactory.getLogger(ManagedLedgerOfflineBacklog.class);
 }

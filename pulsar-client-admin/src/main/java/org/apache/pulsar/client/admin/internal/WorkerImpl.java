@@ -18,15 +18,15 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.GenericType;
+import jakarta.ws.rs.core.MediaType;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.GenericType;
-import javax.ws.rs.core.MediaType;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Worker;
 import org.apache.pulsar.client.api.Authentication;
@@ -34,7 +34,7 @@ import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.WorkerFunctionInstanceStats;
 import org.apache.pulsar.common.stats.Metrics;
 
-@Slf4j
+@CustomLog
 public class WorkerImpl extends BaseResource implements Worker {
 
     private final WebTarget workerStats;

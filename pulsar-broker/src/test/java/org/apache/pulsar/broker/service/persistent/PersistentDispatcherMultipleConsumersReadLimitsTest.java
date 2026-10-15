@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.commons.lang3.RandomUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -41,7 +41,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-api")
 public class PersistentDispatcherMultipleConsumersReadLimitsTest extends ProducerConsumerBase {
 
@@ -85,8 +85,8 @@ public class PersistentDispatcherMultipleConsumersReadLimitsTest extends Produce
                         List<Entry> entries = invocation.getArgument(0);
                         PersistentDispatcherMultipleConsumers.ReadType readType = invocation.getArgument(1);
                         int numberOfEntries = entries.size();
-                        log.info("intercepted readEntriesComplete with {} entries, read type {}", numberOfEntries,
-                                readType);
+                        log.info().attr("readentriescompleteWith", numberOfEntries).attr("readType", readType)
+                                .log("intercepted readEntriesComplete with entries, read type");
                         entriesReadMax.updateAndGet(current -> Math.max(current, numberOfEntries));
                         return invocation.callRealMethod();
                     }).when(spy).readEntriesComplete(any(), any());

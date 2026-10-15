@@ -26,8 +26,8 @@ import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import lombok.CustomLog;
 import lombok.experimental.UtilityClass;
-import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -37,6 +37,9 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SizeUnit;
+import org.apache.pulsar.client.api.v5.PulsarClientBuilder;
+import org.apache.pulsar.client.api.v5.config.ConnectionPolicy;
+import org.apache.pulsar.client.api.v5.config.MemorySize;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.proto.FunctionDetails;
@@ -44,8 +47,9 @@ import org.apache.pulsar.functions.proto.SinkSpec;
 import org.apache.pulsar.functions.proto.SourceSpec;
 import org.apache.pulsar.functions.sink.PulsarSink;
 import org.apache.pulsar.functions.utils.FunctionCommon;
+import org.apache.pulsar.tls.TlsPolicy;
 
-@Slf4j
+@CustomLog
 @UtilityClass
 public class InstanceUtils {
     public static SerDe<?> initializeSerDe(String serdeClassName, ClassLoader clsLoader, Class<?> typeArg,
@@ -149,7 +153,11 @@ public class InstanceUtils {
         try {
             properties.put("instance_hostname", InetAddress.getLocalHost().getHostName());
         } catch (UnknownHostException e) {
-            log.warn("[{}:{}] Failed to get hostname of instance", fullyQualifiedName, instanceId, e);
+            log.warn()
+                    .attr("function", fullyQualifiedName)
+                    .attr("instanceId", instanceId)
+                    .exception(e)
+                    .log("Failed to get hostname of instance");
         }
         return properties;
     }
@@ -181,6 +189,46 @@ public class InstanceUtils {
             return clientBuilder;
         }
         throw new PulsarClientException("pulsarServiceUrl cannot be null");
+    }
+
+    /**
+     * Creates a V5 client builder with the same service URL, authentication, TLS and memory settings that
+     * {@link #createPulsarClientBuilder(String, AuthenticationConfig, Optional)} applies to the v4 client.
+     */
+    public static PulsarClientBuilder createPulsarClientV5Builder(
+            String pulsarServiceUrl, AuthenticationConfig authConfig, Optional<Long> memoryLimit)
+            throws org.apache.pulsar.client.api.v5.PulsarClientException {
+        if (!isNotBlank(pulsarServiceUrl)) {
+            throw new org.apache.pulsar.client.api.v5.PulsarClientException("pulsarServiceUrl cannot be null");
+        }
+        PulsarClientBuilder clientBuilder =
+                org.apache.pulsar.client.api.v5.PulsarClient.builder()
+                        .serviceUrl(pulsarServiceUrl)
+                        .connectionPolicy(ConnectionPolicy.builder()
+                                .ioThreads(Runtime.getRuntime().availableProcessors())
+                                .build());
+        // Without a configured limit the V5 client keeps its default memory limit: unlike the v4 producer, the V5
+        // producer has no pending-message limit, so the memory limit is what bounds the messages it holds
+        memoryLimit.ifPresent(bytes -> clientBuilder.memoryLimit(MemorySize.ofBytes(bytes)));
+        if (authConfig != null) {
+            if (isNotBlank(authConfig.getClientAuthenticationPlugin())
+                    && isNotBlank(authConfig.getClientAuthenticationParameters())) {
+                clientBuilder.authentication(authConfig.getClientAuthenticationPlugin(),
+                        authConfig.getClientAuthenticationParameters());
+            }
+            // setting a TLS policy turns TLS on, so only set one when TLS is wanted
+            if (authConfig.isUseTls() || pulsarServiceUrl.startsWith("pulsar+ssl://")) {
+                TlsPolicy.Builder tlsPolicy = TlsPolicy.builder()
+                        .allowInsecureConnection(authConfig.isTlsAllowInsecureConnection())
+                        // pass the worker's setting explicitly rather than rely on the TLS policy's default
+                        .enableHostnameVerification(authConfig.isTlsHostnameVerificationEnable());
+                if (isNotBlank(authConfig.getTlsTrustCertsFilePath())) {
+                    tlsPolicy.trustCertsFilePath(authConfig.getTlsTrustCertsFilePath());
+                }
+                clientBuilder.tlsPolicy(tlsPolicy.build());
+            }
+        }
+        return clientBuilder;
     }
 
     public static PulsarClient createPulsarClient(String pulsarServiceUrl, AuthenticationConfig authConfig)

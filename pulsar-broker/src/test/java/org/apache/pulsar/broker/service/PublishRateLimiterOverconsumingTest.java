@@ -34,7 +34,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.IntStream;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageListener;
@@ -49,7 +49,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class PublishRateLimiterOverconsumingTest extends BrokerTestBase {
     @BeforeMethod
@@ -115,8 +115,9 @@ public class PublishRateLimiterOverconsumingTest extends BrokerTestBase {
             if (elapsedFullSeconds > 0 && lastCalculatedSecond.compareAndSet(elapsedFullSeconds - 1,
                     elapsedFullSeconds)) {
                 int messagesCountForPreviousSecond = currentSecondMessagesCount.getAndSet(0);
-                log.info("Rate for second {}: {} msg/s {}", elapsedFullSeconds, messagesCountForPreviousSecond,
-                        TimeUnit.NANOSECONDS.toMillis(durationNanos));
+                log.info().attr("forSecond", elapsedFullSeconds)
+                        .attr("messagesCountForPreviousSecond", messagesCountForPreviousSecond)
+                        .attr("toMillis", TimeUnit.NANOSECONDS.toMillis(durationNanos)).log("Rate for second: msg/s");
                 collectedRatesForEachSecond.add(messagesCountForPreviousSecond);
             }
         };
@@ -213,7 +214,7 @@ public class PublishRateLimiterOverconsumingTest extends BrokerTestBase {
                 try {
                     int messageNumber = i + 1;
                     producer.sendAsync(messageNumber).exceptionally(e -> {
-                        log.error("Failed to send message #{}", messageNumber, e);
+                        log.error().attr("messageNumber", messageNumber).exception(e).log("Failed to send message #");
                         return null;
                     });
                 } catch (Exception e) {
@@ -222,9 +223,9 @@ public class PublishRateLimiterOverconsumingTest extends BrokerTestBase {
             });
             producer.flushAsync().whenComplete((r, e) -> {
                 if (e != null) {
-                    log.error("Failed to flush producer", e);
+                    log.error().exception(e).log("Failed to flush producer");
                 } else {
-                    log.info("Producer {} flushed", producer.getProducerName());
+                    log.info().attr("producer", producer.getProducerName()).log("Producer flushed");
                 }
             });
         });
@@ -254,7 +255,7 @@ public class PublishRateLimiterOverconsumingTest extends BrokerTestBase {
         if (tail > 0) {
             collectedRatesSnapshot.add(tail);
         }
-        log.info("Collected rates for each second: {}", collectedRatesSnapshot);
+        log.info().attr("eachSecond", collectedRatesSnapshot).log("Collected rates for each second");
 
         // Calculate the average using second-by-second windows:
         // Skip the first second, take up to durationSeconds windows.

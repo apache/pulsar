@@ -26,7 +26,7 @@ import static org.testng.Assert.assertTrue;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -39,7 +39,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-admin-isolated")
 public class AdminApiTransactionMultiBrokerTest extends TransactionTestBase {
 

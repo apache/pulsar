@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerHandle;
@@ -39,8 +40,6 @@ import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.bookkeeper.PulsarLayoutManager;
 import org.apache.pulsar.metadata.bookkeeper.PulsarLedgerManagerFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -48,13 +47,9 @@ import org.testng.annotations.Test;
 /**
  * Tests verifies bookie vs ledger mapping generating by the BookieLedgerIndexer.
  */
+@CustomLog
 public class BookieLedgerIndexTest extends BookKeeperClusterTestCase {
 
-    // Depending on the taste, select the amount of logging
-    // by decommenting one of the two lines below
-    // private final static Logger LOG = Logger.getRootLogger();
-    private static final Logger LOG = LoggerFactory
-            .getLogger(BookieLedgerIndexTest.class);
 
     private Random rng; // Random Number Generator
     private ArrayList<byte[]> entries; // generated entries
@@ -70,8 +65,7 @@ public class BookieLedgerIndexTest extends BookKeeperClusterTestCase {
 
     BookieLedgerIndexTest(String ledgerManagerFactory) throws Exception {
         super(3);
-        LOG.info("Running test case using ledger manager : "
-                + ledgerManagerFactory);
+        log.info().attr("ledgerManagerFactory", ledgerManagerFactory).log("Running test case using ledger manager");
         // set ledger manager name
         baseConf.setLedgerManagerFactoryClassName(ledgerManagerFactory);
         baseClientConf.setLedgerManagerFactoryClassName(ledgerManagerFactory);
@@ -214,11 +208,11 @@ public class BookieLedgerIndexTest extends BookKeeperClusterTestCase {
                 }
             }
         } catch (BKException e) {
-            LOG.error("Test failed", e);
+            log.error().exception(e).log("Test failed");
             fail("Test failed due to BookKeeper exception");
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            LOG.error("Test failed", e);
+            log.error().exception(e).log("Test failed");
             fail("Test failed due to interruption");
         }
     }
@@ -232,7 +226,7 @@ public class BookieLedgerIndexTest extends BookKeeperClusterTestCase {
         int numEntriesToWrite = 20;
         // Create a ledger
         LedgerHandle lh = bkc.createLedger(digestType, "admin".getBytes());
-        LOG.info("Ledger ID: " + lh.getId());
+        log.info().attr("ledgerId", lh.getId()).log("Ledger created");
         for (int i = 0; i < numEntriesToWrite; i++) {
             ByteBuffer entry = ByteBuffer.allocate(4);
             entry.putInt(rng.nextInt(Integer.MAX_VALUE));

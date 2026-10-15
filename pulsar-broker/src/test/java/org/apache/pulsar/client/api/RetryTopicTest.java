@@ -34,6 +34,7 @@ import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import lombok.Data;
 import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.reflect.Nullable;
@@ -41,15 +42,12 @@ import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
 import org.testng.collections.Lists;
 
 @Test(groups = "broker-api")
+@CustomLog
 public class RetryTopicTest extends SharedPulsarBaseTest {
-
-    private static final Logger log = LoggerFactory.getLogger(RetryTopicTest.class);
 
     @Test
     public void testRetryTopic() throws Exception {
@@ -90,7 +88,10 @@ public class RetryTopicTest extends SharedPulsarBaseTest {
         int totalReceived = 0;
         do {
             Message<byte[]> message = consumer.receive();
-            log.info("consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
+            log.info()
+                    .attr("messageId", message.getMessageId())
+                    .attr("data", new String(message.getData()))
+                    .log("consumer received message");
             consumer.reconsumeLater(message, 1, TimeUnit.SECONDS);
             totalReceived++;
         } while (totalReceived < sendMessages * (maxRedeliveryCount + 1));
@@ -98,8 +99,10 @@ public class RetryTopicTest extends SharedPulsarBaseTest {
         int totalInDeadLetter = 0;
         do {
             Message<byte[]> message = deadLetterConsumer.receive();
-            log.info("dead letter consumer received message : {} {}", message.getMessageId(),
-                    new String(message.getData()));
+            log.info()
+                    .attr("messageId", message.getMessageId())
+                    .attr("data", new String(message.getData()))
+                    .log("dead letter consumer received message");
             deadLetterConsumer.acknowledge(message);
             totalInDeadLetter++;
         } while (totalInDeadLetter < sendMessages);
@@ -116,8 +119,10 @@ public class RetryTopicTest extends SharedPulsarBaseTest {
 
         Message<byte[]> checkMessage = checkConsumer.receive(3, TimeUnit.SECONDS);
         if (checkMessage != null) {
-            log.info("check consumer received message : {} {}", checkMessage.getMessageId(),
-                    new String(checkMessage.getData()));
+            log.info()
+                    .attr("messageId", checkMessage.getMessageId())
+                    .attr("data", new String(checkMessage.getData()))
+                    .log("check consumer received message");
         }
         assertNull(checkMessage);
 
@@ -170,7 +175,10 @@ public class RetryTopicTest extends SharedPulsarBaseTest {
         int totalReceived = 0;
         do {
             Message<byte[]> message = consumer.receive();
-            log.info("consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
+            log.info()
+                    .attr("messageId", message.getMessageId())
+                    .attr("data", new String(message.getData()))
+                    .log("consumer received message");
             consumer.reconsumeLater(message, 1, TimeUnit.SECONDS);
             totalReceived++;
         } while (totalReceived < sendMessages * (maxRedeliveryCount + 1));
@@ -178,8 +186,10 @@ public class RetryTopicTest extends SharedPulsarBaseTest {
         int totalInDeadLetter = 0;
         do {
             Message<byte[]> message = deadLetterConsumer.receive();
-            log.info("dead letter consumer received message : {} {}", message.getMessageId(),
-                    new String(message.getData()));
+            log.info()
+                    .attr("messageId", message.getMessageId())
+                    .attr("data", new String(message.getData()))
+                    .log("dead letter consumer received message");
             deadLetterConsumer.acknowledge(message);
             totalInDeadLetter++;
         } while (totalInDeadLetter < sendMessages);
@@ -196,8 +206,10 @@ public class RetryTopicTest extends SharedPulsarBaseTest {
 
         Message<byte[]> checkMessage = checkConsumer.receive(3, TimeUnit.SECONDS);
         if (checkMessage != null) {
-            log.info("check consumer received message : {} {}", checkMessage.getMessageId(),
-                    new String(checkMessage.getData()));
+            log.info()
+                    .attr("messageId", checkMessage.getMessageId())
+                    .attr("data", new String(checkMessage.getData()))
+                    .log("check consumer received message");
         }
         assertNull(checkMessage);
 
@@ -313,9 +325,11 @@ public class RetryTopicTest extends SharedPulsarBaseTest {
         int totalReceived = 0;
         do {
             Message<GenericRecord> message = consumer.receive();
-            log.info(
-                    "consumer received message (schema={}) : {} {}",
-                    message.getReaderSchema().get(), message.getMessageId(), new String(message.getData()));
+            log.info()
+                    .attr("schema", message.getReaderSchema().get())
+                    .attr("messageId", message.getMessageId())
+                    .attr("data", new String(message.getData()))
+                    .log("consumer received message");
             consumer.reconsumeLater(message, 1, TimeUnit.SECONDS);
             assertTrue(messageIds.contains(message.getMessageId()));
             totalReceived++;
@@ -325,9 +339,11 @@ public class RetryTopicTest extends SharedPulsarBaseTest {
         Set<MessageId> retryTopicMessageIds = new HashSet<>();
         do {
             Message<GenericRecord> message = consumer.receive();
-            log.info(
-                    "consumer received retry message (schema={}) : {} {}",
-                    message.getReaderSchema().get(), message.getMessageId(), new String(message.getData()));
+            log.info()
+                    .attr("schema", message.getReaderSchema().get())
+                    .attr("messageId", message.getMessageId())
+                    .attr("data", new String(message.getData()))
+                    .log("consumer received retry message (schema");
             consumer.acknowledge(message);
             retryTopicMessageIds.add(message.getMessageId());
             assertFalse(messageIds.contains(message.getMessageId()));
@@ -412,7 +428,10 @@ public class RetryTopicTest extends SharedPulsarBaseTest {
         Set<String> retryMessageIds = new HashSet<>();
         do {
             Message<byte[]> message = consumer.receive();
-            log.info("consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
+            log.info()
+                    .attr("messageId", message.getMessageId())
+                    .attr("data", new String(message.getData()))
+                    .log("consumer received message");
             // retry message
             if (message.hasProperty(RetryMessageUtil.SYSTEM_PROPERTY_RECONSUMETIMES)) {
                 // check the REAL_TOPIC property
@@ -435,8 +454,10 @@ public class RetryTopicTest extends SharedPulsarBaseTest {
         Set<String> deadLetterMessageIds = new HashSet<>();
         do {
             Message message = deadLetterConsumer.receive();
-            log.info("dead letter consumer received message : {} {}", message.getMessageId(),
-                    new String(message.getData()));
+            log.info()
+                    .attr("messageId", message.getMessageId())
+                    .attr("data", new String(message.getData()))
+                    .log("dead letter consumer received message");
             // dead letter message
             if (message.hasProperty(RetryMessageUtil.SYSTEM_PROPERTY_RECONSUMETIMES)) {
                 // check the REAL_TOPIC property
@@ -463,8 +484,10 @@ public class RetryTopicTest extends SharedPulsarBaseTest {
 
         Message<byte[]> checkMessage = checkConsumer.receive(3, TimeUnit.SECONDS);
         if (checkMessage != null) {
-            log.info("check consumer received message : {} {}", checkMessage.getMessageId(),
-                    new String(checkMessage.getData()));
+            log.info()
+                    .attr("messageId", checkMessage.getMessageId())
+                    .attr("data", new String(checkMessage.getData()))
+                    .log("check consumer received message");
         }
         assertNull(checkMessage);
 
@@ -476,7 +499,7 @@ public class RetryTopicTest extends SharedPulsarBaseTest {
             Map<String, String> customProperties = new HashMap<String, String>();
             customProperties.put("custom_key", "custom_value" + i);
             Message<byte[]> message = consumer.receive();
-            log.info("Received message: {}", new String(message.getValue()));
+            log.info().attr("message", new String(message.getValue())).log("Received message");
             consumer.reconsumeLater(message, customProperties, 1, TimeUnit.SECONDS);
             if (i > 0) {
                 String value = message.getProperty("custom_key");
@@ -544,7 +567,10 @@ public class RetryTopicTest extends SharedPulsarBaseTest {
         int totalReceived = 0;
         do {
             Message<byte[]> message = consumer.receive();
-            log.info("consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
+            log.info()
+                    .attr("messageId", message.getMessageId())
+                    .attr("data", new String(message.getData()))
+                    .log("consumer received message");
             consumer.reconsumeLater(message, 1, TimeUnit.SECONDS);
             totalReceived++;
         } while (totalReceived < sendMessages * (maxRedeliveryCount + 1));
@@ -552,8 +578,10 @@ public class RetryTopicTest extends SharedPulsarBaseTest {
         int totalInDeadLetter = 0;
         do {
             Message message = deadLetterConsumer.receive();
-            log.info("dead letter consumer received message : {} {}", message.getMessageId(),
-                    new String(message.getData()));
+            log.info()
+                    .attr("messageId", message.getMessageId())
+                    .attr("data", new String(message.getData()))
+                    .log("dead letter consumer received message");
             deadLetterConsumer.acknowledge(message);
             totalInDeadLetter++;
         } while (totalInDeadLetter < sendMessages);
@@ -570,8 +598,10 @@ public class RetryTopicTest extends SharedPulsarBaseTest {
 
         Message<byte[]> checkMessage = checkConsumer.receive(3, TimeUnit.SECONDS);
         if (checkMessage != null) {
-            log.info("check consumer received message : {} {}", checkMessage.getMessageId(),
-                    new String(checkMessage.getData()));
+            log.info()
+                    .attr("messageId", checkMessage.getMessageId())
+                    .attr("data", new String(checkMessage.getData()))
+                    .log("check consumer received message");
         }
         assertNull(checkMessage);
 
@@ -641,8 +671,11 @@ public class RetryTopicTest extends SharedPulsarBaseTest {
         do {
             Message<byte[]> message = consumer.receive(30, TimeUnit.SECONDS);
             assertNotNull(message, "Expected more messages, received " + totalReceived);
-            log.info("consumer received message : {} {} - total = {}",
-                message.getMessageId(), new String(message.getData()), ++totalReceived);
+            log.info()
+                    .attr("messageId", message.getMessageId())
+                    .attr("data", new String(message.getData()))
+                    .attr("total", ++totalReceived)
+                    .log("consumer received message : - total");
             consumer.reconsumeLater(message, 1, TimeUnit.SECONDS);
         } while (totalReceived < totalMessages * (maxRedeliveryCount + 1));
 
@@ -650,8 +683,10 @@ public class RetryTopicTest extends SharedPulsarBaseTest {
         do {
             Message message = deadLetterConsumer.receive(30, TimeUnit.SECONDS);
             assertNotNull(message, "Expected more DLQ messages, received " + totalInDeadLetter);
-            log.info("dead letter consumer received message : {} {}", message.getMessageId(),
-                    new String(message.getData()));
+            log.info()
+                    .attr("messageId", message.getMessageId())
+                    .attr("data", new String(message.getData()))
+                    .log("dead letter consumer received message");
             deadLetterConsumer.acknowledge(message);
             totalInDeadLetter++;
         } while (totalInDeadLetter < totalMessages);
@@ -668,8 +703,10 @@ public class RetryTopicTest extends SharedPulsarBaseTest {
 
         Message<byte[]> checkMessage = checkConsumer.receive(3, TimeUnit.SECONDS);
         if (checkMessage != null) {
-            log.info("check consumer received message : {} {}", checkMessage.getMessageId(),
-                    new String(checkMessage.getData()));
+            log.info()
+                    .attr("messageId", checkMessage.getMessageId())
+                    .attr("data", new String(checkMessage.getData()))
+                    .log("check consumer received message");
         }
         assertNull(checkMessage);
     }
@@ -713,15 +750,20 @@ public class RetryTopicTest extends SharedPulsarBaseTest {
         int totalReceived = 0;
         do {
             Message<byte[]> message = consumer.receive();
-            log.info("consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
+            log.info()
+                    .attr("messageId", message.getMessageId())
+                    .attr("data", new String(message.getData()))
+                    .log("consumer received message");
             consumer.reconsumeLater(message, 1, TimeUnit.SECONDS);
             totalReceived++;
         } while (totalReceived < sendMessages * (maxRedeliveryCount + 1));
         int totalInDeadLetter = 0;
         do {
             Message message = deadLetterConsumer.receive();
-            log.info("dead letter consumer received message : {} {}", message.getMessageId(),
-                    new String(message.getData()));
+            log.info()
+                    .attr("messageId", message.getMessageId())
+                    .attr("data", new String(message.getData()))
+                    .log("dead letter consumer received message");
             deadLetterConsumer.acknowledge(message);
             totalInDeadLetter++;
         } while (totalInDeadLetter < sendMessages);
@@ -737,8 +779,10 @@ public class RetryTopicTest extends SharedPulsarBaseTest {
                 .subscribe();
         Message<byte[]> checkMessage = checkConsumer.receive(3, TimeUnit.SECONDS);
         if (checkMessage != null) {
-            log.info("check consumer received message : {} {}", checkMessage.getMessageId(),
-                    new String(checkMessage.getData()));
+            log.info()
+                    .attr("messageId", checkMessage.getMessageId())
+                    .attr("data", new String(checkMessage.getData()))
+                    .log("check consumer received message");
         }
         assertNull(checkMessage);
         checkConsumer.close();
@@ -777,7 +821,10 @@ public class RetryTopicTest extends SharedPulsarBaseTest {
         admin.topics().terminateTopic(retryLetterTopic);
 
         Message<byte[]> message = consumer.receive();
-        log.info("consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
+        log.info()
+                .attr("messageId", message.getMessageId())
+                .attr("data", new String(message.getData()))
+                .log("consumer received message");
         try {
             consumer.reconsumeLater(message, 1, TimeUnit.SECONDS);
             fail("exception should be PulsarClientException.TopicTerminatedException");

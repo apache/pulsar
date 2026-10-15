@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -51,18 +52,16 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
+@CustomLog
 @Test(groups = "cluster-migration")
 public class ClusterMigrationTest {
 
-    private static final Logger log = LoggerFactory.getLogger(ClusterMigrationTest.class);
     protected String methodName;
 
     String namespace = "pulsar/migrationNs";
@@ -485,7 +484,7 @@ public class ClusterMigrationTest {
         Producer<byte[]> producer2 = client2.newProducer().topic(topicName).enableBatching(false)
                 .producerName("cluster2-1").messageRoutingMode(MessageRoutingMode.SinglePartition).create();
         AbstractTopic topic2 = (AbstractTopic) pulsar2.getBrokerService().getTopic(topicName, false).getNow(null).get();
-        log.info("name of topic 2 - {}", topic2.getName());
+        log.info().attr("topic", topic2.getName()).log("Name of topic 2");
         assertFalse(topic2.getProducers().isEmpty());
 
         Awaitility.await().atMost(20, TimeUnit.SECONDS)
@@ -1125,7 +1124,7 @@ public class ClusterMigrationTest {
                 .producerName("green-producer-ns2-1").messageRoutingMode(MessageRoutingMode.SinglePartition).create();
         AbstractTopic greenTopicNs2 = (AbstractTopic) pulsar2.getBrokerService()
                 .getTopic(topicName2, false).getNow(null).get();
-        log.info("name of topic 2 - {}", greenTopicNs1.getName());
+        log.info().attr("topic", greenTopicNs1.getName()).log("Name of topic 2");
         assertFalse(greenTopicNs1.getProducers().isEmpty());
 
         retryStrategically((test) -> greenTopicNs1.getReplicators().size() == 1, 10, 2000);

@@ -22,6 +22,12 @@ import static org.asynchttpclient.Dsl.get;
 import static org.asynchttpclient.Dsl.post;
 import static org.asynchttpclient.Dsl.put;
 import com.google.gson.Gson;
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.client.InvocationCallback;
+import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.GenericType;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -30,13 +36,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.InvocationCallback;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.GenericType;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -64,7 +64,7 @@ import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.glassfish.jersey.media.multipart.file.FileDataBodyPart;
 
-@Slf4j
+@CustomLog
 public class FunctionsImpl extends ComponentResource implements Functions {
 
     private final WebTarget functions;
@@ -364,8 +364,9 @@ public class FunctionsImpl extends ComponentResource implements Functions {
 
                         @Override
                         public void failed(Throwable throwable) {
-                            log.warn("[{}] Failed to perform http post request: {}",
-                                    path.getUri(), throwable.getMessage());
+                            log.warn().attr("uri", path.getUri())
+                                    .exceptionMessage(throwable)
+                                    .log("Failed to perform http post request");
                             future.completeExceptionally(getApiException(throwable.getCause()));
                         }
                     });

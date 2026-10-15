@@ -23,7 +23,7 @@ import static org.testng.Assert.assertTrue;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.MetadataCompressionConfig;
 import org.apache.bookkeeper.mledger.offload.OffloadUtils;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
@@ -37,7 +37,7 @@ import org.testng.annotations.Test;
 /**
  * ManagedLedgerInfo metadata test.
  */
-@Slf4j
+@CustomLog
 public class ManagedLedgerInfoMetadataTest {
 
     @DataProvider(name = "compressionTypeProvider")
@@ -108,8 +108,10 @@ public class ManagedLedgerInfoMetadataTest {
         }
 
         byte[] compressionBytes = metaStore.compressLedgerInfo(managedLedgerInfo);
-        log.info("[{}] Uncompressed data size: {}, compressed data size: {}",
-                compressionType, managedLedgerInfo.getSerializedSize(), compressionBytes.length);
+        log.info().attr("compressionType", compressionType)
+                .attr("uncompressedSize", managedLedgerInfo.getSerializedSize())
+                .attr("compressedSize", compressionBytes.length)
+                .log("Encoded managed ledger info");
         if (compressionType == null || compressionType.equals(CompressionType.NONE.name())) {
             Assert.assertEquals(compressionBytes.length, managedLedgerInfo.getSerializedSize());
         }

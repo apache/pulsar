@@ -24,12 +24,12 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.BatchPushSource;
 import org.apache.pulsar.io.core.SourceContext;
 
-@Slf4j
+@CustomLog
 public class BatchDataGeneratorPushSource extends BatchPushSource<Person> implements Runnable {
 
   private Fairy fairy;
@@ -59,8 +59,9 @@ public class BatchDataGeneratorPushSource extends BatchPushSource<Person> implem
 
   @Override
   public void prepare(byte[] instanceSplit) throws Exception {
-    log.info("Instance " + sourceContext.getInstanceId() + " got a new discovered task {}",
-            new String(instanceSplit, StandardCharsets.UTF_8));
+    log.info().attr("instanceId", sourceContext.getInstanceId())
+            .attr("task", new String(instanceSplit, StandardCharsets.UTF_8))
+            .log("Got a new discovered task");
     executor.execute(this);
   }
 

@@ -18,10 +18,22 @@
  */
 package org.apache.bookkeeper.mledger.util;
 
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 
-@Slf4j
+@CustomLog
 public abstract class ManagedLedgerTestUtil {
+
+    /**
+     * Creates the default test config with inline read completion enabled, matching the broker default.
+     * Disables message metadata parsing because most tests store raw bytes rather than Pulsar messages.
+     */
+    public static ManagedLedgerConfig defaultConfig() {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setPulsarMessageEntries(false);
+        config.setReadEntriesCallbackInline(true);
+        return config;
+    }
 
     public static <T> T retry(ThrowingSupplier<T> supplier) {
         return retry(10, supplier);
@@ -31,7 +43,7 @@ public abstract class ManagedLedgerTestUtil {
         for (int i = 0; i < retryCount; i++) {
             if (i > 0) {
                 try {
-                    log.info("Retrying after 100ms {}/{}", i, retryCount);
+                    log.info().attr("attempt", i).attr("retryCount", retryCount).log("Retrying after 100ms");
                     Thread.sleep(100);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
@@ -40,7 +52,7 @@ public abstract class ManagedLedgerTestUtil {
             try {
                 return supplier.get();
             } catch (Exception e) {
-                log.warn("Failed to execute supplier: {}", supplier, e);
+                log.warn().attr("supplier", supplier).exception(e).log("Failed to execute supplier");
             }
         }
         throw new RuntimeException("Failed to execute supplier after " + retryCount  + " retries");

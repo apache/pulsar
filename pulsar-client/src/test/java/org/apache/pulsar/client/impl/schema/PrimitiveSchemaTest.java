@@ -36,7 +36,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.annotations.DataProvider;
@@ -45,7 +45,7 @@ import org.testng.annotations.Test;
 /**
  * Unit tests primitive schemas.
  */
-@Slf4j
+@CustomLog
 public class PrimitiveSchemaTest {
 
 
@@ -141,9 +141,9 @@ public class PrimitiveSchemaTest {
     @SuppressWarnings({"unchecked", "rawtypes"})
     public void allSchemasShouldRoundtripInput(Map<Schema, List<Object>> testData) {
         for (Map.Entry<Schema, List<Object>> test : testData.entrySet()) {
-            log.info("Test schema {}", test.getKey());
+            log.info().attr("schema", test.getKey()).log("Test schema");
             for (Object value : test.getValue()) {
-                log.info("Encode : {}", value);
+                log.info().attr("value", value).log("Encode");
                 try {
                     assertEquals(value,
                         test.getKey().decode(test.getKey().encode(value)),

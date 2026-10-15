@@ -18,12 +18,13 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerUtils.NO_MAX_SIZE_LIMIT;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ScanCallback;
 import org.apache.bookkeeper.mledger.Entry;
@@ -32,7 +33,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionBound;
 import org.apache.bookkeeper.mledger.ScanOutcome;
 
-@Slf4j
+@CustomLog
 class OpScan implements ReadEntriesCallback {
     private final ManagedCursorImpl cursor;
     private final ManagedLedgerImpl ledger;
@@ -71,22 +72,22 @@ class OpScan implements ReadEntriesCallback {
             lastSeenPosition = lastPositionForBatch;
             for (Entry entry : entries) {
                 if (remainingEntries.getAndDecrement() <= 0) {
-                    log.info("[{}] Scan abort after reading too many entries", OpScan.this.cursor);
+                    log.info().attr("cursor", OpScan.this.cursor).log("Scan abort after reading too many entries");
                     callback.scanComplete(lastSeenPosition, ScanOutcome.ABORTED, OpScan.this.ctx);
                     return;
                 }
                 if (!condition.test(entry)) {
-                    log.info("[{}] Scan abort due to user code", OpScan.this.cursor);
+                    log.info().attr("cursor", OpScan.this.cursor).log("Scan abort due to user code");
                     callback.scanComplete(lastSeenPosition, ScanOutcome.USER_INTERRUPTED, OpScan.this.ctx);
                     return;
                 }
             }
             searchPosition = ledger.getPositionAfterN(lastPositionForBatch, 1,
                     PositionBound.startExcluded);
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] readEntryComplete at {} next is {}", OpScan.this.cursor, lastPositionForBatch,
-                        searchPosition);
-            }
+            log.debug().attr("cursor", OpScan.this.cursor)
+                    .attr("lastPosition", lastPositionForBatch)
+                    .attr("nextPosition", searchPosition)
+                    .log("readEntryComplete");
 
             if (searchPosition.compareTo(lastPositionForBatch) == 0) {
                 // we have reached the end of the ledger, as we are not doing progress
@@ -94,7 +95,7 @@ class OpScan implements ReadEntriesCallback {
                 return;
             }
         } catch (Throwable t) {
-            log.error("Unhandled error", t);
+            log.error().exception(t).log("Unhandled error");
             callback.scanFailed(ManagedLedgerException.getManagedLedgerException(t),
                     Optional.ofNullable(lastSeenPosition), OpScan.this.ctx);
             return;
@@ -111,17 +112,17 @@ class OpScan implements ReadEntriesCallback {
 
     public void find() {
         if (remainingEntries.get() <= 0) {
-            log.info("[{}] Scan abort after reading too many entries", OpScan.this.cursor);
+            log.info().attr("cursor", OpScan.this.cursor).log("Scan abort after reading too many entries");
             callback.scanComplete(lastSeenPosition, ScanOutcome.ABORTED, OpScan.this.ctx);
             return;
         }
         if (System.currentTimeMillis() - startTime > timeOutMs) {
-            log.info("[{}] Scan abort after hitting the deadline", OpScan.this.cursor);
+            log.info().attr("cursor", OpScan.this.cursor).log("Scan abort after hitting the deadline");
             callback.scanComplete(lastSeenPosition, ScanOutcome.ABORTED, OpScan.this.ctx);
             return;
         }
         if (cursor.hasMoreEntries(searchPosition)) {
-            OpReadEntry opReadEntry = OpReadEntry.create(cursor, searchPosition, batchSize,
+            OpReadEntry opReadEntry = OpReadEntry.create(cursor, searchPosition, batchSize, NO_MAX_SIZE_LIMIT,
             this, OpScan.this.ctx, null, null, false);
             ledger.asyncReadEntries(opReadEntry);
         } else {

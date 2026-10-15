@@ -18,107 +18,242 @@
  */
 package org.apache.pulsar.client.impl.auth.oauth2;
 
-import io.netty.handler.ssl.SslContextBuilder;
-import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.Duration;
 import java.time.format.DateTimeParseException;
 import java.util.Map;
-import javax.net.ssl.SSLException;
-import lombok.extern.slf4j.Slf4j;
+import java.util.Optional;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.DefaultMetadataResolver;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.Metadata;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.MetadataResolver;
-import org.asynchttpclient.AsyncHttpClient;
-import org.asynchttpclient.DefaultAsyncHttpClient;
-import org.asynchttpclient.DefaultAsyncHttpClientConfig;
+import org.apache.pulsar.http.PulsarHttpClient;
+import org.apache.pulsar.http.PulsarHttpClientConfig;
+import org.apache.pulsar.http.PulsarHttpClientFactory;
+import org.apache.pulsar.tls.TlsPolicy;
+import org.apache.pulsar.tls.TlsPurpose;
 
 /**
  * An abstract OAuth 2.0 authorization flow.
  */
-@Slf4j
+@CustomLog
 abstract class FlowBase implements Flow {
 
     public static final String CONFIG_PARAM_CONNECT_TIMEOUT = "connectTimeout";
     public static final String CONFIG_PARAM_READ_TIMEOUT = "readTimeout";
     public static final String CONFIG_PARAM_TRUST_CERTS_FILE_PATH = "trustCertsFilePath";
+    public static final String CONFIG_PARAM_CERT_FILE = "tlsCertFile";
+    public static final String CONFIG_PARAM_TLS_KEY_FILE = "tlsKeyFile";
+    public static final String CONFIG_PARAM_AUTO_CERT_REFRESH_DURATION = "autoCertRefreshDuration";
     public static final String CONFIG_PARAM_WELL_KNOWN_METADATA_PATH = "wellKnownMetadataPath";
+    /**
+     * Optional OAuth2 parameter {@code jsseProvider} (PIP-478): the JSSE ({@code SSLContext} /
+     * {@code KeyManagerFactory} / {@code TrustManagerFactory}) provider name to pin for the IdP connection, e.g.
+     * {@code BCJSSE} in a FIPS deployment. Spelled exactly like the {@code jsseProvider} key of the client, broker
+     * and proxy configurations. Unset means the value inherited from the owning client (when the plugin runs
+     * inside a {@code PulsarClient}/{@code PulsarAdmin}), and failing that the JVM provider search order.
+     */
+    public static final String CONFIG_PARAM_JSSE_PROVIDER = "jsseProvider";
+    /**
+     * Optional OAuth2 parameter {@code jcaProvider} (PIP-478): the JCA provider name to pin for parsing and holding
+     * the IdP key material ({@code KeyStore} / {@code CertificateFactory} / {@code KeyFactory}), e.g. {@code BCFIPS}
+     * in a FIPS deployment. Same spelling and same inheritance rules as {@link #CONFIG_PARAM_JSSE_PROVIDER}.
+     */
+    public static final String CONFIG_PARAM_JCA_PROVIDER = "jcaProvider";
 
     protected static final Duration DEFAULT_CONNECT_TIMEOUT = Duration.ofSeconds(10);
     protected static final Duration DEFAULT_READ_TIMEOUT = Duration.ofSeconds(30);
+    protected static final Duration DEFAULT_AUTO_CERT_REFRESH_DURATION = Duration.ofSeconds(300);
 
     private static final long serialVersionUID = 1L;
 
     protected final URL issuerUrl;
-    protected final AsyncHttpClient httpClient;
+    private final Duration connectTimeout;
+    private final Duration readTimeout;
+    private final String trustCertsFilePath;
+    private final String certFile;
+    private final String keyFile;
+    private final long autoCertRefreshSeconds;
     protected final String wellKnownMetadataPath;
+    // PIP-478 provider pinning for the IdP leg; null unless the operator set the jsseProvider / jcaProvider
+    // OAuth2 parameters explicitly (see CONFIG_PARAM_JSSE_PROVIDER / CONFIG_PARAM_JCA_PROVIDER).
+    private final String jsseProvider;
+    private final String jcaProvider;
 
     protected transient Metadata metadata;
+    // PIP-478: the framework HTTP client factory, late-bound by AuthenticationOAuth2 from the owning
+    // PulsarClient/PulsarAdmin's ClientAuthenticationServices before initialize(); null when the plugin runs
+    // standalone (outside any client/admin), in which case getHttpClient() self-provisions one (see below).
+    private transient PulsarHttpClientFactory httpClientFactory;
+    // The self-provisioned factory for standalone use (outside any client/admin), built lazily and owned by
+    // this flow; null unless getHttpClient() falls back to it. See StandaloneOAuth2HttpClientFactory.
+    private transient StandaloneOAuth2HttpClientFactory standaloneHttpClientFactory;
+    private transient PulsarHttpClient pulsarHttpClient;
 
     protected FlowBase(URL issuerUrl, Duration connectTimeout, Duration readTimeout, String trustCertsFilePath,
-                       String wellKnownMetadataPath) {
+                       String certFile, String keyFile, Duration autoCertRefreshDuration,
+                       String wellKnownMetadataPath, String jsseProvider, String jcaProvider) {
         this.issuerUrl = issuerUrl;
-        this.httpClient = defaultHttpClient(readTimeout, connectTimeout, trustCertsFilePath);
+        this.connectTimeout = connectTimeout;
+        this.readTimeout = readTimeout;
+        this.trustCertsFilePath = trustCertsFilePath;
+        this.certFile = certFile;
+        this.keyFile = keyFile;
+        this.autoCertRefreshSeconds = getParameterDurationToSeconds(CONFIG_PARAM_AUTO_CERT_REFRESH_DURATION,
+                autoCertRefreshDuration, DEFAULT_AUTO_CERT_REFRESH_DURATION);
         this.wellKnownMetadataPath = wellKnownMetadataPath;
+        this.jsseProvider = StringUtils.trimToNull(jsseProvider);
+        this.jcaProvider = StringUtils.trimToNull(jcaProvider);
+        // PIP-478: the HTTP client is not built eagerly here. The flow is constructed during
+        // configure() — before the client's framework services (the shared HTTP client factory) are bound —
+        // so the client is created lazily on first use (initialize()), once the factory is available.
     }
 
-    private AsyncHttpClient defaultHttpClient(Duration readTimeout, Duration connectTimeout,
-                                              String trustCertsFilePath) {
-        DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
-        confBuilder.setCookieStore(null);
-        confBuilder.setUseProxyProperties(true);
-        confBuilder.setFollowRedirect(true);
-        confBuilder.setConnectTimeout(
-                getParameterDurationToMillis(CONFIG_PARAM_CONNECT_TIMEOUT, connectTimeout,
-                        DEFAULT_CONNECT_TIMEOUT));
-        confBuilder.setReadTimeout(
-                getParameterDurationToMillis(CONFIG_PARAM_READ_TIMEOUT, readTimeout, DEFAULT_READ_TIMEOUT));
-        confBuilder.setUserAgent(String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
-        if (StringUtils.isNotBlank(trustCertsFilePath)) {
-            try {
-                confBuilder.setSslContext(SslContextBuilder.forClient()
-                        .trustManager(new File(trustCertsFilePath))
-                        .build());
-            } catch (SSLException e) {
-                log.error("Could not set " + CONFIG_PARAM_TRUST_CERTS_FILE_PATH, e);
-            }
+    /**
+     * Late-bind the framework HTTP client factory (PIP-478). Called by
+     * {@code AuthenticationOAuth2.bindClientAuthenticationServices(...)} before {@code initialize()}, so the
+     * lazily-built client is the framework-managed one that shares the owning client's resources.
+     *
+     * @param httpClientFactory the owning client/admin's framework factory (never {@code null} in practice)
+     */
+    void bindHttpClientFactory(PulsarHttpClientFactory httpClientFactory) {
+        this.httpClientFactory = httpClientFactory;
+    }
+
+    protected synchronized PulsarHttpClient getHttpClient() {
+        if (pulsarHttpClient == null) {
+            // Normally a framework-managed HTTP client sharing the owning PulsarClient/PulsarAdmin's event loop
+            // / timer / DNS resolver (bound via bindHttpClientFactory). When this flow carries its own IdP TLS
+            // material it is folded into the CLIENT_OAUTH2 policy the framework client serves (see
+            // AuthenticationOAuth2.idpTlsPolicy / ClientTlsFactorySupport).
+            pulsarHttpClient = resolveHttpClientFactory().newHttpClient(oauth2ClientConfig());
         }
-        return new DefaultAsyncHttpClient(confBuilder.build());
+        return pulsarHttpClient;
     }
 
-    private int getParameterDurationToMillis(String name, Duration value, Duration defaultValue) {
+    /**
+     * The HTTP client factory used to acquire OAuth2 tokens: the framework factory bound by the owning
+     * {@code PulsarClient}/{@code PulsarAdmin} on the normal path, or a self-provisioned standalone factory
+     * when this flow runs outside any client/admin. The proxy, the broker's broker-client and the CLI tools
+     * create {@code AuthenticationOAuth2} directly (via {@code AuthenticationFactory.create(...).start()}) and
+     * never bind a factory, so {@code FlowBase} self-provisions its own HTTP client here to preserve
+     * backward-compatible standalone support on the new SPI ({@link StandaloneOAuth2HttpClientFactory}).
+     */
+    private PulsarHttpClientFactory resolveHttpClientFactory() {
+        if (httpClientFactory != null) {
+            return httpClientFactory;
+        }
+        if (standaloneHttpClientFactory == null) {
+            standaloneHttpClientFactory = new StandaloneOAuth2HttpClientFactory(idpTlsPolicy(),
+                    (int) autoCertRefreshSeconds,
+                    "standalone-oauth2-" + Integer.toHexString(System.identityHashCode(this)));
+        }
+        return standaloneHttpClientFactory;
+    }
+
+    /** @return whether this flow was configured with its own OAuth2 IdP TLS material (trust / cert / key). */
+    private boolean hasOwnTlsMaterial() {
+        return StringUtils.isNotBlank(trustCertsFilePath) || StringUtils.isNotBlank(certFile)
+                || StringUtils.isNotBlank(keyFile);
+    }
+
+    /**
+     * The IdP TLS material this flow carries (the {@code trustCertsFilePath} / {@code tlsCertFile} /
+     * {@code tlsKeyFile} parameters), folded into a {@link TlsPurpose#CLIENT_OAUTH2} {@link TlsPolicy} so the
+     * framework HTTP client can serve IdP mTLS / custom trust on the new PIP-478 TLS path (issue
+     * #24944). Empty when the flow carries no IdP TLS material — the OAuth2 call then resolves to the system
+     * default trust store (CLIENT_OAUTH2's empty fallback).
+     *
+     * @return the CLIENT_OAUTH2 policy composed from this flow's IdP material, or empty
+     */
+    Optional<TlsPolicy> idpTlsPolicy() {
+        return idpTlsPolicy(null, null);
+    }
+
+    /**
+     * As {@link #idpTlsPolicy()}, but pinning the security providers used for the IdP connection (PIP-478) so a
+     * FIPS deployment does not silently parse the IdP certificate — or load an IdP mTLS client key — outside the
+     * validated module while the broker connection is pinned.
+     *
+     * <p>Precedence on each axis, independently: the flow's own {@code jsseProvider} / {@code jcaProvider} OAuth2
+     * parameter wins; otherwise the value inherited from the owning client's {@code CLIENT_DEFAULT} policy (passed
+     * in here); otherwise unset, i.e. the JVM provider search order — exactly today's behaviour.
+     *
+     * <p>The explicit parameters exist because the standalone path has no owning client to inherit from: the
+     * proxy and the CLIs create {@code AuthenticationOAuth2} through
+     * {@code AuthenticationFactory.create(pluginName, authParams)}, which carries nothing but the plugin name and
+     * the encoded parameter string, and then serve the IdP call from this flow's own
+     * {@link StandaloneOAuth2HttpClientFactory}.
+     *
+     * @param inheritedJsseProvider the owning client's JSSE provider name, or {@code null} when none applies
+     * @param inheritedJcaProvider  the owning client's JCA provider name, or {@code null} when none applies
+     * @return the CLIENT_OAUTH2 policy composed from this flow's IdP material, or empty
+     */
+    Optional<TlsPolicy> idpTlsPolicy(String inheritedJsseProvider, String inheritedJcaProvider) {
+        if (!hasOwnTlsMaterial()) {
+            // No IdP TLS material to serve, so there is no policy to carry the provider names either. The
+            // OAuth2 call then resolves to the system default (CLIENT_OAUTH2's empty fallback) and stays
+            // unpinned; PIP-478 defers a provider-only policy for that case as a follow-up.
+            return Optional.empty();
+        }
+        TlsPolicy.Builder builder = TlsPolicy.builder().format(TlsPolicy.Format.PEM)
+                // TlsPolicy.Builder trims blanks to null, so an unset axis stays unset on both sides.
+                .jsseProvider(StringUtils.defaultIfBlank(jsseProvider, inheritedJsseProvider))
+                .jcaProvider(StringUtils.defaultIfBlank(jcaProvider, inheritedJcaProvider));
+        if (StringUtils.isNotBlank(trustCertsFilePath)) {
+            builder.trustCertsFilePath(trustCertsFilePath);
+        }
+        if (StringUtils.isNotBlank(certFile) && StringUtils.isNotBlank(keyFile)) {
+            builder.certificateFilePath(certFile).keyFilePath(keyFile);
+        }
+        return Optional.of(builder.build());
+    }
+
+    private PulsarHttpClientConfig oauth2ClientConfig() {
+        Duration connect = getParameterDuration(CONFIG_PARAM_CONNECT_TIMEOUT, connectTimeout, DEFAULT_CONNECT_TIMEOUT);
+        Duration read = getParameterDuration(CONFIG_PARAM_READ_TIMEOUT, readTimeout, DEFAULT_READ_TIMEOUT);
+        return PulsarHttpClientConfig.builder(TlsPurpose.CLIENT_OAUTH2)
+                .connectTimeout(connect)
+                .readTimeout(read)
+                .requestTimeout(read)
+                .userAgent(String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()))
+                .build();
+    }
+
+    private long getParameterDurationToSeconds(String name, Duration value, Duration defaultValue) {
+        return getParameterDuration(name, value, defaultValue).getSeconds();
+    }
+
+    private Duration getParameterDuration(String name, Duration value, Duration defaultValue) {
         Duration duration;
         if (value == null) {
-            if (log.isDebugEnabled()) {
-                log.debug("Configuration for [{}] is using the default value: [{}]", name, defaultValue);
-            }
+            log.debug().attr("name", name)
+                    .attr("defaultValue", defaultValue)
+                    .log("Configuration is using the default value");
             duration = defaultValue;
         } else {
-            if (log.isDebugEnabled()) {
-                log.debug("Configuration for [{}] is: [{}]", name, value);
-            }
+            log.debug().attr("name", name).attr("value", value).log("Configuration");
             duration = value;
         }
-
-        return (int) duration.toMillis();
+        return duration;
     }
 
     public void initialize() throws PulsarClientException {
         try {
             this.metadata = createMetadataResolver().resolve();
         } catch (IOException e) {
-            log.error("Unable to retrieve OAuth 2.0 server metadata", e);
+            log.error().exception(e).log("Unable to retrieve OAuth 2.0 server metadata");
             throw new PulsarClientException.AuthenticationException("Unable to retrieve OAuth 2.0 server metadata");
         }
     }
 
     protected MetadataResolver createMetadataResolver() {
-        return DefaultMetadataResolver.fromIssuerUrl(issuerUrl, httpClient, wellKnownMetadataPath);
+        return DefaultMetadataResolver.fromIssuerUrl(issuerUrl, getHttpClient(), wellKnownMetadataPath);
     }
 
     static String parseParameterString(Map<String, String> params, String name) {
@@ -154,7 +289,19 @@ abstract class FlowBase implements Flow {
     }
 
     @Override
-    public void close() throws Exception {
-        httpClient.close();
+    // Synchronized to pair with the synchronized getHttpClient()/resolveHttpClientFactory() lazy init:
+    // otherwise a close() racing the first fetch reads pulsarHttpClient/standaloneHttpClientFactory without the
+    // monitor and can miss (and thus leak) a client or standalone factory that the racing fetch just created.
+    public synchronized void close() throws Exception {
+        if (pulsarHttpClient != null) {
+            // Idempotent: releases the framework client (which the framework factory also closes on client
+            // shutdown).
+            pulsarHttpClient.close();
+        }
+        if (standaloneHttpClientFactory != null) {
+            // Only set when this flow self-provisioned a standalone factory (no owning client/admin); releases
+            // its framework client, IdP TLS factory and rotation scheduler.
+            standaloneHttpClientFactory.close();
+        }
     }
 }

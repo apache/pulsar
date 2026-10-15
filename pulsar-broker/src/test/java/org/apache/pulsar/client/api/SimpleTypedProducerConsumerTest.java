@@ -32,6 +32,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.broker.service.SharedPulsarCluster;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry;
@@ -44,14 +45,12 @@ import org.apache.pulsar.client.impl.schema.ProtobufSchema;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
+@CustomLog
 public class SimpleTypedProducerConsumerTest extends SharedPulsarBaseTest {
-    private static final Logger log = LoggerFactory.getLogger(SimpleTypedProducerConsumerTest.class);
 
     private <T> void testMessageOrderAndDuplicates(Set<T> messagesReceived, T receivedMessage, T expectedMessage) {
         Assert.assertEquals(receivedMessage, expectedMessage,
@@ -61,7 +60,7 @@ public class SimpleTypedProducerConsumerTest extends SharedPulsarBaseTest {
 
     @Test
     public void testJsonProducerAndConsumer() throws Exception {
-        log.info("-- Starting {} test --", "testJsonProducerAndConsumer");
+        log.info().attr("method", "testJsonProducerAndConsumer").log("Starting test");
 
         final String topic = newTopicName();
         final String schemaKey = topic.replace("persistent://", "");
@@ -90,7 +89,7 @@ public class SimpleTypedProducerConsumerTest extends SharedPulsarBaseTest {
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             JsonEncodedPojo receivedMessage = msg.getValue();
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("message", receivedMessage).log("Received message");
             JsonEncodedPojo expectedMessage = new JsonEncodedPojo("my-message-" + i);
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
@@ -105,12 +104,12 @@ public class SimpleTypedProducerConsumerTest extends SharedPulsarBaseTest {
 
         Assert.assertEquals(storedSchema.schema.getData(), jsonSchema.getSchemaInfo().getSchema());
 
-        log.info("-- Exiting {} test --", "testJsonProducerAndConsumer");
+        log.info().attr("method", "testJsonProducerAndConsumer").log("Exiting test");
     }
 
     @Test
     public void testJsonProducerAndConsumerWithPrestoredSchema() throws Exception {
-        log.info("-- Starting {} test --", "testJsonProducerAndConsumerWithPrestoredSchema");
+        log.info().attr("method", "testJsonProducerAndConsumerWithPrestoredSchema").log("Starting test");
 
         final String topic = newTopicName();
         final String schemaKey = topic.replace("persistent://", "");
@@ -152,12 +151,12 @@ public class SimpleTypedProducerConsumerTest extends SharedPulsarBaseTest {
 
         Assert.assertEquals(storedSchema.schema.getData(), jsonSchema.getSchemaInfo().getSchema());
 
-        log.info("-- Exiting {} test --", "testJsonProducerAndConsumerWithPrestoredSchema");
+        log.info().attr("method", "testJsonProducerAndConsumerWithPrestoredSchema").log("Exiting test");
     }
 
     @Test
     public void testWrongCorruptedSchema() throws Exception {
-        log.info("-- Starting {} test --", "testWrongCorruptedSchema");
+        log.info().attr("method", "testWrongCorruptedSchema").log("Starting test");
 
         final String topic = newTopicName();
         final String schemaKey = topic.replace("persistent://", "");
@@ -182,12 +181,12 @@ public class SimpleTypedProducerConsumerTest extends SharedPulsarBaseTest {
             assertTrue(e.getCause() instanceof InvalidSchemaDataException);
         }
 
-        log.info("-- Exiting {} test --", "testWrongCorruptedSchema");
+        log.info().attr("method", "testWrongCorruptedSchema").log("Exiting test");
     }
 
     @Test
     public void testProtobufProducerAndConsumer() throws Exception {
-        log.info("-- Starting {} test --", "testProtobufProducerAndConsumer");
+        log.info().attr("method", "testProtobufProducerAndConsumer").log("Starting test");
 
         final String topic = newTopicName();
         final String schemaKey = topic.replace("persistent://", "");
@@ -217,7 +216,7 @@ public class SimpleTypedProducerConsumerTest extends SharedPulsarBaseTest {
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             org.apache.pulsar.client.api.schema.proto.Test.TestMessage receivedMessage = msg.getValue();
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("message", receivedMessage).log("Received message");
             org.apache.pulsar.client.api.schema.proto.Test.TestMessage expectedMessage =
                     org.apache.pulsar.client.api.schema.proto.Test.TestMessage.newBuilder()
                     .setStringField("my-message-" + i).build();
@@ -235,12 +234,12 @@ public class SimpleTypedProducerConsumerTest extends SharedPulsarBaseTest {
 
         Assert.assertEquals(storedSchema.schema.getData(), protobufSchema.getSchemaInfo().getSchema());
 
-        log.info("-- Exiting {} test --", "testProtobufProducerAndConsumer");
+        log.info().attr("method", "testProtobufProducerAndConsumer").log("Exiting test");
     }
 
     @Test(expectedExceptions = {PulsarClientException.class, SchemaSerializationException.class})
     public void testProtobufConsumerWithWrongPrestoredSchema() throws Exception {
-        log.info("-- Starting {} test --", "testProtobufConsumerWithWrongPrestoredSchema");
+        log.info().attr("method", "testProtobufConsumerWithWrongPrestoredSchema").log("Starting test");
 
         final String topic = newTopicName();
         final String schemaKey = topic.replace("persistent://", "");
@@ -269,12 +268,12 @@ public class SimpleTypedProducerConsumerTest extends SharedPulsarBaseTest {
                 .subscriptionName("my-subscriber-name")
                 .subscribe();
 
-        log.info("-- Exiting {} test --", "testProtobufConsumerWithWrongPrestoredSchema");
+        log.info().attr("method", "testProtobufConsumerWithWrongPrestoredSchema").log("Exiting test");
     }
 
    @Test
    public void testAvroProducerAndConsumer() throws Exception {
-       log.info("-- Starting {} test --", "testAvroProducerAndConsumer");
+       log.info().attr("method", "testAvroProducerAndConsumer").log("Starting test");
 
        final String topic = newTopicName();
        final String schemaKey = topic.replace("persistent://", "");
@@ -304,7 +303,7 @@ public class SimpleTypedProducerConsumerTest extends SharedPulsarBaseTest {
        for (int i = 0; i < 10; i++) {
            msg = consumer.receive(5, TimeUnit.SECONDS);
            AvroEncodedPojo receivedMessage = msg.getValue();
-           log.debug("Received message: [{}]", receivedMessage);
+           log.debug().attr("message", receivedMessage).log("Received message");
            AvroEncodedPojo expectedMessage = new AvroEncodedPojo("my-message-" + i);
            testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
        }
@@ -319,13 +318,13 @@ public class SimpleTypedProducerConsumerTest extends SharedPulsarBaseTest {
 
        Assert.assertEquals(storedSchema.schema.getData(), avroSchema.getSchemaInfo().getSchema());
 
-       log.info("-- Exiting {} test --", "testAvroProducerAndConsumer");
+       log.info().attr("method", "testAvroProducerAndConsumer").log("Exiting test");
 
    }
 
     @Test(expectedExceptions = {PulsarClientException.class})
     public void testAvroConsumerWithWrongRestoredSchema() throws Exception {
-        log.info("-- Starting {} test --", "testAvroConsumerWithWrongRestoredSchema");
+        log.info().attr("method", "testAvroConsumerWithWrongRestoredSchema").log("Starting test");
 
         final String topic = newTopicName();
         final String schemaKey = topic.replace("persistent://", "");
@@ -359,7 +358,7 @@ public class SimpleTypedProducerConsumerTest extends SharedPulsarBaseTest {
             .subscriptionName("my-subscriber-name")
             .subscribe();
 
-        log.info("-- Exiting {} test --", "testAvroConsumerWithWrongRestoredSchema");
+        log.info().attr("method", "testAvroConsumerWithWrongRestoredSchema").log("Exiting test");
     }
 
     public static class AvroEncodedPojo {
@@ -450,7 +449,7 @@ public class SimpleTypedProducerConsumerTest extends SharedPulsarBaseTest {
 
     @Test
     public void testAvroProducerAndAutoSchemaConsumer() throws Exception {
-       log.info("-- Starting {} test --", "testAvroProducerAndAutoSchemaConsumer");
+       log.info().attr("method", "testAvroProducerAndAutoSchemaConsumer").log("Starting test");
 
        final String topic = newTopicName();
        final String schemaKey = topic.replace("persistent://", "");
@@ -481,7 +480,7 @@ public class SimpleTypedProducerConsumerTest extends SharedPulsarBaseTest {
        for (int i = 0; i < 10; i++) {
            msg = consumer.receive(5, TimeUnit.SECONDS);
            GenericRecord receivedMessage = msg.getValue();
-           log.debug("Received message: [{}]", receivedMessage);
+           log.debug().attr("message", receivedMessage).log("Received message");
            String expectedMessage = "my-message-" + i;
            String actualMessage = (String) receivedMessage.getField("message");
            testMessageOrderAndDuplicates(messageSet, actualMessage, expectedMessage);
@@ -497,13 +496,13 @@ public class SimpleTypedProducerConsumerTest extends SharedPulsarBaseTest {
 
        Assert.assertEquals(storedSchema.schema.getData(), avroSchema.getSchemaInfo().getSchema());
 
-       log.info("-- Exiting {} test --", "testAvroProducerAndAutoSchemaConsumer");
+       log.info().attr("method", "testAvroProducerAndAutoSchemaConsumer").log("Exiting test");
 
    }
 
    @Test
     public void testAvroProducerAndAutoSchemaReader() throws Exception {
-       log.info("-- Starting {} test --", "testAvroProducerAndAutoSchemaReader");
+       log.info().attr("method", "testAvroProducerAndAutoSchemaReader").log("Starting test");
 
        final String topic = newTopicName();
        final String schemaKey = topic.replace("persistent://", "");
@@ -533,7 +532,7 @@ public class SimpleTypedProducerConsumerTest extends SharedPulsarBaseTest {
        for (int i = 0; i < 10; i++) {
            msg = reader.readNext();
            GenericRecord receivedMessage = msg.getValue();
-           log.debug("Received message: [{}]", receivedMessage);
+           log.debug().attr("message", receivedMessage).log("Received message");
            String expectedMessage = "my-message-" + i;
            String actualMessage = (String) receivedMessage.getField("message");
            testMessageOrderAndDuplicates(messageSet, actualMessage, expectedMessage);
@@ -548,13 +547,13 @@ public class SimpleTypedProducerConsumerTest extends SharedPulsarBaseTest {
 
        Assert.assertEquals(storedSchema.schema.getData(), avroSchema.getSchemaInfo().getSchema());
 
-       log.info("-- Exiting {} test --", "testAvroProducerAndAutoSchemaReader");
+       log.info().attr("method", "testAvroProducerAndAutoSchemaReader").log("Exiting test");
 
    }
 
     @Test
     public void testAutoBytesProducer() throws Exception {
-        log.info("-- Starting {} test --", "testAutoBytesProducer");
+        log.info().attr("method", "testAutoBytesProducer").log("Starting test");
 
         final String topic = newTopicName();
         final String schemaKey = topic.replace("persistent://", "");
@@ -610,7 +609,7 @@ public class SimpleTypedProducerConsumerTest extends SharedPulsarBaseTest {
         for (int i = 0; i < 20; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             GenericRecord receivedMessage = msg.getValue();
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("message", receivedMessage).log("Received message");
             String expectedMessage = "my-message-" + i;
             String actualMessage = (String) receivedMessage.getField("message");
             testMessageOrderAndDuplicates(messageSet, actualMessage, expectedMessage);
@@ -626,7 +625,7 @@ public class SimpleTypedProducerConsumerTest extends SharedPulsarBaseTest {
 
         Assert.assertEquals(storedSchema.schema.getData(), avroSchema.getSchemaInfo().getSchema());
 
-        log.info("-- Exiting {} test --", "testAutoBytesProducer");
+        log.info().attr("method", "testAutoBytesProducer").log("Exiting test");
 
     }
 

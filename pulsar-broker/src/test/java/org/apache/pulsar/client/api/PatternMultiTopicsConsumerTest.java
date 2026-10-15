@@ -24,18 +24,16 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.impl.PatternMultiTopicsConsumerImpl;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
+@CustomLog
 public class PatternMultiTopicsConsumerTest extends SharedPulsarBaseTest {
-
-    private static final Logger log = LoggerFactory.getLogger(PatternMultiTopicsConsumerTest.class);
 
     @Test(timeOut = 5000)
     public void testSimple() throws Exception {
@@ -79,7 +77,7 @@ public class PatternMultiTopicsConsumerTest extends SharedPulsarBaseTest {
         for (int i = 0; i < 100; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
-            log.info("Received message: [{}]", receivedMessage);
+            log.info().attr("message", receivedMessage).log("Received message");
             receivedMessages.computeIfAbsent(msg.getTopicName(), topic -> new LinkedList<>()).add(receivedMessage);
         }
 
@@ -112,7 +110,7 @@ public class PatternMultiTopicsConsumerTest extends SharedPulsarBaseTest {
                     .subscribe();
             fail("Expected a consumer busy error.");
         } catch (Exception ex) {
-            log.info("consumer busy", ex);
+            log.info().exception(ex).log("consumer busy");
         }
 
         c1.close();

@@ -22,6 +22,7 @@ plugins {
 }
 
 dependencies {
+    implementation(libs.slog)
     compileOnly(project(":pulsar-functions:pulsar-functions-api"))
     compileOnly(project(":pulsar-client-api"))
     compileOnly(project(":pulsar-client-admin-api"))

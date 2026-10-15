@@ -28,17 +28,18 @@ import java.util.function.BiConsumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 
-@Slf4j
+@CustomLog
 public class TopicResources {
     private static final String MANAGED_LEDGER_PATH = "/managed-ledgers";
 
@@ -91,19 +92,54 @@ public class TopicResources {
 
     public CompletableFuture<Void> clearNamespacePersistence(NamespaceName ns) {
         String path = MANAGED_LEDGER_PATH + "/" + ns;
-        log.info("Clearing namespace persistence for namespace: {}, path {}", ns, path);
+        log.info().attr("namespace", ns).attr("path", path).log("Clearing namespace persistence for namespace: , path");
         return store.deleteIfExists(path, Optional.empty());
     }
 
     public CompletableFuture<Void> clearDomainPersistence(NamespaceName ns) {
         String path = MANAGED_LEDGER_PATH + "/" + ns + "/persistent";
-        log.info("Clearing domain persistence for namespace: {}, path {}", ns, path);
+        log.info().attr("namespace", ns).attr("path", path).log("Clearing domain persistence for namespace: , path");
         return store.deleteIfExists(path, Optional.empty());
+    }
+
+    /**
+     * List the segment topics of the scalable topics in a namespace that have a managed ledger, stored at
+     * {@code /managed-ledgers/<namespace>/segment/<topic>/<descriptor>}.
+     */
+    public CompletableFuture<List<String>> listSegmentTopicsAsync(NamespaceName ns) {
+        String path = MANAGED_LEDGER_PATH + "/" + ns + "/" + TopicDomain.segment;
+        return store.getChildren(path).thenCompose(encodedTopics -> {
+            List<CompletableFuture<List<String>>> futures = encodedTopics.stream()
+                    .map(encodedTopic -> store.getChildren(path + "/" + encodedTopic)
+                            .thenApply(descriptors -> descriptors.stream()
+                                    .map(descriptor -> TopicDomain.segment + "://" + ns + "/"
+                                            + decode(encodedTopic) + "/" + descriptor)
+                                    .toList()))
+                    .toList();
+            return FutureUtil.waitForAll(futures).thenApply(__ -> futures.stream()
+                    .flatMap(future -> future.join().stream())
+                    .toList());
+        });
+    }
+
+    /**
+     * Delete the segment domain of a namespace: the node of each scalable topic whose segment topics had a
+     * managed ledger, then the domain node. Not recursive, so a segment topic that still has a managed ledger
+     * fails it.
+     */
+    public CompletableFuture<Void> clearSegmentDomainPersistence(NamespaceName ns) {
+        String path = MANAGED_LEDGER_PATH + "/" + ns + "/" + TopicDomain.segment;
+        log.debug().attr("namespace", ns).attr("path", path).log("Clearing segment domain persistence");
+        return store.getChildren(path)
+                .thenCompose(encodedTopics -> FutureUtil.waitForAll(encodedTopics.stream()
+                        .map(encodedTopic -> store.deleteIfExists(path + "/" + encodedTopic, Optional.empty()))
+                        .toList()))
+                .thenCompose(__ -> store.deleteIfExists(path, Optional.empty()));
     }
 
     public CompletableFuture<Void> clearTenantPersistence(String tenant) {
         String path = MANAGED_LEDGER_PATH + "/" + tenant;
-        log.info("Clearing tenant persistence for tenant: {}, path {}", tenant, path);
+        log.info().attr("tenant", tenant).attr("path", path).log("Clearing tenant persistence for tenant: , path");
         return store.deleteRecursive(path);
     }
 
@@ -146,7 +182,11 @@ public class TopicResources {
             try {
                 listener.onSessionEvent(sessionEvent);
             } catch (Exception e) {
-                log.warn("Failed to handle session event {} for listener {}", sessionEvent, listener, e);
+                log.warn()
+                        .attr("event", sessionEvent)
+                        .attr("listener", listener)
+                        .exception(e)
+                        .log("Failed to handle session event for listener");
             }
         });
     }

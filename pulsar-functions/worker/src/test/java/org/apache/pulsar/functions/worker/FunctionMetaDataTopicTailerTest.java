@@ -27,7 +27,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Reader;
@@ -42,7 +42,7 @@ import org.testng.annotations.Test;
 /**
  * Unit test of {@link FunctionMetaDataTopicTailer}.
  */
-@Slf4j
+@CustomLog
 public class FunctionMetaDataTopicTailerTest {
 
     private Reader reader;

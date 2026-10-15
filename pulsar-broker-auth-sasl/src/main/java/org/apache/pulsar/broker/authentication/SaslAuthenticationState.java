@@ -20,7 +20,7 @@ package org.apache.pulsar.broker.authentication;
 
 import java.util.concurrent.atomic.AtomicLong;
 import javax.naming.AuthenticationException;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.common.api.AuthData;
 
 /**
@@ -29,7 +29,7 @@ import org.apache.pulsar.common.api.AuthData;
  * It is basically holding the the authentication state.
  * It tell broker whether the authentication is completed or not,
  */
-@Slf4j
+@CustomLog
 @SuppressWarnings("deprecation") // Implements deprecated AuthenticationState methods for SASL multi-stage auth
 public class SaslAuthenticationState implements AuthenticationState {
     private final long stateId;

@@ -27,7 +27,7 @@ import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.MultiBrokerTestZKBaseTest;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.metadata.api.MetadataCacheConfig;
@@ -35,7 +35,7 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class MultiBrokerLeaderElectionExpirationTest extends MultiBrokerTestZKBaseTest {
     private static final long EXPIRE_AFTER_WRITE_MILLIS_IN_TEST = 2000L;

@@ -18,19 +18,18 @@
  */
 package org.apache.pulsar.broker.service.schema.validator;
 
+import io.github.merlimat.slog.Logger;
 import org.apache.pulsar.broker.service.schema.KeyValueSchemaCompatibilityCheck;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.KeyValue;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A validator to validate the schema data is well formed.
  */
 public interface SchemaDataValidator {
 
-    Logger LOGGER = LoggerFactory.getLogger(SchemaDataValidator.class);
+    Logger LOGGER = Logger.get(SchemaDataValidator.class);
 
     /**
      * Validate if the schema data is well formed.

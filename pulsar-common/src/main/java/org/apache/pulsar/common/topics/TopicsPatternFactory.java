@@ -19,15 +19,15 @@
 package org.apache.pulsar.common.topics;
 
 import java.util.regex.Pattern;
+import lombok.CustomLog;
 import lombok.experimental.UtilityClass;
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * Factory class for creating instances of TopicsPattern based on different regex implementations.
  * It supports JDK regex, RE2J regex, and a fallback mechanism for RE2J with JDK.
  */
+@CustomLog
 @UtilityClass
-@Slf4j
 public class TopicsPatternFactory {
     /**
      * Creates a TopicsPattern from a JDK Pattern.
@@ -89,10 +89,10 @@ public class TopicsPatternFactory {
                 try {
                     return new RE2JTopicsPattern(inputPattern, regexWithoutTopicDomainScheme);
                 } catch (com.google.re2j.PatternSyntaxException e) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("Failed to compile regex pattern '{}' with RE2J, fallback to JDK",
-                                regexWithoutTopicDomainScheme, e);
-                    }
+                    log.debug()
+                            .attr("pattern", regexWithoutTopicDomainScheme)
+                            .exception(e)
+                            .log("Failed to compile regex pattern with RE2J, fallback to JDK");
                     // Fallback to JDK implementation if RE2J fails
                     return new JDKTopicsPattern(inputPattern, regexWithoutTopicDomainScheme);
                 }

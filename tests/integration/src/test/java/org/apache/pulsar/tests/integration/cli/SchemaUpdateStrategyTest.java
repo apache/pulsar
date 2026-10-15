@@ -24,6 +24,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import lombok.CustomLog;
 import org.apache.avro.reflect.AvroAlias;
 import org.apache.avro.reflect.AvroDefault;
 import org.apache.pulsar.client.api.Consumer;
@@ -38,8 +39,6 @@ import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -47,8 +46,8 @@ import org.testng.annotations.Test;
  * Test setting the schema update strategy via the CLI.
  */
 @SuppressWarnings("try")
+@CustomLog
 public class SchemaUpdateStrategyTest extends PulsarTestSuite {
-    private static final Logger log = LoggerFactory.getLogger(SchemaUpdateStrategyTest.class);
 
     private void testAutoUpdateBackward(String namespace, String topicName) throws Exception {
         ContainerExecResult result = pulsarCluster.runAdminCommandOnAnyBroker(
@@ -84,7 +83,7 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
                  .subscriptionName("sub")
                  .subscribe()
             ) {
-                log.info("Schema Info : {}", schema.getSchemaInfo().getSchemaDefinition());
+                log.info().attr("info", schema.getSchemaInfo().getSchemaDefinition()).log("Schema Info");
 
                 Message<GenericRecord> msg1 = consumer.receive();
                 v1Data.assertEqualToRecord(msg1.getValue());
@@ -128,7 +127,7 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
                  .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                  .subscribe()
             ) {
-                log.info("Schema Info : {}", schema.getSchemaInfo().getSchemaDefinition());
+                log.info().attr("info", schema.getSchemaInfo().getSchemaDefinition()).log("Schema Info");
 
                 Message<GenericRecord> msg1 = consumer.receive();
                 v1Data.assertEqualToRecord(msg1.getValue());
@@ -177,7 +176,7 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
                  .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                  .subscribe()
             ) {
-                log.info("Schema Info : {}", schema.getSchemaInfo().getSchemaDefinition());
+                log.info().attr("info", schema.getSchemaInfo().getSchemaDefinition()).log("Schema Info");
 
                 Message<GenericRecord> msg1 = consumer.receive();
                 v1Data.assertEqualToRecord(msg1.getValue());
@@ -229,7 +228,7 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
                  .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                  .subscribe()
             ) {
-                log.info("Schema Info : {}", schema.getSchemaInfo().getSchemaDefinition());
+                log.info().attr("info", schema.getSchemaInfo().getSchemaDefinition()).log("Schema Info");
 
                 Message<GenericRecord> msg1 = consumer.receive();
                 v1Data.assertEqualToRecord(msg1.getValue());

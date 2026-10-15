@@ -18,22 +18,25 @@
  */
 package org.apache.pulsar.functions.worker.rest.api.v2;
 
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.MediaType;
 import java.io.IOException;
 import java.util.List;
 import java.util.function.Supplier;
-import javax.servlet.ServletContext;
-import javax.servlet.http.HttpServletRequest;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.MediaType;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
@@ -42,12 +45,12 @@ import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.FunctionApiResource;
 import org.apache.pulsar.functions.worker.service.api.Workers;
 
-@Slf4j
+@CustomLog
 @Path("/worker-stats")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @SuppressWarnings("deprecation")
-@Api(value = "/worker-stats", description = "Workers stats api", tags = "workers-stats")
+@Tag(name = "workers-stats", description = "Workers stats api")
 public class WorkerStatsApiV2Resource implements Supplier<WorkerService> {
 
     public static final String ATTRIBUTE_WORKERSTATS_SERVICE = "worker-stats";
@@ -91,14 +94,15 @@ public class WorkerStatsApiV2Resource implements Supplier<WorkerService> {
 
     @GET
     @Path("/metrics")
-    @ApiOperation(
-            value = "Gets the metrics for Monitoring",
-            notes = "Request should be executed by Monitoring agent on each worker to fetch the worker-metrics",
-            response = org.apache.pulsar.common.stats.Metrics.class,
-            responseContainer = "List")
+    @Operation(
+            summary = "Gets the metrics for Monitoring",
+            description = "Request should be executed by Monitoring agent on each worker to fetch the worker-metrics")
     @ApiResponses(value = {
-            @ApiResponse(code = 401, message = "Don't have admin permission"),
-            @ApiResponse(code = 503, message = "Worker service is not running")
+            @ApiResponse(responseCode = "200", description = "Gets the metrics for Monitoring",
+                    content = @Content(array = @ArraySchema(schema =
+                            @Schema(implementation = org.apache.pulsar.common.stats.Metrics.class)))),
+            @ApiResponse(responseCode = "401", description = "Don't have admin permission"),
+            @ApiResponse(responseCode = "503", description = "Worker service is not running")
     })
     @Produces(MediaType.APPLICATION_JSON)
     public List<org.apache.pulsar.common.stats.Metrics> getMetrics() throws Exception {
@@ -107,14 +111,15 @@ public class WorkerStatsApiV2Resource implements Supplier<WorkerService> {
 
     @GET
     @Path("/functionsmetrics")
-    @ApiOperation(
-            value = "Get metrics for all functions owned by worker",
-            notes = "Requested should be executed by Monitoring agent on each worker to fetch the metrics",
-            response = WorkerFunctionInstanceStats.class,
-            responseContainer = "List")
+    @Operation(
+            summary = "Get metrics for all functions owned by worker",
+            description = "Request should be executed by Monitoring agent on each worker to fetch the metrics")
     @ApiResponses(value = {
-            @ApiResponse(code = 401, message = "Don't have admin permission"),
-            @ApiResponse(code = 503, message = "Worker service is not running")
+            @ApiResponse(responseCode = "200", description = "Get metrics for all functions owned by worker",
+                    content = @Content(array = @ArraySchema(schema =
+                            @Schema(implementation = WorkerFunctionInstanceStats.class)))),
+            @ApiResponse(responseCode = "401", description = "Don't have admin permission"),
+            @ApiResponse(responseCode = "503", description = "Worker service is not running")
     })
     @Produces(MediaType.APPLICATION_JSON)
     public List<WorkerFunctionInstanceStats> getStats() throws IOException {

@@ -23,6 +23,7 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
+import io.github.merlimat.slog.Logger;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -54,7 +55,6 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.awaitility.core.ThrowingRunnable;
 import org.mockito.Mockito;
-import org.slf4j.Logger;
 /**
  * Holds util methods used in test.
  */
@@ -139,11 +139,13 @@ public class BrokerTestUtil {
      */
     public static void logTopicStats(Logger logger, PulsarAdmin pulsarAdmin, String topic, String description) {
         try {
-            logger.info("[{}] {} stats: {}", topic, description, toJson(pulsarAdmin.topics().getStats(topic)));
-            logger.info("[{}] {} internalStats: {}", topic, description,
-                    toJson(pulsarAdmin.topics().getInternalStats(topic, true)));
+            logger.info().attr("topic", topic).attr("description", description)
+                    .attr("stats", toJson(pulsarAdmin.topics().getStats(topic))).log("Topic stats");
+            logger.info().attr("topic", topic).attr("description", description)
+                    .attr("internalStats", toJson(pulsarAdmin.topics().getInternalStats(topic, true)))
+                    .log("Topic internalStats");
         } catch (PulsarAdminException e) {
-            logger.warn("Failed to get stats for topic {}", topic, e);
+            logger.warn().attr("topic", topic).exception(e).log("Failed to get stats for topic");
         }
     }
 
@@ -168,10 +170,13 @@ public class BrokerTestUtil {
     public static void logTopicStats(Logger logger, String baseUrl, String tenant, String namespace, String topic) {
         String topicStatsUri =
                 String.format("%s/admin/v2/persistent/%s/%s/%s/stats", baseUrl, tenant, namespace, topic);
-        logger.info("[{}] stats: {}", topic, jsonPrettyPrint(getJsonResourceAsString(topicStatsUri)));
+        logger.info().attr("topic", topic)
+                .attr("stats", jsonPrettyPrint(getJsonResourceAsString(topicStatsUri))).log("Topic stats");
         String topicStatsInternalUri =
                 String.format("%s/admin/v2/persistent/%s/%s/%s/internalStats", baseUrl, tenant, namespace, topic);
-        logger.info("[{}] internalStats: {}", topic, jsonPrettyPrint(getJsonResourceAsString(topicStatsInternalUri)));
+        logger.info().attr("topic", topic)
+                .attr("internalStats", jsonPrettyPrint(getJsonResourceAsString(topicStatsInternalUri)))
+                .log("Topic internalStats");
     }
 
     /**
@@ -394,7 +399,7 @@ public class BrokerTestUtil {
         try {
             runnable.run();
         } catch (AssertionError e) {
-            log.error("Assertion failed", e);
+            log.error().exception(e).log("Assertion failed");
             throw e;
         }
     }

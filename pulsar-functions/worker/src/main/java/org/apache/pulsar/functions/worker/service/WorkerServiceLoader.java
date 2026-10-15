@@ -23,7 +23,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
@@ -35,7 +35,7 @@ import org.apache.pulsar.functions.worker.WorkerService;
 /**
  * Loader to load worker service.
  */
-@Slf4j
+@CustomLog
 public class WorkerServiceLoader {
 
     static final String PULSAR_FN_WORKER_DEFINITION_FILE = "pulsar-functions-worker-service.yml";
@@ -145,8 +145,8 @@ public class WorkerServiceLoader {
                 narExtractionDirectory
             );
         } catch (IOException ioe) {
-            log.error("Failed to get the worker service definition from {}",
-                wsNarPackage, ioe);
+            log.error().attr("narPackage", wsNarPackage).exception(ioe)
+                    .log("Failed to get the worker service definition");
             throw new RuntimeException("Failed to get the worker service definition from "
                 + wsNarPackage, ioe);
         }
@@ -160,11 +160,13 @@ public class WorkerServiceLoader {
         try {
             service = load(metadata, narExtractionDirectory);
         } catch (IOException e) {
-            log.error("Failed to load the worker service {}", metadata, e);
+            log.error().attr("metadata", metadata).exception(e)
+                    .log("Failed to load the worker service");
             throw new RuntimeException("Failed to load the worker service " + metadata, e);
         }
 
-        log.info("Successfully loaded worker service {}", metadata);
+        log.info().attr("metadata", metadata)
+                .log("Successfully loaded worker service");
         return service;
     }
 }

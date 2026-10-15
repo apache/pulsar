@@ -25,7 +25,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mockStatic;
 import java.util.Map;
 import java.util.Optional;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SizeUnit;
@@ -40,7 +40,7 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class ThreadRuntimeFactoryTest {
 
     private static final long JVM_MAX_DIRECT_MEMORY = DirectMemoryUtils.jvmMaxDirectMemory();

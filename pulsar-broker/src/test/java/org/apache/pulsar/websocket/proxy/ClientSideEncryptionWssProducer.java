@@ -33,8 +33,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import lombok.CustomLog;
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
@@ -52,7 +52,7 @@ import org.eclipse.jetty.websocket.api.annotations.WebSocket;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
 
-@Slf4j
+@CustomLog
 @WebSocket
 public class ClientSideEncryptionWssProducer implements Closeable {
 
@@ -148,7 +148,7 @@ public class ClientSideEncryptionWssProducer implements Closeable {
 
     @OnWebSocketClose
     public void onWebSocketClose(int statusCode, String reason) {
-        log.info("Connection closed: {} - {}", statusCode, reason);
+        log.info().attr("statusCode", statusCode).attr("reason", reason).log("Connection closed");
         this.session = null;
         if (!sendFuture.isDone() && !sendFuture.isCancelled()) {
             sendFuture.completeExceptionally(new RuntimeException("Connection was closed"));
@@ -157,13 +157,13 @@ public class ClientSideEncryptionWssProducer implements Closeable {
 
     @OnWebSocketOpen
     public void onWebSocketConnect(Session session) {
-        log.info("Got connect: {}", session);
+        log.info().attr("connect", session).log("Got connect");
         this.session = session;
     }
 
     @OnWebSocketError
     public void onWebSocketError(Throwable cause) {
-        log.error("Received an error", cause);
+        log.error().exception(cause).log("Received an error");
     }
 
     @OnWebSocketMessage
@@ -180,7 +180,7 @@ public class ClientSideEncryptionWssProducer implements Closeable {
                 sendFuture.complete(messageIdData);
             }
         } catch (Exception ex) {
-            log.error("Could not extract the response payload: {}", text);
+            log.error().attr("payload", text).log("Could not extract the response payload");
         }
     }
 

@@ -29,6 +29,7 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.api.Authentication;
@@ -51,15 +52,12 @@ import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.mockito.Mockito;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+@CustomLog
 public class ProxyParserTest extends MockedPulsarServiceBaseTest {
-
-    private static final Logger log = LoggerFactory.getLogger(ProxyParserTest.class);
 
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
@@ -197,12 +195,16 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
 
         // make sure regex subscription
         String regexSubscriptionPattern = "persistent://public/default/topic.*";
-        log.info("Regex subscribe to topics {}", regexSubscriptionPattern);
+        log.info()
+                .attr("regexSubscriptionPattern", regexSubscriptionPattern)
+                .log("Regex subscribe to topics");
         try (Consumer<byte[]> consumer = client.newConsumer()
                 .topicsPattern(regexSubscriptionPattern)
                 .subscriptionName(subName)
                 .subscribe()) {
-            log.info("Successfully subscribe to topics using regex {}", regexSubscriptionPattern);
+            log.info()
+                    .attr("regexSubscriptionPattern", regexSubscriptionPattern)
+                    .log("Successfully subscribe to topics using regex");
 
             final int numMessages = 20;
 

@@ -45,17 +45,16 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.zip.GZIPOutputStream;
+import lombok.CustomLog;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.io.IOUtils;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResultBytes;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class DockerUtils {
-    private static final Logger LOG = LoggerFactory.getLogger(DockerUtils.class);
 
     private static File getTargetDirectory(String containerId) {
         String base = System.getProperty("buildDirectory");
@@ -64,7 +63,7 @@ public class DockerUtils {
         }
         File directory = new File(base + "/container-logs/" + containerId);
         if (!directory.exists() && !directory.mkdirs()) {
-            LOG.error("Error creating directory for container logs.");
+            log.error("Error creating directory for container logs.");
         }
         return directory;
     }
@@ -105,10 +104,11 @@ public class DockerUtils {
             });
             future.get();
         } catch (RuntimeException | ExecutionException | IOException e) {
-            LOG.error("Error dumping log for {}", containerName, e);
+            log.error().attr("container", containerName).exception(e).log("Error dumping log");
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
-            LOG.info("Interrupted dumping log from container {}", containerName, ie);
+            log.info().attr("container", containerName).exception(ie)
+                    .log("Interrupted dumping log from container");
         }
     }
 
@@ -120,7 +120,7 @@ public class DockerUtils {
         File file = new File(directory, prefix + suffix);
         int i = 0;
         while (file.exists()) {
-            LOG.info("{} exists, incrementing", file);
+            log.info().attr("file", file).log("File exists, incrementing");
             file = new File(directory, prefix + "_" + (i++) + suffix);
         }
         return file;
@@ -143,7 +143,8 @@ public class DockerUtils {
             IOUtils.copy(dockerStream, os);
         } catch (RuntimeException | IOException e) {
             if (!(e instanceof NotFoundException)) {
-                LOG.error("Error reading dir from container {}", containerName, e);
+                log.error().attr("container", containerName).exception(e)
+                        .log("Error reading dir from container");
             }
         }
     }
@@ -163,7 +164,8 @@ public class DockerUtils {
                 entry = stream.getNextTarEntry();
             }
         } catch (RuntimeException | IOException e) {
-            LOG.error("Error reading logs from container {}", containerId, e);
+            log.error().attr("containerId", containerId).exception(e)
+                    .log("Error reading logs from container");
         }
     }
 
@@ -241,12 +243,15 @@ public class DockerUtils {
 
                     @Override
                     public void onStart(Closeable closeable) {
-                        LOG.info("DOCKER.exec({}:{}): Executing...", containerName, cmdString);
+                        log.info().attr("container", containerName)
+                                .attr("cmd", cmdString).log("DOCKER.exec: Executing");
                     }
 
                     @Override
                     public void onNext(Frame object) {
-                        LOG.info("DOCKER.exec({}:{}): {}", containerName, cmdString, object);
+                        log.info().attr("container", containerName)
+                                .attr("cmd", cmdString)
+                                .attr("frame", object).log("DOCKER.exec");
                         if (StreamType.STDOUT == object.getStreamType()) {
                             stdout.append(new String(object.getPayload(), UTF_8));
                         } else if (StreamType.STDERR == object.getStreamType()) {
@@ -261,7 +266,8 @@ public class DockerUtils {
 
                     @Override
                     public void onComplete() {
-                        LOG.info("DOCKER.exec({}:{}): Done", containerName, cmdString);
+                        log.info().attr("container", containerName)
+                                .attr("cmd", cmdString).log("DOCKER.exec: Done");
 
                         InspectExecResponse resp = waitForExecCmdToFinish(dockerClient, execId);
                         long retCode = resp.getExitCodeLong();
@@ -270,14 +276,18 @@ public class DockerUtils {
                                 stdout.toString(),
                                 stderr.toString()
                         );
-                        LOG.info("DOCKER.exec({}:{}): completed with {}", containerName, cmdString, retCode);
+                        log.info().attr("container", containerName)
+                                .attr("cmd", cmdString)
+                                .attr("retCode", retCode)
+                                .log("DOCKER.exec: completed");
 
                         if (retCode != 0) {
-                            LOG.error(
-                                    "DOCKER.exec({}:{}): completed with non zero return code: {}\nstdout: {}\nstderr:"
-                                            + " {}",
-                                    containerName, cmdString, result.getExitCode(), result.getStdout(),
-                                    result.getStderr());
+                            log.error().attr("container", containerName)
+                                    .attr("cmd", cmdString)
+                                    .attr("exitCode", result.getExitCode())
+                                    .attr("stdout", result.getStdout())
+                                    .attr("stderr", result.getStderr())
+                                    .log("DOCKER.exec: non zero return code");
                             future.completeExceptionally(new ContainerExecException(cmdString, containerId, result));
                         } else {
                             future.complete(result);
@@ -306,7 +316,8 @@ public class DockerUtils {
 
                     @Override
                     public void onStart(Closeable closeable) {
-                        LOG.info("DOCKER.exec({}:{}): Executing...", containerName, cmdString);
+                        log.info().attr("container", containerName)
+                                .attr("cmd", cmdString).log("DOCKER.exec: Executing");
                     }
 
                     @Override
@@ -329,7 +340,8 @@ public class DockerUtils {
 
                     @Override
                     public void onComplete() {
-                        LOG.info("DOCKER.exec({}:{}): Done", containerName, cmdString);
+                        log.info().attr("container", containerName)
+                                .attr("cmd", cmdString).log("DOCKER.exec: Done");
                         future.complete(true);
                     }
                 });
@@ -342,7 +354,9 @@ public class DockerUtils {
                 retCode,
                 stdout.toByteArray(),
                 stderr.toByteArray());
-        LOG.info("DOCKER.exec({}:{}): completed with {}", containerName, cmdString, retCode);
+        log.info().attr("container", containerName)
+                .attr("cmd", cmdString)
+                .attr("retCode", retCode).log("DOCKER.exec: completed");
 
         if (retCode != 0) {
             throw new ContainerExecException(cmdString, containerId, null);
@@ -366,12 +380,15 @@ public class DockerUtils {
 
                     @Override
                     public void onStart(Closeable closeable) {
-                        LOG.info("DOCKER.exec({}:{}): Executing...", containerName, cmdString);
+                        log.info().attr("container", containerName)
+                                .attr("cmd", cmdString).log("DOCKER.exec: Executing");
                     }
 
                     @Override
                     public void onNext(Frame object) {
-                        LOG.info("DOCKER.exec({}:{}): {}", containerName, cmdString, object);
+                        log.info().attr("container", containerName)
+                                .attr("cmd", cmdString)
+                                .attr("frame", object).log("DOCKER.exec");
                     }
 
                     @Override
@@ -381,10 +398,14 @@ public class DockerUtils {
 
                     @Override
                     public void onComplete() {
-                        LOG.info("DOCKER.exec({}:{}): Done", containerName, cmdString);
+                        log.info().attr("container", containerName)
+                                .attr("cmd", cmdString).log("DOCKER.exec: Done");
                         InspectExecResponse resp = waitForExecCmdToFinish(dockerClient, execId);
                         long retCode = resp.getExitCodeLong();
-                        LOG.info("DOCKER.exec({}:{}): completed with {}", containerName, cmdString, retCode);
+                        log.info().attr("container", containerName)
+                                .attr("cmd", cmdString)
+                                .attr("retCode", retCode)
+                                .log("DOCKER.exec: completed");
                         future.complete(retCode);
                     }
                 });

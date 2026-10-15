@@ -18,10 +18,12 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
-import static javax.ws.rs.core.Response.Status.INTERNAL_SERVER_ERROR;
-import static javax.ws.rs.core.Response.Status.METHOD_NOT_ALLOWED;
-import static javax.ws.rs.core.Response.Status.NOT_FOUND;
-import static javax.ws.rs.core.Response.Status.SERVICE_UNAVAILABLE;
+import static jakarta.ws.rs.core.Response.Status.INTERNAL_SERVER_ERROR;
+import static jakarta.ws.rs.core.Response.Status.METHOD_NOT_ALLOWED;
+import static jakarta.ws.rs.core.Response.Status.NOT_FOUND;
+import static jakarta.ws.rs.core.Response.Status.SERVICE_UNAVAILABLE;
+import jakarta.ws.rs.container.AsyncResponse;
+import jakarta.ws.rs.core.Response;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -30,9 +32,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import javax.ws.rs.container.AsyncResponse;
-import javax.ws.rs.core.Response;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -51,6 +50,7 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.SnapshotSystemTopicInternalStats;
+import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.TransactionBufferInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorInfo;
@@ -72,10 +72,10 @@ import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.TransactionNotFoundException;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
 
-@Slf4j
 public abstract class TransactionsBase extends AdminResource {
 
     protected void internalListCoordinators(AsyncResponse asyncResponse) {
+        validateSuperUserAccess();
         final PulsarAdmin admin;
         try {
             admin = pulsar().getAdminClient();
@@ -95,8 +95,9 @@ public abstract class TransactionsBase extends AdminResource {
                     asyncResponse.resume(result.values());
                 })
                 .exceptionally(ex -> {
-                    log.error("[{}] Failed to list transaction coordinators: {}",
-                            clientAppId(), ex.getMessage(), ex);
+                    log.error()
+                            .exception(ex)
+                            .log("Failed to list transaction coordinators");
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -104,6 +105,7 @@ public abstract class TransactionsBase extends AdminResource {
 
     protected void internalGetCoordinatorStats(AsyncResponse asyncResponse, boolean authoritative,
                                                Integer coordinatorId) {
+        validateSuperUserAccess();
         if (coordinatorId != null) {
             validateTopicOwnership(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getPartition(coordinatorId),
                     authoritative);
@@ -154,7 +156,9 @@ public abstract class TransactionsBase extends AdminResource {
                     asyncResponse.resume(stats);
                 });
             }).exceptionally(ex -> {
-                log.error("[{}] Failed to get transaction coordinator state.", clientAppId(), ex);
+                log.error()
+                        .exception(ex)
+                        .log("Failed to get transaction coordinator state.");
                 resumeAsyncResponseExceptionally(asyncResponse, ex);
                 return null;
             });
@@ -189,6 +193,7 @@ public abstract class TransactionsBase extends AdminResource {
 
     protected void internalGetTransactionMetadata(AsyncResponse asyncResponse,
                                                   boolean authoritative, int mostSigBits, long leastSigBits) {
+        validateSuperUserAccess();
         try {
             validateTopicOwnership(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getPartition(mostSigBits),
                     authoritative);
@@ -298,6 +303,7 @@ public abstract class TransactionsBase extends AdminResource {
 
     protected void internalGetSlowTransactions(AsyncResponse asyncResponse,
                                                boolean authoritative, long timeout, Integer coordinatorId) {
+        validateSuperUserAccess();
         try {
             if (coordinatorId != null) {
                 validateTopicOwnership(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getPartition(coordinatorId),
@@ -375,7 +381,9 @@ public abstract class TransactionsBase extends AdminResource {
                         asyncResponse.resume(transactionMetadataMaps);
                     });
                 }).exceptionally(ex -> {
-                    log.error("[{}] Failed to get transaction coordinator state.", clientAppId(), ex);
+                    log.error()
+                            .exception(ex)
+                            .log("Failed to get transaction coordinator state.");
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -388,6 +396,7 @@ public abstract class TransactionsBase extends AdminResource {
 
     protected void internalGetCoordinatorInternalStats(AsyncResponse asyncResponse, boolean authoritative,
                                                        boolean metadata, int coordinatorId) {
+        validateSuperUserAccess();
         try {
             TopicName topicName = SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getPartition(coordinatorId);
             validateTopicOwnership(topicName, authoritative);
@@ -498,7 +507,8 @@ public abstract class TransactionsBase extends AdminResource {
     }
 
     protected CompletableFuture<PersistentTopic> getExistingPersistentTopicAsync(boolean authoritative) {
-        return validateTopicOwnershipAsync(topicName, authoritative).thenCompose(__ -> {
+        return validateTopicOperationAsync(topicName, TopicOperation.GET_STATS)
+                .thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative)).thenCompose(__ -> {
             CompletableFuture<Optional<Topic>> topicFuture = pulsar().getBrokerService()
                     .getTopics().get(topicName.toString());
             if (topicFuture == null) {
@@ -528,8 +538,13 @@ public abstract class TransactionsBase extends AdminResource {
             this.namespaceName = NamespaceName.get(tenant, namespace);
             this.topicName = TopicName.get(TopicDomain.persistent.toString(), namespaceName, topic);
         } catch (IllegalArgumentException e) {
-            log.warn("[{}] Failed to validate topic name {}://{}/{}/{}", clientAppId(), domain(), tenant, namespace,
-                    topic, e);
+            log.warn()
+                    .attr("domain", domain())
+                    .attr("tenant", tenant)
+                    .attr("namespace", namespace)
+                    .attr("topic", topic)
+                    .exception(e)
+                    .log("Failed to validate topic name");
             throw new RestException(Response.Status.PRECONDITION_FAILED, "Topic name is not valid");
         }
     }

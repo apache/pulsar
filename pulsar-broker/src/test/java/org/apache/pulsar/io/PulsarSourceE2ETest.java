@@ -39,6 +39,7 @@ import org.testng.annotations.Test;
 /**
  * Test Pulsar Source.
  */
+@lombok.CustomLog
 @Test(groups = "broker-io")
 public class PulsarSourceE2ETest extends AbstractPulsarE2ETest {
 
@@ -107,7 +108,7 @@ public class PulsarSourceE2ETest extends AbstractPulsarE2ETest {
         assertEquals(admin.topics().getStats(sinkTopic2).getPublishers().size(), 1);
 
         String prometheusMetrics = TestPulsarFunctionUtils.getPrometheusMetrics(pulsar.getListenPortHTTP().get());
-        LOG.info("prometheusMetrics: {}", prometheusMetrics);
+        log.info().attr("prometheusMetrics", prometheusMetrics).log("prometheus metrics");
 
         Map<String, TestPulsarFunctionUtils.Metric> metrics = TestPulsarFunctionUtils.parseMetrics(prometheusMetrics);
         TestPulsarFunctionUtils.Metric m = metrics.get("pulsar_source_received_total");

@@ -26,8 +26,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.broker.service.SharedPulsarCluster;
@@ -51,7 +51,7 @@ import org.testng.annotations.Test;
  * Different with {@link org.apache.pulsar.client.api.SimpleProducerConsumerTest}, this class can visit the variables
  * of {@link ConsumerImpl} or {@link ProducerImpl} which have protected or default access modifiers.
  */
-@Slf4j
+@CustomLog
 @Test(groups = "broker-impl")
 public class ProducerConsumerInternalTest extends SharedPulsarBaseTest {
 
@@ -184,17 +184,19 @@ public class ProducerConsumerInternalTest extends SharedPulsarBaseTest {
                 .batchingMaxMessages(1000)
                 .create();
 
-        log.info("Before sendAsync msg-0: {}", System.nanoTime());
+        log.info().attr("msg", System.nanoTime()).log("Before sendAsync msg-0");
         CompletableFuture<MessageId> future = producer.sendAsync("msg-0".getBytes());
-        future.thenAccept(msgId -> log.info("msg-0 done: {} (msgId: {})", System.nanoTime(), msgId));
+        future.thenAccept(msgId -> log.info().attr("time", System.nanoTime()).attr("msgId", msgId)
+                .log("msg-0 done"));
         future.get(); // t: the current time point
 
         ((ProducerImpl<byte[]>) producer).triggerSendTimer(); // t+1000ms && t+2000ms: run() will be called again
 
         Thread.sleep(1950); // t+2050ms: the batch timer is expired, which happens after run() is called
-        log.info("Before sendAsync msg-1: {}", System.nanoTime());
+        log.info().attr("msg", System.nanoTime()).log("Before sendAsync msg-1");
         future = producer.sendAsync("msg-1".getBytes());
-        future.thenAccept(msgId -> log.info("msg-1 done: {} (msgId: {})", System.nanoTime(), msgId));
+        future.thenAccept(msgId -> log.info().attr("time", System.nanoTime()).attr("msgId", msgId)
+                .log("msg-1 done"));
         future.get();
     }
 

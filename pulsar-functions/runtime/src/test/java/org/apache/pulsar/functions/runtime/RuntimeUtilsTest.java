@@ -26,7 +26,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.FunctionDetails;
@@ -39,7 +39,7 @@ import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class RuntimeUtilsTest {
 
     @Test
@@ -227,7 +227,7 @@ public class RuntimeUtilsTest {
                 false,
                 "");
 
-        log.info("cmd {}", cmd);
+        log.info().attr("cmd", cmd).log("Generated command");
 
         assertTrue(cmd.contains("-XX:+ExitOnOutOfMemoryError"));
 

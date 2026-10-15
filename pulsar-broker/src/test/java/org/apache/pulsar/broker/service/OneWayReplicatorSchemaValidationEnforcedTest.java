@@ -20,8 +20,8 @@ package org.apache.pulsar.broker.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.api.Message;
@@ -33,7 +33,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-replication")
 public class OneWayReplicatorSchemaValidationEnforcedTest extends OneWayReplicatorTestBase {
 
@@ -70,12 +70,15 @@ public class OneWayReplicatorSchemaValidationEnforcedTest extends OneWayReplicat
         Schema<MyClass> myClassSchema = Schema.AVRO(MyClass.class);
         final String topicName =
                 BrokerTestUtil.newUniqueName("persistent://" + sourceClusterAlwaysSchemaCompatibleNamespace + "/tp_");
+        // Create the topic and schema in the remote cluster (r2) first. Creating the topic in the local
+        // cluster starts the replicator, which creates the topic on the remote cluster itself when it is
+        // missing (GeoPersistentReplicator#createRemoteTopicIfDoesNotExist), so creating r2's topic
+        // afterwards races with it and fails with "This topic already exists".
+        admin2.topics().createNonPartitionedTopic(topicName);
+        admin2.schemas().createSchema(topicName, myClassSchema.getSchemaInfo());
         // create the topic and schema in the local cluster (r1)
         admin1.topics().createNonPartitionedTopic(topicName);
         admin1.schemas().createSchema(topicName, myClassSchema.getSchemaInfo());
-        // create the topic and schema in the remote cluster (r2)
-        admin2.topics().createNonPartitionedTopic(topicName);
-        admin2.schemas().createSchema(topicName, myClassSchema.getSchemaInfo());
 
         // consume from the remote cluster (r2)
         org.apache.pulsar.client.api.Consumer<MyClass> consumer2 = client2.newConsumer(myClassSchema)

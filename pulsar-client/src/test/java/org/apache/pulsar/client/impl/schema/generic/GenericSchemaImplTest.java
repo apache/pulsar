@@ -27,7 +27,7 @@ import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
@@ -44,7 +44,7 @@ import org.testng.annotations.Test;
 /**
  * Unit testing generic schemas.
  */
-@Slf4j
+@CustomLog
 public class GenericSchemaImplTest {
 
     @Test
@@ -109,7 +109,7 @@ public class GenericSchemaImplTest {
             Foo foo = newFoo(i);
             byte[] data = encodeSchema.encode(foo);
 
-            log.info("Decoding : {}", new String(data, UTF_8));
+            log.info().attr("data", new String(data, UTF_8)).log("Decoding");
 
             GenericRecord record;
             if (decodeSchema instanceof AutoConsumeSchema) {

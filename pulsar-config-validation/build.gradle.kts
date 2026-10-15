@@ -18,9 +18,9 @@
  */
 
 plugins {
-    id("pulsar.java-conventions")
+    id("pulsar.public-java-library-conventions")
 }
 
 dependencies {
-    implementation(libs.slf4j.api)
+    implementation(libs.slog)
 }

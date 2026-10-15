@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.naming;
 
+import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -32,12 +33,15 @@ import com.google.common.hash.Hashing;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
+import lombok.CustomLog;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -46,12 +50,11 @@ import org.apache.pulsar.broker.resources.LocalPoliciesResources;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-naming")
+@CustomLog
 public class NamespaceBundlesTest {
 
     private NamespaceBundleFactory factory;
@@ -112,6 +115,25 @@ public class NamespaceBundlesTest {
         when(namespaceService.getNamespaceBundleFactory()).thenReturn(factory1);
         when(pulsar.getNamespaceService()).thenReturn(namespaceService);
         return factory1;
+    }
+
+    /**
+     * A transaction coordinator is owned by the broker that owns the bundle of its
+     * {@code transaction_coordinator_assign} partition, so the number of system namespace bundles bounds how far the
+     * coordinators can spread. The default number of bundles is chosen so that each of the default 16 coordinators
+     * hashes into a bundle of its own; this pins that choice.
+     */
+    @Test
+    public void testDefaultSystemNamespaceBundlesSpreadTheDefaultTransactionCoordinators() {
+        int defaultNumTransactionCoordinators = 16;
+        NamespaceBundles bundles = factory.getBundles(NamespaceName.SYSTEM_NAMESPACE,
+                getBundles(ServiceConfiguration.DEFAULT_NUMBER_OF_SYSTEM_NAMESPACE_BUNDLES));
+        Set<NamespaceBundle> coordinatorBundles = new HashSet<>();
+        for (int i = 0; i < defaultNumTransactionCoordinators; i++) {
+            coordinatorBundles.add(
+                    bundles.findBundle(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getPartition(i)));
+        }
+        assertEquals(coordinatorBundles.size(), defaultNumTransactionCoordinators);
     }
 
     @Test
@@ -321,8 +343,11 @@ public class NamespaceBundlesTest {
         String uRange = String.format("0x%08x_0x%08x", middle, upper);
         assertEquals(lRange, bundles.get(0).getBundleRange());
         assertEquals(uRange, bundles.get(1).getBundleRange());
-        log.info("[{},{}] => [{},{}]", range[0], range[1], lRange, uRange);
+        log.info()
+                .attr("range", range[0])
+                .attr("range2", range[1])
+                .attr("lRange", lRange)
+                .attr("uRange", uRange)
+                .log(">");
     }
-
-    private static final Logger log = LoggerFactory.getLogger(NamespaceBundlesTest.class);
 }

@@ -19,7 +19,7 @@
 package org.apache.pulsar.broker.admin;
 
 import java.util.Set;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -36,7 +36,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-admin")
 public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
 
@@ -74,7 +74,8 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
                 .limitSize(1024)
                 .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
                 .build();
-        log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, testTopic);
+        log.info().attr("backlogQuota", backlogQuota).attr("topic", testTopic)
+                .log("Backlog quota will set to the topic");
 
         try {
             admin.topics().setBacklogQuota(testTopic, backlogQuota, BacklogQuota.BacklogQuotaType.destination_storage);
@@ -102,7 +103,8 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testRetentionDisabled() {
         RetentionPolicies retention = new RetentionPolicies();
-        log.info("Retention: {} will set to the topic: {}", retention, testTopic);
+        log.info().attr("retention", retention).attr("topic", testTopic)
+                .log("Retention will set to the topic");
 
         try {
             admin.topics().setRetention(testTopic, retention);
@@ -123,7 +125,8 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testPersistenceDisabled() {
         PersistencePolicies persistencePolicies = new PersistencePolicies();
-        log.info("PersistencePolicies: {} will set to the topic: {}", persistencePolicies, testTopic);
+        log.info().attr("persistencePolicies", persistencePolicies).attr("topic", testTopic)
+                .log("PersistencePolicies will set to the topic");
 
         try {
             admin.topics().setPersistence(testTopic, persistencePolicies);
@@ -144,7 +147,8 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testDispatchRateDisabled() throws Exception {
         DispatchRate dispatchRate = DispatchRate.builder().build();
-        log.info("Dispatch Rate: {} will set to the topic: {}", dispatchRate, testTopic);
+        log.info().attr("dispatchRate", dispatchRate).attr("topic", testTopic)
+                .log("Dispatch Rate will set to the topic");
 
         try {
             admin.topics().setDispatchRate(testTopic, dispatchRate);
@@ -169,7 +173,8 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
                 .dispatchThrottlingRateInMsg(1020 * 1024)
                 .ratePeriodInSecond(1)
                 .build();
-        log.info("Dispatch Rate: {} will set to the topic: {}", dispatchRate, testTopic);
+        log.info().attr("dispatchRate", dispatchRate).attr("topic", testTopic)
+                .log("Dispatch Rate will set to the topic");
 
         try {
             admin.topics().setSubscriptionDispatchRate(testTopic, dispatchRate);
@@ -190,7 +195,8 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testCompactionThresholdDisabled() {
         Long compactionThreshold = 10000L;
-        log.info("Compaction threshold: {} will set to the topic: {}", compactionThreshold, testTopic);
+        log.info().attr("compactionThreshold", compactionThreshold).attr("topic", testTopic)
+                .log("Compaction threshold will set to the topic");
 
         try {
             admin.topics().setCompactionThreshold(testTopic, compactionThreshold);
@@ -211,7 +217,9 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testMaxConsumersPerSubscription() throws Exception {
         int maxConsumersPerSubscription = 10;
-        log.info("MaxConsumersPerSubscription: {} will set to the topic: {}", maxConsumersPerSubscription, testTopic);
+        log.info().attr("maxConsumersPerSubscription", maxConsumersPerSubscription)
+                .attr("topic", testTopic)
+                .log("MaxConsumersPerSubscription will set to the topic");
 
         try {
             admin.topics().setMaxConsumersPerSubscription(testTopic, maxConsumersPerSubscription);
@@ -239,7 +247,9 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testSubscriptionExpirationTimeDisabled() throws Exception {
         int subscriptionExpirationTime = 10;
-        log.info("SubscriptionExpirationTime: {} will set to the topic: {}", subscriptionExpirationTime, testTopic);
+        log.info().attr("subscriptionExpirationTime", subscriptionExpirationTime)
+                .attr("topic", testTopic)
+                .log("SubscriptionExpirationTime will set to the topic");
 
         try {
             admin.topicPolicies().setSubscriptionExpirationTime(testTopic, subscriptionExpirationTime);
@@ -267,7 +277,8 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testPublishRateDisabled() throws Exception {
         PublishRate publishRate = new PublishRate(10000, 1024 * 1024 * 5);
-        log.info("Publish Rate: {} will set to the topic: {}", publishRate, testTopic);
+        log.info().attr("publishRate", publishRate).attr("topic", testTopic)
+                .log("Publish Rate will set to the topic");
 
         try {
             admin.topics().setPublishRate(testTopic, publishRate);
@@ -287,7 +298,7 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
     @SuppressWarnings("deprecation")
     @Test
     public void testMaxProducersDisabled() {
-        log.info("MaxProducers will set to the topic: {}", testTopic);
+        log.info().attr("topic", testTopic).log("MaxProducers will set to the topic");
         try {
             admin.topics().setMaxProducers(testTopic, 2);
             Assert.fail();
@@ -306,7 +317,7 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
     @SuppressWarnings("deprecation")
     @Test
     public void testMaxConsumersDisabled() {
-        log.info("MaxConsumers will set to the topic: {}", testTopic);
+        log.info().attr("topic", testTopic).log("MaxConsumers will set to the topic");
         try {
             admin.topics().setMaxConsumers(testTopic, 2);
             Assert.fail();
@@ -326,7 +337,8 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testSubscribeRateDisabled() throws Exception {
         SubscribeRate subscribeRate = new SubscribeRate(10, 30);
-        log.info("Subscribe Rate: {} will set to the topic: {}", subscribeRate, testTopic);
+        log.info().attr("subscribeRate", subscribeRate).attr("topic", testTopic)
+                .log("Subscribe Rate will set to the topic");
 
         try {
             admin.topics().setSubscribeRate(testTopic, subscribeRate);

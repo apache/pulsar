@@ -22,10 +22,12 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.collect.Lists;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.FastThreadLocal;
+import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -41,15 +43,20 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.bookkeeper.client.AsyncCallback.CreateCallback;
 import org.apache.bookkeeper.client.AsyncCallback.DeleteCallback;
 import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
+import org.apache.bookkeeper.client.api.CreateAdvBuilder;
+import org.apache.bookkeeper.client.api.CreateBuilder;
 import org.apache.bookkeeper.client.api.DeleteBuilder;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.OpenBuilder;
 import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.bookkeeper.client.api.WriteFlag;
+import org.apache.bookkeeper.client.api.WriteHandle;
 import org.apache.bookkeeper.client.impl.OpenBuilderBase;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
@@ -64,14 +71,13 @@ import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.versioning.LongVersion;
 import org.apache.bookkeeper.versioning.Versioned;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Mocked version of BookKeeper client that keeps all ledgers data in memory.
  *
  * <p>This mocked client is meant to be used in unit tests for applications using the BookKeeper API.
  */
+@CustomLog
 public class PulsarMockBookKeeper extends BookKeeper {
 
     final OrderedExecutor orderedExecutor;
@@ -110,6 +116,8 @@ public class PulsarMockBookKeeper extends BookKeeper {
         this.orderedExecutor = orderedExecutor;
         this.executor = orderedExecutor.chooseThread();
         scheduler = Executors.newScheduledThreadPool(1, new DefaultThreadFactory("mock-bk-scheduler"));
+        // The mock supports batch reads, which the managed ledger only uses with a v2 wire protocol client
+        getConf().setUseV2WireProtocol(true);
     }
 
     @Override
@@ -135,9 +143,9 @@ public class PulsarMockBookKeeper extends BookKeeper {
         getProgrammedFailure().thenComposeAsync((res) -> {
                 try {
                     long id = sequence.getAndIncrement();
-                    log.info("Creating ledger {}", id);
+                    log.info().attr("ledgerId", id).log("Creating ledger");
                     PulsarMockLedgerHandle lh =
-                            new PulsarMockLedgerHandle(PulsarMockBookKeeper.this, id, digestType, passwd);
+                            new PulsarMockLedgerHandle(PulsarMockBookKeeper.this, id, digestType, passwd, properties);
                     ledgers.put(id, lh);
                     return FutureUtils.value(lh);
                 } catch (Throwable t) {
@@ -159,12 +167,12 @@ public class PulsarMockBookKeeper extends BookKeeper {
 
         try {
             long id = sequence.getAndIncrement();
-            log.info("Creating ledger {}", id);
+            log.info().attr("ledgerId", id).log("Creating ledger");
             PulsarMockLedgerHandle lh = new PulsarMockLedgerHandle(this, id, digestType, passwd);
             ledgers.put(id, lh);
             return lh;
         } catch (Throwable t) {
-            log.error("Exception:", t);
+            log.error().exception(t).log("Exception");
             return null;
         }
     }
@@ -240,30 +248,115 @@ public class PulsarMockBookKeeper extends BookKeeper {
 
 
     @Override
+    public CreateBuilder newCreateLedgerOp() {
+        return new CreateBuilder() {
+            private int ensembleSize = 3;
+            private int writeQuorumSize = 2;
+            private int ackQuorumSize = 2;
+            private byte[] password = new byte[0];
+            private org.apache.bookkeeper.client.api.DigestType digestType =
+                    org.apache.bookkeeper.client.api.DigestType.CRC32;
+            private Map<String, byte[]> customMetadata = Collections.emptyMap();
+
+            @Override
+            public CreateBuilder withEnsembleSize(int ensembleSize) {
+                this.ensembleSize = ensembleSize;
+                return this;
+            }
+
+            @Override
+            public CreateBuilder withWriteQuorumSize(int writeQuorumSize) {
+                this.writeQuorumSize = writeQuorumSize;
+                return this;
+            }
+
+            @Override
+            public CreateBuilder withAckQuorumSize(int ackQuorumSize) {
+                this.ackQuorumSize = ackQuorumSize;
+                return this;
+            }
+
+            @Override
+            public CreateBuilder withPassword(byte[] password) {
+                this.password = password;
+                return this;
+            }
+
+            @Override
+            public CreateBuilder withWriteFlags(EnumSet<WriteFlag> writeFlags) {
+                return this;
+            }
+
+            @Override
+            public CreateBuilder withCustomMetadata(Map<String, byte[]> customMetadata) {
+                this.customMetadata = customMetadata;
+                return this;
+            }
+
+            @Override
+            public CreateBuilder withDigestType(org.apache.bookkeeper.client.api.DigestType digestType) {
+                this.digestType = digestType;
+                return this;
+            }
+
+            @Override
+            public CreateAdvBuilder makeAdv() {
+                throw new UnsupportedOperationException("Adv ledger creation is not supported by the mock");
+            }
+
+            @Override
+            public CompletableFuture<WriteHandle> execute() {
+                CompletableFuture<WriteHandle> future = new CompletableFuture<>();
+                asyncCreateLedger(ensembleSize, writeQuorumSize, ackQuorumSize,
+                        DigestType.fromApiDigestType(digestType), password,
+                        (rc, lh, ctx) -> {
+                            if (rc != BKException.Code.OK) {
+                                future.completeExceptionally(BKException.create(rc));
+                            } else {
+                                future.complete(lh);
+                            }
+                        }, null, customMetadata);
+                return future;
+            }
+        };
+    }
+
+    @Override
     public OpenBuilder newOpenLedgerOp() {
         return new OpenBuilderBase() {
             @Override
             public CompletableFuture<ReadHandle> execute() {
-                return getProgrammedFailure().thenCompose(
-                        (res) -> {
-                            int rc = validate();
-                            if (rc != BKException.Code.OK) {
-                                return FutureUtils.exception(BKException.create(rc));
-                            }
+                CompletableFuture<ReadHandle> future = new CompletableFuture<>();
+                // Always complete on the mock executor, also for a programmed failure, like the legacy open path
+                getProgrammedFailure().whenCompleteAsync((res, failure) -> {
+                    if (failure != null) {
+                        future.completeExceptionally(failure);
+                        return;
+                    }
+                    int rc = validate();
+                    if (rc != BKException.Code.OK) {
+                        future.completeExceptionally(BKException.create(rc));
+                        return;
+                    }
 
-                            PulsarMockLedgerHandle lh = ledgers.get(ledgerId);
-                            if (lh == null) {
-                                return FutureUtils.exception(new BKException.BKNoSuchLedgerExistsException());
-                            } else if (lh.digest != DigestType.fromApiDigestType(digestType)) {
-                                return FutureUtils.exception(new BKException.BKDigestMatchException());
-                            } else if (!Arrays.equals(lh.passwd, password)) {
-                                return FutureUtils.exception(new BKException.BKUnauthorizedAccessException());
-                            } else {
-                                return FutureUtils.value(new PulsarMockReadHandle(PulsarMockBookKeeper.this, ledgerId,
-                                        lh.getLedgerMetadata(), lh.entries,
-                                        PulsarMockBookKeeper.this::getReadHandleInterceptor, lh.totalLengthCounter));
-                            }
-                        });
+                    PulsarMockLedgerHandle lh = ledgers.get(ledgerId);
+                    if (lh == null) {
+                        future.completeExceptionally(new BKException.BKNoSuchLedgerExistsException());
+                    } else if (lh.digest != DigestType.fromApiDigestType(digestType)) {
+                        future.completeExceptionally(new BKException.BKDigestMatchException());
+                    } else if (!Arrays.equals(lh.passwd, password)) {
+                        future.completeExceptionally(new BKException.BKUnauthorizedAccessException());
+                    } else {
+                        try {
+                            future.complete(new PulsarMockReadHandle(PulsarMockBookKeeper.this, ledgerId,
+                                    lh.getLedgerMetadata(), lh.digest, lh.passwd, lh.entries,
+                                    PulsarMockBookKeeper.this::getReadHandleInterceptor, lh.totalLengthCounter));
+                        } catch (GeneralSecurityException e) {
+                            future.completeExceptionally(e);
+                        }
+                    }
+                }, executor);
+                return future;
             }
         };
     }
@@ -547,6 +640,4 @@ public class PulsarMockBookKeeper extends BookKeeper {
     public void useJfrReadHandleInterceptor() {
         setReadHandleInterceptor(jfrReadHandleInterceptor);
     }
-
-    private static final Logger log = LoggerFactory.getLogger(PulsarMockBookKeeper.class);
 }
