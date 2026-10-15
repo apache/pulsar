@@ -16,31 +16,39 @@
 # under the License.
 
 
-# Saturation workload: 500 producer connections feed one topic as fast as possible. Five independent
-# applications each consume through a ten-member Key_Shared subscription.
-extends: iot-telemetry.yaml
-cluster:
-  brokerEnvs:
-    PULSAR_MEM: -Xms4g -Xmx4g -XX:MaxDirectMemorySize=4g
-  bookkeeperEnvs:
-    PULSAR_MEM: -Xms1g -Xmx1g -XX:MaxDirectMemorySize=1g
+# High-rate workload: 500 producer connections publish 30,000 messages per second to one topic. Five independent
+# applications each consume through a ten-member Key_Shared subscription. The rate is one that every application keeps
+# up with on a workstation host whose CPU runs at a fixed base frequency: without a rate limit the gateways publish
+# faster than the applications receive, their backlogs grow, and an application that falls behind the broker's cache
+# can stall for tens of seconds. The gateways keep at most 10,000 messages in flight, so that the publish latency
+# measures the cluster rather than a queue in the gateways. It uses the high-memory configuration,
+# configs/iot-telemetry-high-mem.yaml: recommended memory available to Docker about 14 GB.
+extends: [iot-telemetry.yaml, configs/iot-telemetry-high-mem.yaml]
 workloads:
   iotTelemetry:
-    rate: 0
-    warmupSeconds: 0
-    warmupMessages: 500000
-    warmupRounds: 2
-    warmupRoundDelaySeconds: 5
-    numberOfMessages: 5000000
-    deviceCount: 1000000
-    gatewayCount: 500
-    topicCount: 1
-    applicationCount: 5
-    clientsPerApplication: 10
-    ioThreads: 16
-    listenerThreads: 16
-    maxOutstanding: 100000
-    precreateProducers: true
-    consumerTimeoutSeconds: 600
-output:
-  directory: build/performance/iot-telemetry-high-rate
+    rate: 30000
+    warmup:
+      seconds: 0
+      messages: 500000
+      rounds: 2
+      roundDelaySeconds: 5
+    measurement:
+      messages: 5000000
+    timeoutSeconds: 600
+    devices:
+      count: 1000000
+    gateways:
+      count: 500
+      producer:
+        ioThreads: 16
+        listenerThreads: 16
+        maxOutstanding: 10000
+        precreate: true
+    topics:
+      count: 1
+    applications:
+      count: 5
+      podsPerApplication: 10
+      client:
+        ioThreads: 16
+        listenerThreads: 16

@@ -238,6 +238,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     @VisibleForTesting
     final BlockingQueue<String> pendingChunkedMessageUuidQueue;
 
+    @VisibleForTesting
+    int getPendingChunkedMessageUuidQueueSizeForTest() {
+        return pendingChunkedMessageUuidQueue.size();
+    }
+
     private final boolean createTopicIfDoesNotExist;
     private final boolean poolMessages;
 
@@ -896,6 +901,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             deregisterFromClientCnx();
             client.cleanupConsumer(this);
             clearReceiverQueue(false);
+            client.getCnxPool().releaseConnection(cnx);
             return CompletableFuture.completedFuture(null);
         }
 
@@ -1610,6 +1616,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         .log("Ignoring message from before the startMessageId");
 
                 uncompressedPayload.release();
+                // This message is dropped instead of being delivered to the application, so its
+                // outstanding flow-control permit is never returned via messageProcessed(). Refund
+                // exactly what the broker charged for this entry: one
+                // permit per message, minus the batch indexes it reports as already acked via ackSet (set
+                // bits are the still-unacked indexes). An undecryptable batch can also reach this block;
+                // for the plain and chunked cases there is no ackSet and numMessages is 1.
+                final int chargedPermits = ackSet.length > 0 ? BitSet.valueOf(ackSet).cardinality() : numMessages;
+                increaseAvailablePermits(cnx, chargedPermits);
                 return;
             }
 
@@ -1810,6 +1824,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
             chunkedMessagesMap.remove(msgMetadata.getUuid());
             compressedPayload.release();
+            // This discarded chunk consumed a broker flow-control permit. Non-last chunks already
+            // had their permit returned at the top of this method (increaseAvailablePermits when
+            // chunkId != last); the last chunk did not. Return it here so that tearing a chunked
+            // message apart (expiry/eviction/orphaned last chunk) does not leak permits, which would
+            // otherwise drain the consumer's available permits to zero and stall dispatch.
+            if (msgMetadata.getChunkId() == (msgMetadata.getNumChunksFromMsg() - 1)) {
+                increaseAvailablePermits(cnx);
+            }
             if (expireTimeOfIncompleteChunkedMessageMillis > 0
                     && System.currentTimeMillis() > (msgMetadata.getPublishTime()
                             + expireTimeOfIncompleteChunkedMessageMillis)) {

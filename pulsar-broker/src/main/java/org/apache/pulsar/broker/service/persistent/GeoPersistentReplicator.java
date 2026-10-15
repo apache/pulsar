@@ -70,9 +70,11 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                 .thenApply(metadata -> metadata.partitions)
                 .exceptionallyCompose(t -> {
                     Throwable actEx = FutureUtil.unwrapCompletionException(t);
-                    if (actEx instanceof PulsarAdminException.NotFoundException) {
+                    if (actEx instanceof PulsarAdminException.NotFoundException && !topic.equals(localTopicName)) {
                         // Legacy edge case: Local topic is non-partitioned but name ends with "-partition-{num}".
                         // This should never happen in practice because PIP-414 disables this naming pattern.
+                        // Fall back only once: if "localTopicName" is not found either (e.g. the local topic was
+                        // deleted concurrently), fail and let "startProducer" retry with backoff.
                         return createRemoteTopicIfDoesNotExist(localTopicName)
                                 .thenApply(__ -> -1); // Special marker
                     }
@@ -262,8 +264,10 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                             log.warn()
                                     .exception(e)
                                     .log("Failed to get schema from local cluster, will try in the next loop");
+                            log.debug("Retrying the data replication after a failed schema fetch");
+                        } else {
+                            log.info("Resume the data replication after the schema fetching done");
                         }
-                        log.info("Resume the data replication after the schema fetching done");
                         doRewindCursor(e == null);
                     });
                 } else {

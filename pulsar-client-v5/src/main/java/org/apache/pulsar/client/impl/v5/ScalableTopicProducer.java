@@ -202,11 +202,9 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
         this.completionExecutor = client.v4Client().externalExecutorProvider().getExecutor();
         this.asyncView = new AsyncProducerV5<>(this);
 
-        // Register for layout changes
-        dagWatch.setListener(this);
-
-        // Initialize with the current layout
+        // Initialize with the current layout, then register for the layouts after it
         applyLayout(initialLayout);
+        dagWatch.setListener(this);
     }
 
     @Override
@@ -676,7 +674,11 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
             return;
         }
         boolean offload = send.dispatching || (failure != null && !isEventLoopThread());
-        if (!offload) {
+        if (!offload || client.v4Client().isClosed()) {
+            // In place: the result arrived on an IO thread, or the client is closing. Its executors
+            // are shut down with it, with shutdownNow(), which drops whatever is still queued: a
+            // completion handed to the executor now could be lost and the caller's future never
+            // complete. Once the executors are gone, the same happens below.
             complete(send, messageId, failure);
             return;
         }

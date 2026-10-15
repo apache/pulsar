@@ -26,10 +26,11 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.Range;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -104,36 +105,53 @@ public class HashRangeAutoSplitStickyKeyConsumerSelectorTest {
         Assert.assertNull(selector.select(0));
     }
 
-    @Test
+    @Test(timeOut = 30000)
     public void testConcurrentSelectionDuringMembershipChanges() throws Exception {
         HashRangeAutoSplitStickyKeyConsumerSelector selector =
                 new HashRangeAutoSplitStickyKeyConsumerSelector(2 << 10, false);
         Consumer stableConsumer = mock(Consumer.class);
+        Consumer transientConsumer = mock(Consumer.class);
         selector.addConsumer(stableConsumer).join();
-        Set<Consumer> observedConsumers = java.util.concurrent.ConcurrentHashMap.newKeySet();
-        observedConsumers.add(stableConsumer);
-        ExecutorService executor = Executors.newFixedThreadPool(4);
+        Range hashRange = selector.getKeyHashRange();
+        int readerCount = 3;
+        int rounds = 100;
+        CyclicBarrier phase = new CyclicBarrier(readerCount + 1);
+        ExecutorService executor = Executors.newFixedThreadPool(readerCount);
+        List<Future<?>> readers = new ArrayList<>();
         try {
-            List<CompletableFuture<Void>> readers = new ArrayList<>();
-            for (int reader = 0; reader < 3; reader++) {
-                final int offset = reader;
-                readers.add(CompletableFuture.runAsync(() -> {
-                    for (int hash = offset; hash < 4096; hash += 3) {
-                        Consumer selected = selector.select(hash);
-                        Assert.assertNotNull(selected);
-                        Assert.assertTrue(observedConsumers.contains(selected));
+            for (int reader = 0; reader < readerCount; reader++) {
+                readers.add(executor.submit(() -> {
+                    for (int round = 0; round < rounds; round++) {
+                        phase.await(5, TimeUnit.SECONDS);
+                        for (int hash = hashRange.getStart(); hash <= hashRange.getEnd(); hash++) {
+                            Consumer selected = selector.select(hash);
+                            Assert.assertTrue(selected == stableConsumer || selected == transientConsumer);
+                        }
+                        phase.await(5, TimeUnit.SECONDS);
                     }
-                }, executor));
+                    for (int hash = hashRange.getStart(); hash <= hashRange.getEnd(); hash++) {
+                        Assert.assertSame(selector.select(hash), stableConsumer, "hash " + hash);
+                    }
+                    return null;
+                }));
             }
-            for (int i = 0; i < 100; i++) {
-                Consumer transientConsumer = mock(Consumer.class);
-                observedConsumers.add(transientConsumer);
+            for (int round = 0; round < rounds; round++) {
+                // Readers and membership changes participate in every round before advancing together.
+                phase.await(5, TimeUnit.SECONDS);
                 selector.addConsumer(transientConsumer).join();
                 selector.removeConsumer(transientConsumer);
+                phase.await(5, TimeUnit.SECONDS);
             }
-            CompletableFuture.allOf(readers.toArray(CompletableFuture[]::new)).join();
+            for (Future<?> reader : readers) {
+                reader.get(10, TimeUnit.SECONDS);
+            }
+            selector.removeConsumer(stableConsumer);
+            for (int hash = hashRange.getStart(); hash <= hashRange.getEnd(); hash++) {
+                Assert.assertNull(selector.select(hash), "hash " + hash);
+            }
         } finally {
             executor.shutdownNow();
+            Assert.assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS));
         }
     }
 

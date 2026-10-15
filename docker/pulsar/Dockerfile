@@ -149,6 +149,20 @@ RUN mv /apache-pulsar-offloaders-*/offloaders /offloaders
 # It remains available in the apache-pulsar-offloaders distribution tarball for users who need it.
 RUN rm -f /offloaders/tiered-storage-file-system-*.nar
 
+## Build mimalloc (https://github.com/microsoft/mimalloc), which the final stage preloads as the malloc of the Pulsar
+## processes in place of musl's
+FROM alpine:$ALPINE_VERSION AS mimalloc
+# The build passes the version of gradle/libs.versions.toml
+ARG MIMALLOC_VERSION=3.5.3
+RUN apk add --no-cache build-base cmake ninja curl linux-headers
+RUN curl -fsSL https://github.com/microsoft/mimalloc/archive/refs/tags/v${MIMALLOC_VERSION}.tar.gz | tar -xz \
+    && mv mimalloc-${MIMALLOC_VERSION} mimalloc
+RUN CFLAGS="-D__USE_ISOC11" cmake -S mimalloc -B build -G Ninja \
+      -DCMAKE_BUILD_TYPE=Release -DMI_SECURE=OFF \
+      -DMI_NO_OPT_ARCH=ON -DMI_INSTALL_TOPLEVEL=ON -DCMAKE_INSTALL_PREFIX=/usr \
+      -DMI_BUILD_TESTS=OFF -DMI_LIBC_MUSL=ON \
+    && cmake --build build && cmake --install build
+
 ## Create final stage from Alpine image
 ## and add OpenJDK and Python dependencies (for Pulsar functions)
 FROM alpine:$ALPINE_VERSION
@@ -190,7 +204,13 @@ RUN pip3 install --break-system-packages --no-cache-dir \
 COPY --from=jvm /opt/jvm /opt/jvm
 ENV JAVA_HOME=/opt/jvm
 
+# Match the compiled server target; custom builds may override this build argument.
+ARG PULSAR_MIN_JAVA_VERSION=21
+ENV PULSAR_MIN_JAVA_VERSION=${PULSAR_MIN_JAVA_VERSION}
+
 COPY --from=snappy-java /tmp/libsnappyjava.so /usr/lib/libsnappyjava.so
+# The shared library itself, which the install links as libmimalloc.so and libmimalloc.so.3
+COPY --from=mimalloc /usr/lib/libmimalloc.so.3.5 /usr/lib/libmimalloc.so.3
 
 # The default is /pulsat/bin and cannot be written.
 ENV PULSAR_PID_DIR=/pulsar/logs
@@ -204,8 +224,10 @@ WORKDIR /pulsar
 ENV PATH=$PATH:$JAVA_HOME/bin:/pulsar/bin
 # Use musl libc library for RocksDB
 ENV ROCKSDB_MUSL_LIBC=true
-# Preload gcompat library for glibc compatibility with Netty native libraries
-ENV LD_PRELOAD=/lib/libgcompat.so.0
+# Preload mimalloc, which replaces musl's malloc: musl maps and unmaps each allocation of 128 KB or more, such as the
+# chunks of Netty's buffer allocators, see https://github.com/apache/pulsar/issues/26786. Then preload gcompat library
+# for glibc compatibility with Netty native libraries.
+ENV LD_PRELOAD=/usr/lib/libmimalloc.so.3:/lib/libgcompat.so.0
 
 # The UID must be non-zero. Otherwise, it is arbitrary. No logic should rely on its specific value.
 ARG DEFAULT_USERNAME=pulsar

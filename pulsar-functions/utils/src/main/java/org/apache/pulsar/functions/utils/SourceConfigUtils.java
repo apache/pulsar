@@ -185,6 +185,9 @@ public class SourceConfigUtils {
             functionDetails.setCustomRuntimeOptions(sourceConfig.getCustomRuntimeOptions());
         }
 
+        functionDetails.setClientApi(FunctionCommon.convertClientApi(sourceConfig.getClientApi()));
+        ClientApiResolver.resolve(functionDetails);
+
         return FunctionConfigUtils.validateFunctionDetails(functionDetails);
     }
 
@@ -240,6 +243,7 @@ public class SourceConfigUtils {
         if (!isEmpty(functionDetails.getLogTopic())) {
             sourceConfig.setLogTopic(functionDetails.getLogTopic());
         }
+        sourceConfig.setClientApi(FunctionCommon.convertClientApi(functionDetails.getClientApi()));
         if (functionDetails.hasResources()) {
             Resources resources = new Resources();
             resources.setCpu(functionDetails.getResources().getCpu());
@@ -408,6 +412,9 @@ public class SourceConfigUtils {
         }
         if (!StringUtils.isEmpty(newConfig.getLogTopic())) {
             mergedConfig.setLogTopic(newConfig.getLogTopic());
+        }
+        if (newConfig.getClientApi() != null) {
+            mergedConfig.setClientApi(newConfig.getClientApi());
         }
         if (newConfig.getProcessingGuarantees() != null && !newConfig.getProcessingGuarantees()
                 .equals(existingConfig.getProcessingGuarantees())) {
