@@ -88,14 +88,18 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.resources.NamespaceResources;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.PulsarMetadataEventSynchronizer.State;
+import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.BrokerOperabilityMetrics.TopicLoadFailureReason;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
+import org.apache.pulsar.broker.testinterceptor.BrokerTestInterceptor;
 import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
@@ -135,6 +139,7 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.utils.TestLogAppender;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.MockZooKeeper;
 import org.awaitility.Awaitility;
@@ -2624,6 +2629,95 @@ public class BrokerServiceTest extends BrokerTestBase {
             restartBroker(configuration -> {
                 configuration.setSystemTopicEnabled(false);
                 configuration.setTopicPoliciesServiceClassName(MockTopicPoliciesService.class.getName());
+            });
+        }
+    }
+
+    @DataProvider
+    public Object[][] nonPersistentNamespacePolicyCleanupFailures() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "nonPersistentNamespacePolicyCleanupFailures", timeOut = 60000)
+    public void testNonPersistentNamespacePolicyFailurePreservesOriginalException(boolean failCleanup)
+            throws Exception {
+        String originalTopicFactory = conf.getTopicFactoryClassName();
+        restartBroker(configuration -> {
+            configuration.setSystemTopicEnabled(true);
+            configuration.setTopicPoliciesServiceClassName(SystemTopicBasedTopicPoliciesService.class.getName());
+            configuration.setTopicFactoryClassName(BrokerTestInterceptor.TestTopicFactory.class.getName());
+        });
+        String topic = "non-persistent://prop/ns-abc/namespace-policy-load-failure-" + UUID.randomUUID();
+        TopicName topicName = TopicName.get(topic);
+        PulsarResources originalResources = pulsar.getPulsarResources();
+        SystemTopicBasedTopicPoliciesService originalPoliciesService =
+                (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+        ThreadLocal<Boolean> initializing = new ThreadLocal<>();
+        RuntimeException initializationFailure = new RuntimeException("Injected namespace policy read failure");
+        RuntimeException cleanupFailure = new RuntimeException("Injected topic cleanup failure");
+        AtomicReference<NonPersistentTopic> failedTopic = new AtomicReference<>();
+        try (TestLogAppender logAppender = TestLogAppender.create(BrokerService.class)) {
+            admin.lookups().lookupTopic(topic);
+            BrokerTestInterceptor.INSTANCE.setNonPersistentTopicDecorator(created -> {
+                NonPersistentTopic decorated = spy(created);
+                doAnswer(invocation -> {
+                    initializing.set(true);
+                    try {
+                        return invocation.callRealMethod();
+                    } finally {
+                        initializing.remove();
+                    }
+                }).when(decorated).initialize();
+                if (failCleanup) {
+                    doAnswer(invocation -> {
+                        CompletableFuture<Void> closed = (CompletableFuture<Void>) invocation.callRealMethod();
+                        return closed.thenCompose(__ -> CompletableFuture.failedFuture(cleanupFailure));
+                    }).when(decorated).close(true, true);
+                }
+                failedTopic.set(decorated);
+                return decorated;
+            });
+            PulsarResources resources = spy(originalResources);
+            NamespaceResources namespaceResources = spy(originalResources.getNamespaceResources());
+            doReturn(namespaceResources).when(resources).getNamespaceResources();
+            doReturn(resources).when(pulsar).getPulsarResources();
+            doAnswer(invocation -> Boolean.TRUE.equals(initializing.get())
+                    ? CompletableFuture.failedFuture(initializationFailure) : invocation.callRealMethod())
+                    .when(namespaceResources).getPoliciesAsync(topicName.getNamespaceObject());
+            SystemTopicBasedTopicPoliciesService policiesService = spy(originalPoliciesService);
+            doReturn(policiesService).when(pulsar).getTopicPoliciesService();
+
+            BrokerService brokerService = pulsar.getBrokerService();
+            assertThatThrownBy(() -> brokerService.getTopic(topic, true).get(10, TimeUnit.SECONDS))
+                    .hasRootCause(initializationFailure);
+            assertThat(failedTopic.get()).isNotNull();
+            Mockito.verify(policiesService, Mockito.never()).registerListenerAsync(Mockito.eq(topicName), any());
+            Mockito.verify(policiesService).unregisterListener(Mockito.eq(topicName), any());
+            Awaitility.await().untilAsserted(() -> {
+                assertThat(brokerService.getTopics()).doesNotContainKey(topic);
+                assertThat(policiesService.getListeners()).doesNotContainKey(topicName);
+            });
+            assertThat(logAppender.getEvents()).filteredOn(event -> event.getMessage().getFormattedMessage()
+                    .contains("Failed to close partially initialized non-persistent topic"))
+                    .hasSize(failCleanup ? 1 : 0);
+
+            BrokerTestInterceptor.INSTANCE.reset();
+            doReturn(originalResources).when(pulsar).getPulsarResources();
+            Topic recoveredTopic = brokerService.getTopic(topic, true).get(10, TimeUnit.SECONDS).orElseThrow();
+            assertThat(recoveredTopic).isNotSameAs(failedTopic.get());
+            assertThat(policiesService.getListeners().get(topicName)).hasSize(1);
+            try (Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create()) {
+                producer.send(new byte[0]);
+            }
+            recoveredTopic.close(false).get(10, TimeUnit.SECONDS);
+        } finally {
+            BrokerTestInterceptor.INSTANCE.reset();
+            doReturn(originalResources).when(pulsar).getPulsarResources();
+            doReturn(originalPoliciesService).when(pulsar).getTopicPoliciesService();
+            restartBroker(configuration -> {
+                configuration.setSystemTopicEnabled(false);
+                configuration.setTopicPoliciesServiceClassName(MockTopicPoliciesService.class.getName());
+                configuration.setTopicFactoryClassName(originalTopicFactory);
             });
         }
     }
