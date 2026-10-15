@@ -1518,6 +1518,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         // and return undecrypted payload
         if (isMessageUndecryptable || (numMessages == 1 && !msgMetadata.hasNumMessagesInBatch())) {
 
+            MessageIdImpl[] chunkedMessageIds = null;
             if (isChunkedMessage) {
                 uncompressedPayload = processMessageChunk(uncompressedPayload, msgMetadata, msgId, messageId, cnx);
                 if (uncompressedPayload == null) {
@@ -1537,8 +1538,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     msgId = new ChunkMessageIdImpl(chunkedMsgCtx.chunkedMessageIds[0],
                             chunkedMsgCtx.chunkedMessageIds[chunkedMsgCtx.chunkedMessageIds.length - 1]);
                 }
-                // add chunked messageId to unack-message tracker, and reduce pending-chunked-message count
-                unAckedChunkedMessageIdSequenceMap.put(msgId, chunkedMsgCtx.chunkedMessageIds);
+                chunkedMessageIds = chunkedMsgCtx.chunkedMessageIds;
                 pendingChunkedMessageCount--;
                 // The completed message's uuid was added to pendingChunkedMessageUuidQueue when its
                 // first chunk arrived, but is only ever removed by the eviction/expiry paths. On the
@@ -1565,6 +1565,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 final int chargedPermits = ackSet.length > 0 ? BitSet.valueOf(ackSet).cardinality() : numMessages;
                 increaseAvailablePermits(cnx, chargedPermits);
                 return;
+            }
+
+            if (chunkedMessageIds != null) {
+                // Only register messages that pass filtering and can be acknowledged by the application.
+                unAckedChunkedMessageIdSequenceMap.put(msgId, chunkedMessageIds);
             }
 
             final MessageImpl<T> message =
