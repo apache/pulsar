@@ -34,6 +34,7 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collections;
@@ -48,6 +49,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -167,59 +169,102 @@ public class ConsumerImplTest {
         final int rounds = 5;
         final int iterations = 50000;
         final AtomicReference<Throwable> error = new AtomicReference<>();
+        // The workers use this consumer rather than the field, which the next test's setup reassigns, and they stop
+        // on this flag: if the test is interrupted (TestNG's timeout) the finally below stops them before teardown.
+        final ConsumerImpl<byte[]> target = consumer;
+        final AtomicBoolean stop = new AtomicBoolean();
+        final List<Thread> workers = new ArrayList<>();
 
-        for (int round = 0; round < rounds && error.get() == null; round++) {
-            final int currentRound = round;
-            final CountDownLatch start = new CountDownLatch(1);
-            Thread receiver = new Thread(() -> {
-                try {
-                    start.await();
-                    for (int i = 0; i < iterations && error.get() == null; i++) {
-                        String uuid = "uuid-" + currentRound + "-" + i;
-                        sendChunk(uuid, 0, 3);
-                        ConsumerImpl.ChunkedMessageCtx ctx = consumer.chunkedMessagesMap.get(uuid);
-                        if (ctx != null) {
-                            // Make it eligible for removeExpireIncompleteChunkedMessages right away.
-                            ctx.receivedTime = 0;
+        try {
+            for (int round = 0; round < rounds && error.get() == null; round++) {
+                final int currentRound = round;
+                final CountDownLatch start = new CountDownLatch(1);
+                Thread receiver = new Thread(() -> {
+                    try {
+                        start.await();
+                        for (int i = 0; i < iterations && error.get() == null && !stop.get(); i++) {
+                            String uuid = "uuid-" + currentRound + "-" + i;
+                            sendChunk(target, uuid, 0, 3);
+                            ConsumerImpl.ChunkedMessageCtx ctx = target.chunkedMessagesMap.get(uuid);
+                            if (ctx != null) {
+                                // Make it eligible for removeExpireIncompleteChunkedMessages right away.
+                                ctx.receivedTime = 0;
+                            }
+                            // Late chunk for the now-expiring uuid -> writes into the same ctx buffer.
+                            sendChunk(target, uuid, 1, 3);
                         }
-                        // Late chunk for the now-expiring uuid -> writes into the same ctx buffer.
-                        sendChunk(uuid, 1, 3);
+                    } catch (Throwable t) {
+                        error.compareAndSet(null, t);
                     }
-                } catch (Throwable t) {
-                    error.compareAndSet(null, t);
-                }
-            }, "receiver-netty-sim");
+                }, "receiver-netty-sim");
 
-            Thread expirer = new Thread(() -> {
-                try {
-                    start.await();
-                    while (receiver.isAlive() || !consumer.chunkedMessagesMap.isEmpty()) {
-                        consumer.removeExpireIncompleteChunkedMessages();
+                Thread expirer = new Thread(() -> {
+                    try {
+                        start.await();
+                        // also stop on a failure: corrupted state may never drain the map
+                        while (!stop.get() && error.get() == null
+                                && (receiver.isAlive() || !target.chunkedMessagesMap.isEmpty())) {
+                            target.removeExpireIncompleteChunkedMessages();
+                        }
+                    } catch (Throwable t) {
+                        error.compareAndSet(null, t);
                     }
-                } catch (Throwable t) {
-                    error.compareAndSet(null, t);
-                }
-            }, "expirer-pinned");
+                }, "expirer-pinned");
 
-            receiver.start();
-            expirer.start();
-            start.countDown();
-            receiver.join();
-            expirer.join();
-        }
+                workers.add(receiver);
+                workers.add(expirer);
+                receiver.start();
+                expirer.start();
+                start.countDown();
+                receiver.join();
+                expirer.join();
+            }
 
-        if (error.get() != null) {
-            throw new AssertionError("chunked-message bookkeeping race: concurrent ctx/buffer access corrupted state",
-                    error.get());
+            if (error.get() != null) {
+                throw new AssertionError(
+                        "chunked-message bookkeeping race: concurrent ctx/buffer access corrupted state", error.get());
+            }
+            int count = target.pendingChunkedMessageCount;
+            int mapSize = target.chunkedMessagesMap.size();
+            Assert.assertEquals(count, mapSize, "pendingChunkedMessageCount (" + count
+                    + ") drifted from chunkedMessagesMap.size() (" + mapSize + ")");
+        } finally {
+            // Partial buffers can be released only once no worker can touch them any more; if one is still running
+            // after the bounded wait, leaking them is preferable to a use-after-free.
+            if (stopWorkers(stop, workers, 10_000)) {
+                releasePendingChunkedMessages(target);
+            }
         }
-        int count = consumer.pendingChunkedMessageCount;
-        int mapSize = consumer.chunkedMessagesMap.size();
-        Assert.assertEquals(count, mapSize, "pendingChunkedMessageCount (" + count
-                + ") drifted from chunkedMessagesMap.size() (" + mapSize + ")");
+    }
+
+    /**
+     * Asks the workers to stop and waits for them, in total at most {@code timeoutMillis}; returns whether all of them
+     * have exited. An interrupt ends the wait early and is preserved for the caller.
+     */
+    private static boolean stopWorkers(AtomicBoolean stop, List<Thread> workers, long timeoutMillis) {
+        stop.set(true);
+        long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
+        for (Thread worker : workers) {
+            long remainingMillis = TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime());
+            if (remainingMillis <= 0) {
+                break;
+            }
+            try {
+                worker.join(remainingMillis);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+        return workers.stream().noneMatch(Thread::isAlive);
     }
 
     private void sendChunk(String uuid, int chunkId, int numChunks) {
-        sendChunk(uuid, chunkId, numChunks, chunkId);
+        sendChunk(consumer, uuid, chunkId, numChunks);
+    }
+
+    private static void sendChunk(ConsumerImpl<byte[]> target, String uuid, int chunkId, int numChunks) {
+        sendChunk(target, uuid, chunkId, numChunks, chunkId, new byte[] {1, 2, 3, 4});
     }
 
     /**
@@ -234,6 +279,11 @@ public class ConsumerImplTest {
     private static final int CHUNK_TOTAL_MSG_SIZE = 64;
 
     private void sendChunk(String uuid, int chunkId, int numChunks, long entryId, byte[] payload) {
+        sendChunk(consumer, uuid, chunkId, numChunks, entryId, payload);
+    }
+
+    private static void sendChunk(ConsumerImpl<byte[]> target, String uuid, int chunkId, int numChunks, long entryId,
+                                  byte[] payload) {
         MessageMetadata md = new MessageMetadata()
                 .setProducerName("p").setSequenceId(0).setPublishTime(System.currentTimeMillis())
                 .setUuid(uuid).setChunkId(chunkId).setNumChunksFromMsg(numChunks)
@@ -242,7 +292,7 @@ public class ConsumerImplTest {
         MessageIdData idData = new MessageIdData().setLedgerId(1L).setEntryId(entryId);
         MessageIdImpl msgId = new MessageIdImpl(1L, entryId, -1);
         ByteBuf chunk = Unpooled.wrappedBuffer(payload);
-        consumer.processMessageChunk(chunk, md, msgId, idData, null);
+        target.processMessageChunk(chunk, md, msgId, idData, null);
     }
 
     /**
@@ -289,12 +339,16 @@ public class ConsumerImplTest {
      * Releases every partial chunked message still held by the consumer, for tests that intentionally leave one.
      */
     private void releasePendingChunkedMessages() {
-        for (ConsumerImpl.ChunkedMessageCtx ctx : consumer.chunkedMessagesMap.values()) {
+        releasePendingChunkedMessages(consumer);
+    }
+
+    private static void releasePendingChunkedMessages(ConsumerImpl<byte[]> target) {
+        for (ConsumerImpl.ChunkedMessageCtx ctx : target.chunkedMessagesMap.values()) {
             if (ctx.chunkedMsgBuffer != null) {
                 ctx.chunkedMsgBuffer.release();
             }
         }
-        consumer.chunkedMessagesMap.clear();
+        target.chunkedMessagesMap.clear();
     }
 
     /**
