@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
@@ -60,17 +61,86 @@ public class ConsumerRedeliveryTest extends SharedPulsarBaseTest {
         return new Object[][] { { SubscriptionType.Shared }, { SubscriptionType.Key_Shared } };
     }
 
-    @DataProvider(name = "zeroCountRedeliveryVariants")
-    public Object[][] zeroCountRedeliveryVariants() {
+    @DataProvider(name = "conflictingBatchAckRedeliveryVariants")
+    public Object[][] conflictingBatchAckRedeliveryVariants() {
         return new Object[][] {
                 { SubscriptionType.Shared, false }, { SubscriptionType.Shared, true },
                 { SubscriptionType.Key_Shared, false }, { SubscriptionType.Key_Shared, true }
         };
     }
 
-    @Test(dataProvider = "zeroCountRedeliveryVariants", timeOut = 90_000)
-    public void testZeroCountSelectiveRedeliveryPreservesBackpressure(SubscriptionType subscriptionType,
-                                                                     boolean includePendingPosition) throws Exception {
+    @Test(dataProvider = "conflictingBatchAckRedeliveryVariants", timeOut = 60_000)
+    public void testSelectiveRedeliveryAfterConflictingTransactionalBatchAck(SubscriptionType subscriptionType,
+                                                                            boolean includePendingPosition)
+            throws Exception {
+        String topic = newTopicName();
+        @Cleanup
+        PulsarClient transactionClient = PulsarClient.builder().serviceUrl(getBrokerServiceUrl())
+                .enableTransaction(true).build();
+        @Cleanup
+        Producer<Integer> producer = transactionClient.newProducer(Schema.INT32).topic(topic)
+                .batcherBuilder(BatcherBuilder.KEY_BASED).batchingMaxMessages(2)
+                .batchingMaxPublishDelay(1, TimeUnit.HOURS).create();
+        @Cleanup
+        ConsumerImpl<Integer> consumer = (ConsumerImpl<Integer>) transactionClient.newConsumer(Schema.INT32)
+                .topic(topic).subscriptionName("sub").subscriptionType(subscriptionType)
+                .enableBatchIndexAcknowledgment(true).isAckReceiptEnabled(true)
+                .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS).subscribe();
+        List<CompletableFuture<MessageId>> sends = new ArrayList<>();
+        for (int i = 0; i < 2; i++) {
+            sends.add(producer.newMessage().key("key").value(i).sendAsync());
+        }
+        FutureUtil.waitForAll(sends).get(10, TimeUnit.SECONDS);
+        Message<Integer> first = consumer.receive(10, TimeUnit.SECONDS);
+        Message<Integer> last = consumer.receive(10, TimeUnit.SECONDS);
+        assertThat(first).isNotNull();
+        assertThat(last).isNotNull();
+        List<Message<Integer>> unacked = new ArrayList<>();
+        unacked.add(last);
+        if (includePendingPosition) {
+            sends.clear();
+            for (int i = 2; i < 4; i++) {
+                sends.add(producer.newMessage().key("key").value(i).sendAsync());
+            }
+            FutureUtil.waitForAll(sends).get(10, TimeUnit.SECONDS);
+            for (int i = 0; i < 2; i++) {
+                Message<Integer> message = consumer.receive(10, TimeUnit.SECONDS);
+                assertThat(message).isNotNull();
+                unacked.add(message);
+            }
+        }
+        Transaction transaction = transactionClient.newTransaction().withTransactionTimeout(2, TimeUnit.MINUTES)
+                .build().get(10, TimeUnit.SECONDS);
+        Transaction conflictingTransaction = transactionClient.newTransaction()
+                .withTransactionTimeout(2, TimeUnit.MINUTES).build().get(10, TimeUnit.SECONDS);
+        try {
+            consumer.acknowledgeAsync(first.getMessageId(), transaction).get(10, TimeUnit.SECONDS);
+            assertThatThrownBy(() -> consumer.acknowledgeAsync(first.getMessageId(), conflictingTransaction)
+                    .get(10, TimeUnit.SECONDS))
+                    .hasCauseInstanceOf(PulsarClientException.TransactionConflictException.class);
+            transaction.commit().get(10, TimeUnit.SECONDS);
+
+            Set<MessageId> requested = unacked.stream().map(Message::getMessageId).collect(Collectors.toSet());
+            consumer.redeliverUnacknowledgedMessages(requested);
+            Set<MessageId> redelivered = new HashSet<>();
+            for (int i = 0; i < unacked.size(); i++) {
+                Message<Integer> message = consumer.receive(10, TimeUnit.SECONDS);
+                assertThat(message).as("untouched batch indexes must remain selectively redeliverable").isNotNull();
+                redelivered.add(message.getMessageId());
+                consumer.acknowledgeAsync(message).get(10, TimeUnit.SECONDS);
+            }
+            assertThat(redelivered).containsExactlyInAnyOrderElementsOf(requested);
+        } finally {
+            if (transaction.getState() == Transaction.State.OPEN) {
+                transaction.abort().get(10, TimeUnit.SECONDS);
+            }
+            conflictingTransaction.abort().get(10, TimeUnit.SECONDS);
+        }
+    }
+
+    @Test(dataProvider = "individualRedeliverySubscriptionTypes", timeOut = 90_000)
+    public void testZeroCountSelectiveRedeliveryPreservesBackpressure(SubscriptionType subscriptionType)
+            throws Exception {
         String topic = newTopicName();
         int maxUnackedMessages = 10;
         int batchSize = 2;
@@ -135,11 +205,9 @@ public class ConsumerRedeliveryTest extends SharedPulsarBaseTest {
                 sends.add(producer.newMessage().key("key").value(i + batchSize).sendAsync());
             }
             FutureUtil.waitForAll(sends).get(10, TimeUnit.SECONDS);
-            List<Message<Integer>> unacked = new ArrayList<>();
             for (int i = 0; i < maxUnackedMessages; i++) {
                 Message<Integer> message = consumer.receive(10, TimeUnit.SECONDS);
                 assertThat(message).isNotNull();
-                unacked.add(message);
             }
             consumer.getLastMessageIdsAsync().get(10, TimeUnit.SECONDS);
             assertThat(brokerConsumer.isBlocked()).isTrue();
@@ -147,28 +215,11 @@ public class ConsumerRedeliveryTest extends SharedPulsarBaseTest {
             consumer.increaseAvailablePermits(maxUnackedMessages);
             consumer.getLastMessageIdsAsync().get(10, TimeUnit.SECONDS);
             int availablePermits = brokerConsumer.getAvailablePermits();
-            Set<MessageId> requested = new HashSet<>();
-            requested.add(last.getMessageId());
-            if (includePendingPosition) {
-                requested.add(unacked.get(0).getMessageId());
-            }
-            consumer.redeliverUnacknowledgedMessages(requested);
-            if (includePendingPosition) {
-                Set<MessageId> redelivered = new HashSet<>();
-                for (int i = 0; i < batchSize; i++) {
-                    Message<Integer> message = consumer.receive(10, TimeUnit.SECONDS);
-                    assertThat(message).isNotNull();
-                    redelivered.add(message.getMessageId());
-                }
-                assertThat(redelivered).containsExactlyInAnyOrder(
-                        unacked.get(0).getMessageId(), unacked.get(1).getMessageId());
-            }
+            consumer.redeliverUnacknowledgedMessages(Set.of(last.getMessageId()));
             consumer.getLastMessageIdsAsync().get(10, TimeUnit.SECONDS);
             assertThat(brokerConsumer.isBlocked()).as("zero-count positions must not release backpressure").isTrue();
             assertThat(brokerConsumer.getUnackedMessages()).isEqualTo(maxUnackedMessages);
-            if (!includePendingPosition) {
-                assertThat(brokerConsumer.getAvailablePermits()).isEqualTo(availablePermits);
-            }
+            assertThat(brokerConsumer.getAvailablePermits()).isEqualTo(availablePermits);
         } finally {
             releaseExecutor.countDown();
             if (pauseTask != null) {

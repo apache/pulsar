@@ -1514,14 +1514,18 @@ public class Consumer {
             Position position = PositionFactory.create(msg.getLedgerId(), msg.getEntryId());
             int remainingUnacked = pendingAcks.removeAndGetRemainingUnacked(
                     position.getLedgerId(), position.getEntryId());
-            if (remainingUnacked > 0) {
+            if (remainingUnacked != PENDING_ACK_NOT_FOUND) {
                 totalRedeliveryMessages += remainingUnacked;
                 pendingPositions.add(position);
             }
         }
 
         if (totalRedeliveryMessages == 0) {
-            // Only removing unacknowledged messages can release backpressure and deferred permits.
+            // A rejected transactional ACK can leave a zero count with unacked batch indexes.
+            // Preserve replay without releasing backpressure or deferred permits.
+            if (!pendingPositions.isEmpty()) {
+                subscription.redeliverUnacknowledgedMessages(this, pendingPositions);
+            }
             return;
         }
 
