@@ -23,6 +23,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertSame;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -233,16 +234,21 @@ public class CompressorCodecTest {
 
     /**
      * Each row is an input that the codec must reject: the Airlift codecs reject an output buffer smaller than the
-     * data, ZLib rejects a decoded size that differs from the advertised one and corrupt input.
+     * data, ZLib rejects a decoded size that differs from the advertised one and corrupt input. The Airlift codecs
+     * decompress through raw memory addresses when both buffers are direct and through NIO buffers otherwise, so
+     * each of them is exercised with heap and with direct buffers; ZLib has only the heap path.
      */
     @DataProvider(name = "decodeFailure")
     public Object[][] decodeFailureProvider() {
         return new Object[][] {
-                { CompressionType.LZ4, -1, false },
-                { CompressionType.SNAPPY, -1, false },
-                { CompressionType.ZSTD, -1, false },
-                { CompressionType.ZLIB, +1, false },
-                { CompressionType.ZLIB, 0, true },
+                { CompressionType.LZ4, -1, false, false },
+                { CompressionType.LZ4, -1, false, true },
+                { CompressionType.SNAPPY, -1, false, false },
+                { CompressionType.SNAPPY, -1, false, true },
+                { CompressionType.ZSTD, -1, false, false },
+                { CompressionType.ZSTD, -1, false, true },
+                { CompressionType.ZLIB, +1, false, false },
+                { CompressionType.ZLIB, 0, true, false },
         };
     }
 
@@ -251,10 +257,14 @@ public class CompressorCodecTest {
      * built on a recording allocator so the test can hold that buffer without the codec handing it out.
      */
     @Test(dataProvider = "decodeFailure")
-    void testFailedDecodeReleasesOutputBuffer(CompressionType type, int lengthDelta, boolean corruptInput)
-            throws IOException {
+    void testFailedDecodeReleasesOutputBuffer(CompressionType type, int lengthDelta, boolean corruptInput,
+                                              boolean direct) throws IOException {
         byte[] data = text.getBytes(StandardCharsets.UTF_8);
-        ByteBuf compressed = CompressionCodecProvider.getCompressionCodec(type).encode(Unpooled.wrappedBuffer(data));
+        ByteBuf encoded = CompressionCodecProvider.getCompressionCodec(type).encode(Unpooled.wrappedBuffer(data));
+        ByteBuf compressed = direct ? Unpooled.directBuffer(encoded.readableBytes()).writeBytes(encoded) : encoded;
+        if (compressed != encoded) {
+            encoded.release();
+        }
         if (corruptInput) {
             for (int i = compressed.readerIndex(); i < compressed.writerIndex(); i++) {
                 compressed.setByte(i, ~compressed.getByte(i));
@@ -263,7 +273,9 @@ public class CompressorCodecTest {
 
         List<ByteBuf> allocated = new ArrayList<>();
         ByteBufAllocator recordingAllocator = mock(ByteBufAllocator.class);
-        doAnswer(invocation -> record(allocated, Unpooled.buffer(invocation.getArgument(0), invocation.getArgument(1))))
+        doAnswer(invocation -> record(allocated, direct
+                ? Unpooled.directBuffer(invocation.getArgument(0), invocation.getArgument(1))
+                : Unpooled.buffer(invocation.getArgument(0), invocation.getArgument(1))))
                 .when(recordingAllocator).buffer(anyInt(), anyInt());
         doAnswer(invocation -> record(allocated, Unpooled.buffer(invocation.getArgument(0), invocation.getArgument(1))))
                 .when(recordingAllocator).heapBuffer(anyInt(), anyInt());
@@ -285,6 +297,11 @@ public class CompressorCodecTest {
             compressed.release();
         }
         assertEquals(allocated.size(), 1, "decode allocates exactly one output buffer");
+        if (direct) {
+            // both buffers must expose a memory address, or the codec silently took the NIO path instead
+            assertTrue(compressed.hasMemoryAddress() && allocated.get(0).hasMemoryAddress(),
+                    "the direct variant must reach the memory-address decompression branch");
+        }
         assertEquals(allocated.get(0).refCnt(), 0, "the output buffer of a failed decode was not released");
     }
 
