@@ -537,7 +537,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             }
             consumerToMessageIds.forEach((consumer, messageIds) -> {
                 resultFutures.add(consumer.doAcknowledgeWithTxn(messageIds, ackType, properties, txn)
-                        .thenAccept((res) -> messageIdList.forEach(unAckedMessageTracker::remove)));
+                        .thenAccept((res) -> messageIds.forEach(unAckedMessageTracker::remove)));
             });
         }
         return CompletableFuture.allOf(resultFutures.toArray(new CompletableFuture[0]));

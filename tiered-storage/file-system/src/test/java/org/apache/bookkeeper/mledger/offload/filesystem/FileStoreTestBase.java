@@ -24,6 +24,7 @@ import java.nio.file.Files;
 import java.util.Properties;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
 import org.apache.bookkeeper.mledger.offload.filesystem.impl.FileSystemManagedLedgerOffloader;
@@ -38,6 +39,7 @@ import org.testng.annotations.BeforeMethod;
 public abstract class FileStoreTestBase {
     protected FileSystemManagedLedgerOffloader fileSystemManagedLedgerOffloader;
     protected OrderedScheduler scheduler;
+    protected OrderedExecutor bkExecutor;
     protected final String basePath = "pulsar";
     private MiniDFSCluster hdfsCluster;
     private String hdfsURI;
@@ -51,6 +53,8 @@ public abstract class FileStoreTestBase {
 
     public void init() throws Exception {
         scheduler = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("offloader").build();
+        // The mock BookKeeper client needs an OrderedExecutor (not an OrderedScheduler) as its main worker pool.
+        bkExecutor = OrderedExecutor.newBuilder().numThreads(1).name("offloader-bk").build();
     }
 
     @AfterClass(alwaysRun = true)
@@ -62,6 +66,10 @@ public abstract class FileStoreTestBase {
         if (scheduler != null) {
             scheduler.shutdownNow();
             scheduler = null;
+        }
+        if (bkExecutor != null) {
+            bkExecutor.shutdownNow();
+            bkExecutor = null;
         }
     }
 

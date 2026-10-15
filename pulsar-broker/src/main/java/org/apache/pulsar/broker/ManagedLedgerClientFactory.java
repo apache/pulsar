@@ -79,17 +79,10 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
         managedLedgerFactoryConfig.setCacheEvictionIntervalMs(conf.getManagedLedgerCacheEvictionIntervalMs());
         managedLedgerFactoryConfig.setCacheEvictionTimeThresholdMillis(
                 conf.getManagedLedgerCacheEvictionTimeThresholdMillis());
-        Long continueCachingAddedEntriesAfterLastActiveCursorLeavesMillis =
-                conf.getManagedLedgerContinueCachingAddedEntriesAfterLastActiveCursorLeavesMillis();
-        if (continueCachingAddedEntriesAfterLastActiveCursorLeavesMillis != null) {
-            managedLedgerFactoryConfig.setContinueCachingAddedEntriesAfterLastActiveCursorLeavesMillis(
-                    continueCachingAddedEntriesAfterLastActiveCursorLeavesMillis);
-        } else {
-            // default to 2 * managedLedgerCacheEvictionTimeThresholdMillis if the value is unset
-            managedLedgerFactoryConfig.setContinueCachingAddedEntriesAfterLastActiveCursorLeavesMillis(
-                    2 * conf.getManagedLedgerCacheEvictionTimeThresholdMillis()
-            );
-        }
+        managedLedgerFactoryConfig.setCacheEvictionExtendTTLOfRecentlyAccessed(
+                conf.isManagedLedgerCacheEvictionExtendTTLOfRecentlyAccessed());
+        managedLedgerFactoryConfig.setCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes(
+                conf.getManagedLedgerCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes());
         managedLedgerFactoryConfig.setCopyEntriesInCache(conf.isManagedLedgerCacheCopyEntries());
         Long managedLedgerMaxReadsInFlightSizeInMB = conf.getManagedLedgerMaxReadsInFlightSizeInMB();
         // A single dispatcher read can retain up to dispatcherMaxReadSizeBytes bytes. The in-flight reads

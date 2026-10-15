@@ -406,6 +406,14 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     @JsonIgnore
     private KeySharedPolicy keySharedPolicy;
 
+    /**
+     * PIP-486 (internal): the Key_Shared subscription dispatches whole entries by their
+     * producer-stamped entry-bucket hash range instead of hashing each message's key. Set only by
+     * the scalable-topic consumer when it shares a segment by entry-bucket.
+     */
+    @JsonIgnore
+    private boolean entryBucketDispatch = false;
+
     private boolean batchIndexAckEnabled = true;
 
     private boolean ackReceiptEnabled = false;
