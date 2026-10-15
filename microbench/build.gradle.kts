@@ -27,6 +27,9 @@ plugins {
 dependencies {
     api(project(":managed-ledger"))
     implementation(project(":pulsar-common"))
+    implementation(project(":pulsar-client-v5"))
+    implementation(libs.mockito.core)
+    implementation(libs.protobuf.java)
     implementation(project(":pulsar-testclient"))
     api(project(":pulsar-broker"))
     implementation(libs.bookkeeper.server)

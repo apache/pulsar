@@ -637,6 +637,23 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
     }
 
     @Test
+    public void testEnableBrokerDeleteInactiveTopicsDynamically() throws Exception {
+        conf.setBrokerDeleteInactiveTopicsEnabled(false);
+        conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
+        conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
+        conf.setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(1);
+        super.baseSetup();
+
+        // Loaded while deletion is disabled, so the topic itself must pick up the change.
+        final String topic = "persistent://prop/ns-abc/testEnableBrokerDeleteInactiveTopicsDynamically";
+        pulsarClient.newProducer().topic(topic).create().close();
+        assertTrue(pulsar.getBrokerService().getTopicReference(topic).isPresent());
+
+        admin.brokers().updateDynamicConfiguration("brokerDeleteInactiveTopicsEnabled", "true");
+        Awaitility.await().untilAsserted(() -> assertFalse(admin.topics().getList("prop/ns-abc").contains(topic)));
+    }
+
+    @Test
     public void testDynamicConfigurationBrokerDeleteInactiveTopicsFrequencySeconds() throws Exception {
         conf.setBrokerDeleteInactiveTopicsFrequencySeconds(30);
         super.baseSetup();

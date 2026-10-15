@@ -92,6 +92,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected final MessageListenerExecutor messageListenerExecutor;
     protected final ExecutorService externalPinnedExecutor;
     protected final ExecutorService internalPinnedExecutor;
+    private final ListenerTaskScheduler listenerTaskScheduler;
     protected final UnAckedMessageTracker unAckedMessageTracker;
     final GrowableArrayBlockingQueue<Message<T>> incomingMessages;
     protected Map<MessageIdAdv, MessageIdImpl[]> unAckedChunkedMessageIdSequenceMap = new ConcurrentHashMap<>();
@@ -164,6 +165,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                 : conf.getMessageListenerExecutor();
         this.externalPinnedExecutor = executorProvider.getExecutor();
         this.internalPinnedExecutor = client.getInternalExecutorService();
+        this.listenerTaskScheduler = listener == null
+                ? null : new ListenerTaskScheduler(internalPinnedExecutor, this::drainListener);
         this.pendingReceives = Queues.newConcurrentLinkedQueue();
         this.pendingBatchReceives = Queues.newConcurrentLinkedQueue();
         this.schema = schema;
@@ -1221,26 +1224,36 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         // The messages are added into the receiver queue by the internal pinned executor,
         // so need to use internal pinned executor to avoid race condition which message
         // might be added into the receiver queue but not able to read here.
-        internalPinnedExecutor.execute(() -> {
-            try {
-                Message<T> msg;
-                do {
-                    msg = internalReceive(0, TimeUnit.MILLISECONDS);
-                    if (msg != null) {
-                        // Trigger the notification on the message listener in a separate thread to avoid blocking the
-                        // internal pinned executor thread while the message processing happens
-                        final Message<T> finalMsg = msg;
-                        MESSAGE_LISTENER_QUEUE_SIZE_UPDATER.incrementAndGet(this);
+        listenerTaskScheduler.trigger();
+    }
+
+    private void drainListener() {
+        try {
+            Message<T> msg;
+            do {
+                msg = internalReceive(0, TimeUnit.MILLISECONDS);
+                if (msg != null) {
+                    // Trigger the notification on the message listener in a separate thread to avoid blocking the
+                    // internal pinned executor thread while the message processing happens
+                    final Message<T> finalMsg = msg;
+                    MESSAGE_LISTENER_QUEUE_SIZE_UPDATER.incrementAndGet(this);
+                    try {
                         messageListenerExecutor.execute(msg, () -> callMessageListener(finalMsg));
-                    } else {
-                            log.debug("Message has been cleared from the queue");
+                    } catch (RuntimeException | Error error) {
+                        // A failed submission has dequeued a message, but may leave more messages to drain.
+                        // Preserve a later turn even when earlier failures consumed the coalesced notification.
+                        // Retrying here makes progress; retrying a failed dequeue could loop indefinitely.
+                        listenerTaskScheduler.trigger();
+                        throw error;
                     }
-                } while (msg != null);
-            } catch (PulsarClientException e) {
-                log.warn().exception(e)
-                        .log("Failed to dequeue the message for listener");
-            }
-        });
+                } else {
+                    log.debug("Message has been cleared from the queue");
+                }
+            } while (msg != null);
+        } catch (PulsarClientException e) {
+            log.warn().exception(e)
+                    .log("Failed to dequeue the message for listener");
+        }
     }
 
     private void executeMessageListener(Message<?> message, Runnable runnable) {

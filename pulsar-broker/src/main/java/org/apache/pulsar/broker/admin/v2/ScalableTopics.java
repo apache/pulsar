@@ -58,6 +58,7 @@ import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.scalable.AutoScaleConfig;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicController;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicService;
+import org.apache.pulsar.broker.service.scalable.SegmentTopicStatsBuilder;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -66,6 +67,8 @@ import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
+import org.apache.pulsar.common.policies.data.ScalableTopicStats;
+import org.apache.pulsar.common.policies.data.SegmentTopicStats;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.scalable.ScalableTopicConstants;
@@ -273,11 +276,12 @@ public class ScalableTopics extends AdminResource {
             @Parameter(description = "Migrate even if legacy v4 clients are still connected to the topic")
             @QueryParam("force") @DefaultValue("false") boolean force) {
         validateNamespaceName(tenant, namespace);
+        String decodedTopic = Codec.decode(encodedTopic);
         // The scalable topic's canonical identity uses the topic:// domain; the migration
         // source is the same name in the persistent:// domain.
-        TopicName scalableName = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
+        TopicName scalableName = TopicName.get(TopicDomain.topic.value(), namespaceName, decodedTopic);
         TopicName persistentBase =
-                TopicName.get(TopicDomain.persistent.value(), namespaceName, encodedTopic);
+                TopicName.get(TopicDomain.persistent.value(), namespaceName, decodedTopic);
 
         validateTopicOperationAsync(persistentBase, TopicOperation.MIGRATE_TO_SCALABLE)
                 .thenCompose(__ -> doMigrateToScalableAsync(scalableName, persistentBase, force))
@@ -643,6 +647,8 @@ public class ScalableTopics extends AdminResource {
     @Operation(summary = "Delete a scalable topic and all its segments.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Scalable topic deleted successfully"),
+            @ApiResponse(responseCode = "307",
+                    description = "Current broker is not the controller leader for this topic"),
             @ApiResponse(responseCode = "401",
                     description = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(responseCode = "403", description = "Don't have admin permission on the namespace"),
@@ -661,16 +667,36 @@ public class ScalableTopics extends AdminResource {
         validateNamespaceName(tenant, namespace);
         TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
 
+        // Served by the controller leader, so the broker holding the elected controller is the
+        // one that stops it below.
         validateNamespaceOperationAsync(namespaceName, NamespaceOperation.DELETE_TOPIC)
+                .thenCompose(__ -> redirectToControllerLeaderIfNeeded(tn))
                 .thenCompose(__ -> resources().getScalableTopicMetadataAsync(tn))
                 .thenCompose(optMd -> {
                     if (optMd.isEmpty()) {
                         throw new RestException(Response.Status.NOT_FOUND,
                                 "Scalable topic not found: " + tn);
                     }
-                    // Delete metadata first, then best-effort clean up segment topics
-                    return resources().deleteScalableTopicAsync(tn)
-                            .thenCompose(__ -> deleteSegmentTopics(tn, optMd.get(), force));
+                    // Stop the controller before deleting the metadata: still running, its
+                    // leader election re-acquires the lock the delete removes, under the deleted
+                    // path, and it keeps serving consumers from the deleted layout. Mark the
+                    // topic deleted first, so the controllers following it on other brokers
+                    // don't take the lock over once it is released. Then delete metadata, then
+                    // best-effort clean up segment topics and the schema they share (deleting a
+                    // segment topic leaves the schema in place). The segments are read again
+                    // after the release, to include those of a split that was still in flight.
+                    return resources().markScalableTopicDeletedAsync(tn)
+                            .thenCompose(__ -> releaseController(tn))
+                            .thenCompose(__ -> resources().getScalableTopicMetadataAsync(tn, true))
+                            .thenCompose(latest -> resources().deleteScalableTopicAsync(tn)
+                                    .thenCompose(__ -> deleteSegmentTopics(tn, latest.orElse(optMd.get()),
+                                            force)))
+                            .thenCompose(__ -> pulsar().getBrokerService().deleteSchema(tn)
+                                    .exceptionally(ex -> {
+                                        log.warn().attr("topic", tn).exceptionMessage(ex)
+                                                .log("Failed to delete schema of scalable topic");
+                                        return null;
+                                    }));
                 })
                 .thenAccept(__ -> {
                     log.info().attr("clientAppId", clientAppId()).attr("topic", tn)
@@ -678,8 +704,10 @@ public class ScalableTopics extends AdminResource {
                     asyncResponse.resume(Response.noContent().build());
                 })
                 .exceptionally(ex -> {
-                    log.error().attr("clientAppId", clientAppId()).attr("topic", tn)
-                            .exception(ex).log("Failed to delete scalable topic");
+                    if (!isRedirectException(ex)) {
+                        log.error().attr("clientAppId", clientAppId()).attr("topic", tn)
+                                .exception(ex).log("Failed to delete scalable topic");
+                    }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -689,11 +717,13 @@ public class ScalableTopics extends AdminResource {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/stats")
-    @Operation(summary = "Get aggregated stats for a scalable topic.")
+    @Operation(summary = "Get the stats of a scalable topic as a whole: the segment DAG with per-segment"
+            + " load, the subscriptions with their backlog across segments, and the producers.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Get aggregated stats for a scalable topic.",
-                    content = @Content(schema = @Schema(
-                            implementation = org.apache.pulsar.common.policies.data.ScalableTopicStats.class))),
+            @ApiResponse(responseCode = "200", description = "The stats of the scalable topic.",
+                    content = @Content(schema = @Schema(implementation = ScalableTopicStats.class))),
+            @ApiResponse(responseCode = "307",
+                    description = "Current broker is not the controller leader for this topic"),
             @ApiResponse(responseCode = "401",
                     description = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(responseCode = "403", description = "Don't have admin permission on the namespace"),
@@ -710,12 +740,82 @@ public class ScalableTopics extends AdminResource {
         validateNamespaceName(tenant, namespace);
         TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
 
+        // Served by the controller leader: the STREAM consumer sessions (connected state,
+        // segment assignment) only exist in the leader's memory.
         validateTopicOperationAsync(tn, TopicOperation.GET_STATS)
-                .thenCompose(__ -> withScalableTopicService(svc -> svc.getStats(tn)))
+                .thenCompose(__ -> onControllerLeader(tn, svc -> svc.getStats(tn)))
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
-                    log.error().attr("clientAppId", clientAppId()).attr("topic", tn)
-                            .exception(ex).log("Failed to get stats for scalable topic");
+                    if (!isRedirectException(ex)) {
+                        log.error().attr("clientAppId", clientAppId()).attr("topic", tn)
+                                .exception(ex).log("Failed to get stats for scalable topic");
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/segments/{segmentId}/stats")
+    @Operation(summary = "Get the stats of a single segment of a scalable topic: the stats of the topic"
+            + " backing the segment, trimmed to what matters for a segment, served by its owning broker.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "The stats of the segment's backing topic.",
+                    content = @Content(schema = @Schema(implementation = SegmentTopicStats.class))),
+            @ApiResponse(responseCode = "307", description = "Current broker doesn't serve the segment"),
+            @ApiResponse(responseCode = "401",
+                    description = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission on the namespace"),
+            @ApiResponse(responseCode = "404",
+                    description = "Scalable topic, segment, or the segment's backing topic doesn't exist"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
+    public void getSegmentStats(
+            @Suspended final AsyncResponse asyncResponse,
+            @Parameter(description = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @Parameter(description = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @Parameter(description = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @Parameter(description = "Segment ID", required = true)
+            @PathParam("segmentId") long segmentId,
+            @Parameter(description = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateNamespaceName(tenant, namespace);
+        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
+
+        validateTopicOperationAsync(tn, TopicOperation.GET_STATS)
+                .thenCompose(__ -> resources().getScalableTopicMetadataAsync(tn))
+                .thenCompose(optMd -> {
+                    if (optMd.isEmpty()) {
+                        throw new RestException(Response.Status.NOT_FOUND,
+                                "Scalable topic not found: " + tn);
+                    }
+                    SegmentInfo segment = optMd.get().getSegments().get(segmentId);
+                    if (segment == null) {
+                        throw new RestException(Response.Status.NOT_FOUND,
+                                "Segment " + segmentId + " not found in scalable topic " + tn);
+                    }
+                    TopicName backingTopic = TopicName.get(SegmentTopicName.backingTopicName(tn, segment));
+                    return validateTopicOwnershipAsync(backingTopic, authoritative)
+                            .thenCompose(__ -> pulsar().getBrokerService()
+                                    .getTopicIfExists(backingTopic.toString()))
+                            .thenCompose(optTopic -> {
+                                if (optTopic.isEmpty()) {
+                                    throw new RestException(Response.Status.NOT_FOUND,
+                                            "Segment topic not found: " + backingTopic);
+                                }
+                                return optTopic.get().asyncGetStats(ScalableTopicService.SEGMENT_STATS_OPTIONS)
+                                        .thenApply(SegmentTopicStatsBuilder::fromTopicStats);
+                            });
+                })
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    if (isNot307And404Exception(ex)) {
+                        log.error().attr("clientAppId", clientAppId()).attr("topic", tn)
+                                .attr("segmentId", segmentId)
+                                .exception(ex).log("Failed to get segment stats for scalable topic");
+                    }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -1064,8 +1164,10 @@ public class ScalableTopics extends AdminResource {
 
     /**
      * If this broker is not the elected controller leader for {@code tn}, redirect the
-     * request to the leader via HTTP 307. Read-only endpoints (like {@code getStats}) do
-     * not need this guard and should not call it.
+     * request to the leader via HTTP 307. Needed by every endpoint that mutates the layout
+     * or the subscriptions, and by {@code getStats}, which reports the leader's in-memory
+     * consumer sessions; purely metadata-backed reads (like {@code getScalableTopicMetadata})
+     * don't need it.
      *
      * <p>The leader brokerId is read from the controller lock znode and resolved to an HTTP
      * service URL via {@link org.apache.pulsar.broker.namespace.NamespaceService#createLookupResult}.
@@ -1137,9 +1239,26 @@ public class ScalableTopics extends AdminResource {
     }
 
     /**
+     * Stop this broker's controller for {@code tn}, if it holds one, closing its leader election.
+     * Best-effort: a failure is logged and the delete goes on.
+     */
+    private CompletableFuture<Void> releaseController(TopicName tn) {
+        ScalableTopicService svc = pulsar().getBrokerService().getScalableTopicService();
+        if (svc == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return svc.releaseController(tn).exceptionally(ex -> {
+            log.warn().attr("topic", tn).exceptionMessage(ex)
+                    .log("Failed to release the controller of the scalable topic being deleted");
+            return null;
+        });
+    }
+
+    /**
      * Best-effort delete the underlying topic for every segment in the DAG. Uses the
      * segment-aware admin endpoint, which routes to the segment-owning broker via the
-     * standard bundle-ownership lookup.
+     * standard bundle-ownership lookup, and for a legacy segment of a migrated topic the
+     * regular topic endpoint, which the {@code persistent://} topic it wraps needs.
      */
     private CompletableFuture<Void> deleteSegmentTopics(TopicName parentTopic,
                                                          ScalableTopicMetadata metadata,
@@ -1148,9 +1267,11 @@ public class ScalableTopics extends AdminResource {
             var admin = pulsar().getAdminClient();
             CompletableFuture<?>[] futures = metadata.getSegments().values().stream()
                     .map(seg -> {
-                        String segmentTopicName = SegmentTopicName.fromParent(
-                                parentTopic, seg.hashRange(), seg.segmentId()).toString();
-                        return admin.scalableTopics().deleteSegmentAsync(segmentTopicName, force)
+                        String segmentTopicName = SegmentTopicName.backingTopicName(parentTopic, seg);
+                        CompletableFuture<Void> delete = seg.isLegacy()
+                                ? admin.topics().deleteAsync(segmentTopicName, force)
+                                : admin.scalableTopics().deleteSegmentAsync(segmentTopicName, force);
+                        return delete
                                 .exceptionally(ex -> {
                                     log.warn().attr("segment", segmentTopicName).exceptionMessage(ex)
                                             .log("Failed to delete segment topic");

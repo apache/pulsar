@@ -54,7 +54,7 @@ public class PerfSendCompletionBenchmark {
 
     @Setup
     public void setup() {
-        producer = new PerformanceProducerV4();
+        producer = new PerformanceProducerV4(new PerformanceProducer());
         totalSent = new AtomicLong();
         payload = new byte[128];
         warmupEndTime = recordLatency ? 0 : Long.MAX_VALUE;

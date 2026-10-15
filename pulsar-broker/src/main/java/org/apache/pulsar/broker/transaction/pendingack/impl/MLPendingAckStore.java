@@ -516,7 +516,7 @@ public class MLPendingAckStore implements PendingAckStore {
         private static final int NUMBER_OF_PER_READ_ENTRY = 100;
         /**
          * Guards {@link #stopped} against {@link #readEntriesComplete}. A read can still be in flight when
-         * the replay ends, and its completion runs on a managed ledger thread, so handing ownership of the
+         * the replay ends, and its completion can run concurrently on another thread, so handing ownership of the
          * entries over has to be atomic with respect to enqueuing them.
          */
         private final Object stopLock = new Object();

@@ -3,8 +3,8 @@
 * **Status**: Implemented
 * **Author**: [Matteo Merli](https://github.com/merlimat)
 * **Pull Request**: [#1150](https://github.com/apache/incubator-pulsar/pull/1150)
-* **Mailing List discussion**:
 * **Release**: 2.0.0
+* **Mailing List discussion**: https://lists.apache.org/thread/8rtkc0vz3nvxctmkqf4zb6smq6qlts5o
 
 
 ## Motivation

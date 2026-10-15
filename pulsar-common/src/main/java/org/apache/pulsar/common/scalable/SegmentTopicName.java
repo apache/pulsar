@@ -63,6 +63,22 @@ public final class SegmentTopicName {
     }
 
     /**
+     * The topic backing a segment: the segment's own {@code segment://...} name, or, for a
+     * legacy segment of a migrated topic, the externally managed {@code persistent://...}
+     * topic it wraps.
+     *
+     * @param parentTopic the parent scalable topic (domain must be "topic")
+     * @param segment     the segment
+     * @return the fully qualified name of the topic holding the segment's data
+     */
+    public static String backingTopicName(TopicName parentTopic, SegmentInfo segment) {
+        if (segment.isLegacy()) {
+            return segment.legacyTopicName();
+        }
+        return fromParent(parentTopic, segment.hashRange(), segment.segmentId()).toString();
+    }
+
+    /**
      * Get the parent scalable topic name from a segment topic name.
      *
      * @param segmentTopic the segment topic name

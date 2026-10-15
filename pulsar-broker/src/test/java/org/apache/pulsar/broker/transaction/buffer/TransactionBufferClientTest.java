@@ -22,6 +22,7 @@ import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -48,8 +49,10 @@ import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.PrometheusMetricsTestUtil;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferHandlerImpl;
@@ -72,6 +75,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -122,6 +126,38 @@ public class TransactionBufferClientTest extends TransactionTestBase {
         for (int i = 0; i < futures.size(); i++) {
             assertEquals(futures.get(i).get().getMostSigBits(), 1L);
             assertEquals(futures.get(i).get().getLeastSigBits(), i);
+        }
+    }
+
+    @Test
+    public void testCommitOnTopicTimeoutReturnsServiceNotReady() throws Exception {
+        String topicName = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/tp");
+        admin.topics().createNonPartitionedTopic(topicName);
+        String ownerUrl = admin.lookups().lookupTopic(topicName);
+        PulsarService topicOwner = pulsarServiceList.stream()
+                .filter(pulsarService -> pulsarService.getBrokerServiceUrl().equals(ownerUrl))
+                .findFirst()
+                .orElseThrow();
+
+        Topic topic = mock(Topic.class);
+        CompletableFuture<Void> endTxnFuture = new CompletableFuture<>();
+        when(topic.endTxn(any(TxnID.class), anyInt(), anyLong()))
+                .thenReturn(endTxnFuture.orTimeout(100, TimeUnit.MILLISECONDS));
+        CompletableFuture<Optional<Topic>> originalTopicFuture = topicOwner.getBrokerService().getTopics()
+                .put(topicName, CompletableFuture.completedFuture(Optional.of(topic)));
+        try {
+            CompletableFuture<TxnID> commitFuture = tbClient.commitTxnOnTopic(topicName, 12L, 1L, 1L);
+
+            try {
+                commitFuture.get();
+                fail("Commit should fail when the topic transaction buffer times out");
+            } catch (Exception e) {
+                Throwable actEx = FutureUtil.unwrapCompletionException(e);
+                assertTrue(actEx instanceof PulsarClientException.ServiceNotReadyException,
+                        actEx.getClass().getName());
+            }
+        } finally {
+            topicOwner.getBrokerService().getTopics().put(topicName, originalTopicFuture);
         }
     }
 

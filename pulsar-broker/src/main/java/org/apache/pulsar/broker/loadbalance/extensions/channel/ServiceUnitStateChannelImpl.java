@@ -348,7 +348,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
             PulsarClusterMetadataSetup.createNamespaceIfAbsent
                     (pulsar.getPulsarResources(), SYSTEM_NAMESPACE, pulsar.getConfiguration().getClusterName(),
-                            pulsar.getConfiguration().getDefaultNumberOfNamespaceBundles());
+                            pulsar.getConfiguration().getDefaultNumberOfSystemNamespaceBundles());
 
             tableview = createServiceUnitStateTableView();
             tableview.start(pulsar, this::handleEvent, this::handleExisting, this::handleInvalidate);
