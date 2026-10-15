@@ -68,17 +68,7 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
 
     private volatile BookiesRackConfiguration cachedRackConfiguration = null;
 
-    /**
-     * Completes once the rack configuration load started by
-     * {@link #initialize(ClientConfiguration, Optional, HashedWheelTimer, FeatureProvider, StatsLogger,
-     * BookieAddressResolver)} has been applied to {@link #cachedRackConfiguration}, and completes exceptionally
-     * when that load failed. Until it completes no isolation is applied at all, so tests must wait for this future
-     * before asserting on placement decisions.
-     *
-     * <p>It deliberately excludes the {@code exceptionally} stage that keeps initialization going on a failed
-     * load: a test awaiting this future must see the real failure rather than proceed against a still-null
-     * {@link #cachedRackConfiguration}, which looks exactly like the race this future exists to close.
-     */
+    /** Completes when the initial rack configuration has been applied, or exceptionally when that load fails. */
     @Getter
     @VisibleForTesting
     private volatile CompletableFuture<Void> initialRackConfigurationLoadFuture =
@@ -108,16 +98,12 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
             }
             // Only add the bookieMappingCache if we have defined an isolation group
             bookieMappingCache = store.getMetadataCache(BookiesRackConfiguration.class);
-            CompletableFuture<Void> rackConfigurationLoad = bookieMappingCache
-                    .get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH).thenAccept(opt -> opt.ifPresent(
-                            bookiesRackConfiguration -> cachedRackConfiguration = bookiesRackConfiguration));
-            // Initialization continues when the load fails; isolation is simply not applied until a later refresh.
-            rackConfigurationLoad.exceptionally(e -> {
+            initialRackConfigurationLoadFuture = loadRackConfiguration();
+            initialRackConfigurationLoadFuture.exceptionally(e -> {
                 log.warn().exception(e)
-                        .log("Failed to load bookies rack configuration while initialize the PlacementPolicy.");
+                        .log("Failed to asynchronously load the initial bookies rack configuration");
                 return null;
             });
-            initialRackConfigurationLoadFuture = rackConfigurationLoad;
         }
         if (conf.getProperty(SECONDARY_ISOLATION_BOOKIE_GROUPS) != null) {
             String secondaryIsolationGroupsString = ConfigurationStringUtil
@@ -128,6 +114,33 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
         }
         defaultIsolationGroups = ImmutablePair.of(primaryIsolationGroups, secondaryIsolationGroups);
         return super.initialize(conf, optionalDnsResolver, timer, featureProvider, statsLogger, bookieAddressResolver);
+    }
+
+    /**
+     * Returns the initial metadata load that callers can await asynchronously before exposing their BookKeeper client.
+     * The future completes after the first rack configuration has been applied, including an empty configuration
+     * when the metadata node does not exist, or exceptionally when that initial load fails. A later successful
+     * refresh can restore placement without changing the result of this initial attempt.
+     *
+     * <p>The default wildcard policy is ready immediately because it does not require rack metadata. A ledger
+     * overriding the default groups still requires a loaded configuration before selecting or replacing bookies.
+     * This method must be called after {@link #initialize} returns. Callers should apply timeouts to their own
+     * dependent future rather than complete or cancel this shared future.
+     */
+    public CompletableFuture<Void> getInitializationFuture() {
+        if (defaultIsolationGroups.getLeft().contains(PULSAR_SYSTEM_TOPIC_ISOLATION_GROUP)) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return initialRackConfigurationLoadFuture;
+    }
+
+    private CompletableFuture<Void> loadRackConfiguration() {
+        try {
+            return bookieMappingCache.get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH)
+                    .thenAccept(opt -> cachedRackConfiguration = opt.orElseGet(BookiesRackConfiguration::new));
+        } catch (Exception e) {
+            return CompletableFuture.failedFuture(e);
+        }
     }
 
     @Override
@@ -154,7 +167,8 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
                 bookieToReplace, excludeBookies);
     }
 
-    private Set<BookieId> getExcludedBookies(int ensembleSize, Map<String, byte[]> customMetadata){
+    private Set<BookieId> getExcludedBookies(int ensembleSize, Map<String, byte[]> customMetadata)
+            throws BKNotEnoughBookiesException {
         // parse the ensemble placement policy from the custom metadata, if it is present, we will apply it to
         // the isolation groups for filtering the bookies.
         Optional<EnsemblePlacementPolicyConfig> ensemblePlacementPolicyConfig =
@@ -218,23 +232,22 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
 
     @VisibleForTesting
     Set<BookieId> getExcludedBookiesWithIsolationGroups(int ensembleSize,
-                                                        Pair<Set<String>, Set<String>> isolationGroups) {
+            Pair<Set<String>, Set<String>> isolationGroups) throws BKNotEnoughBookiesException {
         Set<BookieId> excludedBookies = new HashSet<>();
         if (isolationGroups != null && isolationGroups.getLeft().contains(PULSAR_SYSTEM_TOPIC_ISOLATION_GROUP)) {
             return excludedBookies;
         }
         try {
             if (bookieMappingCache != null) {
-                bookieMappingCache.get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH)
-                        .thenAccept(opt -> cachedRackConfiguration = opt.orElse(null)).exceptionally(e -> {
-                            log.warn("Failed to update the newest bookies rack config.");
-                            return null;
-                        });
+                loadRackConfiguration().exceptionally(e -> {
+                    log.warn().exception(e).log("Failed to update the newest bookies rack config.");
+                    return null;
+                });
 
                 BookiesRackConfiguration allGroupsBookieMapping = cachedRackConfiguration;
                 if (allGroupsBookieMapping == null) {
-                    log.debug("The bookies rack config is not available at now.");
-                    return excludedBookies;
+                    log.debug("The bookies rack config is unavailable; refusing bookie placement.");
+                    throw new BKNotEnoughBookiesException();
                 }
                 Set<String> allGroups = allGroupsBookieMapping.keySet();
                 if (allGroups.isEmpty()) {
@@ -313,6 +326,8 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
                     }
                 }
             }
+        } catch (BKNotEnoughBookiesException e) {
+            throw e;
         } catch (Exception e) {
             log.warn().attr("store", e.getMessage()).log("Error getting bookie isolation info from metadata store");
         }

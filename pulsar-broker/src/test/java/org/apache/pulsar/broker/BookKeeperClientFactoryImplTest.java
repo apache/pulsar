@@ -25,23 +25,56 @@ import static org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy.RE
 import static org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy.REPP_REGIONS_TO_WRITE;
 import static org.apache.bookkeeper.conf.AbstractConfiguration.ENFORCE_MIN_NUM_RACKS_PER_WRITE_QUORUM;
 import static org.apache.bookkeeper.conf.AbstractConfiguration.MIN_NUM_RACKS_PER_WRITE_QUORUM;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.channel.EventLoopGroup;
+import io.netty.util.concurrent.DefaultThreadFactory;
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.client.ClientContext;
+import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
+import org.apache.bookkeeper.client.PulsarMockBookKeeper;
+import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.conf.ClientConfiguration;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
+import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.net.CachedDNSToSwitchMapping;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
+import org.apache.pulsar.bookie.rackawareness.IsolatedBookieEnsemblePlacementPolicy;
 import org.apache.pulsar.metadata.api.MetadataStore;
+import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.zookeeper.ZkIsolatedBookieEnsemblePlacementPolicy;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -49,6 +82,245 @@ import org.testng.annotations.Test;
  */
 @Test(groups = "broker")
 public class BookKeeperClientFactoryImplTest {
+
+    @Test
+    public void testClientWaitsForInitialRackConfiguration() throws Exception {
+        ClientInitialization initialization = newClientInitialization(mock(BookKeeper.class));
+        CompletableFuture<BookKeeper> clientFuture = createIsolatedClient(initialization, 10_000);
+
+        initialization.readinessRequested().get(5, TimeUnit.SECONDS);
+        assertThat(clientFuture).isNotDone();
+        verify(initialization.client(), never()).close();
+
+        initialization.readiness().complete(null);
+
+        assertThat(clientFuture.get(5, TimeUnit.SECONDS)).isSameAs(initialization.client());
+        verify(initialization.client(), never()).close();
+    }
+
+    @Test
+    public void testClientDoesNotWaitWhenPolicyInitializationIsAlreadyComplete() throws Exception {
+        ClientInitialization initialization = newClientInitialization(mock(BookKeeper.class));
+        initialization.readiness().complete(null);
+
+        assertThat(createIsolatedClient(initialization, 10_000).get(5, TimeUnit.SECONDS))
+                .isSameAs(initialization.client());
+        verify(initialization.client(), never()).close();
+    }
+
+    @Test
+    public void testCancelledClientCreationClosesClientAfterBuildCompletes() throws Exception {
+        ClientInitialization initialization = newClientInitialization(mock(BookKeeper.class));
+        initialization.readiness().complete(null);
+        CompletableFuture<Void> buildStarted = new CompletableFuture<>();
+        CompletableFuture<BookKeeper> buildResult = new CompletableFuture<>();
+        CompletableFuture<Void> clientClosed = new CompletableFuture<>();
+        BookKeeper.Builder builder = mock(BookKeeper.Builder.class);
+        when(builder.build()).thenAnswer(invocation -> {
+            buildStarted.complete(null);
+            return buildResult.get(5, TimeUnit.SECONDS);
+        });
+        doReturn(builder).when(initialization.factory()).getBookKeeperBuilder(any(), any(), any(), any());
+        doAnswer(invocation -> {
+            clientClosed.complete(null);
+            return null;
+        }).when(initialization.client()).close();
+
+        CompletableFuture<BookKeeper> clientFuture = createIsolatedClient(initialization, 10_000);
+        try {
+            buildStarted.get(5, TimeUnit.SECONDS);
+            assertThat(clientFuture.cancel(false)).isTrue();
+        } finally {
+            buildResult.complete(initialization.client());
+        }
+
+        clientClosed.get(5, TimeUnit.SECONDS);
+        assertThat(clientFuture).isCancelled();
+        verify(initialization.client()).close();
+    }
+
+    @Test
+    public void testCancelledClientCreationDoesNotCancelPolicyInitialization() throws Exception {
+        ClientInitialization initialization = newClientInitialization(mock(BookKeeper.class));
+        CompletableFuture<Void> clientClosed = new CompletableFuture<>();
+        doAnswer(invocation -> {
+            clientClosed.complete(null);
+            return null;
+        }).when(initialization.client()).close();
+
+        CompletableFuture<BookKeeper> clientFuture = createIsolatedClient(initialization, 10_000);
+        initialization.readinessRequested().get(5, TimeUnit.SECONDS);
+        assertThat(clientFuture.cancel(false)).isTrue();
+        assertThat(initialization.readiness()).isNotDone();
+
+        initialization.readiness().complete(null);
+
+        clientClosed.get(5, TimeUnit.SECONDS);
+        assertThat(clientFuture).isCancelled();
+        verify(initialization.client()).close();
+    }
+
+    @Test
+    public void testOtherPlacementPoliciesDoNotRequireRackInitialization() throws Exception {
+        BookKeeper client = mock(BookKeeper.class);
+        ClientContext clientContext = mock(ClientContext.class);
+        when(client.getClientCtx()).thenReturn(clientContext);
+        when(clientContext.getPlacementPolicy()).thenReturn(mock(EnsemblePlacementPolicy.class));
+        BookKeeperClientFactoryImpl factory = factoryReturning(client);
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setMetadataStoreUrl("memory:client-readiness");
+
+        assertThat(factory.create(conf, mock(MetadataStoreExtended.class), mock(EventLoopGroup.class),
+                Optional.empty(), null).get(5, TimeUnit.SECONDS)).isSameAs(client);
+        verify(client, never()).close();
+    }
+
+    @DataProvider
+    public Object[][] rackInitializationFailures() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "rackInitializationFailures")
+    public void testRackInitializationFailureClosesClientAsynchronously(boolean timeout) throws Exception {
+        ClientInitialization initialization = newClientInitialization(mock(BookKeeper.class));
+        CompletableFuture<Thread> closingThread = new CompletableFuture<>();
+        CountDownLatch allowClose = new CountDownLatch(1);
+        doAnswer(invocation -> {
+            closingThread.complete(Thread.currentThread());
+            assertThat(allowClose.await(5, TimeUnit.SECONDS)).isTrue();
+            return null;
+        }).when(initialization.client()).close();
+
+        ExecutorService metadataExecutor = Executors.newSingleThreadExecutor(
+                new DefaultThreadFactory("test-rack-metadata"));
+        RuntimeException loadFailure = new RuntimeException("rack metadata unavailable");
+        CompletableFuture<BookKeeper> clientFuture = createIsolatedClient(initialization, timeout ? 100 : 10_000);
+        try {
+            initialization.readinessRequested().get(5, TimeUnit.SECONDS);
+            Thread completionThread;
+            if (timeout) {
+                completionThread = Thread.currentThread();
+            } else {
+                completionThread = metadataExecutor.submit(() -> {
+                    initialization.readiness().completeExceptionally(loadFailure);
+                    return Thread.currentThread();
+                }).get(5, TimeUnit.SECONDS);
+            }
+            Thread thread = closingThread.get(5, TimeUnit.SECONDS);
+            assertThat(thread).isNotSameAs(completionThread);
+            assertThat(thread.getName()).isNotEqualTo("CompletableFutureDelayScheduler");
+        } finally {
+            allowClose.countDown();
+            metadataExecutor.shutdownNow();
+        }
+
+        if (timeout) {
+            assertThatThrownBy(() -> clientFuture.get(5, TimeUnit.SECONDS))
+                    .cause().isInstanceOf(TimeoutException.class);
+            assertThat(initialization.readiness()).isNotDone();
+            initialization.readiness().complete(null);
+            assertThat(initialization.readiness()).isCompleted();
+        } else {
+            assertThatThrownBy(() -> clientFuture.get(5, TimeUnit.SECONDS)).cause().isSameAs(loadFailure);
+        }
+        verify(initialization.client()).close();
+        assertThat(clientFuture).isCompletedExceptionally();
+    }
+
+    @Test
+    public void testCloseFailureDoesNotReplaceRackInitializationFailure() throws Exception {
+        ClientInitialization initialization = newClientInitialization(mock(BookKeeper.class));
+        RuntimeException loadFailure = new RuntimeException("rack metadata unavailable");
+        RuntimeException closeFailure = new RuntimeException("client close failed");
+        doThrow(closeFailure).when(initialization.client()).close();
+        CompletableFuture<BookKeeper> clientFuture = createIsolatedClient(initialization, 10_000);
+        initialization.readinessRequested().get(5, TimeUnit.SECONDS);
+
+        initialization.readiness().completeExceptionally(loadFailure);
+
+        assertThatThrownBy(() -> clientFuture.get(5, TimeUnit.SECONDS)).cause().isSameAs(loadFailure);
+        assertThat(loadFailure.getSuppressed()).containsExactly(closeFailure);
+        verify(initialization.client()).close();
+    }
+
+    @Test
+    public void testManagedLedgerOpenWaitsForClientRackConfiguration() throws Exception {
+        OrderedExecutor bookKeeperExecutor = OrderedExecutor.newBuilder().numThreads(1)
+                .name("test-client-readiness-bk").build();
+        try (MetadataStoreExtended store = MetadataStoreExtended.create("memory:client-readiness",
+                MetadataStoreConfig.builder().build());
+             PulsarMockBookKeeper client = spy(new PulsarMockBookKeeper(bookKeeperExecutor))) {
+            ClientInitialization initialization = newClientInitialization(client);
+            ManagedLedgerFactoryImpl ledgerFactory = new ManagedLedgerFactoryImpl(store,
+                    policyConfig -> createIsolatedClient(initialization, 10_000), new ManagedLedgerFactoryConfig());
+            try {
+                CompletableFuture<ManagedLedger> openFuture = new CompletableFuture<>();
+                ledgerFactory.asyncOpen("client-readiness", new ManagedLedgerConfig(), new OpenLedgerCallback() {
+                    @Override
+                    public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
+                        openFuture.complete(ledger);
+                    }
+
+                    @Override
+                    public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                        openFuture.completeExceptionally(exception);
+                    }
+                }, null, null);
+
+                initialization.readinessRequested().get(5, TimeUnit.SECONDS);
+                assertThat(openFuture).isNotDone();
+                verify(client, never()).newCreateLedgerOp();
+
+                initialization.readiness().complete(null);
+
+                ManagedLedger ledger = openFuture.get(5, TimeUnit.SECONDS);
+                assertThat(ledger.addEntry("ready".getBytes(StandardCharsets.UTF_8)).getEntryId()).isZero();
+                verify(client).newCreateLedgerOp();
+                ledger.close();
+            } finally {
+                ledgerFactory.shutdownAsync().get(5, TimeUnit.SECONDS);
+            }
+        } finally {
+            bookKeeperExecutor.shutdownNow();
+        }
+    }
+
+    private ClientInitialization newClientInitialization(BookKeeper client) throws Exception {
+        CompletableFuture<Void> readiness = new CompletableFuture<>();
+        CompletableFuture<Void> readinessRequested = new CompletableFuture<>();
+        IsolatedBookieEnsemblePlacementPolicy policy = mock(IsolatedBookieEnsemblePlacementPolicy.class);
+        when(policy.getInitializationFuture()).thenAnswer(invocation -> {
+            readinessRequested.complete(null);
+            return readiness;
+        });
+        ClientContext existingContext = client.getClientCtx();
+        ClientContext clientContext = existingContext == null ? mock(ClientContext.class) : spy(existingContext);
+        when(clientContext.getPlacementPolicy()).thenReturn(policy);
+        doReturn(clientContext).when(client).getClientCtx();
+        return new ClientInitialization(factoryReturning(client), client, readiness, readinessRequested);
+    }
+
+    private BookKeeperClientFactoryImpl factoryReturning(BookKeeper client) throws Exception {
+        BookKeeper.Builder builder = mock(BookKeeper.Builder.class);
+        when(builder.build()).thenReturn(client);
+        BookKeeperClientFactoryImpl factory = spy(new BookKeeperClientFactoryImpl());
+        doReturn(builder).when(factory).getBookKeeperBuilder(any(), any(), any(), any());
+        return factory;
+    }
+
+    private CompletableFuture<BookKeeper> createIsolatedClient(ClientInitialization initialization, int timeoutMillis) {
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setMetadataStoreUrl("memory:client-readiness");
+        conf.setMetadataStoreSessionTimeoutMillis(timeoutMillis);
+        return initialization.factory().create(conf, mock(MetadataStoreExtended.class), mock(EventLoopGroup.class),
+                Optional.of(IsolatedBookieEnsemblePlacementPolicy.class),
+                Map.of(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, "group1"));
+    }
+
+    private record ClientInitialization(BookKeeperClientFactoryImpl factory, BookKeeper client,
+                                        CompletableFuture<Void> readiness,
+                                        CompletableFuture<Void> readinessRequested) {
+    }
 
     @Test
     public void testSetDefaultEnsemblePlacementPolicyRackAwareDisabled() {
