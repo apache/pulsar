@@ -201,6 +201,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
     protected final LongAdder msgOutFromRemovedSubscriptions = new LongAdder();
     protected final LongAdder bytesOutFromRemovedSubscriptions = new LongAdder();
     protected final LongAdder bytesOutFromRemovedSystemSubscriptions = new LongAdder();
+    // only accessed by the stats update, which runs under the PulsarStats lock
+    private long statsPeriodStartNanos = System.nanoTime();
     protected volatile Pair<String, List<EntryFilter>> entryFilters;
     protected volatile boolean transferring = false;
     private volatile List<PublishRateLimiter> activeRateLimiters;
@@ -1365,6 +1367,18 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
     public long getBytesOutCounter() {
         return bytesOutFromRemovedSubscriptions.longValue()
                 + sumSubscriptions(AbstractSubscription::getBytesOutCounter);
+    }
+
+    /**
+     * Ends the current stats period of this topic and returns its length in seconds. Consumers are rated over this
+     * period rather than over their own age, so a consumer created just before the stats update doesn't turn its
+     * initial burst (e.g. filling its receiver queue) into a huge rate.
+     */
+    protected double endStatsPeriod() {
+        long now = System.nanoTime();
+        double seconds = (now - statsPeriodStartNanos) / 1e9;
+        statsPeriodStartNanos = now;
+        return seconds;
     }
 
     public long getTotalPublishRateLimitCounter() {

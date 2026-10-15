@@ -113,6 +113,9 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         // wait for shutdown of the broker, this prevents flakiness which could be caused by metrics being
         // unregistered asynchronously. This impacts the execution of the next test method if this would be happening.
         conf.setBrokerShutdownTimeoutMs(5000L);
+        // only the tests update the rates, so the periodic stats task can't shift the stats period they check
+        conf.setStatsUpdateInitialDelayInSecs(100000000);
+        conf.setStatsUpdateFrequencyInSecs(100000000);
         return conf;
     }
 
@@ -391,8 +394,7 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         Assert.assertEquals(consumers.size(), 2);
         org.apache.pulsar.broker.service.Consumer consumer1 = consumers.get(0);
         org.apache.pulsar.broker.service.Consumer consumer2 = consumers.get(1);
-        consumer1.updateRates();
-        consumer2.updateRates();
+        pulsar.getBrokerService().updateRates();
 
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         PrometheusMetricsTestUtil.generate(pulsar, exposeTopicLevelMetrics, true, true, output);
@@ -433,6 +435,51 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
             Assert.assertTrue(totalRateOut > 0D);
             Assert.assertEquals(totalAckRate, totalRateOut, totalRateOut * 0.1D);
         }
+    }
+
+    @Test
+    public void testNewConsumerRateCoversTheWholeStatsPeriod() throws Exception {
+        final String topicName = newUniqueName("persistent://my-property/my-ns/new-consumer-rate");
+        final int messages = 100;
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .create();
+        for (int i = 0; i < messages; i++) {
+            producer.send(new byte[1024]);
+        }
+
+        // start a stats period that is much longer than the age of the consumer created below
+        long periodStartLowerBound = System.nanoTime();
+        pulsar.getBrokerService().updateRates();
+        long periodStartUpperBound = System.nanoTime();
+        Thread.sleep(1000);
+
+        // like the compaction reader, a new consumer receives a burst as soon as it sends its flow permits
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName("sub")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+        org.apache.pulsar.broker.service.Consumer brokerConsumer = pulsar.getBrokerService()
+                .getTopicReference(topicName).orElseThrow().getSubscription("sub").getConsumers().get(0);
+        Awaitility.await().until(() -> brokerConsumer.getMsgOutCounter() == messages);
+
+        long periodEndLowerBound = System.nanoTime();
+        pulsar.getBrokerService().updateRates();
+        long periodEndUpperBound = System.nanoTime();
+
+        // the burst is averaged over the whole stats period, not over the short age of the consumer
+        double minPeriodSeconds = (periodEndLowerBound - periodStartUpperBound) / 1e9;
+        double maxPeriodSeconds = (periodEndUpperBound - periodStartLowerBound) / 1e9;
+        long bytes = brokerConsumer.getBytesOutCounter();
+        ConsumerStatsImpl stats = brokerConsumer.getStats();
+        assertThat(stats.msgRateOut).as("msgRateOut")
+                .isBetween(messages / maxPeriodSeconds, messages / minPeriodSeconds);
+        assertThat(stats.msgThroughputOut).as("msgThroughputOut")
+                .isBetween(bytes / maxPeriodSeconds, bytes / minPeriodSeconds);
     }
 
     @Test

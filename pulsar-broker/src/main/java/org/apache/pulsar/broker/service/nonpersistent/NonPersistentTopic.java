@@ -781,6 +781,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
             StatsOutputStream topicStatsStream, ClusterReplicationMetrics replStats, String namespace,
             boolean hydratePublishers) {
 
+        double statsPeriodSeconds = endStatsPeriod();
         TopicStats topicStats = threadLocalTopicStats.get();
         topicStats.reset();
 
@@ -838,7 +839,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                     ++nsStats.consumerCount;
                     ++bundleStats.consumerCount;
 
-                    consumer.updateRates();
+                    consumer.updateRates(statsPeriodSeconds);
 
                     ConsumerStatsImpl consumerStats = consumer.getStats();
                     subMsgRateOut += consumerStats.msgRateOut;

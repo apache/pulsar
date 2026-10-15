@@ -1178,11 +1178,11 @@ public class Consumer {
         // Test hook for deterministically ordering a threshold crossing against an unblock.
     }
 
-    public void updateRates() {
-        msgOut.calculateRate();
-        chunkedMessageRate.calculateRate();
-        msgRedeliver.calculateRate();
-        messageAckRate.calculateRate();
+    public void updateRates(double periodInSeconds) {
+        msgOut.calculateRate(periodInSeconds);
+        chunkedMessageRate.calculateRate(periodInSeconds);
+        msgRedeliver.calculateRate(periodInSeconds);
+        messageAckRate.calculateRate(periodInSeconds);
 
         stats.msgRateOut = msgOut.getRate();
         stats.msgThroughputOut = msgOut.getValueRate();
