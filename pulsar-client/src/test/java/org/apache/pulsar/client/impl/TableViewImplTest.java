@@ -680,6 +680,16 @@ public class TableViewImplTest {
         // The client's scheduler, shut down when the client closes. The retry used to wait there and was dropped
         // with it; nothing is queued on it any more, so shutting it down below changes nothing now.
         ScheduledExecutorService clientScheduler = Executors.newSingleThreadScheduledExecutor();
+        // Its only worker is kept busy until the test ends: a retry queued there could not run before the
+        // shutdown, however slowly the test gets to it, and was discarded with the queue every time.
+        CountDownLatch releaseWorker = new CountDownLatch(1);
+        clientScheduler.execute(() -> {
+            try {
+                releaseWorker.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
         CountDownLatch clientClosed = new CountDownLatch(1);
         PulsarClientImpl client = mock(PulsarClientImpl.class);
         when(client.getConfiguration()).thenReturn(new ClientConfigurationData());
@@ -713,6 +723,7 @@ public class TableViewImplTest {
             Awaitility.await().atMost(10, TimeUnit.SECONDS).until(refresh::isDone);
             assertFailedAsClosed(refresh, "The retry must still run and find the closed reader");
         } finally {
+            releaseWorker.countDown();
             clientClosed.countDown();
             clientScheduler.shutdownNow();
         }
