@@ -776,6 +776,47 @@ public class MessageChunkingTest extends ProducerConsumerBase {
     }
 
     /**
+     * The final-size check runs on the complete frame, after the metadata has been added: a body within the limit
+     * whose metadata pushes the message over it must be rejected there on a non-persistent topic, since nothing will
+     * chunk it, and the producer must stay usable for the next valid message.
+     */
+    @Test
+    public void testNonPersistentMessageOverLimitOnlyWithMetadataIsRejectedLocally() throws Exception {
+        final int maxMessageSize = 1024;
+        final String topicName = "non-persistent://my-property/my-ns/testNonPersistentChunkingMetadataOverLimit";
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName("my-subscriber-name")
+                .subscribe();
+
+        @Cleanup
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+                .topic(topicName)
+                .enableChunking(true)
+                .enableBatching(false)
+                .sendTimeout(5, TimeUnit.SECONDS)
+                .create();
+        producer.getConnectionHandler().setMaxMessageSize(maxMessageSize);
+
+        // exactly at the limit, so the early check on the body passes and only the final check can reject it
+        byte[] payload = RandomUtils.nextBytes(maxMessageSize);
+        try {
+            producer.newMessage().value(payload).property("large-metadata", "y".repeat(400)).send();
+            fail("a message pushed over the limit by its metadata must be rejected by the client");
+        } catch (InvalidMessageException expected) {
+            assertTrue(expected.getMessage().contains("exceeds"), expected.getMessage());
+        }
+
+        byte[] valid = "valid".getBytes(StandardCharsets.UTF_8);
+        producer.send(valid);
+        Message<byte[]> received = consumer.receive(10, TimeUnit.SECONDS);
+        assertNotNull(received, "the valid message after the rejected one was not delivered");
+        assertEquals(received.getValue(), valid);
+    }
+
+    /**
      * Verifies that pendingChunkedMessageUuidQueue does not leak entries as chunked messages
      * complete normally. Each first chunk adds the message uuid to the queue; on completion the
      * uuid must be removed so the queue stays in sync with chunkedMessagesMap. Without the fix the
