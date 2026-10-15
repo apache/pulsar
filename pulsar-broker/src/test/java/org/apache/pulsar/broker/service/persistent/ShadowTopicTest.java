@@ -167,6 +167,16 @@ public class ShadowTopicTest extends BrokerTestBase {
         admin.topics().updateProperties(shadowTopic, Map.of("custom", "value"));
         admin.topics().updateProperties(shadowTopic, Map.of(PROPERTY_SOURCE_TOPIC_KEY, sourceTopic));
         assertThat(admin.topics().getProperties(shadowTopic)).containsEntry("custom", "value");
+        if (partitioned) {
+            String otherSourcePartition = TopicName.get(otherSourceTopic).getPartition(0).toString();
+            assertThatThrownBy(() -> admin.topics().updateProperties(loadedShadowTopic,
+                    Map.of(PROPERTY_SOURCE_TOPIC_KEY, otherSourcePartition, "unchanged", "value")))
+                    .isInstanceOf(PulsarAdminException.PreconditionFailedException.class);
+            assertThat(admin.topics().getProperties(loadedShadowTopic))
+                    .containsEntry(PROPERTY_SOURCE_TOPIC_KEY, loadedSourceTopic).doesNotContainKey("unchanged");
+            admin.topics().updateProperties(loadedShadowTopic, Map.of(PROPERTY_SOURCE_TOPIC_KEY, loadedSourceTopic));
+            admin.topics().updateProperties(loadedShadowTopic, admin.topics().getProperties(loadedShadowTopic));
+        }
         admin.topics().unload(loadedShadowTopic);
         PersistentTopic reloaded = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(loadedShadowTopic)
                 .get(10, TimeUnit.SECONDS).orElseThrow();
@@ -188,6 +198,17 @@ public class ShadowTopicTest extends BrokerTestBase {
                 Map.of(PROPERTY_SOURCE_TOPIC_KEY, sourceTopic)))
                 .isInstanceOf(PulsarAdminException.PreconditionFailedException.class);
         assertThat(admin.topics().getShadowSource(regularTopic)).isNull();
+        if (partitioned) {
+            String regularPartition = TopicName.get(regularTopic).getPartition(0).toString();
+            String sourcePartition = TopicName.get(sourceTopic).getPartition(0).toString();
+            try (Producer<byte[]> producer = pulsarClient.newProducer().topic(regularPartition).create()) {
+                producer.send(new byte[] {1});
+                assertThatThrownBy(() -> admin.topics().updateProperties(regularPartition,
+                        Map.of(PROPERTY_SOURCE_TOPIC_KEY, sourcePartition)))
+                        .isInstanceOf(PulsarAdminException.PreconditionFailedException.class);
+                assertThat(admin.topics().getShadowSource(regularPartition)).isNull();
+            }
+        }
     }
 
     @Test

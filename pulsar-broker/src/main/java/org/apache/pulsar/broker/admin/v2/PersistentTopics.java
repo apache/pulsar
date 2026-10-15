@@ -1151,6 +1151,8 @@ public class PersistentTopics extends PersistentTopicsBase {
         @ApiResponse(responseCode = "403", description = "Don't have admin permission"),
         @ApiResponse(responseCode = "404", description = "Namespace or topic or subscription does not exist"),
         @ApiResponse(responseCode = "405", description = "Method Not Allowed"),
+        @ApiResponse(responseCode = "412",
+                description = "Invalid shadow source or attempt to change the source after topic creation"),
         @ApiResponse(responseCode = "500", description = "Internal server error"),
         @ApiResponse(responseCode = "503", description = "Failed to validate global cluster configuration")
     })
