@@ -465,10 +465,17 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         SchemaEntry schemaEntry = newSchemaEntry(index, data);
         return createLedger(schemaId).thenCompose(ledgerHandle -> {
             final long ledgerId = ledgerHandle.getId();
-            return addEntry(ledgerHandle, schemaEntry)
-                    .thenApply(entryId -> {
-                        ledgerHandle.closeAsync();
-                        return Functions.newPositionInfo(ledgerId, entryId);
+            return FutureUtil.supplySafely(() -> addEntry(ledgerHandle, schemaEntry))
+                    .exceptionallyCompose(ex -> FutureUtil.supplySafely(ledgerHandle::closeAsync)
+                            // Closing the failed writer must not replace the original write error.
+                            .handle((__, closeException) -> null)
+                            .thenCompose(__ -> FutureUtil.failedFuture(ex)))
+                    .thenCompose(entryId -> FutureUtil.supplySafely(ledgerHandle::closeAsync)
+                            .thenApply(__ -> Functions.newPositionInfo(ledgerId, entryId)))
+                    .exceptionallyCompose(ex -> {
+                        Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                        return deleteLedgerAsync(schemaId, ledgerId, "schema ledger write or close failed")
+                                .thenCompose(__ -> FutureUtil.failedFuture(cause));
                     });
         });
     }
