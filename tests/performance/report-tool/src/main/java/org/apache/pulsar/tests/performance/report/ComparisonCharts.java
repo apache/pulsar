@@ -107,7 +107,12 @@ public final class ComparisonCharts implements Callable<Integer> {
     }
 
     public static void main(String[] args) {
-        System.exit(new CommandLine(new ComparisonCharts()).execute(args));
+        System.exit(execute(args));
+    }
+
+    /** Charts the runs as the command line does, and returns its exit code instead of exiting. */
+    public static int execute(String... args) {
+        return new CommandLine(new ComparisonCharts()).execute(args);
     }
 
     @Override
@@ -198,11 +203,11 @@ public final class ComparisonCharts implements Callable<Integer> {
                 new Marker(Side.B, Event.CONSUMERS_FINISHED, b.consumersFinishedSeconds()));
         List<Path> written = new ArrayList<>();
         write(written, output, THROUGHPUT + labels, new Chart("Throughput",
-                "Messages per second, sampled once per second", time,
+                "Messages per second, sampled from the topic stats", time,
                 TimeSeriesRenderer.axisMaximum(max(throughput, time) * 1.05), false, 0, throughput, markers),
                 a, b, footer);
         write(written, output, BACKLOG + labels, new Chart("Backlog",
-                "Messages in the backlog, sampled once per second", time,
+                "Messages in the backlog, sampled from the topic stats", time,
                 TimeSeriesRenderer.axisMaximum(max(backlog, time) * 1.05), false, 0, backlog, markers),
                 a, b, footer);
         write(written, output, LATENCY + labels, new Chart("Latency by percentile", "Latency (ms)", percentiles,

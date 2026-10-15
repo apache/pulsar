@@ -647,6 +647,8 @@ public class ScalableTopics extends AdminResource {
     @Operation(summary = "Delete a scalable topic and all its segments.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Scalable topic deleted successfully"),
+            @ApiResponse(responseCode = "307",
+                    description = "Current broker is not the controller leader for this topic"),
             @ApiResponse(responseCode = "401",
                     description = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(responseCode = "403", description = "Don't have admin permission on the namespace"),
@@ -665,16 +667,36 @@ public class ScalableTopics extends AdminResource {
         validateNamespaceName(tenant, namespace);
         TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
 
+        // Served by the controller leader, so the broker holding the elected controller is the
+        // one that stops it below.
         validateNamespaceOperationAsync(namespaceName, NamespaceOperation.DELETE_TOPIC)
+                .thenCompose(__ -> redirectToControllerLeaderIfNeeded(tn))
                 .thenCompose(__ -> resources().getScalableTopicMetadataAsync(tn))
                 .thenCompose(optMd -> {
                     if (optMd.isEmpty()) {
                         throw new RestException(Response.Status.NOT_FOUND,
                                 "Scalable topic not found: " + tn);
                     }
-                    // Delete metadata first, then best-effort clean up segment topics
-                    return resources().deleteScalableTopicAsync(tn)
-                            .thenCompose(__ -> deleteSegmentTopics(tn, optMd.get(), force));
+                    // Stop the controller before deleting the metadata: still running, its
+                    // leader election re-acquires the lock the delete removes, under the deleted
+                    // path, and it keeps serving consumers from the deleted layout. Mark the
+                    // topic deleted first, so the controllers following it on other brokers
+                    // don't take the lock over once it is released. Then delete metadata, then
+                    // best-effort clean up segment topics and the schema they share (deleting a
+                    // segment topic leaves the schema in place). The segments are read again
+                    // after the release, to include those of a split that was still in flight.
+                    return resources().markScalableTopicDeletedAsync(tn)
+                            .thenCompose(__ -> releaseController(tn))
+                            .thenCompose(__ -> resources().getScalableTopicMetadataAsync(tn, true))
+                            .thenCompose(latest -> resources().deleteScalableTopicAsync(tn)
+                                    .thenCompose(__ -> deleteSegmentTopics(tn, latest.orElse(optMd.get()),
+                                            force)))
+                            .thenCompose(__ -> pulsar().getBrokerService().deleteSchema(tn)
+                                    .exceptionally(ex -> {
+                                        log.warn().attr("topic", tn).exceptionMessage(ex)
+                                                .log("Failed to delete schema of scalable topic");
+                                        return null;
+                                    }));
                 })
                 .thenAccept(__ -> {
                     log.info().attr("clientAppId", clientAppId()).attr("topic", tn)
@@ -682,8 +704,10 @@ public class ScalableTopics extends AdminResource {
                     asyncResponse.resume(Response.noContent().build());
                 })
                 .exceptionally(ex -> {
-                    log.error().attr("clientAppId", clientAppId()).attr("topic", tn)
-                            .exception(ex).log("Failed to delete scalable topic");
+                    if (!isRedirectException(ex)) {
+                        log.error().attr("clientAppId", clientAppId()).attr("topic", tn)
+                                .exception(ex).log("Failed to delete scalable topic");
+                    }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -1215,9 +1239,26 @@ public class ScalableTopics extends AdminResource {
     }
 
     /**
+     * Stop this broker's controller for {@code tn}, if it holds one, closing its leader election.
+     * Best-effort: a failure is logged and the delete goes on.
+     */
+    private CompletableFuture<Void> releaseController(TopicName tn) {
+        ScalableTopicService svc = pulsar().getBrokerService().getScalableTopicService();
+        if (svc == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return svc.releaseController(tn).exceptionally(ex -> {
+            log.warn().attr("topic", tn).exceptionMessage(ex)
+                    .log("Failed to release the controller of the scalable topic being deleted");
+            return null;
+        });
+    }
+
+    /**
      * Best-effort delete the underlying topic for every segment in the DAG. Uses the
      * segment-aware admin endpoint, which routes to the segment-owning broker via the
-     * standard bundle-ownership lookup.
+     * standard bundle-ownership lookup, and for a legacy segment of a migrated topic the
+     * regular topic endpoint, which the {@code persistent://} topic it wraps needs.
      */
     private CompletableFuture<Void> deleteSegmentTopics(TopicName parentTopic,
                                                          ScalableTopicMetadata metadata,
@@ -1226,9 +1267,11 @@ public class ScalableTopics extends AdminResource {
             var admin = pulsar().getAdminClient();
             CompletableFuture<?>[] futures = metadata.getSegments().values().stream()
                     .map(seg -> {
-                        String segmentTopicName = SegmentTopicName.fromParent(
-                                parentTopic, seg.hashRange(), seg.segmentId()).toString();
-                        return admin.scalableTopics().deleteSegmentAsync(segmentTopicName, force)
+                        String segmentTopicName = SegmentTopicName.backingTopicName(parentTopic, seg);
+                        CompletableFuture<Void> delete = seg.isLegacy()
+                                ? admin.topics().deleteAsync(segmentTopicName, force)
+                                : admin.scalableTopics().deleteSegmentAsync(segmentTopicName, force);
+                        return delete
                                 .exceptionally(ex -> {
                                     log.warn().attr("segment", segmentTopicName).exceptionMessage(ex)
                                             .log("Failed to delete segment topic");

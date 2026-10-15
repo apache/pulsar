@@ -2,9 +2,7 @@
 
 - Status: Proposal
 - Author: Neng Lu
-- Pull Request:
-- Mailing List discussion:
-- Release:
+- Mailing List discussion: https://lists.apache.org/thread/hb7v749xvh7yzw0tqzw9mkxd1vstcdrh
 
 ## Background
 

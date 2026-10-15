@@ -59,6 +59,21 @@ application-visible order across Key_Shared hash-range reassignment.
     and reads its backlog from storage.
   - **Where reads come from:** the managed ledger's cache hit and miss rates (`pulsar_ml_cache_hits_rate`,
     `pulsar_ml_cache_misses_rate`) in the metrics show which reads the cache served.
+- [`iot-telemetry-offload.yaml`](../iot-telemetry-offload.yaml) measures catch-up reads from tiered storage. The
+  gateways publish 100,000 unbatched 1 KiB messages at 10,000 messages per second to one topic, whose ledgers roll
+  over at 25,000 entries and which the brokers offload to an S3-compatible SeaweedFS as soon as they do, deleting them
+  from BookKeeper at once. Six applications with one pod each join 30 s after the measurement starts, once the
+  gateways have finished; before they do, the launcher moves their subscriptions' positions 10,240 messages apart and
+  unloads the topic. The brokers reach the storage with 10 ms of delay each way. See
+  [Offloading](../../docs/offloading.md).
+- [`iot-telemetry-offload-random-seeks.yaml`](../iot-telemetry-offload-random-seeks.yaml) measures random reads of
+  offloaded ledgers by time: after 110,000 unbatched 1 KiB messages 1 ms apart, which one application receives and
+  the namespace retains, the launcher seeks a subscription of its own 500 times to random publish times and reads the
+  message at each. See [Random seeks](../../docs/offloading.md#random-seeks).
+- [`iot-telemetry-offload-seek.yaml`](../iot-telemetry-offload-seek.yaml) measures seeks by timestamp in offloaded
+  ledgers: 110,000 unbatched 1 KiB messages 1 ms apart, and six late applications whose subscriptions the launcher
+  resets to publish times spread over the offloaded ledgers before they read their backlogs. The storage logs every
+  request, so that the report counts the reads of the searches. See [Offloading](../../docs/offloading.md).
 - [`iot-telemetry-max-rate.yaml`](../iot-telemetry-max-rate.yaml) runs the high-rate scenario's 500 gateways at the
   maximum rate: `rate: 0` removes the rate limit, so the gateways publish four million unbatched 128-byte messages
   as fast as the cluster takes them, with at most 100,000 in flight. One application consumes them with twenty pods
@@ -192,6 +207,9 @@ workloads:
         PULSAR_MEM: -Xms1536m -Xmx1536m -XX:MaxDirectMemorySize=256m -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch
       joinSeconds: []          # not set in the base file: each application's join after the measurement starts, in s
       caughtUpLatencyMillis: 1000  # not set in the base file: a late application has caught up within this latency
+      skipMessages: []         # not set in the base file: the messages of each topic each late application skips
+      unloadBeforeJoin: false  # not set in the base file: unload the topics before the late applications join
+      resetToMillis: []        # not set in the base file: the publish time each late application resets to, in ms
     behaviors:
       podRestarts:             # each application restarts this fraction of its pods every intervalSeconds
         intervalSeconds: 0
@@ -207,6 +225,17 @@ the warmup. It has caught up when each of its topics has delivered a measured me
 redeliveries a few older messages may still arrive after it. The report's Catch-up section shows when each late
 application joined, its subscription's backlog then, and how long it took to catch up. The warmup and the latest join
 have to be within the timeout, which also has to leave room for the last application to catch up.
+
+`applications.skipMessages` and `applications.unloadBeforeJoin` prepare the late applications' join, which the
+launcher carries out at the earliest late application's join time: it moves each late application's subscription
+forward by its number of messages on every topic, a value for each application, and then unloads every topic. The
+late applications wait for it before they open their pods. `applications.resetToMillis` resets each late
+application's subscription by timestamp instead, to the publish time this many milliseconds after the measurement's
+start, -1 for none, once the gateways have finished; the application then expects as many messages as its backlog
+had. Skipping and resetting need `gateways.producer.batchingEnabled: false`,
+since the launcher skips entries. An application that skips messages expects every message but the skipped ones, each
+device's from the first one that it receives. [Offloading](../../docs/offloading.md) uses them to read a backlog from
+tiered storage from staggered positions.
 
 `timeoutSeconds` bounds the whole workload: the applications stop waiting for messages after it and the run fails,
 the gateways give up waiting for a warmup round or the measurement's start, and the launcher waits for the containers
