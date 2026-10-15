@@ -26,7 +26,9 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertSame;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
 import static org.testng.Assert.fail;
 import io.oxia.client.api.AsyncOxiaClient;
@@ -34,13 +36,18 @@ import io.oxia.client.api.RangeScanConsumer;
 import io.oxia.client.api.Version;
 import io.oxia.client.api.options.RangeScanOption;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import lombok.Cleanup;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.Option;
 import org.apache.pulsar.metadata.api.ScanConsumer;
@@ -128,6 +135,50 @@ public class OxiaMetadataStoreScanByIndexTest {
         assertSame(reported.get(), error);
         // The scan stops at the record the consumer failed on
         assertEquals(paths(received), List.of("/p/a"));
+    }
+
+    @Test
+    public void scanByIndexFailsOnceWhenItDoesNotEndWithinTheRequestTimeout() throws Exception {
+        // The client keeps retrying the scan of a shard that doesn't answer, and reports nothing meanwhile
+        AtomicReference<RangeScanConsumer> scanConsumer = new AtomicReference<>();
+        doAnswer(invocation -> {
+            scanConsumer.set(invocation.getArgument(2));
+            return null;
+        }).when(client).rangeScan(anyString(), anyString(), any(RangeScanConsumer.class), anySet());
+        @Cleanup
+        OxiaMetadataStore storeWithShortTimeout =
+                new OxiaMetadataStore(client, "test-identity", null, Duration.ofMillis(100));
+        List<GetResult> received = new ArrayList<>();
+        AtomicInteger errors = new AtomicInteger();
+        AtomicInteger completions = new AtomicInteger();
+
+        CompletableFuture<Void> scan = storeWithShortTimeout.scanByIndex("/p", "idx", "k", "k", r -> true,
+                new ScanConsumer() {
+                    @Override
+                    public void onNext(GetResult result) {
+                        received.add(result);
+                    }
+
+                    @Override
+                    public void onError(Throwable throwable) {
+                        errors.incrementAndGet();
+                    }
+
+                    @Override
+                    public void onCompleted() {
+                        completions.incrementAndGet();
+                    }
+                });
+
+        ExecutionException e = expectThrows(ExecutionException.class, () -> scan.get(10, TimeUnit.SECONDS));
+        assertTrue(e.getCause() instanceof TimeoutException, "unexpected failure: " + e.getCause());
+        // When the shard answers at last, the scan stops it and passes nothing more on
+        assertFalse(scanConsumer.get().onNext(record("/p/a")));
+        scanConsumer.get().onError(new RuntimeException("late error"));
+        scanConsumer.get().onCompleted();
+        assertEquals(errors.get(), 1);
+        assertEquals(completions.get(), 0);
+        assertEquals(received, List.of());
     }
 
     private void scanReturns(io.oxia.client.api.GetResult... records) {
