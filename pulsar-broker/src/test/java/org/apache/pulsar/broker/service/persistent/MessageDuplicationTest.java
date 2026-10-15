@@ -583,8 +583,8 @@ public class MessageDuplicationTest extends BrokerTestBase {
         assertTrue(messageDeduplication.getInactiveProducers().isEmpty());
     }
 
-    @Test(timeOut = 60000)
-    public void testReconnectDuringInactiveProducerPurge() throws Exception {
+    @Test(dataProvider = "trueFalse", timeOut = 60000)
+    public void testReconnectDuringInactiveProducerPurge(boolean disconnectAfterReconnect) throws Exception {
         String topicName = "persistent://prop/ns-abc/" + UUID.randomUUID();
         String producerName = "reconnecting-producer";
         try (Reader<String> reader = pulsarClient.newReader(Schema.STRING).topic(topicName)
@@ -600,6 +600,7 @@ public class MessageDuplicationTest extends BrokerTestBase {
                 Long inactiveSince = deduplication.getInactiveProducers().get(producerName);
                 return inactiveSince != null && inactiveSince < System.currentTimeMillis();
             });
+            long originalInactiveSince = deduplication.getInactiveProducers().get(producerName);
 
             CountDownLatch candidateSelected = new CountDownLatch(1);
             CountDownLatch resumePurge = new CountDownLatch(1);
@@ -635,11 +636,33 @@ public class MessageDuplicationTest extends BrokerTestBase {
                         .producerName(producerName).enableBatching(false).create()) {
                     producer.newMessage().sequenceId(6).value("after-reconnect").send();
                     assertFalse(deduplication.getInactiveProducers().containsKey(producerName));
+                    Long refreshedInactiveSince = null;
+                    if (disconnectAfterReconnect) {
+                        producer.close();
+                        Awaitility.await().untilAsserted(() -> {
+                            Long inactiveSince = deduplication.getInactiveProducers().get(producerName);
+                            assertNotNull(inactiveSince);
+                            assertTrue(inactiveSince > originalInactiveSince,
+                                    "The replacement producer must have a refreshed inactivity timestamp");
+                        });
+                        refreshedInactiveSince = deduplication.getInactiveProducers().get(producerName);
+                    }
                     resumePurge.countDown();
                     purge.get(30, TimeUnit.SECONDS);
 
-                    assertEquals(producer.newMessage().sequenceId(6).value("retry").send(),
-                            new MessageIdImpl(-1, -1, -1), "A retry after reconnect must still be deduplicated");
+                    if (disconnectAfterReconnect) {
+                        assertEquals(deduplication.getInactiveProducers().get(producerName), refreshedInactiveSince,
+                                "The stale purge must preserve the refreshed inactivity record");
+                        try (Producer<String> retryProducer = pulsarClient.newProducer(Schema.STRING).topic(topicName)
+                                .producerName(producerName).enableBatching(false).create()) {
+                            assertEquals(retryProducer.newMessage().sequenceId(6).value("retry").send(),
+                                    new MessageIdImpl(-1, -1, -1),
+                                    "A retry after reconnect and disconnect must still be deduplicated");
+                        }
+                    } else {
+                        assertEquals(producer.newMessage().sequenceId(6).value("retry").send(),
+                                new MessageIdImpl(-1, -1, -1), "A retry after reconnect must still be deduplicated");
+                    }
                     assertEquals(reader.readNext(10, TimeUnit.SECONDS).getValue(), "before-reconnect");
                     assertEquals(reader.readNext(10, TimeUnit.SECONDS).getValue(), "after-reconnect");
                     assertFalse(reader.hasMessageAvailable(), "The retry must not add another stored message");
