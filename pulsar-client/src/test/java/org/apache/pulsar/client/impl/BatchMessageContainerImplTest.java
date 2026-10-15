@@ -995,7 +995,7 @@ public class BatchMessageContainerImplTest {
 
         ProducerImpl<?> producer = createTestProducer();
         // encryption disabled: the real implementation returns its input unchanged
-        when(producer.encryptMessage(any(), any())).thenAnswer(invocation -> invocation.getArgument(1));
+        doAnswer(invocation -> invocation.getArgument(1)).when(producer).encryptMessage(any(), any());
         ConnectionHandler connectionHandler = mock(ConnectionHandler.class);
         when(connectionHandler.getMaxMessageSize()).thenReturn(1);
         when(producer.getConnectionHandler()).thenReturn(connectionHandler);
@@ -1039,14 +1039,14 @@ public class BatchMessageContainerImplTest {
         ProducerImpl<?> producer = createTestProducer();
         List<ByteBuf> encryptedBuffers = new ArrayList<>();
         // Mirror a successful encryption: release the input and return a different buffer.
-        when(producer.encryptMessage(any(), any())).thenAnswer(invocation -> {
+        doAnswer(invocation -> {
             ByteBuf input = invocation.getArgument(1);
             ByteBuf encrypted = ByteBufAllocator.DEFAULT.buffer(input.readableBytes());
             encrypted.writeBytes(input, input.readerIndex(), input.readableBytes());
             input.release();
             encryptedBuffers.add(encrypted);
             return encrypted;
-        });
+        }).when(producer).encryptMessage(any(), any());
         ConnectionHandler connectionHandler = mock(ConnectionHandler.class);
         when(connectionHandler.getMaxMessageSize()).thenReturn(1);
         when(producer.getConnectionHandler()).thenReturn(connectionHandler);
@@ -1092,7 +1092,7 @@ public class BatchMessageContainerImplTest {
 
         ProducerImpl<?> producer = createTestProducer();
         // encryption disabled: the real implementation returns its input unchanged
-        when(producer.encryptMessage(any(), any())).thenAnswer(invocation -> invocation.getArgument(1));
+        doAnswer(invocation -> invocation.getArgument(1)).when(producer).encryptMessage(any(), any());
         // the single-message branch uses the (producerId, sequenceId, numMessages, messageId, ...) overload
         doAnswer(invocation -> {
             MessageMetadata metadata = invocation.getArgument(4);
