@@ -66,9 +66,12 @@ public class ManagedLedgerFactoryConfig {
      * - Consumers temporarily falling behind the tail
      * Entries with remaining expected reads will have their TTL extended up to this many times
      * before being eligible for eviction. The TTL will be extended by
-     * managedLedgerCacheEvictionTimeThresholdMillis each time.
+     * managedLedgerCacheEvictionTimeThresholdMillis each time. When the cache needs memory, size-based eviction
+     * overrides this protection after requeuing an entry at most once per eviction pass.
+     * The default suits copyEntriesInCache=true; without copying, a cached entry can keep a larger buffer allocated,
+     * so consider a lower value.
      */
-    private int cacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes = 5;
+    private int cacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes = 60;
 
     /**
      * Controls whether recently accessed entries in the managed ledger cache should have their
@@ -77,7 +80,9 @@ public class ManagedLedgerFactoryConfig {
     private boolean cacheEvictionExtendTTLOfRecentlyAccessed = true;
 
     /**
-     * Whether we should make a copy of the entry payloads when inserting in cache.
+     * Whether we should make a copy of the entry payloads when inserting in cache. Without a copy, a cached entry keeps
+     * the larger buffer that it was received in, such as a 64 KB Netty buffer, allocated while it stays in the cache,
+     * which cacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes can extend.
      */
     private boolean copyEntriesInCache = false;
 

@@ -371,6 +371,9 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         config.setMaxCacheSize(1000);
         config.setCacheEvictionIntervalMs(10);
         config.setCacheEvictionTimeThresholdMillis(100);
+        // The cursors don't read the entries, which keep their expected reads: the cache extends their time to live
+        // by the threshold at most this many times, 500 ms in all
+        config.setCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes(5);
 
         @Cleanup("shutdown")
         ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, config);

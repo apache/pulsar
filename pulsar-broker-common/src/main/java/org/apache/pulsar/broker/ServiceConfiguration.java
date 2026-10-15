@@ -2635,7 +2635,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
             (int) (DirectMemoryUtils.jvmMaxDirectMemory() / 5 / (1024 * 1024)));
 
     @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Whether we should make a copy of the entry payloads when "
-            + "inserting in cache")
+            + "inserting in cache. Without a copy, a cached entry keeps the larger buffer that it was received in,\n"
+            + "such as a 64 KB Netty buffer, allocated while it stays in the cache, which\n"
+            + "managedLedgerCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes can extend.")
     private boolean managedLedgerCacheCopyEntries = false;
 
     @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Maximum buffer size in MB for bytes read from storage"
@@ -2695,9 +2697,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "- Consumers temporarily falling behind the tail\n"
             + "Entries with remaining expected reads will have their TTL extended up to this many times\n"
             + "before being eligible for eviction. The TTL will be extended by\n"
-            + "managedLedgerCacheEvictionTimeThresholdMillis each time.\n"
-            + "Default is 5.")
-    private int managedLedgerCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes = 5;
+            + "managedLedgerCacheEvictionTimeThresholdMillis each time. When the cache needs memory, size-based\n"
+            + "eviction overrides this protection after requeuing an entry at most once per eviction pass.\n"
+            + "The default suits managedLedgerCacheCopyEntries=true; without copying, a cached entry can keep a\n"
+            + "larger buffer allocated, so consider a lower value.\n"
+            + "Default is 60.")
+    private int managedLedgerCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes = 60;
 
     @FieldContext(category = CATEGORY_STORAGE_ML, dynamic = true,
             doc = "Controls whether recently accessed entries in the managed ledger cache should have their "

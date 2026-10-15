@@ -54,7 +54,7 @@ application-visible order across Key_Shared hash-range reassignment.
     entries for a late application before it joins. Once the 3 that join 2 s apart are reading, the entries that the
     first of them reads from storage are expected to be read by the others behind it, so they stay in the cache for
     its time to live, `managedLedgerCacheEvictionTimeThresholdMillis` (1 s), extended up to
-    `managedLedgerCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes` (5) times, about 6 s, which the
+    `managedLedgerCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes` (60) times, about 61 s, which the
     2 s spacing is within. The others then read them from the cache. The last application is too far behind for that,
     and reads its backlog from storage.
   - **Where reads come from:** the managed ledger's cache hit and miss rates (`pulsar_ml_cache_hits_rate`,
