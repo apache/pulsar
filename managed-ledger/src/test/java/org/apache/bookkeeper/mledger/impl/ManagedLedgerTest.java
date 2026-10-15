@@ -54,6 +54,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.Unpooled;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import it.unimi.dsi.fastutil.longs.LongLongPair;
 import java.lang.reflect.Field;
 import java.nio.ReadOnlyBufferException;
 import java.nio.charset.Charset;
@@ -6249,5 +6250,406 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ManagedLedgerImpl v3ClientLedger = (ManagedLedgerImpl) factory.open("batch_read_v3_client",
                 initManagedLedgerConfig(defaultConfig()));
         assertFalse(v3ClientLedger.isBatchReadEnabled());
+    }
+
+    @Test
+    public void testBatchReadEntriesCallback() throws Exception {
+        @Cleanup
+        ManagedLedgerImpl ledger =
+                (ManagedLedgerImpl) factory.open("testBatchReadEntriesCallback");
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor");
+        for (int i = 0; i < 10; i++) {
+            ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicBoolean failed = new AtomicBoolean(false);
+        List<Entry> entries = new ArrayList<>();
+        OpReadEntry opReadEntry = OpReadEntry.create(cursor, cursor.readPosition, 10, -1, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries0, Object ctx) {
+                entries.addAll(entries0);
+                latch.countDown();
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                failed.set(true);
+                latch.countDown();
+            }
+        }, null, ledger.lastConfirmedEntry, position -> position.getEntryId() % 2 == 0, true);
+
+        List<LongLongPair> ranges = List.of(
+                LongLongPair.of(1L, 1L), LongLongPair.of(3L, 3L), LongLongPair.of(5L, 5L),
+                LongLongPair.of(7L, 7L), LongLongPair.of(9L, 9L));
+        ManagedLedgerImpl.BatchReadEntriesCallback callback = new ManagedLedgerImpl
+                .BatchReadEntriesCallback(ranges, 5, opReadEntry, null);
+        long ledgerId = ledger.currentLedger.getId();
+
+        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 1,  new byte[1])), null);
+        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 3,  new byte[3])), null);
+        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 7,  new byte[7])), null);
+        callback.readEntriesFailed(
+                new ManagedLedgerException.InvalidCursorPositionException("Invalid cursor position"), null);
+        // After call readEntriesFailed, the following readEntriesComplete should be ignored.
+        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 5,  new byte[5])), null);
+
+        latch.await();
+        // should not fail
+        assertFalse(failed.get());
+        assertEquals(entries.size(), 2);
+
+        // `entries` should be only the entries with entryId 1 and 3.
+        assertEquals(entries.get(0).getEntryId(), 1);
+        assertEquals(entries.get(1).getEntryId(), 3);
+
+        // ReadPosition should be updated to [4]
+        assertEquals(cursor.getReadPosition().getEntryId(), 4);
+    }
+
+    @Test
+    public void testBatchReadEntriesCallbackEmptyRangeReadDoesNotSkipEntries() throws Exception {
+        @Cleanup
+        ManagedLedgerImpl ledger =
+                (ManagedLedgerImpl) factory.open("testBatchReadEntriesCallbackEmptyRangeReadDoesNotSkipEntries");
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor");
+        for (int i = 0; i < 10; i++) {
+            ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicBoolean failed = new AtomicBoolean(false);
+        List<Entry> entries = new ArrayList<>();
+        OpReadEntry opReadEntry = OpReadEntry.create(cursor, cursor.readPosition, 2, -1, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries0, Object ctx) {
+                entries.addAll(entries0);
+                latch.countDown();
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                failed.set(true);
+                latch.countDown();
+            }
+        }, null, ledger.lastConfirmedEntry, position -> false, true);
+
+        long ledgerId = ledger.currentLedger.getId();
+        // Three ranges to read: [1, 2], [4], [6]
+        List<LongLongPair> ranges = List.of(
+                LongLongPair.of(1L, 2L), LongLongPair.of(4L, 4L), LongLongPair.of(6L, 6L));
+        ManagedLedgerImpl.BatchReadEntriesCallback callback = new ManagedLedgerImpl
+                .BatchReadEntriesCallback(ranges, 4, opReadEntry, PositionFactory.create(ledgerId, 9));
+
+        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 1, new byte[1]),
+                EntryImpl.create(ledgerId, 2, new byte[2])), null);
+        // The [6] range read completes before the [4] range read.
+        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 6, new byte[6])), null);
+        // The [4] range read returns an empty batch, which completes the batched read.
+        callback.readEntriesComplete(Collections.emptyList(), null);
+
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+        assertFalse(failed.get());
+        // Only the contiguous prefix [1, 2] may be delivered; entry 6 must not be delivered
+        // before entry 4, otherwise entry 4 would be skipped silently.
+        assertEquals(entries.size(), 2);
+        assertEquals(entries.get(0).getEntryId(), 1);
+        assertEquals(entries.get(1).getEntryId(), 2);
+        // The read position must point to entry 3 so that the unread entries will be read again.
+        assertEquals(cursor.getReadPosition().getEntryId(), 3);
+    }
+
+    @Test
+    public void testSyncFailureOnFirstRangeStopsSubmittingLaterRanges() throws Exception {
+        @Cleanup
+        ManagedLedgerImpl ledger =
+                (ManagedLedgerImpl) factory.open("testSyncFailureOnFirstRangeStopsSubmittingLaterRanges");
+        ledger = Mockito.spy(ledger);
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor");
+        for (int i = 0; i < 6; i++) {
+            ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicInteger submitCount = new AtomicInteger();
+        AtomicReference<ManagedLedgerException> callbackFailure = new AtomicReference<>();
+        Mockito.doAnswer(inv -> {
+            int invocationCount = submitCount.incrementAndGet();
+            if (invocationCount == 1) {
+                ReadEntriesCallback callback = inv.getArgument(4);
+                Object ctx = inv.getArgument(5);
+                callback.readEntriesFailed(
+                        new ManagedLedgerException.TooManyRequestsException("inflight limiter rejected read"), ctx);
+                return null;
+            }
+            fail("should not submit later ranges after the first range fails synchronously");
+            return null;
+        }).when(ledger).asyncReadEntry(Mockito.any(ReadHandle.class), Mockito.anyLong(),
+                Mockito.anyLong(), Mockito.any(OpReadEntry.class), Mockito.any(ReadEntriesCallback.class),
+                Mockito.any());
+
+        cursor.asyncReadEntriesWithSkip(10, -1, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                fail("expected readEntriesFailed");
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                callbackFailure.set(exception);
+                latch.countDown();
+            }
+        }, null, PositionFactory.LATEST, position -> position.getEntryId() % 2 == 0);
+
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+        assertEquals(submitCount.get(), 1);
+        assertTrue(callbackFailure.get() instanceof ManagedLedgerException.TooManyRequestsException);
+    }
+
+    @Test
+    public void testReadEntriesFromDifferentLedgersWithSkipCondition() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(5);
+        config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testReadEntriesWithSkipCondition", config);
+        ledger = Mockito.spy(ledger);
+
+        AtomicInteger counter = new AtomicInteger();
+        Mockito.doAnswer(inv -> {
+            counter.incrementAndGet();
+            return inv.callRealMethod();
+        }).when(ledger).asyncReadEntries(Mockito.any());
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor");
+
+        Position lastPosition = null;
+        for (int i = 0; i < 12; i++) {
+            lastPosition = ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicBoolean failed = new AtomicBoolean(false);
+        List<Entry> entries = new ArrayList<>();
+        cursor.asyncReadEntriesWithSkip(100, -1, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries0, Object ctx) {
+                entries.addAll(entries0);
+                latch.countDown();
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                failed.set(true);
+                latch.countDown();
+            }
+        }, null, PositionFactory.LATEST, position -> position.getEntryId() % 2 == 0);
+
+        latch.await();
+        assertFalse(failed.get());
+        assertEquals(entries.size(), 5);
+        // Read entries from 3 ledgers, the counter is 3.
+        assertEquals(counter.get(), 3);
+        Position readPosition = cursor.getReadPosition();
+        assertTrue(readPosition.getLedgerId() == lastPosition.getLedgerId()
+                && readPosition.getEntryId() == lastPosition.getEntryId() + 1);
+    }
+
+    @Test
+    public void testReadEntriesFromOneSameLedgerWithSkipCondition() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testReadEntriesWithSkipCondition", config);
+        ledger = Mockito.spy(ledger);
+
+        AtomicInteger counter = new AtomicInteger();
+        Mockito.doAnswer(inv -> {
+            counter.incrementAndGet();
+            return inv.callRealMethod();
+        }).when(ledger).asyncReadEntries(Mockito.any());
+
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor");
+
+        Position lastPosition = null;
+        for (int i = 0; i < 10; i++) {
+            lastPosition = ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicBoolean failed = new AtomicBoolean(false);
+        List<Entry> entries = new ArrayList<>();
+        cursor.asyncReadEntriesWithSkip(100, -1, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries0, Object ctx) {
+                entries.addAll(entries0);
+                latch.countDown();
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                failed.set(true);
+                latch.countDown();
+            }
+        }, null, PositionFactory.LATEST, position -> position.getEntryId() % 2 == 0);
+
+        latch.await();
+        assertEquals(counter.get(), 1);
+
+        assertFalse(failed.get());
+        assertEquals(entries.size(), 5);
+
+        Position readPosition = cursor.getReadPosition();
+        assertTrue(readPosition.getLedgerId() == lastPosition.getLedgerId()
+                && readPosition.getEntryId() == lastPosition.getEntryId() + 1);
+    }
+
+    // ===== Unit tests for buildRanges =====
+
+    private static List<LongLongPair> callBuildRanges(long firstEntry, long lastEntry, long ledgerId,
+                                                      Predicate<Position> skipCondition) {
+        return ManagedLedgerImpl.buildRanges(firstEntry, lastEntry, ledgerId, skipCondition);
+    }
+
+    @Test
+    public void testBuildRangesNoSkip() {
+        List<LongLongPair> ranges = callBuildRanges(0, 4, 1, pos -> false);
+
+        assertEquals(ranges.size(), 1);
+        assertEquals(ranges.get(0), LongLongPair.of(0L, 4L));
+    }
+
+    @Test
+    public void testBuildRangesAllSkipped() {
+        List<LongLongPair> ranges = callBuildRanges(0, 4, 1, pos -> true);
+
+        assertTrue(ranges.isEmpty());
+    }
+
+    @Test
+    public void testBuildRangesSingleEntryNotSkipped() {
+        List<LongLongPair> ranges = callBuildRanges(5, 5, 1, pos -> false);
+
+        assertEquals(ranges.size(), 1);
+        assertEquals(ranges.get(0), LongLongPair.of(5L, 5L));
+    }
+
+    @Test
+    public void testBuildRangesSingleEntrySkipped() {
+        List<LongLongPair> ranges = callBuildRanges(5, 5, 1, pos -> true);
+
+        assertTrue(ranges.isEmpty());
+    }
+
+    @Test
+    public void testBuildRangesSkipFirst() {
+        List<LongLongPair> ranges = callBuildRanges(0, 4, 1, pos -> pos.getEntryId() == 0);
+
+        assertEquals(ranges.size(), 1);
+        assertEquals(ranges.get(0), LongLongPair.of(1L, 4L));
+    }
+
+    @Test
+    public void testBuildRangesSkipLast() {
+        List<LongLongPair> ranges = callBuildRanges(0, 4, 1, pos -> pos.getEntryId() == 4);
+
+        assertEquals(ranges.size(), 1);
+        assertEquals(ranges.get(0), LongLongPair.of(0L, 3L));
+    }
+
+    @Test
+    public void testBuildRangesMultipleDisjointRanges() {
+        // Skip entry 2 and 5: ranges should be [0,1], [3,4], [6,6]
+        List<LongLongPair> ranges = callBuildRanges(0, 6, 1,
+                pos -> pos.getEntryId() == 2 || pos.getEntryId() == 5);
+
+        assertEquals(ranges.size(), 3);
+        assertEquals(ranges.get(0), LongLongPair.of(0L, 1L));
+        assertEquals(ranges.get(1), LongLongPair.of(3L, 4L));
+        assertEquals(ranges.get(2), LongLongPair.of(6L, 6L));
+    }
+
+    @Test
+    public void testBuildRangesConsecutiveSkipsInMiddle() {
+        // Skip entries 2,3,4: ranges should be [0,1], [5,6]
+        List<LongLongPair> ranges = callBuildRanges(0, 6, 1,
+                pos -> pos.getEntryId() >= 2 && pos.getEntryId() <= 4);
+
+        assertEquals(ranges.size(), 2);
+        assertEquals(ranges.get(0), LongLongPair.of(0L, 1L));
+        assertEquals(ranges.get(1), LongLongPair.of(5L, 6L));
+    }
+
+    @Test
+    public void testBuildRangesSkipEvenEntries() {
+        // Skip even entries: each range is a single entry [1,1], [3,3], [5,5]
+        List<LongLongPair> ranges = callBuildRanges(0, 5, 1, pos -> pos.getEntryId() % 2 == 0);
+
+        assertEquals(ranges.size(), 3);
+        assertEquals(ranges.get(0), LongLongPair.of(1L, 1L));
+        assertEquals(ranges.get(1), LongLongPair.of(3L, 3L));
+        assertEquals(ranges.get(2), LongLongPair.of(5L, 5L));
+    }
+
+    @Test
+    public void testBuildRangesPredicateUsesLedgerId() {
+        // Skip entries in ledger 1, but predicate checks ledgerId
+        List<LongLongPair> ranges = callBuildRanges(0, 2, 1, pos -> pos.getLedgerId() == 1);
+
+        assertTrue(ranges.isEmpty());
+
+        // Now with a different ledgerId, nothing should be skipped
+        ranges = callBuildRanges(0, 2, 2, pos -> pos.getLedgerId() == 1);
+
+        assertEquals(ranges.size(), 1);
+        assertEquals(ranges.get(0), LongLongPair.of(0L, 2L));
+    }
+
+    @Test
+    public void testBuildRangesLargeEntryIds() {
+        // Use values large enough to test long range but not so large as to overflow
+        long first = 999_999_999_999L;
+        long last = 999_999_999_999L + 2;
+        List<LongLongPair> ranges = callBuildRanges(first, last, 1, pos -> false);
+
+        assertEquals(ranges.size(), 1);
+        assertEquals(ranges.get(0), LongLongPair.of(first, last));
+    }
+
+    @Test
+    public void testBuildRangesOnlyMiddleKept() {
+        // Only keep entry 3, skip everything else
+        List<LongLongPair> ranges = callBuildRanges(0, 6, 1, pos -> pos.getEntryId() != 3);
+
+        assertEquals(ranges.size(), 1);
+        assertEquals(ranges.get(0), LongLongPair.of(3L, 3L));
+    }
+
+    @Test
+    public void testBuildRangesSkipMiddleEntry() {
+        List<LongLongPair> ranges = callBuildRanges(10, 12, 5, pos -> pos.getEntryId() == 11);
+
+        assertEquals(ranges.size(), 2);
+        assertEquals(ranges.get(0), LongLongPair.of(10L, 10L));
+        assertEquals(ranges.get(1), LongLongPair.of(12L, 12L));
+    }
+
+    @Test
+    public void testBuildRangesPositionFieldsCorrect() {
+        // Verify that the predicate receives correct ledgerId and entryId
+        List<Long> seenLedgerIds = new ArrayList<>();
+        List<Long> seenEntryIds = new ArrayList<>();
+
+        callBuildRanges(3, 5, 99, pos -> {
+            seenLedgerIds.add(pos.getLedgerId());
+            seenEntryIds.add(pos.getEntryId());
+            return false;
+        });
+
+        assertEquals(seenLedgerIds, Arrays.asList(99L, 99L, 99L));
+        assertEquals(seenEntryIds, Arrays.asList(3L, 4L, 5L));
     }
 }
