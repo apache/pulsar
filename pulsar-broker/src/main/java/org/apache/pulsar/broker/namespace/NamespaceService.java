@@ -911,9 +911,11 @@ public class NamespaceService implements AutoCloseable {
         }
         // found corresponding policy, set the status to controlled
         nsOwnedStatus.is_controlled = true;
-        if (nsIsolationPolicy.isPrimaryBroker(pulsar.getAdvertisedAddress())) {
+        if (nsIsolationPolicy.isPrimaryBroker(pulsar.getAdvertisedAddress())
+                || nsIsolationPolicy.isPrimaryBrokerId(pulsar.getBrokerId())) {
             nsOwnedStatus.broker_assignment = BrokerAssignment.primary;
-        } else if (nsIsolationPolicy.isSecondaryBroker(pulsar.getAdvertisedAddress())) {
+        } else if (nsIsolationPolicy.isSecondaryBroker(pulsar.getAdvertisedAddress())
+                || nsIsolationPolicy.isSecondaryBrokerId(pulsar.getBrokerId())) {
             nsOwnedStatus.broker_assignment = BrokerAssignment.secondary;
         }
 

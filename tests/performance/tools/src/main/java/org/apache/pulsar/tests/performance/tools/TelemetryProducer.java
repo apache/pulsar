@@ -42,6 +42,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientSharedResources;
+import org.apache.pulsar.client.api.SubscriptionType;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
@@ -53,6 +54,11 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
             description = "Before the first measured message, wait for the launcher to start the measurement over "
                     + "the control port, for example after letting the host cool down")
     boolean awaitMeasurementStart;
+
+    @Option(names = "--await-run-start",
+            description = "Before creating the clients, wait for the launcher to start the run over the control port, "
+                    + "for example after setting up the run's network conditions")
+    boolean awaitRunStart;
 
     // What the producer is doing, for the progress stream
     private volatile String phase = "connecting";
@@ -81,6 +87,9 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
         if (awaitMeasurementStart && controlPort == null) {
             throw new IllegalArgumentException("--await-measurement-start needs --control-port");
         }
+        if (awaitRunStart && controlPort == null) {
+            throw new IllegalArgumentException("--await-run-start needs --control-port");
+        }
         ProgressStream progress = new ProgressStream(sendLatency, line -> {
             line.put("role", "producer");
             line.put("phase", phase);
@@ -97,6 +106,12 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
             control = MeasurementControl.start(controlPort);
             control.serveProgress(progress);
             System.out.println("CONTROL_READY port=" + control.port());
+            if (awaitRunStart) {
+                phase = "awaiting-run-start";
+                control.awaitRunStart(System.nanoTime() + TimeUnit.SECONDS.toNanos(scenario.timeoutSeconds()));
+                System.out.println("RUN_START");
+                phase = "connecting";
+            }
         }
         PulsarClientSharedResources sharedResources = SharedClientResources.create(
                 scenario.gateways().producer().ioThreads(), scenario.gateways().producer().listenerThreads());
@@ -356,13 +371,21 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
 
     private ProducerBuilder<byte[]> producerBuilder(IotScenario scenario, List<PulsarClient> clients,
                                                     int gateway, int topic) {
-        return clients.get(gateway).newProducer()
-                .topic(scenario.topicNames().get(topic))
+        ProducerBuilder<byte[]> builder = clients.get(gateway).newProducer()
+                .topic(scenario.topicName(topic))
                 .producerName("iot-gateway-" + gateway + "-topic-" + topic)
-                .batcherBuilder(BatcherBuilder.KEY_BASED)
+                // Key_Shared delivers a batch to one consumer, so a batch keeps to one key, its device. With the
+                // other subscription types, a batch may mix devices.
+                .batcherBuilder(scenario.subscriptionType() == SubscriptionType.Key_Shared
+                        ? BatcherBuilder.KEY_BASED : BatcherBuilder.DEFAULT)
                 .enableBatching(scenario.gateways().producer().batchingEnabled())
                 .blockIfQueueFull(true)
                 .sendTimeout(0, TimeUnit.SECONDS);
+        Integer batchingMaxPublishDelayMillis = scenario.gateways().producer().batchingMaxPublishDelayMillis();
+        if (batchingMaxPublishDelayMillis != null) {
+            builder.batchingMaxPublishDelay(batchingMaxPublishDelayMillis, TimeUnit.MILLISECONDS);
+        }
+        return builder;
     }
 
     private void writeState(long[] sequences) throws Exception {

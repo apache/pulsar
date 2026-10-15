@@ -105,6 +105,7 @@ import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.client.LedgerMetadataBuilder;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.client.PulsarMockLedgerHandle;
 import org.apache.bookkeeper.client.PulsarMockReadHandleInterceptor;
@@ -149,6 +150,8 @@ import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.mledger.util.Futures;
+import org.apache.bookkeeper.net.BookieId;
+import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.mutable.MutableBoolean;
@@ -4901,6 +4904,39 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         long lastLedger = managedLedger.ledgers.lastEntry().getKey();
         managedLedger.getEnsemblesAsync(lastLedger).join();
         Assert.assertFalse(managedLedger.ledgerCache.containsKey(lastLedger));
+    }
+
+    @Test
+    public void testInternalStatsUnderReplicated() throws Exception {
+        ManagedLedgerImpl ledger = spy((ManagedLedgerImpl) factory.open("testInternalStatsUnderReplicated",
+                initManagedLedgerConfig(defaultConfig())));
+        long ledgerId = ledger.ledgers.lastKey();
+        List<BookieId> registered = new ArrayList<>(PulsarMockBookKeeper.getMockEnsemble());
+        List<BookieId> withUnregistered = List.of(registered.get(0), registered.get(1),
+                new BookieSocketAddress("192.0.2.4", 1234).toBookieId());
+
+        mockEnsembles(ledger, ledgerId, registered, registered);
+        assertFalse(ledger.getManagedLedgerInternalStats(true).get().ledgers.get(0).underReplicated);
+
+        mockEnsembles(ledger, ledgerId, registered, withUnregistered);
+        assertTrue(ledger.getManagedLedgerInternalStats(true).get().ledgers.get(0).underReplicated);
+
+        mockEnsembles(ledger, ledgerId, withUnregistered, registered);
+        assertTrue(ledger.getManagedLedgerInternalStats(true).get().ledgers.get(0).underReplicated);
+
+        ledger.close();
+    }
+
+    private static void mockEnsembles(ManagedLedgerImpl ledger, long ledgerId, List<BookieId> olderEnsemble,
+                                      List<BookieId> currentEnsemble) {
+        LedgerMetadata metadata = LedgerMetadataBuilder.create()
+                .withDigestType(DigestType.CRC32C.toApiDigestType())
+                .withPassword(new byte[0])
+                .withId(ledgerId)
+                .newEnsembleEntry(0L, olderEnsemble)
+                .newEnsembleEntry(10L, currentEnsemble)
+                .build();
+        doReturn(CompletableFuture.completedFuture(metadata)).when(ledger).getLedgerMetadata(ledgerId);
     }
 
     @Test

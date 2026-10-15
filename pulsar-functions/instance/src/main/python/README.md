@@ -1,5 +1,29 @@
 # Pulsar Functions Python Runtime
 
+### pulsar-client-python requirements
+
+The runtime requires **pulsar-client-python 3.3.0 or newer**. `Client.subscribe()` grew its
+`dead_letter_policy` parameter in 3.3.0 (as did `ConsumerDeadLetterPolicy`, in the same release), and
+the runtime passes the keyword on every subscription — as `None` when the function configures no
+`maxMessageRetries` or `deadLetterTopic`, which `Client.subscribe()` treats as a no-op. Every other
+argument the runtime passes is present in 3.2.0, so this is the only thing setting the floor.
+
+Everything Pulsar ships already satisfies this. The
+[Docker images](../../../../../docker/pulsar/Dockerfile) derive their version from the
+`pulsar-client-python` entry in
+[`gradle/libs.versions.toml`](../../../../../gradle/libs.versions.toml), which
+[`docker/pulsar/build.gradle.kts`](../../../../../docker/pulsar/build.gradle.kts) resolves and passes
+to the build as `PULSAR_CLIENT_PYTHON_VERSION`. CI pins its own copy of the same version separately,
+in [`run_python_instance_tests.sh`](../../scripts/run_python_instance_tests.sh) — the two agree by
+maintenance rather than derivation. The floor is only visible on a self-managed worker, where the
+process runtime launches the host's `python3` (see `RuntimeUtils`) and the installed client is the
+operator's. For a zip-packaged function, pin it in the function's own `requirements.txt`, which
+`python_instance_main.py` pip-installs before the instance starts:
+
+```
+pulsar-client>=3.3.0
+```
+
 ### Producer configuration
 
 Both producers the runtime creates — the sink (output topic) producer in `python_instance.py` and the
