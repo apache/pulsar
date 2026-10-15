@@ -2665,6 +2665,18 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         }
 
+        LongLongPair singleRange = ranges.size() == 1 ? ranges.get(0) : null;
+        if (singleRange != null && singleRange.leftLong() == firstEntry && singleRange.rightLong() == lastEntry) {
+            // A single contiguous range covering the whole scan window: nothing was skipped, read it
+            // directly so that the read behaves exactly like a regular sequential read.
+            log.debug().attr("ledgerId", ledger.getId())
+                    .attr("firstEntry", firstEntry)
+                    .attr("lastEntry", lastEntry)
+                    .log("Reading entries from ledger");
+            asyncReadEntry(ledger, firstEntry, lastEntry, opReadEntry, opReadEntry.ctx);
+            return;
+        }
+
         long expectedCount = 0;
         for (LongLongPair range : ranges) {
             expectedCount += range.rightLong() - range.leftLong() + 1;
@@ -2675,14 +2687,23 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 .attr("rangeCount", ranges.size())
                 .attr("entryCount", expectedCount)
                 .log("Reading entries from ledger in ranges");
+        // Capture everything that the range submissions need before submitting the first range. Once a
+        // submitted range read completes with a failure, opReadEntry may get recycled concurrently with
+        // its fields nulled out, so dereferencing it while submitting further ranges could race.
+        final IntSupplier expectedReadCount = opReadEntry.cursor::getNumberOfCursorsAtSamePositionOrBefore;
+        final long maxSizeBytes = opReadEntry.maxSizeBytes;
+        final Object readCtx = opReadEntry.ctx;
         BatchReadEntriesCallback callback =
                 new BatchReadEntriesCallback(ranges, expectedCount, opReadEntry, lastReadPosition);
         for (LongLongPair range : ranges) {
-            if (callback.isCompleted()) {
+            if (callback.shouldStopSubmission()) {
                 break;
             }
-            asyncReadEntry(ledger, range.leftLong(), range.rightLong(), opReadEntry, callback, opReadEntry.ctx);
+            callback.onRangeSubmitted();
+            asyncReadEntry(ledger, range.leftLong(), range.rightLong(), maxSizeBytes, expectedReadCount,
+                    callback, readCtx);
         }
+        callback.submissionFinished();
     }
 
     /**
@@ -2730,6 +2751,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         private final OpReadEntry callback;
         private volatile boolean completed = false;
         private final Position lastReadPosition;
+        private volatile boolean submissionHalted = false;
+        // Guarded by this object's monitor. The monitor is only held while mutating this state;
+        // OpReadEntry callbacks are always invoked without holding it.
+        private int pendingRanges;
+        private boolean submissionFinished;
+        private ManagedLedgerException firstFailure;
 
         @VisibleForTesting
         public BatchReadEntriesCallback(List<LongLongPair> ranges, long expectedCount, OpReadEntry callback,
@@ -2745,54 +2772,163 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return completed;
         }
 
-        @Override
-        public synchronized void readEntriesComplete(List<Entry> entries0, Object ctx) {
-            if (completed) {
-                for (Entry entry : entries0) {
-                    entry.release();
-                }
-                return;
+        /**
+         * Whether the submission loop should stop submitting further ranges: either the batched read
+         * already completed, or a range read was throttled and the already submitted ranges deliver
+         * their contiguous prefix instead.
+         */
+        boolean shouldStopSubmission() {
+            return completed || submissionHalted;
+        }
+
+        void onRangeSubmitted() {
+            synchronized (this) {
+                pendingRanges++;
             }
-            entries.addAll(entries0);
-            // If read empty batch from Bookie, we have to complete the call.
-            // Otherwise, it maybe blocks forever, see: PR 24515.
-            if (entries.size() < expectedCount && !entries0.isEmpty()) {
-                return;
+        }
+
+        void submissionFinished() {
+            final FinalizeAction action;
+            final ManagedLedgerException failure;
+            synchronized (this) {
+                submissionFinished = true;
+                action = finalizeIfDoneLocked();
+                failure = firstFailure;
             }
-            completed = true;
-            // Sort to ensure correct order since async range reads may complete out of submission order.
-            entries.sort(ManagedCursorImpl.ENTRY_COMPARATOR);
-            if (entries0.isEmpty() && entries.size() < expectedCount) {
-                // A range read returned an empty batch before all ranges completed. Only deliver the
-                // contiguous prefix of the collected entries and let the remaining entries be re-read,
-                // otherwise the entries of the incomplete ranges would be skipped silently.
-                callback.internalReadEntriesComplete(filterEntries(), null);
-                return;
-            }
-            // If we want to read [1, 2, 3, 4, 5], but we only read [1, 2, 3], [4,5] are filtered, so we need to pass
-            // the `lastReadPosition([5])` to make sure the cursor read position is correct.
-            callback.internalReadEntriesComplete(entries, lastReadPosition);
+            runFinalizeAction(action, failure, null);
         }
 
         @Override
-        public synchronized void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-            if (completed) {
-                return;
+        public void readEntriesComplete(List<Entry> entries0, Object ctx) {
+            final FinalizeAction action;
+            final ManagedLedgerException failure;
+            synchronized (this) {
+                if (completed) {
+                    for (Entry entry : entries0) {
+                        entry.release();
+                    }
+                    return;
+                }
+                entries.addAll(entries0);
+                pendingRanges--;
+                // If read empty batch from Bookie, we have to complete the call.
+                // Otherwise, it maybe blocks forever, see: PR 24515.
+                boolean allRangesReported = submissionFinished && pendingRanges == 0;
+                if (!entries0.isEmpty() && entries.size() < expectedCount && !allRangesReported) {
+                    return;
+                }
+                completed = true;
+                // Sort to ensure correct order since async range reads may complete out of submission order.
+                entries.sort(ManagedCursorImpl.ENTRY_COMPARATOR);
+                if (firstFailure != null) {
+                    action = FinalizeAction.FAIL_WITH_PREFIX;
+                } else if (entries.size() < expectedCount) {
+                    // A range read returned an empty batch before all ranges completed, or all ranges
+                    // completed with fewer entries than expected. Only deliver the contiguous prefix of
+                    // the collected entries and let the remaining entries be re-read, otherwise the
+                    // entries of the incomplete ranges would be skipped silently.
+                    action = FinalizeAction.COMPLETE_PREFIX;
+                } else {
+                    action = FinalizeAction.COMPLETE_ALL;
+                }
+                failure = firstFailure;
+            }
+            runFinalizeAction(action, failure, ctx);
+        }
+
+        @Override
+        public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+            final FinalizeAction action;
+            final ManagedLedgerException failure;
+            synchronized (this) {
+                if (completed) {
+                    return;
+                }
+                pendingRanges--;
+                if (exception instanceof TooManyRequestsException && (pendingRanges > 0 || !submissionFinished)) {
+                    // A range read was rejected by the inflight read limiter while other range reads are
+                    // still in flight or not all ranges have been submitted yet. Failing the batched
+                    // read now would discard the pending results, and every retry of the same window
+                    // could fail again without advancing the cursor. Stop submitting further ranges and
+                    // wait for the in-flight ones instead, so that their contiguous prefix can still be
+                    // delivered.
+                    submissionHalted = true;
+                    if (firstFailure == null) {
+                        firstFailure = exception;
+                    }
+                    action = finalizeIfDoneLocked();
+                    failure = firstFailure;
+                } else {
+                    completed = true;
+                    // Sort first since async range reads may complete out of submission order.
+                    entries.sort(ManagedCursorImpl.ENTRY_COMPARATOR);
+                    action = FinalizeAction.FAIL_WITH_PREFIX;
+                    failure = exception;
+                }
+            }
+            runFinalizeAction(action, failure, ctx);
+        }
+
+        /**
+         * Finalize once the submission loop has finished and every submitted range has reported.
+         * Called with the monitor held.
+         */
+        private FinalizeAction finalizeIfDoneLocked() {
+            if (completed || !submissionFinished || pendingRanges > 0) {
+                return FinalizeAction.NONE;
             }
             completed = true;
-            // Sort first since async range reads may complete out of submission order.
             entries.sort(ManagedCursorImpl.ENTRY_COMPARATOR);
-            // If there are entries been read success, try to let the read operation success as possible.
-            List<Entry> entries = filterEntries();
-            if (!entries.isEmpty()) {
-                // Move the read position of the cursor to the next position of the last read entry,
-                // or we will deliver the same entry to the consumer more than once.
-                Entry entry = entries.get(entries.size() - 1);
-                Position position = PositionFactory.create(entry.getLedgerId(), entry.getEntryId());
-                Position nextReadPosition = callback.cursor.getNextAvailablePosition(position);
-                callback.updateReadPosition(nextReadPosition);
+            if (firstFailure != null) {
+                return FinalizeAction.FAIL_WITH_PREFIX;
             }
-            callback.internalReadEntriesFailed(entries, exception, ctx);
+            return entries.size() < expectedCount ? FinalizeAction.COMPLETE_PREFIX : FinalizeAction.COMPLETE_ALL;
+        }
+
+        /**
+         * Invoke the OpReadEntry callbacks. This must always run without holding the monitor of this
+         * callback: the callbacks reach dispatcher code that synchronizes on the dispatcher monitor,
+         * while the thread submitting the range reads may hold the dispatcher monitor and call into
+         * this callback synchronously on cache hits. Holding this monitor across the callback could
+         * therefore deadlock the two threads.
+         */
+        private void runFinalizeAction(FinalizeAction action, ManagedLedgerException failure, Object ctx) {
+            switch (action) {
+                case NONE:
+                    return;
+                case COMPLETE_ALL:
+                    // If we want to read [1, 2, 3, 4, 5], but we only read [1, 2, 3], [4,5] are filtered,
+                    // so we need to pass the `lastReadPosition([5])` to make sure the cursor read position
+                    // is correct.
+                    callback.internalReadEntriesComplete(entries, lastReadPosition);
+                    return;
+                case COMPLETE_PREFIX:
+                    callback.internalReadEntriesComplete(filterEntries(), null);
+                    return;
+                case FAIL_WITH_PREFIX:
+                    // If there are entries been read success, try to let the read operation success as
+                    // possible.
+                    List<Entry> prefix = filterEntries();
+                    if (!prefix.isEmpty()) {
+                        // Move the read position of the cursor to the next position of the last read entry,
+                        // or we will deliver the same entry to the consumer more than once.
+                        Entry entry = prefix.get(prefix.size() - 1);
+                        Position position = PositionFactory.create(entry.getLedgerId(), entry.getEntryId());
+                        Position nextReadPosition = callback.cursor.getNextAvailablePosition(position);
+                        callback.updateReadPosition(nextReadPosition);
+                    }
+                    callback.internalReadEntriesFailed(prefix, failure, ctx);
+                    return;
+                default:
+                    throw new IllegalStateException("Unexpected action: " + action);
+            }
+        }
+
+        private enum FinalizeAction {
+            NONE,
+            COMPLETE_ALL,
+            COMPLETE_PREFIX,
+            FAIL_WITH_PREFIX
         }
 
         /**
@@ -2874,19 +3010,23 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSec);
     }
 
-    protected void asyncReadEntry(ReadHandle ledger, long firstEntry, long lastEntry, OpReadEntry opReadEntry,
-                                  ReadEntriesCallback callback, Object ctx) {
-        IntSupplier expectedReadCount = opReadEntry.cursor::getNumberOfCursorsAtSamePositionOrBefore;
+    /**
+     * Read a single range of a batched skip-read. Takes the read budget and expected read count as
+     * parameters instead of reading them from an OpReadEntry, since the OpReadEntry may get recycled
+     * concurrently once a previously submitted range read fails.
+     */
+    protected void asyncReadEntry(ReadHandle ledger, long firstEntry, long lastEntry, long maxSizeBytes,
+                                  IntSupplier expectedReadCount, ReadEntriesCallback callback, Object ctx) {
         if (config.getReadEntryTimeoutSeconds() > 0) {
             ReadEntryCallbackWrapper readCallback = ReadEntryCallbackWrapper.create(this, ledger.getId(), firstEntry,
                     callback, ctx, timeoutAtNanos(config.getReadEntryTimeoutSeconds()));
-            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, opReadEntry.maxSizeBytes, expectedReadCount,
+            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, maxSizeBytes, expectedReadCount,
                     readCallback, ctx);
             if (readCallback.registerTimeout()) {
                 factory.getReadEntryTimeoutTracker().add(readCallback);
             }
         } else {
-            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, opReadEntry.maxSizeBytes, expectedReadCount,
+            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, maxSizeBytes, expectedReadCount,
                     callback, ctx);
         }
     }

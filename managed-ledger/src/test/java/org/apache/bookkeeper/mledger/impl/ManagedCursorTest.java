@@ -6072,7 +6072,20 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                 })
                 .when(ledger)
                 .asyncReadEntry(Mockito.any(ReadHandle.class), Mockito.anyLong(),
-                        Mockito.anyLong(), Mockito.any(), Mockito.any(), Mockito.any());
+                        Mockito.anyLong(), Mockito.anyLong(), Mockito.any(), Mockito.any(), Mockito.any());
+        // Reads with a single contiguous range take the sequential read overload instead of the
+        // batched one, record those reads as well.
+        Mockito.doAnswer(inv -> {
+                    long start = inv.getArgument(1);
+                    long end = inv.getArgument(2);
+                    for (long i = start; i <= end; i++) {
+                        actualReadEntryIds.add(i);
+                    }
+                    return inv.callRealMethod();
+                })
+                .when(ledger)
+                .asyncReadEntry(Mockito.any(ReadHandle.class), Mockito.anyLong(),
+                        Mockito.anyLong(), Mockito.any(OpReadEntry.class), Mockito.any());
         @Cleanup
         ManagedCursor cursor = ledger.openCursor("c");
 
@@ -6179,7 +6192,20 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                 })
                 .when(ledger)
                 .asyncReadEntry(Mockito.any(ReadHandle.class), Mockito.anyLong(),
-                        Mockito.anyLong(), Mockito.any(), Mockito.any(), Mockito.any());
+                        Mockito.anyLong(), Mockito.anyLong(), Mockito.any(), Mockito.any(), Mockito.any());
+        // Reads with a single contiguous range take the sequential read overload instead of the
+        // batched one, record those reads as well.
+        Mockito.doAnswer(inv -> {
+                    long start = inv.getArgument(1);
+                    long end = inv.getArgument(2);
+                    for (long i = start; i <= end; i++) {
+                        actualReadEntryIds.add(i);
+                    }
+                    return inv.callRealMethod();
+                })
+                .when(ledger)
+                .asyncReadEntry(Mockito.any(ReadHandle.class), Mockito.anyLong(),
+                        Mockito.anyLong(), Mockito.any(OpReadEntry.class), Mockito.any());
         @Cleanup
         ManagedCursor cursor = ledger.openCursor("c");
 

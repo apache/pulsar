@@ -6379,8 +6379,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         Mockito.doAnswer(inv -> {
             int invocationCount = submitCount.incrementAndGet();
             if (invocationCount == 1) {
-                ReadEntriesCallback callback = inv.getArgument(4);
-                Object ctx = inv.getArgument(5);
+                ReadEntriesCallback callback = inv.getArgument(5);
+                Object ctx = inv.getArgument(6);
                 callback.readEntriesFailed(
                         new ManagedLedgerException.TooManyRequestsException("inflight limiter rejected read"), ctx);
                 return null;
@@ -6388,7 +6388,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             fail("should not submit later ranges after the first range fails synchronously");
             return null;
         }).when(ledger).asyncReadEntry(Mockito.any(ReadHandle.class), Mockito.anyLong(),
-                Mockito.anyLong(), Mockito.any(OpReadEntry.class), Mockito.any(ReadEntriesCallback.class),
+                Mockito.anyLong(), Mockito.anyLong(), Mockito.any(), Mockito.any(ReadEntriesCallback.class),
                 Mockito.any());
 
         cursor.asyncReadEntriesWithSkip(10, -1, new ReadEntriesCallback() {
@@ -6407,6 +6407,166 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertTrue(latch.await(5, TimeUnit.SECONDS));
         assertEquals(submitCount.get(), 1);
         assertTrue(callbackFailure.get() instanceof ManagedLedgerException.TooManyRequestsException);
+    }
+
+    @Test
+    public void testBatchReadEntriesCallbackThrottledLaterRangeDeliversInFlightPrefix() throws Exception {
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory
+                .open("testBatchReadEntriesCallbackThrottledLaterRangeDeliversInFlightPrefix");
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor");
+        for (int i = 0; i < 10; i++) {
+            ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicBoolean failed = new AtomicBoolean(false);
+        List<Entry> entries = new ArrayList<>();
+        OpReadEntry opReadEntry = OpReadEntry.create(cursor, cursor.readPosition, 3, -1, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries0, Object ctx) {
+                entries.addAll(entries0);
+                latch.countDown();
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                failed.set(true);
+                latch.countDown();
+            }
+        }, null, ledger.lastConfirmedEntry, position -> false, true);
+
+        long ledgerId = ledger.currentLedger.getId();
+        // Read entries [1], [3], [5] in three ranges.
+        List<LongLongPair> ranges = List.of(
+                LongLongPair.of(1L, 1L), LongLongPair.of(3L, 3L), LongLongPair.of(5L, 5L));
+        ManagedLedgerImpl.BatchReadEntriesCallback callback = new ManagedLedgerImpl
+                .BatchReadEntriesCallback(ranges, 3, opReadEntry, PositionFactory.create(ledgerId, 5));
+
+        // Range [1] is submitted and still in flight when range [3] gets rejected by the inflight
+        // read limiter. The rejection must stop submitting further ranges, but must not fail the
+        // batched read while the first range is still pending.
+        callback.onRangeSubmitted();
+        callback.onRangeSubmitted();
+        callback.readEntriesFailed(
+                new ManagedLedgerException.TooManyRequestsException("inflight limiter rejected read"), null);
+        assertTrue(callback.shouldStopSubmission());
+        callback.submissionFinished();
+        assertFalse(failed.get());
+        assertTrue(entries.isEmpty());
+
+        // When the in-flight range completes, its entries form the contiguous prefix to deliver.
+        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 1, new byte[1])), null);
+
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+        assertFalse(failed.get());
+        assertEquals(entries.size(), 1);
+        assertEquals(entries.get(0).getEntryId(), 1);
+        // The read position must advance past the delivered prefix so that the remaining entries
+        // are read again by the next read instead of being skipped.
+        assertEquals(cursor.getReadPosition().getEntryId(), 2);
+    }
+
+    @Test
+    public void testBatchReadEntriesCallbackThrottledWithNothingInFlightFails() throws Exception {
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory
+                .open("testBatchReadEntriesCallbackThrottledWithNothingInFlightFails");
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor");
+        for (int i = 0; i < 10; i++) {
+            ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicReference<ManagedLedgerException> callbackFailure = new AtomicReference<>();
+        ManagedLedgerImpl.BatchReadEntriesCallback[] callbackRef = new ManagedLedgerImpl.BatchReadEntriesCallback[1];
+        OpReadEntry opReadEntry = OpReadEntry.create(cursor, cursor.readPosition, 2, -1, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries0, Object ctx) {
+                fail("expected readEntriesFailed");
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                // The OpReadEntry callback must not be invoked while the batch callback's monitor is
+                // held, otherwise a caller holding the dispatcher monitor could deadlock with a range
+                // read failing on another thread.
+                assertFalse(Thread.holdsLock(callbackRef[0]));
+                callbackFailure.set(exception);
+                latch.countDown();
+            }
+        }, null, ledger.lastConfirmedEntry, position -> false, true);
+
+        long ledgerId = ledger.currentLedger.getId();
+        List<LongLongPair> ranges = List.of(LongLongPair.of(1L, 1L), LongLongPair.of(3L, 3L));
+        callbackRef[0] = new ManagedLedgerImpl
+                .BatchReadEntriesCallback(ranges, 2, opReadEntry, PositionFactory.create(ledgerId, 3));
+
+        // The very first range read gets rejected by the inflight read limiter with nothing else in
+        // flight, so the batched read must fail once the submission loop has finished.
+        callbackRef[0].onRangeSubmitted();
+        callbackRef[0].readEntriesFailed(
+                new ManagedLedgerException.TooManyRequestsException("inflight limiter rejected read"), null);
+        assertTrue(callbackRef[0].shouldStopSubmission());
+        callbackRef[0].submissionFinished();
+
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+        assertTrue(callbackFailure.get() instanceof ManagedLedgerException.TooManyRequestsException);
+    }
+
+    @Test
+    public void testBatchReadEntriesCallbackInvokesOpCallbackWithoutHoldingMonitor() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setReadEntriesCallbackInline(true);
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory
+                .open("testBatchReadEntriesCallbackInvokesOpCallbackWithoutHoldingMonitor", config);
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor");
+        for (int i = 0; i < 10; i++) {
+            ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicBoolean failed = new AtomicBoolean(false);
+        List<Entry> entries = new ArrayList<>();
+        ManagedLedgerImpl.BatchReadEntriesCallback[] callbackRef = new ManagedLedgerImpl.BatchReadEntriesCallback[1];
+        OpReadEntry opReadEntry = OpReadEntry.create(cursor, cursor.readPosition, 2, -1, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries0, Object ctx) {
+                // With inline read completion this runs on the calling thread, so holding the batch
+                // callback's monitor here would be observable.
+                assertFalse(Thread.holdsLock(callbackRef[0]));
+                entries.addAll(entries0);
+                latch.countDown();
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                assertFalse(Thread.holdsLock(callbackRef[0]));
+                failed.set(true);
+                latch.countDown();
+            }
+        }, null, ledger.lastConfirmedEntry, position -> false, true);
+
+        long ledgerId = ledger.currentLedger.getId();
+        List<LongLongPair> ranges = List.of(LongLongPair.of(1L, 1L), LongLongPair.of(3L, 3L));
+        callbackRef[0] = new ManagedLedgerImpl
+                .BatchReadEntriesCallback(ranges, 2, opReadEntry, PositionFactory.create(ledgerId, 3));
+
+        callbackRef[0].onRangeSubmitted();
+        callbackRef[0].onRangeSubmitted();
+        callbackRef[0].readEntriesComplete(List.of(EntryImpl.create(ledgerId, 1, new byte[1])), null);
+        callbackRef[0].readEntriesComplete(List.of(EntryImpl.create(ledgerId, 3, new byte[3])), null);
+        callbackRef[0].submissionFinished();
+
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+        assertFalse(failed.get());
+        assertEquals(entries.size(), 2);
+        assertEquals(entries.get(0).getEntryId(), 1);
+        assertEquals(entries.get(1).getEntryId(), 3);
     }
 
     @Test
