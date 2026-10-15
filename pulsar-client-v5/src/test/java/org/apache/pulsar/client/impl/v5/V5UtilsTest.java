@@ -19,7 +19,11 @@
 package org.apache.pulsar.client.impl.v5;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertSame;
 import static org.testng.Assert.expectThrows;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
+import org.apache.pulsar.client.api.v5.PulsarClientException;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.testng.annotations.Test;
@@ -75,5 +79,39 @@ public class V5UtilsTest {
                 V5Utils.parseScalableTopicInput("non-persistent://tenant/ns/my-topic"));
         assertEquals(ex.getMessage(),
                 "V5 does not support non-persistent:// topics: non-persistent://tenant/ns/my-topic");
+    }
+
+    @Test
+    public void testToV5ExceptionKeepsTheErrorCategory() {
+        var authorization = new org.apache.pulsar.client.api.PulsarClientException.AuthorizationException("authz");
+        var authentication = new org.apache.pulsar.client.api.PulsarClientException.AuthenticationException("authn");
+        var notFound = new org.apache.pulsar.client.api.PulsarClientException.NotFoundException("not found");
+
+        assertConverted(V5Utils.toV5Exception(new CompletionException(authorization)),
+                PulsarClientException.AuthorizationException.class, authorization);
+        assertConverted(V5Utils.toV5Exception(new ExecutionException(authentication)),
+                PulsarClientException.AuthenticationException.class, authentication);
+        assertConverted(V5Utils.toV5Exception(notFound), PulsarClientException.NotFoundException.class, notFound);
+    }
+
+    @Test
+    public void testToV5ExceptionWrapsOtherFailuresInThePlainException() {
+        var busy = new org.apache.pulsar.client.api.PulsarClientException.ProducerBusyException("busy");
+
+        assertConverted(V5Utils.toV5Exception(new CompletionException(busy)), PulsarClientException.class, busy);
+    }
+
+    @Test
+    public void testToV5ExceptionReturnsV5ExceptionsAsIs() {
+        var closed = new PulsarClientException.AlreadyClosedException("closed");
+
+        assertSame(V5Utils.toV5Exception(new CompletionException(closed)), closed);
+    }
+
+    private static void assertConverted(PulsarClientException converted, Class<?> expectedType,
+                                        Throwable v4Exception) {
+        assertEquals(converted.getClass(), expectedType);
+        assertEquals(converted.getMessage(), v4Exception.getMessage());
+        assertSame(converted.getCause(), v4Exception);
     }
 }

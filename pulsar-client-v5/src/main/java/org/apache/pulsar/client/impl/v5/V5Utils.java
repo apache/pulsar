@@ -18,8 +18,11 @@
  */
 package org.apache.pulsar.client.impl.v5;
 
+import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.client.api.v5.PulsarClientException;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.FutureUtil;
 
 /**
  * Internal utilities for the V5 client implementation.
@@ -57,5 +60,37 @@ final class V5Utils {
                     "V5 does not support non-persistent:// topics: " + topic);
         }
         return tn;
+    }
+
+    /**
+     * The V5 exception to hand the application for the failure of an operation that the V5 client runs on the
+     * v4 client, so that it can branch on the error category (error-model.md §2). An authentication,
+     * authorization or not-found failure gets the V5 type of its category and any other failure the plain
+     * {@link PulsarClientException}, both caused by the original failure; a V5 exception is returned as is. A
+     * {@code CompletionException} or {@code ExecutionException} is unwrapped first.
+     */
+    static PulsarClientException toV5Exception(Throwable failure) {
+        Throwable cause = FutureUtil.unwrapCompletionException(failure);
+        if (cause instanceof PulsarClientException v5Exception) {
+            return v5Exception;
+        }
+        PulsarClientException typed;
+        if (cause instanceof org.apache.pulsar.client.api.PulsarClientException.AuthorizationException) {
+            typed = new PulsarClientException.AuthorizationException(cause.getMessage());
+        } else if (cause instanceof org.apache.pulsar.client.api.PulsarClientException.AuthenticationException) {
+            typed = new PulsarClientException.AuthenticationException(cause.getMessage());
+        } else if (cause instanceof org.apache.pulsar.client.api.PulsarClientException.NotFoundException) {
+            typed = new PulsarClientException.NotFoundException(cause.getMessage());
+        } else {
+            return new PulsarClientException(cause.getMessage(), cause);
+        }
+        // Unlike the plain exception, these types have no constructor that takes the cause.
+        typed.initCause(cause);
+        return typed;
+    }
+
+    /** A future failed with the {@link #toV5Exception V5 exception} for {@code failure}. */
+    static <T> CompletableFuture<T> failWithV5Exception(Throwable failure) {
+        return CompletableFuture.failedFuture(toV5Exception(failure));
     }
 }

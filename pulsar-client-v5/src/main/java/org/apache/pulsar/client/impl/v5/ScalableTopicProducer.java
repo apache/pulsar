@@ -440,9 +440,9 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
                 } catch (org.apache.pulsar.client.api.PulsarClientException e) {
                     // Thrown by the v4 producer's send().
                     if (!isSegmentGoneError(e)) {
-                        throw new PulsarClientException(e.getMessage(), e);
+                        throw V5Utils.toV5Exception(e);
                     }
-                    lastError = new PulsarClientException(e.getMessage(), e);
+                    lastError = V5Utils.toV5Exception(e);
                 }
                 // The target segment is gone: sealed by a split/merge, or terminated by a
                 // regular-to-scalable migration. Wait for the DAG watch to deliver the new
@@ -647,7 +647,7 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
                     .log("Target segment gone, retrying async send after layout update");
             retry.run();
         } else {
-            finish(send, null, ex);
+            finish(send, null, V5Utils.toV5Exception(ex));
         }
     }
 
@@ -995,14 +995,7 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
             Thread.currentThread().interrupt();
             throw new PulsarClientException("Interrupted while creating segment producer", e);
         } catch (ExecutionException e) {
-            Throwable cause = e.getCause();
-            if (cause instanceof org.apache.pulsar.client.api.PulsarClientException v4Exc) {
-                throw new PulsarClientException(v4Exc.getMessage(), v4Exc);
-            }
-            if (cause instanceof PulsarClientException v5Exc) {
-                throw v5Exc;
-            }
-            throw new PulsarClientException(cause != null ? cause : e);
+            throw V5Utils.toV5Exception(e);
         }
     }
 }
