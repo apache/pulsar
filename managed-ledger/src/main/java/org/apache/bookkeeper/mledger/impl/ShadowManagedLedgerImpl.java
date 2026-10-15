@@ -228,7 +228,10 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
         if (currentLedger == null) {
             return;
         }
-        lastConfirmedEntry = PositionFactory.create(currentLedger.getId(), currentLedger.getLastAddConfirmed());
+        long lastAddConfirmed = currentLedger.getLastAddConfirmed();
+        // Opening an existing source ledger exposes its entries without a shadow add callback.
+        currentLedgerEntries = Math.max(currentLedgerEntries, lastAddConfirmed + 1);
+        lastConfirmedEntry = PositionFactory.create(currentLedger.getId(), lastAddConfirmed);
         // bypass empty ledgers, find last ledger with Message if possible.
         while (lastConfirmedEntry.getEntryId() == -1) {
             Map.Entry<Long, LedgerInfo> formerLedger = ledgers.lowerEntry(lastConfirmedEntry.getLedgerId());
@@ -268,7 +271,7 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
             if (position.getLedgerId() == currentLedger.getId()) {
                 addOperation.setLedger(currentLedger);
             }
-            currentLedgerEntries = position.getEntryId();
+            updateCurrentLedgerEntries(position);
             currentLedgerSize += addOperation.data.readableBytes();
             addOperation.initiateShadowWrite();
         } // for addOperation with ledgerId > currentLedger, will be processed in `updateLedgersIdsComplete`
@@ -433,12 +436,19 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
                 } else {
                     op.setLedger(null);
                 }
-                currentLedgerEntries = position.getEntryId();
+                updateCurrentLedgerEntries(position);
                 currentLedgerSize += op.data.readableBytes();
                 op.initiateShadowWrite();
             } else {
                 break;
             }
+        }
+    }
+
+    private void updateCurrentLedgerEntries(Position position) {
+        if (position.getLedgerId() == currentLedger.getId()) {
+            // Source positions are zero-based; retries and older-ledger notifications cannot reduce this count.
+            currentLedgerEntries = Math.max(currentLedgerEntries, position.getEntryId() + 1);
         }
     }
 

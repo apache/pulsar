@@ -43,6 +43,7 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionBound;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
@@ -68,6 +69,45 @@ public class ShadowManagedLedgerImplTest extends MockedBookKeeperTestCase {
         ManagedLedger shadowML = factory.open(name, config);
         assertTrue(shadowML instanceof ShadowManagedLedgerImpl);
         return (ShadowManagedLedgerImpl) shadowML;
+    }
+
+    @Test
+    public void testShadowOpenCountsExistingSourceEntriesWithoutNotifications() throws Exception {
+        ManagedLedgerImpl sourceML = (ManagedLedgerImpl) factory.open("existing_source_ML", new ManagedLedgerConfig()
+                .setMaxEntriesPerLedger(10)
+                .setRetentionTime(-1, TimeUnit.DAYS)
+                .setRetentionSizeInMB(-1));
+        byte[] data = new byte[10];
+        Position first = sourceML.addEntry(data);
+        Position second = sourceML.addEntry(data);
+        assertEquals(first.getLedgerId(), second.getLedgerId());
+
+        ShadowManagedLedgerImpl shadowML = openShadowManagedLedger("existing_shadow_ML", "existing_source_ML");
+        assertEquals(shadowML.getLastConfirmedEntry(), second);
+        assertEquals(shadowML.currentLedgerEntries, 2L);
+        assertEquals(shadowML.getPositionAfterN(first, 1, PositionBound.startExcluded), second);
+    }
+
+    @Test
+    public void testShadowOpenAfterSourceRolloverCountsCurrentLedgerEntries() throws Exception {
+        ManagedLedgerImpl sourceML = (ManagedLedgerImpl) factory.open("rollover_source_ML", new ManagedLedgerConfig()
+                .setMaxEntriesPerLedger(3)
+                .setRetentionTime(-1, TimeUnit.DAYS)
+                .setRetentionSizeInMB(-1));
+        byte[] data = new byte[10];
+        Position oldLedgerPosition = sourceML.addEntry(data);
+        sourceML.addEntry(data);
+        sourceML.addEntry(data);
+        Position firstInCurrentLedger = sourceML.addEntry(data);
+        Position secondInCurrentLedger = sourceML.addEntry(data);
+        assertTrue(firstInCurrentLedger.getLedgerId() > oldLedgerPosition.getLedgerId());
+        assertEquals(firstInCurrentLedger.getLedgerId(), secondInCurrentLedger.getLedgerId());
+
+        ShadowManagedLedgerImpl shadowML = openShadowManagedLedger("rollover_shadow_ML", "rollover_source_ML");
+        assertEquals(shadowML.getLastConfirmedEntry(), secondInCurrentLedger);
+        assertEquals(shadowML.currentLedgerEntries, 2L);
+        assertEquals(shadowML.getPositionAfterN(firstInCurrentLedger, 1, PositionBound.startExcluded),
+                secondInCurrentLedger);
     }
 
     @Test
@@ -118,11 +158,11 @@ public class ShadowManagedLedgerImplTest extends MockedBookKeeperTestCase {
                 }
             }, positions.get(2));
             assertEquals(future.get(), positions.get(2));
-            // LCE is not updated.
+            // A retry from an older ledger must not hide entries already visible in the shadow topic.
             log.info().attr("sourceLCE", sourceML.lastConfirmedEntry)
                     .attr("shadowLCE", shadowML.lastConfirmedEntry)
                     .log("Last confirmed entries after write to old ledger");
-            assertNotEquals(sourceML.lastConfirmedEntry, shadowML.lastConfirmedEntry);
+            assertEquals(sourceML.lastConfirmedEntry, shadowML.lastConfirmedEntry);
         }
 
         {// test write entry with ledgerId == currentLedger
@@ -169,17 +209,76 @@ public class ShadowManagedLedgerImplTest extends MockedBookKeeperTestCase {
 
             sourceML.addEntry(data); // new ledger rolled.
             sourceML.addEntry(data);
-            Awaitility.await().untilAsserted(() -> {
-                assertEquals(shadowML.ledgers.size(), 5);
-                assertEquals(shadowML.currentLedgerEntries, 0);
-            });
+            Awaitility.await().untilAsserted(() -> assertEquals(shadowML.ledgers.size(), 5));
             assertEquals(future.get(), fakePos);
+            assertEquals(shadowML.currentLedgerEntries, fakePos.getEntryId() + 1);
             // LCE should be updated.
             log.info().attr("sourceLCE", sourceML.lastConfirmedEntry)
                     .attr("shadowLCE", shadowML.lastConfirmedEntry)
                     .log("Last confirmed entries after write to future ledger");
             assertEquals(sourceML.lastConfirmedEntry, shadowML.lastConfirmedEntry);
         }
+    }
+
+    @Test
+    public void testShadowWriteRetryDoesNotMoveLastConfirmedEntryBackwards() throws Exception {
+        ManagedLedgerImpl sourceML = (ManagedLedgerImpl) factory.open("retry_source_ML", new ManagedLedgerConfig()
+                .setMaxEntriesPerLedger(4)
+                .setRetentionTime(-1, TimeUnit.DAYS)
+                .setRetentionSizeInMB(-1));
+        byte[] data = new byte[10];
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < 6; i++) {
+            positions.add(sourceML.addEntry(data));
+        }
+        ShadowManagedLedgerImpl shadowML = openShadowManagedLedger("retry_shadow_ML", "retry_source_ML");
+        Position lastConfirmed = positions.get(5);
+        assertEquals(shadowML.getLastConfirmedEntry(), lastConfirmed);
+        assertTrue(positions.get(1).getLedgerId() < lastConfirmed.getLedgerId());
+        assertEquals(positions.get(4).getLedgerId(), lastConfirmed.getLedgerId());
+
+        // Both older-ledger and current-ledger retries retain the original callback position while
+        // leaving the readable range unchanged. Marker notifications use the same write path.
+        for (Position retryPosition : List.of(positions.get(1), positions.get(4), lastConfirmed)) {
+            assertEquals(writeShadowEntry(shadowML, data, retryPosition), retryPosition);
+            assertEquals(shadowML.getLastConfirmedEntry(), lastConfirmed);
+            if (retryPosition.equals(positions.get(4))) {
+                assertEquals(shadowML.getPositionAfterN(retryPosition, 1, PositionBound.startExcluded),
+                        lastConfirmed, "An old notification must not make the current ledger appear empty");
+            }
+        }
+
+        Position newPosition = sourceML.addEntry(data);
+        assertEquals(newPosition.getLedgerId(), lastConfirmed.getLedgerId());
+        assertEquals(shadowML.getLastConfirmedEntry(), lastConfirmed);
+        assertEquals(writeShadowEntry(shadowML, data, newPosition), newPosition);
+        assertEquals(shadowML.getLastConfirmedEntry(), newPosition);
+
+        sourceML.addEntry(data);
+        Position positionAfterRollover = sourceML.addEntry(data);
+        assertTrue(positionAfterRollover.getLedgerId() > newPosition.getLedgerId());
+        assertEquals(writeShadowEntry(shadowML, data, positionAfterRollover), positionAfterRollover);
+        assertEquals(shadowML.getLastConfirmedEntry(), positionAfterRollover);
+        assertEquals(writeShadowEntry(shadowML, data, newPosition), newPosition);
+        assertEquals(shadowML.getLastConfirmedEntry(), positionAfterRollover);
+        assertEquals(shadowML.currentLedgerEntries, positionAfterRollover.getEntryId() + 1);
+    }
+
+    private Position writeShadowEntry(ShadowManagedLedgerImpl shadowML, byte[] data, Position position)
+            throws Exception {
+        CompletableFuture<Position> future = new CompletableFuture<>();
+        shadowML.asyncAddEntry(data, new AsyncCallbacks.AddEntryCallback() {
+            @Override
+            public void addComplete(Position persistedPosition, ByteBuf entryData, Object ctx) {
+                future.complete(persistedPosition);
+            }
+
+            @Override
+            public void addFailed(ManagedLedgerException exception, Object ctx) {
+                future.completeExceptionally(exception);
+            }
+        }, position);
+        return future.get(10, TimeUnit.SECONDS);
     }
 
     private ManagedLedgerImpl openSourceManagedLedgerWithClosedLedgers(String name) throws Exception {
