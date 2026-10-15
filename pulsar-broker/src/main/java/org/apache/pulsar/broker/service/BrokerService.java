@@ -235,6 +235,11 @@ public class BrokerService implements Closeable {
 
     private final Map<String, CompletableFuture<Optional<Topic>>> topics = new ConcurrentHashMap<>();
 
+    @VisibleForTesting
+    Map<String, CompletableFuture<Optional<Topic>>> getTopics() {
+        return topics;
+    }
+
     // A topic can reach the cache-cleanup path through both its close callback and bundle cleanup.
     // Keep only one cleanup active for a topic future so re-entrant unload listeners cannot duplicate side effects.
     private final Set<CompletableFuture<Optional<Topic>>> topicCacheRemovalsInProgress =
@@ -261,6 +266,11 @@ public class BrokerService implements Closeable {
     private final Map<String, Consumer<?>> configRegisteredListeners = new ConcurrentHashMap<>();
 
     private final ConcurrentLinkedQueue<Pair<TopicLoadingContext, LatencyTracer.TracePoint>> pendingTopicLoadingQueue;
+
+    @VisibleForTesting
+    ConcurrentLinkedQueue<Pair<TopicLoadingContext, LatencyTracer.TracePoint>> getPendingTopicLoadingQueue() {
+        return pendingTopicLoadingQueue;
+    }
 
     private AuthorizationService authorizationService;
     private final SingleThreadNonConcurrentFixedRateScheduler statsUpdater;
@@ -3908,7 +3918,8 @@ public class BrokerService implements Closeable {
      * It also tries to acquire {@link #topicLoadRequestSemaphore} so throttle down newly incoming topics and release
      * permit if it was successful to acquire it.
      */
-    private void createPendingLoadTopic() {
+    @VisibleForTesting
+    void createPendingLoadTopic() {
         // Drain expired queued entries in a loop rather than by recursion. The queue can hold thousands
         // of stalled contexts after a broker stall, so skipping them one-at-a-time via recursion would
         // blow the stack. Normal entries still kick off an async load chain and then return; subsequent
