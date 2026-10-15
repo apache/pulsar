@@ -20,10 +20,12 @@ package org.apache.pulsar.metadata.impl.oxia;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.opentelemetry.api.OpenTelemetry;
+import io.oxia.client.OxiaClientBuilderImpl;
 import io.oxia.client.api.AsyncOxiaClient;
 import io.oxia.client.api.Notification;
 import io.oxia.client.api.OxiaClientBuilder;
 import io.oxia.client.api.PutResult;
+import io.oxia.client.api.RangeScanConsumer;
 import io.oxia.client.api.Version;
 import io.oxia.client.api.exceptions.KeyAlreadyExistsException;
 import io.oxia.client.api.exceptions.UnexpectedVersionIdException;
@@ -45,6 +47,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import lombok.CustomLog;
@@ -66,6 +70,8 @@ import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
 public class OxiaMetadataStore extends AbstractMetadataStore {
 
     private final AsyncOxiaClient client;
+    // The request timeout of the client, which also bounds the index scans (see IndexScan)
+    private final Duration requestTimeout;
 
     private final String identity;
     private Optional<MetadataEventSynchronizer> synchronizer;
@@ -76,8 +82,15 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
 
     @VisibleForTesting
     OxiaMetadataStore(AsyncOxiaClient oxia, String identity, MetadataEventSynchronizer synchronizer) {
+        this(oxia, identity, synchronizer, OxiaClientBuilderImpl.DefaultRequestTimeout);
+    }
+
+    @VisibleForTesting
+    OxiaMetadataStore(AsyncOxiaClient oxia, String identity, MetadataEventSynchronizer synchronizer,
+                      Duration requestTimeout) {
         super("oxia-metadata", OpenTelemetry.noop(), null, 1);
         this.client = oxia;
+        this.requestTimeout = requestTimeout;
         this.identity = identity;
         this.synchronizer = Optional.ofNullable(synchronizer);
         init();
@@ -104,6 +117,8 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
             oxiaClientBuilder.loadConfig(metadataStoreConfig.getConfigFilePath());
         }
         client = oxiaClientBuilder.asyncClient().get();
+        // The one the client was built with, which the config file can set
+        requestTimeout = ((OxiaClientBuilderImpl) oxiaClientBuilder).getClientConfig().requestTimeout();
         init();
     }
 
@@ -256,7 +271,7 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
             ScanConsumer consumer, Set<Option> opts) {
         // Index entries are stored at "<parentPath>/<secondaryKey>" by doStorePut, where
         // parentPath == scanPathPrefix for records directly under the prefix. The API uses
-        // inclusive-on-both-sides bounds; Oxia's list(start, end, ...) is half-open, and it compares
+        // inclusive-on-both-sides bounds; Oxia's rangeScan(start, end, ...) is half-open, and it compares
         // the bounds with whole index entries, which Oxia stores as the secondary key, a 0x01
         // separator and the escaped primary key. So the end that follows the entries of
         // `toKeyInclusive`, and precedes those of the keys that extend it (e.g. "k-12" for "k-1"),
@@ -272,32 +287,20 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
         String scopedTo = toKeyInclusive == null
                 ? scanPathPrefix + "//"
                 : scanPathPrefix + "/" + toKeyInclusive + "\u0002";
-        Set<ListOption> listOpts = new HashSet<>(listOptions(opts));
-        listOpts.add(ListOption.UseIndex(indexName));
-        CompletableFuture<Void> done = new CompletableFuture<>();
-        client.list(scopedFrom, scopedTo, listOpts)
-                .thenCompose(primaryKeys -> {
-                    // Native indexes already enforced the range; fallbackFilter is unused here
-                    // (it's the scan-and-filter compat-path predicate).
-                    CompletableFuture<Void> chain = CompletableFuture.completedFuture(null);
-                    for (String key : primaryKeys) {
-                        chain = chain
-                                .thenCompose(__ -> storeGet(key, opts))
-                                .thenAccept(opt -> opt.ifPresent(consumer::onNext));
-                    }
-                    return chain;
-                })
-                .whenComplete((v, ex) -> {
-                    if (ex != null) {
-                        Throwable cause = FutureUtil.unwrapCompletionException(ex);
-                        consumer.onError(cause);
-                        done.completeExceptionally(cause);
-                    } else {
-                        consumer.onCompleted();
-                        done.complete(null);
-                    }
-                });
-        return done;
+        // The scan reads the records along with the index: each shard returns the records it holds.
+        // Getting them by their key afterwards would miss the records written with a partition key,
+        // since a get without that key goes to the shard of the record's key, not of its partition key.
+        // Native indexes already enforced the range; fallbackFilter is unused here (it's the
+        // scan-and-filter compat-path predicate).
+        Set<RangeScanOption> scanOpts = new HashSet<>(rangeScanOptions(opts));
+        scanOpts.add(RangeScanOption.UseIndex(indexName));
+        IndexScan scan = new IndexScan(consumer);
+        try {
+            client.rangeScan(scopedFrom, scopedTo, scan, scanOpts);
+        } catch (Throwable t) {
+            scan.fail(t);
+        }
+        return scan.done;
     }
 
     private CompletableFuture<Stat> doStorePut(
@@ -496,4 +499,85 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
     }
 
     private record PathWithPutResult(String path, PutResult result) {}
+
+    /**
+     * Passes the records of an index range scan on to a {@link ScanConsumer}, and fails the scan when it doesn't end
+     * within the request timeout, as {@code list} does: the client retries the scan of a shard that doesn't answer
+     * with no deadline, and doesn't report the failed attempts, so the scan would wait for as long as a shard is
+     * unavailable.
+     */
+    private final class IndexScan implements RangeScanConsumer {
+
+        private final ScanConsumer consumer;
+        private final CompletableFuture<Void> done = new CompletableFuture<>();
+        // Completed when the scan ends, which cancels its timeout
+        private final CompletableFuture<Void> deadline = new CompletableFuture<>();
+        // Guarded by this: the client doesn't overlap its callbacks, but the timeout can come at any time
+        private boolean ended;
+        private Throwable consumerError;
+
+        IndexScan(ScanConsumer consumer) {
+            this.consumer = consumer;
+            // Handled off the timer thread, which the JDK shares among all the orTimeout calls
+            deadline.orTimeout(requestTimeout.toMillis(), TimeUnit.MILLISECONDS)
+                    .exceptionallyAsync(__ -> {
+                        fail(new TimeoutException("The index scan did not end within the request timeout of "
+                                + requestTimeout.toMillis() + " ms"));
+                        return null;
+                    });
+        }
+
+        @Override
+        public synchronized boolean onNext(io.oxia.client.api.GetResult result) {
+            if (ended) {
+                // The scan timed out: stop it
+                return false;
+            }
+            if (result.version().createdTimestamp() == 0) {
+                // A record deleted after the scan read its index entry: Oxia returns it as not found, without a
+                // version or a value
+                return true;
+            }
+            try {
+                consumer.onNext(new GetResult(result.value(), convertStat(result.key(), result.version())));
+                return true;
+            } catch (Throwable t) {
+                // Stopping the scan makes the client call onCompleted, which fails it
+                consumerError = t;
+                return false;
+            }
+        }
+
+        @Override
+        public void onError(Throwable throwable) {
+            fail(FutureUtil.unwrapCompletionException(throwable));
+        }
+
+        @Override
+        public synchronized void onCompleted() {
+            if (consumerError != null) {
+                fail(consumerError);
+            } else if (end()) {
+                consumer.onCompleted();
+                done.complete(null);
+            }
+        }
+
+        synchronized void fail(Throwable cause) {
+            if (end()) {
+                consumer.onError(cause);
+                done.completeExceptionally(cause);
+            }
+        }
+
+        // Called with the monitor held: true for the one call that ends the scan
+        private boolean end() {
+            if (ended) {
+                return false;
+            }
+            ended = true;
+            deadline.complete(null);
+            return true;
+        }
+    }
 }
