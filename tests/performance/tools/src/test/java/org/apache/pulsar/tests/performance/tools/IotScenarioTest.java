@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.tests.performance.common.YamlScenarioLoader;
 import org.testng.annotations.Test;
 import picocli.CommandLine;
@@ -204,6 +205,35 @@ public class IotScenarioTest {
     }
 
     @Test
+    public void choosesTheSubscriptionType() {
+        IotScenario keyShared = scenario(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null));
+        assertThat(keyShared.subscriptionType()).isEqualTo(SubscriptionType.Key_Shared);
+        assertThat(keyShared.keepsDeviceOrder()).isTrue();
+        IotScenario shared = scenario(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2), null,
+                null, null, null, false, null, "Shared"));
+        assertThat(shared.subscriptionType()).isEqualTo(SubscriptionType.Shared);
+        assertThat(shared.keepsDeviceOrder()).isFalse();
+        assertThat(scenario(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2), null, null,
+                null, null, false, null, "Failover")).keepsDeviceOrder()).isTrue();
+        assertThatThrownBy(() -> scenario(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, null, null, null, false, null, "Exclusive")))
+                .hasMessageContaining("applications.subscriptionType must be one of [Key_Shared, Shared, Failover]");
+        // skipping and resetting expect each device's messages from the first one received, in order
+        assertThatThrownBy(() -> unbatched(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, List.of(0, 30), null, List.of(0L, 10L), false, null, "Shared")))
+                .hasMessageContaining("need a subscription type that keeps each device's order");
+        assertThatThrownBy(() -> unbatched(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, List.of(0, 30), null, null, false, List.of(-1L, 5_000L), "Shared")))
+                .hasMessageContaining("need a subscription type that keeps each device's order");
+        // a scenario file without the setting keeps Key_Shared
+        IotScenario.Applications fromYaml = new YamlScenarioLoader().mapper().convertValue(Map.of("count", 2,
+                "podsPerApplication", 2, "subscriptionPrefix", "app-", "client",
+                Map.of("ioThreads", 2, "listenerThreads", 2)), IotScenario.Applications.class);
+        assertThat(scenario(fromYaml).subscriptionType()).isEqualTo(SubscriptionType.Key_Shared);
+    }
+
+    @Test
     public void rejectsInvalidJoinSettings() {
         assertThatThrownBy(() -> scenario(new IotScenario.Applications(3, 2, "app-", new IotScenario.Client(2, 2),
                 null, List.of(0, 20), null))).hasMessageContaining("a value for each of the 3 applications");
@@ -245,6 +275,17 @@ public class IotScenarioTest {
                 new IotScenario.Applications(1, 2, "app-", new IotScenario.Client(2, 2), null), null, 300))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("gateways.producer.precreateConcurrency must be at least 1");
+    }
+
+    @Test
+    public void rejectsABatchingDelayBelowOneMillisecond() {
+        assertThatThrownBy(() -> new IotScenario("pulsar://localhost:6650", new IotScenario.Warmup(0, 0, 1, 0),
+                new IotScenario.Measurement(120, 1_000), 0, new IotScenario.Payload(64), new IotScenario.Devices(1_000),
+                new IotScenario.Gateways(10, new IotScenario.Producer(2, 2, 100, true, true, null, 0), null),
+                new IotScenario.Topics(2, "persistent://public/default/iot-"),
+                new IotScenario.Applications(1, 2, "app-", new IotScenario.Client(2, 2), null), null, 300))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("gateways.producer.batchingMaxPublishDelayMillis must be at least 1");
     }
 
     @Test
