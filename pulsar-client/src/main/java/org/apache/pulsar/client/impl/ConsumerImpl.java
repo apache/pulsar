@@ -2139,11 +2139,32 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         paused = true;
     }
 
+    /**
+     * Flushes all available permits to the broker without the half-queue threshold.
+     * Used by {@link #resume()} to eagerly top up the broker's permit window.
+     * The method sends exactly what is owed; it never over-grants.
+     *
+     * @param currentCnx the connection to send permits on
+     */
+    private void flushAvailablePermitsToBroker(ClientCnx currentCnx) {
+        int available = AVAILABLE_PERMITS_UPDATER.get(this);
+        while (available > 0 && !paused) {
+            if (AVAILABLE_PERMITS_UPDATER.compareAndSet(this, available, 0)) {
+                log.debug().attr("available", available)
+                        .log("Flushing all available permits to broker");
+                sendFlowPermitsToBroker(currentCnx, available);
+                break;
+            } else {
+                available = AVAILABLE_PERMITS_UPDATER.get(this);
+            }
+        }
+    }
+
     @Override
     public void resume() {
         if (paused) {
             paused = false;
-            increaseAvailablePermits(cnx(), 0);
+            flushAvailablePermitsToBroker(cnx());
         }
     }
 

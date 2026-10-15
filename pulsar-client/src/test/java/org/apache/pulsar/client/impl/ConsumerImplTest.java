@@ -34,6 +34,8 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelPromise;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
@@ -1165,4 +1167,48 @@ public class ConsumerImplTest {
             releasePendingChunkedMessages();
         }
     }
+
+    /**
+     * Regression test: Consumer.resume() must eagerly flush accumulated permits
+     * to the broker instead of waiting for the next receive loop iteration.
+     *
+     * Before the fix, after pause() the broker's permit window went unfilled
+     * because the periodic replenishment check (which guarded on !paused) did
+     * not run. resume() would only flip the paused flag without topping up.
+     */
+    @Test
+    public void testResumeFlushesPermitsToBroker() {
+        // Setup mock connection using the shared fixture that releases ByteBufs on write/writeAndFlush
+        ClientCnx cnx = mock(ClientCnx.class);
+        ChannelHandlerContext ctx = ClientTestFixtures.mockChannelHandlerContext();
+        ChannelPromise voidPromise = mock(ChannelPromise.class);
+        when(ctx.voidPromise()).thenReturn(voidPromise);
+        when(cnx.ctx()).thenReturn(ctx);
+
+        consumer.setClientCnx(cnx);
+        consumer.setState(HandlerState.State.Ready);
+
+        // Pause the consumer
+        consumer.pause();
+        Assert.assertTrue(consumer.paused, "consumer should be paused");
+
+        // Accumulate permits by enlarging the receiver queue
+        int queueSize = consumer.getCurrentReceiverQueueSize();
+        consumer.setCurrentReceiverQueueSize(queueSize + 100);
+        int permitsBeforeResume = consumer.getAvailablePermits();
+        Assert.assertTrue(permitsBeforeResume > 0,
+                "should have accumulated permits while paused, got " + permitsBeforeResume);
+
+        // Resume — this must flush all accumulated permits to the broker
+        consumer.resume();
+
+        Assert.assertFalse(consumer.paused, "consumer should no longer be paused");
+        // After flush, available permits should be 0 (all sent to broker)
+        Assert.assertEquals(0, consumer.getAvailablePermits(),
+                "resume() should have flushed all permits to broker");
+
+        // Verify the flow command was sent
+        verify(ctx, times(1)).writeAndFlush(any(ByteBuf.class), any(ChannelPromise.class));
+    }
+
 }
