@@ -591,11 +591,11 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // wait config to be updated
         Awaitility.await().until(() -> {
-            return conf.getLoadBalancerSheddingIntervalMinutes() == 10;
+            return pulsar.getConfiguration().getLoadBalancerSheddingIntervalMinutes() == 10;
         });
 
         // verify value is updated
-        assertEquals(conf.getLoadBalancerSheddingIntervalMinutes(), 10);
+        assertEquals(pulsar.getConfiguration().getLoadBalancerSheddingIntervalMinutes(), 10);
     }
 
     @Test
@@ -4114,6 +4114,31 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             // reset config
             pulsar.getConfiguration().setAllowAclChangesOnNonExistentTopics(false);
         }
+    }
+
+    @Test
+    @SneakyThrows
+    public void testDeleteTopicAlsoDeletePermissionGranted() {
+        String namespace = BrokerTestUtil.newUniqueName("prop-xyz/ns");
+        admin.namespaces().createNamespace(namespace);
+        String topic = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/tp");
+        String role = "test-role";
+        Set<AuthAction> permissions = EnumSet.of(AuthAction.produce, AuthAction.consume);
+
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topics().grantPermission(topic, role, permissions);
+        Awaitility.await().untilAsserted(() -> {
+            Policies nsPolicies = admin.namespaces().getPolicies(namespace);
+            assertTrue(nsPolicies.auth_policies.getTopicAuthentication().containsKey(topic));
+            assertThat(admin.topics().getPermissions(topic)).containsEntry(role, permissions);
+        });
+
+        // Verify: the permission record will be removed after the topic was removed.
+        admin.topics().delete(topic);
+        Awaitility.await().untilAsserted(() -> {
+            Policies nsPolicies = admin.namespaces().getPolicies(namespace);
+            assertFalse(nsPolicies.auth_policies.getTopicAuthentication().containsKey(topic));
+        });
     }
 
     @Test

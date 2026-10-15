@@ -115,6 +115,9 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
         super.setConfigDefaults(config, clusterName, bookkeeperEnsemble, brokerConfigZk);
         // For check whether deduplication snapshot has done.
         config.setBrokerDeduplicationSnapshotIntervalSeconds(1);
+        // An entries-interval snapshot is skipped while the previous one is still in progress, so the last entries
+        // are only snapshotted by the periodic check. Run it every second instead of the default 120 seconds.
+        config.setBrokerDeduplicationSnapshotFrequencyInSeconds(1);
         config.setBrokerDeduplicationEntriesInterval(10);
         config.setReplicationStartAt("earliest");
         // To cover more cases, write more than one ledger.

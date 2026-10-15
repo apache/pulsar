@@ -202,11 +202,9 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
         this.completionExecutor = client.v4Client().externalExecutorProvider().getExecutor();
         this.asyncView = new AsyncProducerV5<>(this);
 
-        // Register for layout changes
-        dagWatch.setListener(this);
-
-        // Initialize with the current layout
+        // Initialize with the current layout, then register for the layouts after it
         applyLayout(initialLayout);
+        dagWatch.setListener(this);
     }
 
     @Override

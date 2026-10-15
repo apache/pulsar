@@ -38,7 +38,6 @@ import io.netty.channel.EventLoopGroup;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
@@ -291,12 +290,12 @@ public class GeoShadowReplicatorUnsentEntryCleanupTest {
         }
 
         @Override
-        protected CompletableFuture<SchemaInfo> getSchemaInfo(MessageImpl msg) throws ExecutionException {
+        protected CompletableFuture<SchemaInfo> getSchemaInfo(MessageImpl msg) {
             if (schemaRequests.incrementAndGet() == 2) {
                 if (error) {
                     throw new AssertionError("schema preparation failed");
                 }
-                throw new ExecutionException("schema preparation failed", null);
+                throw new IllegalStateException("schema preparation failed");
             }
             return CompletableFuture.completedFuture(null);
         }

@@ -30,10 +30,14 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -47,9 +51,12 @@ import org.apache.pulsar.client.api.MessagePayloadProcessor;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.policies.data.ConsumerStats;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -506,6 +513,192 @@ public class ZeroQueueSizeTest extends SharedPulsarBaseTest {
 
         consumer.unsubscribe();
         producer.close();
+    }
+
+    @Test(timeOut = 30000)
+    public void testReceiveAsyncNotStuckAfterTopicUnload() throws Exception {
+        String topicName = newTopicName();
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .receiverQueueSize(0)
+                .subscribe();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .enableBatching(false)
+                .create();
+
+        try {
+            ConsumerImpl<?> consumerImpl = (ConsumerImpl<?>) consumer;
+            long lastDisconnectedTimestamp = consumerImpl.getLastDisconnectedTimestamp();
+            CompletableFuture<Message<String>> receiveFuture = consumer.receiveAsync();
+
+            admin.topics().unload(topicName);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                    .until(() -> consumerImpl.getLastDisconnectedTimestamp() > lastDisconnectedTimestamp);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).until(consumerImpl::isConnected);
+
+            producer.send("message");
+            assertEquals(receiveFuture.get(10, TimeUnit.SECONDS).getValue(), "message");
+        } finally {
+            consumer.close();
+            producer.close();
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void testMultiplePendingReceiveAsyncNotStuckAfterTopicUnload() throws Exception {
+        String topicName = newTopicName();
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .receiverQueueSize(0)
+                .subscribe();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .enableBatching(false)
+                .create();
+
+        try {
+            ConsumerImpl<?> consumerImpl = (ConsumerImpl<?>) consumer;
+            long lastDisconnectedTimestamp = consumerImpl.getLastDisconnectedTimestamp();
+            List<CompletableFuture<Message<String>>> receiveFutures = List.of(
+                    consumer.receiveAsync(), consumer.receiveAsync(), consumer.receiveAsync());
+
+            admin.topics().unload(topicName);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                    .until(() -> consumerImpl.getLastDisconnectedTimestamp() > lastDisconnectedTimestamp);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).until(consumerImpl::isConnected);
+
+            producer.send("message-0");
+            producer.send("message-1");
+            producer.send("message-2");
+
+            CompletableFuture.allOf(receiveFutures.toArray(CompletableFuture[]::new)).get(10, TimeUnit.SECONDS);
+            Set<String> receivedMessages = new HashSet<>();
+            for (CompletableFuture<Message<String>> receiveFuture : receiveFutures) {
+                receivedMessages.add(receiveFuture.join().getValue());
+            }
+            assertEquals(receivedMessages, Set.of("message-0", "message-1", "message-2"));
+        } finally {
+            consumer.close();
+            producer.close();
+        }
+    }
+
+    private int getBrokerAvailablePermits(String topicName) throws Exception {
+        List<? extends ConsumerStats> consumers = admin.topics().getStats(topicName)
+                .getSubscriptions().get("sub").getConsumers();
+        assertEquals(consumers.size(), 1);
+        return consumers.get(0).getAvailablePermits();
+    }
+
+    @Test(timeOut = 30000)
+    public void testReceiveAsyncRegisteredAfterReconnectionNotStuck() throws Exception {
+        String topicName = newTopicName();
+        @Cleanup PulsarClient client = newPulsarClient();
+        Consumer<String> consumer = client.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .receiverQueueSize(0)
+                .subscribe();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .enableBatching(false)
+                .create();
+
+        CountDownLatch blocked = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        try {
+            ConsumerImpl<?> consumerImpl = (ConsumerImpl<?>) consumer;
+            // Block the consumer's internal executor so the receiveAsync registration task
+            // cannot run until the reconnection has completed.
+            consumerImpl.internalPinnedExecutor.execute(() -> {
+                blocked.countDown();
+                try {
+                    release.await();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            });
+            assertTrue(blocked.await(10, TimeUnit.SECONDS));
+
+            long lastDisconnectedTimestamp = consumerImpl.getLastDisconnectedTimestamp();
+            CompletableFuture<Message<String>> receiveFuture = consumer.receiveAsync();
+
+            admin.topics().unload(topicName);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                    .until(() -> consumerImpl.getLastDisconnectedTimestamp() > lastDisconnectedTimestamp);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).until(consumerImpl::isConnected);
+
+            release.countDown();
+
+            // The pending receiveAsync must be counted by the reconnection path: exactly one permit.
+            Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                    .untilAsserted(() -> assertEquals(getBrokerAvailablePermits(topicName), 1));
+
+            producer.send("message");
+            assertEquals(receiveFuture.get(10, TimeUnit.SECONDS).getValue(), "message");
+        } finally {
+            release.countDown();
+            consumer.close();
+            producer.close();
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void testMixedReceiveAndReceiveAsyncNotStuckAfterTopicUnload() throws Exception {
+        String topicName = newTopicName();
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .receiverQueueSize(0)
+                .subscribe();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .enableBatching(false)
+                .create();
+        ExecutorService receiveExecutor = Executors.newSingleThreadExecutor();
+
+        try {
+            ConsumerImpl<?> consumerImpl = (ConsumerImpl<?>) consumer;
+            Future<Message<String>> blockingReceive =
+                    receiveExecutor.submit(() -> consumer.receive());
+            List<CompletableFuture<Message<String>>> receiveFutures = List.of(
+                    consumer.receiveAsync(), consumer.receiveAsync(), consumer.receiveAsync());
+
+            // 1 permit for the blocking receive() plus 1 for each pending receiveAsync().
+            Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                    .untilAsserted(() -> assertEquals(getBrokerAvailablePermits(topicName), 4));
+
+            long lastDisconnectedTimestamp = consumerImpl.getLastDisconnectedTimestamp();
+            admin.topics().unload(topicName);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                    .until(() -> consumerImpl.getLastDisconnectedTimestamp() > lastDisconnectedTimestamp);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).until(consumerImpl::isConnected);
+
+            Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                    .untilAsserted(() -> assertEquals(getBrokerAvailablePermits(topicName), 4));
+
+            for (int i = 0; i < 4; i++) {
+                producer.send("message-" + i);
+            }
+
+            Set<String> receivedMessages = new HashSet<>();
+            receivedMessages.add(blockingReceive.get(10, TimeUnit.SECONDS).getValue());
+            for (CompletableFuture<Message<String>> receiveFuture : receiveFutures) {
+                receivedMessages.add(receiveFuture.get(10, TimeUnit.SECONDS).getValue());
+            }
+            assertEquals(receivedMessages, Set.of("message-0", "message-1", "message-2", "message-3"));
+        } finally {
+            receiveExecutor.shutdownNow();
+            consumer.close();
+            producer.close();
+        }
     }
 
     @Test(timeOut = 30000)

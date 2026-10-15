@@ -181,7 +181,9 @@ jobs:
         uses: actions/setup-java@v5
         with:
           distribution: ${{ env.JDK_DISTRIBUTION }}
-          java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
+          java-version: |
+            17
+            ${{ env.CI_JDK_MAJOR_VERSION }}
 
       - name: Setup Gradle
         uses: ./.github/actions/setup-gradle
@@ -193,6 +195,9 @@ jobs:
         run: >-
           ./gradlew assemble rat spotlessCheck checkstyleMain checkstyleTest
           --no-configuration-cache
+
+      - name: Verify client and Functions API Java compatibility
+        run: ./gradlew :tests:pulsar-client-java-compatibility:test -PtestRetryCount=0
 
       - name: Check binary licenses
         run: ./gradlew checkBinaryLicense --no-configuration-cache

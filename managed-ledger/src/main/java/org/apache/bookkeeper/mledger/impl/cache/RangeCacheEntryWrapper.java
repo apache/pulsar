@@ -19,7 +19,6 @@
 package org.apache.bookkeeper.mledger.impl.cache;
 
 import io.netty.util.Recycler;
-import java.util.Map;
 import java.util.concurrent.locks.StampedLock;
 import java.util.function.Function;
 import lombok.CustomLog;
@@ -27,9 +26,9 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.ReferenceCountedEntry;
 
 /**
- * Wrapper around the value to store in Map. This is needed to ensure that a specific instance can be removed from
- * the map by calling the {@link Map#remove(Object, Object)} method. Certain race conditions could result in the
- * wrong value being removed from the map. The instances of this class are recycled to avoid creating new objects.
+ * Wrapper around the value to store in a {@link RangeCache} slot. This is needed to ensure that a specific instance
+ * can be removed from its slot with a compare-and-set. Certain race conditions could result in the wrong value being
+ * removed from the cache. The instances of this class are recycled to avoid creating new objects.
  */
 @CustomLog
 class RangeCacheEntryWrapper {
@@ -80,32 +79,24 @@ class RangeCacheEntryWrapper {
      * match
      */
     ReferenceCountedEntry getValue(Position key) {
-        return getValueInternal(key, false);
+        return getValue(key.getLedgerId(), key.getEntryId());
     }
 
     /**
-     * Get the value associated with the Map.Entry's key and value. Exact instance of the key is required to match.
+     * Get the value of the entry at the given ledger ID and entry ID, such as the position of a cache slot.
      *
-     * @param entry the entry which contains the key and {@link RangeCacheEntryWrapper} value to get the value from
-     * @return the value associated with the key, or null if the value has already been recycled or the key does not
-     * exactly match the same instance
+     * @return the value associated with the position, or null if the value has already been recycled or the wrapper
+     * holds another position
      */
-    static ReferenceCountedEntry getValueMatchingMapEntry(Map.Entry<Position, RangeCacheEntryWrapper> entry) {
-        return entry.getValue().getValueInternal(entry.getKey(), true);
+    ReferenceCountedEntry getValue(long ledgerId, long entryId) {
+        return getValue(ledgerId, entryId, true);
     }
 
     /**
-     * Get the value associated with the key. Returns null if the key does not match the key associated with the
-     * value.
-     *
-     * @param key                    the key to match
-     * @param requireSameKeyInstance when true, the matching will be restricted to exactly the same instance of the
-     *                               key as the one stored in the wrapper. This is used to avoid any races
-     *                               when retrieving or removing the entries from the cache when the key and value
-     *                               instances are available.
-     * @return the value associated with the key, or null if the key does not match
+     * Get the value of the entry at the given position, marking the entry accessed for the eviction only when
+     * {@code markAccessed} is set.
      */
-    private ReferenceCountedEntry getValueInternal(Position key, boolean requireSameKeyInstance) {
+    ReferenceCountedEntry getValue(long ledgerId, long entryId, boolean markAccessed) {
         long stamp = lock.tryOptimisticRead();
         Position localKey = this.key;
         ReferenceCountedEntry localValue = this.value;
@@ -115,14 +106,14 @@ class RangeCacheEntryWrapper {
             localValue = this.value;
             lock.unlockRead(stamp);
         }
-        // check that the given key matches the key associated with the value in the entry
+        // check that the position matches the key associated with the value in the entry
         // this is used to detect if the entry has already been recycled and contains another key
-        // when requireSameKeyInstance is true, the key must be exactly the same instance as the one stored in the
-        // entry to match
-        if (localKey != key && (requireSameKeyInstance || localKey == null || !localKey.equals(key))) {
+        if (localKey == null || localKey.compareTo(ledgerId, entryId) != 0) {
             return null;
         }
-        accessed = true;
+        if (markAccessed) {
+            accessed = true;
+        }
         return localValue;
     }
 

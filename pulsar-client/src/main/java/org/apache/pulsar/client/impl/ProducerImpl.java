@@ -2142,6 +2142,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     failPendingMessages(cnx,
                             new PulsarClientException.ProducerFencedException("producer has been closed"));
                 }
+                client.getCnxPool().releaseConnection(cnx);
                 return CompletableFuture.completedFuture(null);
             }
             // We set the cnx reference before registering the producer on the cnx, so if the cnx breaks before creating
