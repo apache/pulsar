@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -31,8 +32,10 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.BatchedEntryDeletionIndexInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.metadata.api.Stat;
+import org.awaitility.Awaitility;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -48,6 +51,41 @@ public class ManagedCursorBatchAckRecoveryTest extends MockedBookKeeperTestCase 
     @DataProvider(name = "booleans")
     public Object[][] booleans() {
         return new Object[][] {{false}, {true}};
+    }
+
+    @Test
+    public void testFlushPersistsPartialBatchAckWithoutIndividualRanges() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig().setMaxUnackedRangesToPersistInMetadataStore(-1);
+        config.setDeletionAtBatchIndexLevelEnabled(true);
+        config.setMaxBatchDeletedIndexToPersist(2);
+        String name = "tenant/ns/persistent/partial-batch-ack-flush";
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(name, config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("sub");
+
+        Position initialMarkDelete = ledger.addEntry(new byte[] {0});
+        Position partiallyAcked = ledger.addEntry(new byte[] {1});
+        ledger.addEntry(new byte[] {2});
+
+        cursor.delete(initialMarkDelete);
+        long persistedEntry = cursor.cursorLedger.getLastAddConfirmed();
+        assertThat(lastPersistedCursorPosition(cursor).getBatchedEntryDeletionIndexInfoCount()).isZero();
+
+        // The bitmap records the first message as acknowledged while leaving the second pending.
+        cursor.delete(AckSetStateUtil.createPositionWithAckSet(
+                partiallyAcked.getLedgerId(), partiallyAcked.getEntryId(), new long[] {2L}));
+        assertThat(cursor.getIndividuallyDeletedMessagesSet().size()).isZero();
+
+        cursor.flush();
+
+        Awaitility.await().atMost(Duration.ofSeconds(5))
+                .until(() -> cursor.cursorLedger.getLastAddConfirmed() > persistedEntry);
+        PositionInfo persisted = lastPersistedCursorPosition(cursor);
+        assertThat(persisted.getBatchedEntryDeletionIndexInfoCount()).isEqualTo(1);
+        BatchedEntryDeletionIndexInfo ackInfo = persisted.getBatchedEntryDeletionIndexInfo(0);
+        assertThat(ackInfo.getPosition().getLedgerId()).isEqualTo(partiallyAcked.getLedgerId());
+        assertThat(ackInfo.getPosition().getEntryId()).isEqualTo(partiallyAcked.getEntryId());
+        assertThat(deleteSet(ackInfo)).containsExactly(2L);
     }
 
     @Test(dataProvider = "batchRecovery")
@@ -198,6 +236,23 @@ public class ManagedCursorBatchAckRecoveryTest extends MockedBookKeeperTestCase 
                 result.completeExceptionally(exception);
             }
         });
+        return result.get(5, TimeUnit.SECONDS);
+    }
+
+    private static PositionInfo lastPersistedCursorPosition(ManagedCursorImpl cursor) throws Exception {
+        CompletableFuture<PositionInfo> result = new CompletableFuture<>();
+        long entryId = cursor.cursorLedger.getLastAddConfirmed();
+        cursor.cursorLedger.asyncReadEntries(entryId, entryId, (rc, lh, entries, ctx) -> {
+            try {
+                if (rc != 0) {
+                    throw new IllegalStateException("Failed to read cursor ledger entry: " + rc);
+                }
+                var entry = entries.nextElement();
+                result.complete(PositionInfo.parseFrom(entry.getEntry()));
+            } catch (Exception e) {
+                result.completeExceptionally(e);
+            }
+        }, null);
         return result.get(5, TimeUnit.SECONDS);
     }
 }
