@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
@@ -126,7 +127,7 @@ public class MessageDeduplication {
     private final int maxNumberOfProducers;
 
     // Map used to track the inactive producer along with the timestamp of their last activity
-    private final Map<String, Long> inactiveProducers = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, Long> inactiveProducers = new ConcurrentHashMap<>();
 
     private final String replicatorPrefix;
 
@@ -635,21 +636,29 @@ public class MessageDeduplication {
         }
 
         Iterator<Map.Entry<String, Long>> mapIterator = inactiveProducers.entrySet().iterator();
-        boolean hasInactive = false;
+        AtomicBoolean hasInactive = new AtomicBoolean();
         while (mapIterator.hasNext()) {
-            java.util.Map.Entry<String, Long> entry = mapIterator.next();
+            Map.Entry<String, Long> entry = mapIterator.next();
             String producerName = entry.getKey();
             long lastActiveTimestamp = entry.getValue();
 
             if (lastActiveTimestamp < minimumActiveTimestamp) {
                 log.info("[{}] Purging dedup information for producer {}", topic.getName(), producerName);
-                mapIterator.remove();
-                highestSequencedPushed.remove(producerName);
-                highestSequencedPersisted.remove(producerName);
-                hasInactive = true;
+                // The iterator can retain an expired entry after a reconnect removes it. Recheck inactivity
+                // and remove the sequence IDs atomically with producerAdded/producerRemoved for this name,
+                // so a newly registered producer cannot publish before its old state has been purged.
+                inactiveProducers.computeIfPresent(producerName, (name, inactiveSince) -> {
+                    if (inactiveSince < minimumActiveTimestamp) {
+                        highestSequencedPushed.remove(name);
+                        highestSequencedPersisted.remove(name);
+                        hasInactive.set(true);
+                        return null;
+                    }
+                    return inactiveSince;
+                });
             }
         }
-        if (hasInactive && isEnabled()) {
+        if (hasInactive.get() && isEnabled()) {
             takeSnapshot(getManagedCursor().getMarkDeletedPosition());
         }
     }
