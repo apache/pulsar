@@ -20,10 +20,12 @@ package org.apache.pulsar.broker.service.scalable;
 
 import io.github.merlimat.slog.Logger;
 import java.time.Duration;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.Deque;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -103,9 +105,9 @@ public class SubscriptionCoordinator {
     /**
      * Sealed segments confirmed drained for this subscription (cursor at end). In-memory
      * only — on controller-leader failover the new leader rediscovers drain status by
-     * polling. {@link #computeAssignment} consults this set to decide which active
-     * children of a split / merge are eligible to be assigned (children stay blocked
-     * until <em>every</em> sealed parent is drained, so message order isn't broken).
+     * polling. {@link #computeAssignment} consults this set to decide which segments
+     * of a split / merge are eligible to be assigned (a segment stays blocked until
+     * <em>every</em> ancestor is drained, so message order isn't broken).
      */
     private final Set<Long> drainedSegmentIds = ConcurrentHashMap.newKeySet();
 
@@ -125,6 +127,14 @@ public class SubscriptionCoordinator {
      * Once non-null it stays non-null (we don't downgrade to no-ordering mid-flight).
      */
     private SegmentDrainChecker drainChecker;
+    /**
+     * Whether this coordinator serves a CHECKPOINT consumer group. Its members read each segment
+     * through their own Reader, with no shared subscription the broker could split entry-buckets
+     * on, so a segment is only ever assigned whole, to a single member. Unknown (false) on the
+     * controller-failover restore path until the first member registers, which happens before any
+     * assignment is sent.
+     */
+    private boolean checkpointGroup;
 
     public SubscriptionCoordinator(String subscriptionName,
                                    TopicName topicName,
@@ -179,10 +189,17 @@ public class SubscriptionCoordinator {
      * is preserved and the new connection is attached; otherwise the registration is
      * persisted and a rebalance is triggered.
      *
+     * <p>Both paths push the registering consumer its assignment while holding the monitor. The
+     * connection answers the consumer's subscribe with that push, which orders the response with
+     * every later push (see {@code ServerCnx#sendScalableConsumerAssignment}).
+     *
      * @return assignment map for all consumers (unchanged on reconnect, recomputed on fresh register)
      */
     public synchronized CompletableFuture<Map<ConsumerSession, ConsumerAssignment>> registerConsumer(
             String consumerName, long consumerId, TransportCnx cnx) {
+        if (closed) {
+            return CompletableFuture.failedFuture(notServing());
+        }
         ConsumerSession existing = sessions.get(consumerName);
         if (existing != null) {
             // Reconnect: attach the new connection, cancel any grace timer, and push the
@@ -202,6 +219,10 @@ public class SubscriptionCoordinator {
         return resources.registerConsumerAsync(topicName, subscriptionName, consumerName)
                 .thenApply(__ -> {
                     synchronized (this) {
+                        if (closed) {
+                            // The registration is persisted: the next leader restores it.
+                            throw notServing();
+                        }
                         sessions.put(consumerName, session);
                         Map<ConsumerSession, ConsumerAssignment> result = rebalanceAndNotify();
                         // First consumer (or rejoining one) — kick off drain checks at the
@@ -236,6 +257,9 @@ public class SubscriptionCoordinator {
         return resources.unregisterConsumerAsync(topicName, subscriptionName, consumerName)
                 .thenApply(__ -> {
                     synchronized (this) {
+                        if (closed) {
+                            return Map.<ConsumerSession, ConsumerAssignment>of();
+                        }
                         ConsumerSession current = sessions.get(consumerName);
                         if (current != null && current.getConsumerId() != expectedConsumerId) {
                             // A same-name consumer rejoined while the delete was in flight
@@ -274,7 +298,7 @@ public class SubscriptionCoordinator {
      */
     public synchronized void onConsumerDisconnect(String consumerName) {
         ConsumerSession session = sessions.get(consumerName);
-        if (session == null || !session.isConnected()) {
+        if (closed || session == null || !session.isConnected()) {
             return;
         }
         session.markDisconnected();
@@ -287,6 +311,9 @@ public class SubscriptionCoordinator {
      */
     public synchronized Map<ConsumerSession, ConsumerAssignment> restoreConsumers(
             Collection<String> persistedConsumerNames) {
+        if (closed) {
+            return Map.of();
+        }
         for (String name : persistedConsumerNames) {
             if (sessions.containsKey(name)) {
                 continue;
@@ -313,6 +340,9 @@ public class SubscriptionCoordinator {
      */
     public synchronized CompletableFuture<Map<ConsumerSession, ConsumerAssignment>> onLayoutChange(
             SegmentLayout newLayout) {
+        if (closed) {
+            return CompletableFuture.completedFuture(Map.of());
+        }
         this.currentLayout = newLayout;
         if (sessions.isEmpty()) {
             segmentAssignments.clear();
@@ -332,7 +362,7 @@ public class SubscriptionCoordinator {
      * defaulted to "no enforcement"). No-op if a checker is already installed.
      */
     synchronized void installDrainChecker(SegmentDrainChecker checker) {
-        if (this.drainChecker != null || checker == null) {
+        if (closed || this.drainChecker != null || checker == null) {
             return;
         }
         this.drainChecker = checker;
@@ -344,9 +374,31 @@ public class SubscriptionCoordinator {
     }
 
     /**
-     * Stop the periodic drain-status poller. Called by the controller on close. Idempotent.
-     * Also flips a {@code closed} flag so any {@link #pollDrainStatus()} iteration that's
-     * mid-flight aborts its rearm step instead of leaking a task into the executor.
+     * Mark this coordinator as serving a CHECKPOINT consumer group (see {@link #checkpointGroup}).
+     * Called on every CHECKPOINT register, before the registration computes the assignment.
+     */
+    synchronized void markCheckpointGroup() {
+        checkpointGroup = true;
+    }
+
+    /**
+     * Whether this subscription's consumers can share a segment by entry-bucket: it is a STREAM
+     * subscription (it has a drain checker, installed at creation or on its first STREAM register)
+     * and not a checkpoint group. False on the controller-failover restore path until the first
+     * member registers, since the consumer type is not persisted and it may be a checkpoint group.
+     */
+    synchronized boolean canShareSegmentsByEntryBucket() {
+        return drainChecker != null && !checkpointGroup;
+    }
+
+    /**
+     * Stop the periodic drain-status poller and the grace-period timers. Called by the
+     * controller on close and when it stops serving as the leader. Idempotent. Also flips a
+     * {@code closed} flag so any {@link #pollDrainStatus()} iteration that's mid-flight aborts
+     * its rearm step instead of leaking a task into the executor. Nothing that completes after
+     * it (a drain poll, a grace timer, a registration in flight) acts on the sessions or pushes
+     * an assignment, and new registrations fail: the sessions are left, persisted, to the next
+     * leader.
      */
     public synchronized void close() {
         closed = true;
@@ -354,20 +406,23 @@ public class SubscriptionCoordinator {
             drainPollTask.cancel(false);
             drainPollTask = null;
         }
+        sessions.values().forEach(ConsumerSession::cancelGraceTimer);
     }
 
     // --- Drain tracking ---
 
     /**
-     * A segment is assignable to consumers when:
-     * <ul>
-     *   <li>it's sealed — there's no harm in always handing it out (the v4 layer drains or
-     *       sees {@code TopicTerminated} immediately if already drained); or</li>
-     *   <li>it's active <b>and</b> every parent in the current layout has been drained for
-     *       this subscription. Without the parent-drain check we'd hand a consumer the
-     *       child of a just-split segment immediately, breaking per-key ordering against
-     *       any unread messages still sitting in the parent.</li>
-     * </ul>
+     * A segment, sealed or active, is assignable to consumers once every ancestor in the
+     * current layout has been drained for this subscription. The ancestors hold the older
+     * messages of the segment's keys: handing the segment out earlier would break per-key
+     * ordering against them. Every ancestor, not just the parents: a parent can be drained
+     * while its own parent is not (an empty segment has no backlog), and the segment's keys
+     * can still have unread messages there. An ancestor missing from the layout was pruned,
+     * so its data is gone, and so are its own ancestors (the GC prunes ancestors first).
+     *
+     * <p>A sealed segment stops being assignable once it is drained itself: it carries no
+     * traffic, and keeping it would pin consumers to a dead segment forever (the drain
+     * rebalance would spread the group across it and its successor).
      *
      * <p>If no {@link SegmentDrainChecker} was configured (e.g., the simple test
      * constructor), the parent-drain ordering is disabled and every segment is treated
@@ -377,20 +432,23 @@ public class SubscriptionCoordinator {
         if (drainChecker == null) {
             return true;
         }
-        if (!segment.isActive()) {
-            // A sealed segment is assignable only while it still has backlog to drain. Once
-            // fully drained it carries no traffic, and keeping it assignable would pin
-            // consumers to a dead segment forever (the drain rebalance would spread the
-            // group across it and its successor).
-            return !drainedSegmentIds.contains(segment.segmentId());
+        if (!segment.isActive() && drainedSegmentIds.contains(segment.segmentId())) {
+            return false;
         }
-        for (long parentId : segment.parentIds()) {
-            // A parent that's no longer in the DAG has been pruned (its data is gone), so
-            // treat it as drained — there's nothing to wait on.
-            if (layout.getAllSegments().containsKey(parentId)
-                    && !drainedSegmentIds.contains(parentId)) {
+        Map<Long, SegmentInfo> segments = layout.getAllSegments();
+        Set<Long> visited = new HashSet<>();
+        Deque<Long> ancestors = new ArrayDeque<>(segment.parentIds());
+        while (!ancestors.isEmpty()) {
+            long ancestorId = ancestors.pop();
+            SegmentInfo ancestor = segments.get(ancestorId);
+            if (ancestor == null || !visited.add(ancestorId)) {
+                // Pruned, or already reached through another parent (after a merge).
+                continue;
+            }
+            if (!drainedSegmentIds.contains(ancestorId)) {
                 return false;
             }
+            ancestors.addAll(ancestor.parentIds());
         }
         return true;
     }
@@ -400,6 +458,9 @@ public class SubscriptionCoordinator {
      * goes through {@link #pollDrainStatus()}, which queries the broker.
      */
     synchronized void markSegmentsDrained(Set<Long> segmentIds) {
+        if (closed) {
+            return;
+        }
         boolean changed = false;
         for (long id : segmentIds) {
             if (drainedSegmentIds.add(id)) {
@@ -539,7 +600,7 @@ public class SubscriptionCoordinator {
     private void evictExpiredConsumer(String consumerName) {
         synchronized (this) {
             ConsumerSession session = sessions.get(consumerName);
-            if (session == null) {
+            if (closed || session == null) {
                 return;
             }
             if (session.isConnected()) {
@@ -559,6 +620,9 @@ public class SubscriptionCoordinator {
                 })
                 .thenRun(() -> {
                     synchronized (this) {
+                        if (closed) {
+                            return;
+                        }
                         if (!sessions.isEmpty()) {
                             rebalanceAndNotify();
                         } else {
@@ -566,6 +630,11 @@ public class SubscriptionCoordinator {
                         }
                     }
                 });
+    }
+
+    private IllegalStateException notServing() {
+        return new IllegalStateException("The controller no longer serves subscription " + subscriptionName
+                + " of topic " + topicName);
     }
 
     /**
@@ -576,17 +645,19 @@ public class SubscriptionCoordinator {
      * Deterministic: the same inputs always produce the same output, so a new leader recomputing
      * assignments after failover gets the same result as the old leader.
      *
-     * <p><b>DAG replay.</b> The assignment includes every <em>sealed</em> segment in the
-     * DAG. A fresh EARLIEST subscription needs to read messages produced before it joined,
-     * and those may live on segments that have since been sealed by a split / merge.
+     * <p><b>DAG replay.</b> The assignment includes the <em>sealed</em> segments of the
+     * DAG that still have backlog. A fresh EARLIEST subscription needs to read messages
+     * produced before it joined, and those may live on segments that have since been
+     * sealed by a split / merge. They are read one generation at a time, by the
+     * parent-drain ordering below.
      *
-     * <p><b>Parent-drain ordering.</b> An <em>active</em> child segment is only assigned
-     * once <em>every</em> parent in the DAG has been drained for this subscription
-     * (tracked in {@link #drainedSegmentIds}). Without this guard a consumer would be
-     * handed an active child immediately after a split and start receiving new messages
-     * for some key while the same key's pre-split messages still sit unread on the sealed
-     * parent — breaking per-key ordering. Initial active segments (those with no parents
-     * in the layout) are unaffected and assigned right away.
+     * <p><b>Parent-drain ordering.</b> A segment, sealed or active, is only assigned once
+     * <em>every</em> ancestor in the DAG has been drained for this subscription (tracked
+     * in {@link #drainedSegmentIds}). Without this guard a consumer would be handed a
+     * child immediately after a split and start receiving new messages for some key while
+     * the same key's pre-split messages still sit unread on the sealed parent — breaking
+     * per-key ordering. Initial segments (those with no ancestors in the layout) are
+     * unaffected and assigned right away.
      *
      * <p>The client side (per-segment v4 consumer) drains a sealed-but-still-present
      * segment naturally and closes it on {@code TopicTerminated}; a sealed-and-already-
@@ -623,16 +694,18 @@ public class SubscriptionCoordinator {
         // segments out by entry-bucket: each owner of a shared segment takes a contiguous slice of its
         // buckets and subscribes Key_Shared STICKY declaring exactly those ranges. A segment absorbs at
         // most bucketCount() consumers; consumers beyond the topic's total bucket capacity stay idle.
+        // A CHECKPOINT group never fans out: each member reads a segment through its own Reader, so a
+        // shared segment would be read in full by every sharer. Its surplus members stay idle.
         int segmentCount = sortedSegments.size();
         int consumerCount = sortedConsumers.size();
-        if (consumerCount <= segmentCount) {
+        if (consumerCount <= segmentCount || checkpointGroup) {
             int consumerIndex = 0;
             for (SegmentInfo segment : sortedSegments) {
-                TopicName segmentTopic = SegmentTopicName.fromParent(topicName, segment.hashRange(),
-                        segment.segmentId());
+                // A legacy segment of a migrated topic is read from the persistent:// topic it wraps.
+                String segmentTopic = SegmentTopicName.backingTopicName(topicName, segment);
                 ConsumerSession consumer = sortedConsumers.get(consumerIndex % sortedConsumers.size());
                 assignmentLists.get(consumer).add(new ConsumerAssignment.AssignedSegment(
-                        segment.segmentId(), segment.hashRange(), segmentTopic.toString(), List.of()));
+                        segment.segmentId(), segment.hashRange(), segmentTopic, List.of()));
                 consumerIndex++;
             }
         } else {
@@ -655,13 +728,12 @@ public class SubscriptionCoordinator {
             int consumerIndex = 0;
             for (int i = 0; i < segmentCount; i++) {
                 SegmentInfo segment = sortedSegments.get(i);
-                TopicName segmentTopic = SegmentTopicName.fromParent(topicName, segment.hashRange(),
-                        segment.segmentId());
+                String segmentTopic = SegmentTopicName.backingTopicName(topicName, segment);
                 int k = owners[i];
                 if (k == 1) {
                     ConsumerSession consumer = sortedConsumers.get(consumerIndex++);
                     assignmentLists.get(consumer).add(new ConsumerAssignment.AssignedSegment(
-                            segment.segmentId(), segment.hashRange(), segmentTopic.toString(), List.of()));
+                            segment.segmentId(), segment.hashRange(), segmentTopic, List.of()));
                 } else {
                     // Shared segment: every attached consumer subscribes Key_Shared declaring the
                     // segment's full (immutable) bucket boundary list — WHO owns WHICH bucket is
@@ -672,8 +744,7 @@ public class SubscriptionCoordinator {
                     for (int c = 0; c < k; c++) {
                         ConsumerSession consumer = sortedConsumers.get(consumerIndex++);
                         assignmentLists.get(consumer).add(new ConsumerAssignment.AssignedSegment(
-                                segment.segmentId(), segment.hashRange(), segmentTopic.toString(),
-                                boundaries));
+                                segment.segmentId(), segment.hashRange(), segmentTopic, boundaries));
                     }
                 }
             }

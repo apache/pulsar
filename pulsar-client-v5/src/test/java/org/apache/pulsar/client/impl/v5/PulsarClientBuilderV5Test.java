@@ -30,6 +30,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -48,6 +49,7 @@ import org.apache.pulsar.client.api.v5.PulsarClient;
 import org.apache.pulsar.client.api.v5.PulsarClientBuilder;
 import org.apache.pulsar.client.api.v5.PulsarClientException;
 import org.apache.pulsar.client.api.v5.auth.Authentication;
+import org.apache.pulsar.client.api.v5.config.BackoffPolicy;
 import org.apache.pulsar.client.api.v5.config.ConnectionPolicy;
 import org.apache.pulsar.client.impl.auth.v5.LegacyV4AuthenticationAdapter;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -125,6 +127,46 @@ public class PulsarClientBuilderV5Test {
         IllegalArgumentException e = assertThrowsIAE(() -> builder.connectionPolicy(badProxy));
         assertTrue(e.getMessage().contains("proxyServiceUrl"),
                 "error must name the offending field: " + e.getMessage());
+    }
+
+    /**
+     * {@code ConnectionPolicy.connectionBackoff} is documented as the reconnection strategy, but the
+     * builder used to ignore it and leave the v4 defaults (100 ms / 60 s) in place.
+     */
+    @Test
+    public void connectionBackoffInitialAndMaxAreApplied() {
+        PulsarClientBuilderV5 builder = new PulsarClientBuilderV5();
+        builder.connectionPolicy(ConnectionPolicy.builder()
+                .connectionBackoff(BackoffPolicy.exponential(Duration.ofSeconds(5), Duration.ofSeconds(30)))
+                .build());
+
+        ClientConfigurationData conf = builder.getConfForTesting();
+        assertEquals(conf.getInitialBackoffIntervalNanos(), Duration.ofSeconds(5).toNanos(),
+                "initial reconnection backoff must come from BackoffPolicy");
+        assertEquals(conf.getMaxBackoffIntervalNanos(), Duration.ofSeconds(30).toNanos(),
+                "max reconnection backoff must come from BackoffPolicy");
+    }
+
+    @Test
+    public void connectionBackoffRejectsMultiplierAndJitterTheClientCannotApply() {
+        PulsarClientBuilderV5 builder = new PulsarClientBuilderV5();
+        ConnectionPolicy fixed = ConnectionPolicy.builder()
+                .connectionBackoff(BackoffPolicy.fixed(Duration.ofSeconds(5), Duration.ofSeconds(5)))
+                .build();
+        ConnectionPolicy customJitter = ConnectionPolicy.builder()
+                .connectionBackoff(BackoffPolicy.builder()
+                        .initialInterval(Duration.ofSeconds(5))
+                        .maxInterval(Duration.ofSeconds(30))
+                        .jitterPercent(0)
+                        .build())
+                .build();
+
+        IllegalArgumentException fixedError = assertThrowsIAE(() -> builder.connectionPolicy(fixed));
+        assertTrue(fixedError.getMessage().contains("multiplier"),
+                "error must say the multiplier cannot be applied: " + fixedError.getMessage());
+        IllegalArgumentException jitterError = assertThrowsIAE(() -> builder.connectionPolicy(customJitter));
+        assertTrue(jitterError.getMessage().contains("jitter"),
+                "error must say the jitter cannot be applied: " + jitterError.getMessage());
     }
 
     /**
