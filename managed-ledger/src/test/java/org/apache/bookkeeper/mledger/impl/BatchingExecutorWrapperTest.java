@@ -465,11 +465,17 @@ public class BatchingExecutorWrapperTest {
 
     @DataProvider
     public Object[][] batchLimits() {
-        return new Object[][] {{2, NO_WEIGHT_LIMIT}, {1024, NO_WEIGHT_LIMIT}, {1024, 3L}};
+        return new Object[][] {
+                {2, NO_WEIGHT_LIMIT, 1L},
+                {1024, NO_WEIGHT_LIMIT, 1L},
+                {1024, 3L, 1L},
+                {1024, 3L, 2L}
+        };
     }
 
     @Test(timeOut = 30000, dataProvider = "batchLimits")
-    public void testConcurrentSubmittersKeepPerThreadOrder(int maxItems, long maxWeight) throws Exception {
+    public void testConcurrentSubmittersKeepPerThreadOrder(int maxItems, long maxWeight, long taskWeight)
+            throws Exception {
         int threads = 8;
         int tasksPerThread = 10000;
         ExecutorService delegate = Executors.newSingleThreadExecutor();
@@ -490,7 +496,7 @@ public class BatchingExecutorWrapperTest {
                         start.await();
                         for (int i = 0; i < tasksPerThread; i++) {
                             int task = i;
-                            wrapper.execute(weighted(1, () -> {
+                            wrapper.execute(weighted(taskWeight, () -> {
                                 ran.add(task);
                                 completed.countDown();
                             }));
@@ -508,7 +514,7 @@ public class BatchingExecutorWrapperTest {
         assertThat(failures).isEmpty();
         // Tasks from one thread run in the order that thread submitted them.
         for (List<Integer> ran : ranByThread) {
-            assertThat(ran).hasSize(tasksPerThread).isSorted();
+            assertThat(ran).hasSize(tasksPerThread).isSorted().doesNotHaveDuplicates();
         }
     }
 }
