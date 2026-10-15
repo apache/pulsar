@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.resources;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -363,6 +364,9 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
                         // applied) but cheap.
                         results.stream()
                                 .filter(matchesAll)
+                                // The scan returns the records in no particular order: list them in the
+                                // order of the namespace's children, as listScalableTopicsAsync does
+                                .sorted(Comparator.comparing(r -> r.getStat().getPath()))
                                 .map(r -> {
                                     String path = r.getStat().getPath();
                                     String encoded = path.substring(path.lastIndexOf('/') + 1);
