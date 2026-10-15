@@ -68,6 +68,17 @@ public class PulsarConfigurationLoaderTest {
     }
 
     @Test
+    public void testShadowTopicsEnabledByDefault() throws Exception {
+        assertTrue(new ServiceConfiguration().isEnableShadowTopics());
+        Properties properties = new Properties();
+        ServiceConfiguration config = PulsarConfigurationLoader.create(properties, ServiceConfiguration.class);
+        assertTrue(config.isEnableShadowTopics());
+        properties.setProperty("enableShadowTopics", "false");
+        config = PulsarConfigurationLoader.create(properties, ServiceConfiguration.class);
+        assertFalse(config.isEnableShadowTopics());
+    }
+
+    @Test
     public void testConfigurationConverting() {
         MockConfiguration mockConfiguration = new MockConfiguration();
         ServiceConfiguration serviceConfiguration = PulsarConfigurationLoader.convertFrom(mockConfiguration);

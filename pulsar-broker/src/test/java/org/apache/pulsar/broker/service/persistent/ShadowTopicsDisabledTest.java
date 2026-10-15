@@ -24,19 +24,38 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerServiceException;
-import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
+import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-public class ShadowTopicsDisabledTest extends SharedPulsarBaseTest {
+public class ShadowTopicsDisabledTest extends BrokerTestBase {
+
+    @BeforeClass(alwaysRun = true)
+    @Override
+    protected void setup() throws Exception {
+        conf.setEnableShadowTopics(false);
+        super.baseSetup();
+    }
+
+    @AfterClass(alwaysRun = true)
+    @Override
+    protected void cleanup() throws Exception {
+        super.internalCleanup();
+    }
+
+    @Override
+    protected String newTopicName() {
+        return TopicName.get(super.newTopicName()).toString();
+    }
 
     @DataProvider
     public Object[][] partitionCounts() {
@@ -45,8 +64,7 @@ public class ShadowTopicsDisabledTest extends SharedPulsarBaseTest {
 
     @Test(dataProvider = "partitionCounts")
     public void testCreationAndConfigurationDisabled(int partitions) throws Exception {
-        assertThat(new ServiceConfiguration().isEnableShadowTopics()).isFalse();
-        assertThat(getConfig().isEnableShadowTopics()).isFalse();
+        assertThat(conf.isEnableShadowTopics()).isFalse();
         String source = newTopicName();
         String shadow = source + "-shadow";
         if (partitions == 0) {
@@ -79,7 +97,8 @@ public class ShadowTopicsDisabledTest extends SharedPulsarBaseTest {
         String topicToLoad = shadow;
         if (partitions == 0) {
             admin.topics().createNonPartitionedTopic(shadow);
-            PersistentTopic topic = (PersistentTopic) getTopicIfExists(shadow).get().orElseThrow();
+            PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService()
+                    .getTopicIfExists(shadow).get().orElseThrow();
             topic.getManagedLedger().setProperty(PROPERTY_SOURCE_TOPIC_KEY, source);
             admin.topics().unload(shadow);
         } else {
@@ -90,10 +109,11 @@ public class ShadowTopicsDisabledTest extends SharedPulsarBaseTest {
         }
         String finalTopicToLoad = topicToLoad;
         try {
-            assertThatThrownBy(() -> getTopic(finalTopicToLoad, true).get(10, TimeUnit.SECONDS))
+            assertThatThrownBy(() -> pulsar.getBrokerService().getTopic(finalTopicToLoad, true)
+                    .get(10, TimeUnit.SECONDS))
                     .hasRootCauseInstanceOf(BrokerServiceException.NotAllowedException.class)
                     .hasStackTraceContaining("Shadow topics are disabled");
-            assertThat(getTopicReference(finalTopicToLoad)).isEmpty();
+            assertThat(pulsar.getBrokerService().getTopicReference(finalTopicToLoad)).isEmpty();
         } finally {
             if (partitions == 0) {
                 getPulsar().getDefaultManagedLedgerFactory().delete(
@@ -112,7 +132,8 @@ public class ShadowTopicsDisabledTest extends SharedPulsarBaseTest {
         getPulsar().getTopicPoliciesService().updateTopicPoliciesAsync(TopicName.get(source), false, false,
                 policies -> policies.setShadowTopics(List.of(shadow))).get(10, TimeUnit.SECONDS);
         admin.topics().unload(source);
-        PersistentTopic topic = (PersistentTopic) getTopicIfExists(source).get().orElseThrow();
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService()
+                .getTopicIfExists(source).get().orElseThrow();
         assertThat(admin.topics().getShadowTopics(source)).containsExactly(shadow);
         topic.checkReplication().get(10, TimeUnit.SECONDS);
         assertThat(topic.getShadowReplicators()).isEmpty();
