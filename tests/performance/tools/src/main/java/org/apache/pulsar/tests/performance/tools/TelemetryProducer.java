@@ -42,6 +42,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientSharedResources;
+import org.apache.pulsar.client.api.SubscriptionType;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
@@ -371,9 +372,12 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
     private ProducerBuilder<byte[]> producerBuilder(IotScenario scenario, List<PulsarClient> clients,
                                                     int gateway, int topic) {
         return clients.get(gateway).newProducer()
-                .topic(scenario.topicNames().get(topic))
+                .topic(scenario.topicName(topic))
                 .producerName("iot-gateway-" + gateway + "-topic-" + topic)
-                .batcherBuilder(BatcherBuilder.KEY_BASED)
+                // Key_Shared delivers a batch to one consumer, so a batch keeps to one key, its device. With the
+                // other subscription types, a batch may mix devices.
+                .batcherBuilder(scenario.subscriptionType() == SubscriptionType.Key_Shared
+                        ? BatcherBuilder.KEY_BASED : BatcherBuilder.DEFAULT)
                 .enableBatching(scenario.gateways().producer().batchingEnabled())
                 .blockIfQueueFull(true)
                 .sendTimeout(0, TimeUnit.SECONDS);

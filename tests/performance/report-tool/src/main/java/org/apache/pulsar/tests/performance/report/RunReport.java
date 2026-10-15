@@ -433,7 +433,7 @@ public final class RunReport {
                         + workload.path("topics").path("count").asInt() + " topic(s)"))
                 .append(row("Applications", workload.path("applications").path("count").asInt() + " × "
                         + workload.path("applications").path("podsPerApplication").asInt()
-                        + " pods, Key_Shared"))
+                        + " pods, " + workload.path("applications").path("subscriptionType").asText("Key_Shared")))
                 .append(row("Messages", String.format(Locale.ROOT, "%,d measured, %,d warmup",
                         messageCount(producer, "measurementMessages",
                                 workload.path("measurement").path("messages").asLong()),

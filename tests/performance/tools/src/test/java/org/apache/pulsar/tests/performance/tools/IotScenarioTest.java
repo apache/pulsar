@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.tests.performance.common.YamlScenarioLoader;
 import org.testng.annotations.Test;
 import picocli.CommandLine;
@@ -201,6 +202,35 @@ public class IotScenarioTest {
         assertThatThrownBy(() -> unbatched(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
                 null, List.of(0, 30), null, null, false, List.of(-2L, 5_000L))))
                 .hasMessageContaining("-1 for none, or at least 0");
+    }
+
+    @Test
+    public void choosesTheSubscriptionType() {
+        IotScenario keyShared = scenario(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null));
+        assertThat(keyShared.subscriptionType()).isEqualTo(SubscriptionType.Key_Shared);
+        assertThat(keyShared.keepsDeviceOrder()).isTrue();
+        IotScenario shared = scenario(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2), null,
+                null, null, null, false, null, "Shared"));
+        assertThat(shared.subscriptionType()).isEqualTo(SubscriptionType.Shared);
+        assertThat(shared.keepsDeviceOrder()).isFalse();
+        assertThat(scenario(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2), null, null,
+                null, null, false, null, "Failover")).keepsDeviceOrder()).isTrue();
+        assertThatThrownBy(() -> scenario(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, null, null, null, false, null, "Exclusive")))
+                .hasMessageContaining("applications.subscriptionType must be one of [Key_Shared, Shared, Failover]");
+        // skipping and resetting expect each device's messages from the first one received, in order
+        assertThatThrownBy(() -> unbatched(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, List.of(0, 30), null, List.of(0L, 10L), false, null, "Shared")))
+                .hasMessageContaining("need a subscription type that keeps each device's order");
+        assertThatThrownBy(() -> unbatched(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, List.of(0, 30), null, null, false, List.of(-1L, 5_000L), "Shared")))
+                .hasMessageContaining("need a subscription type that keeps each device's order");
+        // a scenario file without the setting keeps Key_Shared
+        IotScenario.Applications fromYaml = new YamlScenarioLoader().mapper().convertValue(Map.of("count", 2,
+                "podsPerApplication", 2, "subscriptionPrefix", "app-", "client",
+                Map.of("ioThreads", 2, "listenerThreads", 2)), IotScenario.Applications.class);
+        assertThat(scenario(fromYaml).subscriptionType()).isEqualTo(SubscriptionType.Key_Shared);
     }
 
     @Test
