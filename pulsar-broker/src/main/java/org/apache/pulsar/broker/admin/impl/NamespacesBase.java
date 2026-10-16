@@ -220,11 +220,14 @@ public abstract class NamespacesBase extends AdminResource {
                         .exceptionally(t -> {
                             throw new CompletionException(new RestException(Status.TOO_MANY_REQUESTS,
                                     "Failed due to heap memory limit exceeded"));
-                        }).thenApply(permits -> {
+                        // A permit granted without waiting completes on the calling thread, here a metadata store
+                        // callback thread. Continue on the limiter's completion executor, so that writing the
+                        // possibly large response doesn't block that thread.
+                        }).thenApplyAsync(permits -> {
                             permitsRef.set(permits);
                             initialPermitsRef.set(null);
                             return topicList;
-                        });
+                        }, maxTopicListInFlightLimiter.getCompletionExecutor());
             });
         }));
     }
