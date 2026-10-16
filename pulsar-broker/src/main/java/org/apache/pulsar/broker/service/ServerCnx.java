@@ -4814,6 +4814,30 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         BaseCommand command = Commands.newMessageCommand(consumerId, ledgerId, entryId, partition, redeliveryCount,
                 ackSet, epoch);
         ByteBufPair res = Commands.serializeCommandMessageWithSize(command, metadataAndPayload);
+        interceptMessage(command, consumerId, ledgerId, entryId, metadataAndPayload);
+        return res;
+    }
+
+    /**
+     * As {@link #newMessageAndIntercept}, but writes the message command and a copy of the metadata and payload into
+     * {@code out}, which leaves the reference count of {@code metadataAndPayload} unchanged.
+     */
+    public void writeMessageAndIntercept(ByteBuf out, long consumerId, long ledgerId, long entryId, int partition,
+            int redeliveryCount, ByteBuf metadataAndPayload, long[] ackSet, long epoch) {
+        BaseCommand command = Commands.newMessageCommand(consumerId, ledgerId, entryId, partition, redeliveryCount,
+                ackSet, epoch);
+        int payloadSize = metadataAndPayload.readableBytes();
+        // serialize the command before the interceptors, as newMessageAndIntercept does: the command is a thread-local
+        // one, which an interceptor can reuse, for example by sending a message with a producer
+        Commands.serializeCommandMessageHeaderWithSize(command, payloadSize, out);
+        // copy the metadata and payload after them, so that the copy has what an interceptor changed in them, as the
+        // buffer written by reference has
+        interceptMessage(command, consumerId, ledgerId, entryId, metadataAndPayload);
+        Commands.copyMetadataAndPayload(metadataAndPayload, payloadSize, out);
+    }
+
+    private void interceptMessage(BaseCommand command, long consumerId, long ledgerId, long entryId,
+                                  ByteBuf metadataAndPayload) {
         if (brokerInterceptor != null) {
             try {
                 brokerInterceptor.onPulsarCommand(command, this);
@@ -4826,7 +4850,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 log.error().exception(e).log("Exception occur when intercept messages.");
             }
         }
-        return res;
     }
     /**
      * Helper method for testability.
