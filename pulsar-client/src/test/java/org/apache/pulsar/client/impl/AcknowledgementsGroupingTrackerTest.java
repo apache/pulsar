@@ -19,10 +19,15 @@
 package org.apache.pulsar.client.impl;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -46,6 +51,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
@@ -53,6 +60,7 @@ import org.apache.pulsar.client.util.TimedCompletableFuture;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -151,6 +159,123 @@ public class AcknowledgementsGroupingTrackerTest {
         assertFalse(tracker.isDuplicate(msg6));
 
         tracker.close();
+    }
+
+    @Test
+    public void testPeriodicFlushSkipsTrackerWithoutNewAcks() throws Exception {
+        ConsumerImpl<?> periodicConsumer = mock(ConsumerImpl.class);
+        periodicConsumer.unAckedChunkedMessageIdSequenceMap = new ConcurrentHashMap<>();
+        doReturn(new ConsumerStatsRecorderImpl()).when(periodicConsumer).getStats();
+        doReturn(UnAckedMessageTracker.UNACKED_MESSAGE_TRACKER_DISABLED)
+                .when(periodicConsumer).getUnAckedMessageTracker();
+        AtomicBoolean connected = new AtomicBoolean(true);
+        doAnswer(invocation -> connected.get() ? cnx : null).when(periodicConsumer).getClientCnx();
+        ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
+        conf.setAcknowledgementsGroupTimeMicros(TimeUnit.MILLISECONDS.toMicros(10));
+        PersistentAcknowledgmentsGroupingTracker tracker =
+                new PersistentAcknowledgmentsGroupingTracker(periodicConsumer, conf, eventLoopGroup);
+        // runs in the tracker's shared periodic flush task (the group has one event loop), requesting itself again,
+        // to count its runs
+        AtomicInteger periodicRuns = new AtomicInteger();
+        AtomicReference<AcknowledgmentsGroupingFlushes.Registration> probeRef = new AtomicReference<>();
+        AcknowledgmentsGroupingFlushes.Registration probe = AcknowledgmentsGroupingFlushes.register(
+                eventLoopGroup.next(), conf.getAcknowledgementsGroupTimeMicros(), () -> {
+                    periodicRuns.incrementAndGet();
+                    probeRef.get().requestFlush();
+                });
+        probeRef.set(probe);
+        probe.requestFlush();
+        try {
+            // without acks, the periodic flushes don't look up the connection
+            waitForPeriodicRuns(periodicRuns, 3);
+            verify(periodicConsumer, never()).getClientCnx();
+
+            // an ack added while disconnected stays pending, and the periodic flushes retry it
+            connected.set(false);
+            tracker.addAcknowledgment(new MessageIdImpl(5, 1, 0), AckType.Individual, Collections.emptyMap());
+            Awaitility.await().untilAsserted(() -> verify(periodicConsumer, atLeast(2)).getClientCnx());
+            assertEquals(tracker.getPendingIndividualAcksSize(), 1);
+            // until the connection is back
+            connected.set(true);
+            Awaitility.await().until(() -> tracker.getPendingIndividualAcksSize() == 0);
+
+            // once flushed, the tracker is skipped again
+            clearInvocations(periodicConsumer);
+            waitForPeriodicRuns(periodicRuns, 3);
+            verify(periodicConsumer, never()).getClientCnx();
+        } finally {
+            probe.close();
+            tracker.close();
+        }
+    }
+
+    private static void waitForPeriodicRuns(AtomicInteger periodicRuns, int runs) {
+        int start = periodicRuns.get();
+        Awaitility.await().until(() -> periodicRuns.get() >= start + runs);
+    }
+
+    @Test
+    public void testPeriodicFlushRetriesAfterAFailure() throws Exception {
+        ConsumerImpl<?> failingConsumer = mock(ConsumerImpl.class);
+        failingConsumer.unAckedChunkedMessageIdSequenceMap = new ConcurrentHashMap<>();
+        doReturn(new ConsumerStatsRecorderImpl()).when(failingConsumer).getStats();
+        doReturn(UnAckedMessageTracker.UNACKED_MESSAGE_TRACKER_DISABLED)
+                .when(failingConsumer).getUnAckedMessageTracker();
+        AtomicInteger lookups = new AtomicInteger();
+        doAnswer(invocation -> {
+            if (lookups.incrementAndGet() == 1) {
+                throw new IllegalStateException("failing connection lookup");
+            }
+            return cnx;
+        }).when(failingConsumer).getClientCnx();
+        ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
+        conf.setAcknowledgementsGroupTimeMicros(TimeUnit.MILLISECONDS.toMicros(10));
+        PersistentAcknowledgmentsGroupingTracker tracker =
+                new PersistentAcknowledgmentsGroupingTracker(failingConsumer, conf, eventLoopGroup);
+        try {
+            // the first periodic flush fails, and a later one sends the ack without another ack being added
+            tracker.addAcknowledgment(new MessageIdImpl(5, 1, 0), AckType.Individual, Collections.emptyMap());
+            Awaitility.await().until(() -> tracker.getPendingIndividualAcksSize() == 0);
+            assertTrue(lookups.get() >= 2);
+        } finally {
+            tracker.close();
+        }
+    }
+
+    @Test(dataProvider = "isNeedReceipt")
+    public void testFlushWithoutPendingAcksWritesNothing(boolean isNeedReceipt) throws Exception {
+        ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
+        conf.setAcknowledgementsGroupTimeMicros(TimeUnit.SECONDS.toMicros(10));
+        conf.setAckReceiptEnabled(isNeedReceipt);
+        PersistentAcknowledgmentsGroupingTracker tracker =
+                new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
+        try {
+            clearInvocations(successCtx);
+            tracker.flush();
+            verify(successCtx, never()).write(any(), any());
+            verify(successCtx, never()).writeAndFlush(any(), any());
+            verify(successCtx, never()).flush();
+
+            // a cumulative ack, flushed once, and not again by the next flush
+            MessageIdImpl msg1 = new MessageIdImpl(5, 1, 0);
+            tracker.addAcknowledgment(msg1, AckType.Cumulative, Collections.emptyMap());
+            tracker.flush();
+            verify(successCtx, times(1)).flush();
+            clearInvocations(successCtx);
+            tracker.flush();
+            verify(successCtx, never()).flush();
+            // the cumulative ack still counts for the duplicate check
+            assertTrue(tracker.isDuplicate(msg1));
+
+            // an individual ack after an empty flush is sent by the next one
+            MessageIdImpl msg2 = new MessageIdImpl(5, 2, 0);
+            tracker.addAcknowledgment(msg2, AckType.Individual, Collections.emptyMap());
+            tracker.flush();
+            verify(successCtx, times(1)).flush();
+            assertFalse(tracker.isDuplicate(msg2));
+        } finally {
+            tracker.close();
+        }
     }
 
     @Test(dataProvider = "isNeedReceipt")
