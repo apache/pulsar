@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
@@ -420,15 +421,15 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
     /**
      * Chunks are processed on the connection's IO thread while the expiry task runs on another thread.
-     * With queue [A, B], A's completion removes A's context and then A's uuid. If expiry inspects A in
-     * between (no context, so it skips A as a stale head) and only removes it after completion already
-     * did, it must remove A itself, not whatever is now at the head: dropping B would leave B's context
-     * in chunkedMessagesMap with nothing in the queue referencing it, so it could never expire or be
-     * evicted.
+     * With queue [A, B], A's completion removes A's context and then A's uuid. If expiry could inspect A in
+     * between (no context, so it skips A as a stale head) and only remove it after completion already did,
+     * it might drop whatever is now at the head: dropping B would leave B's context in chunkedMessagesMap
+     * with nothing in the queue referencing it, so it could never expire or be evicted.
      *
-     * The interleaving is forced deterministically by wrapping chunkedMessagesMap: A's completion
-     * (map.remove("A") on the IO thread) starts expiry and waits until expiry has inspected A, and
-     * expiry (map.get("A")) then waits until completion has removed A's uuid before it continues.
+     * Completion and expiry both hold chunkedMessageLock, so expiry must not observe that intermediate
+     * state at all. The test wraps chunkedMessagesMap: A's completion (map.remove("A") on the IO thread,
+     * under the lock) starts expiry and waits until expiry either blocks or inspects A (map.get("A")),
+     * and inspecting A is a failure. Either way B must stay pending and reachable for expiry.
      */
     @Test
     public void testExpiryStaleHeadSkipDoesNotDropConcurrentLiveEntry() throws Exception {
@@ -461,6 +462,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
         final CountDownLatch expiryInspectedA = new CountDownLatch(1);
         final AtomicBoolean raceTriggered = new AtomicBoolean();
+        final AtomicBoolean expiryInspectedPartialRemoval = new AtomicBoolean();
         final AtomicReference<Thread> expiryThread = new AtomicReference<>();
         final AtomicReference<Throwable> expiryError = new AtomicReference<>();
         Map<String, ConsumerImpl.ChunkedMessageCtx> hookedMap =
@@ -480,11 +482,11 @@ public class MessageChunkingTest extends ProducerConsumerBase {
                     }, "test-chunk-expiry");
                     expiryThread.set(t);
                     t.start();
-                    try {
-                        expiryInspectedA.await(10, TimeUnit.SECONDS);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                    }
+                    // Completion holds chunkedMessageLock here, so expiry has to block on it instead of
+                    // inspecting A between A's map removal and its uuid removal.
+                    Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() ->
+                            t.getState() == Thread.State.BLOCKED || expiryInspectedA.getCount() == 0);
+                    expiryInspectedPartialRemoval.set(expiryInspectedA.getCount() == 0);
                 }
                 return removed;
             }
@@ -513,6 +515,8 @@ public class MessageChunkingTest extends ProducerConsumerBase {
             assertEquals(a.getValue(), "chunk-A-0|chunk-A-1|");
 
             assertTrue(raceTriggered.get(), "A's completion did not trigger the interleaving");
+            assertFalse(expiryInspectedPartialRemoval.get(),
+                    "expiry inspected A after its context was removed but before its uuid was");
             expiryThread.get().join(TimeUnit.SECONDS.toMillis(10));
             assertNull(expiryError.get());
 
