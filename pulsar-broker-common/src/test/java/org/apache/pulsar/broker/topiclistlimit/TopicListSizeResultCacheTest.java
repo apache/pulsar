@@ -25,8 +25,11 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
@@ -65,6 +68,53 @@ public class TopicListSizeResultCacheTest {
         TopicListSizeResultCache.ResultHolder holder2 = cache.getTopicListSize(namespace, mode);
 
         assertSame(holder1, holder2, "Should return the same ResultHolder instance for the same key");
+    }
+
+    @Test
+    public void testGetTopicListSize_keysByProperties() {
+        String namespace = "tenant/namespace";
+        CommandGetTopicsOfNamespace.Mode mode = CommandGetTopicsOfNamespace.Mode.PERSISTENT;
+
+        TopicListSizeResultCache.ResultHolder noProperties = cache.getTopicListSize(namespace, mode);
+        assertSame(cache.getTopicListSize(namespace, mode, null), noProperties);
+        assertSame(cache.getTopicListSize(namespace, mode, Map.of()), noProperties);
+
+        Map<String, String> properties = new HashMap<>();
+        properties.put("k1", "v1");
+        properties.put("k2", "v2");
+        TopicListSizeResultCache.ResultHolder withProperties = cache.getTopicListSize(namespace, mode, properties);
+        assertNotSame(withProperties, noProperties,
+                "A customized topic listing with properties should have a separate size estimate");
+        assertSame(cache.getTopicListSize(namespace, mode, Map.of("k2", "v2", "k1", "v1")), withProperties);
+        // the key must not be affected by later modifications of the passed map
+        properties.put("k3", "v3");
+        assertSame(cache.getTopicListSize(namespace, mode, Map.of("k2", "v2", "k1", "v1")), withProperties);
+        assertNotSame(cache.getTopicListSize(namespace, mode, Map.of("k1", "other")), withProperties);
+    }
+
+    @Test
+    public void testGetTopicListSize_keysByListing() {
+        String namespace = "tenant/namespace";
+        CommandGetTopicsOfNamespace.Mode mode = CommandGetTopicsOfNamespace.Mode.NON_PERSISTENT;
+
+        TopicListSizeResultCache.ResultHolder namespaceTopics = cache.getTopicListSize(namespace, mode);
+        assertSame(cache.getTopicListSize(TopicListing.namespaceTopics(namespace, mode), null), namespaceTopics);
+
+        List<TopicListing> otherListings = List.of(
+                TopicListing.ownedBundleTopics(namespace, mode, "0x00000000_0x80000000"),
+                TopicListing.ownedBundleTopics(namespace, mode, "0x80000000_0xffffffff"),
+                TopicListing.partitionedTopics(namespace, mode),
+                TopicListing.scalableTopics(namespace));
+        List<TopicListSizeResultCache.ResultHolder> holders = new ArrayList<>();
+        holders.add(namespaceTopics);
+        for (TopicListing listing : otherListings) {
+            TopicListSizeResultCache.ResultHolder holder = cache.getTopicListSize(listing, null);
+            assertSame(cache.getTopicListSize(listing, Map.of()), holder);
+            for (TopicListSizeResultCache.ResultHolder other : holders) {
+                assertNotSame(holder, other, "Each topic listing should have a separate size estimate: " + listing);
+            }
+            holders.add(holder);
+        }
     }
 
     @Test
@@ -328,5 +378,34 @@ public class TopicListSizeResultCacheTest {
         for (CompletableFuture<Long> future : futures) {
             assertNotNull(future.get(5, TimeUnit.SECONDS), "All futures should complete");
         }
+    }
+
+    @Test
+    public void testOversizedEstimateIsRemeasuredOncePerInterval() {
+        TopicListSizeResultCache limitedCache = new TopicListSizeResultCache(1000, Duration.ofHours(1));
+        TopicListSizeResultCache.ResultHolder holder =
+                limitedCache.getTopicListSize("tenant/namespace", CommandGetTopicsOfNamespace.Mode.PERSISTENT);
+        holder.getSizeAsync();
+        // a topic list larger than the limit
+        holder.updateSize(5000);
+        // one request gets the limit so that it can measure the topic list again
+        assertEquals(holder.getSizeAsync().join().longValue(), 1000L);
+        // the other requests get the estimate, which is larger than the limit, so that they fail right away
+        assertEquals(holder.getSizeAsync().join().longValue(), 5000L);
+        assertEquals(holder.getSizeAsync().join().longValue(), 5000L);
+        // the estimate follows the list when it becomes smaller than the limit
+        holder.updateSize(500);
+        assertEquals(holder.getSizeAsync().join().longValue(), 500L);
+    }
+
+    @Test
+    public void testOversizedEstimateIsRemeasuredAfterInterval() {
+        TopicListSizeResultCache limitedCache = new TopicListSizeResultCache(1000, Duration.ZERO);
+        TopicListSizeResultCache.ResultHolder holder =
+                limitedCache.getTopicListSize("tenant/namespace", CommandGetTopicsOfNamespace.Mode.PERSISTENT);
+        holder.getSizeAsync();
+        holder.updateSize(5000);
+        assertEquals(holder.getSizeAsync().join().longValue(), 1000L);
+        assertEquals(holder.getSizeAsync().join().longValue(), 1000L);
     }
 }

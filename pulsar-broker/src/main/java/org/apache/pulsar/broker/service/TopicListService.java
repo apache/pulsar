@@ -86,7 +86,8 @@ public class TopicListService {
         private boolean updatingTopics;
         private List<String> matchingTopicsBeforeDisconnected;
         private boolean disconnected;
-        private List<Runnable> updateCallbacks = new LinkedList<>();
+        // callbacks of requests waiting for the ongoing topic list update, called with null on success
+        private List<Consumer<Throwable>> updateCallbacks = new LinkedList<>();
         private boolean updatingWhileDisconnected;
 
         public TopicListWatcher(TopicListService topicListService, long id,
@@ -177,20 +178,68 @@ public class TopicListService {
             }
         }
 
-        public synchronized void close() {
-            closed = true;
-            sendTopicListUpdateTasks.clear();
-            updateCallbacks.clear();
+        public void close() {
+            List<Consumer<Throwable>> pendingCallbacks;
+            synchronized (this) {
+                closed = true;
+                sendTopicListUpdateTasks.clear();
+                pendingCallbacks = new ArrayList<>(updateCallbacks);
+                updateCallbacks.clear();
+            }
+            // complete the requests waiting for the topic list update so that they don't wait forever
+            if (!pendingCallbacks.isEmpty()) {
+                IllegalStateException closedException = newClosedException();
+                for (Consumer<Throwable> callback : pendingCallbacks) {
+                    runUpdateCallback(callback, closedException);
+                }
+            }
+        }
+
+        /**
+         * Completes the requests waiting for the ongoing update with the given failure. The update continues.
+         */
+        void failUpdateCallbacks(Throwable failure) {
+            List<Consumer<Throwable>> pendingCallbacks;
+            synchronized (this) {
+                pendingCallbacks = new ArrayList<>(updateCallbacks);
+                updateCallbacks.clear();
+            }
+            for (Consumer<Throwable> callback : pendingCallbacks) {
+                runUpdateCallback(callback, failure);
+            }
+        }
+
+        private IllegalStateException newClosedException() {
+            return new IllegalStateException("Topic list watcher " + id + " was closed");
+        }
+
+        private static void runUpdateCallback(Consumer<Throwable> callback, Throwable failure) {
+            try {
+                callback.accept(failure);
+            } catch (Exception e) {
+                log.warn()
+                        .attr("callback", callback)
+                        .exception(e)
+                        .log("Error executing topic list update callback");
+            }
         }
 
         /**
          * Returns true if the topic list update is prepared for execution. It is expected that the caller initiates
          * the update. The callback is registered to be executed after the update, either existing or upcoming is
          * completed.
-         * @param afterUpdateCompletionCallback callback to be executed after the update is completed.
+         * @param afterUpdateCompletionCallback callback to be executed after the update is completed. It's called
+         *                                      with null when the update completes, or with the failure when the
+         *                                      watcher is closed before the update completes.
          * @return true if an existing update wasn't ongoing and a new update is prepared for execution.
          */
-        synchronized boolean prepareUpdateTopics(Runnable afterUpdateCompletionCallback) {
+        synchronized boolean prepareUpdateTopics(Consumer<Throwable> afterUpdateCompletionCallback) {
+            if (closed) {
+                if (afterUpdateCompletionCallback != null) {
+                    runUpdateCallback(afterUpdateCompletionCallback, newClosedException());
+                }
+                return false;
+            }
             if (!updatingTopics) {
                 updatingTopics = true;
                 sendingInProgress = true;
@@ -220,15 +269,8 @@ public class TopicListService {
                 matchingTopicsBeforeDisconnected = null;
                 disconnected = false;
             }
-            for (Runnable callback : updateCallbacks) {
-                try {
-                    callback.run();
-                } catch (Exception e) {
-                    log.warn()
-                            .attr("callback", callback)
-                            .exception(e)
-                            .log("Error executing topic list update callback");
-                }
+            for (Consumer<Throwable> callback : updateCallbacks) {
+                runUpdateCallback(callback, null);
             }
             updateCallbacks.clear();
             sendingCompleted();
@@ -387,15 +429,20 @@ public class TopicListService {
             // use the existing watcher if it's already created
             watcherFuture = existingWatcherFuture.thenCompose(watcher -> {
                 CompletableFuture<TopicListWatcher> future = new CompletableFuture<>();
-                Runnable callback = () -> future.complete(watcher);
+                Consumer<Throwable> callback = failure -> {
+                    if (failure == null) {
+                        future.complete(watcher);
+                    } else {
+                        future.completeExceptionally(failure);
+                    }
+                };
                 // trigger a new update unless an update is already ongoing. Register the callback to complete
-                // when the update completes.
+                // when the update completes, or when the watcher is closed before that.
                 if (watcher.prepareUpdateTopics(callback)) {
                     updateTopicListWatcher(watcher)
-                            // run the callback also in failure cases
-                            // prepareUpdateTopics handles it for success cases
+                            // complete the request also when the update fails
                             .exceptionally(ex -> {
-                                callback.run();
+                                callback.accept(ex);
                                 return null;
                             });
                 }
@@ -418,19 +465,45 @@ public class TopicListService {
                             .attr("requestId", requestId)
                             .log("Received WatchTopicList");
                     sendTopicListSuccessWithPermitAcquiringRetries(watcherId, requestId, topicList, hash,
-                            watcher::sendingCompleted, watcher::close);
+                            watcher::sendingCompleted, failure -> {
+                                if (!isCancellation(failure)) {
+                                    // the watcher can't be used without the success response
+                                    deleteTopicListWatcher(watcherId);
+                                }
+                                // the request is waiting for a response unless the connection was closed
+                                if (connection.isActive()) {
+                                    ServerError error =
+                                            failure instanceof AsyncSemaphore.PermitAcquireLimitExceededException
+                                                    ? ServerError.TooManyRequests
+                                                    : BrokerServiceException.getClientErrorCode(
+                                                            new BrokerServiceException.ServerMetadataException(
+                                                                    failure));
+                                    connection.getCommandSender().sendErrorResponse(requestId, error,
+                                            failure.getMessage());
+                                }
+                            });
                     lookupSemaphore.release();
                 })
                 .exceptionally(ex -> {
-                    log.warn()
-                            .attr("connection", connection)
-                            .attr("namespace", namespaceName)
-                            .attr("requestId", requestId)
-                            .exceptionMessage(ex)
-                            .log("Error WatchTopicList");
-                    connection.getCommandSender().sendErrorResponse(requestId,
-                            BrokerServiceException.getClientErrorCode(
-                                    new BrokerServiceException.ServerMetadataException(ex)), ex.getMessage());
+                    if (connection.isActive()) {
+                        log.warn()
+                                .attr("connection", connection)
+                                .attr("namespace", namespaceName)
+                                .attr("requestId", requestId)
+                                .exceptionMessage(ex)
+                                .log("Error WatchTopicList");
+                        connection.getCommandSender().sendErrorResponse(requestId,
+                                BrokerServiceException.getClientErrorCode(
+                                        new BrokerServiceException.ServerMetadataException(ex)), ex.getMessage());
+                    } else {
+                        // the connection was closed, there's no client to respond to
+                        log.debug()
+                                .attr("connection", connection)
+                                .attr("namespace", namespaceName)
+                                .attr("requestId", requestId)
+                                .exceptionMessage(ex)
+                                .log("WatchTopicList was cancelled since the connection was closed");
+                    }
                     watchers.remove(watcherId, finalWatcherFuture);
                     lookupSemaphore.release();
                     return null;
@@ -441,19 +514,29 @@ public class TopicListService {
                                                                 Collection<String> topicList,
                                                                 String hash,
                                                                 Runnable successfulCompletionCallback,
-                                                                Runnable failedCompletionCallback) {
-        performOperationWithPermitAcquiringRetries(watcherId, "topic list success", permitAcquireErrorHandler ->
+                                                                Consumer<Throwable> failedCompletionCallback) {
+        // the success response is the response to the watch request, so a cancelled success response is reported
+        // as a failure, so that the request can be completed with an error response
+        performOperationWithPermitAcquiringRetries(watcherId, "topic list success", true, permitAcquireErrorHandler ->
                 () -> connection.getCommandSender()
-                        .sendWatchTopicListSuccess(requestId, watcherId, hash, topicList, permitAcquireErrorHandler)
+                        .sendWatchTopicListSuccess(requestId, watcherId, hash, topicList, permitAcquireErrorHandler,
+                                () -> !watchers.containsKey(watcherId))
                         .whenComplete((__, t) -> {
                             if (t != null) {
-                                // this is an unexpected case
-                                log.warn()
-                                        .attr("connection", connection)
-                                        .attr("watcherId", watcherId)
-                                        .exception(t)
-                                        .log("Failed to send topic list success. Watcher is not active.");
-                                failedCompletionCallback.run();
+                                Throwable failure = FutureUtil.unwrapCompletionException(t);
+                                if (isCancellation(failure)) {
+                                    log.debug()
+                                            .attr("connection", connection)
+                                            .attr("watcherId", watcherId)
+                                            .log("Topic list success wasn't sent since the watcher was closed");
+                                } else {
+                                    log.warn()
+                                            .attr("connection", connection)
+                                            .attr("watcherId", watcherId)
+                                            .exception(t)
+                                            .log("Failed to send topic list success. Watcher is not active.");
+                                }
+                                failedCompletionCallback.accept(failure);
                             } else {
                                 // completed successfully, run the callback
                                 successfulCompletionCallback.run();
@@ -498,12 +581,20 @@ public class TopicListService {
                             () -> initializeTopicsListWatcher(watcherFuture, namespace, watcherId, topicsPattern),
                             retryAfterMillis, TimeUnit.MILLISECONDS);
                 } else {
-                    log.warn()
-                            .attr("connection", connection)
-                            .attr("watcherId", watcherId)
-                            .attr("namespace", namespace)
-                            .exception(unwrappedException)
-                            .log("Failed to initialize topic list watcher");
+                    if (isCancellation(unwrappedException)) {
+                        log.debug()
+                                .attr("connection", connection)
+                                .attr("watcherId", watcherId)
+                                .attr("namespace", namespace)
+                                .log("Topic list watcher initialization was cancelled");
+                    } else {
+                        log.warn()
+                                .attr("connection", connection)
+                                .attr("watcherId", watcherId)
+                                .attr("namespace", namespace)
+                                .exception(unwrappedException)
+                                .log("Failed to initialize topic list watcher");
+                    }
                     watcherFuture.completeExceptionally(unwrappedException);
                 }
             } else {
@@ -569,6 +660,12 @@ public class TopicListService {
                                     }
                                 }, connection.ctx().executor());
                             }, CompletableFuture::failedFuture)
+                    .whenComplete((__, t) -> {
+                        if (t != null) {
+                            // let concurrent requests waiting for the size estimate proceed
+                            listSizeHolder.resetIfInitializing();
+                        }
+                    })
                     .thenApplyAsync(Function.identity(), connection.ctx().executor());
         });
     }
@@ -589,10 +686,32 @@ public class TopicListService {
         getTopics(namespace, watcherId).whenComplete((topics, exception) -> {
             if (exception != null) {
                 Throwable unwrappedException = FutureUtil.unwrapCompletionException(exception);
-                if (connection.isActive() && !watcher.closed
-                        && (unwrappedException instanceof AsyncSemaphore.PermitAcquireTimeoutException
-                        || unwrappedException instanceof AsyncSemaphore.PermitAcquireQueueFullException)) {
-                    // retry with backoff if permit acquisition fails due to timeout or queue full
+                if (!connection.isActive() || watcher.closed || isCancellation(unwrappedException)) {
+                    // the connection or the watcher was closed, closing the watcher completes the requests
+                    // waiting for the update
+                    log.debug()
+                            .attr("connection", connection)
+                            .attr("watcherId", watcherId)
+                            .attr("namespace", namespace)
+                            .log("Topic list watcher update was cancelled");
+                    future.completeExceptionally(unwrappedException);
+                } else if (unwrappedException instanceof AsyncSemaphore.PermitAcquireLimitExceededException) {
+                    // the topic list can't be listed within the topic list memory limit, retrying wouldn't help.
+                    // The watcher can't send updates without a successful update, so close it.
+                    log.warn()
+                            .attr("connection", connection)
+                            .attr("watcherId", watcherId)
+                            .attr("namespace", namespace)
+                            .exceptionMessage(unwrappedException)
+                            .log("Closing topic list watcher since the topic list is larger than the topic list "
+                                    + "memory limit");
+                    deleteTopicListWatcher(watcherId);
+                    future.completeExceptionally(unwrappedException);
+                } else {
+                    // Retry with backoff. Until the update completes, the watcher queues the topic changes and
+                    // doesn't send updates, so giving up would leave the watcher without updates.
+                    // Requests waiting for the update get an error response instead of waiting for the retries.
+                    watcher.failUpdateCallbacks(unwrappedException);
                     long retryAfterMillis = this.retryBackoff.next().toMillis();
                     log.info()
                             .attr("connection", connection)
@@ -600,18 +719,10 @@ public class TopicListService {
                             .attr("watcherId", watcherId)
                             .attr("namespace", namespace)
                             .attr("retryAfterMillis", retryAfterMillis)
-                            .log("when updating topic list watcher for namespace. Retrying");
+                            .log("Failed to update topic list watcher for namespace. Retrying");
                     connection.ctx().executor()
                             .schedule(() -> internalUpdateTopicListWatcher(watcher, future),
                                     retryAfterMillis, TimeUnit.MILLISECONDS);
-                } else {
-                    log.warn()
-                            .attr("connection", connection)
-                            .attr("watcherId", watcherId)
-                            .attr("namespace", namespace)
-                            .exception(unwrappedException)
-                            .log("Failed to update topic list watcher");
-                    future.completeExceptionally(unwrappedException);
                 }
             } else {
                 watcher.updateTopics(topics);
@@ -673,10 +784,11 @@ public class TopicListService {
      */
     public void sendTopicListUpdate(long watcherId, String topicsHash, List<String> deletedTopics,
                                     List<String> newTopics, Runnable completionCallback) {
-        performOperationWithPermitAcquiringRetries(watcherId, "topic list update", permitAcquireErrorHandler ->
+        performOperationWithPermitAcquiringRetries(watcherId, "topic list update", false,
+                permitAcquireErrorHandler ->
                 () -> connection.getCommandSender()
                         .sendWatchTopicListUpdate(watcherId, newTopics, deletedTopics, topicsHash,
-                                permitAcquireErrorHandler)
+                                permitAcquireErrorHandler, () -> !watchers.containsKey(watcherId))
                         .whenComplete((__, t) -> {
                             if (t != null) {
                                 // this is an unexpected case
@@ -692,8 +804,11 @@ public class TopicListService {
     }
 
     // performs an operation with infinite permit acquiring retries.
-    // If acquiring permits fails, it will retry after a backoff period
+    // If acquiring permits fails, it will retry after a backoff period.
+    // When failOnCancellation is true, an operation that is skipped because the connection was closed or the
+    // watcher was removed completes exceptionally with PermitAcquireCancelledException instead of successfully.
     private void performOperationWithPermitAcquiringRetries(long watcherId, String operationName,
+                                                            boolean failOnCancellation,
                                                             Function<Function<Throwable, CompletableFuture<Void>>,
                                                                     Supplier<CompletableFuture<Void>>>
                                                                     asyncOperationFactory) {
@@ -702,14 +817,16 @@ public class TopicListService {
         AtomicReference<Supplier<CompletableFuture<Void>>> operationRef = new AtomicReference<>();
         // create the error handler for the operation
         Function<Throwable, CompletableFuture<Void>> permitAcquireErrorHandler =
-                createPermitAcquireErrorHandler(watcherId, operationName, () -> operationRef.get().get());
+                createPermitAcquireErrorHandler(watcherId, operationName, failOnCancellation,
+                        () -> operationRef.get().get());
         // create the async operation using the factory function. Pass the error handler to the factory function.
         Supplier<CompletableFuture<Void>> asyncOperation = asyncOperationFactory.apply(permitAcquireErrorHandler);
         // set the operation to run into the operation reference
         operationRef.set(() -> {
             if (!connection.isActive() || !watchers.containsKey(watcherId)) {
                 // do nothing if the connection has already been closed or the watcher has been removed
-                return CompletableFuture.completedFuture(null);
+                return failOnCancellation ? CompletableFuture.failedFuture(newWatcherClosedException(watcherId))
+                        : CompletableFuture.completedFuture(null);
             }
             return asyncOperation.get().thenRun(() -> retryBackoff.reset());
         });
@@ -720,18 +837,23 @@ public class TopicListService {
     // retries acquiring permits until the connection is closed or the watcher is removed
     private Function<Throwable, CompletableFuture<Void>> createPermitAcquireErrorHandler(long watcherId,
                                                                                          String operationName,
+                                                                                         boolean failOnCancellation,
                                                                                          Supplier<CompletableFuture
                                                                                                  <Void>> operationRef) {
         ScheduledExecutorService scheduledExecutor = connection.ctx().channel().eventLoop();
         AtomicInteger retryCount = new AtomicInteger(0);
         return t -> {
             Throwable unwrappedException = FutureUtil.unwrapCompletionException(t);
-            if (unwrappedException instanceof AsyncSemaphore.PermitAcquireCancelledException
-                    || unwrappedException instanceof AsyncSemaphore.PermitAcquireAlreadyClosedException
+            if (isCancellation(unwrappedException)
                     || !connection.isActive()
                     || !watchers.containsKey(watcherId)) {
-                // stop retrying and complete successfully
-                return CompletableFuture.completedFuture(null);
+                // stop retrying
+                return failOnCancellation ? CompletableFuture.failedFuture(newWatcherClosedException(watcherId))
+                        : CompletableFuture.completedFuture(null);
+            }
+            if (unwrappedException instanceof AsyncSemaphore.PermitAcquireLimitExceededException) {
+                // the command is larger than the direct memory limit, retrying wouldn't help
+                return CompletableFuture.failedFuture(unwrappedException);
             }
             long retryDelay = retryBackoff.next().toMillis();
             retryCount.incrementAndGet();
@@ -747,6 +869,16 @@ public class TopicListService {
                     TimeUnit.MILLISECONDS);
             return future;
         };
+    }
+
+    private static AsyncSemaphore.PermitAcquireCancelledException newWatcherClosedException(long watcherId) {
+        return new AsyncSemaphore.PermitAcquireCancelledException("Topic list watcher " + watcherId
+                + " was closed");
+    }
+
+    private static boolean isCancellation(Throwable unwrappedException) {
+        return unwrappedException instanceof AsyncSemaphore.PermitAcquireCancelledException
+                || unwrappedException instanceof AsyncSemaphore.PermitAcquireAlreadyClosedException;
     }
 
     @VisibleForTesting

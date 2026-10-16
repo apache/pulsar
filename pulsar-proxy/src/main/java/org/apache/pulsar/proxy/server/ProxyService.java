@@ -189,7 +189,7 @@ public class ProxyService implements Closeable {
     private final AsyncDualMemoryLimiterImpl maxTopicListInFlightLimiter;
 
     @Getter
-    private final TopicListSizeResultCache topicListSizeResultCache = new TopicListSizeResultCache();
+    private final TopicListSizeResultCache topicListSizeResultCache;
 
     private boolean gracefulShutdown = true;
 
@@ -262,6 +262,8 @@ public class ProxyService implements Closeable {
                 proxyConfig.getMaxTopicListInFlightDirectMemSizeMB() * 1024L * 1024L,
                 proxyConfig.getMaxTopicListInFlightDirectMemSizePermitsAcquireQueueSize(),
                 proxyConfig.getMaxTopicListInFlightDirectMemSizePermitsAcquireTimeoutMillis());
+        this.topicListSizeResultCache = new TopicListSizeResultCache(
+                proxyConfig.getMaxTopicListInFlightHeapMemSizeMB() * 1024L * 1024L);
     }
 
     public void start() throws Exception {
