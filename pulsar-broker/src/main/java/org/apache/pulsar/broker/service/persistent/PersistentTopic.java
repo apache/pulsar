@@ -2862,7 +2862,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                             StatsOutputStream topicStatsStream,
                             ClusterReplicationMetrics replStats, String namespace, boolean hydratePublishers) {
         this.publishRateLimitedTimes = 0;
-        double statsPeriodSeconds = endStatsPeriod();
         TopicStatsHelper topicStatsHelper = threadLocalTopicStats.get();
         topicStatsHelper.reset();
 
@@ -2988,7 +2987,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 for (Consumer consumer : subscription.getConsumers()) {
                     ++nsStats.consumerCount;
                     ++bundleStats.consumerCount;
-                    consumer.updateRates(statsPeriodSeconds);
+                    consumer.updateRates();
 
                     ConsumerStatsImpl consumerStats = consumer.getStats();
                     subMsgRateOut += consumerStats.msgRateOut;

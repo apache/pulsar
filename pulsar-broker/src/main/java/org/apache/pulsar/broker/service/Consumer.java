@@ -109,6 +109,7 @@ public class Consumer {
     private volatile long firstConsumedFlowTimestamp;
     private volatile long lastConsumedFlowTimestamp;
     private Rate chunkedMessageRate;
+    private long lastRatesUpdateNanos = System.nanoTime();
 
     // Represents how many messages we can safely send to the consumer without
     // overflowing its receiving queue. The consumer will use Flow commands to
@@ -1178,7 +1179,12 @@ public class Consumer {
         // Test hook for deterministically ordering a threshold crossing against an unblock.
     }
 
-    public void updateRates(double periodInSeconds) {
+    public void updateRates() {
+        long now = System.nanoTime();
+        // at least 1s, so the burst a new consumer receives while filling its receiver queue
+        // isn't extrapolated into a huge per-second rate
+        double periodInSeconds = Math.max((now - lastRatesUpdateNanos) / 1e9, 1);
+        lastRatesUpdateNanos = now;
         msgOut.calculateRate(periodInSeconds);
         chunkedMessageRate.calculateRate(periodInSeconds);
         msgRedeliver.calculateRate(periodInSeconds);
