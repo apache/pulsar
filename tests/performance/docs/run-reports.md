@@ -118,7 +118,7 @@ didn't receive every message, and the launcher fails a run when an application's
 ├── heap-dumps/                        the heap dumps, when the scenario asks for them, see heap-dumps.md
 ├── metrics.json                       the run's metrics in VictoriaMetrics and Grafana, see metrics.md
 ├── grafana-panels/                    panels of Grafana's dashboards over the run, as PNG images
-└── coordination/                      the warmup barrier markers of the gateways and the applications
+└── coordination/                      the warmup barrier and measurement start markers of the workloads
 ```
 
 A profiled run adds the recordings, their flame graphs and a profile report to each profiled component's directory,
@@ -137,16 +137,38 @@ report has these sections:
   the measurement, and where, by whom and from which commit the run was made. The host row names the host's CPU,
   cores, hardware threads, memory and operating system, and the Docker engine row the engine's version, CPUs and
   memory, which on macOS are those of Docker Desktop's virtual machine rather than the host's.
+- **Network conditions**, in a run with a `network` section: each impairment, when it was applied and removed
+  relative to the measurement's start, its queues' packets and drops, and each impaired container's TCP
+  retransmissions, see [Network conditions](network-conditions.md#files).
 - **Correctness**: the unique messages, duplicates, ordering violations and invalid messages of each application.
   In a valid run, every application received every message the gateways sent, warmup included, with no ordering
   violations or invalid messages. Duplicates are valid in Pulsar's at-least-once delivery, and are counted so that
   runs can be compared.
 - **Throughput**: the gateways' throughput, the delivered throughput until the slowest application received the last
   message, the measurement's duration and how long the applications were still receiving after the gateways finished.
+- **Catch-up**, when applications join after the measurement starts (`applications.joinSeconds`): each late
+  application's join time, its subscription's backlog then, how long it took to catch up, its catch-up rate and when it
+  received its last message. An application that didn't catch up shows its rate until its last message instead. When
+  applications join later, the Throughput section's delivered throughput is mostly the last one's. The backlog chart
+  shows each subscription's backlog building up until its application joins and falling as it catches up. A late
+  application's end-to-end latency includes the time its messages waited in the backlog, so its lines dominate the
+  Latency section's charts. Applications that skipped messages before they joined (`applications.skipMessages`) show
+  how many.
+- **Offloading**, in a run that offloads to tiered storage ([`offload`](offloading.md)): the topics' ledgers and how
+  many of them the brokers had offloaded when the late applications joined and at the run's end, and with
+  `offload.logRequests` the reads of offloaded data that the storage served.
+- **Seeks**, with an `offload.seeks` section: the latencies of the launcher's seeks to random publish times and of reading the
+  message at each, and with the storage's request log the reads of offloaded data per seek.
+- **Join preparation**, when the launcher skipped messages, reset subscriptions by timestamp or unloaded the topics
+  before the late applications joined: how long each took, and with the storage's request log the reads of offloaded
+  data during the resets.
 - **Latency**: the publish latency (send to acknowledgment) and each application's end-to-end latency (publish to
   consume) at percentiles from p50 to the maximum, with charts by percentile and over time.
+- **Remote applications**, in a run with a remote cluster
+  ([Geo-replication](network-conditions.md#geo-replication)): the remote applications' correctness, as in the
+  Correctness section, and their end-to-end latency, which includes the replication, with the remote cluster's files.
 - **Backlog and rates**: each subscription's backlog and the per-second rates, sampled from the broker's topic
-  stats once per second while the gateways publish and the applications receive. A sampled maximum is not the exact peak
+  stats once per second, or every topics / 100 seconds with more than 100 topics, while the gateways publish and the applications receive. A sampled maximum is not the exact peak
   between samples.
 - **Host**: the CPU temperature, frequency and thermal throttling at the start and during the measurement, with
   their charts in a collapsed section; a chart whose values the host doesn't provide is left out. The report says so
@@ -182,7 +204,11 @@ beside it, rendered with [commonmark-java](https://github.com/commonmark/commonm
 | `latency-percentiles.svg`, `.png` | Latency by percentile, as HistogramLogAnalyzer plots it: publish and each application's end to end, on an axis that spreads the tail (90 %, 99 %, 99.9 %, …) |
 | `latency-timeline.svg`, `.png` | The maximum latency of each logged interval over the run, publish and per application |
 | `host-temperature.svg`, `.png`, `host-frequency.svg`, `.png` | The CPU package and hottest core temperature, and the mean and lowest core frequency, over the run |
-| `topic-stats.csv` | The broker's topic stats sampled once per second: backlog and message counters per subscription |
+| `topic-stats.csv` | The broker's topic stats sampled once per second, or every topics / 100 seconds with more than 100 topics: backlog and message counters per subscription |
+| `offload-storage.log.txt` | In a run that offloads to tiered storage, the storage's log, with every request when `offload.logRequests` is set, see [Offloading](offloading.md) |
+| `seeks.csv` | With an `offload.seeks` section, each seek to a random publish time: its topic, publish time, how long the reset and the read of the message took, and the position, see [Random seeks](offloading.md#random-seeks) |
+| `join-preparation.csv` | When the launcher prepared the late applications' join, each skip, reset and unload, and how long it took, see [Offloading](offloading.md) |
+| `offload-status.csv` | In a run that offloads to tiered storage, each topic's ledgers, offloaded ledgers and offloaded bytes when the late applications joined and at the run's end, see [Offloading](offloading.md) |
 | `host-stats.csv` | The launcher's host's CPU sampled once per second from Linux's sysfs files: package and hottest core temperature, mean and lowest core frequency, the kernel's thermal throttle counters and the fastest fan |
 | `host-io.csv` | The Docker engine host's CPU utilization and disk throughput sampled once per second from Linux's `/proc/stat` and `/proc/diskstats`: the busy and I/O-wait share of all CPUs, and each physical disk's read and write MB/s and busy share. It shows whether a run is limited by the host's CPUs or its storage, which the bookies share. When the engine runs in a Linux VM, such as Docker Desktop's or OrbStack's on macOS, the files are read in the VM through the privileged perf stat sidecar, so the numbers describe the VM; the launcher compares the kernels' boot IDs to tell. Without the sidecar (`--no-perf-stat`) the launcher reads its own host's files |
 | `container-stats.csv` | Each container's CPU use and context switches, once per second: the CPUs it used, from its cgroup's `cpu.stat`, and its threads' voluntary and involuntary context switches per second, from `/proc/<tid>/status`. A voluntary switch is a thread that blocked or waited for work; an involuntary one a thread that the scheduler preempted, which grows when the host's CPUs are saturated. Read from the host's files on a Linux host, and through the perf sidecar in the Docker engine's VM elsewhere; the run report's Containers section summarizes the measurement |
@@ -191,12 +217,16 @@ beside it, rendered with [commonmark-java](https://github.com/commonmark/commonm
 | `gateways/gateways-summary.json` | The gateways' counts and throughput, and the epoch-millisecond boundaries of the measurement |
 | `gateways/gateways-latency.hdr`, `.hgrm` | The publish latency log, and its percentile distribution in milliseconds, see [Latency logs](#latency-logs) |
 | `gateways/gateways-state.bin` | The gateways' next sequence number for each device. The launcher compares it with each application's `application-state.bin` and fails the run when they differ, which catches messages missing at the end, where no gap shows |
-| `applications/<application>/application-summary.json` | The application's unique messages, duplicates, ordering violations and invalid messages, and its first and last measured-message receipt |
+| `applications/<application>/application-summary.json` | The application's unique messages, duplicates, ordering violations and invalid messages, and its first and last measured-message receipt. Of the duplicates of a device's latest message, `redeliveredDuplicates` had the same message ID, a redelivery, and `republishedDuplicates` another one: the broker persisted the message twice, which deduplication should prevent. Its join setting (`joinSeconds`), and for an application that joined after the measurement started, its join time (`joinEpochMs`), when it caught up (`caughtUpEpochMs`) within `caughtUpLatencyMillis`, and its received messages then (`messagesWhenCaughtUp`); `skippedMessages`, the messages it doesn't expect because the launcher skipped them or reset its subscription past them before it joined; `joinEpochMs` is 0 for an application that joined at the start, and `caughtUpEpochMs` and `messagesWhenCaughtUp` are 0 for one that didn't catch up |
 | `applications/<application>/application-latency.hdr`, `.hgrm` | The application's end-to-end latency log, and its percentile distribution in milliseconds |
 | `applications/<application>/application-state.bin` | The application's next expected sequence number for each device |
-| `applications/<application>/ordering-violations.txt` | Samples of the ordering violations, with the message ID, topic and receiving thread; empty in a valid run |
+| `applications/<application>/ordering-violations.txt` | Samples of the ordering violations, with the message ID, topic, receiving thread, redelivery count and receipt time, and the receipts of the messages that came late (`recovered=`); empty in a valid run |
+| `applications/<application>/republished-duplicates.txt` | Samples of the republished duplicates, with the device, its sequence number and the second message ID, topic, receiving thread, redelivery count and receipt time, when there were any |
+| `network-summary.json`, `network-events.jsonl` | In a run with a `network` section, each impairment's settings, status and counters, and every event as it happened, see [Network conditions](network-conditions.md#files) |
+| `gateways/pulsar-client.log.txt`, `applications/pulsar-client.log.txt` | The Pulsar client's log in the workloads, at the level of `PULSAR_CLIENT_LOG_LEVEL`, `warn` by default, when it logged anything |
+| `remote-applications/`, `remote-topic-stats.csv`, `replication-stats.csv`, `resolved-config-remote-applications.yaml` | In a run with a remote cluster, the remote applications' outputs, laid out as in `applications/`, the remote topics' stats, the replicators' stats and the remote applications' configuration, see [Geo-replication](network-conditions.md#geo-replication) |
 | `gateways/container.log.txt`, `applications/container.log.txt` | The container's log, named `.txt` so that HTTP servers show it as text |
-| `coordination/` | The markers with which the applications tell the gateways that they received a warmup round |
+| `coordination/` | The markers with which the applications tell the gateways that they received a warmup round, and the gateways' measurement start, from which the applications that join later count their join time |
 
 ## Latency logs
 

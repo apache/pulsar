@@ -36,6 +36,7 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -46,6 +47,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.ConsumerRegistration;
@@ -67,6 +71,7 @@ import org.apache.pulsar.common.policies.data.ScalableSubscriptionType;
 import org.apache.pulsar.common.policies.data.ScalableTopicStats;
 import org.apache.pulsar.common.policies.data.SegmentTopicStats;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
+import org.apache.pulsar.common.scalable.SegmentInfo;
 import org.apache.pulsar.common.scalable.SegmentTopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -265,6 +270,134 @@ public class ScalableTopicControllerTest {
     }
 
     @Test
+    public void testInitializeFailsWhenTopicMarkedDeleted() throws Exception {
+        resources.markScalableTopicDeletedAsync(topicName).get();
+        try {
+            controller.initialize().get();
+            fail("expected IllegalStateException for a topic being deleted");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof IllegalStateException,
+                    "expected IllegalStateException, got " + e.getCause());
+            assertTrue(e.getCause().getMessage().contains("being deleted"));
+        }
+        assertFalse(store.exists(resources.controllerLockPath(topicName)).get(),
+                "no controller may be elected for a topic being deleted");
+    }
+
+    /**
+     * A controller that read the record before the delete marked it can still win the election
+     * after the delete released the leader. It must give the lock back once elected.
+     */
+    @Test
+    public void testInitializeGivesTheLockBackWhenTopicMarkedDeletedWhileElecting() throws Exception {
+        // Replaced by the racing controller, like ScalableTopicService does: closed first, so that
+        // the racing one gets a leader election of its own.
+        controller.close().join();
+        AtomicBoolean marked = new AtomicBoolean();
+        ScalableTopicResources markingResources = new ScalableTopicResources(store, 30) {
+            @Override
+            public CompletableFuture<Optional<ScalableTopicMetadata>> getScalableTopicMetadataAsync(
+                    TopicName tn, boolean refresh) {
+                // The first read sees the record unmarked, then the delete marks it.
+                return super.getScalableTopicMetadataAsync(tn, refresh)
+                        .thenCompose(md -> marked.compareAndSet(false, true)
+                                ? markScalableTopicDeletedAsync(tn).thenApply(__ -> md)
+                                : CompletableFuture.completedFuture(md));
+            }
+        };
+        ScalableTopicController racing = new ScalableTopicController(topicName, markingResources,
+                brokerService, coordinationService);
+        try {
+            racing.initialize().get();
+            fail("expected IllegalStateException for a topic marked deleted while electing");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause().getMessage().contains("being deleted"),
+                    "unexpected failure: " + e.getCause());
+        }
+        assertFalse(racing.isLeader());
+        assertFalse(store.get(resources.controllerLockPath(topicName)).get().isPresent(),
+                "the controller lock must be given back");
+        verify(scalableTopics, times(0)).createSegmentAsync(anyString(), any());
+        racing.close().join();
+    }
+
+    /**
+     * Like a record marked deleted, a record that can't be read once the controller won the
+     * election, like the empty one that a store re-creating missing parents leaves under the lock
+     * of a deleted topic, leaves nothing to serve: the controller gives the lock back rather than
+     * retrying the takeover forever.
+     */
+    @Test
+    public void testInitializeGivesTheLockBackWhenTopicUnreadableWhileElecting() throws Exception {
+        // Replaced by the racing controller, like ScalableTopicService does: closed first, so that
+        // the racing one gets a leader election of its own.
+        controller.close().join();
+        AtomicBoolean emptied = new AtomicBoolean();
+        ScalableTopicResources emptyingResources = new ScalableTopicResources(store, 30) {
+            @Override
+            public CompletableFuture<Optional<ScalableTopicMetadata>> getScalableTopicMetadataAsync(
+                    TopicName tn, boolean refresh) {
+                // The first read sees the record, then it is emptied.
+                return super.getScalableTopicMetadataAsync(tn, refresh)
+                        .thenCompose(md -> emptied.compareAndSet(false, true)
+                                ? store.put(topicPath(tn), new byte[0], Optional.empty()).thenApply(__ -> md)
+                                : CompletableFuture.completedFuture(md));
+            }
+        };
+        ScalableTopicController racing = new ScalableTopicController(topicName, emptyingResources,
+                brokerService, coordinationService);
+        try {
+            racing.initialize().get();
+            fail("expected a failure for a topic whose record can't be read");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause().getMessage().contains("being deleted"),
+                    "unexpected failure: " + e.getCause());
+        }
+        assertFalse(racing.isLeader());
+        assertFalse(store.get(resources.controllerLockPath(topicName)).get().isPresent(),
+                "the controller lock must be given back");
+        verify(scalableTopics, times(0)).createSegmentAsync(anyString(), any());
+        racing.close().join();
+    }
+
+    /**
+     * A failed takeover is retried, backing off, while the election keeps the controller the
+     * leader. A request reaching the controller in between waits for the retry, rather than
+     * failing at once as reaching a broker that is not the leader.
+     */
+    @Test
+    public void testFailedTakeOverIsRetriedWhileRequestsWait() throws Exception {
+        // Replaced by the failing controller, like ScalableTopicService does: closed first, so that
+        // the failing one gets a leader election of its own.
+        controller.close().join();
+        AtomicInteger listings = new AtomicInteger();
+        ScalableTopicResources failingOnceResources = new ScalableTopicResources(store, 30) {
+            @Override
+            public CompletableFuture<List<String>> listSubscriptionsAsync(TopicName tn) {
+                // Restoring the consumer sessions is the last step of a takeover.
+                return listings.getAndIncrement() == 0
+                        ? CompletableFuture.failedFuture(new IllegalStateException("injected"))
+                        : super.listSubscriptionsAsync(tn);
+            }
+        };
+        ScalableTopicController retrying = new ScalableTopicController(topicName, failingOnceResources,
+                brokerService, coordinationService);
+        try {
+            retrying.initialize().get();
+            fail("expected the first takeover attempt to fail");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause().getMessage().contains("injected"), "unexpected failure: " + e.getCause());
+        }
+        CompletableFuture<Void> takeover = retrying.takeOverInProgress();
+        assertFalse(takeover.isDone(), "a request must wait for the retry");
+        assertFalse(retrying.isLeader());
+
+        takeover.get(10, TimeUnit.SECONDS);
+        assertTrue(retrying.isLeader());
+        retrying.close().join();
+    }
+
+    @Test
     public void testLeaderBrokerIdPersisted() throws Exception {
         controller.initialize().get();
         Optional<String> leaderId = controller.getLeaderBrokerId().get();
@@ -331,6 +464,32 @@ public class ScalableTopicControllerTest {
         assertEquals(assignment.assignedSegments().size(), INITIAL_SEGMENTS);
         // Still just one persisted registration.
         assertEquals(resources.listConsumersAsync(topicName, "sub-a").get().size(), 1);
+    }
+
+    @Test
+    public void testRestoredCheckpointGroupGetsWholeSegments() throws Exception {
+        // One segment with N = 4 entry-buckets and three persisted members of a checkpoint group.
+        // After a controller failover the members are restored without their consumer type, which
+        // isn't persisted: the first one to reconnect must still get the segment whole.
+        TopicName oneSegment = TopicName.get("topic://tenant/ns/one-segment");
+        resources.createScalableTopicAsync(oneSegment,
+                ScalableTopicController.createInitialMetadata(1, 4, Map.of())).get();
+        resources.createSubscriptionAsync(oneSegment, "group", SubscriptionType.STREAM).get();
+        for (String member : List.of("member-1", "member-2", "member-3")) {
+            resources.registerConsumerAsync(oneSegment, "group", member).get();
+        }
+        ScalableTopicController restored = newController(oneSegment);
+        try {
+            restored.initialize().get();
+            ConsumerAssignment assignment = restored.registerConsumer("group", "member-1", 1L,
+                    ScalableConsumerType.CHECKPOINT, mock(TransportCnx.class)).get();
+
+            assertEquals(assignment.assignedSegments().size(), 1);
+            assertTrue(assignment.assignedSegments().get(0).bucketRanges().isEmpty(),
+                    "a checkpoint member must get the segment whole, not a share of its buckets");
+        } finally {
+            restored.close().join();
+        }
     }
 
     @Test
@@ -862,6 +1021,52 @@ public class ScalableTopicControllerTest {
         controller.runGcTickAsync().get();
         assertTrue(controller.getLayout().get().getAllSegments().containsKey(0L),
                 "negative retention must keep sealed segments forever");
+    }
+
+    /**
+     * Ancestors first: a sealed segment that every subscription has drained stays in the DAG while
+     * its parent is still there. Pruning it would drop it from its children's parent lists, and a
+     * consumer could then read its children before the parent's remaining messages.
+     */
+    @Test
+    public void testGcTickPrunesAncestorsFirst() throws Exception {
+        installGcMocks(/* nsRetentionMinutes */ 1);
+        long startMs = 1_700_000_000_000L;
+        AdjustableClock clock = new AdjustableClock(startMs);
+        if (controller != null) {
+            controller.close().join();
+        }
+        controller = newControllerWithClock(topicName, clock, Duration.ofHours(1));
+        controller.initialize().get();
+        resources.createSubscriptionAsync(topicName, "sub-a", SubscriptionType.STREAM).get();
+
+        // Split 0, then split one of its children: that child is now a sealed intermediate segment.
+        controller.splitSegment(0).get();
+        long intermediate = controller.getLayout().get().getAllSegments().get(0L).childIds().get(1);
+        controller.splitSegment(intermediate).get();
+        SegmentInfo root = controller.getLayout().get().getAllSegments().get(0L);
+        String rootTopic = SegmentTopicName.fromParent(topicName, root.hashRange(), 0L).toString();
+        // sub-a still has backlog on segment 0 and has drained everything else.
+        long[] rootBacklog = {5};
+        when(scalableTopics.getSegmentSubscriptionBacklogAsync(anyString(), eq("sub-a")))
+                .thenAnswer(invocation -> CompletableFuture.completedFuture(
+                        rootTopic.equals(invocation.getArgument(0)) ? rootBacklog[0] : 0L));
+
+        clock.set(startMs + TimeUnit.MINUTES.toMillis(1) + 1_000L);
+        controller.runGcTickAsync().get();
+        Map<Long, SegmentInfo> segments = controller.getLayout().get().getAllSegments();
+        assertTrue(segments.containsKey(0L), "segment 0 still has backlog");
+        assertTrue(segments.containsKey(intermediate),
+                "a drained segment must not be pruned while its parent is still in the DAG");
+
+        // Once segment 0 drains it is pruned, and its child goes on the next tick.
+        rootBacklog[0] = 0;
+        controller.runGcTickAsync().get();
+        segments = controller.getLayout().get().getAllSegments();
+        assertFalse(segments.containsKey(0L));
+        assertTrue(segments.containsKey(intermediate), "pruned one generation per tick");
+        controller.runGcTickAsync().get();
+        assertFalse(controller.getLayout().get().getAllSegments().containsKey(intermediate));
     }
 
     /** Settable {@link java.time.Clock} for the GC tick tests. */

@@ -143,7 +143,9 @@ public class PulsarCluster {
             configurationMetadataStoreUrl = metadataStoreUrl;
         } else {
             this.oxiaContainer = null;
-            this.zkContainer = new ZKContainer(clusterName, clusterImage(spec));
+            // A hostname of its own, as the bookies have, since the clusters that share a configuration store also
+            // share a network, where a container's hostname resolves too
+            this.zkContainer = new ZKContainer(clusterName, appendClusterName(ZKContainer.NAME), clusterImage(spec));
             this.zkContainer
                     .withNetwork(network)
                     .withNetworkAliases(appendClusterName(ZKContainer.NAME))
@@ -171,7 +173,12 @@ public class PulsarCluster {
         // create bookies
         bookieContainers.putAll(
                 runNumContainers("bookie", spec.numBookies(), (name) -> {
-                    BKContainer bookieContainer = new BKContainer(clusterName, name, clusterImage(spec))
+                    // The bookie ID is the hostname (useHostNameAsBookieID). With a shared configuration store the
+                    // clusters share a network, where a container's hostname resolves too, so each cluster's bookies
+                    // need a hostname of their own: with the same ID, a broker would reach the other cluster's bookie,
+                    // whose ledger IDs overlap with its own.
+                    BKContainer bookieContainer = new BKContainer(clusterName, appendClusterName(name),
+                            clusterImage(spec))
                             .withNetwork(network)
                             .withNetworkAliases(appendClusterName(name))
                             .withEnv("metadataServiceUri", "metadata-store:" + metadataStoreUrl)

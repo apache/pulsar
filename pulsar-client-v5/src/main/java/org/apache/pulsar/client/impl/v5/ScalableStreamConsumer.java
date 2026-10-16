@@ -182,6 +182,13 @@ final class ScalableStreamConsumer<T>
     private volatile List<ActiveSegment> latestAssignment;
     /** Coalesces concurrent reconcile attempts; only one runs at a time. */
     private final AtomicBoolean reconcileInProgress = new AtomicBoolean(false);
+    /** Whether a reconcile retry is scheduled. Guarded by {@code this}. */
+    private boolean retryScheduled = false;
+    /** Whether the backoff was reset after the pending retry was scheduled. Guarded by {@code this}. */
+    private boolean backoffResetSinceRetry = false;
+    /** Identifies the latest retry: a retry it replaced does nothing. Guarded by {@code this}. */
+    private long retryGeneration = 0;
+    /** Paces the retries. Guarded by {@code this}. */
     private final Backoff reconcileBackoff = Backoff.builder()
             .initialDelay(Duration.ofMillis(100))
             .maxBackoff(Duration.ofSeconds(30))
@@ -542,7 +549,9 @@ final class ScalableStreamConsumer<T>
                                          CompletableFuture<Void> result) {
         subscribeAssigned(assigned).whenComplete((__, ex) -> {
             if (ex == null) {
-                reconcileBackoff.reset();
+                synchronized (this) {
+                    reconcileBackoff.reset();
+                }
                 result.complete(null);
                 return;
             }
@@ -556,7 +565,10 @@ final class ScalableStreamConsumer<T>
                 return;
             }
             evictFailedSegmentConsumers();
-            Duration delay = reconcileBackoff.next();
+            Duration delay;
+            synchronized (this) {
+                delay = reconcileBackoff.next();
+            }
             log.info().attr("delayMs", delay.toMillis()).exceptionMessage(ex)
                     .log("Initial subscribe rejected during rebalance, retrying after backoff");
             // Retry with the session's current assignment, not the one this attempt started with: the
@@ -578,11 +590,18 @@ final class ScalableStreamConsumer<T>
      * consumer may not have released a segment or bucket range yet, so our subscribe is rejected
      * ({@code ConsumerBusy} on Exclusive, {@code ConsumerAssignError} on overlapping STICKY
      * ranges) — and neither is retried at the v4 layer.
+     *
+     * <p>The next reconcile starts only once this one's releases have drained and its subscribes
+     * have settled. A segment's release state (drain bookkeeping, receive epoch, acked positions)
+     * is keyed by segment id, so applying a newer assignment meanwhile could re-subscribe, or
+     * release again, a segment that is still draining.
      */
     private void reconcile() {
         if (closed || !reconcileInProgress.compareAndSet(false, true)) {
             return;
         }
+        // Evict failed subscribe futures so this attempt re-tries them.
+        evictFailedSegmentConsumers();
         List<ActiveSegment> target = latestAssignment;
         subscribeAssigned(target).whenComplete((__, ex) -> {
             reconcileInProgress.set(false);
@@ -590,20 +609,50 @@ final class ScalableStreamConsumer<T>
                 return;
             }
             if (ex == null) {
-                reconcileBackoff.reset();
-                // If a newer assignment arrived during this reconcile, run again to converge.
-                if (latestAssignment != target) {
-                    reconcile();
+                synchronized (this) {
+                    reconcileBackoff.reset();
+                    backoffResetSinceRetry = retryScheduled;
                 }
+            }
+            // If a newer assignment arrived during this reconcile, run again to converge: that run also
+            // re-tries what failed in this one.
+            if (latestAssignment != target) {
+                reconcile();
+            } else if (ex != null) {
+                scheduleRetry(ex);
+            }
+        });
+    }
+
+    /**
+     * Retry the reconcile after a backoff, with at most one retry scheduled. A retry scheduled before
+     * the backoff was last reset is replaced, so a new failure doesn't wait out the longer delay of
+     * earlier ones.
+     */
+    private void scheduleRetry(Throwable ex) {
+        Duration delay;
+        long generation;
+        synchronized (this) {
+            if (retryScheduled && !backoffResetSinceRetry) {
                 return;
             }
-            // Evict failed subscribe futures so the next attempt can re-try them.
-            evictFailedSegmentConsumers();
-            Duration delay = reconcileBackoff.next();
-            log.warn().attr("delayMs", delay.toMillis()).exceptionMessage(ex)
-                    .log("Failed to apply assignment update, retrying after backoff");
-            scheduler().schedule(this::reconcile, delay.toMillis(), TimeUnit.MILLISECONDS);
-        });
+            retryScheduled = true;
+            backoffResetSinceRetry = false;
+            generation = ++retryGeneration;
+            delay = reconcileBackoff.next();
+        }
+        log.warn().attr("delayMs", delay.toMillis()).exceptionMessage(ex)
+                .log("Failed to apply assignment update, retrying after backoff");
+        scheduler().schedule(() -> {
+            synchronized (this) {
+                if (generation != retryGeneration) {
+                    // Replaced by a later retry.
+                    return;
+                }
+                retryScheduled = false;
+            }
+            reconcile();
+        }, delay.toMillis(), TimeUnit.MILLISECONDS);
     }
 
     private void evictFailedSegmentConsumers() {

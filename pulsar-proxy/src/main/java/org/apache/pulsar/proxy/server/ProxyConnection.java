@@ -20,6 +20,7 @@ package org.apache.pulsar.proxy.server;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFutureListener;
@@ -30,6 +31,7 @@ import io.netty.channel.epoll.EpollSocketChannel;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.resolver.dns.DnsAddressResolverGroup;
+import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.ScheduledFuture;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -163,6 +165,11 @@ public class ProxyConnection extends PulsarHandler {
         return connectionPool;
     }
 
+    @VisibleForTesting
+    void setStateForTesting(State state) {
+        this.state = state;
+    }
+
     public ProxyConnection(ProxyService proxyService, DnsAddressResolverGroup dnsAddressResolverGroup) {
         super(proxyService.getConfiguration().getKeepAliveIntervalSeconds(), TimeUnit.SECONDS);
         this.service = proxyService;
@@ -291,6 +298,7 @@ public class ProxyConnection extends PulsarHandler {
     public void channelRead(final ChannelHandlerContext ctx, Object msg) throws Exception {
         if (msg instanceof HAProxyMessage) {
             haProxyMessage = (HAProxyMessage) msg;
+            haProxyMessage.release();
             return;
         }
         switch (state) {
@@ -333,6 +341,7 @@ public class ProxyConnection extends PulsarHandler {
                         .attr("bytes", msg instanceof ByteBuf ? ((ByteBuf) msg).readableBytes() : -1)
                         .log("Received message while connection to broker"
                                 + " is missing. Dropping input.");
+                ReferenceCountUtil.safeRelease(msg);
             }
             break;
         case ProxyConnectingToBroker:
@@ -342,8 +351,10 @@ public class ProxyConnection extends PulsarHandler {
                             ? ((ByteBuf) msg).readableBytes() : -1)
                     .log("Received message while connecting to broker."
                             + " Dropping input.");
+            ReferenceCountUtil.safeRelease(msg);
             break;
         default:
+            ReferenceCountUtil.safeRelease(msg);
             break;
         }
     }

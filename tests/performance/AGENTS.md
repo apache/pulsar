@@ -87,6 +87,10 @@ Run commands from the repository root. Gradle properties (`-P...`) configure the
 | Keep logs for diagnosis | Add `-Pperformance.keepLauncherLog` | Retains `launcher.log` even on success; failures retain it by default |
 | Start repetitions at a similar temperature | Add `-Pperformance.cooldownTemperature=<degrees-C>` | With Linux host sensors, waits before cluster startup and after warmup; keep the threshold identical across revisions and inspect timed-out waits in the report |
 | Disable metrics | Add `-Pperformance.metrics=false` | Omits metrics collection; keep this choice identical across compared runs |
+| Compare two released Pulsar images | `./gradlew :tests:performance:launcher:compareImages -Pperformance.compare.baselineImage=apachepulsar/pulsar:4.0.14 -Pperformance.compare.candidateImage=apachepulsar/pulsar:5.0.0 --args='--scenario <scenario> --name <experiment>'` | Alternates repeated runs of both clusters, picks each side's median run, and writes a summary and comparison charts, as [Comparing two Pulsar images](docs/comparing-revisions.md#comparing-two-pulsar-images) describes; the workloads use the checkout's client |
+| Compare a released image with the checkout | `./gradlew :tests:performance:launcher:compareImageWithCheckout -Pperformance.compare.baselineImage=apachepulsar/pulsar:5.0.0 --args='--scenario <scenario> --name <experiment>'` | As `compareImages`, with this checkout as the candidate |
+| Measure reads from tiered storage | `--scenario tests/performance/scenarios/iot-telemetry-offload.yaml`, or an `offload` section | Runs an S3-compatible SeaweedFS that the brokers offload each rolled-over ledger to, as [Offloading](docs/offloading.md) describes; the test image built on a 4.x release image adds the release's offloader |
+| Run over an impaired network | Add `--extends network/<overlay>` to `--args`, or a `network` section | Applies delay, jitter, loss, a rate, partitions, connection resets or silent disconnections between chosen containers with Linux traffic control, as [Network conditions](docs/network-conditions.md) describes; the report's Network conditions section shows them. `./gradlew :tests:performance:launcher:networkCheck` checks them on small containers |
 | Chart two runs against each other | `./gradlew :tests:performance:report-tool:compareRuns --args='--baseline <A run> --comparison <B run> --output <directory>'` | Writes throughput, backlog and latency charts with the same axes for both runs, combined and in separate panels, as [Comparison charts](docs/comparing-revisions.md#comparison-charts) describes |
 | Browse reports | `./gradlew :tests:performance:report-tool:serveReports` | Serves the configured reports root at <http://127.0.0.1:8000/> by default; stop the foreground server when finished |
 | Query stored metrics after a run | `./gradlew :tests:performance:metrics:up` | Starts VictoriaMetrics and Grafana in the background, prints URLs; default ports are 8428 and 3000 |
@@ -287,6 +291,55 @@ Lessons from earlier iterations:
 
 Before proposing a change for review, validate it as the [Experiment loop](#experiment-loop) describes.
 
+## Network and fault experiments
+
+[Network conditions](docs/network-conditions.md) describes the `network` section and the overlays in
+`scenarios/network`, which model real networks and faults, each with what to use it for. A fault run measures how Pulsar
+behaves while something goes wrong, so its questions are mostly about correctness, stalls and recovery, not
+throughput.
+
+- Prepare the host as for any measurement, as [Before running](#before-running) describes: the stalls of a fault run
+  are as sensitive to the host's state as a throughput comparison is.
+- Start with an overlay on `iot-telemetry-small`, and compare the run with a run of the same base scenario without it.
+  An overlay that needs a second broker or more bookies extends `network/failover-cluster`. Change an impairment's
+  timing or target with `--set network.impairments.<name>.<setting>=<value>`, and check `resolved-config.yaml`.
+- Check that the impairments did what they should before reading the results: the report's Network conditions section
+  shows when each one was applied and removed and how many packets its queues passed and dropped. Read both counts
+  together: a partition drops every packet it matches, so it passes none, while an impairment that neither passed nor
+  dropped a packet matched no traffic. A run fails when an impairment couldn't be applied, when one wasn't
+  applied before the workloads finished, or when removing the impairments failed.
+- An application that received ordering violations or invalid messages, or not every message, exits with status 1,
+  and the run then fails without a report. Read `console.log.txt` and each application's
+  `application-summary.json` and `ordering-violations.txt`. Duplicates aren't violations: a fault usually redelivers
+  messages (`redeliveredDuplicates`), while `republishedDuplicates` are messages the broker persisted twice.
+- Keep the logs with `-Pperformance.keepLauncherLog`. `launcher.log` follows each broker's log file and misses lines
+  once the broker's log rotates, which a fault's flood of messages can make happen within seconds; the containers'
+  complete logs are in the checkout's `build/container-logs/<container>/var-log-pulsar.tar.gz`. Add
+  `PULSAR_CLIENT_LOG_LEVEL: info` to a workload's `env` for the clients' reconnections in
+  `gateways/pulsar-client.log.txt` and `applications/pulsar-client.log.txt`.
+- Line the sources up on one clock: `network-events.jsonl` has epoch milliseconds, the containers' logs are in UTC,
+  and `launcher.log` and `console.log.txt` use the host's time zone.
+- A fault that the broker handles for the first time runs code that the JIT hasn't compiled yet, so the first
+  occurrence in a run is slower than later ones. To tell the two apart, apply the fault once during the warmup and
+  again during the measurement, as `consumer-reconnect-storm` does, or compare runs that both apply it once.
+- For geo-replication, extend `network/geo-replication`, which adds a remote cluster that the topics replicate to and
+  remote applications that check every replicated message and its order, or one of the `geo-` overlays, which add a
+  fault between the clusters. Name the remote cluster's containers with the `remote-` endpoints, and both sides with
+  `local-region` and `remote-region`. The other overlays still act on the first cluster, so they compose with it:
+  `--extends network/geo-replication --extends network/<overlay>` checks the replication during that fault. The remote
+  applications' line in the progress has the remote subscriptions' and the replication backlog, `remote-topic-stats.csv`
+  the remote topics' stats, and `replication-stats.csv` each topic's replicators. When the remote applications miss
+  messages, a remote backlog that stays means a delivery problem, and none means the remote topics lack them.
+  The remote cluster isn't in the metrics, the heap dumps or the profiles; its containers' complete logs are in
+  `build/container-logs/` as the first cluster's are.
+- For memory questions, such as a broker that runs out of heap while clients reconnect, add
+  `--extends configs/heap-dumps-broker`: it writes a heap dump at the highest heap usage and one at an
+  `OutOfMemoryError`, as [Heap dumps](docs/heap-dumps.md) describes. Profile a fault with the `profile` task and
+  `--extends configs/profile-broker`, and restrict the analysis to the seconds around the fault's time in
+  `network-events.jsonl`.
+- When a fault shows a problem in Pulsar, reproduce it at least twice before reporting it, keep the run directories,
+  and give the overlay and the `--set` values that reproduce it.
+
 ## Inputs for analysis in a run directory
 
 Prefer text artifacts — Markdown, JSON, CSV and collapsed stacks — to HTML pages, which need a browser to render.
@@ -307,12 +360,16 @@ commit segment can be absent). Use the exact recording names linked from the pro
 | `console.log.txt` | What the launcher printed, including the progress lines every 10 s | Read |
 | `launcher.log` | Testcontainers' and the Pulsar containers' logs; kept when the run failed, or with `-Pperformance.keepLauncherLog` | `rg` |
 | `gateways/gateways-summary.json` | The gateways' counts and throughput; `measurementMessages`, `measurementStartEpochMs` and `measurementEndEpochMs` identify the measured sends | `jq` |
-| `applications/<application>/application-summary.json` | Each application's unique messages, duplicates, ordering violations and invalid messages; `lastMeasurementMessageReceivedEpochMs` records the last measured receipt | `jq` |
+| `applications/<application>/application-summary.json` | Each application's unique messages, duplicates, ordering violations and invalid messages; `skippedMessages` counts the messages a late application doesn't expect because the launcher skipped them or reset its subscription past them (`applications.skipMessages`, `applications.resetToMillis`); `lastMeasurementMessageReceivedEpochMs` records the last measured receipt; `joinSeconds`, `joinEpochMs`, `caughtUpEpochMs`, `caughtUpLatencyMillis` and `messagesWhenCaughtUp` describe an application that joined after the measurement started (`applications.joinSeconds`), with 0 times otherwise | `jq` |
 | `applications/<application>/ordering-violations.txt` | Samples of the ordering violations; empty in a valid run | Read |
 | `gateways/container.log.txt`, `applications/container.log.txt` | The workload containers' logs | Read |
 | `gateways/gateways-latency.hgrm`, `applications/<application>/application-latency.hgrm` | The publish and end-to-end latency percentile distributions, in milliseconds, as text | Read |
 | `gateways/gateways-latency.hdr`, `applications/<application>/application-latency.hdr` | The latency interval logs | `renderHdrHistograms`, HistogramLogAnalyzer |
-| `topic-stats.csv` | The broker's topic stats, sampled once per second: backlog and message counters per subscription | DuckDB, or any CSV reader |
+| `topic-stats.csv` | The broker's topic stats, sampled once per second, or every topics / 100 seconds with more than 100 topics: backlog and message counters per subscription | DuckDB, or any CSV reader |
+| `join-preparation.csv` | When the launcher prepared the late applications' join, each skip, reset and unload, and how long it took, see [Offloading](docs/offloading.md) | DuckDB, or any CSV reader |
+| `offload-status.csv` | In a run that offloads to tiered storage, each topic's ledgers, offloaded ledgers and offloaded bytes when the late applications joined and at the run's end | DuckDB, or any CSV reader |
+| `offload-storage.log.txt` | In a run that offloads to tiered storage, the storage's log, with every S3 request when `offload.logRequests` is set | `rg` |
+| `seeks.csv` | With an `offload.seeks` section, each seek to a random publish time and how long its reset and read took, see [Random seeks](docs/offloading.md#random-seeks) | DuckDB, or any CSV reader |
 | `host-stats.csv` | The launcher's host's CPU temperature, frequency and throttle counters, sampled once per second; on Linux only | DuckDB, or any CSV reader |
 | `host-io.csv` | The Docker engine host's CPU busy and I/O-wait share and each disk's read/write MB/s and busy share, sampled once per second; on macOS, the Docker VM's, read through the perf stat sidecar. CPUs near 100 % busy delay every thread; a disk near 100 % busy limits the bookies | DuckDB, or any CSV reader |
 | `container-summary.json` | **Start here for CPU use per component.** The measurement's averages: the host's CPU busy and I/O-wait share and disk MB/s, and for each container and all of them the CPUs, CPU seconds per million messages, voluntary and involuntary context switches, CPU migrations and page faults per second, the clock rate, IPC, and last-level cache, L1 data cache and branch misses per thousand instructions | `jq` |
@@ -320,6 +377,10 @@ commit segment can be absent). Use the exact recording names linked from the pro
 | `throughput.svg`, `backlog.svg`, `latency-percentiles.svg`, `latency-timeline.svg`, `host-temperature.svg`, `host-frequency.svg` | The report's charts, each with a PNG beside it | View the PNG |
 | `metrics.json` | What querying the run's metrics needs: its label selector, time range, jobs and instances, and the URLs and credentials of VictoriaMetrics and Grafana, see [metrics.json](docs/metrics.md#metricsjson) | `jq`, then VictoriaMetrics' Prometheus API |
 | `grafana-panels/*.png` | Panels of Grafana's dashboards over the run | View |
+| `network-events.jsonl`, `network-summary.json` | With a `network` section: every impairment's application, removal and queue counters as they happened, and each impaired container's TCP segments sent and retransmitted, see [Network conditions](docs/network-conditions.md#files) | `jq` |
+| `gateways/pulsar-client.log.txt`, `applications/pulsar-client.log.txt` | The workloads' Pulsar client logs, at the level of `PULSAR_CLIENT_LOG_LEVEL` in a workload's `env`, `warn` by default | `rg` |
+| `applications/<application>/republished-duplicates.txt` | Samples of the duplicates that the broker persisted twice, when there were any | Read |
+| `remote-applications/`, `remote-topic-stats.csv`, `replication-stats.csv`, `resolved-config-remote-applications.yaml` | With a remote cluster: the remote applications' outputs, laid out as in `applications/`, the remote topics' stats and each topic's replicators as often as the topic stats, and the remote applications' configuration, see [Geo-replication](docs/network-conditions.md#geo-replication) | As their `applications/` counterparts; DuckDB for the CSV |
 
 ### Profiles
 
@@ -530,3 +591,7 @@ personal fork or another fork.
 - Run the unit tests with `./gradlew :tests:performance:common:test :tests:performance:tools:test
   :tests:performance:launcher:test :tests:performance:report-tool:test :tests:performance:metrics:test`. None of them
   starts a cluster or the metrics stack.
+- After changing the network impairments, also run `./gradlew :tests:performance:launcher:networkCheck`, which checks
+  them on small containers and needs a Docker engine that runs privileged containers. The unit tests check the
+  settings, the `tc` commands, and the impairments' state machine on a fake host (`NetworkImpairmentsTest`), without
+  Docker.

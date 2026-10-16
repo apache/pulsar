@@ -380,11 +380,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     // thread that finds no handover batch scheduled submits one, and that task runs the adds queued by then. The
     // executor's own queue then sees one task per batch rather than one per add, so concurrent publishers contend on
     // it once per batch, and other executor work (add completions, cursor notifications) does not wait behind a task
-    // per published message. A handover batch runs at most addEntryHandoverMaxBatchItems adds, and stops taking more
-    // once their entries add up to addEntryHandoverMaxBatchBytesSize bytes, so that a ledger with large entries does
-    // not hold the executor thread from the ledgers that share it for long. Both are captured when the ledger is
-    // opened; a max batch items of 0 or 1 disables batching, and each add is then handed over to the executor as a
-    // task of its own.
+    // per published message. A handover batch runs at most addEntryHandoverMaxBatchItems adds, and stops before taking
+    // an entry that would exceed addEntryHandoverMaxBatchBytesSize bytes (an oversized entry runs alone), so a ledger
+    // with large entries does not hold the executor thread from the ledgers that share it for long. Both are captured
+    // when the ledger is opened; a max batch items of 0 or 1 disables batching, and each add is then handed over to
+    // the executor as a task of its own.
     private final Executor addEntryBatchingExecutor;
     // Chunk size of the add entry handover queue; the queue grows by linking chunks of this size when a batch backs up.
     private static final int ADD_ENTRY_HANDOVER_QUEUE_CHUNK_SIZE = 512;
@@ -5370,7 +5370,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                     .flatMap(Collection::stream)
                                     .collect(Collectors.toSet());
                                 if (bookies != null) {
-                                    info.underReplicated = !bookies.contains(ensemble);
+                                    info.underReplicated = !bookies.containsAll(ensemble);
                                 }
                             }
                         }

@@ -241,12 +241,12 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
     @Override
     public synchronized void removeConsumer(Consumer consumer) throws BrokerServiceException {
-        if (consumerSet.removeAll(consumer) == 1) {
+        if (removeConsumerInstance(consumer)) {
             // decrement unack-message count for removed consumer. Only the removal that actually
             // unregisters the consumer may debit it, otherwise removing an already-removed consumer
             // debits the same messages again and drives the subscription counter negative.
             addUnAckedMessages(-consumer.getUnackedMessages());
-            removeConsumerFromList(consumer);
+            removeConsumerInstanceFromList(consumer);
             log.info()
                     .attr("consumer", consumer)
                     .attr("pendingAcks", consumer.getPendingAcks().size())
@@ -284,7 +284,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             // The debit belongs to the removal that unregisters the consumer; do not repeat it here.
             // The add-consumer failure path can also unregister via internalRemoveConsumer, but that
             // consumer has not received any messages and therefore has nothing to debit.
-            removeConsumersFromList(c -> consumer.equals(c));
+            removeConsumersFromList(c -> c == consumer);
             if (consumerList.isEmpty()) {
                 clearComponentsAfterRemovedAllConsumers();
             }
@@ -292,8 +292,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     }
 
     protected synchronized void internalRemoveConsumer(Consumer consumer) {
-        consumerSet.removeAll(consumer);
-        removeConsumerFromList(consumer);
+        removeConsumerInstance(consumer);
+        removeConsumerInstanceFromList(consumer);
     }
 
     protected synchronized void clearComponentsAfterRemovedAllConsumers() {
@@ -411,6 +411,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                         .log("Schedule replay of messages for consumers");
                 havePendingReplayRead = true;
                 updateMinReplayedPosition();
+                onReadStarted(ReadType.Replay);
                 Set<? extends Position> deletedMessages = topic.isDelayedDeliveryEnabled()
                         ? asyncReplayEntriesInOrder(messagesToReplayNow)
                         : asyncReplayEntries(messagesToReplayNow);
@@ -421,6 +422,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 // next entries as readCompletedEntries-callback was never called
                 if ((messagesToReplayNow.size() - deletedMessages.size()) == 0) {
                     havePendingReplayRead = false;
+                    onReadEnded(ReadType.Replay);
                     readMoreEntriesAsync();
                 }
             } else if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE) {
@@ -443,6 +445,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                         .log("Schedule read of messages");
                 havePendingRead = true;
                 updateMinReplayedPosition();
+                onReadStarted(ReadType.Normal);
 
                 messagesToRead = Math.min(messagesToRead, getMaxEntriesReadLimit());
                 cursor.asyncReadEntriesWithSkipOrWait(messagesToRead, bytesToRead, this, ReadType.Normal,
@@ -509,6 +512,31 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         minReplayedPosition = getFirstPositionInReplay().orElse(null);
     }
 
+    /**
+     * Called under the dispatcher's monitor when a normal or a replay read starts. A normal read and a replay read
+     * can be in flight at the same time. With the default direct dispatch, a read of a type doesn't start before the
+     * previous read of the same type was dispatched; with {@code dispatcherDispatchMessagesInSubscriptionThread}, it
+     * can start while the previous one's dispatch is still queued, see {@link #onDispatchQueued(ReadType)}. A read
+     * ends with the dispatch of its entries, in {@link #trySendMessagesToConsumers(ReadType, List)}, or with
+     * {@link #onReadEnded(ReadType)}.
+     */
+    protected void onReadStarted(ReadType readType) {
+    }
+
+    /**
+     * Called under the dispatcher's monitor when a completed read's dispatch is queued on the subscription's thread,
+     * with {@code dispatcherDispatchMessagesInSubscriptionThread}.
+     */
+    protected void onDispatchQueued(ReadType readType) {
+    }
+
+    /**
+     * Called under the dispatcher's monitor when a read ends without its entries being dispatched: it failed, was
+     * cancelled, read only deleted entries, or completed after every consumer disconnected.
+     */
+    protected void onReadEnded(ReadType readType) {
+    }
+
     private boolean shouldPauseOnAckStatePersist(ReadType readType) {
         // Allows new consumers to consume redelivered messages caused by the just-closed consumer.
         if (readType != ReadType.Normal) {
@@ -551,7 +579,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
     // left pair is messagesToRead, right pair is bytesToRead
     protected Pair<Integer, Long> calculateToRead(int currentTotalAvailablePermits) {
-        int messagesToRead = Math.min(currentTotalAvailablePermits, readBatchSize);
+        int maxReadBatchSize = Math.min(readBatchSize, serviceConfig.getDispatcherMaxReadBatchSize());
+        int messagesToRead = Math.min(currentTotalAvailablePermits, maxReadBatchSize);
         long bytesToRead = serviceConfig.getDispatcherMaxReadSizeBytes();
 
         Consumer c = getRandomConsumer();
@@ -560,7 +589,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             int avgMessagesPerEntry = Math.max(1, c.getAvgMessagesPerEntry());
             messagesToRead = Math.min(
                     (int) Math.ceil(currentTotalAvailablePermits * 1.0 / avgMessagesPerEntry),
-                    readBatchSize);
+                    maxReadBatchSize);
         }
 
         // throttle only if: (1) cursor is not active (or flag for throttle-nonBacklogConsumer is enabled) bcz
@@ -662,9 +691,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     }
 
     @Override
-    protected void cancelPendingRead() {
+    protected synchronized void cancelPendingRead() {
         if (havePendingRead && cursor.cancelPendingReadRequest()) {
             havePendingRead = false;
+            onReadEnded(ReadType.Normal);
         }
     }
 
@@ -713,6 +743,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         if (shouldRewindBeforeReadingOrReplaying && readType == ReadType.Normal) {
             // All consumers got disconnected before the completion of the read operation
             entries.forEach(Entry::release);
+            onReadEnded(ReadType.Normal);
             cursor.rewind();
             shouldRewindBeforeReadingOrReplaying = false;
             readMoreEntriesAsync();
@@ -734,6 +765,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             // setting sendInProgress here, because sendMessagesToConsumers will be executed
             // in a separate thread, and we want to prevent more reads
             acquireSendInProgress();
+            onDispatchQueued(readType);
             dispatchMessagesThread.execute(() -> {
                 handleSendingMessagesAndReadingMore(readType, entries, false, totalBytesSize);
             });
@@ -1062,6 +1094,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             cursor.rewind();
         }
 
+        onReadEnded(readType);
         if (readType == ReadType.Normal) {
             havePendingRead = false;
         } else {

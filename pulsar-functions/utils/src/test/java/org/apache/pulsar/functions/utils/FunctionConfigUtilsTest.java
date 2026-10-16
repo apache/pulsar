@@ -28,6 +28,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
+import com.google.common.primitives.Bytes;
 import com.google.gson.Gson;
 import java.lang.reflect.Field;
 import java.util.Arrays;
@@ -536,6 +537,64 @@ public class FunctionConfigUtilsTest {
         );
     }
 
+    @Test
+    public void testPythonFunctionAcceptsMessageRetriesAndDeadLetterTopic() {
+        FunctionConfig functionConfig = createPythonFunctionConfig();
+        functionConfig.setMaxMessageRetries(3);
+        functionConfig.setDeadLetterTopic("test-dlq");
+        FunctionConfigUtils.validateNonJavaFunction(functionConfig);
+    }
+
+    @Test
+    public void testPythonFunctionAcceptsMessageRetriesWithoutADeadLetterTopic() {
+        // The client defaults the topic to "<topic>-<subscription>-DLQ" when it is left empty.
+        FunctionConfig functionConfig = createPythonFunctionConfig();
+        functionConfig.setMaxMessageRetries(1);
+        FunctionConfigUtils.validateNonJavaFunction(functionConfig);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "maxMessageRetries must be at least 1 in python.*")
+    public void testPythonFunctionRejectsZeroMessageRetries() {
+        // Zero asks for no redelivery before the dead letter topic, which the Python client cannot
+        // express, so the dead letter topic would never receive anything.
+        FunctionConfig functionConfig = createPythonFunctionConfig();
+        functionConfig.setMaxMessageRetries(0);
+        functionConfig.setDeadLetterTopic("test-dlq");
+        FunctionConfigUtils.validateNonJavaFunction(functionConfig);
+    }
+
+    @Test
+    public void testPythonFunctionTreatsNegativeMessageRetriesAsUnset() {
+        // doPythonChecks refuses exactly 0; a negative count means "unset", as it does on the Java path,
+        // and convert() emits retryDetails only for a count >= 0. Pinned so tightening that guard to <= 0
+        // cannot pass silently.
+        FunctionConfig functionConfig = createPythonFunctionConfig();
+        functionConfig.setMaxMessageRetries(-1);
+
+        FunctionConfigUtils.validateNonJavaFunction(functionConfig);
+
+        assertFalse(FunctionConfigUtils.convert(functionConfig).hasRetryDetails());
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "Dead Letter Topic specified, however max retries is set to infinity")
+    public void testPythonFunctionRejectsDeadLetterTopicWithoutMessageRetries() {
+        // doCommonChecks refuses a dead letter topic nothing can route to: with maxMessageRetries unset the
+        // redelivery count is infinite, so the topic would never receive anything. Same shape as the zero
+        // case above, reached from the other side.
+        FunctionConfig functionConfig = createPythonFunctionConfig();
+        functionConfig.setDeadLetterTopic("test-dlq");
+
+        FunctionConfigUtils.validateNonJavaFunction(functionConfig);
+    }
+
+    private FunctionConfig createPythonFunctionConfig() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        functionConfig.setRuntime(FunctionConfig.Runtime.PYTHON);
+        return functionConfig;
+    }
+
     @SuppressWarnings("deprecation")
     private FunctionConfig createFunctionConfig() {
         FunctionConfig functionConfig = new FunctionConfig();
@@ -827,8 +886,20 @@ public class FunctionConfigUtilsTest {
     @Test(expectedExceptions = IllegalArgumentException.class,
             expectedExceptionsMessageRegExp = "Message retries not yet supported in Go function")
     public void testGoFunctionStillRejectsMessageRetries() {
+        // The Go runtime does not honour retryDetails yet, so its guard stays until it does.
         FunctionConfig functionConfig = minimalGoFunctionConfig();
         functionConfig.setMaxMessageRetries(3);
+
+        FunctionConfigUtils.validateNonJavaFunction(functionConfig);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "Message retries not yet supported in Go function")
+    public void testGoFunctionRejectsZeroMessageRetries() {
+        // doGolangChecks refuses every count >= 0, not only a positive one -- unlike Python, which refuses
+        // only 0. Pinned so the two guards cannot be quietly aligned.
+        FunctionConfig functionConfig = minimalGoFunctionConfig();
+        functionConfig.setMaxMessageRetries(0);
 
         FunctionConfigUtils.validateNonJavaFunction(functionConfig);
     }
@@ -853,6 +924,18 @@ public class FunctionConfigUtilsTest {
         assertThatThrownBy(() -> FunctionConfigUtils.convert(functionConfig))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("clientApi V4 cannot be used with topic 'topic://public/default/in'");
+    }
+
+    @Test
+    public void testConvertFromDetailsWithUnknownClientApi() {
+        byte[] details = FunctionConfigUtils.convert(createFunctionConfig()).toByteArray();
+        // clientApi (field 24, varint) set to 9, a number that no ClientApi value has
+        byte[] unknownClientApi = {(byte) 0xC0, 0x01, 0x09};
+        FunctionDetails functionDetails = new FunctionDetails();
+        functionDetails.parseFrom(Bytes.concat(details, unknownClientApi));
+
+        assertThat(functionDetails.getClientApi()).isEqualTo(FunctionDetails.ClientApi.UNRECOGNIZED);
+        assertThat(FunctionConfigUtils.convertFromDetails(functionDetails).getClientApi()).isNull();
     }
 
     @Test

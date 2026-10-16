@@ -686,11 +686,17 @@ public class ClustersBase extends AdminResource {
             return brokerIsolationData.build();
         }
         List<String> namespaceRegexes = new ArrayList<>();
+        // the broker is given as a broker id (host:port), as listed by `pulsar-admin brokers list`;
+        // match host entries against the host and port-specific entries against the broker id, like placement does
+        int portIdx = broker.lastIndexOf(':');
+        String brokerHost = portIdx > 0 ? broker.substring(0, portIdx) : broker;
         policies.forEach((name, policyData) -> {
             NamespaceIsolationPolicyImpl nsPolicyImpl = new NamespaceIsolationPolicyImpl(policyData);
-            if (nsPolicyImpl.isPrimaryBroker(broker) || nsPolicyImpl.isSecondaryBroker(broker)) {
+            boolean primary = nsPolicyImpl.isPrimaryBroker(brokerHost) || nsPolicyImpl.isPrimaryBrokerId(broker);
+            boolean secondary = nsPolicyImpl.isSecondaryBroker(brokerHost) || nsPolicyImpl.isSecondaryBrokerId(broker);
+            if (primary || secondary) {
                 namespaceRegexes.addAll(policyData.getNamespaces());
-                brokerIsolationData.primary(nsPolicyImpl.isPrimaryBroker(broker));
+                brokerIsolationData.primary(primary);
                 brokerIsolationData.policyName(name);
             }
         });
