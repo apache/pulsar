@@ -131,10 +131,8 @@ public class WebService implements AutoCloseable {
         ServiceConfiguration config = pulsar.getConfiguration();
         this.webServiceExecutor = new WebExecutorThreadPool(
                 config.getNumHttpServerThreads(),
-                config.getNumHttpServerThreadsMax(),
                 "pulsar-web",
                 config.getHttpServerThreadPoolQueueSize());
-        this.webServiceExecutor.setIdleTimeout(config.getHttpServerThreadPoolIdleTimeoutMs());
         this.executorStats = WebExecutorStats.getStats(webServiceExecutor);
         this.webExecutorThreadPoolStats =
                 new WebExecutorThreadPoolStats(pulsar.getOpenTelemetry().getMeter(), webServiceExecutor);

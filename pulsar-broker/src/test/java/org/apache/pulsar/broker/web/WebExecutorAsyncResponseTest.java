@@ -32,7 +32,10 @@ import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.container.AsyncResponse;
+import jakarta.ws.rs.container.CompletionCallback;
+import jakarta.ws.rs.container.ContainerRequestContext;
 import jakarta.ws.rs.container.Suspended;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.ext.WriterInterceptor;
 import jakarta.ws.rs.ext.WriterInterceptorContext;
@@ -41,10 +44,12 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
 import org.eclipse.jetty.ee10.servlet.ServletHolder;
@@ -57,17 +62,20 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class WebExecutorAsyncResponseTest {
 
     private static final String WEB_THREAD_PREFIX = "test-web";
     private static final String OTHER_THREAD_PREFIX = "test-other";
     private static final String WRITER_THREAD_HEADER = "X-Writer-Thread";
+    private static final String RESPONSE_WRITTEN_PROPERTY = "test.responseWritten";
 
     private ExecutorService otherExecutor;
     private WebExecutorThreadPool webExecutor;
     private Server server;
     private URI baseUri;
     private HttpClient httpClient;
+    private TestResource testResource;
 
     @BeforeClass
     public void setup() throws Exception {
@@ -79,7 +87,8 @@ public class WebExecutorAsyncResponseTest {
         server.addConnector(connector);
 
         ResourceConfig config = new ResourceConfig();
-        config.register(new TestResource(otherExecutor));
+        testResource = new TestResource(otherExecutor);
+        config.register(testResource);
         config.register(WriterThreadInterceptor.class);
         config.register(new WebExecutorAsyncResponseFeature(webExecutor));
         ServletHolder servletHolder = new ServletHolder(new ServletContainer(config));
@@ -109,6 +118,7 @@ public class WebExecutorAsyncResponseTest {
     @Path("/test")
     public static class TestResource {
         private final ExecutorService otherExecutor;
+        private volatile CompletableFuture<String> completionCallbackResult = new CompletableFuture<>();
 
         public TestResource(ExecutorService otherExecutor) {
             this.otherExecutor = otherExecutor;
@@ -125,6 +135,19 @@ public class WebExecutorAsyncResponseTest {
         public void resumeExceptionFromOtherThread(@Suspended AsyncResponse asyncResponse) {
             otherExecutor.execute(() -> asyncResponse.resume(new WebApplicationException(
                     Response.status(Response.Status.CONFLICT).entity("failed").build())));
+        }
+
+        @GET
+        @Path("/resumeWithCompletionCallback")
+        public void resumeWithCompletionCallback(@Suspended AsyncResponse asyncResponse,
+                                                 @Context ContainerRequestContext requestContext) {
+            CompletableFuture<String> result = completionCallbackResult;
+            // the interceptor sets it once it has written the response
+            AtomicBoolean responseWritten = new AtomicBoolean();
+            requestContext.setProperty(RESPONSE_WRITTEN_PROPERTY, responseWritten);
+            asyncResponse.register((CompletionCallback) throwable -> result.complete(
+                    "written=" + responseWritten.get() + ", thread=" + Thread.currentThread().getName()));
+            otherExecutor.execute(() -> asyncResponse.resume("resumed"));
         }
 
         @GET
@@ -145,6 +168,9 @@ public class WebExecutorAsyncResponseTest {
         public void aroundWriteTo(WriterInterceptorContext context) throws IOException {
             context.getHeaders().add(WRITER_THREAD_HEADER, Thread.currentThread().getName());
             context.proceed();
+            if (context.getProperty(RESPONSE_WRITTEN_PROPERTY) instanceof AtomicBoolean responseWritten) {
+                responseWritten.set(true);
+            }
         }
     }
 
@@ -169,6 +195,18 @@ public class WebExecutorAsyncResponseTest {
         assertThat(response.body()).isEqualTo("failed");
         assertThat(response.headers().firstValue(WRITER_THREAD_HEADER)).hasValueSatisfying(
                 threadName -> assertThat(threadName).startsWith(WEB_THREAD_PREFIX));
+    }
+
+    @Test
+    public void testCompletionCallbackRunsAfterResponseIsWritten() throws Exception {
+        // callbacks such as the topic list permit release in NamespacesBase rely on running after the write
+        CompletableFuture<String> callbackResult = new CompletableFuture<>();
+        testResource.completionCallbackResult = callbackResult;
+        HttpResponse<String> response = get("/test/resumeWithCompletionCallback");
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(response.body()).isEqualTo("resumed");
+        assertThat(callbackResult.get(10, TimeUnit.SECONDS))
+                .startsWith("written=true, thread=" + WEB_THREAD_PREFIX);
     }
 
     @Test

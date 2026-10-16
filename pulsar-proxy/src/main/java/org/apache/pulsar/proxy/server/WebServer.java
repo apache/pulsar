@@ -121,9 +121,8 @@ public class WebServer {
     public WebServer(ProxyConfiguration config, AuthenticationService authenticationService,
                      OpenTelemetry openTelemetry) {
         this.openTelemetry = openTelemetry;
-        this.webServiceExecutor = new WebExecutorThreadPool(config.getHttpNumThreads(),
-                config.getHttpNumThreadsMax(), "pulsar-external-web", config.getHttpServerThreadPoolQueueSize());
-        this.webServiceExecutor.setIdleTimeout(config.getHttpServerThreadPoolIdleTimeoutMs());
+        this.webServiceExecutor = new WebExecutorThreadPool(config.getHttpNumThreads(), "pulsar-external-web",
+                config.getHttpServerThreadPoolQueueSize());
         this.server = new Server(webServiceExecutor);
         if (config.getMaxHttpServerConnections() > 0) {
             server.addBean(new NetworkConnectionLimit(config.getMaxHttpServerConnections(), server));

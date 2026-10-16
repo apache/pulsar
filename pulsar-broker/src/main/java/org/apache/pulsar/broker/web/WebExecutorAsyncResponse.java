@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BooleanSupplier;
 import lombok.CustomLog;
 
@@ -56,6 +57,11 @@ final class WebExecutorAsyncResponse implements AsyncResponse {
     private static final int NOT_REQUESTED = 0;
     private static final int RESUME_REQUESTED = 1;
     private static final int CANCEL_REQUESTED = 2;
+    private static final long REJECTION_WARNING_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(1);
+
+    // the responses that were completed on the calling thread since the last warning about it
+    private static final AtomicLong rejectedSinceWarning = new AtomicLong();
+    private static final AtomicLong nextRejectionWarningNanos = new AtomicLong(System.nanoTime());
 
     // Set by the first resume or cancel call, so that later calls behave like they would on a completed response
     // while the first completion is still waiting in the executor's queue.
@@ -113,10 +119,32 @@ final class WebExecutorAsyncResponse implements AsyncResponse {
             });
             return true;
         } catch (RejectedExecutionException e) {
+            logRejection(e);
+            return completion.getAsBoolean();
+        }
+    }
+
+    private void logRejection(RejectedExecutionException e) {
+        if (!executor.isRunning()) {
+            // the web service is stopping
             log.debug()
                     .exceptionMessage(e)
                     .log("The web service executor rejected the response, completing it on the calling thread");
-            return completion.getAsBoolean();
+            return;
+        }
+        long rejected = rejectedSinceWarning.incrementAndGet();
+        long now = System.nanoTime();
+        long nextWarningNanos = nextRejectionWarningNanos.get();
+        // warn at most once per interval, since the executor rejects tasks while it is overloaded
+        if (now - nextWarningNanos >= 0
+                && nextRejectionWarningNanos.compareAndSet(nextWarningNanos, now + REJECTION_WARNING_INTERVAL_NANOS)) {
+            rejectedSinceWarning.addAndGet(-rejected);
+            log.warn()
+                    .attr("rejectedResponses", rejected)
+                    .exceptionMessage(e)
+                    .log("The web service executor's queue is full, so async HTTP responses are written on the"
+                            + " threads that complete them, which can block those threads while clients read the"
+                            + " responses. Consider increasing numHttpServerThreads or httpServerThreadPoolQueueSize");
         }
     }
 
