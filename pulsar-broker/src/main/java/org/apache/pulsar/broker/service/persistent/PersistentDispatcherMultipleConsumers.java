@@ -246,6 +246,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             // unregisters the consumer may debit it, otherwise removing an already-removed consumer
             // debits the same messages again and drives the subscription counter negative.
             addUnAckedMessages(-consumer.getUnackedMessages());
+            // Drop this consumer's chunk uuid mappings, otherwise its pending chunks stay pinned to a disconnected
+            // consumer with no permits and stall the subscription forever.
+            assignor.removeConsumer(consumer);
             removeConsumerInstanceFromList(consumer);
             log.info()
                     .attr("consumer", consumer)
@@ -301,6 +304,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
         redeliveryMessages.clear();
         redeliveryTracker.clear();
+        assignor.clear();
         if (closeFuture != null) {
             log.info("All consumers removed. Subscription is disconnected");
             closeFuture.complete(null);
