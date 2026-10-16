@@ -6729,6 +6729,53 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testDeleteWholeEntryOnce() throws Exception {
+        ManagedLedgerConfig managedLedgerConfig = defaultConfig();
+        managedLedgerConfig.setDeletionAtBatchIndexLevelEnabled(true);
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("testDeleteWholeEntryOnce", managedLedgerConfig);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ml.openCursor("c1");
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < 4; i++) {
+            positions.add(ml.addEntry(new byte[1]));
+        }
+        long consumed = cursor.getMessagesConsumedCounter();
+
+        // Deleting an entry twice counts it once and leaves the deleted messages as they were
+        cursor.delete(positions.get(2));
+        assertEquals(cursor.getMessagesConsumedCounter(), consumed + 1);
+        String deleted = cursor.getIndividuallyDeletedMessagesSet().toString();
+        cursor.delete(positions.get(2));
+        assertEquals(cursor.getMessagesConsumedCounter(), consumed + 1);
+        assertEquals(cursor.getIndividuallyDeletedMessagesSet().toString(), deleted);
+
+        // A batch acknowledged in part, and then as a whole
+        Position batch = positions.get(1);
+        cursor.delete(AckSetStateUtil.createPositionWithAckSet(batch.getLedgerId(), batch.getEntryId(),
+                new long[]{0b1110L}));
+        assertNotNull(cursor.getBatchPositionAckSet(batch));
+        assertFalse(cursor.isMessageDeleted(batch));
+        cursor.delete(batch);
+        assertNull(cursor.getBatchPositionAckSet(batch));
+        assertTrue(cursor.isMessageDeleted(batch));
+        assertEquals(cursor.getMessagesConsumedCounter(), consumed + 2);
+
+        // An entry at or before the mark-delete position was deleted already
+        cursor.markDelete(positions.get(0));
+        assertEquals(cursor.getMarkDeletedPosition(), positions.get(2));
+        long consumedBeforeDeletingAgain = cursor.getMessagesConsumedCounter();
+        cursor.delete(positions.get(1));
+        cursor.delete(positions.get(2));
+        assertEquals(cursor.getMessagesConsumedCounter(), consumedBeforeDeletingAgain);
+        assertTrue(cursor.getIndividuallyDeletedMessagesSet().isEmpty());
+
+        // In one call: an entry twice and one before the mark-delete position count once
+        cursor.delete(List.of(positions.get(3), positions.get(3), positions.get(1)));
+        assertEquals(cursor.getMessagesConsumedCounter(), consumedBeforeDeletingAgain + 1);
+        assertEquals(cursor.getMarkDeletedPosition(), positions.get(3));
+        ml.delete();
+    }
+
+    @Test
     public void testEstimateEntryCountBySize() throws Exception {
         final String mlName = "ml-" + UUID.randomUUID().toString().replaceAll("-", "");
         ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(mlName, initManagedLedgerConfig(defaultConfig()));
