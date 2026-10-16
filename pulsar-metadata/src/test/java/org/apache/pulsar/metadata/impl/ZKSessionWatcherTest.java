@@ -30,17 +30,23 @@ import static org.testng.Assert.assertTrue;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
+import org.apache.zookeeper.AddWatchMode;
 import org.apache.zookeeper.AsyncCallback.StatCallback;
+import org.apache.zookeeper.AsyncCallback.VoidCallback;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher.Event.EventType;
 import org.apache.zookeeper.Watcher.Event.KeeperState;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.ZooKeeper.States;
+import org.apache.zookeeper.client.ZKClientConfig;
+import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
 @Test
@@ -192,6 +198,286 @@ public class ZKSessionWatcherTest {
     }
 
     @Test
+    public void testReplacedSessionIdRejectsOldEventBeforeGenerationPublication() throws Exception {
+        PulsarZooKeeperClient zk = mock(PulsarZooKeeperClient.class);
+        AtomicLong sessionId = new AtomicLong(1);
+        when(zk.getSessionTimeout()).thenReturn(600_000);
+        when(zk.getSessionId()).thenAnswer(invocation -> sessionId.get());
+        when(zk.getCurrentHandleGeneration()).thenReturn(1L);
+        List<SessionEvent> events = new CopyOnWriteArrayList<>();
+
+        try (ZKSessionWatcher watcher = new ZKSessionWatcher(zk, events::add, false)) {
+            watcher.setSessionReplaced();
+
+            // Publishing a replacement writes the new handle before its generation. During that small window,
+            // the source generation alone still matches, so the source session ID must reject H1's event.
+            sessionId.set(2);
+            watcher.process(new ZKSessionWatcher.SessionEventSnapshot(
+                    sessionEvent(KeeperState.SyncConnected), 1, 1, States.CONNECTED));
+
+            assertThat(events).isEmpty();
+        }
+    }
+
+    @Test
+    public void testQueuedTerminalAuthFailedIsProcessedBeforeReplacementConnects() throws Exception {
+        List<SessionEvent> events = new CopyOnWriteArrayList<>();
+        PulsarZooKeeperClient zk = mock(PulsarZooKeeperClient.class);
+        AtomicLong sessionId = new AtomicLong(1);
+        AtomicLong handleGeneration = new AtomicLong(1);
+        AtomicReference<States> clientState = new AtomicReference<>(States.AUTH_FAILED);
+        when(zk.getSessionTimeout()).thenReturn(600_000);
+        when(zk.getSessionId()).thenAnswer(invocation -> sessionId.get());
+        when(zk.getCurrentHandleGeneration()).thenAnswer(invocation -> handleGeneration.get());
+        when(zk.getState()).thenAnswer(invocation -> clientState.get());
+        when(zk.getClientConfig()).thenReturn(new ZKClientConfig());
+        doAnswer(invocation -> {
+            VoidCallback callback = invocation.getArgument(3);
+            callback.processResult(KeeperException.Code.OK.intValue(), "/", null);
+            return null;
+        }).when(zk).addWatch(eq("/"), any(), eq(AddWatchMode.PERSISTENT_RECURSIVE), any(), isNull());
+        CountDownLatch eventExecutorBlocked = new CountDownLatch(1);
+        CountDownLatch releaseEventExecutor = new CountDownLatch(1);
+
+        try (ZKMetadataStore store = new ZKMetadataStore(zk, false)) {
+            store.registerSessionListener(events::add);
+            store.getEventExecutor().execute(() -> {
+                eventExecutorBlocked.countDown();
+                try {
+                    releaseEventExecutor.await(5, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            });
+            assertThat(eventExecutorBlocked.await(5, TimeUnit.SECONDS)).isTrue();
+
+            // Queue H1's terminal failure, then publish H2 before the event executor processes it.
+            store.processSessionWatcher(new PulsarZooKeeperClient.HandleStateWatchedEvent(
+                    sessionEvent(KeeperState.AuthFailed), 1, 1, States.AUTH_FAILED));
+            sessionId.set(2);
+            handleGeneration.set(2);
+            clientState.set(States.CONNECTED);
+            releaseEventExecutor.countDown();
+
+            Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                    .untilAsserted(() -> assertThat(events).containsExactly(SessionEvent.SessionLost));
+
+            // Only H2's connection can recover the logical metadata session.
+            store.processSessionWatcher(new PulsarZooKeeperClient.HandleStateWatchedEvent(
+                    sessionEvent(KeeperState.SyncConnected), 2, 2, States.CONNECTED));
+            Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                    .untilAsserted(() -> assertThat(events).containsExactly(
+                            SessionEvent.SessionLost,
+                            SessionEvent.Reconnected,
+                            SessionEvent.SessionReestablished));
+        } finally {
+            releaseEventExecutor.countDown();
+        }
+    }
+
+    @Test
+    public void testTerminalEventFromOlderHandleIsIgnoredAfterReplacementConnects() throws Exception {
+        PulsarZooKeeperClient zk = mock(PulsarZooKeeperClient.class);
+        AtomicLong sessionId = new AtomicLong(1);
+        AtomicLong handleGeneration = new AtomicLong(1);
+        when(zk.getSessionTimeout()).thenReturn(600_000);
+        when(zk.getSessionId()).thenAnswer(invocation -> sessionId.get());
+        when(zk.getCurrentHandleGeneration()).thenAnswer(invocation -> handleGeneration.get());
+        List<SessionEvent> events = new CopyOnWriteArrayList<>();
+
+        try (ZKSessionWatcher watcher = new ZKSessionWatcher(zk, events::add, false)) {
+            // H2 is published before H1's queued terminal event is processed. H1's session loss still matters
+            // until H2's own SyncConnected event reaches this watcher.
+            sessionId.set(2);
+            handleGeneration.set(2);
+            watcher.process(new ZKSessionWatcher.SessionEventSnapshot(
+                    sessionEvent(KeeperState.Expired), 1, 1, States.CLOSED));
+
+            watcher.process(new ZKSessionWatcher.SessionEventSnapshot(
+                    sessionEvent(KeeperState.SyncConnected), 2, 2, States.CONNECTED));
+
+            // H1 may deliver a duplicate terminal event after H2 has completed logical recovery.
+            watcher.process(new ZKSessionWatcher.SessionEventSnapshot(
+                    sessionEvent(KeeperState.Expired), 1, 1, States.CLOSED));
+
+            assertThat(events).containsExactly(
+                    SessionEvent.SessionLost,
+                    SessionEvent.Reconnected,
+                    SessionEvent.SessionReestablished);
+        }
+    }
+
+    @Test
+    public void testTerminalEventFromOlderHandleIsIgnoredAfterReplacementProbeReconnects() throws Exception {
+        PulsarZooKeeperClient zk = mock(PulsarZooKeeperClient.class);
+        AtomicLong sessionId = new AtomicLong(1);
+        AtomicLong handleGeneration = new AtomicLong(1);
+        when(zk.getSessionTimeout()).thenReturn(600_000);
+        when(zk.getSessionId()).thenAnswer(invocation -> sessionId.get());
+        when(zk.getCurrentHandleGeneration()).thenAnswer(invocation -> handleGeneration.get());
+        when(zk.getCurrentHandleIdentity()).thenAnswer(invocation ->
+                new PulsarZooKeeperClient.CurrentHandleIdentity(handleGeneration.get(), sessionId.get()));
+        when(zk.runStateUpdateIfCurrentHandle(any(), any())).thenAnswer(invocation -> {
+            PulsarZooKeeperClient.CurrentHandleIdentity expectedIdentity = invocation.getArgument(0);
+            if (!expectedIdentity.equals(zk.getCurrentHandleIdentity())) {
+                return false;
+            }
+            Runnable action = invocation.getArgument(1);
+            action.run();
+            return true;
+        });
+        when(zk.getState()).thenReturn(States.CONNECTED);
+        List<SessionEvent> events = new CopyOnWriteArrayList<>();
+        completeExistsWith(zk, KeeperException.Code.OK);
+
+        try (ZKSessionWatcher watcher = new ZKSessionWatcher(zk, events::add, false)) {
+            watcher.setSessionInvalid();
+            sessionId.set(2);
+            handleGeneration.set(2);
+            watcher.checkConnectionStatus();
+            assertThat(events).containsExactly(SessionEvent.Reconnected, SessionEvent.SessionReestablished);
+
+            watcher.process(new ZKSessionWatcher.SessionEventSnapshot(
+                    sessionEvent(KeeperState.Expired), 1, 1, States.CLOSED));
+            assertThat(events).containsExactly(SessionEvent.Reconnected, SessionEvent.SessionReestablished);
+        }
+    }
+
+    @Test
+    public void testProbeListenerRunsOutsideCurrentHandleUpdate() throws Exception {
+        PulsarZooKeeperClient zk = mock(PulsarZooKeeperClient.class);
+        PulsarZooKeeperClient.CurrentHandleIdentity handleIdentity =
+                new PulsarZooKeeperClient.CurrentHandleIdentity(1, 1);
+        AtomicBoolean updatingCurrentHandle = new AtomicBoolean();
+        AtomicBoolean listenerCalledDuringUpdate = new AtomicBoolean();
+        List<SessionEvent> events = new CopyOnWriteArrayList<>();
+        when(zk.getSessionTimeout()).thenReturn(30_000);
+        when(zk.getSessionId()).thenReturn(1L);
+        when(zk.getCurrentHandleGeneration()).thenReturn(1L);
+        when(zk.getCurrentHandleIdentity()).thenReturn(handleIdentity);
+        when(zk.runStateUpdateIfCurrentHandle(any(), any())).thenAnswer(invocation -> {
+            Runnable stateUpdate = invocation.getArgument(1);
+            updatingCurrentHandle.set(true);
+            try {
+                stateUpdate.run();
+            } finally {
+                updatingCurrentHandle.set(false);
+            }
+            return true;
+        });
+        when(zk.getState()).thenReturn(States.CONNECTING);
+        completeExistsWith(zk, KeeperException.Code.CONNECTIONLOSS);
+
+        try (ZKSessionWatcher watcher = new ZKSessionWatcher(zk, event -> {
+            listenerCalledDuringUpdate.set(updatingCurrentHandle.get());
+            events.add(event);
+        }, false)) {
+            watcher.checkConnectionStatus();
+
+            assertThat(events).containsExactly(SessionEvent.ConnectionLost);
+            assertThat(listenerCalledDuringUpdate).isFalse();
+        }
+    }
+
+    @Test
+    public void testProbeFromOlderHandleIsIgnoredWhenSessionIdsAreUnassigned() throws Exception {
+        PulsarZooKeeperClient zk = mock(PulsarZooKeeperClient.class);
+        AtomicLong handleGeneration = new AtomicLong(1);
+        when(zk.getSessionTimeout()).thenReturn(600_000);
+        when(zk.getSessionId()).thenReturn(0L);
+        when(zk.getCurrentHandleGeneration()).thenAnswer(invocation -> handleGeneration.get());
+        when(zk.getCurrentHandleIdentity()).thenAnswer(invocation ->
+                new PulsarZooKeeperClient.CurrentHandleIdentity(handleGeneration.get(), 0));
+        when(zk.runStateUpdateIfCurrentHandle(any(), any())).thenAnswer(invocation -> {
+            PulsarZooKeeperClient.CurrentHandleIdentity expectedIdentity = invocation.getArgument(0);
+            if (!expectedIdentity.equals(zk.getCurrentHandleIdentity())) {
+                return false;
+            }
+            Runnable action = invocation.getArgument(1);
+            action.run();
+            return true;
+        });
+        when(zk.getState()).thenReturn(States.CONNECTED);
+        List<SessionEvent> events = new CopyOnWriteArrayList<>();
+        doAnswer(invocation -> {
+            handleGeneration.set(2);
+            StatCallback callback = invocation.getArgument(2);
+            callback.processResult(KeeperException.Code.OK.intValue(), "/", null, null);
+            return null;
+        }).when(zk).exists(eq("/"), eq(false), any(StatCallback.class), isNull());
+
+        try (ZKSessionWatcher watcher = new ZKSessionWatcher(zk, events::add, false)) {
+            watcher.setSessionInvalid();
+            watcher.checkConnectionStatus();
+
+            assertThat(events).isEmpty();
+        }
+    }
+
+    @Test
+    public void testQueuedSyncConnectedFromReplacedSessionIsIgnored() throws Exception {
+        List<SessionEvent> events = new CopyOnWriteArrayList<>();
+        PulsarZooKeeperClient zk = mock(PulsarZooKeeperClient.class);
+        AtomicLong sessionId = new AtomicLong(1);
+        AtomicLong handleGeneration = new AtomicLong(1);
+        when(zk.getSessionTimeout()).thenReturn(600_000);
+        when(zk.getSessionId()).thenAnswer(invocation -> sessionId.get());
+        when(zk.getCurrentHandleGeneration()).thenAnswer(invocation -> handleGeneration.get());
+        when(zk.getState()).thenReturn(States.CONNECTED);
+        when(zk.getClientConfig()).thenReturn(new ZKClientConfig());
+        doAnswer(invocation -> {
+            VoidCallback callback = invocation.getArgument(3);
+            callback.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), "/", null);
+            return null;
+        }).when(zk).addWatch(eq("/"), any(), eq(AddWatchMode.PERSISTENT_RECURSIVE), any(), isNull());
+
+        CountDownLatch eventExecutorBlocked = new CountDownLatch(1);
+        CountDownLatch releaseEventExecutor = new CountDownLatch(1);
+        try (ZKMetadataStore store = new ZKMetadataStore(zk, false)) {
+            store.registerSessionListener(events::add);
+            store.processSessionWatcher(sessionEvent(KeeperState.Expired));
+            Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                    .untilAsserted(() -> assertThat(events).containsExactly(SessionEvent.SessionLost));
+
+            // The persistent watch recreation fails, so session 1 is marked as replaced.
+            store.processSessionWatcher(new PulsarZooKeeperClient.HandleStateWatchedEvent(
+                    sessionEvent(KeeperState.SyncConnected), 1, 1, States.CONNECTED));
+            Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                    .untilAsserted(() -> assertThat(events).containsExactly(
+                            SessionEvent.SessionLost, SessionEvent.Reconnected));
+
+            store.getEventExecutor().execute(() -> {
+                eventExecutorBlocked.countDown();
+                try {
+                    releaseEventExecutor.await(5, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            });
+            assertThat(eventExecutorBlocked.await(5, TimeUnit.SECONDS)).isTrue();
+
+            // Queue another SyncConnected from session 1, then replace it with session 2 before processing.
+            store.processSessionWatcher(new PulsarZooKeeperClient.HandleStateWatchedEvent(
+                    sessionEvent(KeeperState.SyncConnected), 1, 1, States.CONNECTED));
+            CountDownLatch queuedEventProcessed = new CountDownLatch(1);
+            store.getEventExecutor().execute(queuedEventProcessed::countDown);
+            sessionId.set(2);
+            handleGeneration.set(2);
+            releaseEventExecutor.countDown();
+            assertThat(queuedEventProcessed.await(5, TimeUnit.SECONDS)).isTrue();
+
+            // Drain notifications that the queued session event might have produced.
+            CountDownLatch notificationsProcessed = new CountDownLatch(1);
+            store.getEventExecutor().execute(notificationsProcessed::countDown);
+            assertThat(notificationsProcessed.await(5, TimeUnit.SECONDS)).isTrue();
+
+            assertThat(events).containsExactly(SessionEvent.SessionLost, SessionEvent.Reconnected);
+        } finally {
+            releaseEventExecutor.countDown();
+        }
+    }
+
+    @Test
     public void testConnectedReadOnlyProbeShouldNotBeTreatedAsWritableConnection() throws Exception {
         List<SessionEvent> events = new CopyOnWriteArrayList<>();
         ZooKeeper zk = newSessionZooKeeper();
@@ -296,6 +582,7 @@ public class ZKSessionWatcherTest {
         when(zk.getSessionTimeout()).thenReturn(30_000);
         when(zk.getSessionId()).thenReturn(0x1234L);
         when(zk.getState()).thenReturn(States.CONNECTED);
+        when(zk.getClientConfig()).thenReturn(new ZKClientConfig());
         return zk;
     }
 
@@ -305,5 +592,9 @@ public class ZKSessionWatcherTest {
             callback.processResult(code.intValue(), "/", null, null);
             return null;
         }).when(zk).exists(eq("/"), eq(false), any(StatCallback.class), isNull());
+    }
+
+    private static WatchedEvent sessionEvent(KeeperState state) {
+        return new WatchedEvent(EventType.None, state, null);
     }
 }
