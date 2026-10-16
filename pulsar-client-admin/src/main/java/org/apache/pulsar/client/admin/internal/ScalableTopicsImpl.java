@@ -23,6 +23,8 @@ import jakarta.ws.rs.client.WebTarget;
 import jakarta.ws.rs.core.GenericType;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response.Status;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -234,9 +236,13 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
         });
     }
 
-    /** The role is a single path component, even if it contains a '/', as in the regular-topic permission API. */
+    /**
+     * The role as a single path component, even if it contains a '/'. Unlike the form encoding of
+     * {@link URLEncoder}, a space must be "%20" in a path: the broker reads a '+' of the path as a '+'.
+     */
     private WebTarget permissionsPath(TopicName tn, String role) {
-        return WebTargets.addParts(topicPath(tn).path("permissions"), new String[] {role});
+        String encodedRole = URLEncoder.encode(role, StandardCharsets.UTF_8).replace("+", "%20");
+        return topicPath(tn).path("permissions").path(encodedRole);
     }
 
     // --- Delete ---
