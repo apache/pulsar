@@ -118,7 +118,7 @@ public class BatchingExecutorWrapperTest {
     }
 
     @Test
-    public void testBatchStopsTakingTasksOnceTheirWeightsReachMaxWeight() {
+    public void testBatchStopsBeforeExceedingMaxWeight() {
         ManualExecutor delegate = new ManualExecutor();
         BatchingExecutorWrapper wrapper = newWrapper(delegate, 1024, 10);
         List<Integer> ran = new ArrayList<>();
@@ -129,9 +129,10 @@ public class BatchingExecutorWrapperTest {
 
         delegate.runNext();
 
-        // 4 + 4 is below the limit, so the batch takes a third task; 12 reaches it, so the batch stops there.
-        assertThat(ran).containsExactly(0, 1, 2);
+        assertThat(ran).containsExactly(0, 1);
         assertThat(delegate.tasks).hasSize(1);
+        delegate.runNext();
+        assertThat(ran).containsExactly(0, 1, 2, 3);
         delegate.runNext();
         assertThat(ran).containsExactly(0, 1, 2, 3, 4, 5);
     }
@@ -141,14 +142,58 @@ public class BatchingExecutorWrapperTest {
         ManualExecutor delegate = new ManualExecutor();
         BatchingExecutorWrapper wrapper = newWrapper(delegate, 1024, 10);
         List<Integer> ran = new ArrayList<>();
-        wrapper.execute(weighted(100, () -> ran.add(0)));
-        wrapper.execute(weighted(1, () -> ran.add(1)));
+        wrapper.execute(weighted(4, () -> ran.add(0)));
+        wrapper.execute(weighted(100, () -> ran.add(1)));
+        wrapper.execute(weighted(4, () -> ran.add(2)));
 
         delegate.runNext();
 
         assertThat(ran).containsExactly(0);
         delegate.runNext();
         assertThat(ran).containsExactly(0, 1);
+        delegate.runNext();
+        assertThat(ran).containsExactly(0, 1, 2);
+    }
+
+    @Test
+    public void testNoWeightLimitDoesNotOverflow() {
+        ManualExecutor delegate = new ManualExecutor();
+        BatchingExecutorWrapper wrapper = newWrapper(delegate, 1024, NO_WEIGHT_LIMIT);
+        List<Integer> ran = new ArrayList<>();
+        wrapper.execute(weighted(Long.MAX_VALUE, () -> ran.add(0)));
+        wrapper.execute(weighted(1, () -> ran.add(1)));
+
+        delegate.runNext();
+
+        assertThat(ran).containsExactly(0, 1);
+        assertThat(delegate.tasks).isEmpty();
+    }
+
+    @Test
+    public void testTaskWeightFailureIsProcessedAndTheBatchContinues() {
+        ManualExecutor delegate = new ManualExecutor();
+        List<Throwable> failures = new ArrayList<>();
+        BatchingExecutorWrapper wrapper = new BatchingExecutorWrapper(delegate, QUEUE_CHUNK_SIZE, 1024, 10,
+                failures::add, FAIL_ON_REJECTED_TASK);
+        RuntimeException failure = new RuntimeException("weight failed");
+        List<Integer> ran = new ArrayList<>();
+        wrapper.execute(new BatchingExecutorWrapper.WeightedRunnable() {
+            @Override
+            public long getWeight() {
+                throw failure;
+            }
+
+            @Override
+            public void run() {
+                ran.add(0);
+            }
+        });
+        wrapper.execute(weighted(4, () -> ran.add(1)));
+
+        delegate.runAll();
+
+        assertThat(failures).containsExactly(failure);
+        assertThat(ran).containsExactly(1);
     }
 
     @Test
@@ -420,11 +465,17 @@ public class BatchingExecutorWrapperTest {
 
     @DataProvider
     public Object[][] batchLimits() {
-        return new Object[][] {{2, NO_WEIGHT_LIMIT}, {1024, NO_WEIGHT_LIMIT}, {1024, 3L}};
+        return new Object[][] {
+                {2, NO_WEIGHT_LIMIT, 1L},
+                {1024, NO_WEIGHT_LIMIT, 1L},
+                {1024, 3L, 1L},
+                {1024, 3L, 2L}
+        };
     }
 
     @Test(timeOut = 30000, dataProvider = "batchLimits")
-    public void testConcurrentSubmittersKeepPerThreadOrder(int maxItems, long maxWeight) throws Exception {
+    public void testConcurrentSubmittersKeepPerThreadOrder(int maxItems, long maxWeight, long taskWeight)
+            throws Exception {
         int threads = 8;
         int tasksPerThread = 10000;
         ExecutorService delegate = Executors.newSingleThreadExecutor();
@@ -445,7 +496,7 @@ public class BatchingExecutorWrapperTest {
                         start.await();
                         for (int i = 0; i < tasksPerThread; i++) {
                             int task = i;
-                            wrapper.execute(weighted(1, () -> {
+                            wrapper.execute(weighted(taskWeight, () -> {
                                 ran.add(task);
                                 completed.countDown();
                             }));
@@ -463,7 +514,7 @@ public class BatchingExecutorWrapperTest {
         assertThat(failures).isEmpty();
         // Tasks from one thread run in the order that thread submitted them.
         for (List<Integer> ran : ranByThread) {
-            assertThat(ran).hasSize(tasksPerThread).isSorted();
+            assertThat(ran).hasSize(tasksPerThread).isSorted().doesNotHaveDuplicates();
         }
     }
 }

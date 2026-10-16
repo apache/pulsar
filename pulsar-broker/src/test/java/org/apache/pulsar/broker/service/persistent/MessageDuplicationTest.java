@@ -37,6 +37,7 @@ import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.EventLoopGroup;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
@@ -48,11 +49,17 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.LogEvent;
+import org.apache.logging.log4j.core.Logger;
+import org.apache.logging.log4j.core.appender.AbstractAppender;
+import org.apache.logging.log4j.core.layout.PatternLayout;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.qos.AsyncTokenBucket;
@@ -62,8 +69,11 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.protocol.Commands;
@@ -571,6 +581,101 @@ public class MessageDuplicationTest extends BrokerTestBase {
                 });
         messageDeduplication.purgeInactiveProducers();
         assertTrue(messageDeduplication.getInactiveProducers().isEmpty());
+    }
+
+    @Test(dataProvider = "trueFalse", timeOut = 60000)
+    public void testReconnectDuringInactiveProducerPurge(boolean disconnectAfterReconnect) throws Exception {
+        String topicName = "persistent://prop/ns-abc/" + UUID.randomUUID();
+        String producerName = "reconnecting-producer";
+        try (Reader<String> reader = pulsarClient.newReader(Schema.STRING).topic(topicName)
+                .startMessageId(MessageId.earliest).create()) {
+            try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName)
+                    .producerName(producerName).enableBatching(false).create()) {
+                producer.newMessage().sequenceId(5).value("before-reconnect").send();
+            }
+            PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicName)
+                    .get().orElseThrow();
+            MessageDeduplication deduplication = topic.getMessageDeduplication();
+            Awaitility.await().until(() -> {
+                Long inactiveSince = deduplication.getInactiveProducers().get(producerName);
+                return inactiveSince != null && inactiveSince < System.currentTimeMillis();
+            });
+            long originalInactiveSince = deduplication.getInactiveProducers().get(producerName);
+
+            CountDownLatch candidateSelected = new CountDownLatch(1);
+            CountDownLatch resumePurge = new CountDownLatch(1);
+            // Pause the actual purge after it reads the expired entry, without replacing its maps or callbacks.
+            AbstractAppender appender = new AbstractAppender("pause-dedup-purge", null,
+                    PatternLayout.createDefaultLayout(), false, null) {
+                @Override
+                public void append(LogEvent event) {
+                    if (event.getLoggerName().equals(MessageDeduplication.class.getName())
+                            && event.getMessage().getFormattedMessage()
+                                    .equals("Purging dedup information for producer")
+                            && producerName.equals(event.getContextData().getValue("producerName"))) {
+                        candidateSelected.countDown();
+                        try {
+                            assertTrue(resumePurge.await(30, TimeUnit.SECONDS), "Purge was not resumed");
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            throw new AssertionError(e);
+                        }
+                    }
+                }
+            };
+            Logger logger = (Logger) LogManager.getLogger(MessageDeduplication.class);
+            ExecutorService executor = Executors.newSingleThreadExecutor(new DefaultThreadFactory("dedup-purge-test"));
+            int inactivityTimeout = conf.getBrokerDeduplicationProducerInactivityTimeoutMinutes();
+            appender.start();
+            logger.addAppender(appender);
+            conf.setBrokerDeduplicationProducerInactivityTimeoutMinutes(0);
+            try {
+                Future<?> purge = executor.submit(topic::checkMessageDeduplicationInfo);
+                assertTrue(candidateSelected.await(30, TimeUnit.SECONDS), "Purge did not select the expired producer");
+                try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName)
+                        .producerName(producerName).enableBatching(false).create()) {
+                    producer.newMessage().sequenceId(6).value("after-reconnect").send();
+                    assertFalse(deduplication.getInactiveProducers().containsKey(producerName));
+                    Long refreshedInactiveSince = null;
+                    if (disconnectAfterReconnect) {
+                        producer.close();
+                        Awaitility.await().untilAsserted(() -> {
+                            Long inactiveSince = deduplication.getInactiveProducers().get(producerName);
+                            assertNotNull(inactiveSince);
+                            assertTrue(inactiveSince > originalInactiveSince,
+                                    "The replacement producer must have a refreshed inactivity timestamp");
+                        });
+                        refreshedInactiveSince = deduplication.getInactiveProducers().get(producerName);
+                    }
+                    resumePurge.countDown();
+                    purge.get(30, TimeUnit.SECONDS);
+
+                    if (disconnectAfterReconnect) {
+                        assertEquals(deduplication.getInactiveProducers().get(producerName), refreshedInactiveSince,
+                                "The stale purge must preserve the refreshed inactivity record");
+                        try (Producer<String> retryProducer = pulsarClient.newProducer(Schema.STRING).topic(topicName)
+                                .producerName(producerName).enableBatching(false).create()) {
+                            assertEquals(retryProducer.newMessage().sequenceId(6).value("retry").send(),
+                                    new MessageIdImpl(-1, -1, -1),
+                                    "A retry after reconnect and disconnect must still be deduplicated");
+                        }
+                    } else {
+                        assertEquals(producer.newMessage().sequenceId(6).value("retry").send(),
+                                new MessageIdImpl(-1, -1, -1), "A retry after reconnect must still be deduplicated");
+                    }
+                    assertEquals(reader.readNext(10, TimeUnit.SECONDS).getValue(), "before-reconnect");
+                    assertEquals(reader.readNext(10, TimeUnit.SECONDS).getValue(), "after-reconnect");
+                    assertFalse(reader.hasMessageAvailable(), "The retry must not add another stored message");
+                }
+            } finally {
+                resumePurge.countDown();
+                executor.shutdownNow();
+                conf.setBrokerDeduplicationProducerInactivityTimeoutMinutes(inactivityTimeout);
+                logger.removeAppender(appender);
+                appender.stop();
+                assertTrue(executor.awaitTermination(30, TimeUnit.SECONDS));
+            }
+        }
     }
 
     @Test

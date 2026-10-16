@@ -64,6 +64,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BooleanSupplier;
 import java.util.stream.Collectors;
@@ -4199,8 +4200,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                         .attr("txnAction", TxnAction.valueOf(txnAction))
                                         .exception(throwable)
                                         .log("handleEndTxnOnPartition fail");
+                                ServerError serverError = BrokerServiceException.getClientErrorCode(throwable);
+                                if (serverError == ServerError.UnknownError && throwable instanceof TimeoutException) {
+                                    serverError = ServerError.ServiceNotReady;
+                                }
                                 writeAndFlush(Commands.newEndTxnOnPartitionResponse(
-                                        requestId, BrokerServiceException.getClientErrorCode(throwable),
+                                        requestId, serverError,
                                         throwable.getMessage(),
                                         txnID.getLeastSigBits(), txnID.getMostSigBits()));
                                 return;

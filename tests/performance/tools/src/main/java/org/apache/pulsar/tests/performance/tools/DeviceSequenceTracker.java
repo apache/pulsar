@@ -31,11 +31,19 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.pulsar.client.api.MessageIdAdv;
 
-/** Tracks the first-observed sequence for bounded numeric device identifiers without per-message allocation. */
+/**
+ * Tracks the first-observed sequence for bounded numeric device identifiers without per-message allocation. A tracker
+ * that starts at each device's first sequence, for a subscription whose position was moved past the start, expects
+ * each device's messages from the first one that it receives; the application checks that it received as many
+ * messages as follow the position.
+ */
 final class DeviceSequenceTracker {
     private static final int STATE_VERSION = 1;
     private static final int LOCK_COUNT = 1024;
     private static final int MAX_VIOLATION_SAMPLES = 100;
+    // Whether a device's messages must arrive in order; without it, a message after a gap waits for the gap like an
+    // ordering violation does, but isn't counted as one
+    private final boolean checkOrdering;
     private final long[] nextExpected;
     // Each device's latest in-order message: its sequence and its message ID's ledger, entry and batch index, to tell
     // a redelivered duplicate, with the same message ID, from a message persisted twice, with another
@@ -46,6 +54,8 @@ final class DeviceSequenceTracker {
     private final Object[] locks = new Object[LOCK_COUNT];
     private final ConcurrentHashMap<Integer, Set<Long>> pending = new ConcurrentHashMap<>();
     private final AtomicLong uniqueMessages = new AtomicLong();
+    // With startAtFirstSequence: whether each device has had a message
+    private final boolean[] started;
     private final AtomicLong duplicates = new AtomicLong();
     private final AtomicLong orderingViolations = new AtomicLong();
     private final AtomicLong invalidMessages = new AtomicLong();
@@ -55,6 +65,17 @@ final class DeviceSequenceTracker {
     private final ConcurrentLinkedQueue<String> violationSamples = new ConcurrentLinkedQueue<>();
 
     DeviceSequenceTracker(int deviceCount) {
+        this(deviceCount, false, true);
+    }
+
+    /**
+     * @param startAtFirstSequence whether each device's messages are expected from the first one that it receives,
+     *                             for a subscription whose position was moved past the start
+     * @param checkOrdering whether each device's messages must arrive in order
+     */
+    DeviceSequenceTracker(int deviceCount, boolean startAtFirstSequence, boolean checkOrdering) {
+        started = startAtFirstSequence ? new boolean[deviceCount] : null;
+        this.checkOrdering = checkOrdering;
         nextExpected = new long[deviceCount];
         lastKeyedSequence = new long[deviceCount];
         Arrays.fill(lastKeyedSequence, -1);
@@ -82,6 +103,10 @@ final class DeviceSequenceTracker {
         }
         int index = Math.toIntExact(deviceId);
         synchronized (locks[index & (locks.length - 1)]) {
+            if (started != null && !started[index]) {
+                started[index] = true;
+                nextExpected[index] = sequence;
+            }
             long expected = nextExpected[index];
             if (sequence < expected) {
                 duplicates.incrementAndGet();
@@ -100,6 +125,9 @@ final class DeviceSequenceTracker {
                 Set<Long> devicePending = pending.computeIfAbsent(index, ignored -> new HashSet<>());
                 if (devicePending.add(sequence)) {
                     uniqueMessages.incrementAndGet();
+                    if (!checkOrdering) {
+                        return;
+                    }
                     long violationNumber = orderingViolations.incrementAndGet();
                     if (violationNumber <= MAX_VIOLATION_SAMPLES) {
                         violationSamples.add("device=" + deviceId + " expected=" + expected + " observed=" + sequence
@@ -118,7 +146,7 @@ final class DeviceSequenceTracker {
                 lastBatchIndex[index] = id.getBatchIndex();
             }
             Set<Long> devicePending = pending.get(index);
-            if (devicePending != null && violationSamples.size() < MAX_VIOLATION_SAMPLES * 2) {
+            if (checkOrdering && devicePending != null && violationSamples.size() < MAX_VIOLATION_SAMPLES * 2) {
                 violationSamples.add("device=" + deviceId + " recovered=" + sequence
                         + formatContext(messageId, sentNanos, topic, thread, redeliveryCount, receivedEpochMs));
             }

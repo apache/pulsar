@@ -369,14 +369,17 @@ public class PersistentSubscription extends AbstractSubscription {
 
     @Override
     public synchronized void removeConsumer(Consumer consumer, boolean isResetCursor) throws BrokerServiceException {
-        // Deferred failed-send cleanup can race a connection/client close. Only the removal of this exact
-        // registered instance may update statistics and topic usage; add/remove share the subscription lock.
-        if (dispatcher == null || dispatcher.getConsumers().stream().noneMatch(connected -> connected == consumer)) {
+        if (dispatcher == null) {
             return;
         }
+        // Snapshot membership under the subscription lock so repeated cleanup accounts for removal only once.
+        boolean wasConnected = dispatcher.getConsumers().stream().anyMatch(connected -> connected == consumer);
         cursor.updateLastActive();
-        if (dispatcher != null) {
-            dispatcher.removeConsumer(consumer);
+        // A late STICKY selector addition can need cleanup after dispatcher removal. Always let the dispatcher
+        // clean up this instance, even when it no longer contributes to subscription statistics or topic usage.
+        dispatcher.removeConsumer(consumer);
+        if (!wasConnected) {
+            return;
         }
 
         // preserve accumulative stats form removed consumer
