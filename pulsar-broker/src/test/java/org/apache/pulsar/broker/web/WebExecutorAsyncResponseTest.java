@@ -252,9 +252,9 @@ public class WebExecutorAsyncResponseTest {
             blockPool(pool, 2, release);
             AsyncResponse delegate = mock(AsyncResponse.class);
             when(delegate.isSuspended()).thenReturn(true);
-            AtomicReference<String> resumingThread = new AtomicReference<>();
+            CompletableFuture<String> resumingThread = new CompletableFuture<>();
             when(delegate.resume(any(Object.class))).thenAnswer(invocation -> {
-                resumingThread.set(Thread.currentThread().getName());
+                resumingThread.complete(Thread.currentThread().getName());
                 return true;
             });
             WebExecutorAsyncResponse asyncResponse = new WebExecutorAsyncResponse(delegate, pool);
@@ -270,12 +270,13 @@ public class WebExecutorAsyncResponseTest {
             verify(delegate, never()).resume(any(Object.class));
 
             release.countDown();
-            verify(delegate, timeout(10000)).resume("first");
+            // Mockito records the invocation before it runs the answer, so wait for the answer
+            assertThat(resumingThread.get(10, TimeUnit.SECONDS)).startsWith("test-blocked");
+            verify(delegate).resume("first");
             verify(delegate, never()).resume("second");
             verify(delegate, never()).resume(any(Throwable.class));
             verify(delegate, never()).cancel();
             verify(delegate, never()).setTimeout(anyLong(), any());
-            assertThat(resumingThread.get()).startsWith("test-blocked");
         } finally {
             release.countDown();
             pool.stop();
@@ -308,6 +309,29 @@ public class WebExecutorAsyncResponseTest {
             verify(delegate).cancel();
             verify(delegate, never()).cancel(anyInt());
             verify(delegate, never()).resume(any(Object.class));
+        } finally {
+            release.countDown();
+            pool.stop();
+        }
+    }
+
+    @Test
+    public void testCancellingAgainSucceedsWhileQueuedCancellationCompletes() throws Exception {
+        WebExecutorThreadPool pool = new WebExecutorThreadPool(2, "test-blocked");
+        pool.start();
+        CountDownLatch release = new CountDownLatch(1);
+        try {
+            blockPool(pool, 2, release);
+            AsyncResponse delegate = mock(AsyncResponse.class);
+            AtomicBoolean cancelled = new AtomicBoolean();
+            when(delegate.isDone()).thenAnswer(invocation -> cancelled.get());
+            // the queued cancellation completes right after the first check of Jersey's state
+            when(delegate.isCancelled()).thenAnswer(invocation -> cancelled.getAndSet(true));
+            WebExecutorAsyncResponse asyncResponse = new WebExecutorAsyncResponse(delegate, pool);
+
+            assertThat(asyncResponse.cancel()).isTrue();
+            assertThat(asyncResponse.cancel()).isTrue();
+            assertThat(asyncResponse.cancel()).isTrue();
         } finally {
             release.countDown();
             pool.stop();

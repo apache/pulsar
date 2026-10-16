@@ -101,9 +101,10 @@ final class WebExecutorAsyncResponse implements AsyncResponse {
     private boolean complete(int completionType, BooleanSupplier completion) {
         int previousCompletion = requestedCompletion.compareAndExchange(NOT_REQUESTED, completionType);
         if (previousCompletion != NOT_REQUESTED) {
-            // like on a completed response, cancelling again succeeds if the response was cancelled
+            // like on a completed response, cancelling again succeeds if the response was cancelled. Check isDone()
+            // first, since the queued cancellation can complete between the two checks.
             return completionType == CANCEL_REQUESTED && previousCompletion == CANCEL_REQUESTED
-                    && (delegate.isCancelled() || !delegate.isDone());
+                    && (!delegate.isDone() || delegate.isCancelled());
         }
         if (timeoutSet || delegate.isDone() || executor.isPoolThread()) {
             // a completed response doesn't write anything, so there's no need to hand it to the executor
@@ -132,15 +133,14 @@ final class WebExecutorAsyncResponse implements AsyncResponse {
                     .log("The web service executor rejected the response, completing it on the calling thread");
             return;
         }
-        long rejected = rejectedSinceWarning.incrementAndGet();
+        rejectedSinceWarning.incrementAndGet();
         long now = System.nanoTime();
         long nextWarningNanos = nextRejectionWarningNanos.get();
         // warn at most once per interval, since the executor rejects tasks while it is overloaded
         if (now - nextWarningNanos >= 0
                 && nextRejectionWarningNanos.compareAndSet(nextWarningNanos, now + REJECTION_WARNING_INTERVAL_NANOS)) {
-            rejectedSinceWarning.addAndGet(-rejected);
             log.warn()
-                    .attr("rejectedResponses", rejected)
+                    .attr("rejectedResponses", rejectedSinceWarning.getAndSet(0))
                     .exceptionMessage(e)
                     .log("The web service executor's queue is full, so async HTTP responses are written on the"
                             + " threads that complete them, which can block those threads while clients read the"
