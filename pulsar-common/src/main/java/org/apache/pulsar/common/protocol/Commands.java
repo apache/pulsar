@@ -2463,12 +2463,28 @@ public class Commands {
      * is left unchanged, and its reference count too, since its bytes are copied.
      */
     public static void serializeCommandMessageWithSize(BaseCommand cmd, ByteBuf metadataAndPayload, ByteBuf out) {
-        int cmdSize = cmd.getSerializedSize();
         int payloadSize = metadataAndPayload.readableBytes();
+        serializeCommandMessageHeaderWithSize(cmd, payloadSize, out);
+        copyMetadataAndPayload(metadataAndPayload, payloadSize, out);
+    }
+
+    /**
+     * Writes the sizes and the command of a message frame whose metadata and payload take {@code payloadSize} bytes
+     * into {@code out}, and makes room for them, which {@link #copyMetadataAndPayload} writes after it.
+     */
+    public static void serializeCommandMessageHeaderWithSize(BaseCommand cmd, int payloadSize, ByteBuf out) {
+        int cmdSize = cmd.getSerializedSize();
         out.ensureWritable(4 + 4 + cmdSize + payloadSize);
         out.writeInt(4 + cmdSize + payloadSize); // External frame
         out.writeInt(cmdSize);
         cmd.writeTo(out);
+    }
+
+    /**
+     * Copies {@code payloadSize} bytes from the reader index of {@code metadataAndPayload} into {@code out}, leaving
+     * the reader index and the reference count of {@code metadataAndPayload} unchanged.
+     */
+    public static void copyMetadataAndPayload(ByteBuf metadataAndPayload, int payloadSize, ByteBuf out) {
         // out.writeBytes isn't used, since it has a performance issue with the adaptive allocator until
         // https://github.com/netty/netty/pull/17840 has been merged: an adaptive buffer copies from a buffer of
         // another kind, such as a slice of a cached entry, through NIO buffer views that it allocates for each copy

@@ -4826,10 +4826,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             int redeliveryCount, ByteBuf metadataAndPayload, long[] ackSet, long epoch) {
         BaseCommand command = Commands.newMessageCommand(consumerId, ledgerId, entryId, partition, redeliveryCount,
                 ackSet, epoch);
-        // intercept before the copy, so that the copy has what an interceptor changed, as the buffer written by
-        // reference has
+        int payloadSize = metadataAndPayload.readableBytes();
+        // serialize the command before the interceptors, as newMessageAndIntercept does: the command is a thread-local
+        // one, which an interceptor can reuse, for example by sending a message with a producer
+        Commands.serializeCommandMessageHeaderWithSize(command, payloadSize, out);
+        // copy the metadata and payload after them, so that the copy has what an interceptor changed in them, as the
+        // buffer written by reference has
         interceptMessage(command, consumerId, ledgerId, entryId, metadataAndPayload);
-        Commands.serializeCommandMessageWithSize(command, metadataAndPayload, out);
+        Commands.copyMetadataAndPayload(metadataAndPayload, payloadSize, out);
     }
 
     private void interceptMessage(BaseCommand command, long consumerId, long ledgerId, long entryId,
