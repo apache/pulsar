@@ -148,6 +148,9 @@ public class PulsarTopicCompactionService implements TopicCompactionService {
                 if (metadata.hasCompression()) {
                     final var codec = CompressionCodecProvider.getCompressionCodec(metadata.getCompression());
                     final var uncompressedSize = metadata.getUncompressedSize();
+                    if (uncompressedSize <= 0) {
+                        throw new IOException("Invalid uncompressedSize: " + uncompressedSize);
+                    }
                     uncompressedPayload = codec.decode(payload, uncompressedSize);
                 } else {
                     uncompressedPayload = payload.retain();

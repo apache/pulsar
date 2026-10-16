@@ -2301,11 +2301,23 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(compressionType);
         int uncompressedSize = msgMetadata.getUncompressedSize();
         int payloadSize = payload.readableBytes();
-        if (checkMaxMessageSize && payloadSize > getConnectionHandler().getMaxMessageSize()) {
+        int maxMessageSize = getConnectionHandler().getMaxMessageSize();
+        if (checkMaxMessageSize && payloadSize > maxMessageSize) {
             // payload size is itself corrupted since it cannot be bigger than the MaxMessageSize
             log.error().attr("size", payloadSize)
                     .attr("messageId", messageId)
                     .log("Got corrupted payload message size at");
+            discardCorruptedMessage(messageId, currentCnx, ValidationError.UncompressedSizeCorruption);
+            return null;
+        }
+        // Guard against client-controlled uncompressedSize that is non-positive or exceeds maxMessageSize.
+        // Without this check, a malicious or corrupted message could cause codec.decode() to allocate a
+        // ByteBuf up to ~2 GiB, leading to OOM.
+        if (uncompressedSize <= 0 || (checkMaxMessageSize && uncompressedSize > maxMessageSize)) {
+            log.error().attr("uncompressedSize", uncompressedSize)
+                    .attr("maxMessageSize", maxMessageSize)
+                    .attr("messageId", messageId)
+                    .log("Got corrupted uncompressed message size at");
             discardCorruptedMessage(messageId, currentCnx, ValidationError.UncompressedSizeCorruption);
             return null;
         }
