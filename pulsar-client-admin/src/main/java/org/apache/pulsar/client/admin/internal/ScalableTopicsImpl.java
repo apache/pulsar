@@ -25,6 +25,7 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response.Status;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
@@ -32,6 +33,7 @@ import org.apache.pulsar.client.admin.ScalableTopics;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
 import org.apache.pulsar.common.policies.data.ScalableTopicMetadata;
 import org.apache.pulsar.common.policies.data.ScalableTopicStats;
@@ -188,6 +190,43 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
     public CompletableFuture<Void> removeAutoScalePolicyAsync(String topic) {
         TopicName tn = validateTopic(topic);
         return asyncDeleteRequest(topicPath(tn).path("autoScalePolicy"));
+    }
+
+    // --- Permissions ---
+
+    @Override
+    public Map<String, Set<AuthAction>> getPermissions(String topic) throws PulsarAdminException {
+        return sync(() -> getPermissionsAsync(topic));
+    }
+
+    @Override
+    public CompletableFuture<Map<String, Set<AuthAction>>> getPermissionsAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+        return asyncGetRequest(topicPath(tn).path("permissions"),
+                new GenericType<Map<String, Set<AuthAction>>>() {});
+    }
+
+    @Override
+    public void grantPermission(String topic, String role, Set<AuthAction> actions) throws PulsarAdminException {
+        sync(() -> grantPermissionAsync(topic, role, actions));
+    }
+
+    @Override
+    public CompletableFuture<Void> grantPermissionAsync(String topic, String role, Set<AuthAction> actions) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn).path("permissions").path(role);
+        return asyncPostRequest(path, Entity.entity(actions, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void revokePermissions(String topic, String role) throws PulsarAdminException {
+        sync(() -> revokePermissionsAsync(topic, role));
+    }
+
+    @Override
+    public CompletableFuture<Void> revokePermissionsAsync(String topic, String role) {
+        TopicName tn = validateTopic(topic);
+        return asyncDeleteRequest(topicPath(tn).path("permissions").path(role));
     }
 
     // --- Delete ---
