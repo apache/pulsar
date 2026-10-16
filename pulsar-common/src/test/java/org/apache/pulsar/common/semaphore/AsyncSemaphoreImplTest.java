@@ -35,6 +35,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.common.semaphore.AsyncSemaphore.AsyncSemaphorePermit;
 import org.apache.pulsar.common.semaphore.AsyncSemaphore.PermitAcquireAlreadyClosedException;
 import org.apache.pulsar.common.semaphore.AsyncSemaphore.PermitAcquireCancelledException;
@@ -735,6 +736,30 @@ public class AsyncSemaphoreImplTest {
 
         assertThat(large).succeedsWithin(Duration.ofSeconds(1));
         assertThat(small).succeedsWithin(Duration.ofSeconds(1));
+    }
+
+    @Test
+    public void testCancelledUpdateBetweenGrantAndCompletionReturnsAllPermits() throws Exception {
+        AtomicReference<CompletableFuture<AsyncSemaphorePermit>> toCancel = new AtomicReference<>();
+        // the queue latency is recorded after the request is granted and before its future is completed
+        semaphore = new AsyncSemaphoreImpl(10, 10, 5000, AsyncSemaphoreImpl.createExecutor("test-async-semaphore"),
+                true, latency -> {
+                    CompletableFuture<AsyncSemaphorePermit> future = toCancel.get();
+                    if (future != null) {
+                        future.cancel(false);
+                    }
+                });
+        AsyncSemaphorePermit permit = semaphore.acquire(4, () -> false).get(1, TimeUnit.SECONDS);
+        AsyncSemaphorePermit otherPermit = semaphore.acquire(6, () -> false).get(1, TimeUnit.SECONDS);
+        CompletableFuture<AsyncSemaphorePermit> update = semaphore.update(permit, 8, () -> false);
+        assertThat(update).isNotDone();
+        toCancel.set(update);
+
+        // grants the update, which takes over the 4 permits of the previous permit, and then it gets cancelled
+        semaphore.release(otherPermit);
+
+        Awaitility.await().untilAsserted(() -> assertThat(update).isCancelled());
+        Awaitility.await().untilAsserted(() -> assertThat(semaphore.getAvailablePermits()).isEqualTo(10));
     }
 
     @Test

@@ -25,8 +25,10 @@ import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -43,10 +45,10 @@ import org.apache.pulsar.common.util.Runnables;
  * Implementation of AsyncSemaphore with timeout and queue size limits.
  *
  * <p>Permits are granted on the calling thread when no other requests are waiting. Waiting requests are processed
- * on the executor, which also handles the timeouts. Their futures are completed outside the lock on
- * {@link ForkJoinPool#commonPool()}, so the callers' continuations don't run on the executor thread. When the common
- * pool's parallelism is 1 or less, they are completed on the executor instead, since a disabled common pool can
- * accept tasks without running them.
+ * on the executor, which also handles the timeouts. Their futures are completed outside the lock on the completion
+ * executor, so the callers' continuations don't run on the executor thread. {@link AsyncDualMemoryLimiterImpl}
+ * provides a dedicated completion executor. Otherwise {@link ForkJoinPool#commonPool()} is used, or the executor when
+ * the common pool's parallelism is 1 or less, since a disabled common pool can accept tasks without running them.
  */
 @CustomLog
 public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
@@ -60,6 +62,7 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
     private final long timeoutMillis;
     private final ScheduledExecutorService executor;
     private final boolean shutdownExecutor;
+    private final Executor completionExecutor;
     private final LongConsumer queueLatencyRecorder;
     private final AtomicBoolean closed = new AtomicBoolean(false);
     // true while a processQueue task is pending, so that at most one such task is queued in the executor
@@ -99,12 +102,19 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
 
     AsyncSemaphoreImpl(long maxPermits, int maxQueueSize, long timeoutMillis, ScheduledExecutorService executor,
                        boolean shutdownExecutor, LongConsumer queueLatencyRecorder) {
+        this(maxPermits, maxQueueSize, timeoutMillis, executor, shutdownExecutor,
+                USE_COMMON_POOL ? ForkJoinPool.commonPool() : executor, queueLatencyRecorder);
+    }
+
+    AsyncSemaphoreImpl(long maxPermits, int maxQueueSize, long timeoutMillis, ScheduledExecutorService executor,
+                       boolean shutdownExecutor, Executor completionExecutor, LongConsumer queueLatencyRecorder) {
         this.availablePermits = new AtomicLong(maxPermits);
         this.maxPermits = maxPermits;
         this.queue = maxQueueSize > 0 ? new ArrayBlockingQueue<>(maxQueueSize) : new LinkedBlockingQueue<>();
         this.timeoutMillis = timeoutMillis;
         this.executor = executor;
         this.shutdownExecutor = shutdownExecutor;
+        this.completionExecutor = completionExecutor;
         this.queueLatencyRecorder = queueLatencyRecorder;
         // scheduled task that runs the processQueue method every half of the timeout
         // this is to support cancellation in cases where the head of the queue request is blocking others
@@ -290,8 +300,7 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
         if (current <= 0 || request.getRequiredPermits() > current) {
             return false;
         }
-        request.acquiredPermits = request.getRequiredPermitsReusingPrevious();
-        availablePermits.addAndGet(-request.acquiredPermits);
+        availablePermits.addAndGet(-request.getRequiredPermitsReusingPrevious());
         return true;
     }
 
@@ -337,16 +346,22 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
     private void completeAcquiredRequest(PendingRequest request) {
         recordQueueLatency(request.getAgeNanos());
         if (!request.future.complete(new SemaphorePermit(request.permits))) {
-            // request was cancelled by user code, return permits
-            availablePermits.addAndGet(request.acquiredPermits);
+            // request was cancelled by user code, return all permits, including those taken over from the
+            // previous permit, which was released when the request was granted
+            availablePermits.addAndGet(request.permits);
             processQueue();
         }
     }
 
     // the continuations of waiting requests shouldn't run on the executor, otherwise they'd delay all other requests
     private void completeAsync(Runnable completion) {
-        (USE_COMMON_POOL ? ForkJoinPool.commonPool() : executor)
-                .execute(Runnables.catchingAndLoggingThrowables(completion));
+        Runnable task = Runnables.catchingAndLoggingThrowables(completion);
+        try {
+            completionExecutor.execute(task);
+        } catch (RejectedExecutionException e) {
+            // the executors are shut down when closing, complete inline so that a granted request isn't lost
+            task.run();
+        }
     }
 
     @Override
@@ -373,8 +388,6 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
         private final BooleanSupplier isCancelled;
         private volatile ScheduledFuture<?> timeoutTask;
         private final long requestCreatedNanos = System.nanoTime();
-        // permits taken from availablePermits when the request was granted, written while holding the lock
-        private long acquiredPermits;
 
         PendingRequest(long permits, SemaphorePermit previousPermit, CompletableFuture<AsyncSemaphorePermit> future,
                        BooleanSupplier isCancelled) {
