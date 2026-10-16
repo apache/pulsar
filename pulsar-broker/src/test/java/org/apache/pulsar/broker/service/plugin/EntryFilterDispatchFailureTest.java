@@ -44,25 +44,36 @@ public class EntryFilterDispatchFailureTest extends SharedPulsarBaseTest {
     @DataProvider(name = "dispatchFailureModes")
     public Object[][] dispatchFailureModes() {
         return new Object[][] {
-                {SubscriptionType.Shared, false, false, false}, {SubscriptionType.Shared, true, false, false},
-                {SubscriptionType.Key_Shared, false, false, false}, {SubscriptionType.Key_Shared, true, false, false},
-                {SubscriptionType.Shared, false, true, false}, {SubscriptionType.Shared, true, true, false},
-                {SubscriptionType.Key_Shared, false, true, false}, {SubscriptionType.Key_Shared, true, true, false},
-                {SubscriptionType.Shared, false, false, true}, {SubscriptionType.Shared, true, false, true}
+                {SubscriptionType.Shared, false, false, false, false},
+                {SubscriptionType.Shared, true, false, false, false},
+                {SubscriptionType.Key_Shared, false, false, false, false},
+                {SubscriptionType.Key_Shared, true, false, false, false},
+                {SubscriptionType.Shared, false, true, false, false},
+                {SubscriptionType.Shared, true, true, false, false},
+                {SubscriptionType.Key_Shared, false, true, false, false},
+                {SubscriptionType.Key_Shared, true, true, false, false},
+                {SubscriptionType.Shared, false, false, true, false},
+                {SubscriptionType.Shared, true, false, true, false},
+                {SubscriptionType.Shared, false, false, true, true},
+                {SubscriptionType.Shared, true, false, true, true}
         };
     }
 
     @Test(dataProvider = "dispatchFailureModes", timeOut = 30_000)
     public void testDispatchResumesAfterEntryFilterException(SubscriptionType type, boolean subscriptionThread,
-                                                            boolean rejectFirst, boolean chunked) throws Exception {
+                                                            boolean rejectFirst, boolean chunked,
+                                                            boolean failFinalChunk) throws Exception {
         boolean oldSubscriptionThread = getConfig().isDispatcherDispatchMessagesInSubscriptionThread();
         int oldBatchSize = getConfig().getDispatcherMaxRoundRobinBatchSize();
+        int oldReadBatchSize = getConfig().getDispatcherMaxReadBatchSize();
         int oldInitialBackoff = getConfig().getDispatcherReadFailureBackoffInitialTimeInMs();
         int oldMaxBackoff = getConfig().getDispatcherReadFailureBackoffMaxTimeInMs();
         EntryFilterProvider provider = getPulsar().getBrokerService().getEntryFilterProvider();
         List<EntryFilter> oldFilters = provider.brokerEntryFilters;
         AtomicInteger attempts = new AtomicInteger();
         AtomicInteger chunksSeen = new AtomicInteger();
+        AtomicInteger firstChunkAttempts = new AtomicInteger();
+        int failureCount = failFinalChunk ? 1 : 2;
         List<ByteBuf> failedBuffers = new CopyOnWriteArrayList<>();
         EntryFilter filter = new EntryFilter() {
             @Override
@@ -71,12 +82,16 @@ public class EntryFilterDispatchFailureTest extends SharedPulsarBaseTest {
                 boolean isChunk = context.getMsgMetadata().hasChunkId();
                 if (isChunk) {
                     chunksSeen.incrementAndGet();
+                    if (sequenceId == 1 && context.getMsgMetadata().getChunkId() == 0) {
+                        firstChunkAttempts.incrementAndGet();
+                    }
                 }
                 if (rejectFirst && sequenceId == 0) {
                     return FilterResult.REJECT;
                 }
-                if (sequenceId == 1 && (!isChunk || context.getMsgMetadata().getChunkId() == 0)
-                        && attempts.getAndIncrement() < 2) {
+                int failingChunkId = failFinalChunk ? context.getMsgMetadata().getNumChunksFromMsg() - 1 : 0;
+                if (sequenceId == 1 && (!isChunk || context.getMsgMetadata().getChunkId() == failingChunkId)
+                        && attempts.getAndIncrement() < failureCount) {
                     failedBuffers.add(entry.getDataBuffer());
                     throw new IllegalStateException("entry filter failure");
                 }
@@ -91,6 +106,10 @@ public class EntryFilterDispatchFailureTest extends SharedPulsarBaseTest {
         // With one-entry consumer batches, Shared sends m0 before m1 fails. Larger batches exercise
         // a REJECT followed by a failure in the same filtering invocation.
         getConfig().setDispatcherMaxRoundRobinBatchSize(rejectFirst ? 100 : 1);
+        if (failFinalChunk) {
+            // The first chunk must be handed off in an earlier read, outside the failed batch's replay ownership.
+            getConfig().setDispatcherMaxReadBatchSize(1);
+        }
         getConfig().setDispatcherReadFailureBackoffInitialTimeInMs(50);
         getConfig().setDispatcherReadFailureBackoffMaxTimeInMs(200);
         // Use the provider's protected test seam; dispatcher construction and callbacks run production code.
@@ -125,18 +144,22 @@ public class EntryFilterDispatchFailureTest extends SharedPulsarBaseTest {
                     assertThat(CollectorRegistry.defaultRegistry
                             .getSampleValue("pulsar_broker_pending_bytes_to_dispatch")).isEqualTo(pendingBytes);
                 });
-                assertThat(attempts.get()).isEqualTo(3);
+                assertThat(attempts.get()).isEqualTo(failureCount + 1);
                 assertThat(chunksSeen.get() > 0).isEqualTo(chunked);
+                if (failFinalChunk) {
+                    assertThat(firstChunkAttempts.get()).as("the transferred prefix is not replayed").isOne();
+                }
             }
             // Unloading invalidates the cache; neither failed read may retain its buffers.
             admin.topics().unload(topicName);
-            assertThat(failedBuffers).hasSize(2);
+            assertThat(failedBuffers).hasSize(failureCount);
             Awaitility.await().untilAsserted(() ->
                     failedBuffers.forEach(buffer -> assertThat(buffer.refCnt()).isZero()));
         } finally {
             provider.brokerEntryFilters = oldFilters;
             getConfig().setDispatcherDispatchMessagesInSubscriptionThread(oldSubscriptionThread);
             getConfig().setDispatcherMaxRoundRobinBatchSize(oldBatchSize);
+            getConfig().setDispatcherMaxReadBatchSize(oldReadBatchSize);
             getConfig().setDispatcherReadFailureBackoffInitialTimeInMs(oldInitialBackoff);
             getConfig().setDispatcherReadFailureBackoffMaxTimeInMs(oldMaxBackoff);
         }

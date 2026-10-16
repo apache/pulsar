@@ -1207,6 +1207,18 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
         final Map<Consumer, List<EntryAndMetadata>> assignResult =
                 assignor.assign(originalEntryAndMetadataList, consumerList.size());
+        try {
+            return sendAssignedChunkedMessagesToConsumers(readType, assignResult);
+        } catch (RuntimeException | Error e) {
+            // Assignment may have removed a final chunk's UUID owner before filtering or sending failed.
+            // Keep successful handoffs intact and restore routing only for entries still awaiting replay.
+            assignResult.forEach(assignor::restoreAssignments);
+            throw e;
+        }
+    }
+
+    private boolean sendAssignedChunkedMessagesToConsumers(ReadType readType,
+                                                           Map<Consumer, List<EntryAndMetadata>> assignResult) {
         long totalEntriesProcessed = 0;
         final AtomicInteger numConsumers = new AtomicInteger(assignResult.size());
         boolean notifyAddedToReplay = false;

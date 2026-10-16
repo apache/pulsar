@@ -59,6 +59,20 @@ public class SharedConsumerAssignor {
         uuidToConsumer.values().removeIf(owner -> owner == consumer);
     }
 
+    public void restoreAssignments(Consumer consumer, List<EntryAndMetadata> entries) {
+        for (EntryAndMetadata entry : entries) {
+            if (entry == null || !entry.isOwnedByDispatcher()) {
+                continue;
+            }
+            MessageMetadata metadata = entry.getMetadata();
+            if (metadata != null && metadata.hasUuid() && metadata.hasChunkId() && metadata.hasNumChunksFromMsg()) {
+                // Assigning the last chunk removes its owner optimistically. A failed dispatch must restore
+                // that owner for the chunks it will replay, including a suffix whose prefix was already sent.
+                uuidToConsumer.putIfAbsent(metadata.getUuid(), consumer);
+            }
+        }
+    }
+
     public Map<Consumer, List<EntryAndMetadata>> assign(final List<EntryAndMetadata> entryAndMetadataList,
                                                         final int numConsumers) {
         assert numConsumers >= 0;

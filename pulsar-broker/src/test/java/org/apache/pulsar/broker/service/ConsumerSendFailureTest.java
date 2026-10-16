@@ -27,10 +27,12 @@ import static org.mockito.Mockito.doAnswer;
 import io.netty.buffer.ByteBuf;
 import io.prometheus.client.CollectorRegistry;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.bookkeeper.mledger.Entry;
@@ -42,6 +44,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.assertj.core.api.SoftAssertions;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.testng.annotations.DataProvider;
@@ -49,6 +52,113 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
 public class ConsumerSendFailureTest extends SharedPulsarBaseTest {
+    @DataProvider(name = "cleanupRaceModes")
+    public Object[][] cleanupRaceModes() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "cleanupRaceModes", timeOut = 30_000)
+    public void testRejectedSendCleanupAfterOrdinaryConsumerRemoval(boolean subscriptionThread) throws Exception {
+        boolean oldSubscriptionThread = getConfig().isDispatcherDispatchMessagesInSubscriptionThread();
+        int oldInitialBackoff = getConfig().getDispatcherReadFailureBackoffInitialTimeInMs();
+        int oldMaxBackoff = getConfig().getDispatcherReadFailureBackoffMaxTimeInMs();
+        getConfig().setDispatcherDispatchMessagesInSubscriptionThread(subscriptionThread);
+        getConfig().setDispatcherReadFailureBackoffInitialTimeInMs(50);
+        getConfig().setDispatcherReadFailureBackoffMaxTimeInMs(200);
+        try {
+            String topicName = newTopicName();
+            var builder = pulsarClient.newConsumer(Schema.STRING).topic(topicName).subscriptionName("sub")
+                    .subscriptionType(SubscriptionType.Shared).receiverQueueSize(1);
+            try (var primary = builder.clone().consumerName("primary").priorityLevel(0).subscribe();
+                 var secondary = builder.clone().consumerName("secondary").priorityLevel(1).subscribe();
+                 Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName)
+                         .enableBatching(false).create()) {
+                PersistentTopic topic = (PersistentTopic) getTopic(topicName, false).join().orElseThrow();
+                PersistentSubscription subscription = topic.getSubscription("sub");
+                PersistentDispatcherMultipleConsumers dispatcher =
+                        (PersistentDispatcherMultipleConsumers) subscription.getDispatcher();
+                Consumer brokerConsumer = dispatcher.getConsumers().stream()
+                        .filter(consumer -> consumer.consumerName().equals("primary")).findFirst().orElseThrow();
+                Awaitility.await().untilAsserted(() -> assertThat(brokerConsumer.getAvailablePermits()).isOne());
+                producer.send("before failure");
+                Message<String> first = primary.receive(5, TimeUnit.SECONDS);
+                assertThat(first).isNotNull();
+                primary.acknowledge(first);
+                Awaitility.await().untilAsserted(() -> {
+                    assertThat(brokerConsumer.getAvailablePermits()).isOne();
+                    assertThat(brokerConsumer.getUnackedMessages()).isZero();
+                    assertThat(brokerConsumer.getMsgOutCounter()).isOne();
+                });
+                long expectedUsage = topic.currentUsageCount() - 1;
+                long expectedRemovedMessages = brokerConsumer.getMsgOutCounter();
+                long expectedRemovedBytes = brokerConsumer.getBytesOutCounter();
+                assertThat(expectedRemovedBytes).isPositive();
+                ServerCnx cnx = (ServerCnx) brokerConsumer.cnx();
+                PulsarCommandSender originalSender = cnx.getCommandSender();
+                PulsarCommandSender sender = Mockito.spy(originalSender);
+                AtomicBoolean rejected = new AtomicBoolean();
+                doAnswer(invocation -> {
+                    if (rejected.compareAndSet(false, true)) {
+                        assertThat((long) invocation.getArgument(0)).isEqualTo(brokerConsumer.consumerId());
+                        throw new RejectedExecutionException("send event loop rejected the task");
+                    }
+                    return invocation.callRealMethod();
+                }).when(sender).sendMessagesToConsumer(anyLong(), anyString(), any(), anyInt(),
+                        any(), any(), any(), any(), anyLong());
+                try {
+                    cnx.setCommandSender(sender);
+                    CompletableFuture<Void> primaryClosed;
+                    synchronized (subscription) {
+                        producer.send("after failure");
+                        Awaitility.await().untilTrue(rejected);
+                        synchronized (dispatcher) {
+                            // Dispatch has finished queuing cleanup, which cannot close the consumer while this
+                            // thread holds the subscription lock. Ordinary close must therefore win the race.
+                            assertThat(dispatcher.getConsumers()).contains(brokerConsumer);
+                        }
+                        brokerConsumer.close();
+                        // The connection no longer contains this consumer. Closing its client now prevents the
+                        // delayed broker notification from reconnecting it and obscuring the usage-count assertion.
+                        primaryClosed = primary.closeAsync();
+                        assertThat(topic.currentUsageCount()).isEqualTo(expectedUsage);
+                    }
+                    primaryClosed.get(5, TimeUnit.SECONDS);
+                    Message<String> replayed = secondary.receive(5, TimeUnit.SECONDS);
+                    assertThat(replayed).as("delivery after deferred cleanup completes").isNotNull();
+                    assertThat(replayed.getValue()).isEqualTo("after failure");
+                    secondary.acknowledge(replayed);
+                    Awaitility.await().untilAsserted(() -> {
+                        assertThat(subscription.getCursor().getNumberOfEntriesInBacklog(false)).isZero();
+                        assertThat(dispatcher.getConsumers()).hasSize(1);
+                        assertThat(dispatcher.getConsumers().get(0).getMsgOutCounter()).isOne();
+                    });
+                    long connectedMessages = dispatcher.getConsumers().stream()
+                            .mapToLong(Consumer::getMsgOutCounter).sum();
+                    long connectedBytes = dispatcher.getConsumers().stream()
+                            .mapToLong(Consumer::getBytesOutCounter).sum();
+                    SoftAssertions.assertSoftly(softly -> {
+                        softly.assertThat(topic.currentUsageCount()).as("usage is decremented only once")
+                                .isEqualTo(expectedUsage);
+                        softly.assertThat(subscription.getMsgOutCounter() - connectedMessages)
+                                .as("removed-consumer message statistics are preserved once")
+                                .isEqualTo(expectedRemovedMessages);
+                        softly.assertThat(subscription.getBytesOutCounter() - connectedBytes)
+                                .as("removed-consumer byte statistics are preserved once")
+                                .isEqualTo(expectedRemovedBytes);
+                    });
+                } finally {
+                    cnx.setCommandSender(originalSender);
+                    Mockito.reset(sender);
+                    Mockito.framework().clearInlineMock(sender);
+                }
+            }
+        } finally {
+            getConfig().setDispatcherDispatchMessagesInSubscriptionThread(oldSubscriptionThread);
+            getConfig().setDispatcherReadFailureBackoffInitialTimeInMs(oldInitialBackoff);
+            getConfig().setDispatcherReadFailureBackoffMaxTimeInMs(oldMaxBackoff);
+        }
+    }
+
     @DataProvider(name = "sendFailureModes")
     public Object[][] sendFailureModes() {
         return new Object[][] {

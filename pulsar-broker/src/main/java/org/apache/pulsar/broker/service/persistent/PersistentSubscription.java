@@ -369,6 +369,11 @@ public class PersistentSubscription extends AbstractSubscription {
 
     @Override
     public synchronized void removeConsumer(Consumer consumer, boolean isResetCursor) throws BrokerServiceException {
+        // Deferred failed-send cleanup can race a connection/client close. Only the removal of this exact
+        // registered instance may update statistics and topic usage; add/remove share the subscription lock.
+        if (dispatcher == null || dispatcher.getConsumers().stream().noneMatch(connected -> connected == consumer)) {
+            return;
+        }
         cursor.updateLastActive();
         if (dispatcher != null) {
             dispatcher.removeConsumer(consumer);
@@ -436,8 +441,7 @@ public class PersistentSubscription extends AbstractSubscription {
             }
         }
 
-        // invalid consumer remove will throw an exception
-        // decrement usage is triggered only for valid consumer close
+        // Decrement usage only for the removal of a registered consumer.
         topic.decrementUsageCount();
         log.debug()
                 .attr("consumerName", consumer.consumerName())
