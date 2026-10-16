@@ -36,6 +36,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -381,31 +382,110 @@ public class TopicListSizeResultCacheTest {
     }
 
     @Test
-    public void testOversizedEstimateIsRemeasuredOncePerInterval() {
-        TopicListSizeResultCache limitedCache = new TopicListSizeResultCache(1000, Duration.ofHours(1));
+    public void testOversizedEstimateFailsFastUntilIntervalHasPassed() {
+        TopicListSizeResultCache limitedCache =
+                new TopicListSizeResultCache(100_000, Duration.ofHours(1), Duration.ofHours(1), () -> true);
         TopicListSizeResultCache.ResultHolder holder =
                 limitedCache.getTopicListSize("tenant/namespace", CommandGetTopicsOfNamespace.Mode.PERSISTENT);
         holder.getSizeAsync();
         // a topic list larger than the limit
-        holder.updateSize(5000);
-        // one request gets the limit so that it can measure the topic list again
-        assertEquals(holder.getSizeAsync().join().longValue(), 1000L);
-        // the other requests get the estimate, which is larger than the limit, so that they fail right away
-        assertEquals(holder.getSizeAsync().join().longValue(), 5000L);
-        assertEquals(holder.getSizeAsync().join().longValue(), 5000L);
+        holder.updateSize(500_000);
+        // the requests get the estimate, which is larger than the limit, so that they fail right away instead of
+        // listing the topics again right after the oversized list was measured
+        assertEquals(holder.getSizeAsync().join().longValue(), 500_000L);
+        assertEquals(holder.getSizeAsync().join().longValue(), 500_000L);
         // the estimate follows the list when it becomes smaller than the limit
-        holder.updateSize(500);
-        assertEquals(holder.getSizeAsync().join().longValue(), 500L);
+        holder.updateSize(50_000);
+        assertEquals(holder.getSizeAsync().join().longValue(), 50_000L);
     }
 
     @Test
-    public void testOversizedEstimateIsRemeasuredAfterInterval() {
-        TopicListSizeResultCache limitedCache = new TopicListSizeResultCache(1000, Duration.ZERO);
+    public void testOversizedEstimateIsRemeasuredOnlyWhenLimiterIsIdle() {
+        AtomicBoolean limiterIdle = new AtomicBoolean(false);
+        TopicListSizeResultCache limitedCache =
+                new TopicListSizeResultCache(100_000, Duration.ZERO, Duration.ofHours(1), limiterIdle::get);
         TopicListSizeResultCache.ResultHolder holder =
                 limitedCache.getTopicListSize("tenant/namespace", CommandGetTopicsOfNamespace.Mode.PERSISTENT);
         holder.getSizeAsync();
-        holder.updateSize(5000);
-        assertEquals(holder.getSizeAsync().join().longValue(), 1000L);
-        assertEquals(holder.getSizeAsync().join().longValue(), 1000L);
+        holder.updateSize(500_000);
+        // other topic lists are in flight: requesting all permits would make the later requests wait behind it
+        assertEquals(holder.getSizeAsync().join().longValue(), 500_000L);
+        // no other topic list is in flight: the request gets the limit so that it can measure the list again
+        limiterIdle.set(true);
+        assertEquals(holder.getSizeAsync().join().longValue(), 100_000L);
+    }
+
+    @Test
+    public void testNewPropertiesStartFromEstimateWithoutProperties() {
+        String namespace = "tenant/namespace";
+        CommandGetTopicsOfNamespace.Mode mode = CommandGetTopicsOfNamespace.Mode.PERSISTENT;
+        // without a known estimate, a listing with properties starts from the initial estimate
+        TopicListSizeResultCache.ResultHolder first = cache.getTopicListSize(namespace, mode, Map.of("k", "v0"));
+        assertEquals(first.getSizeAsync().join().longValue(), 10 * 1024L);
+
+        TopicListSizeResultCache.ResultHolder withoutProperties = cache.getTopicListSize(namespace, mode);
+        withoutProperties.getSizeAsync();
+        withoutProperties.updateSize(500_000);
+        // a listing with new properties can't start below the known size of the listing without properties
+        TopicListSizeResultCache.ResultHolder withNewProperties =
+                cache.getTopicListSize(namespace, mode, Map.of("k", "v1"));
+        assertEquals(withNewProperties.getSizeAsync().join().longValue(), 500_000L);
+        // and then follows its own topic list
+        withNewProperties.updateSize(1000);
+        assertEquals(withNewProperties.getSizeAsync().join().longValue(), 1000L);
+        assertEquals(withoutProperties.getSizeAsync().join().longValue(), 500_000L);
+    }
+
+    @Test
+    public void testNewPropertiesWithOversizedEstimateFailFastWhileLimiterIsBusy() {
+        AtomicBoolean limiterIdle = new AtomicBoolean(false);
+        TopicListSizeResultCache limitedCache =
+                new TopicListSizeResultCache(100_000, Duration.ofHours(1), Duration.ofHours(1), limiterIdle::get);
+        String namespace = "tenant/namespace";
+        CommandGetTopicsOfNamespace.Mode mode = CommandGetTopicsOfNamespace.Mode.PERSISTENT;
+        TopicListSizeResultCache.ResultHolder withoutProperties = limitedCache.getTopicListSize(namespace, mode);
+        withoutProperties.getSizeAsync();
+        withoutProperties.updateSize(500_000);
+
+        TopicListSizeResultCache.ResultHolder withNewProperties =
+                limitedCache.getTopicListSize(namespace, mode, Map.of("k", "v1"));
+        assertEquals(withNewProperties.getSizeAsync().join().longValue(), 500_000L);
+        // the request is rejected, which resets the estimate that it was initializing
+        withNewProperties.resetIfInitializing();
+        // a listing with new properties hasn't been measured, so it may be measured when the limiter is idle
+        limiterIdle.set(true);
+        assertEquals(withNewProperties.getSizeAsync().join().longValue(), 100_000L);
+    }
+
+    @Test
+    public void testOnlyOneOversizedListingIsRemeasuredAtATime() {
+        TopicListSizeResultCache limitedCache =
+                new TopicListSizeResultCache(100_000, Duration.ZERO, Duration.ofHours(1), () -> true);
+        TopicListSizeResultCache.ResultHolder first =
+                limitedCache.getTopicListSize("tenant/ns1", CommandGetTopicsOfNamespace.Mode.PERSISTENT);
+        TopicListSizeResultCache.ResultHolder second =
+                limitedCache.getTopicListSize("tenant/ns2", CommandGetTopicsOfNamespace.Mode.PERSISTENT);
+        for (TopicListSizeResultCache.ResultHolder holder : List.of(first, second)) {
+            holder.getSizeAsync();
+            holder.updateSize(500_000);
+        }
+        // the first listing is measured again, the second one fails fast while that's in progress
+        assertEquals(first.getSizeAsync().join().longValue(), 100_000L);
+        assertEquals(second.getSizeAsync().join().longValue(), 500_000L);
+        // the first listing measured its size, so the second listing may be measured again
+        first.updateSize(500_000);
+        assertEquals(second.getSizeAsync().join().longValue(), 100_000L);
+    }
+
+    @Test
+    public void testOversizedEstimateIsRemeasuredWhenLimiterIsNeverIdle() {
+        TopicListSizeResultCache limitedCache =
+                new TopicListSizeResultCache(100_000, Duration.ZERO, Duration.ZERO, () -> false);
+        TopicListSizeResultCache.ResultHolder holder =
+                limitedCache.getTopicListSize("tenant/namespace", CommandGetTopicsOfNamespace.Mode.PERSISTENT);
+        holder.getSizeAsync();
+        holder.updateSize(500_000);
+        // after the longer interval, the listing is measured again although other topic lists are in flight
+        assertEquals(holder.getSizeAsync().join().longValue(), 100_000L);
     }
 }

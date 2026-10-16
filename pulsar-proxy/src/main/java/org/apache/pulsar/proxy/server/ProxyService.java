@@ -76,7 +76,9 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.tls.ClientTlsFactorySupport;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterImpl;
+import org.apache.pulsar.common.semaphore.AsyncSemaphore;
 import org.apache.pulsar.common.tls.impl.TlsContextAcquisition;
 import org.apache.pulsar.common.tls.impl.TlsSynthesisSpec;
 import org.apache.pulsar.common.util.netty.DnsResolverUtil;
@@ -262,8 +264,11 @@ public class ProxyService implements Closeable {
                 proxyConfig.getMaxTopicListInFlightDirectMemSizeMB() * 1024L * 1024L,
                 proxyConfig.getMaxTopicListInFlightDirectMemSizePermitsAcquireQueueSize(),
                 proxyConfig.getMaxTopicListInFlightDirectMemSizePermitsAcquireTimeoutMillis());
+        AsyncSemaphore topicListHeapLimiter =
+                maxTopicListInFlightLimiter.getLimiter(AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY);
         this.topicListSizeResultCache = new TopicListSizeResultCache(
-                proxyConfig.getMaxTopicListInFlightHeapMemSizeMB() * 1024L * 1024L);
+                proxyConfig.getMaxTopicListInFlightHeapMemSizeMB() * 1024L * 1024L,
+                () -> topicListHeapLimiter.getQueueSize() == 0 && topicListHeapLimiter.getAcquiredPermits() == 0);
     }
 
     public void start() throws Exception {

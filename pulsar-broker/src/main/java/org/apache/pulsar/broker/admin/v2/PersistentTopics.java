@@ -138,7 +138,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalGetListAsync(asyncResponse, Optional.ofNullable(bundle), parseProperties(propertiesStr))
             .thenAccept(topicList -> asyncResponse.resume(filterSystemTopic(topicList, includeSystemTopic)))
             .exceptionally(ex -> {
-                if (isNot307And404Exception(ex)) {
+                if (isNot307And404Exception(ex) && !isTopicListLimitRejection(ex)) {
                     log.error()
                             .attr("namespace", namespaceName)
                             .exception(ex)
@@ -176,7 +176,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                 .thenAccept(partitionedTopicList -> asyncResponse.resume(
                         filterSystemTopic(partitionedTopicList, includeSystemTopic)))
                 .exceptionally(ex -> {
-                    if (isNot307And404Exception(ex)) {
+                    if (isNot307And404Exception(ex) && !isTopicListLimitRejection(ex)) {
                         log.error()
                                 .attr("namespace", namespaceName)
                                 .exception(ex)

@@ -1020,6 +1020,20 @@ public abstract class AdminResource extends PulsarWebResource {
                 == Status.NOT_FOUND.getStatusCode();
     }
 
+    /**
+     * Checks whether a topic listing failed because the topic list memory limit rejected it (429) or because the
+     * request was cancelled (503). These are expected responses that don't need to be logged as errors.
+     */
+    protected static boolean isTopicListLimitRejection(Throwable ex) {
+        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+        if (!(realCause instanceof WebApplicationException webApplicationException)) {
+            return false;
+        }
+        int status = webApplicationException.getResponse().getStatus();
+        return status == Status.TOO_MANY_REQUESTS.getStatusCode()
+                || status == Status.SERVICE_UNAVAILABLE.getStatusCode();
+    }
+
     protected static boolean is4xxRestException(Throwable ex) {
         Throwable realCause = FutureUtil.unwrapCompletionException(ex);
         return realCause instanceof WebApplicationException

@@ -182,12 +182,17 @@ public abstract class NamespacesBase extends AdminResource {
         // to avoid OOME caused by a lot of clients using HTTP service lookups to list topics
         switch (mode) {
             case ALL:
-                // the persistent topics are listed while holding permits for them, the non-persistent topics are
-                // collected afterwards without holding additional permits while waiting for the bundle listings
-                return listPersistentTopicsWithMemoryLimit(response)
-                        .thenCompose(persistentTopics -> listNonPersistentTopicsWithMemoryLimit(response, policies)
-                                .thenApply(nonPersistentTopics ->
-                                        ListUtils.union(persistentTopics, nonPersistentTopics)));
+                // The non-persistent topics are collected first from the bundle listings, which acquire permits
+                // from the same limiter, possibly on this broker, so no permits are held while waiting for them.
+                // The listing then acquires permits once, for the whole topic list, with the estimate of the ALL
+                // listing, so that it doesn't hold permits for one part while waiting for permits for the other.
+                return internalGetNonPersistentTopics(policies)
+                        .thenCompose(nonPersistentTopics -> TopicListResponseMemoryLimiter.listTopics(
+                                pulsar().getBrokerService(), response,
+                                TopicListing.namespaceTopics(namespaceName.toString(), mode), null,
+                                () -> pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName)
+                                        .thenApply(persistentTopics ->
+                                                ListUtils.union(persistentTopics, nonPersistentTopics))));
             case NON_PERSISTENT:
                 return listNonPersistentTopicsWithMemoryLimit(response, policies);
             case PERSISTENT:

@@ -986,4 +986,74 @@ public class TopicListServiceTest {
             assertThat(watcher.getMatchingTopics()).containsExactlyInAnyOrderElementsOf(refreshedTopics);
         });
     }
+
+    @Test
+    public void testWatchRequestGetsErrorWhenWatcherIsRemovedBeforeFirstSendAttempt() throws Exception {
+        createWatcher(Collections.singletonList("persistent://tenant/ns/topic1"));
+        // the update triggered by the duplicate watch requests waits for the listing
+        topicListFuture = new CompletableFuture<>();
+        doAnswer(invocationOnMock -> {
+            long requestId = invocationOnMock.getArgument(0);
+            if (requestId == 8L) {
+                // the watcher is closed while the next waiting request is about to send its success response
+                topicListService.deleteTopicListWatcher(13L);
+            }
+            return CompletableFuture.completedFuture(null);
+        }).when(pulsarCommandSender).sendWatchTopicListSuccess(anyLong(), anyLong(), anyString(), any(), any(),
+                any());
+        lookupSemaphore.release(2);
+        for (long requestId = 8; requestId <= 9; requestId++) {
+            lookupSemaphore.acquire();
+            topicListService.handleWatchTopicList(
+                    NamespaceName.get("tenant/ns"),
+                    13,
+                    requestId,
+                    "persistent://tenant/ns/topic\\d",
+                    topicsPatternImplementation, null,
+                    lookupSemaphore);
+        }
+
+        topicListFuture.complete(Collections.singletonList("persistent://tenant/ns/topic1"));
+
+        // request 9 finds the watcher removed before its first send attempt and gets an error response
+        verify(pulsarCommandSender, timeout(2000L)).sendErrorResponse(eq(9L), any(ServerError.class), anyString());
+        verify(pulsarCommandSender, never())
+                .sendWatchTopicListSuccess(eq(9L), anyLong(), anyString(), any(), any(), any());
+        Awaitility.await().untilAsserted(() -> assertThat(lookupSemaphore.availablePermits()).isEqualTo(3));
+    }
+
+    @Test
+    public void testWaitingWatchRequestRespondsWithSnapshotOfItsUpdate() throws Exception {
+        List<String> topics = Collections.singletonList("persistent://tenant/ns/topic1");
+        TopicListService.TopicListWatcher watcher = createWatcher(topics);
+        // the update triggered by the duplicate watch requests waits for the listing
+        topicListFuture = new CompletableFuture<>();
+        doAnswer(invocationOnMock -> {
+            long requestId = invocationOnMock.getArgument(0);
+            if (requestId == 8L) {
+                // the metadata store connection is lost after the update has completed, which clears the matching
+                // topics until the next update, while the next waiting request is about to respond
+                watcher.onSessionEvent(SessionEvent.ConnectionLost);
+            }
+            return CompletableFuture.completedFuture(null);
+        }).when(pulsarCommandSender).sendWatchTopicListSuccess(anyLong(), anyLong(), anyString(), any(), any(),
+                any());
+        lookupSemaphore.release(2);
+        for (long requestId = 8; requestId <= 9; requestId++) {
+            lookupSemaphore.acquire();
+            topicListService.handleWatchTopicList(
+                    NamespaceName.get("tenant/ns"),
+                    13,
+                    requestId,
+                    "persistent://tenant/ns/topic\\d",
+                    topicsPatternImplementation, null,
+                    lookupSemaphore);
+        }
+
+        topicListFuture.complete(topics);
+
+        // request 9 responds with the matching topics of the completed update, not with the cleared list
+        verify(pulsarCommandSender, timeout(2000L)).sendWatchTopicListSuccess(eq(9L), eq(13L),
+                eq(TopicList.calculateHash(topics)), eq(new ArrayList<>(topics)), any(), any());
+    }
 }

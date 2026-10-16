@@ -130,8 +130,10 @@ public class ScalableTopics extends AdminResource {
                                         namespaceName, propertyFilters)))
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
-                    log.error().attr("clientAppId", clientAppId()).attr("namespace", namespaceName)
-                            .exception(ex).log("Failed to list scalable topics");
+                    if (!isTopicListLimitRejection(ex)) {
+                        log.error().attr("clientAppId", clientAppId()).attr("namespace", namespaceName)
+                                .exception(ex).log("Failed to list scalable topics");
+                    }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });

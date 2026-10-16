@@ -20,11 +20,18 @@ package org.apache.pulsar.broker.admin;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doCallRealMethod;
+import static org.mockito.Mockito.doReturn;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.topiclistlimit.TopicListMemoryLimiter;
 import org.apache.pulsar.broker.topiclistlimit.TopicListSizeResultCache;
 import org.apache.pulsar.broker.topiclistlimit.TopicListing;
 import org.apache.pulsar.client.admin.ListNamespaceTopicsOptions;
@@ -32,6 +39,7 @@ import org.apache.pulsar.client.admin.ListTopicsOptions;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter.AsyncDualMemoryLimiterPermit;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter.LimitType;
@@ -141,8 +149,7 @@ public class TopicListRestMemoryLimitTest extends MockedPulsarServiceBaseTest {
                     null).updateSize(estimate);
             sizeCache.getTopicListSize(TopicListing.namespaceTopics(NAMESPACE, Mode.NON_PERSISTENT), null)
                     .updateSize(estimate);
-            // the ALL mode lists the persistent topics with the persistent topic listing's estimate first
-            sizeCache.getTopicListSize(TopicListing.namespaceTopics(NAMESPACE, Mode.PERSISTENT), null)
+            sizeCache.getTopicListSize(TopicListing.namespaceTopics(NAMESPACE, Mode.ALL), null)
                     .updateSize(estimate);
 
             assertThat(admin.topics().getList(NAMESPACE, TopicDomain.non_persistent)).contains(nonPersistentTopic);
@@ -154,6 +161,48 @@ public class TopicListRestMemoryLimitTest extends MockedPulsarServiceBaseTest {
                         ListNamespaceTopicsOptions.builder().mode(mode).build()))
                         .as(mode.name()).contains(nonPersistentTopic);
             }
+        }
+        assertThat(limiter.getLimiter(LimitType.HEAP_MEMORY).getAcquiredPermits()).isZero();
+    }
+
+    /**
+     * The ALL mode collects the non-persistent topics from the bundle listings, which acquire permits from the
+     * same limiter on this broker, before it acquires permits for the whole topic list. Holding the permits of a
+     * large persistent topic list while waiting for the bundle listings could leave too few permits for them.
+     */
+    @Test
+    public void testAllModeDoesNotHoldPermitsWhileWaitingForBundleListings() throws Exception {
+        String nonPersistentTopic = "non-persistent://" + NAMESPACE + "/all-mode-listing";
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(nonPersistentTopic).create();
+        String bundleRange = admin.lookups().getBundleRange(nonPersistentTopic);
+
+        AsyncDualMemoryLimiterImpl limiter = pulsar.getBrokerService().getMaxTopicListInFlightLimiter();
+        long maxHeapPermits = limiter.getLimiter(LimitType.HEAP_MEMORY).getAvailablePermits();
+        // a persistent topic list of about 60% of the limit
+        List<String> persistentTopics = new ArrayList<>();
+        String longName = "t".repeat(10_000);
+        while (TopicListMemoryLimiter.estimateTopicListSize(persistentTopics) < maxHeapPermits * 6 / 10) {
+            persistentTopics.add("persistent://" + NAMESPACE + "/" + longName + persistentTopics.size());
+        }
+        NamespaceService namespaceService = pulsar.getNamespaceService();
+        doReturn(CompletableFuture.completedFuture(persistentTopics))
+                .when(namespaceService).getListOfPersistentTopics(NamespaceName.get(NAMESPACE));
+        try {
+            TopicListSizeResultCache sizeCache = pulsar.getBrokerService().getTopicListSizeResultCache();
+            sizeCache.getTopicListSize(TopicListing.namespaceTopics(NAMESPACE, Mode.ALL), null)
+                    .updateSize(TopicListMemoryLimiter.estimateTopicListSize(persistentTopics));
+            // the bundle listing's estimate fits within the limit, but not together with the persistent topic list
+            sizeCache.getTopicListSize(TopicListing.ownedBundleTopics(NAMESPACE, Mode.NON_PERSISTENT, bundleRange),
+                    null).updateSize(maxHeapPermits * 6 / 10);
+
+            for (int i = 0; i < 3; i++) {
+                assertThat(admin.namespaces().getTopics(NAMESPACE, ListNamespaceTopicsOptions.builder()
+                        .mode(org.apache.pulsar.client.admin.Mode.ALL).build()))
+                        .contains(nonPersistentTopic, persistentTopics.get(0));
+            }
+        } finally {
+            doCallRealMethod().when(namespaceService).getListOfPersistentTopics(any());
         }
         assertThat(limiter.getLimiter(LimitType.HEAP_MEMORY).getAcquiredPermits()).isZero();
     }

@@ -551,7 +551,7 @@ public class NonPersistentTopics extends PersistentTopics {
                                 () -> CompletableFuture.completedFuture(getNonPersistentTopicsOfBundle(nsBundle))))
                         .thenAccept(asyncResponse::resume)
                         .exceptionally(ex -> {
-                            if (isNot307And404Exception(ex)) {
+                            if (isNot307And404Exception(ex) && !isTopicListLimitRejection(ex)) {
                                 log.error()
                                         .attr("namespace", namespaceName)
                                         .attr("bundleRange", bundleRange)

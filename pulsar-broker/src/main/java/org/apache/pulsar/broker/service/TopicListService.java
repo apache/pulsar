@@ -37,6 +37,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -86,8 +87,9 @@ public class TopicListService {
         private boolean updatingTopics;
         private List<String> matchingTopicsBeforeDisconnected;
         private boolean disconnected;
-        // callbacks of requests waiting for the ongoing topic list update, called with null on success
-        private List<Consumer<Throwable>> updateCallbacks = new LinkedList<>();
+        // callbacks of requests waiting for the ongoing topic list update, called with a snapshot of the matching
+        // topics when the update completes, or with the failure
+        private List<BiConsumer<Collection<String>, Throwable>> updateCallbacks = new LinkedList<>();
         private boolean updatingWhileDisconnected;
 
         public TopicListWatcher(TopicListService topicListService, long id,
@@ -179,7 +181,7 @@ public class TopicListService {
         }
 
         public void close() {
-            List<Consumer<Throwable>> pendingCallbacks;
+            List<BiConsumer<Collection<String>, Throwable>> pendingCallbacks;
             synchronized (this) {
                 closed = true;
                 sendTopicListUpdateTasks.clear();
@@ -189,8 +191,8 @@ public class TopicListService {
             // complete the requests waiting for the topic list update so that they don't wait forever
             if (!pendingCallbacks.isEmpty()) {
                 IllegalStateException closedException = newClosedException();
-                for (Consumer<Throwable> callback : pendingCallbacks) {
-                    runUpdateCallback(callback, closedException);
+                for (BiConsumer<Collection<String>, Throwable> callback : pendingCallbacks) {
+                    runUpdateCallback(callback, null, closedException);
                 }
             }
         }
@@ -199,23 +201,40 @@ public class TopicListService {
          * Completes the requests waiting for the ongoing update with the given failure. The update continues.
          */
         void failUpdateCallbacks(Throwable failure) {
-            List<Consumer<Throwable>> pendingCallbacks;
+            List<BiConsumer<Collection<String>, Throwable>> pendingCallbacks;
             synchronized (this) {
                 pendingCallbacks = new ArrayList<>(updateCallbacks);
                 updateCallbacks.clear();
             }
-            for (Consumer<Throwable> callback : pendingCallbacks) {
-                runUpdateCallback(callback, failure);
+            for (BiConsumer<Collection<String>, Throwable> callback : pendingCallbacks) {
+                runUpdateCallback(callback, null, failure);
             }
+        }
+
+        /**
+         * Calls the callback with a snapshot of the matching topics. While a topic list update is in progress, the
+         * matching topics aren't complete, so the callback is called when the update completes.
+         */
+        void whenMatchingTopicsAvailable(BiConsumer<Collection<String>, Throwable> callback) {
+            Collection<String> snapshot;
+            synchronized (this) {
+                if (!closed && updatingTopics) {
+                    updateCallbacks.add(callback);
+                    return;
+                }
+                snapshot = closed ? null : new ArrayList<>(matchingTopics);
+            }
+            runUpdateCallback(callback, snapshot, snapshot == null ? newClosedException() : null);
         }
 
         private IllegalStateException newClosedException() {
             return new IllegalStateException("Topic list watcher " + id + " was closed");
         }
 
-        private static void runUpdateCallback(Consumer<Throwable> callback, Throwable failure) {
+        private static void runUpdateCallback(BiConsumer<Collection<String>, Throwable> callback,
+                                              Collection<String> matchingTopics, Throwable failure) {
             try {
-                callback.accept(failure);
+                callback.accept(matchingTopics, failure);
             } catch (Exception e) {
                 log.warn()
                         .attr("callback", callback)
@@ -229,14 +248,16 @@ public class TopicListService {
          * the update. The callback is registered to be executed after the update, either existing or upcoming is
          * completed.
          * @param afterUpdateCompletionCallback callback to be executed after the update is completed. It's called
-         *                                      with null when the update completes, or with the failure when the
-         *                                      watcher is closed before the update completes.
+         *                                      with a snapshot of the matching topics when the update completes,
+         *                                      or with the failure when the update fails or the watcher is closed
+         *                                      before the update completes.
          * @return true if an existing update wasn't ongoing and a new update is prepared for execution.
          */
-        synchronized boolean prepareUpdateTopics(Consumer<Throwable> afterUpdateCompletionCallback) {
+        synchronized boolean prepareUpdateTopics(
+                BiConsumer<Collection<String>, Throwable> afterUpdateCompletionCallback) {
             if (closed) {
                 if (afterUpdateCompletionCallback != null) {
-                    runUpdateCallback(afterUpdateCompletionCallback, newClosedException());
+                    runUpdateCallback(afterUpdateCompletionCallback, null, newClosedException());
                 }
                 return false;
             }
@@ -257,22 +278,32 @@ public class TopicListService {
             }
         }
 
-        synchronized void updateTopics(List<String> topics) {
-            if (closed) {
-                return;
+        void updateTopics(List<String> topics) {
+            List<BiConsumer<Collection<String>, Throwable>> callbacks;
+            Collection<String> snapshot;
+            synchronized (this) {
+                if (closed) {
+                    return;
+                }
+                matchingTopics.clear();
+                TopicList.filterTopicsToStream(topics, topicsPattern).forEach(matchingTopics::add);
+                updatingTopics = false;
+                if (disconnected) {
+                    handleNewAndDeletedTopicsWhileDisconnected();
+                    matchingTopicsBeforeDisconnected = null;
+                    disconnected = false;
+                }
+                callbacks = new ArrayList<>(updateCallbacks);
+                updateCallbacks.clear();
+                // the waiting requests respond with the result of this update, also if the matching topics change
+                // after the lock has been released, for example when another update starts
+                snapshot = callbacks.isEmpty() ? null : new ArrayList<>(matchingTopics);
             }
-            matchingTopics.clear();
-            TopicList.filterTopicsToStream(topics, topicsPattern).forEach(matchingTopics::add);
-            updatingTopics = false;
-            if (disconnected) {
-                handleNewAndDeletedTopicsWhileDisconnected();
-                matchingTopicsBeforeDisconnected = null;
-                disconnected = false;
+            // the callbacks run without holding the lock, since a callback can close the watcher, for example when
+            // sending the response of a waiting request fails
+            for (BiConsumer<Collection<String>, Throwable> callback : callbacks) {
+                runUpdateCallback(callback, snapshot, null);
             }
-            for (Consumer<Throwable> callback : updateCallbacks) {
-                runUpdateCallback(callback, null);
-            }
-            updateCallbacks.clear();
             sendingCompleted();
         }
 
@@ -421,28 +452,24 @@ public class TopicListService {
         CompletableFuture<TopicListWatcher> watcherFuture = new CompletableFuture<>();
         CompletableFuture<TopicListWatcher> existingWatcherFuture = watchers.putIfAbsent(watcherId, watcherFuture);
 
+        // the watcher and the snapshot of its matching topics to respond with
+        CompletableFuture<WatcherTopics> watcherTopicsFuture;
         if (existingWatcherFuture != null) {
             log.debug()
                     .attr("connection", connection)
                     .attr("watcherId", watcherId)
                     .log("Watcher with the same watcherId is already created. Refreshing.");
             // use the existing watcher if it's already created
-            watcherFuture = existingWatcherFuture.thenCompose(watcher -> {
-                CompletableFuture<TopicListWatcher> future = new CompletableFuture<>();
-                Consumer<Throwable> callback = failure -> {
-                    if (failure == null) {
-                        future.complete(watcher);
-                    } else {
-                        future.completeExceptionally(failure);
-                    }
-                };
+            watcherTopicsFuture = existingWatcherFuture.thenCompose(watcher -> {
+                CompletableFuture<WatcherTopics> future = new CompletableFuture<>();
+                BiConsumer<Collection<String>, Throwable> callback = watcherTopicsCallback(watcher, future);
                 // trigger a new update unless an update is already ongoing. Register the callback to complete
                 // when the update completes, or when the watcher is closed before that.
                 if (watcher.prepareUpdateTopics(callback)) {
                     updateTopicListWatcher(watcher)
                             // complete the request also when the update fails
                             .exceptionally(ex -> {
-                                callback.accept(ex);
+                                callback.accept(null, ex);
                                 return null;
                             });
                 }
@@ -450,11 +477,20 @@ public class TopicListService {
             });
         } else {
             initializeTopicsListWatcher(watcherFuture, namespaceName, watcherId, topicsPattern);
+            watcherTopicsFuture = watcherFuture.thenCompose(watcher -> {
+                CompletableFuture<WatcherTopics> future = new CompletableFuture<>();
+                // waits for an update that started after the watcher was created, for example after a metadata
+                // store session event, since the matching topics are incomplete until the update completes
+                watcher.whenMatchingTopicsAvailable(watcherTopicsCallback(watcher, future));
+                return future;
+            });
         }
 
-        CompletableFuture<TopicListWatcher> finalWatcherFuture = watcherFuture;
-        finalWatcherFuture.thenAccept(watcher -> {
-                    Collection<String> topicList = watcher.getMatchingTopics();
+        // a failed request removes the watcher that it created, not an existing watcher
+        CompletableFuture<TopicListWatcher> createdWatcherFuture = existingWatcherFuture == null ? watcherFuture : null;
+        watcherTopicsFuture.thenAccept(watcherTopics -> {
+                    TopicListWatcher watcher = watcherTopics.watcher();
+                    Collection<String> topicList = watcherTopics.matchingTopics();
                     String hash = TopicList.calculateHash(topicList);
                     if (hash.equals(topicsHash)) {
                         topicList = Collections.emptyList();
@@ -504,10 +540,29 @@ public class TopicListService {
                                 .exceptionMessage(ex)
                                 .log("WatchTopicList was cancelled since the connection was closed");
                     }
-                    watchers.remove(watcherId, finalWatcherFuture);
+                    if (createdWatcherFuture != null) {
+                        watchers.remove(watcherId, createdWatcherFuture);
+                    }
                     lookupSemaphore.release();
                     return null;
                 });
+    }
+
+    /**
+     * A watcher and a snapshot of its matching topics.
+     */
+    private record WatcherTopics(TopicListWatcher watcher, Collection<String> matchingTopics) {
+    }
+
+    private static BiConsumer<Collection<String>, Throwable> watcherTopicsCallback(
+            TopicListWatcher watcher, CompletableFuture<WatcherTopics> future) {
+        return (matchingTopics, failure) -> {
+            if (failure == null) {
+                future.complete(new WatcherTopics(watcher, matchingTopics));
+            } else {
+                future.completeExceptionally(failure);
+            }
+        };
     }
 
     private void sendTopicListSuccessWithPermitAcquiringRetries(long watcherId, long requestId,
@@ -520,28 +575,30 @@ public class TopicListService {
         performOperationWithPermitAcquiringRetries(watcherId, "topic list success", true, permitAcquireErrorHandler ->
                 () -> connection.getCommandSender()
                         .sendWatchTopicListSuccess(requestId, watcherId, hash, topicList, permitAcquireErrorHandler,
-                                () -> !watchers.containsKey(watcherId))
-                        .whenComplete((__, t) -> {
-                            if (t != null) {
-                                Throwable failure = FutureUtil.unwrapCompletionException(t);
-                                if (isCancellation(failure)) {
-                                    log.debug()
-                                            .attr("connection", connection)
-                                            .attr("watcherId", watcherId)
-                                            .log("Topic list success wasn't sent since the watcher was closed");
-                                } else {
-                                    log.warn()
-                                            .attr("connection", connection)
-                                            .attr("watcherId", watcherId)
-                                            .exception(t)
-                                            .log("Failed to send topic list success. Watcher is not active.");
-                                }
-                                failedCompletionCallback.accept(failure);
-                            } else {
-                                // completed successfully, run the callback
-                                successfulCompletionCallback.run();
-                            }
-                        }));
+                                () -> !watchers.containsKey(watcherId)))
+                // handled on the future of the whole operation, which also completes when the watcher was removed
+                // before the first attempt and after retries
+                .whenComplete((__, t) -> {
+                    if (t != null) {
+                        Throwable failure = FutureUtil.unwrapCompletionException(t);
+                        if (isCancellation(failure)) {
+                            log.debug()
+                                    .attr("connection", connection)
+                                    .attr("watcherId", watcherId)
+                                    .log("Topic list success wasn't sent since the watcher was closed");
+                        } else {
+                            log.warn()
+                                    .attr("connection", connection)
+                                    .attr("watcherId", watcherId)
+                                    .exception(t)
+                                    .log("Failed to send topic list success. Watcher is not active.");
+                        }
+                        failedCompletionCallback.accept(failure);
+                    } else {
+                        // completed successfully, run the callback
+                        successfulCompletionCallback.run();
+                    }
+                });
     }
 
     /***
@@ -788,26 +845,27 @@ public class TopicListService {
                 permitAcquireErrorHandler ->
                 () -> connection.getCommandSender()
                         .sendWatchTopicListUpdate(watcherId, newTopics, deletedTopics, topicsHash,
-                                permitAcquireErrorHandler, () -> !watchers.containsKey(watcherId))
-                        .whenComplete((__, t) -> {
-                            if (t != null) {
-                                // this is an unexpected case
-                                log.warn()
-                                        .attr("connection", connection)
-                                        .attr("watcherId", watcherId)
-                                        .exception(t)
-                                        .log("Failed to send topic list update for watcherId=. Watcher will be in "
-                                                + "inconsistent state.");
-                            }
-                            completionCallback.run();
-                        }));
+                                permitAcquireErrorHandler, () -> !watchers.containsKey(watcherId)))
+                // handled on the future of the whole operation, so that the callback runs once also after retries
+                .whenComplete((__, t) -> {
+                    if (t != null) {
+                        log.warn()
+                                .attr("connection", connection)
+                                .attr("watcherId", watcherId)
+                                .exception(t)
+                                .log("Failed to send topic list update for watcherId=. Watcher will be in "
+                                        + "inconsistent state.");
+                    }
+                    completionCallback.run();
+                });
     }
 
     // performs an operation with infinite permit acquiring retries.
     // If acquiring permits fails, it will retry after a backoff period.
     // When failOnCancellation is true, an operation that is skipped because the connection was closed or the
     // watcher was removed completes exceptionally with PermitAcquireCancelledException instead of successfully.
-    private void performOperationWithPermitAcquiringRetries(long watcherId, String operationName,
+    // The returned future completes when the operation has completed, including the retries.
+    private CompletableFuture<Void> performOperationWithPermitAcquiringRetries(long watcherId, String operationName,
                                                             boolean failOnCancellation,
                                                             Function<Function<Throwable, CompletableFuture<Void>>,
                                                                     Supplier<CompletableFuture<Void>>>
@@ -831,7 +889,7 @@ public class TopicListService {
             return asyncOperation.get().thenRun(() -> retryBackoff.reset());
         });
         // run the operation
-        operationRef.get().get();
+        return operationRef.get().get();
     }
 
     // retries acquiring permits until the connection is closed or the watcher is removed

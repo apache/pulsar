@@ -288,13 +288,12 @@ public class TopicListResponseMemoryLimiterTest {
 
     @Test
     public void testOversizedListingFailsWithoutWaitingForPermits() throws Exception {
-        sizeCache = new TopicListSizeResultCache(MAX_HEAP_MEMORY);
+        sizeCache = new TopicListSizeResultCache(MAX_HEAP_MEMORY, () -> true);
         when(brokerService.getTopicListSizeResultCache()).thenReturn(sizeCache);
         TopicListSizeResultCache.ResultHolder holder =
                 sizeCache.getTopicListSize(NAMESPACE, Mode.PERSISTENT);
-        // a previous listing measured a topic list larger than the limit and the re-measuring request was used
+        // a previous listing measured a topic list larger than the limit
         holder.updateSize(MAX_HEAP_MEMORY * 2);
-        assertThat(holder.getSizeAsync().join()).isEqualTo(MAX_HEAP_MEMORY);
         // another topic listing is in flight
         AsyncDualMemoryLimiterPermit otherListingPermit =
                 limiter.acquire(1, LimitType.HEAP_MEMORY, () -> false).get(5, TimeUnit.SECONDS);

@@ -33,6 +33,9 @@ import org.apache.pulsar.broker.topiclistlimit.TopicListing;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter.AsyncDualMemoryLimiterPermit;
+import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterUtil;
+import org.apache.pulsar.common.semaphore.AsyncSemaphore;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -160,17 +163,13 @@ public final class TopicListResponseMemoryLimiter {
 
         private CompletableFuture<Void> holdOrFail(
                 Supplier<CompletableFuture<AsyncDualMemoryLimiterPermit>> permitFutureSupplier) {
-            CompletableFuture<AsyncDualMemoryLimiterPermit> permitFuture;
-            try {
-                permitFuture = permitFutureSupplier.get();
-            } catch (Throwable t) {
-                // the limiter rejects a request larger than the limit synchronously
-                permitFuture = CompletableFuture.failedFuture(t);
-            }
-            return permitFuture.handle((acquiredPermit, t) -> {
+            return AsyncDualMemoryLimiterUtil.requestPermits(permitFutureSupplier).handle((acquiredPermit, t) -> {
                 if (t != null) {
-                    throw new CompletionException(
-                            new RestException(Status.TOO_MANY_REQUESTS, "Failed due to heap memory limit exceeded"));
+                    String message = FutureUtil.unwrapCompletionException(t)
+                            instanceof AsyncSemaphore.PermitAcquireLimitExceededException
+                            ? "Failed since the topic list is larger than the topic list heap memory limit"
+                            : "Failed due to heap memory limit exceeded";
+                    throw new CompletionException(new RestException(Status.TOO_MANY_REQUESTS, message));
                 }
                 hold(acquiredPermit);
                 // checked after storing the permit: if the response completes concurrently, either onComplete or
