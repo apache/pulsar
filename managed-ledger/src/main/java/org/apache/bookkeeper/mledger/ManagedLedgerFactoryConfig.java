@@ -69,7 +69,8 @@ public class ManagedLedgerFactoryConfig {
      * managedLedgerCacheEvictionTimeThresholdMillis each time. When the cache needs memory, size-based eviction
      * overrides this protection after requeuing an entry at most once per eviction pass. Both this protection and the
      * one of cacheEvictionExtendTTLOfRecentlyAccessed apply only in a pass's first cycle through the cache's entries;
-     * after it, the pass removes entries in their order in the queue.
+     * after it, the pass removes entries in their order in the queue. Entries added while a pass is running are past
+     * its first cycle, so that pass doesn't requeue them.
      * Without copyEntriesInCache, a cached entry keeps the larger buffer that it was received in allocated while its
      * time to live is extended, so consider enabling copying before raising this value.
      */
