@@ -3494,15 +3494,12 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
-    void persistPositionToLedger(final LedgerHandle lh, MarkDeleteEntry mdEntry, final VoidCallback callback,
-                                 boolean ignoreClosedStateAfterFailure) {
-        Position position = mdEntry.newPosition;
-        PositionInfo pi = reusablePositionInfo;
-        pi.clear();
-        pi.setLedgerId(position.getLedgerId())
-                .setEntryId(position.getEntryId())
-                .addAllBatchedEntryDeletionIndexInfos(buildBatchEntryDeletionIndexInfoList())
-                .addAllProperties(buildPropertiesMap(mdEntry.properties));
+    // Builds and serializes the position info with the reused instance. A cursor's close persists its position
+    // concurrently with a mark-delete on another thread, so the instance is used under its monitor. The cursor's
+    // state is read before, under the cursor's lock, so that no lock is taken while the monitor is held
+    private byte[] serializePositionInfo(Position position, Map<String, Long> properties) {
+        List<BatchedEntryDeletionIndexInfo> batchedEntryDeletionIndexInfos = buildBatchEntryDeletionIndexInfoList();
+        List<LongProperty> propertiesList = buildPropertiesMap(properties);
 
         Map<Long, long[]> internalRanges = null;
         /**
@@ -3524,19 +3521,39 @@ public class ManagedCursorImpl implements ManagedCursor {
                 lock.readLock().unlock();
             }
         }
+        List<LongListMap> longArrayRanges = null;
+        List<MessageRange> messageRanges = null;
         if (internalRanges != null && !internalRanges.isEmpty()) {
-            pi.addAllIndividualDeletedMessageRanges(buildLongPropertiesMap(internalRanges));
+            longArrayRanges = buildLongPropertiesMap(internalRanges);
         } else {
-            pi.addAllIndividualDeletedMessages(buildIndividualDeletedMessageRanges());
+            messageRanges = buildIndividualDeletedMessageRanges();
         }
 
+        PositionInfo pi = reusablePositionInfo;
+        synchronized (pi) {
+            pi.clear();
+            pi.setLedgerId(position.getLedgerId())
+                    .setEntryId(position.getEntryId())
+                    .addAllBatchedEntryDeletionIndexInfos(batchedEntryDeletionIndexInfos)
+                    .addAllProperties(propertiesList);
+            if (longArrayRanges != null) {
+                pi.addAllIndividualDeletedMessageRanges(longArrayRanges);
+            } else {
+                pi.addAllIndividualDeletedMessages(messageRanges);
+            }
+            return pi.toByteArray();
+        }
+    }
+
+    void persistPositionToLedger(final LedgerHandle lh, MarkDeleteEntry mdEntry, final VoidCallback callback,
+                                 boolean ignoreClosedStateAfterFailure) {
+        Position position = mdEntry.newPosition;
+        requireNonNull(lh);
+        byte[] data = serializePositionInfo(position, mdEntry.properties);
         if (log.isDebugEnabled()) {
             log.debug("[{}] Cursor {} Appending to ledger={} position={}", ledger.getName(), name, lh.getId(),
                     position);
         }
-
-        requireNonNull(lh);
-        byte[] data = pi.toByteArray();
         lh.asyncAddEntry(data, (rc, lh1, entryId, ctx) -> {
             if (rc == BKException.Code.OK) {
                 if (log.isDebugEnabled()) {
