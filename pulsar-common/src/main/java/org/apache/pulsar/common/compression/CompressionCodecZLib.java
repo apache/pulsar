@@ -118,11 +118,14 @@ public class CompressionCodecZLib implements CompressionCodec {
 
         try {
             resultLength = inflater.inflate(uncompressed.array(), uncompressed.arrayOffset(), uncompressedLength);
+            checkArgument(resultLength == uncompressedLength);
         } catch (DataFormatException e) {
+            uncompressed.release();
             throw new IOException(e);
+        } catch (Throwable t) {
+            uncompressed.release();
+            throw t;
         }
-
-        checkArgument(resultLength == uncompressedLength);
 
         uncompressed.writerIndex(uncompressedLength);
         return uncompressed;

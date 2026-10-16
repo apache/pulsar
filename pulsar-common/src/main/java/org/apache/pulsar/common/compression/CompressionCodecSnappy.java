@@ -90,19 +90,24 @@ public class CompressionCodecSnappy implements CompressionCodec {
     public ByteBuf decode(ByteBuf encoded, int uncompressedLength) throws IOException {
         ByteBuf uncompressed = PulsarByteBufAllocator.DEFAULT.buffer(uncompressedLength, uncompressedLength);
 
-        if (encoded.hasMemoryAddress() && uncompressed.hasMemoryAddress()) {
-            SnappyRawDecompressor.decompress(
-                    null,
-                    encoded.memoryAddress() + encoded.readerIndex(),
-                    encoded.memoryAddress() + encoded.writerIndex(),
-                    null, uncompressed.memoryAddress(),
-                    uncompressed.memoryAddress() + uncompressedLength);
-        } else {
-            ByteBuffer uncompressedNio = uncompressed.nioBuffer(0, uncompressedLength);
-            ByteBuffer encodedNio = encoded.nioBuffer(encoded.readerIndex(), encoded.readableBytes());
+        try {
+            if (encoded.hasMemoryAddress() && uncompressed.hasMemoryAddress()) {
+                SnappyRawDecompressor.decompress(
+                        null,
+                        encoded.memoryAddress() + encoded.readerIndex(),
+                        encoded.memoryAddress() + encoded.writerIndex(),
+                        null, uncompressed.memoryAddress(),
+                        uncompressed.memoryAddress() + uncompressedLength);
+            } else {
+                ByteBuffer uncompressedNio = uncompressed.nioBuffer(0, uncompressedLength);
+                ByteBuffer encodedNio = encoded.nioBuffer(encoded.readerIndex(), encoded.readableBytes());
 
-            encodedNio = AirliftUtils.ensureAirliftSupported(encodedNio);
-            SNAPPY_DECOMPRESSOR.get().decompress(encodedNio, uncompressedNio);
+                encodedNio = AirliftUtils.ensureAirliftSupported(encodedNio);
+                SNAPPY_DECOMPRESSOR.get().decompress(encodedNio, uncompressedNio);
+            }
+        } catch (Throwable t) {
+            uncompressed.release();
+            throw t;
         }
 
         uncompressed.writerIndex(uncompressedLength);

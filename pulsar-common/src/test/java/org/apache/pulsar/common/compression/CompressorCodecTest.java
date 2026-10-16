@@ -20,11 +20,13 @@ package org.apache.pulsar.common.compression;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertSame;
+import static org.testng.Assert.expectThrows;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.CompressionType;
 import org.testng.annotations.DataProvider;
@@ -222,5 +224,27 @@ public class CompressorCodecTest {
 
         compressed.release();
         uncompressed.release();
+    }
+
+    @DataProvider(name = "compressingCodec")
+    public Object[][] compressingCodecProvider() {
+        return Arrays.copyOfRange(codecProvider(), 1, codecProvider().length);
+    }
+
+    /**
+     * A failed decode must release the output buffer it allocated, since the caller never gets a reference to it.
+     */
+    @Test(dataProvider = "compressingCodec")
+    void testDecodeCorruptInputReleasesOutputBuffer(CompressionType type, String compressedText) {
+        CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(type);
+        byte[] sample = ByteBufUtil.decodeHexDump(compressedText);
+
+        ByteBuf truncated = PulsarByteBufAllocator.DEFAULT.directBuffer();
+        truncated.writeBytes(sample, 0, sample.length / 2);
+        try {
+            expectThrows(Exception.class, () -> codec.decode(truncated, text.length()));
+        } finally {
+            truncated.release();
+        }
     }
 }
