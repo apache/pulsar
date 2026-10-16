@@ -271,13 +271,18 @@ public class CompressorCodecTest {
             }
         }
 
+        // Whether a buffer has a memory address is read while it is live: once released, a direct buffer without
+        // Unsafe (the Netty default on JDK 25+) reports none.
+        boolean inputHasMemoryAddress = compressed.hasMemoryAddress();
         List<ByteBuf> allocated = new ArrayList<>();
+        List<Boolean> allocatedHasMemoryAddress = new ArrayList<>();
         ByteBufAllocator recordingAllocator = mock(ByteBufAllocator.class);
-        doAnswer(invocation -> record(allocated, direct
+        doAnswer(invocation -> record(allocated, allocatedHasMemoryAddress, direct
                 ? Unpooled.directBuffer(invocation.getArgument(0), invocation.getArgument(1))
                 : Unpooled.buffer(invocation.getArgument(0), invocation.getArgument(1))))
                 .when(recordingAllocator).buffer(anyInt(), anyInt());
-        doAnswer(invocation -> record(allocated, Unpooled.buffer(invocation.getArgument(0), invocation.getArgument(1))))
+        doAnswer(invocation -> record(allocated, allocatedHasMemoryAddress,
+                Unpooled.buffer(invocation.getArgument(0), invocation.getArgument(1))))
                 .when(recordingAllocator).heapBuffer(anyInt(), anyInt());
         CompressionCodec codec = switch (type) {
             case LZ4 -> new CompressionCodecLZ4(recordingAllocator);
@@ -299,14 +304,15 @@ public class CompressorCodecTest {
         assertEquals(allocated.size(), 1, "decode allocates exactly one output buffer");
         if (direct) {
             // both buffers must expose a memory address, or the codec silently took the NIO path instead
-            assertTrue(compressed.hasMemoryAddress() && allocated.get(0).hasMemoryAddress(),
+            assertTrue(inputHasMemoryAddress && allocatedHasMemoryAddress.get(0),
                     "the direct variant must reach the memory-address decompression branch");
         }
         assertEquals(allocated.get(0).refCnt(), 0, "the output buffer of a failed decode was not released");
     }
 
-    private static ByteBuf record(List<ByteBuf> allocated, ByteBuf buffer) {
+    private static ByteBuf record(List<ByteBuf> allocated, List<Boolean> allocatedHasMemoryAddress, ByteBuf buffer) {
         allocated.add(buffer);
+        allocatedHasMemoryAddress.add(buffer.hasMemoryAddress());
         return buffer;
     }
 }
