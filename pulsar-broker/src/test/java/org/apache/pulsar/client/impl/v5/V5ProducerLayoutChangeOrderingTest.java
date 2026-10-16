@@ -140,6 +140,9 @@ public class V5ProducerLayoutChangeOrderingTest extends V5ClientBaseTest {
             }
         }
         CompletableFuture.allOf(sends.toArray(CompletableFuture[]::new)).get(60, TimeUnit.SECONDS);
+        // Otherwise the layout change caught no send in flight, and the test proved nothing.
+        assertThat(((ScalableTopicProducer<Long>) producer).sendsParkedOrHeld.get())
+                .as("sends parked or held behind the retiring segment").isPositive();
 
         // Read until the topic is drained, so that a duplicate shows up as such instead of hiding the
         // last message of another key. Per key, keep the sequence numbers of each segment in the

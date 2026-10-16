@@ -41,6 +41,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import org.apache.pulsar.client.api.EncodeData;
@@ -77,6 +78,13 @@ import org.apache.pulsar.common.scalable.ScalableTopicConstants;
  * producers only account for the payload once a message reaches them and never block on the limit
  * themselves ({@link ProducerConfigurationData#isMemoryLimitAdmittedUpstream()}), so nothing on the
  * dispatch chain, whose links may run on an IO thread, ever waits for memory.
+ *
+ * <p>Per-key order across layout changes: async sends of a key are stored in call order across a
+ * split or merge (see {@link #dispatchSend}). While a segment retires, new async sends whose key it
+ * owned are held until the sends that were pending on it have been re-sent, which takes until the new
+ * layout reaches the client; sends of other keys, and sends without a key, are not held. A synchronous
+ * {@link MessageBuilder#send()} does not go through the hold: mixing synchronous and async sends of
+ * one key can reorder them across a layout change.
  */
 final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.LayoutChangeListener {
 
@@ -154,6 +162,10 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
     @VisibleForTesting
     final AtomicInteger segmentProducersCreated = new AtomicInteger();
 
+    /** Test hook: how many times an async send was parked or held behind a retiring segment. */
+    @VisibleForTesting
+    final AtomicLong sendsParkedOrHeld = new AtomicLong();
+
     /**
      * Per-segment v4 producers. Stored as futures so concurrent send-on-cold-segment
      * calls share a single creation attempt without blocking, and so callers running
@@ -180,6 +192,12 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
     private final Object dispatchLock = new Object();
 
     /**
+     * Tails of the dispatch chains of the segments a layout dropped, until they complete.
+     * {@link #closeAsync} waits for them along with the current chains.
+     */
+    private final Set<CompletableFuture<?>> droppedChainTails = ConcurrentHashMap.newKeySet();
+
+    /**
      * Currently in-flight async sends. {@link #flushAsync()} snapshots and
      * awaits these (each user-visible send future completes on broker ack —
      * exactly the flush guarantee).
@@ -198,11 +216,18 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
      * Guards the per-key ordering state of async sends: the segment each one is routed to, the
      * segments being retired, and the sends held back while they are (see {@link #dispatchSend}).
      * Held only for this bookkeeping and never while calling into a segment producer, so that a v4
-     * callback taking it cannot deadlock against a dispatch holding a v4 lock.
+     * callback taking it cannot deadlock against a dispatch holding a v4 lock. Parking a send also
+     * charges the client memory limit under it, which may run the limit's trigger inline; that
+     * trigger does not call back into this producer.
      */
     private final Object orderLock = new Object();
 
-    /** The async sends routed to each segment and not yet resolved. Guarded by {@link #orderLock}. */
+    /**
+     * The async sends routed to each segment and not yet resolved. The entry of an active segment
+     * stays while the segment does, so that it is not allocated and dropped as its in-flight count
+     * goes 0 and back; that of a segment the layout dropped goes once it is idle or retired. Guarded
+     * by {@link #orderLock}.
+     */
     private final Map<Long, SegmentSends<T>> segmentSends = new HashMap<>();
 
     /** New async sends held, in call order, while a segment retires. Guarded by {@link #orderLock}. */
@@ -210,9 +235,22 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
 
     /**
      * Whether new async sends are held: set when a segment starts retiring, cleared once the held
-     * sends have all been dispatched. Guarded by {@link #orderLock}.
+     * sends have all been dispatched. Only the sends of a key that one of {@link #holdScopes} owns
+     * are held. Guarded by {@link #orderLock}.
      */
     private boolean holdingSends;
+
+    /**
+     * The segments that started retiring since {@link #holdingSends} was last set, each with the
+     * layout it was active in: a new send is held when its key routes to one of them in that layout,
+     * which are the keys whose earlier sends may still be re-sent. Kept until the hold clears, so
+     * that a key's new sends keep queueing behind its held ones. Guarded by {@link #orderLock}.
+     */
+    private final List<HoldScope> holdScopes = new ArrayList<>();
+
+    /** How many sends were parked and held since the hold was set, for logging. Guarded by {@link #orderLock}. */
+    private int parkedInHold;
+    private int heldInHold;
 
     /**
      * How many layouts were applied. {@link #releaseSends} stops dispatching a batch when it changes:
@@ -233,6 +271,8 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
     private volatile List<ActiveSegment> activeSegments = List.of();
 
     private volatile boolean closed = false;
+    /** Completes once {@link #closeAsync} is done; set by its first call. */
+    private final AtomicReference<CompletableFuture<Void>> closeFuture = new AtomicReference<>();
     private final AsyncProducerV5<T> asyncView;
 
     ScalableTopicProducer(PulsarClientV5 client,
@@ -388,6 +428,13 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
         boolean isIdle() {
             return inFlight == 0 && parked.isEmpty() && !retiring;
         }
+    }
+
+    /**
+     * A retiring segment, with the layout it was active in, or null if that is not known: see
+     * {@link #holdScopes}.
+     */
+    private record HoldScope(long segmentId, List<ActiveSegment> layout) {
     }
 
     /**
@@ -645,11 +692,13 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
      * <p>When a segment is sealed by a split/merge, or terminated by a regular-to-scalable
      * migration, the sends still pending on it fail and must be re-sent to its successors. Newer
      * sends for the same keys must not reach the successors before them. So once a segment is gone
-     * it retires: its failed sends are parked rather than retried one by one, and new sends are
-     * held, in call order, instead of routed. When the new layout is in and the segment has no send
-     * in flight any more, {@link #releaseSends} re-sends the parked sends in call order and then the
-     * held ones. Routing and the retirement state change together under {@link #orderLock}, so a
-     * send either goes to the old segment and is parked if it fails there, or is held.
+     * it retires: its failed sends are parked rather than retried one by one, and new sends of the
+     * keys it owned are held, in call order, instead of routed. When the new layout is in and the
+     * segment has no send in flight any more, {@link #releaseSends} re-sends the parked sends in call
+     * order and then the held ones. Routing and the retirement state change together under
+     * {@link #orderLock}, so a send of such a key either goes to the old segment and is parked if it
+     * fails there, or is held. Sends of other keys, and sends without a key, which have no order to
+     * keep, are routed as usual meanwhile.
      *
      * @param releasedAt {@link #NOT_RELEASED} for a send from the caller, which is held while new
      *                   sends are held; for a send {@link #releaseSends} dispatches, the
@@ -668,9 +717,11 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
             if (isShuttingDown()) {
                 failure = new PulsarClientException.AlreadyClosedException("Producer already closed");
                 segmentId = -1;
-            } else if (releasedAt == NOT_RELEASED && holdingSends) {
+            } else if (releasedAt == NOT_RELEASED && holdingSends && isHeldKey(send.key)) {
                 send.state = SEND_HELD;
                 heldSends.add(send);
+                heldInHold++;
+                sendsParkedOrHeld.incrementAndGet();
                 return true;
             } else if (releasedAt != NOT_RELEASED && releasedAt != layoutChanges) {
                 return false;
@@ -768,14 +819,17 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
                     sends.parked.add(send);
                     // The message stays with this layer until it is re-sent.
                     reholdPayloadShare(send);
+                    parkedInHold++;
+                    sendsParkedOrHeld.incrementAndGet();
                     parked = true;
                 } else {
                     send.state = SEND_UNTRACKED;
                     send.segmentId = -1;
                 }
                 if (!sends.retiring) {
-                    sends.retiring = true;
-                    holdingSends = true;
+                    // The layout still has the segment: a layout that dropped it while this send
+                    // was in flight would have started its retirement.
+                    startRetiring(segmentId, sends, activeSegments);
                     startedRetiring = true;
                 }
             }
@@ -831,7 +885,7 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
                 send.state = SEND_UNTRACKED;
                 send.segmentId = -1;
             }
-            holdingSends = false;
+            clearHold();
         }
         for (var send : waiting) {
             finish(send, null, new PulsarClientException.AlreadyClosedException("Producer already closed"));
@@ -861,6 +915,7 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
             while (true) {
                 List<PendingSend<T>> batch = new ArrayList<>();
                 long batchLayout;
+                boolean parkedBatch;
                 synchronized (orderLock) {
                     if (!holdingSends) {
                         return;
@@ -881,15 +936,15 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
                             retiring = true;
                         }
                     }
-                    if (!batch.isEmpty()) {
-                        // Retired segments of a merge interleave: restore the call order.
-                        batch.sort(Comparator.comparingLong(send -> send.order));
-                    } else if (retiring) {
-                        return;
-                    } else if (heldSends.isEmpty()) {
-                        holdingSends = false;
-                        return;
-                    } else {
+                    parkedBatch = !batch.isEmpty();
+                    if (!parkedBatch) {
+                        if (retiring) {
+                            return;
+                        }
+                        if (heldSends.isEmpty()) {
+                            clearHold();
+                            return;
+                        }
                         batch.addAll(heldSends);
                         heldSends.clear();
                     }
@@ -897,6 +952,11 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
                         send.state = SEND_UNTRACKED;
                         send.segmentId = -1;
                     }
+                }
+                if (parkedBatch) {
+                    // Retired segments of a merge interleave: restore the call order. The order of a
+                    // send is set before it is dispatched and never changes.
+                    batch.sort(Comparator.comparingLong(send -> send.order));
                 }
                 for (int i = 0; i < batch.size(); i++) {
                     if (!dispatchSend(batch.get(i), batchLayout)) {
@@ -931,9 +991,10 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
      * A segment whose sends failed because it is gone, while the layout still has it, retires once
      * the new layout drops it. If no new layout comes within the retry budget, its parked sends fail.
      *
-     * <p>Runs on the JDK's delayed executor rather than the client's: closing the client shuts its
-     * executors down without closing this producer, and the check must still run then to fail the
-     * waiting sends. It only does bookkeeping and completes futures, which {@link #finish} hands off.
+     * <p>Runs on the JDK's delayed executor rather than the client's: the client's executors drop
+     * queued tasks when they shut down, as on {@link PulsarClientV5#shutdown()}, and the check must
+     * still run then to fail the waiting sends. It only does bookkeeping and completes futures, which
+     * {@link #finish} hands off.
      */
     private void scheduleRetirementCheck(long segmentId, int check) {
         CompletableFuture.delayedExecutor(Math.min(100L * check, SEND_RETRY_MAX_BACKOFF_MS),
@@ -997,6 +1058,59 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
         }
     }
 
+    /**
+     * Start retiring a segment, whose keys are those it owns in {@code layout}: hold the new sends
+     * of those keys. Called under {@link #orderLock}.
+     */
+    private void startRetiring(long segmentId, SegmentSends<T> sends, List<ActiveSegment> layout) {
+        sends.retiring = true;
+        boolean inLayout = layout.stream().anyMatch(segment -> segment.segmentId() == segmentId);
+        // Without the layout it was active in, its keys are unknown: hold the sends of every key.
+        holdScopes.add(new HoldScope(segmentId, inLayout ? layout : null));
+        if (!holdingSends) {
+            holdingSends = true;
+            log.debug().attr("segmentId", segmentId)
+                    .log("Segment retiring: holding the async sends of its keys");
+        }
+    }
+
+    /** Stop holding sends, once none is held or parked. Called under {@link #orderLock}. */
+    private void clearHold() {
+        if (holdingSends) {
+            log.debug().attr("parked", parkedInHold).attr("held", heldInHold)
+                    .log("Retired segments done: no longer holding async sends");
+        }
+        holdingSends = false;
+        holdScopes.clear();
+        parkedInHold = 0;
+        heldInHold = 0;
+    }
+
+    /**
+     * Whether a new send of {@code key} is held while sends are: whether one of {@link #holdScopes}
+     * owns the key. Sends without a key have no order to keep. Called under {@link #orderLock}.
+     */
+    private boolean isHeldKey(String key) {
+        if (key == null) {
+            return false;
+        }
+        for (var scope : holdScopes) {
+            if (scope.layout() == null) {
+                return true;
+            }
+            try {
+                if (router.route(key, scope.layout()) == scope.segmentId()) {
+                    return true;
+                }
+            } catch (IllegalStateException e) {
+                // Not routable in that layout, which does not happen for a layout that was applied:
+                // hold the send rather than risk its order.
+                return true;
+            }
+        }
+        return false;
+    }
+
     private boolean isActive(long segmentId) {
         for (var segment : activeSegments) {
             if (segment.segmentId() == segmentId) {
@@ -1015,10 +1129,12 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
                     SegmentSends<T> sends = segmentSends.get(send.segmentId);
                     sends.inFlight--;
                     release = sends.retiring;
-                    if (sends.isIdle()) {
+                    if (sends.isIdle() && !isActive(send.segmentId)) {
                         segmentSends.remove(send.segmentId);
                     }
                 }
+                // The two cases below are not reached today: every path that finishes a parked or
+                // held send untracks it first. Guards for a future path that does not.
                 case SEND_PARKED -> {
                     SegmentSends<T> sends = segmentSends.get(send.segmentId);
                     sends.parked.remove(send);
@@ -1109,21 +1225,38 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
                                        Consumer<org.apache.pulsar.client.api.Producer<T>> dispatchOp,
                                        Consumer<Throwable> onCreateFailure) {
         synchronized (dispatchLock) {
-            // The head completes on the IO thread that finishes creating the segment producer, and
-            // every link queued behind it would run there in one burst: hop off it first.
-            var prev = dispatchChains.computeIfAbsent(segmentId,
-                    id -> getOrCreateSegmentProducerAsync(id)
-                            .thenApplyAsync(Function.identity(), dispatchExecutor));
-            var next = prev.thenApply(producer -> {
-                dispatchOp.accept(producer);
-                return producer;
-            });
-            // If the chain link itself faults (creation failure), hand it to the caller.
-            next.exceptionally(ex -> {
-                onCreateFailure.accept(ex);
-                return null;
-            });
-            dispatchChains.put(segmentId, next);
+            if (!closed) {
+                // The head completes on the IO thread that finishes creating the segment producer, and
+                // every link queued behind it would run there in one burst: hop off it first.
+                var prev = dispatchChains.computeIfAbsent(segmentId,
+                        id -> getOrCreateSegmentProducerAsync(id)
+                                .thenApplyAsync(Function.identity(), dispatchExecutor));
+                var next = prev.thenApply(producer -> {
+                    dispatchOp.accept(producer);
+                    return producer;
+                });
+                // If the chain link itself faults (creation failure), hand it to the caller.
+                next.exceptionally(ex -> {
+                    onCreateFailure.accept(ex);
+                    return null;
+                });
+                dispatchChains.put(segmentId, next);
+                return;
+            }
+        }
+        // closeAsync may have collected the chain tails already: a link appended now would not be
+        // waited for. Fail the send as gone, which fails it for good once closing.
+        onCreateFailure.accept(new PulsarClientException.AlreadyClosedException("Producer already closed"));
+    }
+
+    /** Drop the dispatch chain of a segment the layout dropped, keeping its tail until it completes. */
+    private void dropDispatchChain(long segmentId) {
+        synchronized (dispatchLock) {
+            var tail = dispatchChains.remove(segmentId);
+            if (tail != null && !tail.isDone()) {
+                droppedChainTails.add(tail);
+                tail.whenComplete((__, ___) -> droppedChainTails.remove(tail));
+            }
         }
     }
 
@@ -1174,26 +1307,49 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
         return CompletableFuture.allOf(pending);
     }
 
+    /**
+     * Close the producer: fail the sends waiting for a layout, close the segment producers, and wait
+     * for the sends on the dispatch chains to be handed to them, which fails them as the segment
+     * producers are closed. Waiting for the chains matters when the client closes next: its executors
+     * drop queued tasks when they shut down, among them the hop that starts a chain, which would leave
+     * the sends behind it pending for good. Idempotent.
+     */
     CompletableFuture<Void> closeAsync() {
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        if (!closeFuture.compareAndSet(null, result)) {
+            return closeFuture.get();
+        }
         closed = true;
+        client.deregisterProducer(this);
         dagWatch.close();
 
         // No new layout is coming: fail the sends waiting for one. The sends in flight fail as their
         // segment producers close below.
         failWaitingSends();
 
-        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        List<CompletableFuture<?>> futures = new ArrayList<>();
         for (var future : segmentProducers.values()) {
             // If creation failed, there's nothing to close — swallow so a single bad
             // segment doesn't fail the overall close.
             futures.add(future.thenCompose(p -> p.closeAsync())
                     .exceptionally(__ -> null));
         }
-        return CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new))
+        // Collected after closing is visible, under the lock: no link is appended after this.
+        synchronized (dispatchLock) {
+            for (var tail : dispatchChains.values()) {
+                futures.add(tail.handle((__, ___) -> null));
+            }
+            for (var tail : droppedChainTails) {
+                futures.add(tail.handle((__, ___) -> null));
+            }
+        }
+        CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new))
                 .whenComplete((__, ___) -> {
                     segmentProducers.clear();
                     dispatchChains.clear();
+                    result.complete(null);
                 });
+        return result;
     }
 
     // --- Layout change handling ---
@@ -1238,12 +1394,17 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
         // with the switch to the new layout, so no send is routed by it before the hold is on.
         boolean holding;
         synchronized (orderLock) {
-            for (var entry : segmentSends.entrySet()) {
+            var it = segmentSends.entrySet().iterator();
+            while (it.hasNext()) {
+                var entry = it.next();
                 SegmentSends<T> sends = entry.getValue();
-                if (!newSegmentIds.contains(entry.getKey()) && !sends.retiring
-                        && (sends.inFlight > 0 || !sends.parked.isEmpty())) {
-                    sends.retiring = true;
-                    holdingSends = true;
+                if (newSegmentIds.contains(entry.getKey()) || sends.retiring) {
+                    continue;
+                }
+                if (sends.isIdle()) {
+                    it.remove();
+                } else {
+                    startRetiring(entry.getKey(), sends, activeSegments);
                 }
             }
             this.activeSegments = layout.activeSegments();
@@ -1271,7 +1432,7 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
                             }
                         });
                 segmentProducers.remove(entry.getKey());
-                dispatchChains.remove(entry.getKey());
+                dropDispatchChain(entry.getKey());
             }
         }
 
