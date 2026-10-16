@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger;
 
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 public interface ReadOnlyManagedLedger {
 
@@ -29,5 +30,13 @@ public interface ReadOnlyManagedLedger {
     ReadOnlyCursor createReadOnlyCursor(Position position);
 
     Map<String, String> getProperties();
+
+    /**
+     * Asynchronously close this read-only managed ledger, releasing any cached read handles.
+     * The default implementation is a no-op that returns a completed future.
+     */
+    default CompletableFuture<Void> asyncClose() {
+        return CompletableFuture.completedFuture(null);
+    }
 
 }
