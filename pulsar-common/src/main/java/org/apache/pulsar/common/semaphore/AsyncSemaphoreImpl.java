@@ -19,13 +19,16 @@
 package org.apache.pulsar.common.semaphore;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -37,6 +40,10 @@ import org.apache.pulsar.common.util.Runnables;
 
 /**
  * Implementation of AsyncSemaphore with timeout and queue size limits.
+ *
+ * <p>Permits are granted on the calling thread when no other requests are waiting. Waiting requests are processed
+ * on the executor, which also handles the timeouts. Their futures are completed on {@link ForkJoinPool#commonPool()},
+ * so the callers' continuations never run on the executor thread or while holding the lock.
  */
 @CustomLog
 public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
@@ -48,7 +55,12 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
     private final boolean shutdownExecutor;
     private final LongConsumer queueLatencyRecorder;
     private final AtomicBoolean closed = new AtomicBoolean(false);
-    private final Runnable processQueueRunnable = Runnables.catchingAndLoggingThrowables(this::internalProcessQueue);
+    // true while a processQueue task is pending, so that at most one such task is queued in the executor
+    private final AtomicBoolean processQueueScheduled = new AtomicBoolean(false);
+    private final Runnable processQueueRunnable = Runnables.catchingAndLoggingThrowables(() -> {
+        processQueueScheduled.set(false);
+        internalProcessQueue();
+    });
     private final ScheduledFuture<?> processQueueScheduledFuture;
 
     /**
@@ -59,7 +71,8 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
      * @param timeoutMillis timeout in milliseconds for acquiring permits
      */
     public AsyncSemaphoreImpl(long maxPermits, int maxQueueSize, long timeoutMillis) {
-        this(maxPermits, maxQueueSize, timeoutMillis, maxPermits > 0 ? createExecutor() : null, maxPermits > 0, null);
+        this(maxPermits, maxQueueSize, timeoutMillis,
+                maxPermits > 0 ? createExecutor("async-semaphore-executor") : null, maxPermits > 0, null);
     }
 
     /**
@@ -68,7 +81,8 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
      *                   recommended)
      * @param maxQueueSize max number of requests that can be queued, set to <= 0 for unbounded queue (not recommended)
      * @param timeoutMillis timeout in milliseconds for acquiring permits
-     * @param executor executor service to use for scheduling timeouts, it is expected to be single threaded
+     * @param executor executor service to use for scheduling timeouts, it is expected to be single threaded and to
+     *                 remove cancelled tasks, see {@link ScheduledThreadPoolExecutor#setRemoveOnCancelPolicy(boolean)}
      * @param queueLatencyRecorder consumer to record queue latency, Long.MAX_VALUE is used for requests that timed out
      */
     public AsyncSemaphoreImpl(long maxPermits, int maxQueueSize, long timeoutMillis,
@@ -92,9 +106,15 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
                 ? executor.schedule(processQueueRunnable, timeoutMillis / 2, TimeUnit.MILLISECONDS) : null;
     }
 
-    private static ScheduledExecutorService createExecutor() {
-        return Executors.newSingleThreadScheduledExecutor(
-                new DefaultThreadFactory("async-semaphore-executor"));
+    /**
+     * Creates a single threaded executor for the semaphore. Timeout tasks get cancelled when permits are granted, so
+     * cancelled tasks are removed from the queue right away instead of being retained until their delay expires.
+     */
+    static ScheduledThreadPoolExecutor createExecutor(String threadNamePrefix) {
+        ScheduledThreadPoolExecutor executor =
+                new ScheduledThreadPoolExecutor(1, new DefaultThreadFactory(threadNamePrefix));
+        executor.setRemoveOnCancelPolicy(true);
+        return executor;
     }
 
     @Override
@@ -118,7 +138,17 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
             return future;
         }
 
+        if (isCancelled.getAsBoolean()) {
+            future.completeExceptionally(new PermitAcquireCancelledException("Permit acquisition was cancelled"));
+            return future;
+        }
+
         PendingRequest request = new PendingRequest(permits, previousPermit, future, isCancelled);
+        if (tryAcquireWithoutQueueing(request)) {
+            recordQueueLatency(request.getAgeNanos());
+            future.complete(new SemaphorePermit(permits));
+            return future;
+        }
         if (!queue.offer(request)) {
             future.completeExceptionally(new PermitAcquireQueueFullException(
                     "Semaphore queue is full"));
@@ -131,8 +161,8 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
                 recordQueueLatency(Long.MAX_VALUE);
                 // also record the time in the queue
                 recordQueueLatency(request.getAgeNanos());
-                future.completeExceptionally(new PermitAcquireTimeoutException(
-                        "Permit acquisition timed out"));
+                completeAsync(() -> future.completeExceptionally(new PermitAcquireTimeoutException(
+                        "Permit acquisition timed out")));
                 // the next request might have smaller permits and that might be processed
                 processQueue();
             }
@@ -232,55 +262,83 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
     }
 
     private void processQueue() {
-        if (closed.get()) {
+        // a request is added to the queue before this is called, so skipping an empty queue doesn't lose a wakeup
+        if (closed.get() || queue.isEmpty()) {
             return;
         }
-        executor.execute(processQueueRunnable);
+        // a pending task also handles the changes made before this call since it hasn't started yet
+        if (processQueueScheduled.compareAndSet(false, true)) {
+            executor.execute(processQueueRunnable);
+        }
     }
 
-    private synchronized void internalProcessQueue() {
-        while (!closed.get() && !queue.isEmpty()) {
-            long current = availablePermits.get();
-            if (current <= 0) {
-                break;
-            }
+    private synchronized boolean tryAcquireWithoutQueueing(PendingRequest request) {
+        // permits are granted in FIFO order, so a request can't bypass the waiting requests
+        return queue.isEmpty() && tryAcquirePermits(request);
+    }
 
-            PendingRequest request = queue.peek();
-            if (request == null) {
-                break;
-            }
-
-            if (request.isCancelled.getAsBoolean()) {
-                request.cancelTimeoutTask();
-                queue.remove(request);
-                request.future.completeExceptionally(
-                        new PermitAcquireCancelledException("Permit acquisition was cancelled"));
-                continue;
-            }
-
-            // request future has been completed by user code cancellation, remove it from the queue
-            if (request.future.isDone()) {
-                request.cancelTimeoutTask();
-                queue.remove(request);
-                continue;
-            }
-
-            if (request.getRequiredPermits() <= current) {
-                long requiredPermitsReusingPrevious = request.getRequiredPermitsReusingPrevious();
-                availablePermits.addAndGet(-requiredPermitsReusingPrevious);
-                request.cancelTimeoutTask();
-                queue.remove(request);
-                SemaphorePermit permit = new SemaphorePermit(request.permits);
-                recordQueueLatency(request.getAgeNanos());
-                boolean futureCompleted = request.future.complete(permit);
-                if (!futureCompleted) {
-                    // request was cancelled by user code, return permits
-                    availablePermits.addAndGet(requiredPermitsReusingPrevious);
-                }
-            } else {
-                break;
-            }
+    // must be called while holding the lock
+    private boolean tryAcquirePermits(PendingRequest request) {
+        long current = availablePermits.get();
+        if (current <= 0 || request.getRequiredPermits() > current) {
+            return false;
         }
+        request.acquiredPermits = request.getRequiredPermitsReusingPrevious();
+        availablePermits.addAndGet(-request.acquiredPermits);
+        return true;
+    }
+
+    private void internalProcessQueue() {
+        List<Runnable> completions = new ArrayList<>();
+        try {
+            synchronized (this) {
+                while (!closed.get()) {
+                    PendingRequest request = queue.peek();
+                    if (request == null) {
+                        break;
+                    }
+
+                    if (request.isCancelled.getAsBoolean()) {
+                        request.cancelTimeoutTask();
+                        queue.remove(request);
+                        completions.add(() -> request.future.completeExceptionally(
+                                new PermitAcquireCancelledException("Permit acquisition was cancelled")));
+                        continue;
+                    }
+
+                    // request future has been completed by user code cancellation, remove it from the queue
+                    if (request.future.isDone()) {
+                        request.cancelTimeoutTask();
+                        queue.remove(request);
+                        continue;
+                    }
+
+                    if (!tryAcquirePermits(request)) {
+                        break;
+                    }
+                    request.cancelTimeoutTask();
+                    queue.remove(request);
+                    completions.add(() -> completeAcquiredRequest(request));
+                }
+            }
+        } finally {
+            // complete outside the lock, also when an isCancelled supplier throws, so that granted permits don't leak
+            completions.forEach(AsyncSemaphoreImpl::completeAsync);
+        }
+    }
+
+    private void completeAcquiredRequest(PendingRequest request) {
+        recordQueueLatency(request.getAgeNanos());
+        if (!request.future.complete(new SemaphorePermit(request.permits))) {
+            // request was cancelled by user code, return permits
+            availablePermits.addAndGet(request.acquiredPermits);
+            processQueue();
+        }
+    }
+
+    // the continuations of waiting requests mustn't run on the executor, otherwise they'd delay all other requests
+    private static void completeAsync(Runnable completion) {
+        ForkJoinPool.commonPool().execute(Runnables.catchingAndLoggingThrowables(completion));
     }
 
     @Override
@@ -307,6 +365,8 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
         private final BooleanSupplier isCancelled;
         private volatile ScheduledFuture<?> timeoutTask;
         private final long requestCreatedNanos = System.nanoTime();
+        // permits taken from availablePermits when the request was granted, written while holding the lock
+        private long acquiredPermits;
 
         PendingRequest(long permits, SemaphorePermit previousPermit, CompletableFuture<AsyncSemaphorePermit> future,
                        BooleanSupplier isCancelled) {
