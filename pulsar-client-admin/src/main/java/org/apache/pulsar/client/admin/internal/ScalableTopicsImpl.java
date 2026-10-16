@@ -201,9 +201,11 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
 
     @Override
     public CompletableFuture<Map<String, Set<AuthAction>>> getPermissionsAsync(String topic) {
-        TopicName tn = validateTopic(topic);
-        return asyncGetRequest(topicPath(tn).path("permissions"),
-                new GenericType<Map<String, Set<AuthAction>>>() {});
+        return FutureUtil.supplySafely(() -> {
+            TopicName tn = validateTopic(topic);
+            return asyncGetRequest(topicPath(tn).path("permissions"),
+                    new GenericType<Map<String, Set<AuthAction>>>() {});
+        });
     }
 
     @Override
@@ -213,9 +215,10 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
 
     @Override
     public CompletableFuture<Void> grantPermissionAsync(String topic, String role, Set<AuthAction> actions) {
-        TopicName tn = validateTopic(topic);
-        WebTarget path = topicPath(tn).path("permissions").path(role);
-        return asyncPostRequest(path, Entity.entity(actions, MediaType.APPLICATION_JSON));
+        return FutureUtil.supplySafely(() -> {
+            TopicName tn = validateTopic(topic);
+            return asyncPostRequest(permissionsPath(tn, role), Entity.entity(actions, MediaType.APPLICATION_JSON));
+        });
     }
 
     @Override
@@ -225,8 +228,15 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
 
     @Override
     public CompletableFuture<Void> revokePermissionsAsync(String topic, String role) {
-        TopicName tn = validateTopic(topic);
-        return asyncDeleteRequest(topicPath(tn).path("permissions").path(role));
+        return FutureUtil.supplySafely(() -> {
+            TopicName tn = validateTopic(topic);
+            return asyncDeleteRequest(permissionsPath(tn, role));
+        });
+    }
+
+    /** The role is a single path component, even if it contains a '/', as in the regular-topic permission API. */
+    private WebTarget permissionsPath(TopicName tn, String role) {
+        return WebTargets.addParts(topicPath(tn).path("permissions"), new String[] {role});
     }
 
     // --- Delete ---

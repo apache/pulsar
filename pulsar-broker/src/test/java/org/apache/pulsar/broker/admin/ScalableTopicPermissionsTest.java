@@ -24,6 +24,8 @@ import static org.awaitility.Awaitility.await;
 import io.jsonwebtoken.Jwts;
 import java.time.Duration;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import lombok.Cleanup;
@@ -41,6 +43,9 @@ import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.v5.schema.Schema;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.ScalableSubscriptionType;
+import org.apache.pulsar.common.policies.data.ScalableTopicMetadata;
+import org.apache.pulsar.common.policies.data.ScalableTopicStats.SegmentSubscriptionStats;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -205,6 +210,44 @@ public class ScalableTopicPermissionsTest extends AuthZTest {
                 .subscribe());
     }
 
+    /** The segments that a split creates are authorized with the permissions of the topic, like the first ones. */
+    @Test
+    public void testSegmentsCreatedBySplitAreAuthorizedWithTheTopicPermissions() throws Exception {
+        String topic = "topic://" + NAMESPACE + "/" + UUID.randomUUID();
+        superUserAdmin.scalableTopics().createScalableTopic(topic, 1);
+        superUserAdmin.scalableTopics().grantPermission(topic, CLIENT_ROLE,
+                Set.of(AuthAction.produce, AuthAction.consume));
+
+        @Cleanup
+        PulsarClient client = newClient(CLIENT_TOKEN);
+        @Cleanup
+        QueueConsumer<String> consumer = client.newQueueConsumer(Schema.string())
+                .topic(topic)
+                .subscriptionName("queue-sub")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.EARLIEST)
+                .subscribe();
+        @Cleanup
+        Producer<String> producer = client.newProducer(Schema.string())
+                .topic(topic)
+                .create();
+
+        Set<String> sent = new HashSet<>();
+        for (int i = 0; i < NUM_MESSAGES; i++) {
+            producer.newMessage().key("key-" + i).value("before-" + i).send();
+            sent.add("before-" + i);
+        }
+        superUserAdmin.scalableTopics().splitSegment(topic, 0);
+        await().untilAsserted(() -> assertThat(superUserAdmin.scalableTopics().getMetadata(topic).getSegments()
+                .values().stream().filter(ScalableTopicMetadata.SegmentInfo::isActive).count()).isEqualTo(2));
+        // Routed to the two segments the split created.
+        for (int i = 0; i < NUM_MESSAGES; i++) {
+            producer.newMessage().key("key-" + i).value("after-" + i).send();
+            sent.add("after-" + i);
+        }
+
+        assertThat(receiveValues(consumer::receive, sent.size())).isEqualTo(sent);
+    }
+
     @Test
     public void testGrantGetAndRevokePermissions() throws Exception {
         String topic = newScalableTopic();
@@ -220,6 +263,25 @@ public class ScalableTopicPermissionsTest extends AuthZTest {
         @Cleanup
         PulsarClient client = newClient(CLIENT_TOKEN);
         assertNotAuthorized(() -> client.newProducer(Schema.string()).topic(topic).create());
+    }
+
+    /** A role is a single path component of the permission endpoints, even when it contains '/' or '%'. */
+    @Test
+    public void testGrantGetAndRevokeRolesWithReservedCharacters() throws Exception {
+        String topic = newScalableTopic();
+        List<String> roles = List.of("group/app", "100%app");
+        for (String role : roles) {
+            superUserAdmin.scalableTopics().grantPermission(topic, role, Set.of(AuthAction.consume));
+        }
+        Map<String, Set<AuthAction>> permissions = superUserAdmin.scalableTopics().getPermissions(topic);
+        for (String role : roles) {
+            assertThat(permissions).containsEntry(role, Set.of(AuthAction.consume));
+        }
+
+        for (String role : roles) {
+            superUserAdmin.scalableTopics().revokePermissions(topic, role);
+        }
+        assertThat(superUserAdmin.scalableTopics().getPermissions(topic)).doesNotContainKeys("group/app", "100%app");
     }
 
     /** Revoking the permission granted on the topic disconnects the producers already attached to its segments. */
@@ -243,6 +305,33 @@ public class ScalableTopicPermissionsTest extends AuthZTest {
 
         await().untilAsserted(() ->
                 assertThat(superUserAdmin.scalableTopics().getStats(topic).getProducers()).isEmpty());
+    }
+
+    /** Revoking the permission granted on the topic disconnects the consumers already attached to its segments. */
+    @Test
+    public void testRevokeDisconnectsSegmentConsumers() throws Exception {
+        String topic = newScalableTopic();
+        superUserAdmin.scalableTopics().createSubscription(topic, "queue-sub", ScalableSubscriptionType.QUEUE);
+        superUserAdmin.scalableTopics().grantPermission(topic, CLIENT_ROLE, Set.of(AuthAction.consume));
+
+        @Cleanup
+        PulsarClient client = newClient(CLIENT_TOKEN);
+        @Cleanup
+        QueueConsumer<String> consumer = client.newQueueConsumer(Schema.string())
+                .topic(topic)
+                .subscriptionName("queue-sub")
+                .subscribe();
+        // One per-segment consumer on each of the two segments.
+        await().untilAsserted(() -> assertThat(segmentConsumerCount(topic, "queue-sub")).isEqualTo(2));
+
+        superUserAdmin.scalableTopics().revokePermissions(topic, CLIENT_ROLE);
+
+        await().untilAsserted(() -> assertThat(segmentConsumerCount(topic, "queue-sub")).isZero());
+    }
+
+    private int segmentConsumerCount(String topic, String subscription) throws Exception {
+        return superUserAdmin.scalableTopics().getStats(topic).getSubscriptions().get(subscription).getSegments()
+                .values().stream().mapToInt(SegmentSubscriptionStats::getConsumerCount).sum();
     }
 
     @Test
