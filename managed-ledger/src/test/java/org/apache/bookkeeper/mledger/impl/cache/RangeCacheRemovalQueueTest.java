@@ -28,7 +28,10 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
@@ -172,6 +175,94 @@ public class RangeCacheRemovalQueueTest {
         assertThat(e1.key).isNull();
         assertThat(e2.key).isNull();
         assertThat(e3.key).isNull();
+    }
+
+    @Test
+    public void testSizeBasedEvictionRequeuesAtMostOncePerPass() {
+        // A high requeue limit for entries with expected reads keeps them in the cache longer on time-based eviction,
+        // but size-based eviction must still free memory in one pass, without cycling through the queue up to the
+        // limit
+        RangeCacheRemovalQueue q = new RangeCacheRemovalQueue(
+                /*maxRequeueCountWhenHasExpectedReads*/ 1000,
+                /*extendTTLOfRecentlyAccessed*/ true);
+        List<RangeCacheEntryWrapper> entries = new ArrayList<>();
+        for (long entryId = 0; entryId < 100; entryId++) {
+            RangeCacheEntryWrapper e = addWrappedEntry(q, 12L, entryId, 2 /* has expected reads */, 10);
+            e.accessed = true;
+            entries.add(e);
+        }
+
+        Pair<Integer, Long> result = q.evictLeastAccessedEntries(500);
+
+        assertThat(result.getRight().longValue()).isEqualTo(500L);
+        assertThat(entries.stream().filter(e -> e.key == null).count()).isEqualTo(50);
+        // every remaining entry was requeued once, in the pass's first cycle, before the second cycle removed the
+        // oldest
+        assertThat(entries.stream().filter(e -> e.key != null).mapToInt(e -> e.requeueCount))
+                .hasSize(50).containsOnly(1);
+    }
+
+    @Test
+    public void testSizeBasedEvictionReleasesBuffersOfEntriesWithExpectedReads() {
+        // As testSizeBasedEvictionRequeuesAtMostOncePerPass, with a real cache and buffers: the entries that the
+        // pass's second cycle removes are removed from the cache, and their buffers are released
+        RangeCacheRemovalQueue q = new RangeCacheRemovalQueue(
+                /*maxRequeueCountWhenHasExpectedReads*/ 1000,
+                /*extendTTLOfRecentlyAccessed*/ false);
+        RangeCache cache = new RangeCache(q);
+        List<ByteBuf> buffers = new ArrayList<>();
+        for (long entryId = 0; entryId < 100; entryId++) {
+            ByteBuf buffer = Unpooled.directBuffer(10).writeZero(10);
+            Position position = PositionFactory.create(14L, entryId);
+            // the entry retains the buffer, and the cache takes the entry's reference
+            assertTrue(cache.put(position, EntryImpl.create(position, buffer, 2 /* has expected reads */)));
+            buffer.release();
+            buffers.add(buffer);
+        }
+        assertThat(cache.getSize()).isEqualTo(1000L);
+
+        Pair<Integer, Long> result = q.evictLeastAccessedEntries(500);
+
+        assertThat(result.getLeft()).isEqualTo(50);
+        assertThat(result.getRight()).isEqualTo(500L);
+        assertThat(cache.getSize()).isEqualTo(500L);
+        assertThat(cache.getNumberOfEntries()).isEqualTo(50);
+        // the oldest half was requeued once and removed in the second cycle
+        for (int i = 0; i < 100; i++) {
+            Position position = PositionFactory.create(14L, i);
+            if (i < 50) {
+                assertThat(cache.exists(position)).as("entry %d", i).isFalse();
+                assertThat(buffers.get(i).refCnt()).as("entry %d", i).isZero();
+            } else {
+                assertThat(cache.exists(position)).as("entry %d", i).isTrue();
+                assertThat(buffers.get(i).refCnt()).as("entry %d", i).isEqualTo(1);
+            }
+        }
+
+        cache.clear();
+        assertThat(buffers).allSatisfy(buffer -> assertThat(buffer.refCnt()).isZero());
+    }
+
+    @Test
+    public void testSizeBasedEvictionCountsRemovedEntriesInTheFirstCycle() {
+        // Entries that were removed from the cache stay in the queue until a pass meets them. They count toward the
+        // pass's first cycle, so that the live entries behind them are requeued only once.
+        RangeCacheRemovalQueue q = new RangeCacheRemovalQueue(
+                /*maxRequeueCountWhenHasExpectedReads*/ 1000,
+                /*extendTTLOfRecentlyAccessed*/ false);
+        for (long entryId = 0; entryId < 98; entryId++) {
+            RangeCacheEntryWrapper removed = addWrappedEntry(q, 13L, entryId, 0, 10);
+            removed.markRemoved(removed.key, removed.value);
+        }
+        RangeCacheEntryWrapper first = addWrappedEntry(q, 13L, 98L, 2 /* has expected reads */, 10);
+        RangeCacheEntryWrapper second = addWrappedEntry(q, 13L, 99L, 2 /* has expected reads */, 10);
+
+        Pair<Integer, Long> result = q.evictLeastAccessedEntries(10);
+
+        assertThat(result.getRight().longValue()).isEqualTo(10L);
+        assertThat(first.key).isNull();
+        assertThat(second.key).isNotNull();
+        assertThat(second.requeueCount).isEqualTo(1);
     }
 
     @Test

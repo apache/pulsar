@@ -83,12 +83,16 @@ class RangeCacheRemovalQueue {
 
     public synchronized Pair<Integer, Long> evictLeastAccessedEntries(long sizeToFree) {
         checkArgument(sizeToFree > 0);
+        // A requeued entry goes to the end of the queue, where this pass meets it again. An entry is requeued only in
+        // the pass's first cycle through the queue, so that freeing memory takes at most two cycles, whatever the
+        // maximum requeue count for entries with expected reads is.
+        int firstCycleEntries = removalQueue.size();
         return evictEntries((e, c) -> {
             // stop eviction if we have already removed enough entries
             if (c.removedSize >= sizeToFree) {
                 return EvictionResult.STOP;
             }
-            if (shouldRequeue(e)) {
+            if (c.evaluatedEntries <= firstCycleEntries && shouldRequeue(e)) {
                 return EvictionResult.REQUEUE;
             }
             // remove by default since there's a need to free up more memory
@@ -189,6 +193,8 @@ class RangeCacheRemovalQueue {
     private static EvictionResult evaluateEvictionPredicate(EvictionPredicate evictionPredicate,
                                                             RangeCacheRemovalCounters counters,
                                                             RangeCacheEntryWrapper entry) {
+        // every examined slot of the queue counts, also an entry that was already removed from the cache
+        counters.evaluatedEntries++;
         if (entry.key == null) {
             // entry has been removed by another thread
             return EvictionResult.MISSING;

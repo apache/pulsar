@@ -2635,7 +2635,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
             (int) (DirectMemoryUtils.jvmMaxDirectMemory() / 5 / (1024 * 1024)));
 
     @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Whether we should make a copy of the entry payloads when "
-            + "inserting in cache")
+            + "inserting in cache. Without a copy, a cached entry keeps the larger buffer that it was received in,\n"
+            + "such as a 64 KB Netty buffer, allocated while it stays in the cache. The cache size limit counts only\n"
+            + "the entry's own size, so size-based eviction doesn't bound that memory, and\n"
+            + "managedLedgerCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes extends how long it\n"
+            + "stays allocated.")
     private boolean managedLedgerCacheCopyEntries = false;
 
     @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Maximum buffer size in MB for bytes read from storage"
@@ -2695,7 +2699,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "- Consumers temporarily falling behind the tail\n"
             + "Entries with remaining expected reads will have their TTL extended up to this many times\n"
             + "before being eligible for eviction. The TTL will be extended by\n"
-            + "managedLedgerCacheEvictionTimeThresholdMillis each time.\n"
+            + "managedLedgerCacheEvictionTimeThresholdMillis each time. When the cache needs memory, size-based\n"
+            + "eviction overrides this protection after requeuing an entry at most once per eviction pass.\n"
+            + "Without managedLedgerCacheCopyEntries, a cached entry keeps the larger buffer that it was received in\n"
+            + "allocated while its time to live is extended, so consider enabling copying before raising this value.\n"
             + "Default is 5.")
     private int managedLedgerCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes = 5;
 
