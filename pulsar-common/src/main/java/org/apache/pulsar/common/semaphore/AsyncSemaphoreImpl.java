@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.semaphore;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.ArrayList;
 import java.util.List;
@@ -42,11 +43,17 @@ import org.apache.pulsar.common.util.Runnables;
  * Implementation of AsyncSemaphore with timeout and queue size limits.
  *
  * <p>Permits are granted on the calling thread when no other requests are waiting. Waiting requests are processed
- * on the executor, which also handles the timeouts. Their futures are completed on {@link ForkJoinPool#commonPool()},
- * so the callers' continuations never run on the executor thread or while holding the lock.
+ * on the executor, which also handles the timeouts. Their futures are completed outside the lock on
+ * {@link ForkJoinPool#commonPool()}, so the callers' continuations don't run on the executor thread. When the common
+ * pool's parallelism is 1 or less, they are completed on the executor instead, since a disabled common pool can
+ * accept tasks without running them.
  */
 @CustomLog
 public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
+    // Same threshold as CompletableFuture and OpReadEntry: parallelism=0 reports 1 and never runs the tasks
+    @VisibleForTesting
+    static final boolean USE_COMMON_POOL = ForkJoinPool.getCommonPoolParallelism() > 1;
+
     private final AtomicLong availablePermits;
     private final Queue<PendingRequest> queue;
     private final long maxPermits;
@@ -323,7 +330,7 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
             }
         } finally {
             // complete outside the lock, also when an isCancelled supplier throws, so that granted permits don't leak
-            completions.forEach(AsyncSemaphoreImpl::completeAsync);
+            completions.forEach(this::completeAsync);
         }
     }
 
@@ -336,9 +343,10 @@ public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
         }
     }
 
-    // the continuations of waiting requests mustn't run on the executor, otherwise they'd delay all other requests
-    private static void completeAsync(Runnable completion) {
-        ForkJoinPool.commonPool().execute(Runnables.catchingAndLoggingThrowables(completion));
+    // the continuations of waiting requests shouldn't run on the executor, otherwise they'd delay all other requests
+    private void completeAsync(Runnable completion) {
+        (USE_COMMON_POOL ? ForkJoinPool.commonPool() : executor)
+                .execute(Runnables.catchingAndLoggingThrowables(completion));
     }
 
     @Override

@@ -41,6 +41,7 @@ import org.apache.pulsar.common.semaphore.AsyncSemaphore.PermitAcquireCancelledE
 import org.apache.pulsar.common.semaphore.AsyncSemaphore.PermitAcquireQueueFullException;
 import org.apache.pulsar.common.semaphore.AsyncSemaphore.PermitAcquireTimeoutException;
 import org.awaitility.Awaitility;
+import org.testng.SkipException;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
@@ -722,7 +723,25 @@ public class AsyncSemaphoreImplTest {
     }
 
     @Test
+    public void testAcquireDoesNotBypassWaitingRequests() throws Exception {
+        semaphore = new AsyncSemaphoreImpl(10, 10, 5000);
+        AsyncSemaphorePermit permit = semaphore.acquire(6, () -> false).get(1, TimeUnit.SECONDS);
+        CompletableFuture<AsyncSemaphorePermit> large = semaphore.acquire(5, () -> false);
+        // 4 permits are free, but this request must wait behind the queued one
+        CompletableFuture<AsyncSemaphorePermit> small = semaphore.acquire(2, () -> false);
+        assertThat(small).isNotDone();
+
+        semaphore.release(permit);
+
+        assertThat(large).succeedsWithin(Duration.ofSeconds(1));
+        assertThat(small).succeedsWithin(Duration.ofSeconds(1));
+    }
+
+    @Test
     public void testQueuedRequestIsNotCompletedOnSemaphoreExecutorThread() throws Exception {
+        if (!AsyncSemaphoreImpl.USE_COMMON_POOL) {
+            throw new SkipException("Queued requests are completed on the executor when the common pool is unusable");
+        }
         semaphore = new AsyncSemaphoreImpl(1, 10, 5000);
         AsyncSemaphorePermit permit = semaphore.acquire(1, () -> false).get(1, TimeUnit.SECONDS);
         CompletableFuture<String> completingThreadName = semaphore.acquire(1, () -> false).thenApply(p -> {
