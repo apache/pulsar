@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
@@ -36,6 +37,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import lombok.Cleanup;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.api.proto.CommandAck;
@@ -65,6 +67,72 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @DataProvider(name = "individualRedeliverySubscriptionTypes")
+    public Object[][] individualRedeliverySubscriptionTypes() {
+        return new Object[][] { { SubscriptionType.Shared }, { SubscriptionType.Key_Shared } };
+    }
+
+    @Test(dataProvider = "individualRedeliverySubscriptionTypes", timeOut = 30_000)
+    public void testStaleSelectiveRedeliveryDoesNotUnblockConsumer(SubscriptionType subscriptionType) throws Exception {
+        // A dedicated namespace, so that the max unacked messages policy doesn't affect the other tests
+        String namespace = "my-property/stale-redelivery-" + subscriptionType.name().toLowerCase();
+        admin.namespaces().createNamespace(namespace, Set.of("test"));
+        String topic = "persistent://" + namespace + "/topic";
+        int maxUnackedMessages = 10;
+        admin.namespaces().setMaxUnackedMessagesPerConsumer(namespace, maxUnackedMessages);
+        @Cleanup
+        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
+                .topic(topic).enableBatching(false).create();
+        @Cleanup
+        ConsumerImpl<Integer> consumer = (ConsumerImpl<Integer>) pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic).subscriptionName("sub").subscriptionType(subscriptionType)
+                .receiverQueueSize(maxUnackedMessages).isAckReceiptEnabled(true)
+                .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS).subscribe();
+        PersistentSubscription subscription = (PersistentSubscription) pulsar.getBrokerService().getTopic(topic, false)
+                .get(10, TimeUnit.SECONDS).orElseThrow().getSubscription("sub");
+        var brokerConsumer = subscription.getConsumers().get(0);
+        Awaitility.await().untilAsserted(() ->
+                assertThat(brokerConsumer.getMaxUnackedMessages()).isEqualTo(maxUnackedMessages));
+
+        producer.send(-1);
+        Message<Integer> ackedMessage = consumer.receive(10, TimeUnit.SECONDS);
+        assertThat(ackedMessage).isNotNull();
+        consumer.acknowledgeAsync(ackedMessage).get(10, TimeUnit.SECONDS);
+        Awaitility.await().untilAsserted(() -> assertThat(brokerConsumer.getUnackedMessages()).isZero());
+
+        for (int i = 0; i < maxUnackedMessages; i++) {
+            producer.send(i);
+        }
+        List<Message<Integer>> unackedMessages = new ArrayList<>();
+        for (int i = 0; i < maxUnackedMessages; i++) {
+            Message<Integer> message = consumer.receive(10, TimeUnit.SECONDS);
+            assertThat(message).isNotNull();
+            unackedMessages.add(message);
+        }
+        // The response on the same connection also fences the FLOW commands sent while receiving.
+        consumer.getLastMessageIdAsync().get(10, TimeUnit.SECONDS);
+        assertThat(brokerConsumer.isBlocked()).isTrue();
+        assertThat(brokerConsumer.getUnackedMessages()).isEqualTo(maxUnackedMessages);
+        int availablePermits = brokerConsumer.getAvailablePermits();
+
+        // An ACK timeout or negative ACK can arrive after the original ACK has already removed the position.
+        consumer.redeliverUnacknowledgedMessages(Set.of(ackedMessage.getMessageId()));
+        consumer.getLastMessageIdAsync().get(10, TimeUnit.SECONDS);
+        assertThat(brokerConsumer.isBlocked()).as("stale redelivery must preserve unacked backpressure").isTrue();
+        assertThat(brokerConsumer.getUnackedMessages()).isEqualTo(maxUnackedMessages);
+        assertThat(brokerConsumer.getAvailablePermits()).isEqualTo(availablePermits);
+
+        // A mixed request still redelivers its valid position, even above the ACK resume threshold.
+        MessageId redeliveryId = unackedMessages.get(0).getMessageId();
+        consumer.redeliverUnacknowledgedMessages(Set.of(ackedMessage.getMessageId(), redeliveryId));
+        Message<Integer> redelivered = consumer.receive(10, TimeUnit.SECONDS);
+        assertThat(redelivered).isNotNull();
+        assertThat(redelivered.getMessageId()).isEqualTo(redeliveryId);
+        consumer.getLastMessageIdAsync().get(10, TimeUnit.SECONDS);
+        assertThat(brokerConsumer.getUnackedMessages()).isEqualTo(maxUnackedMessages);
+        assertThat(brokerConsumer.isBlocked()).isTrue();
     }
 
     @DataProvider(name = "ackReceiptEnabled")
