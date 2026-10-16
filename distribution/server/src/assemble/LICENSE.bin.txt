@@ -565,7 +565,7 @@ BSD 3-clause "New" or "Revised" License
     - com.google.auth-google-auth-library-oauth2-http-1.24.1.jar -- ../licenses/LICENSE-google-auth-library.txt
  * LevelDB -- (included in org.rocksdb.*.jar) -- ../licenses/LICENSE-LevelDB.txt
  * JSR305 -- com.google.code.findbugs-jsr305-3.0.2.jar -- ../licenses/LICENSE-JSR305.txt
- * JLine3 -- org.jline-jline-4.2.1.jar -- ../licenses/LICENSE-JLine.txt
+ * JLine3 -- org.jline-jline-4.3.1.jar -- ../licenses/LICENSE-JLine.txt
  * OW2 ASM
    - org.ow2.asm-asm-9.10.1.jar -- ../licenses/LICENSE-ASM.txt
    - org.ow2.asm-asm-commons-9.10.1.jar -- ../licenses/LICENSE-ASM.txt
