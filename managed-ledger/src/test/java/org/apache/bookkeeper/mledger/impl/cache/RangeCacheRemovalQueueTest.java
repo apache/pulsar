@@ -200,6 +200,15 @@ public class RangeCacheRemovalQueueTest {
         // oldest
         assertThat(entries.stream().filter(e -> e.key != null).mapToInt(e -> e.requeueCount))
                 .hasSize(50).containsOnly(1);
+
+        // the remaining entries keep their other extensions: time-based eviction requeues them instead of removing
+        // them, although they have expired
+        long now = System.nanoTime();
+        entries.stream().filter(e -> e.key != null).forEach(e -> e.timestampNanos = now - 10_000_000L);
+        Pair<Integer, Long> timeBasedResult = q.evictLEntriesBeforeTimestamp(now - 1L);
+        assertThat(timeBasedResult.getLeft()).isZero();
+        assertThat(entries.stream().filter(e -> e.key != null).mapToInt(e -> e.requeueCount))
+                .hasSize(50).containsOnly(2);
     }
 
     @Test
@@ -219,27 +228,29 @@ public class RangeCacheRemovalQueueTest {
             buffer.release();
             buffers.add(buffer);
         }
-        assertThat(cache.getSize()).isEqualTo(1000L);
+        try {
+            assertThat(cache.getSize()).isEqualTo(1000L);
 
-        Pair<Integer, Long> result = q.evictLeastAccessedEntries(500);
+            Pair<Integer, Long> result = q.evictLeastAccessedEntries(500);
 
-        assertThat(result.getLeft()).isEqualTo(50);
-        assertThat(result.getRight()).isEqualTo(500L);
-        assertThat(cache.getSize()).isEqualTo(500L);
-        assertThat(cache.getNumberOfEntries()).isEqualTo(50);
-        // the oldest half was requeued once and removed in the second cycle
-        for (int i = 0; i < 100; i++) {
-            Position position = PositionFactory.create(14L, i);
-            if (i < 50) {
-                assertThat(cache.exists(position)).as("entry %d", i).isFalse();
-                assertThat(buffers.get(i).refCnt()).as("entry %d", i).isZero();
-            } else {
-                assertThat(cache.exists(position)).as("entry %d", i).isTrue();
-                assertThat(buffers.get(i).refCnt()).as("entry %d", i).isEqualTo(1);
+            assertThat(result.getLeft()).isEqualTo(50);
+            assertThat(result.getRight()).isEqualTo(500L);
+            assertThat(cache.getSize()).isEqualTo(500L);
+            assertThat(cache.getNumberOfEntries()).isEqualTo(50);
+            // the oldest half was requeued once and removed in the second cycle
+            for (int i = 0; i < 100; i++) {
+                Position position = PositionFactory.create(14L, i);
+                if (i < 50) {
+                    assertThat(cache.exists(position)).as("entry %d", i).isFalse();
+                    assertThat(buffers.get(i).refCnt()).as("entry %d", i).isZero();
+                } else {
+                    assertThat(cache.exists(position)).as("entry %d", i).isTrue();
+                    assertThat(buffers.get(i).refCnt()).as("entry %d", i).isEqualTo(1);
+                }
             }
+        } finally {
+            cache.clear();
         }
-
-        cache.clear();
         assertThat(buffers).allSatisfy(buffer -> assertThat(buffer.refCnt()).isZero());
     }
 
@@ -302,6 +313,27 @@ public class RangeCacheRemovalQueueTest {
         Pair<Integer, Long> r1 = q.evictLeastAccessedEntries(35);
         assertNotNull(r1);
         assertThat(r1.getRight().longValue()).isEqualTo(70L);
+        assertThat(e1.key).isNull();
+        assertThat(e2.key).isNotNull();
+        assertThat(e3.key).isNull();
+    }
+
+    @Test
+    public void testSizeBasedEvictionRemovesInQueueOrderAfterTheFirstCycle() {
+        // Both protections apply only in the pass's first cycle through the queue. After it, entries are removed in
+        // their order in the queue, so an entry with expected reads ahead of a recently accessed entry goes first.
+        RangeCacheRemovalQueue q = new RangeCacheRemovalQueue(
+                /*maxRequeueCountWhenHasExpectedReads*/ 5,
+                /*extendTTLOfRecentlyAccessed*/ true);
+
+        RangeCacheEntryWrapper e1 = addWrappedEntry(q, 11L, 1L, 2, 50); // has expected reads
+        RangeCacheEntryWrapper e2 = addWrappedEntry(q, 11L, 2L, 0, 40); // recently accessed
+        e2.accessed = true;
+        RangeCacheEntryWrapper e3 = addWrappedEntry(q, 11L, 3L, 0, 30); // easiest to evict
+
+        Pair<Integer, Long> r1 = q.evictLeastAccessedEntries(35);
+        assertNotNull(r1);
+        assertThat(r1.getRight().longValue()).isEqualTo(80L);
         assertThat(e1.key).isNull();
         assertThat(e2.key).isNotNull();
         assertThat(e3.key).isNull();

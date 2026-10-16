@@ -85,7 +85,8 @@ class RangeCacheRemovalQueue {
         checkArgument(sizeToFree > 0);
         // A requeued entry goes to the end of the queue, where this pass meets it again. An entry is requeued only in
         // the pass's first cycle through the queue, so that freeing memory takes at most two cycles, whatever the
-        // maximum requeue count for entries with expected reads is.
+        // maximum requeue count for entries with expected reads is. After the first cycle, entries are removed in
+        // their order in the queue, so an entry with expected reads ahead of a recently accessed entry goes first.
         int firstCycleEntries = removalQueue.size();
         return evictEntries((e, c) -> {
             // stop eviction if we have already removed enough entries
