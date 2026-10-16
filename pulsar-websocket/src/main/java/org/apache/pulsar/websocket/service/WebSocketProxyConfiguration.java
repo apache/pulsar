@@ -157,6 +157,14 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @FieldContext(doc = "Number of threads to used in HTTP server")
     private int numHttpServerThreads = Math.max(6, Runtime.getRuntime().availableProcessors());
 
+    @FieldContext(doc = "Maximum number of threads to use in HTTP server. When all of the"
+            + " `numHttpServerThreads` threads are busy, for example writing responses to slow clients, the"
+            + " HTTP server starts more threads, up to this number, before it queues requests. The threads"
+            + " beyond `numHttpServerThreads` stop after being idle for `httpServerThreadPoolIdleTimeoutMs`."
+            + " A value not larger than `numHttpServerThreads`, such as the default 0, means that the HTTP server"
+            + " uses `numHttpServerThreads` threads.")
+    private int numHttpServerThreadsMax = 0;
+
     @FieldContext(doc = "Number of threads used by Websocket service")
     private int webSocketNumServiceThreads = 20;
 
@@ -167,6 +175,11 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
                     + " Default is set to 8192."
     )
     private int httpServerThreadPoolQueueSize = 8192;
+
+    @FieldContext(minValue = 1, doc = "Time in milliseconds after which an idle thread of the HTTP server's thread"
+            + " pool stops, when the pool has more than `numHttpServerThreads` threads. See"
+            + " `numHttpServerThreadsMax`. At least 1.")
+    private int httpServerThreadPoolIdleTimeoutMs = 60_000;
 
     @FieldContext(doc = "Capacity for accept queue in the HTTP server"
                     + " Default is set to 8192."

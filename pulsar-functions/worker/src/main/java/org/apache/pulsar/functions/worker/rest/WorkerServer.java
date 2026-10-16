@@ -96,8 +96,10 @@ public class WorkerServer {
         this.workerConfig = workerService.getWorkerConfig();
         this.workerService = workerService;
         this.authenticationService = authenticationService;
-        this.webServerExecutor = new WebExecutorThreadPool(this.workerConfig.getNumHttpServerThreads(), "function-web",
+        this.webServerExecutor = new WebExecutorThreadPool(this.workerConfig.getNumHttpServerThreads(),
+                this.workerConfig.getNumHttpServerThreadsMax(), "function-web",
                 this.workerConfig.getHttpServerThreadPoolQueueSize());
+        this.webServerExecutor.setIdleTimeout(this.workerConfig.getHttpServerThreadPoolIdleTimeoutMs());
         this.filterInitializer = new FilterInitializer(workerConfig, authenticationService);
         init();
     }

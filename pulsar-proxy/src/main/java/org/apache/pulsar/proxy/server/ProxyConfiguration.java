@@ -904,6 +904,17 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private int httpNumThreads = Math.max(8, 2 * Runtime.getRuntime().availableProcessors());
 
+    @FieldContext(
+           category = CATEGORY_HTTP,
+           doc = "Maximum number of threads to use for HTTP requests processing. When all of the `httpNumThreads`"
+               + " threads are busy, for example writing responses to slow clients, the HTTP server starts more"
+               + " threads, up to this number, before it queues requests. The threads beyond `httpNumThreads`"
+               + " stop after being idle for `httpServerThreadPoolIdleTimeoutMs`. A value not larger than"
+               + " `httpNumThreads`, such as the default 0, means that the HTTP server uses `httpNumThreads`"
+               + " threads."
+    )
+    private int httpNumThreadsMax = 0;
+
     @FieldContext(category = CATEGORY_SERVER, doc = "Max concurrent web requests")
     private int maxConcurrentHttpRequests = 1024;
 
@@ -913,6 +924,14 @@ public class ProxyConfiguration implements PulsarConfiguration {
                     + " Default is set to 8192."
     )
     private int httpServerThreadPoolQueueSize = 8192;
+
+    @FieldContext(
+            minValue = 1,
+            category = CATEGORY_SERVER,
+            doc = "Time in milliseconds after which an idle thread of the HTTP server's thread pool stops, when the"
+                    + " pool has more than `httpNumThreads` threads. See `httpNumThreadsMax`. At least 1."
+    )
+    private int httpServerThreadPoolIdleTimeoutMs = 60_000;
 
     @FieldContext(
             category = CATEGORY_SERVER,
