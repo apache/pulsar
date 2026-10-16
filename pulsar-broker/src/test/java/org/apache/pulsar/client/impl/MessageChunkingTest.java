@@ -61,6 +61,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.PulsarClientException.InvalidMessageException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SizeUnit;
@@ -711,6 +712,115 @@ public class MessageChunkingTest extends ProducerConsumerBase {
                 + "the broker stopped dispatching (receiverQueueSize=" + receiverQueueSize + ")");
         assertEquals(msg.getValue(), "chunk-live-0|chunk-live-1|");
         consumer.acknowledge(msg);
+    }
+
+    /**
+     * A non-persistent topic cannot carry chunked messages: the slicing block in
+     * {@code ProducerImpl.serializeAndSendMessage} is skipped for them, but {@code totalChunks} was computed
+     * from the payload size alone, so the send loop still ran once per "chunk" — publishing the whole payload
+     * that many times, and releasing the payload buffer more often than it was retained.
+     */
+    @Test
+    public void testLargeMessageOnNonPersistentTopicIsSentOnceWithoutChunking() throws Exception {
+        final String topicName = "non-persistent://my-property/my-ns/testNonPersistentChunking";
+        final String subName = "my-subscriber-name";
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName(subName)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                // small enough that the payload below would otherwise be split into several chunks
+                .chunkMaxMessageSize(100)
+                .enableChunking(true)
+                .enableBatching(false)
+                .create();
+
+        String payload = "a".repeat(500);
+        producer.newMessage().value(payload).send();
+
+        Message<String> received = consumer.receive(10, TimeUnit.SECONDS);
+        assertNotNull(received, "the message was not delivered");
+        assertEquals(received.getValue(), payload);
+
+        // Without the fix the same payload is published once per computed chunk, so more messages follow.
+        assertNull(consumer.receive(3, TimeUnit.SECONDS),
+                "the payload was published more than once on a non-persistent topic");
+    }
+
+    /**
+     * The chunking flag is inert on a non-persistent topic, so the message-size checks must behave as if it were
+     * off: a payload above the broker limit is rejected locally with {@link InvalidMessageException} instead of
+     * being sent to the broker as one oversized frame.
+     */
+    @Test
+    public void testLargeMessageOnNonPersistentTopicAboveBrokerLimitIsRejectedLocally() throws Exception {
+        final int maxMessageSize = 1024;
+        this.conf.setMaxMessageSize(maxMessageSize);
+        final String topicName = "non-persistent://my-property/my-ns/testNonPersistentChunkingAboveLimit";
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .enableChunking(true)
+                .enableBatching(false)
+                .sendTimeout(5, TimeUnit.SECONDS)
+                .create();
+
+        // Well above maxMessageSize plus the broker's frame padding: the payload cannot be sent as a single
+        // frame, so a local rejection is the only correct outcome.
+        byte[] payload = RandomUtils.nextBytes(maxMessageSize + Commands.MESSAGE_SIZE_FRAME_PADDING + 1024);
+        try {
+            producer.send(payload);
+            fail("an oversized message on a non-persistent topic must be rejected by the client");
+        } catch (InvalidMessageException expected) {
+            assertTrue(expected.getMessage().contains("exceeds"), expected.getMessage());
+        }
+    }
+
+    /**
+     * The final-size check runs on the complete frame, after the metadata has been added: a body within the limit
+     * whose metadata pushes the message over it must be rejected there on a non-persistent topic, since nothing will
+     * chunk it, and the producer must stay usable for the next valid message.
+     */
+    @Test
+    public void testNonPersistentMessageOverLimitOnlyWithMetadataIsRejectedLocally() throws Exception {
+        final int maxMessageSize = 1024;
+        final String topicName = "non-persistent://my-property/my-ns/testNonPersistentChunkingMetadataOverLimit";
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName("my-subscriber-name")
+                .subscribe();
+
+        @Cleanup
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+                .topic(topicName)
+                .enableChunking(true)
+                .enableBatching(false)
+                .sendTimeout(5, TimeUnit.SECONDS)
+                .create();
+        producer.getConnectionHandler().setMaxMessageSize(maxMessageSize);
+
+        // exactly at the limit, so the early check on the body passes and only the final check can reject it
+        byte[] payload = RandomUtils.nextBytes(maxMessageSize);
+        try {
+            producer.newMessage().value(payload).property("large-metadata", "y".repeat(400)).send();
+            fail("a message pushed over the limit by its metadata must be rejected by the client");
+        } catch (InvalidMessageException expected) {
+            assertTrue(expected.getMessage().contains("exceeds"), expected.getMessage());
+        }
+
+        byte[] valid = "valid".getBytes(StandardCharsets.UTF_8);
+        producer.send(valid);
+        Message<byte[]> received = consumer.receive(10, TimeUnit.SECONDS);
+        assertNotNull(received, "the valid message after the rejected one was not delivered");
+        assertEquals(received.getValue(), valid);
     }
 
     /**
