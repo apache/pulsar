@@ -232,7 +232,9 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
 
         // set the compacted topic ledger
         CompactedTopicImpl compactedTopic = new CompactedTopicImpl(bk);
-        compactedTopic.newCompactedLedger(PositionFactory.create(1, 2), oldCompactedLedger.getId()).get();
+        Position oldHorizon = PositionFactory.create(1, 2);
+        compactedTopic.newCompactedLedger(oldHorizon, oldCompactedLedger.getId()).get();
+        compactedTopic.promoteNewCompactedLedger(oldHorizon);
 
         // ensure both ledgers still exist, can be opened
         bk.openLedger(oldCompactedLedger.getId(),
@@ -245,6 +247,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         // update the compacted topic ledger
         Position newHorizon = PositionFactory.create(1, 3);
         compactedTopic.newCompactedLedger(newHorizon, newCompactedLedger.getId()).get();
+        compactedTopic.promoteNewCompactedLedger(newHorizon);
 
         // Make sure the old compacted ledger still exist after the new compacted ledger created.
         bk.openLedger(oldCompactedLedger.getId(),
@@ -857,12 +860,6 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         BookKeeper bk = pulsar.getBookKeeperClientFactory().create(
                 this.conf, null, null, Optional.empty(), null).get();
 
-        Mockito.doAnswer(invocation -> {
-            Thread.sleep(1500);
-            invocation.callRealMethod();
-            return null;
-        }).when(bk).asyncOpenLedger(Mockito.anyLong(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
-
         LedgerHandle oldCompactedLedger = bk.createLedger(1, 1,
                 Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
                 Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD);
@@ -874,43 +871,36 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
 
         CompactedTopicImpl compactedTopic = new CompactedTopicImpl(bk);
 
+        // Step 1: newCompactedLedger opens the ledger but does NOT promote — horizon/context stay null.
         Position oldHorizon = PositionFactory.create(1, 2);
-        var future = CompletableFuture.supplyAsync(() -> {
-            // set the compacted topic ledger
-            return compactedTopic.newCompactedLedger(oldHorizon, oldCompactedLedger.getId());
-        });
-        Thread.sleep(500);
+        compactedTopic.newCompactedLedger(oldHorizon, oldCompactedLedger.getId()).join();
 
-        Optional<Position> compactionHorizon = compactedTopic.getCompactionHorizon();
-        CompletableFuture<CompactedTopicContext> compactedTopicContext =
-                compactedTopic.getCompactedTopicContextFuture();
+        // Before promote, both horizon and context must be null (reads fall back to original data).
+        Assert.assertTrue(compactedTopic.getCompactionHorizon().isEmpty());
+        Assert.assertNull(compactedTopic.getCompactedTopicContextFuture());
 
-        if (compactedTopicContext != null) {
-            Assert.assertEquals(compactionHorizon.get(), oldHorizon);
-            Assert.assertNotNull(compactedTopicContext);
-            Assert.assertEquals(compactedTopicContext.join().ledger.getId(), oldCompactedLedger.getId());
-        } else {
-            Assert.assertTrue(compactionHorizon.isEmpty());
-        }
+        // Step 2: simulate durable mark-delete, then promote.
+        compactedTopic.promoteNewCompactedLedger(oldHorizon);
 
-        future.join();
+        // After promote, both should be set atomically.
+        Assert.assertEquals(compactedTopic.getCompactionHorizon().get(), oldHorizon);
+        Assert.assertEquals(compactedTopic.getCompactedTopicContextFuture().join().ledger.getId(),
+                oldCompactedLedger.getId());
 
+        // Step 3: update path — newCompactedLedger must not swap in as active until promote.
         Position newHorizon = PositionFactory.create(1, 3);
-        var future2 = CompletableFuture.supplyAsync(() -> {
-            // update the compacted topic ledger
-            return compactedTopic.newCompactedLedger(newHorizon, newCompactedLedger.getId());
-        });
-        Thread.sleep(500);
+        compactedTopic.newCompactedLedger(newHorizon, newCompactedLedger.getId()).join();
 
-        compactionHorizon = compactedTopic.getCompactionHorizon();
-        compactedTopicContext = compactedTopic.getCompactedTopicContextFuture();
+        // While the update is in flight (newCompactedLedger called but not yet promoted),
+        // the old horizon/context must still be visible — reads must not see uncommitted state.
+        Assert.assertEquals(compactedTopic.getCompactionHorizon().get(), oldHorizon);
+        Assert.assertEquals(compactedTopic.getCompactedTopicContextFuture().join().ledger.getId(),
+                oldCompactedLedger.getId());
 
-        if (compactedTopicContext.join().ledger.getId() == newCompactedLedger.getId()) {
-            Assert.assertEquals(compactionHorizon.get(), newHorizon);
-        } else {
-            Assert.assertEquals(compactionHorizon.get(), oldHorizon);
-        }
-
-        future2.join();
+        // Step 4: second promote atomically switches everything to the new values.
+        compactedTopic.promoteNewCompactedLedger(newHorizon);
+        Assert.assertEquals(compactedTopic.getCompactionHorizon().get(), newHorizon);
+        Assert.assertEquals(compactedTopic.getCompactedTopicContextFuture().join().ledger.getId(),
+                newCompactedLedger.getId());
     }
 }
