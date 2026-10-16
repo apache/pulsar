@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.topiclistlimit.TopicListMemoryLimiter;
@@ -66,14 +67,46 @@ public final class TopicListResponseMemoryLimiter {
                                                              @Nullable Map<String, String> properties,
                                                              Supplier<CompletableFuture<List<String>>>
                                                                      topicsSupplier) {
-        TopicListSizeResultCache.ResultHolder listSizeHolder = brokerService.getTopicListSizeResultCache()
-                .getTopicListSize(listing, properties);
+        return listTopicsAfterCollecting(brokerService, response, listing, properties,
+                () -> CompletableFuture.completedFuture(null), __ -> topicsSupplier.get());
+    }
+
+    /**
+     * Lists topics while holding heap memory permits for the estimated size of the topic list, after collecting
+     * part of the topics from other topic listings without holding permits.
+     *
+     * <p>Use this for a listing that combines topics from topic listings that apply the topic list memory limit
+     * themselves, such as the bundle topic listings of the bundle owners, which can be this broker, with topics
+     * that it lists itself. The size estimate is checked before collecting, so that a listing whose estimate is
+     * larger than the limit fails without collecting. The permits are acquired once for the whole topic list
+     * after collecting, so that the listing doesn't hold permits while waiting for the other listings.
+     *
+     * @param brokerService the broker service
+     * @param response the async response of the REST request, the permits are released when it completes
+     * @param listing the topic listing, which identifies the topic list size estimate
+     * @param properties the topic listing properties (PIP-452), null when not provided
+     * @param collector supplier that collects the topics from the other listings
+     * @param topicsSupplier function that performs the topic listing, given the collected topics
+     * @return a future that completes with the topic list
+     */
+    public static <CollectedT> CompletableFuture<List<String>> listTopicsAfterCollecting(
+            BrokerService brokerService, AsyncResponse response, TopicListing listing,
+            @Nullable Map<String, String> properties, Supplier<CompletableFuture<CollectedT>> collector,
+            Function<CollectedT, CompletableFuture<List<String>>> topicsSupplier) {
+        TopicListSizeResultCache sizeCache = brokerService.getTopicListSizeResultCache();
+        TopicListSizeResultCache.ResultHolder listSizeHolder = sizeCache.getTopicListSize(listing, properties);
         ResponsePermits permits =
                 new ResponsePermits(brokerService.getMaxTopicListInFlightLimiter(), response, listSizeHolder);
         response.register(permits);
         return listSizeHolder.getSizeAsync()
-                .thenCompose(initialSize -> permits.acquire(initialSize))
-                .thenCompose(__ -> topicsSupplier.get())
+                .thenCompose(initialSize -> {
+                    if (initialSize > sizeCache.getSizeLimit()) {
+                        // the permits can't be granted, skip collecting
+                        return permits.acquire(initialSize).thenCompose(__ -> topicsSupplier.apply(null));
+                    }
+                    return collector.get().thenCompose(collected -> permits.acquire(initialSize)
+                            .thenCompose(__ -> topicsSupplier.apply(collected)));
+                })
                 .thenCompose(topicList -> {
                     long actualSize = TopicListMemoryLimiter.estimateTopicListSize(topicList);
                     listSizeHolder.updateSize(actualSize);

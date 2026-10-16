@@ -314,4 +314,46 @@ public class TopicListResponseMemoryLimiterTest {
         assertThat(limiter.getLimiter(LimitType.HEAP_MEMORY).getQueueSize()).isZero();
         limiter.release(otherListingPermit);
     }
+
+    @Test
+    public void testListTopicsAfterCollectingSkipsCollectingWhenEstimateIsLargerThanLimit() {
+        sizeCache = new TopicListSizeResultCache(MAX_HEAP_MEMORY, () -> true);
+        when(brokerService.getTopicListSizeResultCache()).thenReturn(sizeCache);
+        TopicListing listing = TopicListing.namespaceTopics(NAMESPACE, Mode.ALL);
+        // a previous listing measured a topic list larger than the limit
+        sizeCache.getTopicListSize(listing, null).updateSize(MAX_HEAP_MEMORY * 2);
+        AtomicInteger collectorCalls = new AtomicInteger();
+        AtomicInteger listingCalls = new AtomicInteger();
+
+        CompletableFuture<List<String>> result = TopicListResponseMemoryLimiter.listTopicsAfterCollecting(
+                brokerService, response, listing, null, () -> {
+                    collectorCalls.incrementAndGet();
+                    return CompletableFuture.completedFuture(TOPICS);
+                }, collected -> {
+                    listingCalls.incrementAndGet();
+                    return CompletableFuture.completedFuture(collected);
+                });
+
+        assertThat(result).failsWithin(Duration.ofSeconds(2)).withThrowableThat()
+                .havingRootCause().isInstanceOfSatisfying(RestException.class,
+                        e -> assertThat(e.getResponse().getStatus()).isEqualTo(429));
+        assertThat(collectorCalls).hasValue(0);
+        assertThat(listingCalls).hasValue(0);
+    }
+
+    @Test
+    public void testListTopicsAfterCollectingAcquiresPermitsAfterCollecting() {
+        AtomicLong permitsWhileCollecting = new AtomicLong(-1);
+        CompletableFuture<List<String>> result = TopicListResponseMemoryLimiter.listTopicsAfterCollecting(
+                brokerService, response, TopicListing.namespaceTopics(NAMESPACE, Mode.ALL), null, () -> {
+                    permitsWhileCollecting.set(acquiredHeapPermits());
+                    return CompletableFuture.completedFuture(TOPICS);
+                }, CompletableFuture::completedFuture);
+
+        assertThat(result).succeedsWithin(Duration.ofSeconds(5)).isEqualTo(TOPICS);
+        assertThat(permitsWhileCollecting).hasValue(0);
+        assertThat(acquiredHeapPermits()).isEqualTo(TopicListMemoryLimiter.estimateTopicListSize(TOPICS));
+        completeResponse(null);
+        assertThat(acquiredHeapPermits()).isZero();
+    }
 }

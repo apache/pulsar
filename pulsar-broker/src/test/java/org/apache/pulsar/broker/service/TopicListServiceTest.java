@@ -68,6 +68,7 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.broker.resources.TopicListener;
 import org.apache.pulsar.broker.resources.TopicResources;
 import org.apache.pulsar.broker.topiclistlimit.TopicListSizeResultCache;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
@@ -1055,5 +1056,59 @@ public class TopicListServiceTest {
         // request 9 responds with the matching topics of the completed update, not with the cleared list
         verify(pulsarCommandSender, timeout(2000L)).sendWatchTopicListSuccess(eq(9L), eq(13L),
                 eq(TopicList.calculateHash(topics)), eq(new ArrayList<>(topics)), any(), any());
+    }
+
+    @Test
+    public void testFailedWatchRequestClosesTheWatcherItCreated() throws Exception {
+        AtomicReference<TopicListService.TopicListWatcher> createdWatcher = new AtomicReference<>();
+        doAnswer(invocationOnMock -> {
+            invocationOnMock.callRealMethod();
+            TopicListService.TopicListWatcher watcher = invocationOnMock.getArgument(0);
+            createdWatcher.set(watcher);
+            // the metadata store connection is lost while the watcher is being created, which starts an update
+            watcher.onSessionEvent(SessionEvent.ConnectionLost);
+            return null;
+        }).when(topicResources).registerPersistentTopicListener(any(TopicListener.class));
+        topicListService.handleWatchTopicList(
+                NamespaceName.get("tenant/ns"),
+                13,
+                7,
+                "persistent://tenant/ns/topic\\d",
+                topicsPatternImplementation, null,
+                lookupSemaphore);
+        topicListFuture.complete(Collections.singletonList("persistent://tenant/ns/topic1"));
+        // the permits are granted and the watcher is created asynchronously
+        Awaitility.await().untilAsserted(() -> assertThat(createdWatcher.get()).isNotNull());
+        // the watch request waits for the update since the matching topics are incomplete
+        Awaitility.await().untilAsserted(() -> assertThat(topicListService.getWatcherFuture(13)).isCompleted());
+        assertThat(lookupSemaphore.availablePermits()).isZero();
+
+        // the update fails, which fails the waiting watch request
+        doReturn(CompletableFuture.failedFuture(new PulsarServerException("Metadata error")))
+                .when(namespaceService).getListOfUserTopics(any(), eq(CommandGetTopicsOfNamespace.Mode.PERSISTENT));
+        topicListService.updateTopicListWatcher(createdWatcher.get());
+
+        // the request gets an error response, and the watcher that it created is removed, deregistered and closed
+        verify(pulsarCommandSender, timeout(2000L)).sendErrorResponse(eq(7L), any(ServerError.class), anyString());
+        Awaitility.await().untilAsserted(() -> assertThat(lookupSemaphore.availablePermits()).isEqualTo(1));
+        assertThat(topicListService.getWatcherFuture(13)).isNull();
+        verify(topicResources, timeout(2000L)).deregisterPersistentTopicListener(createdWatcher.get());
+    }
+
+    @Test
+    public void testTopicChangesAreQueuedWhileUpdateIsInProgress() throws Exception {
+        TopicListService.TopicListWatcher watcher =
+                createWatcher(Collections.singletonList("persistent://tenant/ns/topic1"));
+        // an update starts, for example after a metadata store session event
+        assertThat(watcher.prepareUpdateTopics(null)).isTrue();
+        // a send that was in progress before the update completes
+        watcher.sendingCompleted();
+
+        // a topic change during the update isn't sent, since the matching topics are being rebuilt
+        notificationConsumer.accept(
+                new Notification(NotificationType.Created, "/managed-ledgers/tenant/ns/persistent/topic2"));
+        Thread.sleep(500);
+        verify(pulsarCommandSender, never())
+                .sendWatchTopicListUpdate(anyLong(), any(), any(), anyString(), any(), any());
     }
 }

@@ -171,6 +171,11 @@ public class TopicListService {
                 sendTopicListUpdateTasks.clear();
                 return;
             }
+            if (updatingTopics) {
+                // The update calls this again when it completes. Until then, topic changes are queued, since they
+                // would be sent with the hash of the partially rebuilt matching topics.
+                return;
+            }
             // Execute the next task
             Runnable task = sendTopicListUpdateTasks.poll();
             if (task != null) {
@@ -540,8 +545,13 @@ public class TopicListService {
                                 .exceptionMessage(ex)
                                 .log("WatchTopicList was cancelled since the connection was closed");
                     }
-                    if (createdWatcherFuture != null) {
-                        watchers.remove(watcherId, createdWatcherFuture);
+                    if (createdWatcherFuture != null && watchers.remove(watcherId, createdWatcherFuture)) {
+                        // the request can fail after it created the watcher and registered it as a topic listener,
+                        // for example when an update that started after the watcher was created fails
+                        createdWatcherFuture.thenAccept(createdWatcher -> {
+                            topicResources.deregisterPersistentTopicListener(createdWatcher);
+                            createdWatcher.close();
+                        });
                     }
                     lookupSemaphore.release();
                     return null;

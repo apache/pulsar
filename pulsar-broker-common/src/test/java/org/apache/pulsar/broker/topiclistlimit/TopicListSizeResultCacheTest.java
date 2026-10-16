@@ -38,6 +38,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -487,5 +488,29 @@ public class TopicListSizeResultCacheTest {
         holder.updateSize(500_000);
         // after the longer interval, the listing is measured again although other topic lists are in flight
         assertEquals(holder.getSizeAsync().join().longValue(), 100_000L);
+    }
+
+    @Test
+    public void testForcedRemeasuresAreLimitedForTheWholeCache() throws Exception {
+        Duration forcedInterval = Duration.ofMillis(500);
+        TopicListSizeResultCache limitedCache =
+                new TopicListSizeResultCache(100_000, Duration.ZERO, forcedInterval, () -> false);
+        // listings with different properties have separate estimates
+        TopicListSizeResultCache.ResultHolder first = limitedCache.getTopicListSize("tenant/namespace",
+                CommandGetTopicsOfNamespace.Mode.PERSISTENT, Map.of("k", "v1"));
+        TopicListSizeResultCache.ResultHolder second = limitedCache.getTopicListSize("tenant/namespace",
+                CommandGetTopicsOfNamespace.Mode.PERSISTENT, Map.of("k", "v2"));
+        for (TopicListSizeResultCache.ResultHolder holder : List.of(first, second)) {
+            holder.getSizeAsync();
+            holder.updateSize(500_000);
+        }
+        Thread.sleep(forcedInterval.toMillis() + 100);
+        // the limiter is busy: the first listing is measured again after the longer interval
+        assertEquals(first.getSizeAsync().join().longValue(), 100_000L);
+        first.updateSize(500_000);
+        // the second listing's interval has also passed, but forced re-measures are limited for the whole cache
+        assertEquals(second.getSizeAsync().join().longValue(), 500_000L);
+        Awaitility.await().untilAsserted(
+                () -> assertEquals(second.getSizeAsync().join().longValue(), 100_000L));
     }
 }

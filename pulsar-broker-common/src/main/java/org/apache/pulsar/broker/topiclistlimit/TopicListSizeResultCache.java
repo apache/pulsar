@@ -29,6 +29,7 @@ import java.time.Duration;
 import java.util.Comparator;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
@@ -96,7 +97,16 @@ public class TopicListSizeResultCache {
                              Duration oversizedForcedRemeasureInterval, BooleanSupplier limiterIdle) {
         this.remeasurePolicy = new OversizedRemeasurePolicy(sizeLimit > 0 ? sizeLimit : Long.MAX_VALUE,
                 oversizedRemeasureInterval.toNanos(), oversizedForcedRemeasureInterval.toNanos(),
-                DEFAULT_REMEASURE_GATE_TIMEOUT.toNanos(), limiterIdle, new AtomicReference<>());
+                DEFAULT_REMEASURE_GATE_TIMEOUT.toNanos(), limiterIdle, new AtomicReference<>(),
+                new AtomicLong(System.nanoTime()));
+    }
+
+    /**
+     * Returns the topic list heap memory limit, {@link Long#MAX_VALUE} when there's no limit. An estimate larger
+     * than the limit can't be granted.
+     */
+    public long getSizeLimit() {
+        return remeasurePolicy.sizeLimit();
     }
 
     /**
@@ -110,12 +120,22 @@ public class TopicListSizeResultCache {
      * The size limit and the rules for measuring an oversized topic list again.
      *
      * @param gate the listing that is being measured again. Only one listing is measured again at a time.
+     * @param nextForcedRemeasureNanos the earliest time when any listing may be measured again while the limiter
+     *                                 is busy. The listings have separate estimates for each set of properties,
+     *                                 which come from the clients, so the number of forced re-measures is limited
+     *                                 for the whole broker.
      */
     private record OversizedRemeasurePolicy(long sizeLimit, long intervalNanos, long forcedIntervalNanos,
                                             long gateTimeoutNanos, BooleanSupplier limiterIdle,
-                                            AtomicReference<RemeasureGate> gate) {
-        static final OversizedRemeasurePolicy UNLIMITED =
-                new OversizedRemeasurePolicy(Long.MAX_VALUE, 0, 0, 0, () -> true, new AtomicReference<>());
+                                            AtomicReference<RemeasureGate> gate,
+                                            AtomicLong nextForcedRemeasureNanos) {
+        static final OversizedRemeasurePolicy UNLIMITED = new OversizedRemeasurePolicy(Long.MAX_VALUE, 0, 0, 0,
+                () -> true, new AtomicReference<>(), new AtomicLong());
+
+        boolean tryForcedRemeasure(long now) {
+            long next = nextForcedRemeasureNanos.get();
+            return now - next >= 0 && nextForcedRemeasureNanos.compareAndSet(next, now + forcedIntervalNanos);
+        }
 
         boolean tryEnterGate(ResultHolder holder, long now) {
             RemeasureGate current = gate.get();
@@ -231,13 +251,17 @@ public class TopicListSizeResultCache {
             // and all later requests would wait behind it, since the permits are granted in order. Measure the
             // list again only when no other topic list is in flight, or when the limiter hasn't been idle for a
             // longer time, and only one listing at a time.
+            boolean limiterIdle = policy.limiterIdle().getAsBoolean();
             if (now - nextRemeasureNanos >= 0
-                    && (policy.limiterIdle().getAsBoolean() || now - nextForcedRemeasureNanos >= 0)
+                    && (limiterIdle || now - nextForcedRemeasureNanos >= 0)
                     && policy.tryEnterGate(this, now)) {
-                nextRemeasureNanos = now + policy.intervalNanos();
-                nextForcedRemeasureNanos = now + policy.forcedIntervalNanos();
-                // a request that can be granted, so that the topic list gets measured again
-                return sizeLimit;
+                if (limiterIdle || policy.tryForcedRemeasure(now)) {
+                    nextRemeasureNanos = now + policy.intervalNanos();
+                    nextForcedRemeasureNanos = now + policy.forcedIntervalNanos();
+                    // a request that can be granted, so that the topic list gets measured again
+                    return sizeLimit;
+                }
+                policy.exitGate(this);
             }
             // acquiring permits for an estimate larger than the limit fails right away
             return estimate;
