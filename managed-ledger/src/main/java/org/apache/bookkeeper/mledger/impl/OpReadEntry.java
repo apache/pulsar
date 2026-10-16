@@ -246,6 +246,49 @@ class OpReadEntry implements ReadEntriesCallback {
         }
     }
 
+    /**
+     * Guarded completion entry point for the batched skip-read path: mirrors the Throwable fallback of
+     * {@link #readEntriesComplete(List, Object)} while supporting the last-read position of the scan
+     * window. Must only be invoked without holding the batch callback's monitor.
+     */
+    void readEntriesCompleteGuarded(List<Entry> returnedEntries, Position lastReadPosition, Object ctx) {
+        try {
+            internalReadEntriesComplete(returnedEntries, lastReadPosition);
+        } catch (Throwable throwable) {
+            log.error().attr("op", this).exception(throwable)
+                    .log("Fallback to readEntriesFailed for exception in batched read completion");
+            readEntriesFailed(ManagedLedgerException.getManagedLedgerException(throwable), ctx);
+        }
+    }
+
+    /**
+     * Guarded failure entry point for the batched skip-read path: advances the read position past the
+     * delivered prefix and delegates to {@link #internalReadEntriesFailed}, converting any Throwable
+     * into the failure callback so the pending-read accounting is always settled. Must only be invoked
+     * without holding the batch callback's monitor.
+     */
+    void readEntriesFailedGuarded(List<Entry> prefix, ManagedLedgerException exception, Object ctx) {
+        try {
+            // Entries that were individually deleted while the range reads were in flight must not be
+            // delivered; filterReadEntries releases the entries it drops. Matches the sequential path,
+            // which filters every delivered batch in internalReadEntriesComplete.
+            List<Entry> filteredPrefix = prefix.isEmpty() ? prefix : cursor.filterReadEntries(prefix);
+            if (!filteredPrefix.isEmpty()) {
+                // Move the read position of the cursor to the next position of the last read entry,
+                // or the same entry would be delivered to the consumer more than once.
+                Entry entry = filteredPrefix.get(filteredPrefix.size() - 1);
+                Position position = PositionFactory.create(entry.getLedgerId(), entry.getEntryId());
+                Position nextReadPosition = cursor.getNextAvailablePosition(position);
+                updateReadPosition(nextReadPosition);
+            }
+            internalReadEntriesFailed(filteredPrefix, exception, ctx);
+        } catch (Throwable throwable) {
+            log.error().attr("op", this).exception(throwable)
+                    .log("Fallback to readEntriesFailed for exception in batched read failure finalize");
+            fail(ManagedLedgerException.getManagedLedgerException(throwable), ctx);
+        }
+    }
+
     void updateReadPosition(Position newReadPosition) {
         nextReadPosition = newReadPosition;
         cursor.setReadPosition(nextReadPosition);

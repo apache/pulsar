@@ -3739,6 +3739,67 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ledger.close();
     }
 
+    /**
+     * A batched skip-read with multiple ranges must not hang when a range read hits the read-entry
+     * timeout: the batch finalizes with the failure (empty contiguous prefix when the first range is
+     * the one timing out), delivers the original read context, and ignores late completions.
+     */
+    @Test
+    public void testBatchedSkipReadMultipleRangesTimeOut() throws Exception {
+        ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig()).setReadEntryTimeoutSeconds(1);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("batched_skip_read_timeout_test", config);
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor");
+        for (int i = 0; i < 6; i++) {
+            ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+
+        // ensure that the reads aren't cached
+        factory.getEntryCacheManager().clear();
+        bkc.setReadHandleInterceptor(new PulsarMockReadHandleInterceptor() {
+            @Override
+            public CompletableFuture<LedgerEntries> interceptReadAsync(long ledgerId, long firstEntry,
+                                                                       long lastEntry, LedgerEntries entries) {
+                // Every range read stalls past the 1s read timeout.
+                return CompletableFuture.supplyAsync(() -> entries,
+                        CompletableFuture.delayedExecutor(3, TimeUnit.SECONDS));
+            }
+        });
+
+        Object readCtx = new Object();
+        AtomicInteger failureCount = new AtomicInteger();
+        AtomicReference<ManagedLedgerException> failure = new AtomicReference<>();
+        AtomicReference<Object> receivedCtx = new AtomicReference<>();
+        cursor.asyncReadEntriesWithSkip(6, -1, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                fail("expected readEntriesFailed after the read timeout");
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                failureCount.incrementAndGet();
+                failure.set(exception);
+                receivedCtx.set(ctx);
+            }
+        }, readCtx, PositionFactory.LATEST, position -> position.getEntryId() % 2 == 0);
+
+        // The timeout fires after ~1s while every range read is stalled; the failure must arrive via
+        // the read-timeout path, not from the delayed reads completing at ~3s.
+        Awaitility.await().untilAsserted(() -> {
+            assertNotNull(failure.get());
+            assertTrue(failure.get().getMessage()
+                    .startsWith(BKException.getMessage(BKException.Code.TimeoutException)));
+            assertEquals(receivedCtx.get(), readCtx, "the timeout failure must carry the original read context");
+        });
+        // Late completions of the other ranges (at ~3s) must not re-finalize the batch. The during()
+        // window must extend past the delayed reads' completion time, hence 3s.
+        Awaitility.await().during(3, TimeUnit.SECONDS).atMost(8, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertEquals(failureCount.get(), 1));
+
+        bkc.setReadHandleInterceptor(null);
+    }
+
     @Test
     public void testReadEntryTimeoutCallbackRunsOnManagedLedgerExecutor() throws Exception {
         ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig()).setReadEntryTimeoutSeconds(1);
@@ -6284,18 +6345,20 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                 LongLongPair.of(1L, 1L), LongLongPair.of(3L, 3L), LongLongPair.of(5L, 5L),
                 LongLongPair.of(7L, 7L), LongLongPair.of(9L, 9L));
         ManagedLedgerImpl.BatchReadEntriesCallback callback = new ManagedLedgerImpl
-                .BatchReadEntriesCallback(ranges, 5, opReadEntry, null);
+                .BatchReadEntriesCallback(ranges, 5, opReadEntry, null, null);
         long ledgerId = ledger.currentLedger.getId();
+        EntryImpl entry7 = EntryImpl.create(ledgerId, 7, new byte[7]);
+        EntryImpl entry5 = EntryImpl.create(ledgerId, 5, new byte[5]);
 
         callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 1,  new byte[1])), null);
         callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 3,  new byte[3])), null);
-        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 7,  new byte[7])), null);
+        callback.readEntriesComplete(List.of(entry7), null);
         callback.readEntriesFailed(
                 new ManagedLedgerException.InvalidCursorPositionException("Invalid cursor position"), null);
         // After call readEntriesFailed, the following readEntriesComplete should be ignored.
-        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 5,  new byte[5])), null);
+        callback.readEntriesComplete(List.of(entry5), null);
 
-        latch.await();
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
         // should not fail
         assertFalse(failed.get());
         assertEquals(entries.size(), 2);
@@ -6303,6 +6366,11 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         // `entries` should be only the entries with entryId 1 and 3.
         assertEquals(entries.get(0).getEntryId(), 1);
         assertEquals(entries.get(1).getEntryId(), 3);
+
+        // Entries dropped by the failure prefix filter and the late-completion guard must be released;
+        // unreleased entries would pin inflight-reads-limiter permits forever.
+        assertEquals(entry7.refCnt(), 0, "non-prefix entry must be released by filterEntries");
+        assertEquals(entry5.refCnt(), 0, "late completion after finalize must be released");
 
         // ReadPosition should be updated to [4]
         assertEquals(cursor.getReadPosition().getEntryId(), 4);
@@ -6341,7 +6409,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         List<LongLongPair> ranges = List.of(
                 LongLongPair.of(1L, 2L), LongLongPair.of(4L, 4L), LongLongPair.of(6L, 6L));
         ManagedLedgerImpl.BatchReadEntriesCallback callback = new ManagedLedgerImpl
-                .BatchReadEntriesCallback(ranges, 4, opReadEntry, PositionFactory.create(ledgerId, 9));
+                .BatchReadEntriesCallback(ranges, 4, opReadEntry, PositionFactory.create(ledgerId, 9), null);
 
         callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 1, new byte[1]),
                 EntryImpl.create(ledgerId, 2, new byte[2])), null);
@@ -6420,29 +6488,33 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
         }
 
+        Object readCtx = new Object();
         CountDownLatch latch = new CountDownLatch(1);
         AtomicBoolean failed = new AtomicBoolean(false);
+        AtomicReference<Object> receivedCtx = new AtomicReference<>();
         List<Entry> entries = new ArrayList<>();
         OpReadEntry opReadEntry = OpReadEntry.create(cursor, cursor.readPosition, 3, -1, new ReadEntriesCallback() {
             @Override
             public void readEntriesComplete(List<Entry> entries0, Object ctx) {
                 entries.addAll(entries0);
+                receivedCtx.set(ctx);
                 latch.countDown();
             }
 
             @Override
             public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
                 failed.set(true);
+                receivedCtx.set(ctx);
                 latch.countDown();
             }
-        }, null, ledger.lastConfirmedEntry, position -> false, true);
+        }, readCtx, ledger.lastConfirmedEntry, position -> false, true);
 
         long ledgerId = ledger.currentLedger.getId();
         // Read entries [1], [3], [5] in three ranges.
         List<LongLongPair> ranges = List.of(
                 LongLongPair.of(1L, 1L), LongLongPair.of(3L, 3L), LongLongPair.of(5L, 5L));
         ManagedLedgerImpl.BatchReadEntriesCallback callback = new ManagedLedgerImpl
-                .BatchReadEntriesCallback(ranges, 3, opReadEntry, PositionFactory.create(ledgerId, 5));
+                .BatchReadEntriesCallback(ranges, 3, opReadEntry, PositionFactory.create(ledgerId, 5), readCtx);
 
         // Range [1] is submitted and still in flight when range [3] gets rejected by the inflight
         // read limiter. The rejection must stop submitting further ranges, but must not fail the
@@ -6450,22 +6522,173 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         callback.onRangeSubmitted();
         callback.onRangeSubmitted();
         callback.readEntriesFailed(
-                new ManagedLedgerException.TooManyRequestsException("inflight limiter rejected read"), null);
+                new ManagedLedgerException.TooManyRequestsException("inflight limiter rejected read"), readCtx);
         assertTrue(callback.shouldStopSubmission());
         callback.submissionFinished();
         assertFalse(failed.get());
         assertTrue(entries.isEmpty());
 
         // When the in-flight range completes, its entries form the contiguous prefix to deliver.
-        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 1, new byte[1])), null);
+        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 1, new byte[1])), readCtx);
 
         assertTrue(latch.await(5, TimeUnit.SECONDS));
+        assertEquals(receivedCtx.get(), readCtx,
+                "the throttled batched read must deliver the caller's read context");
         assertFalse(failed.get());
         assertEquals(entries.size(), 1);
         assertEquals(entries.get(0).getEntryId(), 1);
         // The read position must advance past the delivered prefix so that the remaining entries
         // are read again by the next read instead of being skipped.
         assertEquals(cursor.getReadPosition().getEntryId(), 2);
+    }
+
+    @Test
+    public void testBatchedReadDeliversEntriesSortedWhenRangesCompleteOutOfOrder() throws Exception {
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory
+                .open("testBatchedReadDeliversEntriesSortedWhenRangesCompleteOutOfOrder");
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor");
+        for (int i = 0; i < 6; i++) {
+            ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+
+        CountDownLatch latch = new CountDownLatch(1);
+        List<Entry> delivered = new ArrayList<>();
+        OpReadEntry opReadEntry = OpReadEntry.create(cursor, cursor.readPosition, 3, -1, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                delivered.addAll(entries);
+                latch.countDown();
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                fail("expected readEntriesComplete");
+            }
+        }, null, ledger.lastConfirmedEntry, position -> false, true);
+
+        long ledgerId = ledger.currentLedger.getId();
+        List<LongLongPair> ranges = List.of(
+                LongLongPair.of(1L, 1L), LongLongPair.of(3L, 3L), LongLongPair.of(5L, 5L));
+        ManagedLedgerImpl.BatchReadEntriesCallback callback = new ManagedLedgerImpl.BatchReadEntriesCallback(
+                ranges, 3, opReadEntry, PositionFactory.create(ledgerId, 5), null);
+
+        // Complete the ranges in descending order: the delivered entries must still be ascending.
+        for (long entryId : new long[]{5, 3, 1}) {
+            callback.onRangeSubmitted();
+        }
+        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 5, new byte[1])), null);
+        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 3, new byte[1])), null);
+        callback.submissionFinished();
+        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 1, new byte[1])), null);
+
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+        assertEquals(delivered.size(), 3);
+        assertEquals(delivered.get(0).getEntryId(), 1);
+        assertEquals(delivered.get(1).getEntryId(), 3);
+        assertEquals(delivered.get(2).getEntryId(), 5);
+        delivered.forEach(Entry::release);
+    }
+
+    @Test
+    public void testSubmissionFinishedFailurePreservesReadContext() throws Exception {
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory
+                .open("testSubmissionFinishedFailurePreservesReadContext");
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor");
+        for (int i = 0; i < 6; i++) {
+            ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+
+        Object readCtx = new Object();
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicReference<Object> receivedCtx = new AtomicReference<>();
+        AtomicReference<ManagedLedgerException> failure = new AtomicReference<>();
+        OpReadEntry opReadEntry = OpReadEntry.create(cursor, cursor.readPosition, 3, -1, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                fail("expected readEntriesFailed");
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                failure.set(exception);
+                receivedCtx.set(ctx);
+                latch.countDown();
+            }
+        }, readCtx, ledger.lastConfirmedEntry, position -> false, true);
+
+        long ledgerId = ledger.currentLedger.getId();
+        List<LongLongPair> ranges = List.of(LongLongPair.of(1L, 1L), LongLongPair.of(3L, 3L));
+        ManagedLedgerImpl.BatchReadEntriesCallback callback = new ManagedLedgerImpl.BatchReadEntriesCallback(
+                ranges, 2, opReadEntry, PositionFactory.create(ledgerId, 3), readCtx);
+
+        // The first range is rejected synchronously by the inflight limiter with nothing else in flight;
+        // the failure is deferred to submissionFinished(), which must preserve the read context.
+        callback.onRangeSubmitted();
+        callback.readEntriesFailed(
+                new ManagedLedgerException.TooManyRequestsException("inflight limiter rejected read"), readCtx);
+        assertTrue(callback.shouldStopSubmission());
+        callback.submissionFinished();
+
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+        assertTrue(failure.get() instanceof ManagedLedgerException.TooManyRequestsException);
+        assertEquals(receivedCtx.get(), readCtx, "submissionFinished() must deliver the original read context");
+    }
+
+    @Test
+    public void testSubmissionFinishedPrefixDeliveryPreservesReadContext() throws Exception {
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory
+                .open("testSubmissionFinishedPrefixDeliveryPreservesReadContext");
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor");
+        for (int i = 0; i < 6; i++) {
+            ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+
+        Object readCtx = new Object();
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicReference<Object> receivedCtx = new AtomicReference<>();
+        List<Entry> delivered = new ArrayList<>();
+        OpReadEntry opReadEntry = OpReadEntry.create(cursor, cursor.readPosition, 3, -1, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                delivered.addAll(entries);
+                receivedCtx.set(ctx);
+                latch.countDown();
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                fail("expected the in-flight prefix to be delivered via readEntriesComplete");
+            }
+        }, readCtx, ledger.lastConfirmedEntry, position -> false, true);
+
+        long ledgerId = ledger.currentLedger.getId();
+        List<LongLongPair> ranges = List.of(LongLongPair.of(1L, 1L), LongLongPair.of(3L, 3L));
+        ManagedLedgerImpl.BatchReadEntriesCallback callback = new ManagedLedgerImpl.BatchReadEntriesCallback(
+                ranges, 2, opReadEntry, PositionFactory.create(ledgerId, 3), readCtx);
+
+        // Range [1] completes, then range [3] is throttled synchronously while the submission loop is
+        // still running: the successful prefix must be delivered with the original read context.
+        callback.onRangeSubmitted();
+        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 1, new byte[1])), readCtx);
+        callback.onRangeSubmitted();
+        callback.readEntriesFailed(
+                new ManagedLedgerException.TooManyRequestsException("inflight limiter rejected read"), readCtx);
+        assertTrue(callback.shouldStopSubmission());
+        callback.submissionFinished();
+
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+        assertEquals(delivered.size(), 1);
+        assertEquals(delivered.get(0).getEntryId(), 1);
+        assertEquals(receivedCtx.get(), readCtx, "prefix delivery must carry the original read context");
+        // The read position advances past the delivered prefix so the remaining entries are re-read.
+        assertEquals(cursor.getReadPosition().getEntryId(), 2);
+        delivered.forEach(Entry::release);
     }
 
     @Test
@@ -6479,8 +6702,10 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
         }
 
+        Object readCtx = new Object();
         CountDownLatch latch = new CountDownLatch(1);
         AtomicReference<ManagedLedgerException> callbackFailure = new AtomicReference<>();
+        AtomicReference<Object> receivedCtx = new AtomicReference<>();
         ManagedLedgerImpl.BatchReadEntriesCallback[] callbackRef = new ManagedLedgerImpl.BatchReadEntriesCallback[1];
         OpReadEntry opReadEntry = OpReadEntry.create(cursor, cursor.readPosition, 2, -1, new ReadEntriesCallback() {
             @Override
@@ -6495,25 +6720,28 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                 // read failing on another thread.
                 assertFalse(Thread.holdsLock(callbackRef[0]));
                 callbackFailure.set(exception);
+                receivedCtx.set(ctx);
                 latch.countDown();
             }
-        }, null, ledger.lastConfirmedEntry, position -> false, true);
+        }, readCtx, ledger.lastConfirmedEntry, position -> false, true);
 
         long ledgerId = ledger.currentLedger.getId();
         List<LongLongPair> ranges = List.of(LongLongPair.of(1L, 1L), LongLongPair.of(3L, 3L));
         callbackRef[0] = new ManagedLedgerImpl
-                .BatchReadEntriesCallback(ranges, 2, opReadEntry, PositionFactory.create(ledgerId, 3));
+                .BatchReadEntriesCallback(ranges, 2, opReadEntry, PositionFactory.create(ledgerId, 3), readCtx);
 
         // The very first range read gets rejected by the inflight read limiter with nothing else in
         // flight, so the batched read must fail once the submission loop has finished.
         callbackRef[0].onRangeSubmitted();
         callbackRef[0].readEntriesFailed(
-                new ManagedLedgerException.TooManyRequestsException("inflight limiter rejected read"), null);
+                new ManagedLedgerException.TooManyRequestsException("inflight limiter rejected read"), readCtx);
         assertTrue(callbackRef[0].shouldStopSubmission());
         callbackRef[0].submissionFinished();
 
         assertTrue(latch.await(5, TimeUnit.SECONDS));
         assertTrue(callbackFailure.get() instanceof ManagedLedgerException.TooManyRequestsException);
+        assertEquals(receivedCtx.get(), readCtx,
+                "the throttled batched read must deliver the caller's read context");
     }
 
     @Test
@@ -6554,7 +6782,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         long ledgerId = ledger.currentLedger.getId();
         List<LongLongPair> ranges = List.of(LongLongPair.of(1L, 1L), LongLongPair.of(3L, 3L));
         callbackRef[0] = new ManagedLedgerImpl
-                .BatchReadEntriesCallback(ranges, 2, opReadEntry, PositionFactory.create(ledgerId, 3));
+                .BatchReadEntriesCallback(ranges, 2, opReadEntry, PositionFactory.create(ledgerId, 3), null);
 
         callbackRef[0].onRangeSubmitted();
         callbackRef[0].onRangeSubmitted();
@@ -6567,6 +6795,147 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(entries.size(), 2);
         assertEquals(entries.get(0).getEntryId(), 1);
         assertEquals(entries.get(1).getEntryId(), 3);
+    }
+
+    @Test
+    public void testGuardedBatchedCompletionFallsBackOnThrowable() throws Exception {
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory
+                .open("testGuardedBatchedCompletionFallsBackOnThrowable");
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor");
+        for (int i = 0; i < 4; i++) {
+            ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+
+        Object readCtx = new Object();
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicReference<Object> receivedCtx = new AtomicReference<>();
+        AtomicReference<ManagedLedgerException> failure = new AtomicReference<>();
+
+        // updateReadStats is the first cursor call inside internalReadEntriesComplete; make it throw.
+        ManagedCursorImpl cursorSpy = Mockito.spy(cursor);
+        Mockito.doThrow(new RuntimeException("simulated cursor failure"))
+                .when(cursorSpy).updateReadStats(Mockito.anyInt(), Mockito.anyLong());
+
+        OpReadEntry opReadEntry = OpReadEntry.create(cursorSpy, cursor.readPosition, 2, -1, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                fail("expected the throwable to be converted into readEntriesFailed");
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                failure.set(exception);
+                receivedCtx.set(ctx);
+                latch.countDown();
+            }
+        }, readCtx, ledger.lastConfirmedEntry, position -> false, true);
+
+        long ledgerId = ledger.currentLedger.getId();
+        EntryImpl entry = EntryImpl.create(ledgerId, 1, new byte[1]);
+        // Must not throw even though the finalize hits the stubbed cursor failure.
+        opReadEntry.readEntriesCompleteGuarded(List.of(entry), null, readCtx);
+
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+        assertNotNull(failure.get());
+        assertEquals(receivedCtx.get(), readCtx, "the fallback must deliver the original read context");
+        entry.release();
+    }
+
+    @Test
+    public void testGuardedBatchedFailureFallsBackOnThrowable() throws Exception {
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory
+                .open("testGuardedBatchedFailureFallsBackOnThrowable");
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor");
+        for (int i = 0; i < 4; i++) {
+            ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+
+        Object readCtx = new Object();
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicReference<Object> receivedCtx = new AtomicReference<>();
+        AtomicReference<ManagedLedgerException> failure = new AtomicReference<>();
+
+        // readOperationCompleted is the first cursor call inside internalReadEntriesFailed.
+        ManagedCursorImpl cursorSpy = Mockito.spy(cursor);
+        Mockito.doThrow(new RuntimeException("simulated cursor failure"))
+                .when(cursorSpy).readOperationCompleted();
+
+        OpReadEntry opReadEntry = OpReadEntry.create(cursorSpy, cursor.readPosition, 2, -1, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                fail("expected the throwable to be converted into readEntriesFailed");
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                failure.set(exception);
+                receivedCtx.set(ctx);
+                latch.countDown();
+            }
+        }, readCtx, ledger.lastConfirmedEntry, position -> false, true);
+
+        // Empty prefix: the failure path itself throws through the spied cursor; the guard must
+        // still complete the callback instead of propagating the RuntimeException.
+        opReadEntry.readEntriesFailedGuarded(Collections.emptyList(),
+                new ManagedLedgerException.TooManyRequestsException("throttled"), readCtx);
+
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+        assertNotNull(failure.get());
+        assertEquals(receivedCtx.get(), readCtx);
+    }
+
+    @Test
+    public void testFailurePrefixFiltersIndividuallyDeletedEntries() throws Exception {
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory
+                .open("testFailurePrefixFiltersIndividuallyDeletedEntries");
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor");
+        for (int i = 0; i < 6; i++) {
+            ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+
+        Object readCtx = new Object();
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicBoolean deliveredSuccess = new AtomicBoolean(false);
+        AtomicReference<ManagedLedgerException> failure = new AtomicReference<>();
+        OpReadEntry opReadEntry = OpReadEntry.create(cursor, cursor.readPosition, 3, -1, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                deliveredSuccess.set(true);
+                latch.countDown();
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                failure.set(exception);
+                latch.countDown();
+            }
+        }, readCtx, ledger.lastConfirmedEntry, position -> false, true);
+
+        long ledgerId = ledger.currentLedger.getId();
+        List<LongLongPair> ranges = List.of(LongLongPair.of(1L, 1L), LongLongPair.of(3L, 3L));
+        ManagedLedgerImpl.BatchReadEntriesCallback callback = new ManagedLedgerImpl.BatchReadEntriesCallback(
+                ranges, 2, opReadEntry, PositionFactory.create(ledgerId, 3), readCtx);
+
+        EntryImpl bufferedEntry = EntryImpl.create(ledgerId, 1, new byte[1]);
+        callback.onRangeSubmitted();
+        callback.onRangeSubmitted();
+        // Range [1] completed; entry 1 is individually deleted while range [3] is still in flight...
+        callback.readEntriesComplete(List.of(bufferedEntry), readCtx);
+        cursor.delete(PositionFactory.create(ledgerId, 1));
+        // ...then range [3] fails: the prefix [1] must be filtered out, released, and not delivered.
+        callback.readEntriesFailed(new ManagedLedgerException("read failed"), readCtx);
+        callback.submissionFinished();
+
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+        assertFalse(deliveredSuccess.get(), "individually deleted prefix entries must not be delivered");
+        assertNotNull(failure.get());
+        assertEquals(bufferedEntry.refCnt(), 0, "the filtered-out prefix entry must be released");
     }
 
     @Test
@@ -6608,7 +6977,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             }
         }, null, PositionFactory.LATEST, position -> position.getEntryId() % 2 == 0);
 
-        latch.await();
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
         assertFalse(failed.get());
         assertEquals(entries.size(), 5);
         // Read entries from 3 ledgers, the counter is 3.
@@ -6656,8 +7025,10 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             }
         }, null, PositionFactory.LATEST, position -> position.getEntryId() % 2 == 0);
 
-        latch.await();
-        assertEquals(counter.get(), 1);
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+        // The 5-range window exceeds MAX_BATCHED_READ_RANGES(4) and is served by 2 scan windows within
+        // the same read operation.
+        assertEquals(counter.get(), 2);
 
         assertFalse(failed.get());
         assertEquals(entries.size(), 5);
@@ -6665,6 +7036,79 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         Position readPosition = cursor.getReadPosition();
         assertTrue(readPosition.getLedgerId() == lastPosition.getLedgerId()
                 && readPosition.getEntryId() == lastPosition.getEntryId() + 1);
+    }
+
+    @Test
+    public void testBatchedSkipReadCapsConcurrentRangeSubmissions() throws Exception {
+        ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig());
+        ManagedLedgerImpl ledger =
+                (ManagedLedgerImpl) factory.open("testBatchedSkipReadCapsConcurrentRangeSubmissions", config);
+        for (int i = 0; i < 12; i++) {
+            ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+        // Spy the ledger only after every entry is added: the entry cache keeps the pre-spy instance and
+        // validates its reads against that instance's lastConfirmedEntry, so the spy must copy the state
+        // of a ledger that already contains all the entries. The cursor is opened on the spy (so the stub
+        // below intercepts its range reads) at the earliest position, so the first read scans them all.
+        ledger = Mockito.spy(ledger);
+        @Cleanup
+        ManagedCursorImpl cursor =
+                (ManagedCursorImpl) ledger.openCursor("test-cursor", InitialPosition.Earliest);
+
+        // Delay every BK read so no range completion can interleave with the submission loop, and clear
+        // the cache so nothing completes synchronously.
+        factory.getEntryCacheManager().clear();
+        bkc.setReadHandleInterceptor(new PulsarMockReadHandleInterceptor() {
+            @Override
+            public CompletableFuture<LedgerEntries> interceptReadAsync(long ledgerId, long firstEntry,
+                                                                       long lastEntry, LedgerEntries entries) {
+                return CompletableFuture.supplyAsync(() -> entries,
+                        CompletableFuture.delayedExecutor(500, TimeUnit.MILLISECONDS));
+            }
+        });
+
+        AtomicInteger submitCount = new AtomicInteger();
+        Mockito.doAnswer(inv -> {
+            submitCount.incrementAndGet();
+            return inv.callRealMethod();
+        }).when(ledger).asyncReadEntry(Mockito.any(ReadHandle.class), Mockito.anyLong(),
+                Mockito.anyLong(), Mockito.anyLong(), Mockito.any(), Mockito.any(ReadEntriesCallback.class),
+                Mockito.any());
+
+        // First read: 6 ranges exist in the window ([1],[3],[5],[7],[9],[11]) but only the first 4 may be
+        // submitted. The truncated window no longer reaches the last confirmed entry, so the read does
+        // not complete early: checkReadCompletion issues the continuation read of the SAME operation for
+        // the remaining 2 ranges, and the single callback delivers all 6 entries.
+        CountDownLatch latch = new CountDownLatch(1);
+        List<Entry> delivered = new ArrayList<>();
+        cursor.asyncReadEntriesWithSkip(12, -1, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                delivered.addAll(entries);
+                latch.countDown();
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                fail("expected readEntriesComplete");
+            }
+        }, null, PositionFactory.LATEST, position -> position.getEntryId() % 2 == 0);
+
+        // The submission loop runs synchronously on the calling thread while every BK read is stalled,
+        // so exactly MAX_BATCHED_READ_RANGES(4) ranges must have been submitted when the call returns.
+        assertEquals(submitCount.get(), 4,
+                "a scan window must not submit more than MAX_BATCHED_READ_RANGES range reads");
+
+        assertTrue(latch.await(10, TimeUnit.SECONDS));
+        assertEquals(submitCount.get(), 6, "the continuation window must submit the remaining 2 ranges");
+        assertEquals(delivered.size(), 6);
+        for (int i = 0; i < 6; i++) {
+            assertEquals(delivered.get(i).getEntryId(), 2 * i + 1);
+        }
+        assertEquals(cursor.getReadPosition().getEntryId(), 12);
+        delivered.forEach(Entry::release);
+
+        bkc.setReadHandleInterceptor(null);
     }
 
     // ===== Unit tests for buildRanges =====

@@ -181,6 +181,46 @@ public class InflightReadsLimiter implements AutoCloseable {
         return internalAcquire(permits, callback);
     }
 
+    /**
+     * Non-queueing acquire for reads that must not wait for permits (batched skip-read range reads:
+     * the permits they would wait for can be held by the same batch's buffered entries). Returns a
+     * successful handle when the permits are immediately available (or when the request exceeds the
+     * limiter size while it is completely idle, matching {@link #acquire}), and {@link Optional#empty()}
+     * when the acquire would queue — the caller is expected to fail the read with
+     * {@link org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException}.
+     */
+    public Optional<Handle> tryAcquire(long permits) {
+        if (isDisabled()) {
+            return DISABLED_OPTIONAL;
+        }
+        return internalTryAcquire(permits);
+    }
+
+    private synchronized Optional<Handle> internalTryAcquire(long permits) {
+        Handle handle = new Handle(permits, System.currentTimeMillis(), true);
+        if (remainingBytes >= permits) {
+            remainingBytes -= permits;
+            inflightReadsAcquireCountCounter.add(1);
+            log.debug().attr("permits", permits)
+                    .attr("creationTime", handle.creationTime)
+                    .attr("remainingBytes", remainingBytes).log("Acquired permits without queueing");
+            updateMetrics();
+            return Optional.of(handle);
+        } else if (permits > maxReadsInFlightSize && remainingBytes == maxReadsInFlightSize) {
+            remainingBytes = 0;
+            inflightReadsAcquireCountCounter.add(1);
+            log.info().attr("permits", permits)
+                    .attr("maxReadsInFlightSize", maxReadsInFlightSize)
+                    .attr("creationTime", handle.creationTime)
+                    .attr("remainingBytes", remainingBytes)
+                    .log("Requested permits exceeded maxReadsInFlightSize."
+                            + " Allowing request with permits set to maxReadsInFlightSize.");
+            updateMetrics();
+            return Optional.of(new Handle(maxReadsInFlightSize, handle.creationTime, true));
+        }
+        return Optional.empty();
+    }
+
     private synchronized Optional<Handle> internalAcquire(long permits, Consumer<Handle> callback) {
         Handle handle = new Handle(permits, System.currentTimeMillis(), true);
         if (remainingBytes >= permits) {

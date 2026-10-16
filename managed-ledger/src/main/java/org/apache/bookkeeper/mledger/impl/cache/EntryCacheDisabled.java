@@ -99,6 +99,36 @@ public class EntryCacheDisabled implements EntryCache {
                 callback, ctx, estimatedReadSize, handle));
     }
 
+    @Override
+    public void asyncReadEntry(ReadHandle lh, long firstEntry, long lastEntry, long maxSizeBytes,
+                               IntSupplier expectedReadCount, final AsyncCallbacks.ReadEntriesCallback callback,
+                               Object ctx, boolean failFastWhenThrottled) {
+        if (!failFastWhenThrottled || inflightReadsLimiter == null || inflightReadsLimiter.isDisabled()) {
+            asyncReadEntry(lh, firstEntry, lastEntry, maxSizeBytes, expectedReadCount, callback, ctx);
+            return;
+        }
+        long estimatedReadSize = (lastEntry - firstEntry + 1) * getEstimatedEntrySize(lh);
+        Optional<InflightReadsLimiter.Handle> handle = inflightReadsLimiter.tryAcquire(estimatedReadSize);
+        if (handle.isEmpty()) {
+            callback.readEntriesFailed(new ManagedLedgerException.TooManyRequestsException(
+                    "Couldn't acquire permits on the max reads in flight limiter to read from ledger "
+                            + lh.getId() + ", " + getName() + ", estimated read size " + estimatedReadSize
+                            + " bytes for " + (int) (lastEntry - firstEntry + 1) + " entries"
+                            + " (check managedLedgerMaxReadsInFlightSizeInMB)"), ctx);
+            return;
+        }
+        try {
+            readEntriesIfAcquiredPermits(lh, firstEntry, lastEntry, maxSizeBytes, callback, ctx,
+                    estimatedReadSize, handle.get());
+        } catch (Throwable t) {
+            log.error().attr("ledgerId", lh.getId())
+                    .exception(t)
+                    .log("Failed to read entries after acquiring the inflight reads limiter permits");
+            inflightReadsLimiter.release(handle.get());
+            callback.readEntriesFailed(ManagedLedgerException.getManagedLedgerException(t), ctx);
+        }
+    }
+
     private void readEntriesIfAcquiredPermits(ReadHandle lh, long firstEntry, long lastEntry, long maxSizeBytes,
                                               AsyncCallbacks.ReadEntriesCallback callback, Object ctx,
                                               long estimatedReadSize, InflightReadsLimiter.Handle handle) {

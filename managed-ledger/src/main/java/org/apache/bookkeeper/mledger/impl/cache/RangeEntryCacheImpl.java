@@ -334,6 +334,57 @@ public class RangeEntryCacheImpl implements EntryCache {
         }
     }
 
+    @Override
+    public void asyncReadEntry(ReadHandle lh, long firstEntry, long lastEntry, long maxSizeBytes,
+                               IntSupplier expectedReadCount, final ReadEntriesCallback callback, Object ctx,
+                               boolean failFastWhenThrottled) {
+        if (!failFastWhenThrottled) {
+            asyncReadEntry(lh, firstEntry, lastEntry, maxSizeBytes, expectedReadCount, callback, ctx);
+            return;
+        }
+        final long ledgerId = lh.getId();
+        final int numberOfEntries = (int) (lastEntry - firstEntry) + 1;
+        InflightReadsLimiter pendingReadsLimiter = getPendingReadsLimiter();
+        if (pendingReadsLimiter.isDisabled()) {
+            doAsyncReadEntriesByPosition(lh, PositionFactory.create(ledgerId, firstEntry),
+                    PositionFactory.create(ledgerId, lastEntry), numberOfEntries, maxSizeBytes,
+                    expectedReadCount, callback, ctx);
+            return;
+        }
+        long estimatedReadSize = numberOfEntries * getEstimatedEntrySize(lh);
+        Optional<InflightReadsLimiter.Handle> handle = pendingReadsLimiter.tryAcquire(estimatedReadSize);
+        if (handle.isEmpty()) {
+            log.debug().attr("ledgerId", ledgerId)
+                    .attr("firstEntry", firstEntry)
+                    .attr("lastEntry", lastEntry)
+                    .attr("estimatedReadSize", estimatedReadSize)
+                    .log("Failing batched range read fast: inflight reads limiter permits"
+                            + " are not immediately available");
+            callback.readEntriesFailed(new ManagedLedgerException.TooManyRequestsException(
+                    "Couldn't acquire permits on the max reads in flight limiter to read from ledger "
+                            + ledgerId + ", " + getName() + ", estimated read size " + estimatedReadSize
+                            + " bytes for " + numberOfEntries
+                            + " entries (check managedLedgerMaxReadsInFlightSizeInMB)"),
+                    ctx);
+            return;
+        }
+        try {
+            doAsyncReadEntriesWithAcquiredPermits(lh, PositionFactory.create(ledgerId, firstEntry),
+                    PositionFactory.create(ledgerId, lastEntry), numberOfEntries, maxSizeBytes,
+                    expectedReadCount, callback, ctx, handle.get(), estimatedReadSize);
+        } catch (Throwable t) {
+            log.error().attr("ledgerId", ledgerId)
+                    .exception(t)
+                    .log("Failed to read entries after acquiring the inflight reads limiter permits");
+            // invalidate all entries related to ledger from the cache (it might happen if entry gets corrupt
+            // (entry.data is already deallocate due to any race-condition) so, invalidate cache and next time read from
+            // the bookie)
+            invalidateAllEntries(ledgerId);
+            pendingReadsLimiter.release(handle.get());
+            callback.readEntriesFailed(ManagedLedgerException.getManagedLedgerException(t), ctx);
+        }
+    }
+
     @SuppressWarnings({ "unchecked", "rawtypes" })
     void asyncReadEntry0(ReadHandle lh, long firstEntry, long lastEntry, long maxSizeBytes,
             IntSupplier expectedReadCount, final ReadEntriesCallback callback, Object ctx, boolean acquirePermits) {

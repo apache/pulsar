@@ -216,7 +216,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         assertEquals(cursor.getIndividuallyDeletedMessagesSet().size(), 0);
 
         // markDelete position should be one position behind read position
-        assertEquals(cursor.getReadPosition(), cursor.getNextAvailablePosition(cursor.getMarkDeletedPosition()));
+        assertEquals(cursor.getReadPosition(), cursor.getMarkDeletedPosition().getNext());
 
         producer.close();
         consumer2.close();
