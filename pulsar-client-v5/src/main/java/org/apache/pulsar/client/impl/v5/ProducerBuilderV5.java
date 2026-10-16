@@ -58,7 +58,7 @@ final class ProducerBuilderV5<T> implements ProducerBuilder<T> {
         try {
             return createAsync().join();
         } catch (java.util.concurrent.CompletionException e) {
-            throw V5Utils.toV5Exception(e);
+            throw V5ExceptionMappings.toV5Exception(e);
         }
     }
 
@@ -88,7 +88,7 @@ final class ProducerBuilderV5<T> implements ProducerBuilder<T> {
                                         ? ce : new java.util.concurrent.CompletionException(ex);
                             }));
                 })
-                .exceptionallyCompose(V5Utils::failWithV5Exception);
+                .exceptionallyCompose(V5ExceptionMappings::failWithV5Exception);
     }
 
     @Override

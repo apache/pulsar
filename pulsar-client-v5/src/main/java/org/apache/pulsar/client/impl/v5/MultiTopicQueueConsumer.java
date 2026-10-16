@@ -375,7 +375,7 @@ final class MultiTopicQueueConsumer<T> implements QueueConsumerImpl<T> {
             Thread.currentThread().interrupt();
             throw new PulsarClientException("Close interrupted", e);
         } catch (ExecutionException e) {
-            throw V5Utils.toV5Exception(e);
+            throw V5ExceptionMappings.toV5Exception(e);
         }
     }
 

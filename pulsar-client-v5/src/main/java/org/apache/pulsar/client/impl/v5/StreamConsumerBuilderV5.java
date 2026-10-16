@@ -56,7 +56,7 @@ final class StreamConsumerBuilderV5<T> implements StreamConsumerBuilder<T> {
         try {
             return subscribeAsync().join();
         } catch (java.util.concurrent.CompletionException e) {
-            throw V5Utils.toV5Exception(e);
+            throw V5ExceptionMappings.toV5Exception(e);
         }
     }
 
@@ -82,7 +82,7 @@ final class StreamConsumerBuilderV5<T> implements StreamConsumerBuilder<T> {
         if (namespaceSet) {
             return MultiTopicStreamConsumer.createAsync(
                             client, v5Schema, conf, namespaceName, propertyFilters)
-                    .exceptionallyCompose(V5Utils::failWithV5Exception);
+                    .exceptionallyCompose(V5ExceptionMappings::failWithV5Exception);
         }
 
         TopicName topic = V5Utils.parseScalableTopicInput(topicName);
@@ -106,7 +106,7 @@ final class StreamConsumerBuilderV5<T> implements StreamConsumerBuilder<T> {
                         session.close();
                     }
                 })
-                .exceptionallyCompose(V5Utils::failWithV5Exception);
+                .exceptionallyCompose(V5ExceptionMappings::failWithV5Exception);
     }
 
     @Override

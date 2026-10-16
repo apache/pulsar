@@ -80,7 +80,7 @@ final class PulsarClientV5 implements PulsarClient {
         try {
             return newTransactionAsync().get();
         } catch (ExecutionException e) {
-            throw V5Utils.toV5Exception(e);
+            throw V5ExceptionMappings.toV5Exception(e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new PulsarClientException("Interrupted while creating transaction", e);
@@ -94,7 +94,7 @@ final class PulsarClientV5 implements PulsarClient {
             builder.withTransactionTimeout(transactionTimeout.toMillis(), TimeUnit.MILLISECONDS);
         }
         return builder.build().thenApply(v4Txn -> (Transaction) new TransactionV5(v4Txn))
-                .exceptionallyCompose(V5Utils::failWithV5Exception);
+                .exceptionallyCompose(V5ExceptionMappings::failWithV5Exception);
     }
 
     @Override
@@ -102,13 +102,13 @@ final class PulsarClientV5 implements PulsarClient {
         try {
             v4Client.close();
         } catch (org.apache.pulsar.client.api.PulsarClientException e) {
-            throw V5Utils.toV5Exception(e);
+            throw V5ExceptionMappings.toV5Exception(e);
         }
     }
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-        return v4Client.closeAsync().exceptionallyCompose(V5Utils::failWithV5Exception);
+        return v4Client.closeAsync().exceptionallyCompose(V5ExceptionMappings::failWithV5Exception);
     }
 
     @Override

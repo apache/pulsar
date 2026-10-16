@@ -52,7 +52,7 @@ final class CheckpointConsumerBuilderV5<T> implements CheckpointConsumerBuilder<
         try {
             return createAsync().join();
         } catch (java.util.concurrent.CompletionException e) {
-            throw V5Utils.toV5Exception(e);
+            throw V5ExceptionMappings.toV5Exception(e);
         }
     }
 
@@ -86,7 +86,7 @@ final class CheckpointConsumerBuilderV5<T> implements CheckpointConsumerBuilder<
                             session.close();
                         }
                     })
-                    .exceptionallyCompose(V5Utils::failWithV5Exception);
+                    .exceptionallyCompose(V5ExceptionMappings::failWithV5Exception);
         }
 
         // Unmanaged: read every active segment, no broker-side state.
@@ -94,7 +94,7 @@ final class CheckpointConsumerBuilderV5<T> implements CheckpointConsumerBuilder<
         return dagWatch.start()
                 .thenCompose(initialLayout -> ScalableCheckpointConsumer.createUnmanagedAsync(
                         client, v5Schema, dagWatch, initialLayout, startPosition, consumerName))
-                .exceptionallyCompose(V5Utils::failWithV5Exception);
+                .exceptionallyCompose(V5ExceptionMappings::failWithV5Exception);
     }
 
     @Override

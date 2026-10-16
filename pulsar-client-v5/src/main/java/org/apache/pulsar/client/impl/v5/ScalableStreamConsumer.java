@@ -467,7 +467,7 @@ final class ScalableStreamConsumer<T>
             Thread.currentThread().interrupt();
             throw new PulsarClientException("Close interrupted", e);
         } catch (ExecutionException e) {
-            throw V5Utils.toV5Exception(e);
+            throw V5ExceptionMappings.toV5Exception(e);
         }
     }
 
@@ -516,7 +516,7 @@ final class ScalableStreamConsumer<T>
                     lastCumulativeAcked.clear();
                     cumulativeAckWatermark.clear();
                 })
-                .exceptionallyCompose(V5Utils::failWithV5Exception);
+                .exceptionallyCompose(V5ExceptionMappings::failWithV5Exception);
     }
 
     // --- Assignment change handling ---
