@@ -33,6 +33,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Function;
 import org.apache.logging.log4j.Level;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.resources.NamespaceResources;
@@ -208,5 +209,77 @@ public class PulsarAuthorizationProviderTest {
                 TopicName.get("segment://tenant/ns/orders-partition-1/0000-ffff-0"), ROLE, null).get());
         assertTrue(provider.canProduceAsync(TopicName.get("persistent://tenant/ns/orders-partition-1"), ROLE, null)
                 .get(), "A partition of a partitioned topic still gets the permissions of the partitioned topic");
+    }
+
+    /** A provider whose updates of the namespace policies are applied to {@code policies}. */
+    private static PulsarAuthorizationProvider providerUpdatingPolicies(Policies policies, boolean readOnly)
+            throws Exception {
+        NamespaceResources namespaceResources = mock(NamespaceResources.class);
+        when(namespaceResources.getPoliciesAsync(any()))
+                .thenReturn(CompletableFuture.completedFuture(Optional.of(policies)));
+        when(namespaceResources.getPoliciesReadOnlyAsync()).thenReturn(CompletableFuture.completedFuture(readOnly));
+        when(namespaceResources.setPoliciesAsync(any(), any())).thenAnswer(invocation -> {
+            Function<Policies, Policies> update = invocation.getArgument(1);
+            update.apply(policies);
+            return CompletableFuture.completedFuture(null);
+        });
+        PulsarResources pulsarResources = mock(PulsarResources.class);
+        when(pulsarResources.getNamespaceResources()).thenReturn(namespaceResources);
+        return new PulsarAuthorizationProvider(new ServiceConfiguration(), pulsarResources);
+    }
+
+    /**
+     * Copying the permissions of a regular topic to the scalable topic it is migrated to adds, for each role, the
+     * permissions granted on the regular topic itself to those already granted on the scalable topic.
+     */
+    @Test
+    public void testCopyPermissionsAddsThePermissionsOfTheSourceTopic() throws Exception {
+        String source = "persistent://tenant/ns/orders";
+        String target = "topic://tenant/ns/orders";
+        Policies policies = new Policies();
+        Map<String, Map<String, Set<AuthAction>>> topicPermissions = policies.auth_policies.getTopicAuthentication();
+        topicPermissions.put(source, new HashMap<>(Map.of(
+                "producer", Set.of(AuthAction.produce),
+                "consumer", Set.of(AuthAction.consume))));
+        topicPermissions.put(source + "-partition-0",
+                new HashMap<>(Map.of("partition-reader", Set.of(AuthAction.consume))));
+        topicPermissions.put(target, new HashMap<>(Map.of(
+                "consumer", Set.of(AuthAction.produce),
+                "scalable-reader", Set.of(AuthAction.consume))));
+        policies.auth_policies.getNamespaceAuthentication().put("namespace-reader", Set.of(AuthAction.consume));
+        PulsarAuthorizationProvider provider = providerUpdatingPolicies(policies, false);
+
+        provider.copyPermissionsAsync(TopicName.get(source), TopicName.get(target)).get();
+
+        assertEquals(topicPermissions.get(target), Map.of(
+                "producer", Set.of(AuthAction.produce),
+                "consumer", Set.of(AuthAction.produce, AuthAction.consume),
+                "scalable-reader", Set.of(AuthAction.consume)));
+        assertEquals(topicPermissions.get(source), Map.of(
+                "producer", Set.of(AuthAction.produce),
+                "consumer", Set.of(AuthAction.consume)));
+    }
+
+    /** A topic without permissions of its own has nothing to copy: the policies are left alone, even read-only. */
+    @Test
+    public void testCopyPermissionsOfTopicWithoutPermissions() throws Exception {
+        Policies policies = policiesGrantingOnTopic("persistent://tenant/ns/payments", ROLE, AuthAction.produce);
+        PulsarAuthorizationProvider provider = providerUpdatingPolicies(policies, true);
+
+        provider.copyPermissionsAsync(TopicName.get("persistent://tenant/ns/orders"),
+                TopicName.get("topic://tenant/ns/orders")).get();
+
+        assertFalse(policies.auth_policies.getTopicAuthentication().containsKey("topic://tenant/ns/orders"));
+    }
+
+    /** Permissions that can't be copied fail the copy, rather than letting their roles lose access. */
+    @Test
+    public void testCopyPermissionsFailsWithReadOnlyPolicies() throws Exception {
+        PulsarAuthorizationProvider provider = providerUpdatingPolicies(
+                policiesGrantingOnTopic("persistent://tenant/ns/orders", ROLE, AuthAction.produce), true);
+
+        ExecutionException e = expectThrows(ExecutionException.class, () -> provider.copyPermissionsAsync(
+                TopicName.get("persistent://tenant/ns/orders"), TopicName.get("topic://tenant/ns/orders")).get());
+        assertTrue(e.getCause() instanceof IllegalStateException, "Unexpected failure: " + e.getCause());
     }
 }
