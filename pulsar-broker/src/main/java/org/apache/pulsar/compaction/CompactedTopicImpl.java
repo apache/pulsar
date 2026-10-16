@@ -62,6 +62,9 @@ public class CompactedTopicImpl implements CompactedTopic {
 
     private volatile Position compactionHorizon = null;
     private volatile CompletableFuture<CompactedTopicContext> compactedTopicContext = null;
+    // Pending ledger: opened but not yet promoted (mark-delete not yet durable).
+    // Once mark-delete succeeds, promoteNewCompactedLedger() installs it as the active context.
+    private volatile PendingCompactedLedger pendingCompactedLedger = null;
 
     public CompactedTopicImpl(BookKeeper bk) {
         this.bk = bk;
@@ -71,33 +74,14 @@ public class CompactedTopicImpl implements CompactedTopic {
     public CompletableFuture<CompactedTopicContext> newCompactedLedger(Position p, long compactedLedgerId) {
         synchronized (this) {
             CompletableFuture<CompactedTopicContext> previousContext = compactedTopicContext;
-            CompletableFuture<CompactedTopicContext> newCompactedLedger = openCompactedLedger(bk, compactedLedgerId);
-            compactedTopicContext = newCompactedLedger;
+            CompletableFuture<CompactedTopicContext> newFuture = openCompactedLedger(bk, compactedLedgerId);
 
-            compactionHorizon = p;
-
-            // The compacted ledger may no longer exist: for example, a cursor recovery rolled the cursor
-            // properties back to a metadata-store snapshot that still referenced a ledger a newer
-            // compaction has already deleted. Reads at or before the compaction horizon would then fail
-            // on the failed open instead of reading the original topic data. Unregister the stale
-            // reference so that readCompacted falls back to the original data.
-            newCompactedLedger.whenComplete((context, exception) -> {
-                if (exception != null && isNoSuchLedgerExists(exception)) {
-                    synchronized (CompactedTopicImpl.this) {
-                        if (compactedTopicContext == newCompactedLedger) {
-                            log.warn()
-                                    .attr("compactedLedgerId", compactedLedgerId)
-                                    .attr("compactionHorizon", p)
-                                    .log("Compacted ledger no longer exists, falling back to reading"
-                                            + " uncompacted data until the next compaction");
-                            reset();
-                        }
-                    }
-                }
-            });
+            // Do NOT set compactedTopicContext or compactionHorizon yet — those are promoted only
+            // after the caller's mark-delete is durable (see promoteNewCompactedLedger).
+            pendingCompactedLedger = new PendingCompactedLedger(newFuture, compactedLedgerId);
 
             // delete the ledger from the old context once the new one is open
-            return newCompactedLedger.thenCompose(ctx -> {
+            return newFuture.thenCompose(ctx -> {
                 if (previousContext != null) {
                     previousContext.thenAccept(previousCtx -> {
                         // Print an error log here, which is not expected.
@@ -113,6 +97,50 @@ public class CompactedTopicImpl implements CompactedTopic {
                     return previousContext;
                 } else {
                     return CompletableFuture.completedFuture(null);
+                }
+            });
+        }
+    }
+
+    /**
+     * Promote the most recently opened compacted ledger (set via {@link #newCompactedLedger}) to be
+     * the active one, and install the compaction horizon. This must be called only after the
+     * corresponding mark-delete has been durably persisted, so that memory state does not diverge
+     * from cursor metadata.
+     *
+     * @param p the new compaction horizon (the mark-delete position)
+     */
+    @Override
+    public void promoteNewCompactedLedger(Position p) {
+        synchronized (this) {
+            PendingCompactedLedger pending = pendingCompactedLedger;
+            if (pending == null) {
+                log.warn()
+                        .attr("compactionHorizon", p)
+                        .log("promoteNewCompactedLedger called but no pending ledger; nothing to do");
+                return;
+            }
+
+            // Install as the active context and update horizon.
+            compactedTopicContext = pending.future;
+            compactionHorizon = p;
+            pendingCompactedLedger = null;
+
+            // Register the fallback: if the pending ledger fails to open (e.g. it was deleted),
+            // reset so reads fall back to original topic data.
+            long compactedLedgerId = pending.ledgerId;
+            pending.future.whenComplete((context, exception) -> {
+                if (exception != null && isNoSuchLedgerExists(exception)) {
+                    synchronized (CompactedTopicImpl.this) {
+                        if (compactedTopicContext == pending.future) {
+                            log.warn()
+                                    .attr("compactedLedgerId", compactedLedgerId)
+                                    .attr("compactionHorizon", p)
+                                    .log("Compacted ledger no longer exists, falling back to reading"
+                                            + " uncompacted data until the next compaction");
+                            reset();
+                        }
+                    }
                 }
             });
         }
@@ -362,11 +390,28 @@ public class CompactedTopicImpl implements CompactedTopic {
     public void reset() {
         this.compactionHorizon = null;
         this.compactedTopicContext = null;
+        this.pendingCompactedLedger = null;
     }
 
     @Nullable
     public CompletableFuture<CompactedTopicContext> getCompactedTopicContextFuture() {
         return compactedTopicContext;
+    }
+
+    /**
+     * Holder for a compacted ledger that has been opened but not yet promoted. Promotion (setting
+     * it as the active context together with the compaction horizon) only happens after the
+     * corresponding mark-delete is durably persisted, so memory state stays in sync with cursor
+     * metadata.
+     */
+    private static class PendingCompactedLedger {
+        final CompletableFuture<CompactedTopicContext> future;
+        final long ledgerId;
+
+        PendingCompactedLedger(CompletableFuture<CompactedTopicContext> future, long ledgerId) {
+            this.future = future;
+            this.ledgerId = ledgerId;
+        }
     }
 }
 
