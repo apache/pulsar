@@ -423,6 +423,45 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testPublishFailureAfterATakeoverIsReportedOnceByTheLoadedTopic() throws Exception {
+        final String topicName = "persistent://prop/ns-abc/takenOverTopic";
+
+        final ManagedLedger ledgerMock = mock(ManagedLedger.class);
+        doReturn(new ManagedLedgerConfig()).when(ledgerMock).getConfig();
+        doReturn(new ArrayList<>()).when(ledgerMock).getCursors();
+        List<Runnable> pendingAddFailures = new ArrayList<>();
+        doAnswer((Answer<Object>) invocationOnMock -> {
+            pendingAddFailures.add(() -> ((AddEntryCallback) invocationOnMock.getArguments()[2]).addFailed(
+                    new ManagedLedgerException.ManagedLedgerFencedByAnotherWriterException("fenced by another broker"),
+                    invocationOnMock.getArguments()[3]));
+            return null;
+        }).when(ledgerMock).asyncAddEntry(any(ByteBuf.class), anyInt(), any(AddEntryCallback.class), any());
+        NamespaceService nsSvc = pulsarTestContext.getPulsarService().getNamespaceService();
+        doNothing().when(nsSvc).handleOwnershipTakenOver(any());
+
+        // an instance that an unload already replaced
+        PersistentTopic replacedTopic = new PersistentTopic(topicName, ledgerMock, brokerService);
+        PersistentTopic topic = new PersistentTopic(topicName, ledgerMock, brokerService);
+        doReturn(Optional.of(topic)).when(brokerService).getTopicReference(topicName);
+
+        List<Exception> publishFailures = new ArrayList<>();
+        replacedTopic.publishMessage(Unpooled.wrappedBuffer("content".getBytes()),
+                (exception, ledgerId, entryId) -> publishFailures.add(exception));
+        topic.publishMessage(Unpooled.wrappedBuffer("content".getBytes()),
+                (exception, ledgerId, entryId) -> publishFailures.add(exception));
+        topic.publishMessage(Unpooled.wrappedBuffer("content".getBytes()),
+                (exception, ledgerId, entryId) -> publishFailures.add(exception));
+        assertEquals(pendingAddFailures.size(), 3);
+        pendingAddFailures.forEach(Runnable::run);
+
+        assertEquals(publishFailures.size(), 3);
+        publishFailures.forEach(e -> assertTrue(e instanceof BrokerServiceException.TopicFencedException,
+                String.valueOf(e)));
+        verify(nsSvc, times(1)).handleOwnershipTakenOver(any());
+        verify(nsSvc).handleOwnershipTakenOver(TopicName.get(topicName));
+    }
+
+    @Test
     public void testAddRemoveProducer() {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
 
