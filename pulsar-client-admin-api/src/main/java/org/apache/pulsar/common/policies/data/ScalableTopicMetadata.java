@@ -55,6 +55,12 @@ public class ScalableTopicMetadata {
     private Map<String, String> properties = Map.of();
 
     /**
+     * Per-topic auto split/merge policy override (PIP-483). {@code null} means no override:
+     * the namespace policy and then the broker configuration apply.
+     */
+    private AutoScalePolicyOverride autoScalePolicy;
+
+    /**
      * Describes a single segment in a scalable topic's DAG.
      */
     @Data
@@ -76,6 +82,14 @@ public class ScalableTopicMetadata {
          * the sealed parent segments produced by a regular-to-scalable migration (PIP-475).
          */
         private String legacyTopicName;
+
+        /**
+         * PIP-486 entry-bucket split points: the ascending start hashes of buckets
+         * {@code 1..N-1} within the segment's 16-bit entry-bucket ring (empty = a single
+         * bucket). The segment has {@code entryBucketSplits.size() + 1} entry-buckets;
+         * a segment's bucketing is immutable — a rebucket rolls over to a successor.
+         */
+        private List<Integer> entryBucketSplits;
 
         public boolean isActive() {
             return "ACTIVE".equals(state);

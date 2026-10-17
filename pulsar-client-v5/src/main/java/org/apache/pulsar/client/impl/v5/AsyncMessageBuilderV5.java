@@ -51,10 +51,13 @@ final class AsyncMessageBuilderV5<T> implements AsyncMessageBuilder<T> {
 
     @Override
     public CompletableFuture<MessageId> send() {
+        // Return the producer's future as-is. Wrapping it in a derived stage would leave
+        // flush() awaiting the upstream future while the caller holds the downstream one,
+        // and dependents of a completing future fire in unspecified order — so flush()
+        // could return before the caller's future is done.
         return producer.sendInternalAsync(
                 key, value, properties, eventTime, sequenceId,
-                deliverAfter, deliverAt, replicationClusters, txn)
-                .thenApply(id -> id);
+                deliverAfter, deliverAt, replicationClusters, txn);
     }
 
     @Override

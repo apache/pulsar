@@ -1,5 +1,67 @@
 # Pulsar Functions Python Runtime
 
+### pulsar-client-python requirements
+
+The runtime requires **pulsar-client-python 3.3.0 or newer**. `Client.subscribe()` grew its
+`dead_letter_policy` parameter in 3.3.0 (as did `ConsumerDeadLetterPolicy`, in the same release), and
+the runtime passes the keyword on every subscription — as `None` when the function configures no
+`maxMessageRetries` or `deadLetterTopic`, which `Client.subscribe()` treats as a no-op. Every other
+argument the runtime passes is present in 3.2.0, so this is the only thing setting the floor.
+
+Everything Pulsar ships already satisfies this. The
+[Docker images](../../../../../docker/pulsar/Dockerfile) derive their version from the
+`pulsar-client-python` entry in
+[`gradle/libs.versions.toml`](../../../../../gradle/libs.versions.toml), which
+[`docker/pulsar/build.gradle.kts`](../../../../../docker/pulsar/build.gradle.kts) resolves and passes
+to the build as `PULSAR_CLIENT_PYTHON_VERSION`. CI pins its own copy of the same version separately,
+in [`run_python_instance_tests.sh`](../../scripts/run_python_instance_tests.sh) — the two agree by
+maintenance rather than derivation. The floor is only visible on a self-managed worker, where the
+process runtime launches the host's `python3` (see `RuntimeUtils`) and the installed client is the
+operator's. For a zip-packaged function, pin it in the function's own `requirements.txt`, which
+`python_instance_main.py` pip-installs before the instance starts:
+
+```
+pulsar-client>=3.3.0
+```
+
+### Producer configuration
+
+Both producers the runtime creates — the sink (output topic) producer in `python_instance.py` and the
+producers behind `context.publish()` in `contextimpl.py` — are configured from the `producerSpec` of
+the function's sink, which reaches the instance inside the `FunctionDetails` protobuf. The
+translation lives in `util.producer_config_from_function_details()`.
+
+| `ProducerSpec` field | `Client.create_producer()` keyword |
+|---|---|
+| `maxPendingMessages` | `max_pending_messages` |
+| `maxPendingMessagesAcrossPartitions` | `max_pending_messages_across_partitions` |
+| `batchBuilder` | `batching_type` |
+| `compressionType` | `compression_type` (sink producer only; `context.publish()` takes a per-call value) |
+| `cryptoSpec` | `crypto_key_reader`, `encryption_key` (sink producer only) |
+| `batchingSpec.enabled` | `batching_enabled` |
+| `batchingSpec.batchingMaxPublishDelayMs` | `batching_max_publish_delay_ms` |
+| `batchingSpec.batchingMaxMessages` | `batching_max_messages` |
+| `batchingSpec.batchingMaxBytes` | `batching_max_allowed_size_in_bytes` |
+| `batchingSpec.batchBuilder` | `batching_type` (takes precedence over `ProducerSpec.batchBuilder`) |
+
+These are the same settings a user configures through `producerConfig` on the function config, which
+PIP-401 extended with `batchingConfig`.
+
+A few rules keep the behaviour aligned with the Java runtime
+(`ProducerBuilderFactory` and `BatchingUtils`):
+
+- **A field that is unset or non-positive in the spec is left out**, so the Python client's own
+  default applies rather than an explicit zero.
+- **A sink with no `producerSpec`, or a `producerSpec` with no `batchingSpec`, gets batching enabled
+  with a 10ms maximum publish delay.** This is the long-standing default and must not change: it is
+  what functions written before batching became configurable already run with.
+- **`batchingSpec.batchBuilder` wins over `ProducerSpec.batchBuilder`**, because the Java runtime
+  applies them in that order.
+
+`batchingSpec.roundRobinRouterBatchingPartitionSwitchFrequency` has no equivalent in the Python
+client and is ignored. `block_if_queue_full` is fixed at `True`, matching the Java runtime, which
+also hardcodes `blockIfQueueFull(true)` and exposes no configuration for it.
+
 ### Updating Protobuf and gRPC generated stubs
 
 When using generated Protobuf and gRPC stubs (`*_pb2.py`, `*_pb2_gprc.py`), the generated code should be 

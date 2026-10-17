@@ -13,6 +13,17 @@ for the agent-specific guardrails on top of it.
 - No `@author` tags in Javadoc.
 - Every `TODO` must reference a GitHub issue, e.g. `// TODO: https://github.com/apache/pulsar/issues/XXXX`.
 - Checkstyle config: `buildtools/src/main/resources/pulsar/checkstyle.xml`. Lombok is enabled.
+  Spotless enforces license headers only (no code formatting); checkstyle covers style/whitespace.
+  Both run on sources only (no compilation): `./gradlew quickCheck` runs the license-header and
+  checkstyle checks across all modules, and `./gradlew sanityCheck` also compiles main + test — see
+  [`CONTRIBUTING.md`](CONTRIBUTING.md#building).
+- **Must use imports, not fully qualified class names, in code.** Reference every type through an
+  `import` statement (or the same package); never write a fully qualified class name in a statement or
+  expression. The only exception is a simple-name collision that imports cannot resolve — then fully
+  qualify the conflicting type and note why.
+- Note that Pulsar's code style does **not** put a blank line between static imports and regular
+imports. The Checkstyle config linked in the bullet point above is the authoritative source for the
+exact rules.
 
 ## Logging
 
@@ -76,8 +87,9 @@ Pulsar relies heavily on `CompletableFuture`; prefer it over `ListenableFuture` 
   return firstAsync(arg).thenCompose(v -> secondAsync(v));
   ```
 - **Converting a synchronous-throwing method to a failed future is not mechanical** — some callers rely
-  on the throw happening *before* the async work starts, so evaluate each call site. Use a shared
-  `checkArgumentAsync` helper (in `FutureUtil`) to validate without duplicating try/catch.
+  on the throw happening *before* the async work starts, so evaluate each call site. Use shared
+  `FutureUtil` helpers, such as `supplySafely` for invoking a `Supplier<CompletableFuture<T>>`,
+  instead of duplicating try/catch or null-future handling.
 
 - **Limit concurrency and handle backpressure.** Firing many async operations at once can overwhelm the
   system. Options:
@@ -117,7 +129,7 @@ but much existing code isn't, so integration-style is the pragmatic default. See
   namespace. Use `getNamespace()` and `newTopicName()` — never hardcode namespace/topic names, since
   the runtime is shared.
 - **Close/release what the test allocates.** A **`ByteBuf`/buffer leak** (pooled-allocator detection,
-  `-Dpulsar.allocator.pooled=true`) is a **real bug** — fix the missing `release()`. A **thread leak
+  `-Dpulsar.allocator.type=pooled`) is a **real bug** — fix the missing `release()`. A **thread leak
   from `ThreadLeakDetectorListener` is unreliable** (high false-positive rate, notably with
   `SharedPulsarBaseTest` and when `THREAD_LEAK_DETECTOR_WAIT_MILLIS` is too low — ≈`10000` recommended,
   only effective with the Gradle daemon disabled, `--no-daemon`); corroborate before treating it as
@@ -230,6 +242,8 @@ defaulting to the safe/old behaviour.
 
 - **Back optimizations with evidence** — a JMH benchmark (see *Testing conventions*) or a profile, not
   intuition — measured on JIT-warmed code (see *Reproducing concurrency / memory-visibility bugs*).
+  `-PtestAsyncProfiler` profiles a test run with async-profiler (see
+  [`CONTRIBUTING.md`](CONTRIBUTING.md#profiling-tests-with-async-profiler)).
 - **On hot paths** (dispatch, IO, per-message): avoid `String.format` (build strings directly),
   `Enum.values()` (match explicitly), and unnecessary allocation/locking; prefer lock-free or
   single-writer designs.

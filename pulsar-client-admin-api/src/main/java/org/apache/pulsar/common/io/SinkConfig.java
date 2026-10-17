@@ -95,4 +95,6 @@ public class SinkConfig {
     private String transformFunctionClassName;
     private String transformFunctionConfig;
     private String logTopic;
+    // Pulsar client API for the sink's own topics; null picks it from the topic domains
+    private FunctionConfig.ClientApi clientApi;
 }

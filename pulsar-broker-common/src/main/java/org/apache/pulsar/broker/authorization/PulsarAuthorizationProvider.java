@@ -19,17 +19,19 @@
 package org.apache.pulsar.broker.authorization;
 
 import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import com.google.common.collect.Sets;
+import jakarta.ws.rs.core.Response;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
-import javax.ws.rs.core.Response;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -44,10 +46,13 @@ import org.apache.pulsar.common.policies.data.AuthPolicies;
 import org.apache.pulsar.common.policies.data.BrokerOperation;
 import org.apache.pulsar.common.policies.data.ClusterOperation;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
+import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
+import org.apache.pulsar.common.scalable.SegmentTopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
@@ -72,12 +77,18 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
         initialize(conf, resources);
     }
 
+    @Deprecated
     @Override
     public void initialize(ServiceConfiguration conf, PulsarResources pulsarResources) throws IOException {
-        requireNonNull(conf, "ServiceConfiguration can't be null");
-        requireNonNull(pulsarResources, "PulsarResources can't be null");
-        this.conf = conf;
-        this.pulsarResources = pulsarResources;
+        this.conf = requireNonNull(conf, "ServiceConfiguration can't be null");
+        this.pulsarResources = requireNonNull(pulsarResources, "PulsarResources can't be null");
+    }
+
+    @Override
+    public void initialize(InitialContext context) throws IOException {
+        // Preserve initialization in third-party subclasses that override the legacy two-argument method.
+        // Keep field assignment in that method so overrides can call super without recursing here.
+        initialize(context.config(), context.pulsarResources());
     }
 
     /**
@@ -199,6 +210,41 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                     }
                     return allowTheSpecifiedActionOpsAsync(namespaceName, role, authenticationData, AuthAction.produce);
                 });
+    }
+
+    /**
+     * Applies the namespace subscription policies, as {@link #canConsumeAsync} does for topic operations.
+     */
+    private CompletableFuture<Boolean> allowNamespaceSubscriptionOpsAsync(NamespaceName namespaceName, String role,
+                                                                          AuthenticationDataSource authData,
+                                                                          NamespaceOperation operation) {
+        final String subscription = authData != null ? authData.getSubscription() : null;
+        if (isBlank(subscription)) {
+            return allowTheSpecifiedActionOpsAsync(namespaceName, role, authData, AuthAction.consume);
+        }
+        return pulsarResources.getNamespaceResources().getPoliciesAsync(namespaceName).thenCompose(policies -> {
+            if (policies.isPresent() && !isSubscriptionAllowed(policies.get(), role, subscription)) {
+                log.debug()
+                        .attr("role", role)
+                        .attr("namespace", namespaceName)
+                        .attr("subscription", subscription)
+                        .attr("operation", operation)
+                        .log("Role is not allowed to access the subscription");
+                return CompletableFuture.completedFuture(false);
+            }
+            return allowTheSpecifiedActionOpsAsync(namespaceName, role, authData, AuthAction.consume);
+        });
+    }
+
+    private static boolean isSubscriptionAllowed(Policies policies, String role, String subscription) {
+        Set<String> roles = policies.auth_policies.getSubscriptionAuthentication().get(subscription);
+        if (roles != null && !roles.isEmpty() && !roles.contains(role)) {
+            return false;
+        }
+        if (policies.subscription_auth_mode == SubscriptionAuthMode.Prefix) {
+            return role != null && subscription.startsWith(role);
+        }
+        return true;
     }
 
     private CompletableFuture<Boolean> allowTheSpecifiedActionOpsAsync(NamespaceName namespaceName, String role,
@@ -493,6 +539,10 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     }
 
     public CompletableFuture<Boolean> checkPermission(TopicName topicName, String role, AuthAction action) {
+        // A segment of a scalable topic has no permissions of its own: it is authorized with the
+        // topic-level permissions granted on its parent topic://.
+        TopicName permissionsTopicName =
+                topicName.isSegment() ? SegmentTopicName.getParentTopicName(topicName) : topicName;
         return pulsarResources.getNamespaceResources().getPoliciesAsync(topicName.getNamespaceObject())
                 .thenApply(policies -> {
                     if (!policies.isPresent()) {
@@ -507,7 +557,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                         }
 
                         Map<String, Set<AuthAction>> topicRoles = policies.get().auth_policies.getTopicAuthentication()
-                                .get(topicName.toString());
+                                .get(permissionsTopicName.toString());
                         if (topicRoles != null && role != null) {
                             // Topic has custom policy
                             Set<AuthAction> topicActions = topicRoles.get(role);
@@ -534,9 +584,10 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                         // the new sub partitions may not inherit the policy of the partition topic.
                         // We can also check the permission of partitioned topic.
                         // For https://github.com/apache/pulsar/issues/10300
-                        if (topicName.isPartitioned()) {
+                        // A scalable topic has no partitions: a "-partition-N" suffix is part of its name.
+                        if (permissionsTopicName.isPartitioned() && !permissionsTopicName.isScalable()) {
                             topicRoles = policies.get().auth_policies
-                                    .getTopicAuthentication().get(topicName.getPartitionedTopicName());
+                                    .getTopicAuthentication().get(permissionsTopicName.getPartitionedTopicName());
                             if (topicRoles != null) {
                                 // Topic has custom policy
                                 Set<AuthAction> topicActions = topicRoles.get(role);
@@ -623,8 +674,9 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                             case GET_BUNDLE:
                                 return allowConsumeOrProduceOpsAsync(namespaceName, role, authData);
                             case UNSUBSCRIBE:
-                            case TRIM_TOPIC:
                             case CLEAR_BACKLOG:
+                                return allowNamespaceSubscriptionOpsAsync(namespaceName, role, authData, operation);
+                            case TRIM_TOPIC:
                                 return allowTheSpecifiedActionOpsAsync(
                                         namespaceName, role, authData, AuthAction.consume);
                             case CREATE_TOPIC:
@@ -736,22 +788,28 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                     }
                     return pulsarResources.getTenantResources()
                             .getTenantAsync(tenantName)
-                            .thenCompose(op -> {
-                                if (op.isPresent()) {
-                                    return isTenantAdmin(tenantName, role, op.get(), authData);
-                                } else {
-                                    throw new RestException(Response.Status.NOT_FOUND, "Tenant does not exist");
-                                }
-                            }).exceptionally(ex -> {
-                                Throwable cause = ex.getCause();
+                            // Failing to read the tenant is a broker-side fault, so it is handled here, on the
+                            // stage that can actually fail. Keeping this handler off the stage below prevents the
+                            // expected "tenant does not exist" rejection from being reported as an error.
+                            .exceptionally(ex -> {
+                                Throwable cause = FutureUtil.unwrapCompletionException(ex);
                                 if (cause instanceof NotFoundException) {
                                     log.warn()
                                             .attr("tenant", tenantName)
                                             .log("Failed to get tenant info data for non existing tenant");
-                                    throw new RestException(Response.Status.NOT_FOUND, "Tenant does not exist");
+                                    return Optional.empty();
                                 }
                                 log.error().attr("tenant", tenantName).exception(cause).log("Failed to get tenant");
                                 throw new RestException(cause);
+                            })
+                            .thenCompose(op -> {
+                                if (op.isPresent()) {
+                                    return isTenantAdmin(tenantName, role, op.get(), authData);
+                                }
+                                // A client naming a tenant that does not exist is a client error, not a broker
+                                // fault: reject it without logging. Any client can trigger this at will, and the
+                                // caller (e.g. ServerCnx) already logs the rejection at its own level.
+                                throw new RestException(Response.Status.NOT_FOUND, "Tenant does not exist");
                             });
                 });
     }

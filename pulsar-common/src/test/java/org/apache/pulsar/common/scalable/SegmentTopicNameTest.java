@@ -52,6 +52,22 @@ public class SegmentTopicNameTest {
     }
 
     @Test
+    public void testBackingTopicName() {
+        TopicName parent = TopicName.get("topic://tenant/ns/my-topic");
+
+        // A regular segment is backed by its own segment:// topic.
+        SegmentInfo regular = SegmentInfo.active(1, HashRange.of(0x0000, 0x7FFF), 0, 0);
+        assertEquals(SegmentTopicName.backingTopicName(parent, regular),
+                "segment://tenant/ns/my-topic/0000-7fff-1");
+
+        // A legacy segment of a migrated topic is backed by the persistent:// topic it wraps.
+        SegmentInfo legacy = SegmentInfo.activeLegacy(0, HashRange.full(),
+                "persistent://tenant/ns/my-topic-partition-0", 0, 0);
+        assertEquals(SegmentTopicName.backingTopicName(parent, legacy),
+                "persistent://tenant/ns/my-topic-partition-0");
+    }
+
+    @Test
     public void testGetParentTopicName() {
         TopicName segment = TopicName.get("segment://tenant/ns/my-topic/0000-7fff-1");
         TopicName parent = SegmentTopicName.getParentTopicName(segment);

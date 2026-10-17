@@ -37,7 +37,9 @@ import lombok.Setter;
 @Setter
 @Getter
 public class PackageMetadata implements Serializable {
-    private static final long serialVersionUID = 1L;
+    // Do not change: this is the default serialVersionUID computed for Pulsar 4.x, which had no explicit value.
+    // Package metadata stored in the legacy Java serialization format by Pulsar 4.x must remain readable.
+    private static final long serialVersionUID = -3557006947394568058L;
 
     String description;
     String contact;

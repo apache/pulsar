@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.broker.web;
 
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.ws.rs.core.Response;
 import java.io.IOException;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletResponse;
-import javax.ws.rs.core.Response;
 import lombok.CustomLog;
 import org.apache.pulsar.common.intercept.InterceptException;
 import org.apache.pulsar.common.policies.data.ErrorData;

@@ -172,7 +172,7 @@ for the Gradle build infrastructure and how to change build files.
 
     | Pulsar Version   |                                   JDK Version                                    |
     |------------------|:--------------------------------------------------------------------------------:|
-    | master           | [JDK 21](https://adoptium.net/en-GB/temurin/releases?version=21&os=any&arch=any) or [JDK 25](https://adoptium.net/en-GB/temurin/releases?version=25&os=any&arch=any) |
+    | master           | [JDK 21](https://adoptium.net/en-GB/temurin/releases?version=21&os=any&arch=any), [JDK 25](https://adoptium.net/en-GB/temurin/releases?version=25&os=any&arch=any) or [JDK 26](https://adoptium.net/en-GB/temurin/releases?version=26&os=any&arch=any) |
     | 4.0+             | [JDK 21](https://adoptium.net/en-GB/temurin/releases?version=21&os=any&arch=any) |
     | 2.11 +           | [JDK 17](https://adoptium.net/en-GB/temurin/releases?version=17&os=any&arch=any) |
     | 2.8 / 2.9 / 2.10 | [JDK 11](https://adoptium.net/en-GB/temurin/releases?version=11&os=any&arch=any) |
@@ -195,7 +195,15 @@ There is also a guide for [setting up the tooling for building Pulsar](https://p
 ./gradlew assemble                                                       # compile and assemble
 ./gradlew :pulsar-client-original:test --tests "ConsumerBuilderImplTest" # run a single test
 bin/pulsar standalone                                                    # run a standalone service
+./gradlew quickCheck                                                     # license headers + checkstyle, no compile
+./gradlew sanityCheck                                                    # quickCheck + compile main/test (pre-PR)
 ```
+
+Standalone bookies use kernel-assigned ports by default. To use fixed ports, run
+`bin/pulsar standalone --bookkeeper-port 3181`; bookie 0 uses port 3181, bookie 1 uses 3182, and so on.
+For existing standalone data with legacy `host:port` bookie IDs, each bookie recovers its port from its cookie,
+which takes precedence over `--bookkeeper-port`. Existing bookie IDs are preserved because ledger metadata
+references them; new metadata-store-backed standalone bookies use `bk-0`, `bk-1`, and so on.
 
 For the full build, lint, test, and PR workflow — test groups, integration tests, Personal CI, and PR
 conventions — see [`CONTRIBUTING.md`](CONTRIBUTING.md). For the module map and the Gradle build
@@ -212,13 +220,13 @@ Here are some general instructions for building custom docker images:
 
 * Java 21 is the recommended JDK version since `branch-4.0`.
 
-The following command builds the docker images `apachepulsar/pulsar-all:latest` and `apachepulsar/pulsar:latest`:
+The following command builds the docker image `apachepulsar/pulsar:latest`:
 
 ```bash
-./gradlew docker-all
+./gradlew docker
 ```
 
-After the images are built, they can be tagged and pushed to your custom repository. Here's an example of a bash script that tags the docker images with the current version and git revision and pushes them to `localhost:32000/apachepulsar`.
+After the image is built, it can be tagged and pushed to your custom repository. Here's an example of a bash script that tags the docker image with the current version and git revision and pushes it to `localhost:32000/apachepulsar`.
 
 ```bash
 image_repo_and_project=localhost:32000/apachepulsar
@@ -226,8 +234,6 @@ pulsar_version=$(src/get-pulsar-version.sh)
 gitrev=$(git rev-parse HEAD | colrm 10)
 tag="${pulsar_version}-${gitrev}"
 echo "Using tag $tag"
-docker tag apachepulsar/pulsar-all:latest ${image_repo_and_project}/pulsar-all:$tag
-docker push ${image_repo_and_project}/pulsar-all:$tag
 docker tag apachepulsar/pulsar:latest ${image_repo_and_project}/pulsar:$tag
 docker push ${image_repo_and_project}/pulsar:$tag
 ```

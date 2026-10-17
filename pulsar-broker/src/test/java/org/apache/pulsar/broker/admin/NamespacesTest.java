@@ -35,6 +35,15 @@ import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
+import jakarta.servlet.ServletContext;
+import jakarta.ws.rs.BadRequestException;
+import jakarta.ws.rs.ClientErrorException;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.container.AsyncResponse;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response.Status;
+import jakarta.ws.rs.core.UriBuilder;
+import jakarta.ws.rs.core.UriInfo;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.time.Duration;
@@ -56,15 +65,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import javax.servlet.ServletContext;
-import javax.ws.rs.BadRequestException;
-import javax.ws.rs.ClientErrorException;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.container.AsyncResponse;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
-import javax.ws.rs.core.UriBuilder;
-import javax.ws.rs.core.UriInfo;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.bookkeeper.client.api.ReadHandle;
@@ -2638,7 +2638,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         // Test clear backlog for subscription on non-existent namespace - should return 404
         AsyncResponse clearSubResponse = mock(AsyncResponse.class);
         namespaces.clearNamespaceBundleBacklogForSubscription(clearSubResponse, testTenant, nonExistentNs,
-                bundleRange, "test-sub", false);
+                bundleRange, "test-sub", false, false);
         ArgumentCaptor<RestException> clearSubCaptor = ArgumentCaptor.forClass(RestException.class);
         verify(clearSubResponse, timeout(5000).times(1)).resume(clearSubCaptor.capture());
         assertEquals(clearSubCaptor.getValue().getResponse().getStatus(),

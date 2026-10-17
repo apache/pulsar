@@ -107,6 +107,28 @@ public final class TxnPaths {
         return TXN_TC_SEQ_PREFIX + "/" + tcId;
     }
 
+    /**
+     * Path prefix for the per-partition transaction-coordinator leader-election nodes. Each
+     * partition {@code N} has a {@code LeaderElection} under {@code /txn/tc/leader/<N>} whose
+     * value is the {@link TcLeader} currently coordinating that partition. Replaces the
+     * {@code transaction_coordinator_assign} topic as the v5 TC's election surface — election
+     * rests on the metadata store directly, not on topic/bundle ownership.
+     */
+    public static final String TXN_TC_LEADER_PREFIX = "/txn/tc/leader";
+
+    /** @return {@code /txn/tc/leader/<partition>} — the leader-election node for {@code partition}. */
+    public static String tcLeaderPath(int partition) {
+        return TXN_TC_LEADER_PREFIX + "/" + partition;
+    }
+
+    /**
+     * Cluster-wide record of the scalable-topics TC parallelism, written once by the first broker to
+     * start. Every broker verifies its configured value against this and refuses to start on a
+     * mismatch, so the coordinator-count encoded in transaction ids stays stable for the cluster's
+     * lifetime.
+     */
+    public static final String TXN_TC_PARALLELISM_PATH = "/txn/tc/parallelism";
+
     /** Width used when formatting long values into lexicographically-orderable index keys. */
     public static final int LONG_KEY_WIDTH = 20;
 
@@ -174,6 +196,24 @@ public final class TxnPaths {
      */
     public static String ackIndexKey(String segment, String subscription) {
         return segmentKey(segment) + ":" + Codec.encode(subscription);
+    }
+
+    /**
+     * @return the lower bound of the {@link #IDX_ACKS_BY_SEGMENT_SUBSCRIPTION} keys of {@code segment}, of any
+     *     subscription. The key of a segment whose id extends this one's continues with a digit, which sorts before
+     *     the {@code :} separator.
+     */
+    public static String ackIndexSegmentLowerBound(String segment) {
+        return segmentKey(segment) + ":";
+    }
+
+    /**
+     * @return the upper bound of the {@link #IDX_ACKS_BY_SEGMENT_SUBSCRIPTION} keys of {@code segment}, of any
+     *     subscription. URL encoding escapes {@code ~}, which sorts after every character it leaves in a
+     *     subscription name.
+     */
+    public static String ackIndexSegmentUpperBound(String segment) {
+        return segmentKey(segment) + ":~";
     }
 
     /** Parent path for per-segment watermark records. Records are direct children of this. */
@@ -292,6 +332,20 @@ public final class TxnPaths {
             return null;
         }
         return name.substring(0, dash);
+    }
+
+    /**
+     * Extract the {@code txnId} key from a header path under {@link #TXN_HEADER_PREFIX}. The layout
+     * is {@code /txn/id/<txnId>}, so the txnId key is the trailing path component.
+     *
+     * @return the txnId key, or {@code null} if {@code headerPath} doesn't have the expected shape
+     */
+    public static String txnIdFromHeaderPath(String headerPath) {
+        int lastSlash = headerPath.lastIndexOf('/');
+        if (lastSlash < 0 || lastSlash == headerPath.length() - 1) {
+            return null;
+        }
+        return headerPath.substring(lastSlash + 1);
     }
 
     private TxnPaths() {}

@@ -19,6 +19,12 @@
 package org.apache.pulsar.metadata;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -26,7 +32,6 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.oxia.client.ClientConfig;
 import io.oxia.client.api.AsyncOxiaClient;
-import io.oxia.client.session.SessionFactory;
 import io.oxia.client.session.SessionManager;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -40,6 +45,7 @@ import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
@@ -49,6 +55,7 @@ import java.util.function.Supplier;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import lombok.SneakyThrows;
+import org.apache.bookkeeper.zookeeper.BoundExponentialBackoffRetryPolicy;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
@@ -65,6 +72,9 @@ import org.apache.pulsar.metadata.impl.DualMetadataStore;
 import org.apache.pulsar.metadata.impl.PulsarZooKeeperClient;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.metadata.impl.oxia.OxiaMetadataStore;
+import org.apache.zookeeper.AddWatchMode;
+import org.apache.zookeeper.AsyncCallback.VoidCallback;
+import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
@@ -549,6 +559,53 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    public void testAsyncAddWatchRetriesWithWrapperCallback() throws Exception {
+        String path = newKey();
+        @Cleanup
+        PulsarZooKeeperClient zkClient = PulsarZooKeeperClient.newBuilder()
+                .connectString(zks.getConnectionString())
+                .sessionTimeoutMs(3000)
+                .operationRetryPolicy(new BoundExponentialBackoffRetryPolicy(0, 0, 3))
+                .build();
+
+        ZooKeeper mockZk = mock(ZooKeeper.class);
+        AtomicInteger attempts = new AtomicInteger();
+        doAnswer(invocation -> {
+            // The wrapper callback should consume this recoverable failure and retry the addWatch operation.
+            int rc = attempts.incrementAndGet() == 1
+                    ? KeeperException.Code.CONNECTIONLOSS.intValue()
+                    : KeeperException.Code.OK.intValue();
+            String callbackPath = invocation.getArgument(0);
+            VoidCallback callback = invocation.getArgument(3);
+            Object callbackContext = invocation.getArgument(4);
+            callback.processResult(rc, callbackPath, callbackContext);
+            return null;
+        }).when(mockZk).addWatch(eq(path), any(Watcher.class), eq(AddWatchMode.PERSISTENT_RECURSIVE),
+                any(VoidCallback.class), any());
+
+        // Force the Pulsar wrapper to delegate the async addWatch call to our controlled ZooKeeper instance.
+        var zooKeeperRef = (AtomicReference<ZooKeeper>) WhiteboxImpl.getInternalState(zkClient, "zk");
+        zooKeeperRef.set(mockZk);
+
+        CountDownLatch callbackCalled = new CountDownLatch(1);
+        AtomicInteger callbackRc = new AtomicInteger(Integer.MIN_VALUE);
+        zkClient.addWatch(path, event -> {
+        }, AddWatchMode.PERSISTENT_RECURSIVE, (rc, callbackPath, ctx) -> {
+            callbackRc.set(rc);
+            callbackCalled.countDown();
+        }, null);
+
+        assertTrue(callbackCalled.await(5, TimeUnit.SECONDS));
+
+        // The caller should only see the final successful result after the retry, not the first CONNECTIONLOSS.
+        assertEquals(callbackRc.get(), KeeperException.Code.OK.intValue());
+        assertEquals(attempts.get(), 2);
+        verify(mockZk, times(2)).addWatch(eq(path), any(Watcher.class), eq(AddWatchMode.PERSISTENT_RECURSIVE),
+                any(VoidCallback.class), any());
+    }
+
+    @Test
     public void testOxiaLoadConfigFromFile() throws Exception {
         final String metadataStoreName = UUID.randomUUID().toString().replaceAll("-", "");
         String oxia = "oxia://" + getOxiaServerConnectString();
@@ -564,8 +621,7 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         OxiaMetadataStore store = (OxiaMetadataStore) MetadataStoreFactory.create(oxia, config);
         var client = (AsyncOxiaClient) WhiteboxImpl.getInternalState(store, "client");
         var sessionManager = (SessionManager) WhiteboxImpl.getInternalState(client, "sessionManager");
-        var sessionFactory = (SessionFactory) WhiteboxImpl.getInternalState(sessionManager, "factory");
-        var clientConfig = (ClientConfig) WhiteboxImpl.getInternalState(sessionFactory, "config");
+        var clientConfig = (ClientConfig) WhiteboxImpl.getInternalState(sessionManager, "clientConfig");
         var sessionTimeout = clientConfig.sessionTimeout();
         assertEquals(sessionTimeout, Duration.ofSeconds(60));
     }

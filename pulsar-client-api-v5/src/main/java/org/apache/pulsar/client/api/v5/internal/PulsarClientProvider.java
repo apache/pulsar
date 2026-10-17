@@ -27,6 +27,7 @@ import org.apache.pulsar.client.api.v5.MessageId;
 import org.apache.pulsar.client.api.v5.PulsarClientBuilder;
 import org.apache.pulsar.client.api.v5.PulsarClientException;
 import org.apache.pulsar.client.api.v5.auth.Authentication;
+import org.apache.pulsar.client.api.v5.schema.GenericRecord;
 import org.apache.pulsar.client.api.v5.schema.Schema;
 
 /**
@@ -78,6 +79,12 @@ public interface PulsarClientProvider {
 
     Schema<byte[]> autoProduceBytesSchema();
 
+    Schema<?> genericSchema(org.apache.pulsar.client.api.v5.schema.SchemaInfo schemaInfo);
+
+    Schema<byte[]> autoProduceBytesSchema(Schema<?> base);
+
+    Schema<GenericRecord> autoConsumeSchema();
+
     // --- Checkpoint ---
 
     Checkpoint checkpointFromBytes(byte[] data) throws IOException;
@@ -92,7 +99,7 @@ public interface PulsarClientProvider {
 
     Authentication authenticationToken(Supplier<String> tokenSupplier);
 
-    Authentication authenticationTls(String certFilePath, String keyFilePath);
+    Authentication authenticationTls();
 
     Authentication createAuthentication(String className, String params) throws PulsarClientException;
 
@@ -112,7 +119,8 @@ public interface PulsarClientProvider {
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException(
                         "No PulsarClientProvider found on the classpath. "
-                                + "Add pulsar-client to your dependencies."));
+                                + "Add pulsar-client-v5, pulsar-client-v5-all, "
+                                + "or pulsar-client-v5-shaded to your dependencies."));
 
         private Holder() {
         }

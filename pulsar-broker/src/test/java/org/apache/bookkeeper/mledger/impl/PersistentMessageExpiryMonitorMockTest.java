@@ -26,7 +26,6 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertTrue;
 import java.util.NavigableMap;
 import java.util.TreeMap;
-import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -53,7 +52,7 @@ public class PersistentMessageExpiryMonitorMockTest {
     private BrokerService mockBrokerService;
 
     @BeforeMethod
-    public void setup() throws Exception {
+    public void setup() {
         mockTopic = mock(PersistentTopic.class);
         mockCursor = mock(ManagedCursor.class);
         mockManagedLedger = mock(ManagedLedger.class);
@@ -67,11 +66,6 @@ public class PersistentMessageExpiryMonitorMockTest {
         ServiceConfiguration config = new ServiceConfiguration();
         when(mockBrokerService.pulsar()).thenReturn(mockPulsarService);
         when(mockPulsarService.getConfig()).thenReturn(config);
-        doAnswer(invocation -> {
-            Callable<Void> action = invocation.getArgument(0);
-            action.call();
-            return true;
-        }).when(mockTopic).runWithTopicCloseReadLock(any());
     }
 
     /**

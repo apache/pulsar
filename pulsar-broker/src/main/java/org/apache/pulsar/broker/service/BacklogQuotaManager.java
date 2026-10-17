@@ -23,7 +23,6 @@ import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import lombok.CustomLog;
 import lombok.Getter;
@@ -196,20 +195,18 @@ public class BacklogQuotaManager {
                     break;
                 }
                 beforeBacklogQuotaCursorMutation(persistentTopic);
-                if (!runCursorMutationIfTopicNotClosingOrDeleting(persistentTopic, () -> {
-                    // Skip messages on the slowest consumer
-                    log.debug()
-                            .attr("topic", persistentTopic.getName())
-                            .attr("messagesToSkip", messagesToSkip)
-                            .attr("consumer", slowestConsumer.getName())
-                            .attr("entriesInBacklog", entriesInBacklog)
-                            .log("Skipping messages on slowest consumer having backlog entries");
-                    slowestConsumer.skipEntries(messagesToSkip, IndividualDeletedEntries.Include);
-                    markDeletePositionMoveForward(persistentTopic, slowestConsumer);
-                    return null;
-                })) {
+                // Skip messages on the slowest consumer
+                log.debug()
+                        .attr("topic", persistentTopic.getName())
+                        .attr("messagesToSkip", messagesToSkip)
+                        .attr("consumer", slowestConsumer.getName())
+                        .attr("entriesInBacklog", entriesInBacklog)
+                        .log("Skipping messages on slowest consumer having backlog entries");
+                if (shouldStopEvictionOnTopicClose(persistentTopic)) {
                     break;
                 }
+                slowestConsumer.skipEntries(messagesToSkip, IndividualDeletedEntries.Include);
+                markDeletePositionMoveForward(persistentTopic, slowestConsumer);
             } catch (Exception e) {
                 log.error()
                         .attr("topic", persistentTopic.getName())
@@ -273,13 +270,11 @@ public class BacklogQuotaManager {
                         long ledgerId = mLedger.getLedgersInfo().ceilingKey(oldestPosition.getLedgerId() + 1);
                         Position nextPosition = PositionFactory.create(ledgerId, -1);
                         beforeBacklogQuotaCursorMutation(persistentTopic);
-                        if (!runCursorMutationIfTopicNotClosingOrDeleting(persistentTopic, () -> {
-                            slowestConsumer.markDelete(nextPosition);
-                            markDeletePositionMoveForward(persistentTopic, slowestConsumer);
-                            return null;
-                        })) {
+                        if (shouldStopEvictionOnTopicClose(persistentTopic)) {
                             break;
                         }
+                        slowestConsumer.markDelete(nextPosition);
+                        markDeletePositionMoveForward(persistentTopic, slowestConsumer);
                         continue;
                     }
                     // Timestamp only > 0 if ledger has been closed
@@ -290,13 +285,11 @@ public class BacklogQuotaManager {
                         Position nextPosition = PositionFactory.create(ledgerId, -1);
                         if (!nextPosition.equals(oldestPosition)) {
                             beforeBacklogQuotaCursorMutation(persistentTopic);
-                            if (!runCursorMutationIfTopicNotClosingOrDeleting(persistentTopic, () -> {
-                                slowestConsumer.markDelete(nextPosition);
-                                markDeletePositionMoveForward(persistentTopic, slowestConsumer);
-                                return null;
-                            })) {
+                            if (shouldStopEvictionOnTopicClose(persistentTopic)) {
                                 break;
                             }
+                            slowestConsumer.markDelete(nextPosition);
+                            markDeletePositionMoveForward(persistentTopic, slowestConsumer);
                             continue;
                         }
                     }
@@ -388,15 +381,15 @@ public class BacklogQuotaManager {
         // No-op.
     }
 
-    private boolean runCursorMutationIfTopicNotClosingOrDeleting(PersistentTopic persistentTopic,
-                                                                 Callable<Void> mutation) throws Exception {
-        boolean didRun = persistentTopic.runWithTopicCloseReadLock(mutation);
-        if (!didRun) {
+    private boolean shouldStopEvictionOnTopicClose(PersistentTopic persistentTopic) {
+        // Best effort: do not hold the topic lock across blocking cursor I/O.
+        if (persistentTopic.isClosingOrDeleting()) {
             log.debug()
                     .attr("topic", persistentTopic.getName())
                     .log("Stopping backlog-quota eviction because topic is closing or deleting");
+            return true;
         }
-        return didRun;
+        return false;
     }
 
     /**

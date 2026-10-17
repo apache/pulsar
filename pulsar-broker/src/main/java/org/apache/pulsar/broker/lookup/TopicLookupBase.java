@@ -21,15 +21,15 @@ package org.apache.pulsar.broker.lookup;
 import static org.apache.pulsar.common.protocol.Commands.newLookupErrorResponse;
 import static org.apache.pulsar.common.protocol.Commands.newLookupResponse;
 import io.netty.buffer.ByteBuf;
+import jakarta.ws.rs.Encoded;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.Response;
 import java.net.InetAddress;
 import java.net.URI;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
-import javax.ws.rs.Encoded;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.Response;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -60,6 +60,11 @@ public class TopicLookupBase extends PulsarWebResource {
 
     protected CompletableFuture<LookupData> internalLookupTopicAsync(final TopicName topicName, boolean authoritative,
                                                                      String listenerName) {
+        if (!pulsar().getConfiguration().isScalableTopicsEnabled()
+                && (topicName.isScalable() || topicName.isSegment())) {
+            return FutureUtil.failedFuture(new RestException(Response.Status.PRECONDITION_FAILED,
+                    "Scalable topics are disabled on this broker"));
+        }
         Semaphore lookupRequestSemaphore = pulsar().getBrokerService().getLookupRequestSemaphore();
         if (!lookupRequestSemaphore.tryAcquire()) {
             log.warn().attr("topic", topicName)
@@ -189,6 +194,11 @@ public class TopicLookupBase extends PulsarWebResource {
                                                               long requestId, final String advertisedListenerName,
                                                               Map<String, String> properties) {
 
+        if (!pulsarService.getConfiguration().isScalableTopicsEnabled()
+                && (topicName.isScalable() || topicName.isSegment())) {
+            return CompletableFuture.completedFuture(newLookupErrorResponse(ServerError.InvalidTopicName,
+                    "Scalable topics are disabled on this broker", requestId));
+        }
         final CompletableFuture<ByteBuf> validationFuture = new CompletableFuture<>();
         final CompletableFuture<ByteBuf> lookupfuture = new CompletableFuture<>();
 
@@ -368,8 +378,14 @@ public class TopicLookupBase extends PulsarWebResource {
 
     protected TopicName getTopicName(String topicDomain, String tenant, String namespace,
             @Encoded String encodedTopic) {
+        TopicDomain domain = TopicDomain.getEnum(topicDomain);
+        if (!pulsar().getConfiguration().isScalableTopicsEnabled()
+                && (domain == TopicDomain.topic || domain == TopicDomain.segment)) {
+            throw new RestException(Response.Status.PRECONDITION_FAILED,
+                    "Scalable topics are disabled on this broker");
+        }
         String decodedName = Codec.decode(encodedTopic);
-        return TopicName.get(TopicDomain.getEnum(topicDomain).value(), tenant, namespace, decodedName);
+        return TopicName.get(domain.value(), tenant, namespace, decodedName);
     }
 
     private static boolean shouldRedirectThroughServiceUrl(ServiceConfiguration conf, LookupData lookupData) {

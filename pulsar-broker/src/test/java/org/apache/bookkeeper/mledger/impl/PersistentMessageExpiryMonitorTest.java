@@ -66,6 +66,9 @@ public class PersistentMessageExpiryMonitorTest extends ProducerConsumerBase {
     @Override
     protected void doInitConf() throws Exception {
         conf.setMessageExpiryCheckIntervalInMinutes(60);
+        // The subscriptions have no active consumers, so don't cache added entries. The expiry check
+        // must read them from the ledgers, which is what testTopicExpireMessages counts.
+        conf.setManagedLedgerContinueCachingAddedEntriesAfterLastActiveCursorLeavesMillis(0L);
     }
 
     /***
@@ -218,20 +221,29 @@ public class PersistentMessageExpiryMonitorTest extends ProducerConsumerBase {
         ManagedCursorImpl cursor = (ManagedCursorImpl) subscription.getCursor();
         Position markDeleteBeforeExpiry = cursor.getMarkDeletedPosition();
 
-        Thread.sleep(TimeUnit.SECONDS.toMillis(2));
         BlockingPersistentMessageExpiryMonitor monitor =
                 new BlockingPersistentMessageExpiryMonitor(topic, subName, cursor, subscription);
-        CompletableFuture<Boolean> expireFuture = CompletableFuture.supplyAsync(() -> monitor.expireMessages(1));
-        monitor.awaitBeforeCursorMarkDelete();
+        CompletableFuture<Boolean> expireFuture = CompletableFuture.supplyAsync(() -> monitor.expireMessages(0));
+        try {
+            monitor.awaitBeforeCursorMarkDelete();
+            CompletableFuture<Void> closeFuture;
+            // Hold off subscription.close() so cursor closure cannot mask an unguarded mark-delete.
+            synchronized (subscription) {
+                closeFuture = CompletableFuture.supplyAsync(() -> topic.close(false)).thenCompose(future -> future);
+                Awaitility.await().untilAsserted(() -> Assert.assertTrue(topic.isClosingOrDeleting()));
+                Assert.assertFalse(cursor.isClosed());
+                monitor.allowCursorMarkDelete();
 
-        CompletableFuture<Void> closeFuture = topic.close(false);
-        Awaitility.await().untilAsserted(() -> Assert.assertTrue(topic.isClosingOrDeleting()));
-        monitor.allowCursorMarkDelete();
-
-        Assert.assertTrue(expireFuture.get(30, TimeUnit.SECONDS));
-        Awaitility.await().untilAsserted(() -> Assert.assertFalse(monitor.isExpirationCheckInProgress()));
-        assertEquals(cursor.getMarkDeletedPosition(), markDeleteBeforeExpiry);
-        closeFuture.get(30, TimeUnit.SECONDS);
+                Assert.assertTrue(expireFuture.get(30, TimeUnit.SECONDS));
+                Awaitility.await().until(() -> !monitor.isExpirationCheckInProgress()
+                        || !cursor.getMarkDeletedPosition().equals(markDeleteBeforeExpiry));
+                assertEquals(cursor.getMarkDeletedPosition(), markDeleteBeforeExpiry);
+                Assert.assertFalse(monitor.isExpirationCheckInProgress());
+            }
+            closeFuture.get(30, TimeUnit.SECONDS);
+        } finally {
+            monitor.allowCursorMarkDelete();
+        }
     }
 
     private static class BlockingPersistentMessageExpiryMonitor extends PersistentMessageExpiryMonitor {

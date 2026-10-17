@@ -18,23 +18,26 @@
  */
 package org.apache.pulsar.functions.worker.rest.api.v3;
 
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiParam;
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.PUT;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
 import lombok.CustomLog;
 import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.io.ConfigFieldDefinition;
@@ -49,7 +52,7 @@ import org.glassfish.jersey.media.multipart.FormDataParam;
 
 @CustomLog
 @SuppressWarnings("deprecation")
-@Api(value = "/sources", description = "Sources admin apis", tags = "sources")
+@Tag(name = "sources", description = "Sources admin apis")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Path("/sources")
@@ -111,15 +114,18 @@ public class SourcesApiV3Resource extends FunctionApiResource {
     }
 
     @GET
-    @ApiOperation(
-            value = "Displays the status of a Pulsar Source instance",
-            response = SourceStatus.SourceInstanceStatus.SourceInstanceStatusData.class
+    @Operation(
+            summary = "Displays the status of a Pulsar Source instance"
     )
     @ApiResponses(value = {
-            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this source"),
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 404, message = "The source doesn't exist")
+            @ApiResponse(responseCode = "200", description = "Displays the status of a Pulsar Source instance",
+                    content = @Content(schema = @Schema(
+                            implementation = SourceStatus.SourceInstanceStatus.SourceInstanceStatusData.class))),
+            @ApiResponse(responseCode = "307",
+                    description = "Current broker doesn't serve the namespace of this source"),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "403", description = "The requester doesn't have admin permissions"),
+            @ApiResponse(responseCode = "404", description = "The source doesn't exist")
     })
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/{tenant}/{namespace}/{sourceName}/{instanceId}/status")
@@ -133,15 +139,18 @@ public class SourcesApiV3Resource extends FunctionApiResource {
     }
 
     @GET
-    @ApiOperation(
-            value = "Displays the status of a Pulsar Source running in cluster mode",
-            response = SourceStatus.class
+    @Operation(
+            summary = "Displays the status of a Pulsar Source running in cluster mode"
     )
     @ApiResponses(value = {
-            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this source"),
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 404, message = "The source doesn't exist")
+            @ApiResponse(responseCode = "200",
+                    description = "Displays the status of a Pulsar Source running in cluster mode",
+                    content = @Content(schema = @Schema(implementation = SourceStatus.class))),
+            @ApiResponse(responseCode = "307",
+                    description = "Current broker doesn't serve the namespace of this source"),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "403", description = "The requester doesn't have admin permissions"),
+            @ApiResponse(responseCode = "404", description = "The source doesn't exist")
     })
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/{tenant}/{namespace}/{sourceName}/status")
@@ -161,12 +170,15 @@ public class SourcesApiV3Resource extends FunctionApiResource {
     }
 
     @POST
-    @ApiOperation(value = "Restart source instance", response = Void.class)
+    @Operation(summary = "Restart source instance")
     @ApiResponses(value = {
-            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this source"),
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The function does not exist"),
-            @ApiResponse(code = 500, message = "Internal server error")})
+            @ApiResponse(responseCode = "200", description = "Restart source instance",
+                    content = @Content(schema = @Schema(implementation = Void.class))),
+            @ApiResponse(responseCode = "307",
+                    description = "Current broker doesn't serve the namespace of this source"),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "404", description = "The function does not exist"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
     @Path("/{tenant}/{namespace}/{sourceName}/{instanceId}/restart")
     @Consumes(MediaType.APPLICATION_JSON)
     public void restartSource(final @PathParam("tenant") String tenant,
@@ -178,10 +190,13 @@ public class SourcesApiV3Resource extends FunctionApiResource {
     }
 
     @POST
-    @ApiOperation(value = "Restart all source instances", response = Void.class)
-    @ApiResponses(value = { @ApiResponse(code = 400, message = "Invalid request"),
-    @ApiResponse(code = 404, message = "The function does not exist"),
-    @ApiResponse(code = 500, message = "Internal server error") })
+    @Operation(summary = "Restart all source instances")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Restart all source instances",
+                    content = @Content(schema = @Schema(implementation = Void.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "404", description = "The function does not exist"),
+            @ApiResponse(responseCode = "500", description = "Internal server error") })
     @Path("/{tenant}/{namespace}/{sourceName}/restart")
     @Consumes(MediaType.APPLICATION_JSON)
     public void restartSource(final @PathParam("tenant") String tenant,
@@ -191,10 +206,13 @@ public class SourcesApiV3Resource extends FunctionApiResource {
     }
 
     @POST
-    @ApiOperation(value = "Stop source instance", response = Void.class)
-    @ApiResponses(value = {@ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The function does not exist"),
-            @ApiResponse(code = 500, message = "Internal server error")})
+    @Operation(summary = "Stop source instance")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Stop source instance",
+                    content = @Content(schema = @Schema(implementation = Void.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "404", description = "The function does not exist"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
     @Path("/{tenant}/{namespace}/{sourceName}/{instanceId}/stop")
     @Consumes(MediaType.APPLICATION_JSON)
     public void stopSource(final @PathParam("tenant") String tenant,
@@ -206,10 +224,13 @@ public class SourcesApiV3Resource extends FunctionApiResource {
     }
 
     @POST
-    @ApiOperation(value = "Stop all source instances", response = Void.class)
-    @ApiResponses(value = {@ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The function does not exist"),
-            @ApiResponse(code = 500, message = "Internal server error")})
+    @Operation(summary = "Stop all source instances")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Stop all source instances",
+                    content = @Content(schema = @Schema(implementation = Void.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "404", description = "The function does not exist"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
     @Path("/{tenant}/{namespace}/{sourceName}/stop")
     @Consumes(MediaType.APPLICATION_JSON)
     public void stopSource(final @PathParam("tenant") String tenant,
@@ -219,10 +240,13 @@ public class SourcesApiV3Resource extends FunctionApiResource {
     }
 
     @POST
-    @ApiOperation(value = "Start source instance", response = Void.class)
-    @ApiResponses(value = {@ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The function does not exist"),
-            @ApiResponse(code = 500, message = "Internal server error")})
+    @Operation(summary = "Start source instance")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Start source instance",
+                    content = @Content(schema = @Schema(implementation = Void.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "404", description = "The function does not exist"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
     @Path("/{tenant}/{namespace}/{sourceName}/{instanceId}/start")
     @Consumes(MediaType.APPLICATION_JSON)
     public void startSource(final @PathParam("tenant") String tenant,
@@ -234,10 +258,13 @@ public class SourcesApiV3Resource extends FunctionApiResource {
     }
 
     @POST
-    @ApiOperation(value = "Start all source instances", response = Void.class)
-    @ApiResponses(value = {@ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The function does not exist"),
-            @ApiResponse(code = 500, message = "Internal server error")})
+    @Operation(summary = "Start all source instances")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Start all source instances",
+                    content = @Content(schema = @Schema(implementation = Void.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "404", description = "The function does not exist"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
     @Path("/{tenant}/{namespace}/{sourceName}/start")
     @Consumes(MediaType.APPLICATION_JSON)
     public void startSource(final @PathParam("tenant") String tenant,
@@ -247,14 +274,17 @@ public class SourcesApiV3Resource extends FunctionApiResource {
     }
 
     @GET
-    @ApiOperation(
-            value = "Fetches a list of supported Pulsar IO source connectors currently running in cluster mode",
-            response = List.class
+    @Operation(
+            summary = "Fetches a list of supported Pulsar IO source connectors currently running in cluster mode"
     )
     @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 408, message = "Request timeout")
+            @ApiResponse(responseCode = "200",
+                    description = "Fetches a list of supported Pulsar IO source connectors currently "
+                            + "running in cluster mode",
+                    content = @Content(schema = @Schema(implementation = List.class))),
+            @ApiResponse(responseCode = "403", description = "The requester doesn't have admin permissions"),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "408", description = "Request timeout")
     })
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/builtinsources")
@@ -263,34 +293,41 @@ public class SourcesApiV3Resource extends FunctionApiResource {
     }
 
     @GET
-    @ApiOperation(
-            value = "Fetches information about config fields associated with the specified builtin source",
-            response = ConfigFieldDefinition.class,
-            responseContainer = "List"
+    @Operation(
+            summary = "Fetches information about config fields associated with the specified builtin source"
     )
     @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 404, message = "builtin source does not exist"),
-            @ApiResponse(code = 500, message = "Internal server error"),
-            @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
+            @ApiResponse(responseCode = "200",
+                    description = "Fetches information about config fields associated with the specified "
+                            + "builtin source",
+                    content = @Content(array = @ArraySchema(
+                            schema = @Schema(implementation = ConfigFieldDefinition.class)))),
+            @ApiResponse(responseCode = "403", description = "The requester doesn't have admin permissions"),
+            @ApiResponse(responseCode = "404", description = "builtin source does not exist"),
+            @ApiResponse(responseCode = "500", description = "Internal server error"),
+            @ApiResponse(responseCode = "503",
+                    description = "Function worker service is now initializing. Please try again later.")
     })
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/builtinsources/{name}/configdefinition")
     public List<ConfigFieldDefinition> getSourceConfigDefinition(
-            @ApiParam(value = "The name of the builtin source") final @PathParam("name") String name)
+            @Parameter(description = "The name of the builtin source") final @PathParam("name") String name)
             throws IOException {
         return sources().getSourceConfigDefinition(name);
     }
 
     @POST
-    @ApiOperation(
-            value = "Reload the built-in connectors, including Sources and Sinks",
-            response = Void.class
+    @Operation(
+            summary = "Reload the built-in connectors, including Sources and Sinks"
     )
     @ApiResponses(value = {
-            @ApiResponse(code = 401, message = "This operation requires super-user access"),
-            @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later."),
-            @ApiResponse(code = 500, message = "Internal server error")
+            @ApiResponse(responseCode = "200",
+                    description = "Reload the built-in connectors, including Sources and Sinks",
+                    content = @Content(schema = @Schema(implementation = Void.class))),
+            @ApiResponse(responseCode = "401", description = "This operation requires super-user access"),
+            @ApiResponse(responseCode = "503",
+                    description = "Function worker service is now initializing. Please try again later."),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
     })
     @Path("/reloadBuiltInSources")
     public void reloadSources() {

@@ -392,8 +392,10 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
         final CountDownLatch underReplicaLatch = registerUrLedgerWatcher(ledgerList
                 .size());
 
-        // wait for 5 seconds before starting the recovery work when a bookie fails
-        urLedgerMgr.setLostBookieRecoveryDelay(5);
+        int lostBookieRecoveryDelaySeconds = 5;
+        // wait before starting the recovery work when a bookie fails
+        urLedgerMgr.setLostBookieRecoveryDelay(lostBookieRecoveryDelaySeconds);
+        Auditor auditorBookiesAuditor = getAuditorBookiesAuditor();
 
         AtomicReference<String> shutdownBookieRef = new AtomicReference<>();
         CountDownLatch shutdownLatch = new CountDownLatch(1);
@@ -407,12 +409,15 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
         }).start();
 
         log.debug("Waiting for ledgers to be marked as under replicated");
-        assertFalse("audit of lost bookie isn't delayed", underReplicaLatch.await(4, TimeUnit.SECONDS));
+        waitUntilAuditTaskScheduled(auditorBookiesAuditor, 10, TimeUnit.SECONDS);
+        assertFalse("audit of lost bookie isn't delayed",
+                underReplicaLatch.await(lostBookieRecoveryDelaySeconds - 1, TimeUnit.SECONDS));
         assertEquals("under replicated ledgers identified when it was not expected", 0,
                 urLedgerList.size());
 
-        // wait for another 5 seconds for the ledger to get reported as under replicated
-        assertTrue("audit of lost bookie isn't delayed", underReplicaLatch.await(2, TimeUnit.SECONDS));
+        // wait for the delayed task to run and report the ledger as under replicated
+        assertTrue("audit of lost bookie wasn't triggered after delay",
+                underReplicaLatch.await(3, TimeUnit.SECONDS));
 
         assertTrue("Ledger is not marked as underreplicated:" + ledgerId,
                 urLedgerList.contains(ledgerId));
@@ -902,6 +907,18 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
             Thread.sleep(100);
         }
         throw new TimeoutException("Could not find an audit within 5 seconds");
+    }
+
+    private void waitUntilAuditTaskScheduled(Auditor auditor, long timeout, TimeUnit unit) throws Exception {
+        long deadlineNanos = System.nanoTime() + unit.toNanos(timeout);
+        while (System.nanoTime() < deadlineNanos) {
+            Future<?> auditTask = auditor.getAuditTask();
+            if (auditTask != null && !auditTask.isDone()) {
+                return;
+            }
+            Thread.sleep(100);
+        }
+        fail("Timed out waiting for delayed audit task to be scheduled");
     }
 
     /**

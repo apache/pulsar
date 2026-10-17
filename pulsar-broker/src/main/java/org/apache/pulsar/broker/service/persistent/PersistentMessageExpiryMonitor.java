@@ -23,7 +23,6 @@ import io.github.merlimat.slog.Logger;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.SortedMap;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
@@ -39,8 +38,10 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.MessageExpirer;
+import org.apache.pulsar.broker.stats.OpenTelemetryMessageFinderStats.FindReason;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.stats.Rate;
 import org.jspecify.annotations.Nullable;
@@ -81,10 +82,12 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
                 .attr("topic", topicName)
                 .attr("subscription", subscriptionName)
                 .build();
-        int managedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis = topic.getBrokerService().pulsar()
-                .getConfig().getManagedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis();
+        PulsarService pulsar = topic.getBrokerService().pulsar();
+        int managedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis =
+                pulsar.getConfig().getManagedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis();
         this.finder = new PersistentMessageFinder(topicName, cursor,
-                managedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis);
+                managedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis,
+                pulsar.getOpenTelemetryMessageFinderStats(), FindReason.EXPIRY);
     }
 
     @VisibleForTesting
@@ -251,16 +254,18 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
                     .attr("position", position)
                     .log("Expiring all messages until position");
             beforeCursorMarkDelete(position);
-            if (!runCursorMarkDeleteIfTopicNotClosingOrDeleting(position, () -> {
-                Position prevMarkDeletePos = cursor.getMarkDeletedPosition();
-                cursor.asyncMarkDelete(position, null, markDeleteCallback, cursor.getNumberOfEntriesInBacklog(false));
-                if (!Objects.equals(cursor.getMarkDeletedPosition(), prevMarkDeletePos) && subscription != null) {
-                    subscription.updateLastMarkDeleteAdvancedTimestamp();
-                }
-                return null;
-            })) {
+            if (topic.isClosingOrDeleting()) {
+                log.debug()
+                        .attr("position", position)
+                        .log("Skipping message expiry mark-delete because topic is closing or deleting");
                 expirationCheckInProgress = FALSE;
                 updateRates();
+                return;
+            }
+            Position prevMarkDeletePos = cursor.getMarkDeletedPosition();
+            cursor.asyncMarkDelete(position, null, markDeleteCallback, cursor.getNumberOfEntriesInBacklog(false));
+            if (!Objects.equals(cursor.getMarkDeletedPosition(), prevMarkDeletePos) && subscription != null) {
+                subscription.updateLastMarkDeleteAdvancedTimestamp();
             }
         } else {
             log.debug("No messages to expire");
@@ -272,24 +277,6 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
     @VisibleForTesting
     protected void beforeCursorMarkDelete(Position position) {
         // No-op.
-    }
-
-    private boolean runCursorMarkDeleteIfTopicNotClosingOrDeleting(Position position, Callable<Void> markDelete) {
-        try {
-            boolean didRun = topic.runWithTopicCloseReadLock(markDelete);
-            if (!didRun) {
-                log.debug()
-                        .attr("position", position)
-                        .log("Skipping message expiry mark-delete because topic is closing or deleting");
-            }
-            return didRun;
-        } catch (Exception e) {
-            log.warn()
-                    .attr("position", position)
-                    .exception(e)
-                    .log("Message expiry failed - mark delete failed");
-            return false;
-        }
     }
 
     @Override

@@ -24,6 +24,7 @@
 
 package org.apache.pulsar.zookeeper;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.bookkeeper.stream.protocol.ProtocolConstants.DEFAULT_STREAM_CONF;
 import static org.apache.commons.io.FileUtils.cleanDirectory;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -127,6 +128,12 @@ public class LocalBookkeeperEnsemble {
     private String hostPort;
     private final String advertisedAddress;
     private int zkPort;
+    private int bookieBasePort;
+
+    public void setBookieBasePort(int bookieBasePort) {
+        checkArgument(bookieBasePort >= 0 && bookieBasePort <= 65535, "Invalid bookie base port: %s", bookieBasePort);
+        this.bookieBasePort = bookieBasePort;
+    }
 
     NIOServerCnxnFactory serverFactory;
     ZooKeeperServer zks;
@@ -270,8 +277,9 @@ public class LocalBookkeeperEnsemble {
                 cleanDirectory(bkDataDir);
             }
 
-            // Bookies bind to a kernel-assigned port; identity is established via bookieId.
-            int bookiePort = 0;
+            // The bookie identity is independent of the listening port.
+            int bookiePort = bookieBasePort == 0 ? 0 : bookieBasePort + i;
+            checkArgument(bookiePort <= 65535, "Bookie port out of range: %s", bookiePort);
             String bookieId = "bk" + i + "test";
             // Ensure registration Z-nodes are cleared when standalone service is restarted ungracefully
             deleteBookieRegistrationZnode(
@@ -355,10 +363,10 @@ public class LocalBookkeeperEnsemble {
             } catch (NamespaceNotFoundException nnfe) {
                 log.info("Creating default namespace");
                 try {
+                    NamespaceConfiguration nsConf = new NamespaceConfiguration();
+                    nsConf.setDefaultStreamConf().copyFrom(DEFAULT_STREAM_CONF);
                     NamespaceProperties ns =
-                        FutureUtils.result(admin.createNamespace("default", NamespaceConfiguration.newBuilder()
-                            .setDefaultStreamConf(DEFAULT_STREAM_CONF)
-                            .build()));
+                        FutureUtils.result(admin.createNamespace("default", nsConf));
                     log.info().attr("n", ns).log("Successfully created 'default' namespace :\n");
                 } catch (NamespaceExistsException nee) {
                     // namespace already exists
@@ -411,6 +419,10 @@ public class LocalBookkeeperEnsemble {
     public void startStandalone(ServerConfiguration conf, boolean enableStreamStorage) throws Exception {
         log.debug("Local ZK/BK starting ...");
         conf.setAdvertisedAddress(advertisedAddress);
+        // This is an embedded, localhost-only ensemble (advertised address is a loopback address), so
+        // loopback binding must be permitted. BookKeeper forbids binding to a loopback address unless
+        // allowLoopback is set. Mirror the start(boolean) path, which sets this for the same reason.
+        conf.setAllowLoopback(true);
 
         runZookeeper(1000);
         initializeZookeper();

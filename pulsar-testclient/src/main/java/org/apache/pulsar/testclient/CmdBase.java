@@ -27,6 +27,11 @@ public abstract class CmdBase implements Callable<Integer> {
     public CmdBase(String cmdName) {
         commander = new CommandLine(this);
         commander.setCommandName(cmdName);
+        // V5 enums (SubscriptionInitialPosition.EARLIEST, ProducerAccessMode.SHARED, ...) are
+        // uppercase, while the v4 flags users have been passing for years use mixed case
+        // ("Earliest", "Shared"). Picocli's default enum parsing is case-sensitive, so we'd
+        // break flag UX without this. Match v4 + V5 spellings interchangeably.
+        commander.setCaseInsensitiveEnumValuesAllowed(true);
     }
 
     public boolean run(String[] args) {

@@ -27,8 +27,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.transaction.metadata.TxnEvent;
+import org.apache.pulsar.broker.transaction.metadata.TxnHeader;
 import org.apache.pulsar.broker.transaction.metadata.TxnIds;
 import org.apache.pulsar.broker.transaction.metadata.TxnMetadataStore;
 import org.apache.pulsar.broker.transaction.metadata.TxnOp;
@@ -37,7 +39,9 @@ import org.apache.pulsar.broker.transaction.metadata.TxnState;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.coordination.CoordinationService;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 import org.awaitility.Awaitility;
@@ -57,6 +61,8 @@ public class TransactionCoordinatorV5Test {
     private MetadataStoreExtended store;
     private TxnMetadataStore txnStore;
     private PulsarService pulsar;
+    private BrokerService brokerService;
+    private CoordinationService coordinationService;
     private TransactionCoordinatorV5 tc;
 
     @BeforeMethod
@@ -64,17 +70,40 @@ public class TransactionCoordinatorV5Test {
         store = MetadataStoreExtended.create("memory:local",
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
         txnStore = new TxnMetadataStore(store);
+        coordinationService = new CoordinationServiceImpl(store);
         pulsar = mock(PulsarService.class);
         when(pulsar.getLocalMetadataStore()).thenReturn(store);
-        BrokerService brokerService = mock(BrokerService.class);
+        when(pulsar.getCoordinationService()).thenReturn(coordinationService);
+        when(pulsar.getBrokerId()).thenReturn("broker-test:8080");
+        when(pulsar.getBrokerServiceUrl()).thenReturn("pulsar://broker-test:6650");
+        when(pulsar.getBrokerServiceUrlTls()).thenReturn(null);
+        when(pulsar.getSafeWebServiceAddress()).thenReturn("http://broker-test:8080");
+        ServiceConfiguration cfg = new ServiceConfiguration();
+        // GC sweep tests assume retention has already elapsed.
+        cfg.setTransactionCoordinatorScalableTopicsGcRetentionSeconds(0);
+        // Keep the election small so start() converges quickly in unit tests.
+        cfg.setTransactionCoordinatorScalableTopicsParallelism(4);
+        when(pulsar.getConfiguration()).thenReturn(cfg);
+        brokerService = mock(BrokerService.class);
         when(pulsar.getBrokerService()).thenReturn(brokerService);
-        // Default: owned. Tests that want to assert the not-owned path can override.
+        // Default: owned (assign-topic fallback path in handleClientConnect). Tests that want to
+        // assert the not-owned path can override.
         when(brokerService.checkTopicNsOwnership(any())).thenReturn(CompletableFuture.completedFuture(null));
         tc = new TransactionCoordinatorV5(pulsar);
+        tc.start();
+        // As the only broker, we win every partition's election; wait until partition 0 is led so
+        // the sweep-gating and client-connect paths behave deterministically.
+        Awaitility.await().until(() -> tc.isLeaderFor(0));
     }
 
     @AfterMethod(alwaysRun = true)
     public void tearDown() throws Exception {
+        if (tc != null) {
+            tc.close();
+        }
+        if (coordinationService != null) {
+            coordinationService.close();
+        }
         if (store != null) {
             store.close();
         }
@@ -239,5 +268,169 @@ public class TransactionCoordinatorV5Test {
         // Different tcIds → different mostSigBits, independent leastSigBits sequences.
         assertThat(a.getMostSigBits()).isEqualTo(1L);
         assertThat(b.getMostSigBits()).isEqualTo(2L);
+    }
+
+    @Test
+    public void sweepTimeouts_abortsExpiredOpenTxnAndFansOut() throws Exception {
+        // Wait until the positive timeout has actually expired before running the sweep.
+        TxnID txnId = tc.newTransaction(TC_ID, 1L, "owner").get();
+        String txnIdKey = TxnIds.toKey(txnId);
+        TxnHeader openHeader = txnStore.getHeader(txnIdKey).get().orElseThrow().value();
+        long deadlineMs = openHeader.getCreatedAt().toEpochMilli() + openHeader.getTimeout().toMillis();
+        Awaitility.await().until(() -> System.currentTimeMillis() >= deadlineMs);
+
+        String segment = "segment://public/default/topic/0000-ffff-0";
+        txnStore.appendOp(txnIdKey,
+                new TxnOp(TxnOpKind.WRITE, segment, null, 5L, 1L, null)).get();
+
+        List<String> received = new ArrayList<>();
+        try (var sub = txnStore.subscribeSegmentEvents(segment, received::add)) {
+            // newTransaction and the first sweep can land in the same millisecond on a fast machine,
+            // leaving the 1ms-timeout txn not-yet-expired. The sweep is idempotent, so retry it until
+            // the deadline has elapsed and the txn is aborted.
+            Awaitility.await().untilAsserted(() -> {
+                tc.sweepTimeouts().get();
+                var header = txnStore.getHeader(txnIdKey).get().orElseThrow();
+                assertThat(header.value().getState()).isEqualTo(TxnState.ABORTED);
+            });
+            // Fan-out fires for the participant.
+            Awaitility.await().untilAsserted(() -> assertThat(received).isNotEmpty());
+        }
+    }
+
+    @Test
+    public void sweepTimeouts_leavesUnexpiredOpenTxnAlone() throws Exception {
+        TxnID txnId = tc.newTransaction(TC_ID, 60_000L, "owner").get();
+        tc.sweepTimeouts().get();
+        var header = txnStore.getHeader(TxnIds.toKey(txnId)).get().orElseThrow();
+        assertThat(header.value().getState()).isEqualTo(TxnState.OPEN);
+    }
+
+    @Test
+    public void sweepGc_deletesHeaderWhenNoOpsRemain() throws Exception {
+        // No participants → fan-out wrote no events → no /txn/op records to clean up → GC may
+        // delete the header straight away.
+        TxnID txnId = tc.newTransaction(TC_ID, 60_000L, "owner").get();
+        String txnIdKey = TxnIds.toKey(txnId);
+        tc.endTransaction(txnId, TxnAction.COMMIT_VALUE).get();
+
+        tc.sweepGc().get();
+
+        assertThat(txnStore.getHeader(txnIdKey).get()).isEmpty();
+    }
+
+    @Test
+    public void sweepGc_repairsAndRetainsHeaderWhenOpsRemain() throws Exception {
+        // A finalized txn with a leftover /txn/op record — the participant either hasn't applied
+        // the outcome yet, or never received the event (TC crashed between header CAS and publish).
+        // GC must re-drive the fan-out so the participant re-reads the true outcome, and must NOT
+        // delete the header while it could still be re-read (else a COMMITTED txn's data would
+        // default to ABORTED).
+        TxnID txnId = tc.newTransaction(TC_ID, 60_000L, "owner").get();
+        String txnIdKey = TxnIds.toKey(txnId);
+        String segment = "segment://public/default/topic/0000-ffff-0";
+        txnStore.appendOp(txnIdKey,
+                new TxnOp(TxnOpKind.WRITE, segment, null, 5L, 1L, null)).get();
+
+        List<String> received = new ArrayList<>();
+        try (var sub = txnStore.subscribeSegmentEvents(segment, received::add)) {
+            tc.endTransaction(txnId, TxnAction.COMMIT_VALUE).get();
+            Awaitility.await().untilAsserted(() -> assertThat(received).hasSize(1));
+
+            tc.sweepGc().get();
+
+            // Header retained — participant may still need to re-read.
+            TxnHeader header = txnStore.getHeader(txnIdKey).get().orElseThrow().value();
+            assertThat(header.getState()).isEqualTo(TxnState.COMMITTED);
+            // Repair re-published the event.
+            Awaitility.await().untilAsserted(() -> assertThat(received).hasSize(2));
+        }
+    }
+
+    @Test
+    public void sweeps_skipWhenNotLeader() throws Exception {
+        // Create an expired txn, then drop leadership (close releases the election leases). The
+        // sweep is gated on isLeaderFor(0), so on a fresh non-leader TC it must skip.
+        TxnID expired = tc.newTransaction(TC_ID, 1L, "owner").get();
+        tc.close();
+
+        // A second TC that never started (no elections) is not the leader for partition 0.
+        TransactionCoordinatorV5 notLeader = new TransactionCoordinatorV5(pulsar);
+        try {
+            notLeader.sweepTimeouts().get();
+            // Still OPEN — the sweep never ran because this TC leads no partition.
+            var header = txnStore.getHeader(TxnIds.toKey(expired)).get().orElseThrow();
+            assertThat(header.value().getState()).isEqualTo(TxnState.OPEN);
+        } finally {
+            notLeader.close();
+        }
+    }
+
+    // ---- Election + assignment discovery ----------------------------------
+
+    @Test
+    public void election_singleBrokerLeadsAllPartitions() {
+        // As the only broker, this TC wins every partition's election.
+        for (int p = 0; p < 4; p++) {
+            final int partition = p;
+            Awaitility.await().until(() -> tc.isLeaderFor(partition));
+        }
+        assertThat(tc.isLeaderFor(4)).isFalse(); // out of range (parallelism = 4)
+    }
+
+    @Test
+    public void buildAssignmentsSnapshot_reportsAllLedPartitions() {
+        assertThat(tc.buildAssignmentsSnapshot().join().partitionCount()).isEqualTo(4);
+        Awaitility.await().untilAsserted(() -> {
+            var snap = tc.buildAssignmentsSnapshot().join();
+            assertThat(snap.assignments()).hasSize(4);
+            assertThat(snap.isComplete()).isTrue();
+            assertThat(snap.assignments().get(0).brokerServiceUrl())
+                    .isEqualTo("pulsar://broker-test:6650");
+            assertThat(snap.assignments().get(0).brokerId()).isEqualTo("broker-test:8080");
+        });
+    }
+
+    @Test
+    public void registerAssignmentChangeListener_deregistersOnClose() throws Exception {
+        // The handle deregisters the listener; after close() it must not be invoked again. We only
+        // assert the registration/deregistration contract here — the fire-on-election-change path
+        // needs a multi-broker setup and is covered at integration level.
+        AutoCloseable handle = tc.registerAssignmentChangeListener(() -> { });
+        handle.close();
+    }
+
+    @Test
+    public void handleClientConnect_acceptsWhenLeader() throws Exception {
+        // We lead partition 0, so connect is accepted without consulting assign-topic ownership.
+        tc.handleClientConnect(TC_ID).get();
+    }
+
+    @Test
+    public void start_failsOnParallelismMismatch() throws Exception {
+        // The running tc (from setUp) persisted parallelism=4. A second coordinator configured with a
+        // different value against the same metadata store must refuse to start.
+        ServiceConfiguration mismatchCfg = new ServiceConfiguration();
+        mismatchCfg.setTransactionCoordinatorScalableTopicsGcRetentionSeconds(0);
+        mismatchCfg.setTransactionCoordinatorScalableTopicsParallelism(8);
+        PulsarService other = mock(PulsarService.class);
+        when(other.getLocalMetadataStore()).thenReturn(store);
+        when(other.getCoordinationService()).thenReturn(coordinationService);
+        when(other.getConfiguration()).thenReturn(mismatchCfg);
+        when(other.getBrokerId()).thenReturn("broker-other:8080");
+        when(other.getBrokerServiceUrl()).thenReturn("pulsar://broker-other:6650");
+        when(other.getSafeWebServiceAddress()).thenReturn("http://broker-other:8080");
+        when(other.getBrokerService()).thenReturn(brokerService);
+
+        TransactionCoordinatorV5 mismatched = new TransactionCoordinatorV5(other);
+        try {
+            assertThatThrownBy(mismatched::start)
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("mismatch")
+                    .hasMessageContaining("8")
+                    .hasMessageContaining("4");
+        } finally {
+            mismatched.close();
+        }
     }
 }
