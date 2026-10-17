@@ -202,6 +202,15 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         });
         waitReplicatorStopped(subTopic, pulsar1, pulsar2, true);
 
+        try {
+            admin2.topics().createMissedPartitions(topicName);
+            fail("The action that creates mission partitions should have thrown exception");
+        } catch (Exception e) {
+            assertTrue(e.getMessage().contains("is not allowed to be loaded up"));
+        }
+        assertFalse(admin2.topics().getList(replicatedNamespace)
+            .contains(TopicName.get(topicName).getPartition(0).toString()));
+
         // Remove global policy.
         admin1.topicPolicies(true).removeReplicationClusters(topicName);
         Producer<byte[]> producer2 = client1.newProducer().topic(topicName).create();
@@ -964,5 +973,29 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         // cleanup.
         p.close();
         admin1.topics().delete(topic);
+    }
+
+    /**
+     * A cluster in the namespace-level allowed clusters can load the topic even when the topic-level replication
+     * clusters do not contain it, so it is allowed to create the missed partitions too.
+     */
+    @Test
+    public void testCreateMissedPartitionsOnAllowedClusterOutsideTopicReplication() throws Exception {
+        final String ns1 = defaultTenant + "/ns_" + UUID.randomUUID().toString().replace("-", "");
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + ns1 + "/tp");
+        final String subTopic = TopicName.get(topicName).getPartition(0).toString();
+        admin1.namespaces().createNamespace(ns1);
+        admin1.namespaces().setNamespaceAllowedClusters(ns1, new HashSet<>(Arrays.asList(cluster1, cluster2)));
+        admin1.namespaces().setNamespaceReplicationClusters(ns1,
+                new HashSet<>(Arrays.asList(cluster1, cluster2)), true);
+        admin1.topics().createPartitionedTopic(topicName, 1);
+        admin1.topicPolicies(true).setReplicationClusters(topicName, Arrays.asList(cluster1));
+        Awaitility.await().untilAsserted(() -> {
+            Set<String> global2 = admin2.topicPolicies(true).getReplicationClusters(topicName, false);
+            assertEquals(global2, Collections.singleton(cluster1));
+        });
+
+        admin2.topics().createMissedPartitions(topicName);
+        assertTrue(admin2.topics().getList(ns1).contains(subTopic));
     }
 }
