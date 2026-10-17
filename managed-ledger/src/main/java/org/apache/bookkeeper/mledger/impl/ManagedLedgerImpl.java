@@ -2778,8 +2778,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             long firstValidEntry = -1L;
             long lastValidEntry = -1L;
             long entryId = firstEntry;
+            final long ledgerId = ledger.getId();
             for (; entryId <= lastEntry; entryId++) {
-                if (opReadEntry.skipCondition.test(PositionFactory.create(ledger.getId(), entryId))) {
+                boolean shouldSkip;
+                if (opReadEntry.skipOnlyMessageDeleted) {
+                    // Fast path: only cursor's isMessageDeleted check, no Position allocation
+                    shouldSkip = opReadEntry.cursor.isMessageDeleted(ledgerId, entryId);
+                } else {
+                    shouldSkip = opReadEntry.skipCondition.test(PositionFactory.create(ledgerId, entryId));
+                }
+                if (shouldSkip) {
                     if (firstValidEntry != -1L) {
                         break;
                     }
