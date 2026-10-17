@@ -51,8 +51,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
 
     @BeforeMethod
     protected void setup() throws Exception {
-        // configure pulsarAdmin connectionsPerBroker to 1, to reproduce issue 24879
-        conf.getProperties().put("brokerClient_connectionsPerBroker", 1);
+        //No-op
     }
 
     @AfterMethod(alwaysRun = true)
@@ -115,6 +114,9 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
         conf.setBrokerDeleteInactivePartitionedTopicMetadataEnabled(true);
         conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
+        // A single admin client connection per broker: before the fix for #24879, the per-partition deletes
+        // queued behind the broker's own delete-partitioned-topic request and the metadata was never deleted
+        conf.getProperties().put("brokerClient_connectionsPerBroker", 1);
         super.baseSetup();
 
         final String topic = "persistent://prop/ns-abc/testDeleteWhenNoSubscriptions";
