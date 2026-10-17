@@ -27,11 +27,6 @@ final class MutablePositionImpl implements Position {
     private long ledgerId;
     private long entryId;
 
-    MutablePositionImpl(long ledgerId, long entryId) {
-        this.ledgerId = ledgerId;
-        this.entryId = entryId;
-    }
-
     MutablePositionImpl() {
         this.ledgerId = -1;
         this.entryId = -1;
@@ -43,7 +38,7 @@ final class MutablePositionImpl implements Position {
      * @param ledgerId
      * @param entryId
      */
-    public void changePositionTo(long ledgerId, long entryId) {
+    void changePositionTo(long ledgerId, long entryId) {
         this.ledgerId = ledgerId;
         this.entryId = entryId;
     }
@@ -59,7 +54,7 @@ final class MutablePositionImpl implements Position {
     }
 
     /**
-     * String representation of virtual cursor - LedgerId:EntryId.
+     * String representation of the position - LedgerId:EntryId.
      */
     @Override
     public String toString() {

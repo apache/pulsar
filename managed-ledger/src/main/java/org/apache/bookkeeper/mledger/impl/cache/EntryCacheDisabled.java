@@ -110,11 +110,8 @@ public class EntryCacheDisabled implements EntryCache {
         long estimatedReadSize = (lastEntry - firstEntry + 1) * getEstimatedEntrySize(lh);
         Optional<InflightReadsLimiter.Handle> handle = inflightReadsLimiter.tryAcquire(estimatedReadSize);
         if (handle.isEmpty()) {
-            callback.readEntriesFailed(new ManagedLedgerException.TooManyRequestsException(
-                    "Couldn't acquire permits on the max reads in flight limiter to read from ledger "
-                            + lh.getId() + ", " + getName() + ", estimated read size " + estimatedReadSize
-                            + " bytes for " + (int) (lastEntry - firstEntry + 1) + " entries"
-                            + " (check managedLedgerMaxReadsInFlightSizeInMB)"), ctx);
+            callback.readEntriesFailed(InflightReadsLimiter.permitsNotAcquiredException(
+                    lh.getId(), getName(), estimatedReadSize, (int) (lastEntry - firstEntry + 1)), ctx);
             return;
         }
         try {

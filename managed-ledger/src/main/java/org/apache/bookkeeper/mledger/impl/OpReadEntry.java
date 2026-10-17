@@ -25,6 +25,7 @@ import io.netty.util.Recycler.Handle;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ForkJoinPool;
@@ -168,23 +169,12 @@ class OpReadEntry implements ReadEntriesCallback {
 
     @Override
     public void readEntriesComplete(List<Entry> returnedEntries, Object ctx) {
-        try {
-            internalReadEntriesComplete(returnedEntries, null);
-        } catch (Throwable throwable) {
-            log.error().attr("op", this).exception(throwable)
-                    .log("Fallback to readEntriesFailed for exception in readEntriesComplete");
-            readEntriesFailed(ManagedLedgerException.getManagedLedgerException(throwable), ctx);
-        }
+        readEntriesCompleteGuarded(returnedEntries, null, ctx);
     }
 
     @Override
     public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-        try {
-            internalReadEntriesFailed(null, exception, ctx);
-        } catch (Throwable throwable) {
-            // At least we should complete the callback
-            fail(ManagedLedgerException.getManagedLedgerException(throwable), ctx);
-        }
+        readEntriesFailedGuarded(Collections.emptyList(), exception, ctx);
     }
 
     void internalReadEntriesFailed(Collection<Entry> ret, ManagedLedgerException exception, Object ctx) {
@@ -247,9 +237,10 @@ class OpReadEntry implements ReadEntriesCallback {
     }
 
     /**
-     * Guarded completion entry point for the batched skip-read path: mirrors the Throwable fallback of
-     * {@link #readEntriesComplete(List, Object)} while supporting the last-read position of the scan
-     * window. Must only be invoked without holding the batch callback's monitor.
+     * Guarded completion entry point: falls back to {@code readEntriesFailed} on any Throwable so the
+     * pending-read accounting is always settled, while supporting the last-read position of a batched
+     * scan window ({@code null} for a plain sequential read completion). Must only be invoked without
+     * holding a batch callback's monitor.
      */
     void readEntriesCompleteGuarded(List<Entry> returnedEntries, Position lastReadPosition, Object ctx) {
         try {
@@ -262,10 +253,11 @@ class OpReadEntry implements ReadEntriesCallback {
     }
 
     /**
-     * Guarded failure entry point for the batched skip-read path: advances the read position past the
-     * delivered prefix and delegates to {@link #internalReadEntriesFailed}, converting any Throwable
-     * into the failure callback so the pending-read accounting is always settled. Must only be invoked
-     * without holding the batch callback's monitor.
+     * Guarded failure entry point: optionally advances the read position past a delivered prefix
+     * (filtering entries that were individually deleted while batched range reads were in flight, and
+     * releasing the entries the filter drops), delegates to {@link #internalReadEntriesFailed}, and
+     * converts any Throwable into the failure callback so the pending-read accounting is always
+     * settled. Must only be invoked without holding a batch callback's monitor.
      */
     void readEntriesFailedGuarded(List<Entry> prefix, ManagedLedgerException exception, Object ctx) {
         try {
@@ -277,8 +269,7 @@ class OpReadEntry implements ReadEntriesCallback {
                 // Move the read position of the cursor to the next position of the last read entry,
                 // or the same entry would be delivered to the consumer more than once.
                 Entry entry = filteredPrefix.get(filteredPrefix.size() - 1);
-                Position position = PositionFactory.create(entry.getLedgerId(), entry.getEntryId());
-                Position nextReadPosition = cursor.getNextAvailablePosition(position);
+                Position nextReadPosition = cursor.getNextAvailablePosition(entry.getPosition());
                 updateReadPosition(nextReadPosition);
             }
             internalReadEntriesFailed(filteredPrefix, exception, ctx);

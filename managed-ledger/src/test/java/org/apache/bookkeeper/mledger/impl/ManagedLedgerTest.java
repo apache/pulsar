@@ -6313,6 +6313,32 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertFalse(v3ClientLedger.isBatchReadEnabled());
     }
 
+    /** Records the outcome of a read callback: the delivered entries, the failure and the context. */
+    private static final class RecordingReadEntriesCallback implements ReadEntriesCallback {
+        final CountDownLatch latch = new CountDownLatch(1);
+        final List<Entry> entries = new ArrayList<>();
+        final AtomicReference<ManagedLedgerException> failure = new AtomicReference<>();
+        final AtomicReference<Object> receivedCtx = new AtomicReference<>();
+
+        @Override
+        public void readEntriesComplete(List<Entry> entries, Object ctx) {
+            this.entries.addAll(entries);
+            receivedCtx.set(ctx);
+            latch.countDown();
+        }
+
+        @Override
+        public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+            failure.set(exception);
+            receivedCtx.set(ctx);
+            latch.countDown();
+        }
+
+        boolean await() throws InterruptedException {
+            return latch.await(5, TimeUnit.SECONDS);
+        }
+    }
+
     @Test
     public void testBatchReadEntriesCallback() throws Exception {
         @Cleanup
@@ -6324,22 +6350,9 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
         }
 
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicBoolean failed = new AtomicBoolean(false);
-        List<Entry> entries = new ArrayList<>();
-        OpReadEntry opReadEntry = OpReadEntry.create(cursor, cursor.readPosition, 10, -1, new ReadEntriesCallback() {
-            @Override
-            public void readEntriesComplete(List<Entry> entries0, Object ctx) {
-                entries.addAll(entries0);
-                latch.countDown();
-            }
-
-            @Override
-            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-                failed.set(true);
-                latch.countDown();
-            }
-        }, null, ledger.lastConfirmedEntry, position -> position.getEntryId() % 2 == 0, true);
+        RecordingReadEntriesCallback recording = new RecordingReadEntriesCallback();
+        OpReadEntry opReadEntry = OpReadEntry.create(cursor, cursor.readPosition, 10, -1, recording,
+                null, ledger.lastConfirmedEntry, position -> position.getEntryId() % 2 == 0, true);
 
         List<LongLongPair> ranges = List.of(
                 LongLongPair.of(1L, 1L), LongLongPair.of(3L, 3L), LongLongPair.of(5L, 5L),
@@ -6358,14 +6371,14 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         // After call readEntriesFailed, the following readEntriesComplete should be ignored.
         callback.readEntriesComplete(List.of(entry5), null);
 
-        assertTrue(latch.await(5, TimeUnit.SECONDS));
+        assertTrue(recording.await());
         // should not fail
-        assertFalse(failed.get());
-        assertEquals(entries.size(), 2);
+        assertEquals(recording.failure.get(), null);
+        assertEquals(recording.entries.size(), 2);
 
-        // `entries` should be only the entries with entryId 1 and 3.
-        assertEquals(entries.get(0).getEntryId(), 1);
-        assertEquals(entries.get(1).getEntryId(), 3);
+        // `recording.entries` should be only the entries with entryId 1 and 3.
+        assertEquals(recording.entries.get(0).getEntryId(), 1);
+        assertEquals(recording.entries.get(1).getEntryId(), 3);
 
         // Entries dropped by the failure prefix filter and the late-completion guard must be released;
         // unreleased entries would pin inflight-reads-limiter permits forever.
@@ -6387,22 +6400,9 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
         }
 
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicBoolean failed = new AtomicBoolean(false);
-        List<Entry> entries = new ArrayList<>();
-        OpReadEntry opReadEntry = OpReadEntry.create(cursor, cursor.readPosition, 2, -1, new ReadEntriesCallback() {
-            @Override
-            public void readEntriesComplete(List<Entry> entries0, Object ctx) {
-                entries.addAll(entries0);
-                latch.countDown();
-            }
-
-            @Override
-            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-                failed.set(true);
-                latch.countDown();
-            }
-        }, null, ledger.lastConfirmedEntry, position -> false, true);
+        RecordingReadEntriesCallback recording = new RecordingReadEntriesCallback();
+        OpReadEntry opReadEntry = OpReadEntry.create(cursor, cursor.readPosition, 2, -1, recording,
+                null, ledger.lastConfirmedEntry, position -> false, true);
 
         long ledgerId = ledger.currentLedger.getId();
         // Three ranges to read: [1, 2], [4], [6]
@@ -6418,13 +6418,13 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         // The [4] range read returns an empty batch, which completes the batched read.
         callback.readEntriesComplete(Collections.emptyList(), null);
 
-        assertTrue(latch.await(5, TimeUnit.SECONDS));
-        assertFalse(failed.get());
+        assertTrue(recording.await());
+        assertEquals(recording.failure.get(), null);
         // Only the contiguous prefix [1, 2] may be delivered; entry 6 must not be delivered
         // before entry 4, otherwise entry 4 would be skipped silently.
-        assertEquals(entries.size(), 2);
-        assertEquals(entries.get(0).getEntryId(), 1);
-        assertEquals(entries.get(1).getEntryId(), 2);
+        assertEquals(recording.entries.size(), 2);
+        assertEquals(recording.entries.get(0).getEntryId(), 1);
+        assertEquals(recording.entries.get(1).getEntryId(), 2);
         // The read position must point to entry 3 so that the unread entries will be read again.
         assertEquals(cursor.getReadPosition().getEntryId(), 3);
     }
@@ -6489,25 +6489,9 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         }
 
         Object readCtx = new Object();
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicBoolean failed = new AtomicBoolean(false);
-        AtomicReference<Object> receivedCtx = new AtomicReference<>();
-        List<Entry> entries = new ArrayList<>();
-        OpReadEntry opReadEntry = OpReadEntry.create(cursor, cursor.readPosition, 3, -1, new ReadEntriesCallback() {
-            @Override
-            public void readEntriesComplete(List<Entry> entries0, Object ctx) {
-                entries.addAll(entries0);
-                receivedCtx.set(ctx);
-                latch.countDown();
-            }
-
-            @Override
-            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-                failed.set(true);
-                receivedCtx.set(ctx);
-                latch.countDown();
-            }
-        }, readCtx, ledger.lastConfirmedEntry, position -> false, true);
+        RecordingReadEntriesCallback recording = new RecordingReadEntriesCallback();
+        OpReadEntry opReadEntry = OpReadEntry.create(cursor, cursor.readPosition, 3, -1, recording,
+                readCtx, ledger.lastConfirmedEntry, position -> false, true);
 
         long ledgerId = ledger.currentLedger.getId();
         // Read entries [1], [3], [5] in three ranges.
@@ -6525,18 +6509,18 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                 new ManagedLedgerException.TooManyRequestsException("inflight limiter rejected read"), readCtx);
         assertTrue(callback.shouldStopSubmission());
         callback.submissionFinished();
-        assertFalse(failed.get());
-        assertTrue(entries.isEmpty());
+        assertEquals(recording.failure.get(), null);
+        assertTrue(recording.entries.isEmpty());
 
         // When the in-flight range completes, its entries form the contiguous prefix to deliver.
         callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 1, new byte[1])), readCtx);
 
-        assertTrue(latch.await(5, TimeUnit.SECONDS));
-        assertEquals(receivedCtx.get(), readCtx,
+        assertTrue(recording.await());
+        assertEquals(recording.receivedCtx.get(), readCtx,
                 "the throttled batched read must deliver the caller's read context");
-        assertFalse(failed.get());
-        assertEquals(entries.size(), 1);
-        assertEquals(entries.get(0).getEntryId(), 1);
+        assertEquals(recording.failure.get(), null);
+        assertEquals(recording.entries.size(), 1);
+        assertEquals(recording.entries.get(0).getEntryId(), 1);
         // The read position must advance past the delivered prefix so that the remaining entries
         // are read again by the next read instead of being skipped.
         assertEquals(cursor.getReadPosition().getEntryId(), 2);
@@ -6900,22 +6884,9 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         }
 
         Object readCtx = new Object();
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicBoolean deliveredSuccess = new AtomicBoolean(false);
-        AtomicReference<ManagedLedgerException> failure = new AtomicReference<>();
-        OpReadEntry opReadEntry = OpReadEntry.create(cursor, cursor.readPosition, 3, -1, new ReadEntriesCallback() {
-            @Override
-            public void readEntriesComplete(List<Entry> entries, Object ctx) {
-                deliveredSuccess.set(true);
-                latch.countDown();
-            }
-
-            @Override
-            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-                failure.set(exception);
-                latch.countDown();
-            }
-        }, readCtx, ledger.lastConfirmedEntry, position -> false, true);
+        RecordingReadEntriesCallback recording = new RecordingReadEntriesCallback();
+        OpReadEntry opReadEntry = OpReadEntry.create(cursor, cursor.readPosition, 3, -1, recording,
+                readCtx, ledger.lastConfirmedEntry, position -> false, true);
 
         long ledgerId = ledger.currentLedger.getId();
         List<LongLongPair> ranges = List.of(LongLongPair.of(1L, 1L), LongLongPair.of(3L, 3L));
@@ -6932,9 +6903,9 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         callback.readEntriesFailed(new ManagedLedgerException("read failed"), readCtx);
         callback.submissionFinished();
 
-        assertTrue(latch.await(5, TimeUnit.SECONDS));
-        assertFalse(deliveredSuccess.get(), "individually deleted prefix entries must not be delivered");
-        assertNotNull(failure.get());
+        assertTrue(recording.await());
+        assertTrue(recording.entries.isEmpty(), "individually deleted prefix entries must not be delivered");
+        assertNotNull(recording.failure.get());
         assertEquals(bufferedEntry.refCnt(), 0, "the filtered-out prefix entry must be released");
     }
 
@@ -6960,26 +6931,13 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             lastPosition = ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
         }
 
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicBoolean failed = new AtomicBoolean(false);
-        List<Entry> entries = new ArrayList<>();
-        cursor.asyncReadEntriesWithSkip(100, -1, new ReadEntriesCallback() {
-            @Override
-            public void readEntriesComplete(List<Entry> entries0, Object ctx) {
-                entries.addAll(entries0);
-                latch.countDown();
-            }
+        RecordingReadEntriesCallback recording = new RecordingReadEntriesCallback();
+        cursor.asyncReadEntriesWithSkip(100, -1, recording, null, PositionFactory.LATEST,
+                position -> position.getEntryId() % 2 == 0);
 
-            @Override
-            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-                failed.set(true);
-                latch.countDown();
-            }
-        }, null, PositionFactory.LATEST, position -> position.getEntryId() % 2 == 0);
-
-        assertTrue(latch.await(5, TimeUnit.SECONDS));
-        assertFalse(failed.get());
-        assertEquals(entries.size(), 5);
+        assertTrue(recording.await());
+        assertEquals(recording.failure.get(), null);
+        assertEquals(recording.entries.size(), 5);
         // Read entries from 3 ledgers, the counter is 3.
         assertEquals(counter.get(), 3);
         Position readPosition = cursor.getReadPosition();
@@ -7008,30 +6966,17 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             lastPosition = ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
         }
 
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicBoolean failed = new AtomicBoolean(false);
-        List<Entry> entries = new ArrayList<>();
-        cursor.asyncReadEntriesWithSkip(100, -1, new ReadEntriesCallback() {
-            @Override
-            public void readEntriesComplete(List<Entry> entries0, Object ctx) {
-                entries.addAll(entries0);
-                latch.countDown();
-            }
+        RecordingReadEntriesCallback recording = new RecordingReadEntriesCallback();
+        cursor.asyncReadEntriesWithSkip(100, -1, recording, null, PositionFactory.LATEST,
+                position -> position.getEntryId() % 2 == 0);
 
-            @Override
-            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-                failed.set(true);
-                latch.countDown();
-            }
-        }, null, PositionFactory.LATEST, position -> position.getEntryId() % 2 == 0);
-
-        assertTrue(latch.await(5, TimeUnit.SECONDS));
+        assertTrue(recording.await());
         // The 5-range window exceeds MAX_BATCHED_READ_RANGES(4) and is served by 2 scan windows within
         // the same read operation.
         assertEquals(counter.get(), 2);
 
-        assertFalse(failed.get());
-        assertEquals(entries.size(), 5);
+        assertEquals(recording.failure.get(), null);
+        assertEquals(recording.entries.size(), 5);
 
         Position readPosition = cursor.getReadPosition();
         assertTrue(readPosition.getLedgerId() == lastPosition.getLedgerId()

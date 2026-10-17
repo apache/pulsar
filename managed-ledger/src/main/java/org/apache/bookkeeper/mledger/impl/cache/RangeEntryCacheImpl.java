@@ -346,9 +346,7 @@ public class RangeEntryCacheImpl implements EntryCache {
         final int numberOfEntries = (int) (lastEntry - firstEntry) + 1;
         InflightReadsLimiter pendingReadsLimiter = getPendingReadsLimiter();
         if (pendingReadsLimiter.isDisabled()) {
-            doAsyncReadEntriesByPosition(lh, PositionFactory.create(ledgerId, firstEntry),
-                    PositionFactory.create(ledgerId, lastEntry), numberOfEntries, maxSizeBytes,
-                    expectedReadCount, callback, ctx);
+            asyncReadEntry0(lh, firstEntry, lastEntry, maxSizeBytes, expectedReadCount, callback, ctx, false);
             return;
         }
         long estimatedReadSize = numberOfEntries * getEstimatedEntrySize(lh);
@@ -360,12 +358,8 @@ public class RangeEntryCacheImpl implements EntryCache {
                     .attr("estimatedReadSize", estimatedReadSize)
                     .log("Failing batched range read fast: inflight reads limiter permits"
                             + " are not immediately available");
-            callback.readEntriesFailed(new ManagedLedgerException.TooManyRequestsException(
-                    "Couldn't acquire permits on the max reads in flight limiter to read from ledger "
-                            + ledgerId + ", " + getName() + ", estimated read size " + estimatedReadSize
-                            + " bytes for " + numberOfEntries
-                            + " entries (check managedLedgerMaxReadsInFlightSizeInMB)"),
-                    ctx);
+            callback.readEntriesFailed(InflightReadsLimiter.permitsNotAcquiredException(
+                    ledgerId, getName(), estimatedReadSize, numberOfEntries), ctx);
             return;
         }
         try {
