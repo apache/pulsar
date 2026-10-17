@@ -21,7 +21,6 @@ package org.apache.pulsar.client.impl.v5;
 import java.time.Duration;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -106,8 +105,7 @@ final class PulsarClientV5 implements PulsarClient {
         try {
             return newTransactionAsync().get();
         } catch (ExecutionException e) {
-            Throwable cause = e.getCause() != null ? e.getCause() : e;
-            throw new PulsarClientException(cause.getMessage(), cause);
+            throw V5ExceptionMappings.toV5Exception(e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new PulsarClientException("Interrupted while creating transaction", e);
@@ -120,7 +118,8 @@ final class PulsarClientV5 implements PulsarClient {
         if (transactionTimeout != null) {
             builder.withTransactionTimeout(transactionTimeout.toMillis(), TimeUnit.MILLISECONDS);
         }
-        return builder.build().thenApply(v4Txn -> (Transaction) new TransactionV5(v4Txn));
+        return builder.build().thenApply(v4Txn -> (Transaction) new TransactionV5(v4Txn))
+                .exceptionallyCompose(V5ExceptionMappings::failWithV5Exception);
     }
 
     @Override
@@ -136,15 +135,14 @@ final class PulsarClientV5 implements PulsarClient {
         try {
             v4Client.close();
         } catch (org.apache.pulsar.client.api.PulsarClientException e) {
-            throw new PulsarClientException(e.getMessage(), e);
+            throw V5ExceptionMappings.toV5Exception(e);
         }
     }
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-        return closeProducersAsync().thenCompose(__ -> v4Client.closeAsync()).exceptionally(ex -> {
-            throw new CompletionException(new PulsarClientException(ex.getMessage(), ex));
-        });
+        return closeProducersAsync().thenCompose(__ -> v4Client.closeAsync())
+                .exceptionallyCompose(V5ExceptionMappings::failWithV5Exception);
     }
 
     @Override

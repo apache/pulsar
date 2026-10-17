@@ -113,6 +113,9 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         // wait for shutdown of the broker, this prevents flakiness which could be caused by metrics being
         // unregistered asynchronously. This impacts the execution of the next test method if this would be happening.
         conf.setBrokerShutdownTimeoutMs(5000L);
+        // only the tests update the rates, so the periodic stats task can't reset the rates they check
+        conf.setStatsUpdateInitialDelayInSecs(100000000);
+        conf.setStatsUpdateFrequencyInSecs(100000000);
         return conf;
     }
 
@@ -433,6 +436,44 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
             Assert.assertTrue(totalRateOut > 0D);
             Assert.assertEquals(totalAckRate, totalRateOut, totalRateOut * 0.1D);
         }
+    }
+
+    @Test
+    public void testNewConsumerRateIsNotInflatedByItsInitialBurst() throws Exception {
+        final String topicName = newUniqueName("persistent://my-property/my-ns/new-consumer-rate");
+        final int messages = 100;
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .create();
+        for (int i = 0; i < messages; i++) {
+            producer.send(new byte[1024]);
+        }
+        admin.topics().createSubscription(topicName, "sub", MessageId.earliest);
+        // reload the topic, so that it is as young as the consumer
+        admin.topics().unload(topicName);
+
+        // like the compaction reader, a new consumer receives a burst as soon as it sends its flow permits
+        long consumerCreationLowerBound = System.nanoTime();
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName("sub")
+                .subscribe();
+        org.apache.pulsar.broker.service.Consumer brokerConsumer = pulsar.getBrokerService()
+                .getTopicReference(topicName).orElseThrow().getSubscription("sub").getConsumers().get(0);
+        Awaitility.await().until(() -> brokerConsumer.getMsgOutCounter() == messages);
+        pulsar.getBrokerService().updateRates();
+        double maxPeriodSeconds = Math.max((System.nanoTime() - consumerCreationLowerBound) / 1e9, 1);
+
+        // a per-second rate can't exceed what the consumer received during the period
+        long bytes = brokerConsumer.getBytesOutCounter();
+        ConsumerStatsImpl stats = brokerConsumer.getStats();
+        assertThat(stats.msgRateOut).as("msgRateOut")
+                .isBetween(messages / maxPeriodSeconds, (double) messages);
+        assertThat(stats.msgThroughputOut).as("msgThroughputOut")
+                .isBetween(bytes / maxPeriodSeconds, (double) bytes);
     }
 
     @Test
