@@ -113,6 +113,16 @@ public class AdminApiDynamicConfigurationsTest extends MockedPulsarServiceBaseTe
     }
 
     @Test
+    public void testRejectInvalidBuiltInDynamicConfiguration() {
+        assertThrows(PulsarAdminException.PreconditionFailedException.class,
+                () -> admin.brokers().updateDynamicConfiguration("brokerShutdownTimeoutMs", "abc"));
+        assertThrows(PulsarAdminException.PreconditionFailedException.class,
+                () -> admin.brokers().updateDynamicConfiguration("failureDomainsEnabled", "abc"));
+        assertThrows(PulsarAdminException.PreconditionFailedException.class,
+                () -> admin.brokers().updateDynamicConfiguration("subscribeRatePeriodPerConsumerInSecond", "0"));
+    }
+
+    @Test
     public void testDeleteStringDynamicConfig() throws PulsarAdminException {
         String syncEventTopic = BrokerTestUtil.newUniqueName(SYSTEM_NAMESPACE + "/tp");
         // The default value is null;
