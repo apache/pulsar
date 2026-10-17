@@ -123,16 +123,44 @@ public class SharedConsumerAssignor {
         return null;
     }
 
+    /**
+     * Remove every uuid mapping that points to the given consumer. Must be called when a consumer is removed from the
+     * dispatcher: a mapping to a disconnected consumer has no permits left, so the remaining chunks of that uuid stay
+     * unassignable and stall the subscription. Also bounds the map when the last chunk is never published.
+     */
+    public void removeConsumer(final Consumer consumer) {
+        uuidToConsumer.values().removeIf(cachedConsumer -> cachedConsumer == consumer);
+    }
+
+    /** Drop all uuid mappings, e.g. after all consumers have been removed from the dispatcher. */
+    public void clear() {
+        uuidToConsumer.clear();
+    }
+
     private Consumer getConsumerForUuid(final MessageMetadata metadata, final Consumer defaultConsumer) {
         final String uuid = metadata.getUuid();
         Consumer consumer = uuidToConsumer.get(uuid);
         if (consumer == null) {
-            if (metadata.getChunkId() != 0) {
-                // Not the first chunk, skip it
-                return null;
-            }
             consumer = defaultConsumer;
-            uuidToConsumer.put(uuid, consumer);
+            if (metadata.getChunkId() == 0) {
+                uuidToConsumer.put(uuid, consumer);
+            } else {
+                // Orphan chunk: chunk 0 is what seeds the mapping, and the cursor always re-reads chunk 0 ahead of
+                // later chunks while it is still unacked. A missing mapping here therefore means chunk 0 has already
+                // been acked and the message can never be reassembled. Returning null puts this entry back into the
+                // replay queue, and the dispatcher drains that queue before every normal read, so the subscription
+                // replays the same orphan forever and stalls. Instead, dispatch it and let the client discard it.
+                if (subscription != null) {
+                    log.warn()
+                            .attr("topic", subscription.getTopic().getName())
+                            .attr("subscription", subscription.getName())
+                            .attr("uuid", uuid)
+                            .attr("chunkId", metadata.getChunkId())
+                            .attr("numChunks", metadata.getNumChunksFromMsg())
+                            .log("Dispatching orphan chunk whose first chunk is already acked. "
+                                    + "The client should discard and acknowledge it");
+                }
+            }
         }
         final int permits = consumerToPermits.computeIfAbsent(consumer, Consumer::getAvailablePermits);
         if (permits <= 0) {
