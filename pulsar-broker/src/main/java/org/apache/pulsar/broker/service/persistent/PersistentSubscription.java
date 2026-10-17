@@ -355,6 +355,10 @@ public class PersistentSubscription extends AbstractSubscription {
         msgOutFromRemovedConsumer.add(stats.msgOutCounter);
 
         if (dispatcher != null && dispatcher.getConsumers().isEmpty()) {
+            // The consumers that a fenced subscription disconnects, when it is closed or reset, are expected back
+            if (IS_FENCED_UPDATER.get(this) == FALSE) {
+                cursor.markIdle();
+            }
             deactivateCursor();
             // Remove the cursor from the waiting cursors list.
             // For durable cursors, we should *not* cancel the pending read with cursor.cancelPendingReadRequest.

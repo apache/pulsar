@@ -81,6 +81,16 @@ public interface ManagedCursor {
     void updateLastActive();
 
     /**
+     * Mark the cursor as idle, e.g. because its subscription has no consumers anymore. A cursor that is already idle
+     * stays idle since the same time. The last active time of an idle cursor is the time since which it is idle: unlike
+     * the last active time of a cursor in use, it is persisted with the cursor position and kept when the cursor is
+     * recovered, until {@link #updateLastActive()} is called again.
+     */
+    default void markIdle() {
+        updateLastActive();
+    }
+
+    /**
      * Return any properties that were associated with the last stored position.
      */
     Map<String, Long> getProperties();
