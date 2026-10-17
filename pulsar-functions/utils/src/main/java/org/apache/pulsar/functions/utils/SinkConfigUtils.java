@@ -273,6 +273,9 @@ public class SinkConfigUtils {
             functionDetails.setCustomRuntimeOptions(sinkConfig.getCustomRuntimeOptions());
         }
 
+        functionDetails.setClientApi(FunctionCommon.convertClientApi(sinkConfig.getClientApi()));
+        ClientApiResolver.resolve(functionDetails);
+
         return FunctionConfigUtils.validateFunctionDetails(functionDetails);
     }
 
@@ -331,6 +334,7 @@ public class SinkConfigUtils {
         if (!isEmpty(functionDetails.getLogTopic())) {
             sinkConfig.setLogTopic(functionDetails.getLogTopic());
         }
+        sinkConfig.setClientApi(FunctionCommon.convertClientApi(functionDetails.getClientApi()));
 
         sinkConfig.setProcessingGuarantees(convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
 
@@ -635,6 +639,9 @@ public class SinkConfigUtils {
         }
         if (!StringUtils.isEmpty(newConfig.getLogTopic())) {
             mergedConfig.setLogTopic(newConfig.getLogTopic());
+        }
+        if (newConfig.getClientApi() != null) {
+            mergedConfig.setClientApi(newConfig.getClientApi());
         }
 
         if (newConfig.getInputs() != null) {

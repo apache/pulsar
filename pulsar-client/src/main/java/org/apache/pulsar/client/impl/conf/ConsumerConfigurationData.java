@@ -406,6 +406,14 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     @JsonIgnore
     private KeySharedPolicy keySharedPolicy;
 
+    /**
+     * PIP-486 (internal): the Key_Shared subscription dispatches whole entries by their
+     * producer-stamped entry-bucket hash range instead of hashing each message's key. Set only by
+     * the scalable-topic consumer when it shares a segment by entry-bucket.
+     */
+    @JsonIgnore
+    private boolean entryBucketDispatch = false;
+
     private boolean batchIndexAckEnabled = true;
 
     private boolean ackReceiptEnabled = false;
@@ -445,10 +453,27 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     }
 
     public ConsumerConfigurationData<T> clone() {
+        ConsumerConfigurationData<T> c = shallowClone();
+        c.topicNames = Sets.newTreeSet(this.topicNames);
+        return c;
+    }
+
+    /**
+     * Clones the configuration for one topic: the clone's topic names are only {@code topicName}. A multi-topic
+     * consumer creates a consumer of each of its topics with such a clone, without copying the names of all the
+     * other topics into each of them.
+     */
+    public ConsumerConfigurationData<T> cloneForTopic(String topicName) {
+        ConsumerConfigurationData<T> c = shallowClone();
+        c.topicNames = new TreeSet<>();
+        c.topicNames.add(topicName);
+        return c;
+    }
+
+    private ConsumerConfigurationData<T> shallowClone() {
         try {
             @SuppressWarnings("unchecked")
             ConsumerConfigurationData<T> c = (ConsumerConfigurationData<T>) super.clone();
-            c.topicNames = Sets.newTreeSet(this.topicNames);
             c.properties = new TreeMap<>(this.properties);
             return c;
         } catch (CloneNotSupportedException e) {

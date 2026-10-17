@@ -50,6 +50,13 @@ public class PositionAckSetUtilTest {
     }
 
     @Test
+    public void andAckSetTrimsTrailingZeroWordsTest() {
+        // High words AND to zero → result must be trimmed like BitSet#toLongArray would
+        assertEquals(andAckSet(new long[]{-1L, 0b01L}, new long[]{-1L, 0b10L}), new long[]{-1L});
+        assertEquals(andAckSet(new long[]{0b01L}, new long[]{0b10L}), new long[0]);
+    }
+
+    @Test
     public void compareToWithAckSetForCumulativeAckTest() {
         Position positionOne = PositionFactory.create(1, 1);
         Position positionTwo = PositionFactory.create(1, 2);

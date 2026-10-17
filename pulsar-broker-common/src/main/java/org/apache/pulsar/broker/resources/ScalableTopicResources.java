@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.resources;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -272,6 +273,17 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
         return getStore().deleteRecursive(topicPath(tn));
     }
 
+    /**
+     * Mark the topic as being deleted, before its metadata is deleted. See
+     * {@link ScalableTopicMetadata#isDeleted()}.
+     */
+    public CompletableFuture<Void> markScalableTopicDeletedAsync(TopicName tn) {
+        return updateScalableTopicAsync(tn, md -> {
+            md.setDeleted(true);
+            return md;
+        });
+    }
+
     public CompletableFuture<Boolean> scalableTopicExistsAsync(TopicName tn) {
         return existsAsync(topicPath(tn));
     }
@@ -281,6 +293,19 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
                 .thenApply(list -> list.stream()
                         .map(encoded -> TopicName.get("topic", ns, Codec.decode(encoded)).toString())
                         .collect(Collectors.toList()));
+    }
+
+    /**
+     * Delete the node of a namespace whose scalable topics are deleted. Not recursive, so a scalable topic still
+     * in the namespace fails it.
+     */
+    public CompletableFuture<Void> clearNamespaceAsync(NamespaceName ns) {
+        return getStore().deleteIfExists(namespacePath(ns), Optional.empty());
+    }
+
+    /** Delete the scalable topic records of a tenant whose namespaces are deleted. */
+    public CompletableFuture<Void> clearTenantAsync(String tenant) {
+        return getStore().deleteRecursive(joinPath(SCALABLE_TOPIC_PATH, tenant));
     }
 
     /**
@@ -339,6 +364,9 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
                         // applied) but cheap.
                         results.stream()
                                 .filter(matchesAll)
+                                // The scan returns the records in no particular order: list them in the
+                                // order of the namespace's children, as listScalableTopicsAsync does
+                                .sorted(Comparator.comparing(r -> r.getStat().getPath()))
                                 .map(r -> {
                                     String path = r.getStat().getPath();
                                     String encoded = path.substring(path.lastIndexOf('/') + 1);

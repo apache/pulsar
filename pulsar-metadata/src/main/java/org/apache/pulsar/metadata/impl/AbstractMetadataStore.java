@@ -59,6 +59,7 @@ import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.stats.CacheMetricsCollector;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.PulsarExecutors;
 import org.apache.pulsar.metadata.api.DummyMetadataNodeSizeStats;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
@@ -130,8 +131,8 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                 : nodeSizeStats;
         final var namePrefix = StringUtils.isNotBlank(metadataStoreName) ? metadataStoreName
                 : getClass().getSimpleName();
-        this.eventExecutor = Executors.newSingleThreadExecutor(
-                new DefaultThreadFactory(namePrefix + "-event"));
+        this.eventExecutor = PulsarExecutors.newSingleThreadExecutor(
+                new DefaultThreadFactory(namePrefix + "-event"), false);
         this.schedulerExecutor = Executors.newSingleThreadScheduledExecutor(
                 new DefaultThreadFactory(namePrefix + "-scheduler"));
         this.serDesExecutor = OrderedExecutor.newBuilder()
@@ -235,14 +236,14 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     @Override
     public CompletableFuture<Void> handleMetadataEvent(MetadataEvent event) {
         CompletableFuture<Void> result = new CompletableFuture<>();
-        get(event.getPath()).thenApply(res -> {
+        get(event.getPath()).thenAccept(res -> {
             Set<CreateOption> options = event.getOptions() != null ? event.getOptions()
                     : Collections.emptySet();
             if (res.isPresent()) {
                 GetResult existingValue = res.get();
                 if (shouldIgnoreEvent(event, existingValue)) {
                     result.complete(null);
-                    return result;
+                    return;
                 }
             }
             // else update the event
@@ -262,7 +263,11 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                 }
                 return false;
             });
-            return result;
+        }).exceptionally(ex -> {
+            Throwable cause = FutureUtil.unwrapCompletionException(ex);
+            log.warn().attr("path", event.getPath()).exception(cause).log("Failed to handle metadata event");
+            result.completeExceptionally(cause);
+            return null;
         });
         return result;
     }
@@ -294,7 +299,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         }
         // ignore event if metadata is ephemeral or
         // sequential
-        if (options.contains(CreateOption.Ephemeral) || event.getOptions().contains(CreateOption.Sequential)) {
+        if (options.contains(CreateOption.Ephemeral) || options.contains(CreateOption.Sequential)) {
             return true;
         }
         // ignore the event if event occurred before the
@@ -370,9 +375,9 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         return storeGet(path, opts)
                 .whenComplete((v, t) -> {
                     if (t != null) {
-                        v.ifPresent(getResult -> nodeSizeStats.recordGetRes(path, getResult));
                         metadataStoreStats.recordGetOpsFailed(System.currentTimeMillis() - start);
                     } else {
+                        v.ifPresent(getResult -> nodeSizeStats.recordGetRes(path, getResult));
                         metadataStoreStats.recordGetOpsSucceeded(System.currentTimeMillis() - start);
                     }
                 });

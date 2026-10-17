@@ -38,7 +38,6 @@ import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import org.apache.pulsar.broker.service.PulsarCommandSender;
 import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.common.api.proto.ScalableConsumerAssignment;
 import org.apache.pulsar.common.scalable.HashRange;
@@ -80,7 +79,7 @@ public class ConsumerSessionTest {
             int end = start + 0x3FFF;
             segments.add(new ConsumerAssignment.AssignedSegment(
                     id, HashRange.of(start, end),
-                    "persistent://tenant/ns/my-scalable-seg-" + id));
+                    "persistent://tenant/ns/my-scalable-seg-" + id, List.of()));
         }
         return new ConsumerAssignment(epoch, segments);
     }
@@ -212,18 +211,16 @@ public class ConsumerSessionTest {
     // --- sendAssignmentUpdate ---
 
     @Test
-    public void testSendAssignmentUpdateWritesViaCommandSender() {
+    public void testSendAssignmentUpdateWritesToConnection() {
         TestContext ctx = new TestContext();
         TransportCnx cnx = mock(TransportCnx.class);
-        PulsarCommandSender sender = mock(PulsarCommandSender.class);
-        when(cnx.getCommandSender()).thenReturn(sender);
         ConsumerSession session = ctx.session("c1", 42L, cnx);
 
         session.sendAssignmentUpdate(buildAssignment(5L, 0L, 1L));
 
         ArgumentCaptor<ScalableConsumerAssignment> captor =
                 ArgumentCaptor.forClass(ScalableConsumerAssignment.class);
-        verify(sender).sendScalableTopicAssignmentUpdate(eq(42L), captor.capture());
+        verify(cnx).sendScalableConsumerAssignment(eq(42L), captor.capture());
         ScalableConsumerAssignment proto = captor.getValue();
         assertEquals(proto.getLayoutEpoch(), 5L);
         assertEquals(proto.getSegmentsCount(), 2);
@@ -244,25 +241,12 @@ public class ConsumerSessionTest {
     public void testSendAssignmentUpdateIsNoopAfterMarkDisconnected() {
         TestContext ctx = new TestContext();
         TransportCnx cnx = mock(TransportCnx.class);
-        PulsarCommandSender sender = mock(PulsarCommandSender.class);
-        when(cnx.getCommandSender()).thenReturn(sender);
         ConsumerSession session = ctx.session("c1", 10L, cnx);
 
         session.markDisconnected();
         session.sendAssignmentUpdate(buildAssignment(0L, 0L));
 
-        verify(sender, never()).sendScalableTopicAssignmentUpdate(anyLong(), any());
-    }
-
-    @Test
-    public void testSendAssignmentUpdateIsNoopWhenCommandSenderNull() {
-        TestContext ctx = new TestContext();
-        TransportCnx cnx = mock(TransportCnx.class);
-        when(cnx.getCommandSender()).thenReturn(null); // connection tearing down
-        ConsumerSession session = ctx.session("c1", 10L, cnx);
-
-        // no exception, no interaction
-        session.sendAssignmentUpdate(buildAssignment(0L, 0L));
+        verify(cnx, never()).sendScalableConsumerAssignment(anyLong(), any());
     }
 
     // --- toProto ---
@@ -285,6 +269,27 @@ public class ConsumerSessionTest {
         assertEquals(proto.getSegmentAt(1).getHashStart(), 0x4000);
         assertEquals(proto.getSegmentAt(2).getSegmentId(), 5L);
         assertEquals(proto.getSegmentAt(2).getHashStart(), 0x8000);
+        // Whole-segment (single-active) assignments carry no entry-bucket ranges.
+        assertEquals(proto.getSegmentAt(0).getBucketRangesCount(), 0);
+    }
+
+    @Test
+    public void testToProtoCarriesEntryBucketRanges() {
+        // PIP-486: a consumer that owns a subset of a segment's entry-buckets declares those bucket
+        // hash-ranges; toProto must serialize each as an IntRange (start/end), in order.
+        ConsumerAssignment assignment = new ConsumerAssignment(7L, List.of(
+                new ConsumerAssignment.AssignedSegment(2L, HashRange.of(0x0000, 0xFFFF),
+                        "persistent://tenant/ns/my-scalable-seg-2",
+                        List.of(HashRange.of(0x0000, 0x7FFF), HashRange.of(0x8000, 0xFFFF)))));
+
+        ScalableConsumerAssignment proto = ConsumerSession.toProto(assignment);
+
+        assertEquals(proto.getSegmentsCount(), 1);
+        assertEquals(proto.getSegmentAt(0).getBucketRangesCount(), 2);
+        assertEquals(proto.getSegmentAt(0).getBucketRangeAt(0).getStart(), 0x0000);
+        assertEquals(proto.getSegmentAt(0).getBucketRangeAt(0).getEnd(), 0x7FFF);
+        assertEquals(proto.getSegmentAt(0).getBucketRangeAt(1).getStart(), 0x8000);
+        assertEquals(proto.getSegmentAt(0).getBucketRangeAt(1).getEnd(), 0xFFFF);
     }
 
     @Test
