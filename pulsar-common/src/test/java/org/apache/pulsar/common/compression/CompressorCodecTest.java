@@ -20,11 +20,16 @@ package org.apache.pulsar.common.compression;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertSame;
+import static org.testng.Assert.expectThrows;
+import io.airlift.compress.MalformedInputException;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.CompressionType;
 import org.testng.annotations.DataProvider;
@@ -222,5 +227,96 @@ public class CompressorCodecTest {
 
         compressed.release();
         uncompressed.release();
+    }
+
+    @DataProvider(name = "corruptInput")
+    public Object[][] corruptInputProvider() {
+        byte[] zlib = ByteBufUtil.decodeHexDump(zipCompressedText);
+        byte[] malformedZlib = zlib.clone();
+        // keep the 2-byte zlib header, corrupt the deflate stream
+        for (int i = 2; i < malformedZlib.length; i++) {
+            malformedZlib[i] = (byte) ~malformedZlib[i];
+        }
+        return new Object[][] {
+                { CompressionType.LZ4, truncated(lz4CompressedText), text.length(), MalformedInputException.class },
+                { CompressionType.ZSTD, truncated(zstdCompressedText), text.length(), MalformedInputException.class },
+                { CompressionType.SNAPPY, truncated(snappyCompressedText), text.length(),
+                        MalformedInputException.class },
+                // malformed stream: the Inflater's DataFormatException is rethrown as IOException
+                { CompressionType.ZLIB, malformedZlib, text.length(), IOException.class },
+                // valid stream that inflates to fewer bytes than advertised: the size check fails
+                { CompressionType.ZLIB, zlib, text.length() + 1, IllegalArgumentException.class },
+        };
+    }
+
+    private static byte[] truncated(String compressedText) {
+        byte[] sample = ByteBufUtil.decodeHexDump(compressedText);
+        return Arrays.copyOf(sample, sample.length / 2);
+    }
+
+    /**
+     * A failed decode must release the output buffer it allocated, since the caller never gets a reference to it.
+     */
+    @Test(dataProvider = "corruptInput")
+    void testDecodeCorruptInputReleasesOutputBuffer(CompressionType type, byte[] input, int uncompressedLength,
+                                                     Class<? extends Throwable> expectedFailure) {
+        List<ByteBuf> allocated = new ArrayList<>();
+        CompressionCodec codec = trackingCodec(type, allocated);
+        ByteBuf encoded = PulsarByteBufAllocator.DEFAULT.directBuffer();
+        encoded.writeBytes(input);
+        try {
+            expectThrows(expectedFailure, () -> codec.decode(encoded, uncompressedLength));
+        } finally {
+            encoded.release();
+        }
+
+        assertEquals(allocated.size(), 1, "decode should allocate exactly one output buffer");
+        ByteBuf output = allocated.get(0);
+        int refCnt = output.refCnt();
+        if (refCnt > 0) {
+            output.release(refCnt);
+        }
+        assertEquals(refCnt, 0, "the failed decode did not release its output buffer");
+    }
+
+    /** Returns a codec of the given type that records each output buffer its decode allocates. */
+    private static CompressionCodec trackingCodec(CompressionType type, List<ByteBuf> allocated) {
+        switch (type) {
+            case LZ4:
+                return new CompressionCodecLZ4() {
+                    @Override
+                    ByteBuf newUncompressedBuffer(int uncompressedLength) {
+                        return track(super.newUncompressedBuffer(uncompressedLength), allocated);
+                    }
+                };
+            case ZLIB:
+                return new CompressionCodecZLib() {
+                    @Override
+                    ByteBuf newUncompressedBuffer(int uncompressedLength) {
+                        return track(super.newUncompressedBuffer(uncompressedLength), allocated);
+                    }
+                };
+            case ZSTD:
+                return new CompressionCodecZstd() {
+                    @Override
+                    ByteBuf newUncompressedBuffer(int uncompressedLength) {
+                        return track(super.newUncompressedBuffer(uncompressedLength), allocated);
+                    }
+                };
+            case SNAPPY:
+                return new CompressionCodecSnappy() {
+                    @Override
+                    ByteBuf newUncompressedBuffer(int uncompressedLength) {
+                        return track(super.newUncompressedBuffer(uncompressedLength), allocated);
+                    }
+                };
+            default:
+                throw new IllegalArgumentException("No decode output buffer to track for " + type);
+        }
+    }
+
+    private static ByteBuf track(ByteBuf buffer, List<ByteBuf> allocated) {
+        allocated.add(buffer);
+        return buffer;
     }
 }

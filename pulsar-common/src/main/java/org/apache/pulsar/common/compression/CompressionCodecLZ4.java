@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.compression;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.airlift.compress.lz4.Lz4Compressor;
 import io.airlift.compress.lz4.Lz4Decompressor;
 import io.airlift.compress.lz4.Lz4RawCompressor;
@@ -85,21 +86,34 @@ public class CompressionCodecLZ4 implements CompressionCodec {
 
     @Override
     public ByteBuf decode(ByteBuf encoded, int uncompressedLength) throws IOException {
-        ByteBuf uncompressed = PulsarByteBufAllocator.DEFAULT.buffer(uncompressedLength, uncompressedLength);
+        ByteBuf uncompressed = newUncompressedBuffer(uncompressedLength);
 
-        if (encoded.hasMemoryAddress() && uncompressed.hasMemoryAddress()) {
-            Lz4RawDecompressor.decompress(null, encoded.memoryAddress() + encoded.readerIndex(),
-                    encoded.memoryAddress() + encoded.writerIndex(), null, uncompressed.memoryAddress(),
-                    uncompressed.memoryAddress() + uncompressedLength);
-        } else {
-            ByteBuffer uncompressedNio = uncompressed.nioBuffer(0, uncompressedLength);
-            ByteBuffer encodedNio = encoded.nioBuffer(encoded.readerIndex(), encoded.readableBytes());
-            encodedNio = AirliftUtils.ensureAirliftSupported(encodedNio);
-            LZ4_DECOMPRESSOR.get().decompress(encodedNio, uncompressedNio);
+        try {
+            if (encoded.hasMemoryAddress() && uncompressed.hasMemoryAddress()) {
+                Lz4RawDecompressor.decompress(null, encoded.memoryAddress() + encoded.readerIndex(),
+                        encoded.memoryAddress() + encoded.writerIndex(), null, uncompressed.memoryAddress(),
+                        uncompressed.memoryAddress() + uncompressedLength);
+            } else {
+                ByteBuffer uncompressedNio = uncompressed.nioBuffer(0, uncompressedLength);
+                ByteBuffer encodedNio = encoded.nioBuffer(encoded.readerIndex(), encoded.readableBytes());
+                encodedNio = AirliftUtils.ensureAirliftSupported(encodedNio);
+                LZ4_DECOMPRESSOR.get().decompress(encodedNio, uncompressedNio);
+            }
+        } catch (Throwable t) {
+            uncompressed.release();
+            throw t;
         }
 
         uncompressed.writerIndex(uncompressedLength);
         return uncompressed;
     }
 
+    /**
+     * Allocates the buffer that {@link #decode} writes into and, on failure, releases. Package-private so tests can
+     * check that release.
+     */
+    @VisibleForTesting
+    ByteBuf newUncompressedBuffer(int uncompressedLength) {
+        return PulsarByteBufAllocator.DEFAULT.buffer(uncompressedLength, uncompressedLength);
+    }
 }

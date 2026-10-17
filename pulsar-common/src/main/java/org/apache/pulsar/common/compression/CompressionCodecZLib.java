@@ -19,6 +19,7 @@
 package org.apache.pulsar.common.compression;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.io.IOException;
@@ -96,7 +97,7 @@ public class CompressionCodecZLib implements CompressionCodec {
 
     @Override
     public ByteBuf decode(ByteBuf encoded, int uncompressedLength) throws IOException {
-        ByteBuf uncompressed = PulsarByteBufAllocator.DEFAULT.heapBuffer(uncompressedLength, uncompressedLength);
+        ByteBuf uncompressed = newUncompressedBuffer(uncompressedLength);
 
         int len = encoded.readableBytes();
 
@@ -118,13 +119,25 @@ public class CompressionCodecZLib implements CompressionCodec {
 
         try {
             resultLength = inflater.inflate(uncompressed.array(), uncompressed.arrayOffset(), uncompressedLength);
+            checkArgument(resultLength == uncompressedLength);
         } catch (DataFormatException e) {
+            uncompressed.release();
             throw new IOException(e);
+        } catch (Throwable t) {
+            uncompressed.release();
+            throw t;
         }
-
-        checkArgument(resultLength == uncompressedLength);
 
         uncompressed.writerIndex(uncompressedLength);
         return uncompressed;
+    }
+
+    /**
+     * Allocates the buffer that {@link #decode} writes into and, on failure, releases. Package-private so tests can
+     * check that release.
+     */
+    @VisibleForTesting
+    ByteBuf newUncompressedBuffer(int uncompressedLength) {
+        return PulsarByteBufAllocator.DEFAULT.heapBuffer(uncompressedLength, uncompressedLength);
     }
 }
