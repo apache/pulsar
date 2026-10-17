@@ -970,7 +970,7 @@ public class ConsumerImplTest {
     /**
      * A first chunk arriving under a new message id for a uuid that still has an in-progress context means the earlier
      * chunks belong to a corrupted chunked message that will never be delivered. Replacing the context must ack those
-     * earlier chunk ids, through the deferred-ack path, and leave the count and queue consistent with the map.
+     * earlier chunk ids, through the deferred-ack path, and leave a single in-progress context in the map.
      */
     @Test(timeOut = 30000)
     public void testReplacedCorruptedChunkedMessageAcksItsEarlierChunks() throws Exception {
@@ -998,7 +998,7 @@ public class ConsumerImplTest {
     /**
      * Exceeding {@code maxPendingChunkedMessage} evicts the oldest in-progress chunked message on the receive path.
      * With {@code autoAckOldestChunkedMessageOnQueueFull} its chunk ids are acked, through the deferred-ack path, and
-     * the eviction keeps the count and queue consistent with the map.
+     * only the newer message stays in the map.
      */
     @Test(timeOut = 30000)
     public void testEvictingOldestPendingChunkedMessageAcksItsChunks() throws Exception {

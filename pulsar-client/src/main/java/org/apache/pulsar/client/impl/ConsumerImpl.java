@@ -3374,11 +3374,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
      */
     private void removeChunkMessage(String msgUUID, ChunkedMessageCtx chunkedMsgCtx, boolean autoAck,
             List<MessageIdImpl> deferredAcks) {
+        // Removed first, so the eviction and expiry loops over chunkedMessagesMap always make progress.
+        chunkedMessagesMap.remove(msgUUID);
         if (chunkedMsgCtx == null) {
             return;
         }
-        // clean up pending chuncked-Message
-        chunkedMessagesMap.remove(msgUUID);
         if (chunkedMsgCtx.chunkedMessageIds != null) {
             for (MessageIdImpl msgId : chunkedMsgCtx.chunkedMessageIds) {
                 if (msgId == null) {

@@ -840,7 +840,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
             consumerImpl.removeExpireIncompleteChunkedMessages();
 
             assertNull(consumerImpl.chunkedMessagesMap.get("B"),
-                    "B was not expired: the refreshed uuid A was still ahead of it in the queue");
+                    "B was not expired: the refreshed uuid A was still ahead of it in chunkedMessagesMap");
             assertEquals(bBuffer.refCnt(), 0);
             assertNotNull(consumerImpl.chunkedMessagesMap.get("A"), "A must still be tracked");
             assertNotNull(consumerImpl.chunkedMessagesMap.get("C"), "C must still be tracked");
