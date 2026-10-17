@@ -44,6 +44,7 @@ public class BusyWaitServiceTest extends BkEnsemblesTestBase {
         config.setManagedLedgerDefaultAckQuorum(1);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testPublishWithBusyWait() throws Exception {
 

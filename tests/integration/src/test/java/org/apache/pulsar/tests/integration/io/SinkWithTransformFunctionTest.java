@@ -25,7 +25,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -48,7 +48,7 @@ import org.testng.annotations.Test;
 /**
  * Test behaviour of sinks with a transform function.
  */
-@Slf4j
+@CustomLog
 public class SinkWithTransformFunctionTest extends PulsarStandaloneTestSuite {
 
     //Use PIP-117 new defaults so that the package management service is enabled.
@@ -62,15 +62,15 @@ public class SinkWithTransformFunctionTest extends PulsarStandaloneTestSuite {
                 .withNetworkAliases(StandaloneContainer.NAME + "-" + clusterName)
                 .withEnv("PF_stateStorageServiceUrl", "bk://localhost:4181");
         container.start();
-        log.info("Pulsar cluster {} is up running:", clusterName);
-        log.info("\tBinary Service Url : {}", container.getPlainTextServiceUrl());
-        log.info("\tHttp Service Url : {}", container.getHttpServiceUrl());
+        log.info().attr("cluster", clusterName).log("Pulsar cluster is up running");
+        log.info().attr("url", container.getPlainTextServiceUrl()).log("\tBinary Service Url");
+        log.info().attr("url", container.getHttpServiceUrl()).log("\tHttp Service Url");
 
         // add cluster to public tenant
         ContainerExecResult result = container.execCmd(
                 "/pulsar/bin/pulsar-admin", "namespaces", "policies", "public/default");
         assertEquals(0, result.getExitCode());
-        log.info("public/default namespace policies are {}", result.getStdout());
+        log.info().attr("are", result.getStdout()).log("public/default namespace policies are");
     }
 
     @Test(groups = {"sink"})
@@ -115,7 +115,7 @@ public class SinkWithTransformFunctionTest extends PulsarStandaloneTestSuite {
         }
 
         try {
-            log.info("waiting for sink {}", sinkName);
+            log.info().attr("sink", sinkName).log("waiting for sink");
 
             for (int i = 0; i < numRecords; i++) {
                 Message<String> receive = consumer.receive(5, TimeUnit.SECONDS);
@@ -281,7 +281,7 @@ public class SinkWithTransformFunctionTest extends PulsarStandaloneTestSuite {
                 "--path", packagePath
 
         };
-        log.info("Run command : {}", StringUtils.join(commands, ' '));
+        log.info().attr("command", StringUtils.join(commands, ' ')).log("Run command");
         ContainerExecResult result = container.execCmd(commands);
         assertTrue(
                 result.getStdout().contains("successfully"),
@@ -306,7 +306,7 @@ public class SinkWithTransformFunctionTest extends PulsarStandaloneTestSuite {
                 "--transform-function", transformFunction,
                 "--transform-function-classname", transformFunctionClassName
         };
-        log.info("Run command : {}", StringUtils.join(commands, ' '));
+        log.info().attr("command", StringUtils.join(commands, ' ')).log("Run command");
         ContainerExecResult result = container.execCmd(commands);
         assertTrue(
                 result.getStdout().contains("Created successfully"),

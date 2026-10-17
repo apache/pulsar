@@ -20,7 +20,7 @@ package org.apache.pulsar.broker.admin;
 
 import java.util.Set;
 import java.util.UUID;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -32,10 +32,9 @@ import org.eclipse.jetty.http.HttpStatus;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-admin")
 public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
 
@@ -57,7 +56,7 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         admin.tenants().createTenant(this.testTenant, tenantInfo);
         admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Set.of(testCluster));
         admin.topics().createPartitionedTopic(testTopic, 2);
-        Producer producer = pulsarClient.newProducer().topic(testTenant + "/" + testNamespace + "/"
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(testTenant + "/" + testNamespace + "/"
                 + "dummy-topic").create();
         producer.close();
         waitForZooKeeperWatchers();
@@ -69,28 +68,27 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
-    @DataProvider(name = "isV1")
-    public Object[][] isV1() {
-        return new Object[][] { { true }, { false } };
-    }
-
+    @SuppressWarnings("deprecation")
     @Test
     public void testSetThenRemoveMessageTTL() throws Exception {
         admin.topics().setMessageTTL(testTopic, 100);
-        log.info("Message TTL set success on topic: {}", testTopic);
+        log.info().attr("topic", testTopic).log("Message TTL set success on topic");
 
         waitForZooKeeperWatchers();
         Integer messageTTL = admin.topics().getMessageTTL(testTopic);
-        log.info("Message TTL {} get on topic: {}", testTopic, messageTTL);
+        log.info().attr("topic", testTopic).attr("messageTTL", messageTTL)
+                .log("Message TTL get on topic");
         Assert.assertEquals(messageTTL.intValue(), 100);
 
         waitForZooKeeperWatchers();
         admin.topics().removeMessageTTL(testTopic);
         messageTTL = admin.topics().getMessageTTL(testTopic);
-        log.info("Message TTL {} get on topic: {}", testTopic, messageTTL);
+        log.info().attr("topic", testTopic).attr("messageTTL", messageTTL)
+                .log("Message TTL get on topic");
         Assert.assertNull(messageTTL);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testSetInvalidMessageTTL() throws Exception {
         try {
@@ -108,21 +106,25 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testGetMessageTTL() throws Exception {
         // Check default topic level message TTL.
         Integer messageTTL = admin.topics().getMessageTTL(testTopic);
-        log.info("Message TTL {} get on topic: {}", testTopic, messageTTL);
+        log.info().attr("topic", testTopic).attr("messageTTL", messageTTL)
+                .log("Message TTL get on topic");
         Assert.assertNull(messageTTL);
 
         admin.topics().setMessageTTL(testTopic, 200);
-        log.info("Message TTL set success on topic: {}", testTopic);
+        log.info().attr("topic", testTopic).log("Message TTL set success on topic");
 
         waitForZooKeeperWatchers();
         messageTTL = admin.topics().getMessageTTL(testTopic);
-        log.info("Message TTL {} get on topic: {}", testTopic, messageTTL);
+        log.info().attr("topic", testTopic).attr("messageTTL", messageTTL)
+                .log("Message TTL get on topic");
         Assert.assertEquals(messageTTL.intValue(), 200);
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testTopicPolicyDisabled() throws Exception {
@@ -176,9 +178,9 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
                 (int) persistentTopic.getHierarchyTopicPolicies().getMessageTTLInSeconds().get(), 3600));
     }
 
-    @Test(dataProvider = "isV1")
-    public void testNamespaceTTL(boolean isV1) throws Exception {
-        String myNamespace = testTenant + "/" + (isV1 ? testCluster + "/" : "") + "n1" + isV1;
+    @Test
+    public void testNamespaceTTL() throws Exception {
+        String myNamespace = testTenant + "/" + "n1";
         admin.namespaces().createNamespace(myNamespace, Set.of(testCluster));
 
         admin.namespaces().setNamespaceMessageTTL(myNamespace, 10);
@@ -190,6 +192,7 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
                 -> Assert.assertNull(admin.namespaces().getNamespaceMessageTTL(myNamespace)));
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 20000)
     public void testDifferentLevelPolicyApplied() throws Exception {
         final String topicName = testTopic + UUID.randomUUID();

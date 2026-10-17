@@ -25,11 +25,11 @@ import java.io.ByteArrayInputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.offload.jcloud.DataBlockHeader;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class DataBlockHeaderTest {
 
     @Test
@@ -41,7 +41,7 @@ public class DataBlockHeaderTest {
             firstEntryId);
 
         // verify get methods
-        assertEquals(dataBlockHeader.getBlockMagicWord(), DataBlockHeaderImpl.MAGIC_WORD);
+        assertEquals(DataBlockHeaderImpl.getBlockMagicWord(), DataBlockHeaderImpl.MAGIC_WORD);
         assertEquals(dataBlockHeader.getBlockLength(), blockLength);
         assertEquals(dataBlockHeader.getFirstEntryId(), firstEntryId);
 

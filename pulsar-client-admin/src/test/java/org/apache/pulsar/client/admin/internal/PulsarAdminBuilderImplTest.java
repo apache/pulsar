@@ -23,10 +23,16 @@ import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import io.netty.channel.EventLoopGroup;
+import io.netty.resolver.NameResolver;
+import io.netty.util.Timer;
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -35,8 +41,13 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.PulsarClientSharedResources;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.asynchttpclient.proxy.ProxyServer;
+import org.asynchttpclient.proxy.ProxyServerSelector;
+import org.asynchttpclient.proxy.ProxyType;
+import org.asynchttpclient.uri.Uri;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -189,12 +200,179 @@ public class PulsarAdminBuilderImplTest {
     }
 
     @Test
+    public void testClientBuildWithSharedResources() throws PulsarClientException {
+        PulsarClientSharedResources sharedResources = PulsarClientSharedResources.builder()
+                .configureEventLoop(eventLoopGroupConfig -> {
+                    eventLoopGroupConfig
+                            .name("testEventLoop")
+                            .numberOfThreads(20);
+                })
+                .configureDnsResolver(dnsResolverConfig -> {
+                    dnsResolverConfig.localAddress(new InetSocketAddress(0));
+                })
+                .configureTimer(timerConfig -> {
+                    timerConfig.name("testTimer").tickDuration(100, TimeUnit.MILLISECONDS);
+                })
+                .build();
+        // create two adminClients and check if they share the same event loop group and netty timer
+        @Cleanup
+        PulsarAdminImpl pulsarAdminImpl1 =
+                (PulsarAdminImpl) PulsarAdmin.builder()
+                        .serviceHttpUrl("http://localhost:8080")
+                        .sharedResources(sharedResources)
+                        .build();
+        @Cleanup
+        PulsarAdminImpl pulsarAdminImpl2 =
+                (PulsarAdminImpl) PulsarAdmin.builder()
+                        .serviceHttpUrl("http://localhost:8080")
+                        .sharedResources(sharedResources)
+                        .build();
+
+        EventLoopGroup eventLoopGroup1 =
+                pulsarAdminImpl1.getAsyncHttpConnector().getHttpClient().getConfig().getEventLoopGroup();
+        EventLoopGroup eventLoopGroup2 =
+                pulsarAdminImpl2.getAsyncHttpConnector().getHttpClient().getConfig().getEventLoopGroup();
+        Timer nettyTimer1 = pulsarAdminImpl1.getAsyncHttpConnector().getHttpClient().getConfig().getNettyTimer();
+        Timer nettyTimer2 = pulsarAdminImpl2.getAsyncHttpConnector().getHttpClient().getConfig().getNettyTimer();
+        assertThat(eventLoopGroup1).isSameAs(eventLoopGroup2);
+        assertThat(nettyTimer1).isSameAs(nettyTimer2);
+        sharedResources.close();
+    }
+
+    @Test
+    public void testClientBuildWithSharedDnsResolverOnly() throws PulsarClientException {
+        PulsarClientSharedResources sharedResources = PulsarClientSharedResources.builder()
+                .shareConfigured()
+                .configureDnsResolver(dnsResolverConfig -> {
+                    dnsResolverConfig.localAddress(new InetSocketAddress(0));
+                })
+                .build();
+
+        @Cleanup
+        PulsarAdminImpl pulsarAdminImpl1 =
+                (PulsarAdminImpl) PulsarAdmin.builder()
+                        .serviceHttpUrl("http://localhost:8080")
+                        .sharedResources(sharedResources)
+                        .build();
+        @Cleanup
+        PulsarAdminImpl pulsarAdminImpl2 =
+                (PulsarAdminImpl) PulsarAdmin.builder()
+                        .serviceHttpUrl("http://localhost:8080")
+                        .sharedResources(sharedResources)
+                        .build();
+
+        EventLoopGroup eventLoopGroup1 =
+                pulsarAdminImpl1.getAsyncHttpConnector().getHttpClient().getConfig().getEventLoopGroup();
+        EventLoopGroup eventLoopGroup2 =
+                pulsarAdminImpl2.getAsyncHttpConnector().getHttpClient().getConfig().getEventLoopGroup();
+        Timer nettyTimer1 = pulsarAdminImpl1.getAsyncHttpConnector().getHttpClient().getConfig().getNettyTimer();
+        Timer nettyTimer2 = pulsarAdminImpl2.getAsyncHttpConnector().getHttpClient().getConfig().getNettyTimer();
+        NameResolver<InetAddress> nameResolver1 = pulsarAdminImpl1.getAsyncHttpConnector().getNameResolver();
+        NameResolver<InetAddress> nameResolver2 = pulsarAdminImpl2.getAsyncHttpConnector().getNameResolver();
+
+        // test eventLoop will be created when dnsResolver is configured
+        assertThat(eventLoopGroup1).isNotNull();
+        assertThat(eventLoopGroup2).isNotNull();
+        assertThat(eventLoopGroup2).isNotSameAs(eventLoopGroup1);
+
+        // timer will not be created when timer is not configured
+        assertThat(nettyTimer1).isSameAs(nettyTimer2).isNull();
+
+        assertThat(nameResolver1).isNotNull();
+        assertThat(nameResolver2).isNotNull();
+
+        // test eventLoop will shut down when AsyncHttpConnector is closed
+        pulsarAdminImpl1.getAsyncHttpConnector().close();
+        assertThat(eventLoopGroup1.isShuttingDown()).isTrue();
+
+        sharedResources.close();
+    }
+
+    @Test
     public void testClientDescriptionLengthExceed64() {
         String longDescription = "a".repeat(65);
         assertThatThrownBy(() -> {
             @Cleanup PulsarAdmin ignored =
                     PulsarAdmin.builder().serviceHttpUrl("http://localhost:8080").description(longDescription).build();
         }).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    /**
+     * Verifies that SOCKS5 proxy settings configured via the builder chain are propagated all the
+     * way down to the underlying async-http-client {@link ProxyServer}.
+     */
+    @Test
+    public void testSocks5ProxyAddressIsConfiguredOnHttpClient() throws PulsarClientException {
+        InetSocketAddress proxyAddress = InetSocketAddress.createUnresolved("127.0.0.1", 1080);
+
+        @Cleanup
+        PulsarAdminImpl admin = (PulsarAdminImpl) PulsarAdmin.builder()
+                .serviceHttpUrl("http://localhost:8080")
+                .socks5ProxyAddress(proxyAddress)
+                .build();
+
+        ProxyServer proxyServer = resolveProxyServer(admin);
+        assertThat(proxyServer).isNotNull();
+        assertThat(proxyServer.getProxyType()).isEqualTo(ProxyType.SOCKS_V5);
+        assertThat(proxyServer.getHost()).isEqualTo("127.0.0.1");
+        assertThat(proxyServer.getPort()).isEqualTo(1080);
+        assertThat(proxyServer.getRealm()).isNull();
+    }
+
+    /**
+     * Verifies that SOCKS5 proxy credentials configured via the builder chain are propagated to
+     * the underlying async-http-client {@link ProxyServer} realm.
+     */
+    @Test
+    public void testSocks5ProxyWithCredentialsIsConfiguredOnHttpClient() throws PulsarClientException {
+        InetSocketAddress proxyAddress = InetSocketAddress.createUnresolved("proxy.example.com", 2080);
+
+        @Cleanup
+        PulsarAdminImpl admin = (PulsarAdminImpl) PulsarAdmin.builder()
+                .serviceHttpUrl("http://localhost:8080")
+                .socks5ProxyAddress(proxyAddress)
+                .socks5ProxyUsername("alice")
+                .socks5ProxyPassword("s3cr3t")
+                .build();
+
+        ProxyServer proxyServer = resolveProxyServer(admin);
+        assertThat(proxyServer).isNotNull();
+        assertThat(proxyServer.getProxyType()).isEqualTo(ProxyType.SOCKS_V5);
+        assertThat(proxyServer.getHost()).isEqualTo("proxy.example.com");
+        assertThat(proxyServer.getPort()).isEqualTo(2080);
+        assertThat(proxyServer.getRealm()).isNotNull();
+        assertThat(proxyServer.getRealm().getPrincipal()).isEqualTo("alice");
+        assertThat(proxyServer.getRealm().getPassword()).isEqualTo("s3cr3t");
+    }
+
+    /**
+     * Verifies that when no SOCKS5 proxy address is configured, no proxy is installed on the
+     * underlying async-http-client.
+     */
+    @Test
+    public void testNoSocks5ProxyByDefault() throws PulsarClientException {
+        @Cleanup
+        PulsarAdminImpl admin = (PulsarAdminImpl) PulsarAdmin.builder()
+                .serviceHttpUrl("http://localhost:8080")
+                .build();
+
+        ProxyServer proxyServer = resolveProxyServer(admin);
+        assertThat(proxyServer).isNull();
+    }
+
+    /**
+     * Resolves the {@link ProxyServer} configured on the underlying async-http-client. The
+     * async-http-client API exposes proxy configuration only through a
+     * {@link ProxyServerSelector}, so we invoke the selector with an arbitrary target URI to
+     * retrieve the effective {@link ProxyServer} (or {@code null} when no proxy is configured).
+     */
+    private static ProxyServer resolveProxyServer(PulsarAdminImpl admin) {
+        ProxyServerSelector selector =
+                admin.getAsyncHttpConnector().getHttpClient().getConfig().getProxyServerSelector();
+        if (selector == null) {
+            return null;
+        }
+        return selector.select(Uri.create("http://localhost:8080"));
     }
 
     private String secretAuthParams(String secret) {
@@ -214,11 +392,13 @@ public class PulsarAdminBuilderImplTest {
             return "mock-secret";
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public AuthenticationDataProvider getAuthData() throws PulsarClientException {
             return null;
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public void configure(Map<String, String> authParams) {
             configure(new Gson().toJson(authParams));

@@ -31,7 +31,7 @@ import com.google.common.base.Utf8;
 import com.google.gson.Gson;
 import java.util.Base64;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -58,7 +58,7 @@ import org.testng.annotations.Test;
 /**
  * State related test cases.
  */
-@Slf4j
+@CustomLog
 public abstract class PulsarStateTest extends PulsarStandaloneTestSuite {
 
     protected String stateStoreProvider;
@@ -149,7 +149,8 @@ public abstract class PulsarStateTest extends PulsarStandaloneTestSuite {
         getFunctionInfoNotFound(functionName);
     }
 
-    @Test(groups = {"python_state", "state", "function", "python_function"})
+    // Both passes launch many admin CLI JVMs to verify state operations and cleanup after deletion.
+    @Test(groups = {"python_state", "state", "function", "python_function"}, timeOut = 600_000)
     public void testPythonWordCountFunction() throws Exception {
         if (PulsarMetadataStateStoreProviderImpl.class.getName().equals(stateStoreProvider)) {
             // python function doesn't support metadata state store yet
@@ -163,7 +164,8 @@ public abstract class PulsarStateTest extends PulsarStandaloneTestSuite {
         doTestPythonWordCountFunction(functionName);
     }
 
-    @Test(groups = {"java_state", "state", "function", "java_function"})
+    // Both passes launch many admin CLI JVMs to verify state operations and cleanup after deletion.
+    @Test(groups = {"java_state", "state", "function", "java_function"}, timeOut = 600_000)
     public void testJavaWordCountFunction() throws Exception {
         String functionName = "test-wordcount-java-fn-" + randomName(8);
         doTestJavaWordCountFunction(functionName);
@@ -375,7 +377,7 @@ public abstract class PulsarStateTest extends PulsarStandaloneTestSuite {
                 "--archive", archive,
                 "--classname", className
         };
-        log.info("Run command : {}", StringUtils.join(commands, ' '));
+        log.info().attr("command", StringUtils.join(commands, ' ')).log("Run command");
         ContainerExecResult result = container.execCmd(commands);
         assertTrue(
                 result.getStdout().contains("Created successfully"),
@@ -394,7 +396,7 @@ public abstract class PulsarStateTest extends PulsarStandaloneTestSuite {
                 "--archive", archive,
                 "--classname", className
         };
-        log.info("Run command : {}", StringUtils.join(commands, ' '));
+        log.info().attr("command", StringUtils.join(commands, ' ')).log("Run command");
         ContainerExecResult result = container.execCmd(commands);
         assertTrue(
                 result.getStdout().contains("Created successfully"),

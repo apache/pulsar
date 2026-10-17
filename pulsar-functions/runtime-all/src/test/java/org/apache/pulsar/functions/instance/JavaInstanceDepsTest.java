@@ -26,11 +26,9 @@ import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-@Slf4j
 /**
  * This test serves to make sure that the correct classes are included in the java-instance.jar
  * THAT JAR SHOULD ONLY CONTAIN THE INTERFACES THAT PULSAR FUNCTION'S FRAMEWORK USES TO INTERACT WITH USER CODE
@@ -57,6 +55,9 @@ public class JavaInstanceDepsTest {
     @Test
     public void testInstanceJarDeps() throws IOException {
         File jar = new File("target/java-instance.jar");
+        if (!jar.exists()) {
+            jar = new File("build/libs/java-instance.jar");
+        }
 
         @Cleanup
         ZipInputStream zip = new ZipInputStream(jar.toURI().toURL().openStream());
@@ -73,6 +74,7 @@ public class JavaInstanceDepsTest {
                 // (see the full list above)
                 // filter out those classes to see if there are any other classes that should not be allowed
                 if (!name.startsWith("org/apache/pulsar")
+                        && !name.startsWith("io/github/merlimat/slog")
                         && !name.startsWith("org/slf4j")
                         && !name.startsWith("org/apache/avro")
                         && !name.startsWith("com/fasterxml/jackson")

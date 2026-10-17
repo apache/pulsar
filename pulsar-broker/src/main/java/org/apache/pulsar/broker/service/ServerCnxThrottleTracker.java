@@ -19,8 +19,8 @@
 package org.apache.pulsar.broker.service;
 
 import com.google.common.annotations.VisibleForTesting;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
 
 /**
@@ -78,7 +78,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
  * @see ThrottleRes
  * @see ServerCnx
  */
-@Slf4j
+@CustomLog
 public final class ServerCnxThrottleTracker {
 
     private final ServerCnx serverCnx;
@@ -306,9 +306,7 @@ public final class ServerCnxThrottleTracker {
         ThrottleRes res = doMarkThrottled(type);
         recordMetricsAfterThrottling(type, res);
         if (res == ThrottleRes.ConnectionStateChanged && isChannelActive()) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Setting auto read to false", serverCnx.toString());
-            }
+            log.debug().attr("cnx", serverCnx).log("Setting auto read to false");
             serverCnx.ctx().channel().config().setAutoRead(false);
         }
     }
@@ -338,9 +336,7 @@ public final class ServerCnxThrottleTracker {
         ThrottleRes res = doUnmarkThrottled(type);
         recordMetricsAfterUnthrottling(type, res);
         if (res == ThrottleRes.ConnectionStateChanged && isChannelActive()) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Setting auto read to true", serverCnx.toString());
-            }
+            log.debug().attr("cnx", serverCnx).log("Setting auto read to true");
             serverCnx.ctx().channel().config().setAutoRead(true);
         }
     }

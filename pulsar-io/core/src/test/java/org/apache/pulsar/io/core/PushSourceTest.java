@@ -21,6 +21,7 @@ package org.apache.pulsar.io.core;
 import java.util.Map;
 import org.testng.annotations.Test;
 
+@SuppressWarnings("try")
 public class PushSourceTest {
 
   PushSource testBatchSource = new PushSource() {

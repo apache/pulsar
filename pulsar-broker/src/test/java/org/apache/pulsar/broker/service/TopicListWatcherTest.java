@@ -18,12 +18,19 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import com.google.common.util.concurrent.MoreExecutors;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.topics.TopicsPattern;
 import org.apache.pulsar.common.topics.TopicsPatternFactory;
@@ -53,7 +60,9 @@ public class TopicListWatcherTest {
     @BeforeMethod(alwaysRun = true)
     public void setup() {
         topicListService = mock(TopicListService.class);
-        watcher = new TopicListService.TopicListWatcher(topicListService, ID, PATTERN, INITIAL_TOPIC_LIST);
+        watcher = new TopicListService.TopicListWatcher(topicListService, ID, NamespaceName.get("tenant", "ns"),
+                PATTERN, INITIAL_TOPIC_LIST, MoreExecutors.directExecutor(), 9);
+        watcher.sendingCompleted();
     }
 
     @Test
@@ -66,13 +75,13 @@ public class TopicListWatcherTest {
     @Test
     public void testAcceptSendsNotificationAndRemembersTopic() {
         String newTopic = "persistent://tenant/ns/topic3";
-        watcher.accept(newTopic, NotificationType.Created);
+        watcher.onTopicEvent(newTopic, NotificationType.Created);
 
         List<String> allMatchingTopics = Arrays.asList(
                 "persistent://tenant/ns/topic1", "persistent://tenant/ns/topic2", newTopic);
         String hash = TopicList.calculateHash(allMatchingTopics);
-        verify(topicListService).sendTopicListUpdate(ID, hash, Collections.emptyList(),
-                Collections.singletonList(newTopic));
+        verify(topicListService).sendTopicListUpdate(eq(ID), eq(hash), eq(Collections.emptyList()),
+                eq(Collections.singletonList(newTopic)), any());
         Assert.assertEquals(
                 allMatchingTopics,
                 watcher.getMatchingTopics());
@@ -81,12 +90,12 @@ public class TopicListWatcherTest {
     @Test
     public void testAcceptSendsNotificationAndForgetsTopic() {
         String deletedTopic = "persistent://tenant/ns/topic1";
-        watcher.accept(deletedTopic, NotificationType.Deleted);
+        watcher.onTopicEvent(deletedTopic, NotificationType.Deleted);
 
         List<String> allMatchingTopics = Collections.singletonList("persistent://tenant/ns/topic2");
         String hash = TopicList.calculateHash(allMatchingTopics);
-        verify(topicListService).sendTopicListUpdate(ID, hash,
-                Collections.singletonList(deletedTopic), Collections.emptyList());
+        verify(topicListService).sendTopicListUpdate(eq(ID), eq(hash),
+                eq(Collections.singletonList(deletedTopic)), eq(Collections.emptyList()), any());
         Assert.assertEquals(
                 allMatchingTopics,
                 watcher.getMatchingTopics());
@@ -94,10 +103,21 @@ public class TopicListWatcherTest {
 
     @Test
     public void testAcceptIgnoresNonMatching() {
-        watcher.accept("persistent://tenant/ns/mytopic", NotificationType.Created);
+        watcher.onTopicEvent("persistent://tenant/ns/mytopic", NotificationType.Created);
         verifyNoInteractions(topicListService);
         Assert.assertEquals(
                 Arrays.asList("persistent://tenant/ns/topic1", "persistent://tenant/ns/topic2"),
                 watcher.getMatchingTopics());
+    }
+
+    @Test
+    public void testUpdateQueueOverFlowPerformsFullUpdate() {
+        for (int i = 10; i <= 20; i++) {
+            String newTopic = "persistent://tenant/ns/topic" + i;
+            watcher.onTopicEvent(newTopic, NotificationType.Created);
+        }
+        verify(topicListService).sendTopicListUpdate(anyLong(), anyString(), any(), any(), any());
+        verify(topicListService).updateTopicListWatcher(any());
+        verifyNoMoreInteractions(topicListService);
     }
 }

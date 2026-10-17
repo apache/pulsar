@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.common.configuration.anonymizer;
 
+import io.netty.util.concurrent.FastThreadLocal;
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 
 public enum DefaultRoleAnonymizerType {
@@ -37,41 +37,41 @@ public enum DefaultRoleAnonymizerType {
    },
    SHA256 {
       private static final String PREFIX = "SHA-256:";
-      private final MessageDigest digest;
-
-      {
-         // Initializing the MessageDigest once for SHA-256
-         try {
-            digest = MessageDigest.getInstance("SHA-256");
-         } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("SHA-256 algorithm not found", e);
+      private static final FastThreadLocal<MessageDigest> DIGEST = new FastThreadLocal<MessageDigest>() {
+         @Override
+         protected MessageDigest initialValue() throws Exception {
+            return MessageDigest.getInstance("SHA-256");
          }
-      }
+      };
 
       @Override
       public String anonymize(String role) {
-         byte[] hash = digest.digest(role.getBytes());
-         return PREFIX + Base64.getEncoder().encodeToString(hash);
+         try {
+            byte[] hash = DIGEST.get().digest(role.getBytes());
+            return PREFIX + Base64.getEncoder().encodeToString(hash);
+         } catch (Exception e) {
+            throw new RuntimeException("SHA-256 algorithm not found", e);
+         }
       }
    },
    MD5 {
       private static final String PREFIX = "MD5:";
-      private final MessageDigest digest;
-
-      {
-         // Initializing the MessageDigest once for MD5
-         try {
-            // codeql[java/weak-cryptographic-algorithm] - md5 is sufficient for this use case&
-            digest = MessageDigest.getInstance("MD5");
-         } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("MD5 algorithm not found", e);
+      private static final FastThreadLocal<MessageDigest> DIGEST = new FastThreadLocal<MessageDigest>() {
+         @Override
+         protected MessageDigest initialValue() throws Exception {
+            // codeql[java/weak-cryptographic-algorithm] - md5 is sufficient for this use case
+            return MessageDigest.getInstance("MD5");
          }
-      }
+      };
 
       @Override
       public String anonymize(String role) {
-         byte[] hash = digest.digest(role.getBytes());
-         return PREFIX + Base64.getEncoder().encodeToString(hash);
+         try {
+            byte[] hash = DIGEST.get().digest(role.getBytes());
+            return PREFIX + Base64.getEncoder().encodeToString(hash);
+         } catch (Exception e) {
+            throw new RuntimeException("MD5 algorithm not found", e);
+         }
       }
    };
 
