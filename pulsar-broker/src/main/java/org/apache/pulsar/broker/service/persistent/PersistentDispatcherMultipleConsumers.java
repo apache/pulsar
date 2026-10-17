@@ -25,6 +25,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import io.github.merlimat.slog.Logger;
 import io.netty.channel.EventLoopGroup;
+import io.netty.util.concurrent.Future;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -63,6 +64,7 @@ import org.apache.pulsar.broker.service.AbstractDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.service.Consumer.SendMessageTaskRejectedException;
 import org.apache.pulsar.broker.service.EntryAndMetadata;
 import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
@@ -79,6 +81,7 @@ import org.apache.pulsar.common.policies.data.stats.TopicMetricBean;
 import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.jspecify.annotations.Nullable;
 
 /**
  *
@@ -144,6 +147,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     protected int lastNumberOfEntriesProcessed;
     protected boolean skipNextBackoff;
     private final Backoff retryBackoff;
+    private final Backoff dispatchFailureBackoff;
+    private boolean dispatchRetryPending;
+    private int pendingConsumerSendFailures;
     protected enum ReadType {
         Normal, Replay
     }
@@ -181,6 +187,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         retryBackoff = Backoff.builder()
                 .initialDelay(Duration.ofMillis(serviceConfiguration.getDispatcherRetryBackoffInitialTimeInMs()))
                 .maxBackoff(Duration.ofMillis(serviceConfiguration.getDispatcherRetryBackoffMaxTimeInMs()))
+                .build();
+        dispatchFailureBackoff = Backoff.builder()
+                .initialDelay(Duration.ofMillis(serviceConfiguration.getDispatcherReadFailureBackoffInitialTimeInMs()))
+                .maxBackoff(Duration.ofMillis(serviceConfiguration.getDispatcherReadFailureBackoffMaxTimeInMs()))
                 .build();
     }
 
@@ -247,6 +257,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             // debits the same messages again and drives the subscription counter negative.
             addUnAckedMessages(-consumer.getUnackedMessages());
             removeConsumerInstanceFromList(consumer);
+            assignor.removeConsumer(consumer);
             log.info()
                     .attr("consumer", consumer)
                     .attr("pendingAcks", consumer.getPendingAcks().size())
@@ -367,6 +378,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
     @Override
     protected synchronized void internalReadMoreEntries() {
+        if (dispatchRetryPending || pendingConsumerSendFailures > 0) {
+            // ACKs, Flow and completed writes must not bypass failure recovery's backoff.
+            return;
+        }
         if (cursor.isClosed()) {
             log.debug("Cursor is already closed, skipping read more entries");
             return;
@@ -402,8 +417,15 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 return;
             }
 
-            Set<Position> messagesToReplayNow =
-                    canReplayMessages() ? getMessagesToReplayNow(messagesToRead, bytesToRead) : Collections.emptySet();
+            Set<Position> messagesToReplayNow;
+            try {
+                messagesToReplayNow = canReplayMessages()
+                        ? getMessagesToReplayNow(messagesToRead, bytesToRead) : Collections.emptySet();
+            } catch (RuntimeException | Error e) {
+                // Key_Shared replay selection can invoke the same routing plugin as normal dispatch.
+                handleDispatchFailure(Collections.emptyList(), e);
+                return;
+            }
             if (!messagesToReplayNow.isEmpty()) {
                 log.debug()
                         .attr("messagesToReplay", messagesToReplayNow.size())
@@ -499,6 +521,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         return readMoreEntriesCallCount;
     }
 
+    @VisibleForTesting
+    synchronized boolean isDispatchRetryPending() {
+        return dispatchRetryPending;
+    }
+
     /**
      * Controls whether replaying entries is currently enabled.
      * Subclasses can override this method to temporarily disable replaying entries.
@@ -528,6 +555,14 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
      * with {@code dispatcherDispatchMessagesInSubscriptionThread}.
      */
     protected void onDispatchQueued(ReadType readType) {
+    }
+
+    /**
+     * Called under the dispatcher's monitor when dispatch fails before entering
+     * {@link #trySendMessagesToConsumers(ReadType, List)}, including rejection of a queued dispatch.
+     */
+    protected void onDispatchAborted(ReadType readType) {
+        onReadEnded(readType);
     }
 
     /**
@@ -765,10 +800,17 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             // setting sendInProgress here, because sendMessagesToConsumers will be executed
             // in a separate thread, and we want to prevent more reads
             acquireSendInProgress();
-            onDispatchQueued(readType);
-            dispatchMessagesThread.execute(() -> {
-                handleSendingMessagesAndReadingMore(readType, entries, false, totalBytesSize);
-            });
+            try {
+                onDispatchQueued(readType);
+                dispatchMessagesThread.execute(() -> {
+                    handleSendingMessagesAndReadingMore(readType, entries, false, totalBytesSize);
+                });
+            } catch (RejectedExecutionException e) {
+                onDispatchAborted(readType);
+                releaseSendInProgress();
+                updatePendingBytesToDispatch(-totalBytesSize);
+                handleDispatchFailure(entries, e);
+            }
         } else {
             handleSendingMessagesAndReadingMore(readType, entries, true, totalBytesSize);
         }
@@ -777,13 +819,58 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     private synchronized void handleSendingMessagesAndReadingMore(ReadType readType, List<Entry> entries,
                                                                   boolean needAcquireSendInProgress,
                                                                   long totalBytesSize) {
-        boolean triggerReadingMore = sendMessagesToConsumers(readType, entries, needAcquireSendInProgress);
+        boolean triggerReadingMore;
+        boolean dispatchStarted = false;
+        List<Entry> ownedEntries = entries;
+        try {
+            ownedEntries = new ArrayList<>(entries);
+            // Keep the ownership list intact: trimming, grouping and filters mutate the working list.
+            for (int i = 0; i < ownedEntries.size(); i++) {
+                ownedEntries.set(i, EntryAndMetadata.create(ownedEntries.get(i)));
+            }
+            if (pendingConsumerSendFailures > 0) {
+                // A read can already be in flight when another batch's send fails. Preserve its entries without
+                // sending them through a consumer whose bookkeeping has not been removed yet.
+                onDispatchAborted(readType);
+                replayAndReleaseEntries(ownedEntries);
+                return;
+            }
+            List<Entry> entriesForDispatch = new ArrayList<>(ownedEntries);
+            dispatchStarted = true;
+            triggerReadingMore = sendMessagesToConsumers(readType, entriesForDispatch,
+                    needAcquireSendInProgress);
+        } catch (ConsumerSendException e) {
+            if (e.getCause() instanceof SendMessageTaskRejectedException) {
+                pendingConsumerSendFailures++;
+                try {
+                    handleDispatchFailure(ownedEntries, e.getCause());
+                } finally {
+                    disconnectFailedConsumer(e.consumer);
+                }
+                return;
+            }
+            // Consumer.sendMessages can mutate pending ACKs, permits and unacked counts before throwing. Without
+            // rolling those changes back, these entries cannot safely enter dispatcher replay recovery.
+            if (e.getCause() instanceof Error error) {
+                throw error;
+            }
+            throw (RuntimeException) e.getCause();
+        } catch (RuntimeException | Error e) {
+            if (!dispatchStarted) {
+                onDispatchAborted(readType);
+            }
+            handleDispatchFailure(ownedEntries, e);
+            return;
+        } finally {
+            releaseSendInProgress();
+            updatePendingBytesToDispatch(-totalBytesSize);
+        }
         int entriesProcessed = lastNumberOfEntriesProcessed;
-        updatePendingBytesToDispatch(-totalBytesSize);
         boolean canReadMoreImmediately = false;
         if (entriesProcessed > 0 || skipNextBackoff) {
             // Reset the backoff when messages were processed
             retryBackoff.reset();
+            dispatchFailureBackoff.reset();
             // Reset the possible flag to skip the backoff delay
             skipNextBackoff = false;
             canReadMoreImmediately = true;
@@ -801,6 +888,145 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 // reschedule a new read with an increasing backoff delay
                 reScheduleReadWithBackoff();
             }
+        }
+    }
+
+    private void handleDispatchFailure(List<Entry> entries, Throwable error) {
+        log.debug().exception(error).log("Failed to dispatch entries; scheduling replay with backoff");
+        replayAndReleaseEntries(entries);
+        lastNumberOfEntriesProcessed = 0;
+        skipNextBackoff = false;
+        if (dispatchRetryPending || cursor.isClosed() || IS_CLOSED_UPDATER.get(this) == TRUE) {
+            return;
+        }
+        dispatchRetryPending = true;
+        try {
+            topic.getBrokerService().executor().schedule(() -> {
+                synchronized (PersistentDispatcherMultipleConsumers.this) {
+                    dispatchRetryPending = false;
+                }
+                readMoreEntries();
+            }, Math.max(1, dispatchFailureBackoff.next().toMillis()), TimeUnit.MILLISECONDS);
+        } catch (RejectedExecutionException e) {
+            dispatchRetryPending = false;
+            log.debug().exception(e).log("Dispatch retry executor is shutting down");
+        }
+    }
+
+    private void replayAndReleaseEntries(List<Entry> entries) {
+        for (Entry entry : entries) {
+            if (entry instanceof EntryAndMetadata entryAndMetadata && !entryAndMetadata.isOwnedByDispatcher()) {
+                continue;
+            }
+            int stickyKeyHash = STICKY_KEY_HASH_NOT_SET;
+            try {
+                stickyKeyHash = getStickyKeyHash(entry);
+            } catch (RuntimeException | Error e) {
+                // Routing may itself have failed. Hash-less replay resolves the key after reading the entry again.
+                log.debug().exception(e).log("Unable to resolve sticky key for failed dispatch");
+            }
+            try {
+                if (stickyKeyHash == STICKY_KEY_HASH_NOT_SET) {
+                    addMessageToReplay(entry.getLedgerId(), entry.getEntryId());
+                } else {
+                    addMessageToReplay(entry.getLedgerId(), entry.getEntryId(), stickyKeyHash);
+                }
+            } finally {
+                entry.release();
+            }
+        }
+    }
+
+    private void disconnectFailedConsumer(Consumer consumer) {
+        try {
+            // Consumer.close takes the subscription lock before the dispatcher lock. Disconnect outside the
+            // dispatcher's monitor to preserve that lock order, and keep reads paused until removal finishes.
+            topic.getBrokerService().pulsar().getExecutor().execute(() -> {
+                try {
+                    // Unregister before notifying the client, so a fast reconnect cannot register its replacement
+                    // while the old consumer is still present. Notification failure must not prevent removal.
+                    try {
+                        consumer.close();
+                    } finally {
+                        consumer.cnx().closeConsumer(consumer, Optional.empty());
+                    }
+                } catch (BrokerServiceException e) {
+                    log.debug().exception(e).log("Failed consumer was already removed");
+                } catch (RuntimeException | Error e) {
+                    log.debug().exception(e).log("Unable to notify client of failed consumer removal");
+                } finally {
+                    synchronized (PersistentDispatcherMultipleConsumers.this) {
+                        pendingConsumerSendFailures--;
+                    }
+                    readMoreEntries();
+                }
+            });
+        } catch (RejectedExecutionException e) {
+            // During shutdown, do not resume reads against the consumer whose removal could not be scheduled.
+            log.debug().exception(e).log("Failed consumer cleanup executor is shutting down");
+        }
+    }
+
+    private static final class ConsumerSendException extends RuntimeException {
+        private final Consumer consumer;
+
+        private ConsumerSendException(Consumer consumer, Throwable cause) {
+            super(cause);
+            this.consumer = consumer;
+        }
+    }
+
+    protected final Future<Void> sendMessagesToConsumer(Consumer consumer, List<? extends Entry> entries,
+                                                       EntryBatchSizes batchSizes,
+                                                       EntryBatchIndexesAcks batchIndexesAcks,
+                                                       SendMessageInfo sendMessageInfo) {
+        Future<Void> writeFuture;
+        try {
+            writeFuture = consumer.sendMessages(entries, batchSizes, batchIndexesAcks,
+                    sendMessageInfo.getTotalMessages(), sendMessageInfo.getTotalBytes(),
+                    sendMessageInfo.getTotalChunkedMessages(), getRedeliveryTracker());
+        } catch (SendMessageTaskRejectedException e) {
+            // The consumer debit already happened, but the normal dispatcher debit below the send call did not.
+            // Settle it before removal subtracts the consumer's remaining balance.
+            TOTAL_AVAILABLE_PERMITS_UPDATER.getAndAdd(this, -e.getPermitsUsed());
+            batchSizes.recyle();
+            if (batchIndexesAcks != null) {
+                batchIndexesAcks.recycle();
+            }
+            throw new ConsumerSendException(consumer, e);
+        } catch (RuntimeException | Error e) {
+            throw new ConsumerSendException(consumer, e);
+        }
+        transferEntriesToConsumer(entries);
+        return writeFuture;
+    }
+
+    private void transferEntriesToConsumer(List<? extends Entry> entries) {
+        for (Entry entry : entries) {
+            if (entry instanceof EntryAndMetadata entryAndMetadata) {
+                entryAndMetadata.transferToConsumer();
+            }
+        }
+    }
+
+    protected final int filterEntriesForDispatch(@Nullable MessageMetadata[] metadataArray, int startOffset,
+                                                 List<? extends Entry> entries, EntryBatchSizes batchSizes,
+                                                 SendMessageInfo sendMessageInfo, EntryBatchIndexesAcks indexesAcks,
+                                                 ManagedCursor cursor, boolean isReplayRead, Consumer consumer) {
+        try {
+            if (metadataArray == null) {
+                return filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, indexesAcks,
+                        cursor, isReplayRead, consumer);
+            }
+            return filterEntriesForConsumer(metadataArray, startOffset, entries, batchSizes,
+                    sendMessageInfo, indexesAcks, cursor, isReplayRead, consumer);
+        } catch (RuntimeException | Error e) {
+            // These objects have not reached the consumer's event loop yet.
+            batchSizes.recyle();
+            if (indexesAcks != null) {
+                indexesAcks.recycle();
+            }
+            throw e;
         }
     }
 
@@ -873,9 +1099,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         }
 
         int start = 0;
-        long totalMessagesSent = 0;
-        long totalBytesSent = 0;
-        long totalEntries = 0;
         long totalEntriesProcessed = 0;
         int avgBatchSizePerMsg = remainingMessages > 0 ? Math.max(remainingMessages / entries.size(), 1) : 1;
 
@@ -911,15 +1134,14 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             EntryBatchSizes batchSizes = EntryBatchSizes.get(entriesForThisConsumer.size());
             EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entriesForThisConsumer.size());
 
-            totalEntries += filterEntriesForConsumer(metadataArray, start,
+            int dispatchedEntries = filterEntriesForDispatch(metadataArray, start,
                     entriesForThisConsumer, batchSizes, sendMessageInfo, batchIndexesAcks, cursor,
                     readType == ReadType.Replay, c);
             totalEntriesProcessed += entriesForThisConsumer.size();
             // read before sendMessages: it hands batchIndexesAcks to the consumer's event loop, which recycles it
             int totalAckedIndexCount = batchIndexesAcks.getTotalAckedIndexCount();
 
-            c.sendMessages(entriesForThisConsumer, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
-                    sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(), redeliveryTracker);
+            sendMessagesToConsumer(c, entriesForThisConsumer, batchSizes, batchIndexesAcks, sendMessageInfo);
 
             int msgSent = sendMessageInfo.getTotalMessages();
             remainingMessages -= msgSent;
@@ -930,12 +1152,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                     .attr("msgSent", msgSent)
                     .attr("totalAckedIndexCount", totalAckedIndexCount)
                     .log("Added permits to TOTAL_AVAILABLE_PERMITS_UPDATER");
-            totalMessagesSent += sendMessageInfo.getTotalMessages();
-            totalBytesSent += sendMessageInfo.getTotalBytes();
+            acquirePermitsForDeliveredMessages(topic, cursor, dispatchedEntries,
+                    sendMessageInfo.getTotalMessages(), sendMessageInfo.getTotalBytes());
         }
 
         lastNumberOfEntriesProcessed = (int) totalEntriesProcessed;
-        acquirePermitsForDeliveredMessages(topic, cursor, totalEntries, totalMessagesSent, totalBytesSent);
 
         if (entriesToDispatch > 0) {
             log.debug()
@@ -987,9 +1208,18 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
         final Map<Consumer, List<EntryAndMetadata>> assignResult =
                 assignor.assign(originalEntryAndMetadataList, consumerList.size());
-        long totalMessagesSent = 0;
-        long totalBytesSent = 0;
-        long totalEntries = 0;
+        try {
+            return sendAssignedChunkedMessagesToConsumers(readType, assignResult);
+        } catch (RuntimeException | Error e) {
+            // Assignment may have removed a final chunk's UUID owner before filtering or sending failed.
+            // Keep successful handoffs intact and restore routing only for entries still awaiting replay.
+            assignResult.forEach(assignor::restoreAssignments);
+            throw e;
+        }
+    }
+
+    private boolean sendAssignedChunkedMessagesToConsumers(ReadType readType,
+                                                           Map<Consumer, List<EntryAndMetadata>> assignResult) {
         long totalEntriesProcessed = 0;
         final AtomicInteger numConsumers = new AtomicInteger(assignResult.size());
         boolean notifyAddedToReplay = false;
@@ -1021,15 +1251,15 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             final EntryBatchSizes batchSizes = EntryBatchSizes.get(messagesForC);
             final EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(messagesForC);
 
-            totalEntries += filterEntriesForConsumer(entryAndMetadataList, batchSizes, sendMessageInfo,
+            int dispatchedEntries = filterEntriesForDispatch(null, 0,
+                    entryAndMetadataList, batchSizes, sendMessageInfo,
                     batchIndexesAcks, cursor, readType == ReadType.Replay, consumer);
             totalEntriesProcessed += entryAndMetadataList.size();
             // read before sendMessages: it hands batchIndexesAcks to the consumer's event loop, which recycles it
             final int totalAckedIndexCount = batchIndexesAcks.getTotalAckedIndexCount();
-            consumer.sendMessages(entryAndMetadataList, batchSizes, batchIndexesAcks,
-                    sendMessageInfo.getTotalMessages(), sendMessageInfo.getTotalBytes(),
-                    sendMessageInfo.getTotalChunkedMessages(), getRedeliveryTracker()
-            ).addListener(future -> {
+            var writeFuture = sendMessagesToConsumer(consumer, entryAndMetadataList, batchSizes, batchIndexesAcks,
+                    sendMessageInfo);
+            writeFuture.addListener(future -> {
                 if (future.isDone() && numConsumers.decrementAndGet() == 0) {
                     readMoreEntriesAsync();
                 }
@@ -1037,12 +1267,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
             TOTAL_AVAILABLE_PERMITS_UPDATER.getAndAdd(this,
                     -(sendMessageInfo.getTotalMessages() - totalAckedIndexCount));
-            totalMessagesSent += sendMessageInfo.getTotalMessages();
-            totalBytesSent += sendMessageInfo.getTotalBytes();
+            acquirePermitsForDeliveredMessages(topic, cursor, dispatchedEntries,
+                    sendMessageInfo.getTotalMessages(), sendMessageInfo.getTotalBytes());
         }
 
         lastNumberOfEntriesProcessed = (int) totalEntriesProcessed;
-        acquirePermitsForDeliveredMessages(topic, cursor, totalEntries, totalMessagesSent, totalBytesSent);
 
         // trigger a new readMoreEntries() call
         return numConsumers.get() == 0 || notifyAddedToReplay;

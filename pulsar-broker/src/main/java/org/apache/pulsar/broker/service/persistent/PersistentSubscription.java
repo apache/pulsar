@@ -369,9 +369,17 @@ public class PersistentSubscription extends AbstractSubscription {
 
     @Override
     public synchronized void removeConsumer(Consumer consumer, boolean isResetCursor) throws BrokerServiceException {
+        if (dispatcher == null) {
+            return;
+        }
+        // Snapshot membership under the subscription lock so repeated cleanup accounts for removal only once.
+        boolean wasConnected = dispatcher.getConsumers().stream().anyMatch(connected -> connected == consumer);
         cursor.updateLastActive();
-        if (dispatcher != null) {
-            dispatcher.removeConsumer(consumer);
+        // A late STICKY selector addition can need cleanup after dispatcher removal. Always let the dispatcher
+        // clean up this instance, even when it no longer contributes to subscription statistics or topic usage.
+        dispatcher.removeConsumer(consumer);
+        if (!wasConnected) {
+            return;
         }
 
         // preserve accumulative stats form removed consumer
@@ -436,8 +444,7 @@ public class PersistentSubscription extends AbstractSubscription {
             }
         }
 
-        // invalid consumer remove will throw an exception
-        // decrement usage is triggered only for valid consumer close
+        // Decrement usage only for the removal of a registered consumer.
         topic.decrementUsageCount();
         log.debug()
                 .attr("consumerName", consumer.consumerName())
