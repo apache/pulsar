@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.sql.Time;
@@ -27,8 +28,11 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Collections;
 import java.util.Date;
 import java.util.Map;
+import java.util.WeakHashMap;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.BatcherBuilder;
@@ -91,7 +95,28 @@ import org.apache.pulsar.common.schema.SchemaType;
  */
 @SuppressWarnings("unchecked")
 public final class PulsarClientImplementationBindingImpl implements PulsarClientImplementationBinding {
+    private final Map<Class<?>, WeakReference<Schema<?>>>  avroCache = Collections.synchronizedMap(new WeakHashMap<>());
+    private final Map<Class<?>, WeakReference<Schema<?>>> protobufCache = Collections.synchronizedMap
+            (new WeakHashMap<>());
+    private final Map<Class<?>, WeakReference<Schema<?>>> jsonCache = Collections.synchronizedMap(new WeakHashMap<>());
 
+    @SuppressWarnings("unchecked")
+    private static <T> Schema<T> getOrCreate(
+            Map<Class<?>, WeakReference<Schema<?>>> cache,
+            SchemaDefinition<T> definition,
+            Function<SchemaDefinition<T>, Schema<T>> factory) {
+        Class<T> pojo = definition.getPojo();
+        synchronized (cache) {
+            WeakReference<Schema<?>> ref = cache.get(pojo);
+            Schema<T> cached = (ref == null) ? null : (Schema<T>) ref.get();
+            if (cached != null) {
+                return cached;
+            }
+            Schema<T> created = factory.apply(definition);
+            cache.put(pojo, new WeakReference<>(created));
+            return created;
+        }
+    }
     public <T> SchemaDefinitionBuilder<T> newSchemaDefinitionBuilder() {
         return new SchemaDefinitionBuilderImpl();
     }
@@ -208,13 +233,13 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
 
     @SuppressWarnings("rawtypes")
     public <T> Schema<T> newAvroSchema(SchemaDefinition schemaDefinition) {
-        return AvroSchema.of(schemaDefinition);
+        return getOrCreate(avroCache, schemaDefinition, AvroSchema::of);
     }
 
     @SuppressWarnings("rawtypes")
     public <T extends com.google.protobuf.Message> Schema<T> newProtobufSchema(
             SchemaDefinition schemaDefinition) {
-        return ProtobufSchema.of(schemaDefinition);
+        return getOrCreate(protobufCache, schemaDefinition, ProtobufSchema::of);
     }
 
     @SuppressWarnings("rawtypes")
@@ -225,7 +250,7 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
 
     @SuppressWarnings("rawtypes")
     public <T> Schema<T> newJSONSchema(SchemaDefinition schemaDefinition) {
-        return JSONSchema.of(schemaDefinition);
+        return getOrCreate(jsonCache, schemaDefinition, JSONSchema::of);
     }
 
     public Schema<GenericRecord> newAutoConsumeSchema() {
