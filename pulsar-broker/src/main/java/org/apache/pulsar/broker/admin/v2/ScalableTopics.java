@@ -314,6 +314,8 @@ public class ScalableTopics extends AdminResource {
      *   <li>unless {@code force}, reject if any legacy v4 client is still connected;</li>
      *   <li>build the migrated layout (sealed legacy parents + active children);</li>
      *   <li>create the new child segment topics;</li>
+     *   <li>grant on the scalable topic the permissions granted on the regular topic, so the
+     *       roles allowed on it keep their access through the new segments;</li>
      *   <li>atomically write the scalable metadata (the commit point — connected V5 lookup
      *       sessions transition from the synthetic layout to the real DAG via the metadata
      *       watch);</li>
@@ -346,7 +348,14 @@ public class ScalableTopics extends AdminResource {
                     ScalableTopicController.createMigratedMetadata(persistentBase, partitions,
                             pulsar().getConfiguration().getScalableTopicEntryBucketBudget(),
                             pulsar().getConfiguration().getScalableTopicEntryBucketMaxPerSegment());
+            // The new segments are authorized with the permissions of the scalable topic, a distinct
+            // identity, while the legacy segments keep those of the persistent:// topics they wrap. So
+            // grant the regular topic's permissions on the scalable topic before the commit: the V5
+            // clients that follow the layout change are then authorized on the new segments as soon as
+            // they see them. Namespace permissions apply to both topics already. Those of a single
+            // partition are not copied: the new segments mix its data with the other partitions' data.
             return createMigratedChildTopicsAsync(scalableName, metadata)
+                    .thenCompose(__ -> getAuthorizationService().copyPermissionsAsync(persistentBase, scalableName))
                     .thenCompose(__ -> resources().createScalableTopicAsync(scalableName, metadata))
                     .thenCompose(__ -> terminateLegacyTopicsAsync(persistentBase, partitions));
         });
