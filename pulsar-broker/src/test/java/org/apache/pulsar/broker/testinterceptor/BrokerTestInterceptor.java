@@ -44,13 +44,14 @@ import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicFactory;
+import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 /**
- * A test interceptor for broker tests that allows to decorate persistent topics, subscriptions, dispatchers
- * managed ledger factory, managed ledger and managed cursor instances.
+ * A test interceptor for broker tests that allows to decorate persistent and non-persistent topics, subscriptions,
+ * dispatchers, managed ledger factory, managed ledger and managed cursor instances.
  */
 public class BrokerTestInterceptor {
     public static final BrokerTestInterceptor INSTANCE = new BrokerTestInterceptor();
@@ -64,6 +65,10 @@ public class BrokerTestInterceptor {
         @Override
         public <T extends Topic> T create(String topic, ManagedLedger ledger, BrokerService brokerService,
                                           Class<T> topicClazz) {
+            if (topicClazz == NonPersistentTopic.class) {
+                return topicClazz.cast(INSTANCE.getNonPersistentTopicDecorator()
+                        .apply(new NonPersistentTopic(topic, brokerService)));
+            }
             if (!topicClazz.isAssignableFrom(PersistentTopic.class)) {
                 throw new UnsupportedOperationException("Unsupported topic class");
             }
@@ -156,6 +161,10 @@ public class BrokerTestInterceptor {
 
     @Getter
     @Setter
+    private Function<NonPersistentTopic, NonPersistentTopic> nonPersistentTopicDecorator = Function.identity();
+
+    @Getter
+    @Setter
     private Function<PersistentSubscription, PersistentSubscription> persistentSubscriptionDecorator =
             Function.identity();
 
@@ -178,6 +187,7 @@ public class BrokerTestInterceptor {
 
     public void reset() {
         persistentTopicDecorator = Function.identity();
+        nonPersistentTopicDecorator = Function.identity();
         persistentSubscriptionDecorator = Function.identity();
         dispatcherDecorator = Function.identity();
         managedLedgerFactoryDecorator = Function.identity();
