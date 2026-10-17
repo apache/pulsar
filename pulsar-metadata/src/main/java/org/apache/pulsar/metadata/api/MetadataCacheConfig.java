@@ -18,13 +18,13 @@
  */
 package org.apache.pulsar.metadata.api;
 
+import java.time.Duration;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.ToString;
-import org.apache.pulsar.common.util.BackoffBuilder;
+import org.apache.pulsar.common.util.Backoff;
 
 /**
  * The configuration builder for a {@link MetadataCache} config.
@@ -33,16 +33,16 @@ import org.apache.pulsar.common.util.BackoffBuilder;
 @Getter
 @ToString
 public class MetadataCacheConfig<T> {
-    private static final long DEFAULT_CACHE_REFRESH_TIME_MILLIS = TimeUnit.MINUTES.toMillis(5);
-    public static final BackoffBuilder DEFAULT_RETRY_BACKOFF_BUILDER =
-            new BackoffBuilder().setInitialTime(5, TimeUnit.MILLISECONDS)
-                    .setMax(3, TimeUnit.SECONDS)
-                    .setMandatoryStop(30, TimeUnit.SECONDS);
+    private static final long DEFAULT_CACHE_REFRESH_TIME_MILLIS = Duration.ofMinutes(5).toMillis();
+    public static final Backoff.Builder DEFAULT_RETRY_BACKOFF_BUILDER =
+            Backoff.builder().initialDelay(Duration.ofMillis(5))
+                    .maxBackoff(Duration.ofSeconds(3))
+                    .mandatoryStop(Duration.ofSeconds(30));
 
-    public static final BackoffBuilder NO_RETRY_BACKOFF_BUILDER =
-            new BackoffBuilder().setInitialTime(0, TimeUnit.MILLISECONDS)
-                    .setMax(0, TimeUnit.SECONDS)
-                    .setMandatoryStop(0, TimeUnit.SECONDS);
+    public static final Backoff.Builder NO_RETRY_BACKOFF_BUILDER =
+            Backoff.builder().initialDelay(Duration.ZERO)
+                    .maxBackoff(Duration.ZERO)
+                    .mandatoryStop(Duration.ZERO);
 
     /**
      * Specifies that active entries are eligible for automatic refresh once a fixed duration has
@@ -68,6 +68,6 @@ public class MetadataCacheConfig<T> {
     private final BiConsumer<String, Optional<CacheGetResult<T>>> asyncReloadConsumer = null;
 
     @Builder.Default
-    private final BackoffBuilder retryBackoff = DEFAULT_RETRY_BACKOFF_BUILDER;
+    private final Backoff.Builder retryBackoff = DEFAULT_RETRY_BACKOFF_BUILDER;
 
 }

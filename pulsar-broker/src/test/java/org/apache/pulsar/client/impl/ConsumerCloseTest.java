@@ -18,74 +18,52 @@
  */
 package org.apache.pulsar.client.impl;
 
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.BrokerTestUtil;
-import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.common.naming.TopicName;
+import static org.testng.Assert.assertTrue;
+import java.util.concurrent.CompletableFuture;
+import lombok.CustomLog;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.awaitility.Awaitility;
-import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-api")
-public class ConsumerCloseTest extends ProducerConsumerBase {
+public class ConsumerCloseTest extends SharedPulsarBaseTest {
 
-    @BeforeClass
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
+    @Test
+    public void testReceiveWillDoneAfterClosedConsumer() throws Exception {
+        String tpName = newTopicName();
+        String subName = "test-sub";
+        admin.topics().createNonPartitionedTopic(tpName);
+        admin.topics().createSubscription(tpName, subName, MessageId.earliest);
+        ConsumerImpl<byte[]> consumer =
+                (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(tpName).subscriptionName(subName).subscribe();
+        CompletableFuture<Message<byte[]>> future = consumer.receiveAsync();
+        consumer.close();
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(future.isDone());
+        });
     }
 
     @Test
-    public void testInterruptedWhenCreateConsumer() throws InterruptedException {
-
-        String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+    public void testReceiveWillDoneAfterTopicDeleted() throws Exception {
+        String namespace = getNamespace();
+        admin.namespaces().setAutoTopicCreation(namespace, AutoTopicCreationOverride.builder()
+                .allowAutoTopicCreation(false).build());
+        String tpName = newTopicName();
         String subName = "test-sub";
-        String mlCursorPath = BrokerService.MANAGED_LEDGER_PATH_ZNODE + "/" + TopicName.get(tpName).getPersistenceNamingEncoding() + "/" + subName;
-
-        // Make create cursor delay 1s
-        CountDownLatch topicLoadLatch = new CountDownLatch(1);
-        for (int i = 0; i < 5; i++) {
-            mockZooKeeper.delay(1000, (op, path) -> {
-                if (mlCursorPath.equals(path)) {
-                    topicLoadLatch.countDown();
-                    return true;
-                }
-                return false;
-            });
-        }
-
-        Thread startConsumer = new Thread(() -> {
-            try {
-                pulsarClient.newConsumer()
-                        .topic(tpName)
-                        .subscriptionName(subName)
-                        .subscribe();
-                Assert.fail("Should have thrown an exception");
-            } catch (PulsarClientException e) {
-                Assert.assertTrue(e.getCause() instanceof InterruptedException);
-            }
+        admin.topics().createNonPartitionedTopic(tpName);
+        admin.topics().createSubscription(tpName, subName, MessageId.earliest);
+        ConsumerImpl<byte[]> consumer =
+                (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(tpName).subscriptionName(subName).subscribe();
+        CompletableFuture<Message<byte[]>> future = consumer.receiveAsync();
+        admin.topics().delete(tpName, true);
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(future.isDone());
         });
-        startConsumer.start();
-        topicLoadLatch.await();
-        startConsumer.interrupt();
-
-        PulsarClientImpl clientImpl = (PulsarClientImpl) pulsarClient;
-        Awaitility.await().ignoreExceptions().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
-            Assert.assertEquals(clientImpl.consumersCount(), 0);
-        });
+        // cleanup.
+        admin.namespaces().removeAutoTopicCreation(namespace);
     }
 }

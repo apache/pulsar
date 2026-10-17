@@ -23,6 +23,7 @@ import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -43,15 +44,17 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.persistent.GeoPersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.MessageDeduplication;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.persistent.ReplicatedSubscriptionsController;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.InjectedClientCnxClientBuilder;
@@ -72,6 +75,7 @@ import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandGetOrCreateSchemaResponse;
 import org.apache.pulsar.common.api.proto.CommandGetSchemaResponse;
+import org.apache.pulsar.common.api.proto.CommandSendReceipt;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
@@ -86,8 +90,8 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
-@Test(groups = "broker")
+@CustomLog
+@Test(groups = "broker-replication")
 public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase {
 
     static final ObjectMapper JACKSON = new ObjectMapper();
@@ -110,6 +114,10 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
                                      LocalBookkeeperEnsemble bookkeeperEnsemble, ZookeeperServerTest brokerConfigZk) {
         super.setConfigDefaults(config, clusterName, bookkeeperEnsemble, brokerConfigZk);
         // For check whether deduplication snapshot has done.
+        config.setBrokerDeduplicationSnapshotIntervalSeconds(1);
+        // An entries-interval snapshot is skipped while the previous one is still in progress, so the last entries
+        // are only snapshotted by the periodic check. Run it every second instead of the default 120 seconds.
+        config.setBrokerDeduplicationSnapshotFrequencyInSeconds(1);
         config.setBrokerDeduplicationEntriesInterval(10);
         config.setReplicationStartAt("earliest");
         // To cover more cases, write more than one ledger.
@@ -154,15 +162,117 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
         final var replicationClients = brokerService.getReplicationClients();
         PulsarClientImpl internalClient = (PulsarClientImpl) replicationClients.get(cluster2);
         PulsarClientImpl injectedClient = InjectedClientCnxClientBuilder.create(clientBuilder2, clientCnxFactory);
-        assertTrue(replicationClients.remove(cluster2, internalClient));
+        if (internalClient != null) {
+            assertTrue(replicationClients.remove(cluster2, internalClient));
+        }
         assertNull(replicationClients.putIfAbsent(cluster2, injectedClient));
 
         // Return a cleanup injection task;
         return () -> {
             assertTrue(replicationClients.remove(cluster2, injectedClient));
-            assertNull(replicationClients.putIfAbsent(cluster2, internalClient));
+            if (internalClient != null) {
+                assertNull(replicationClients.putIfAbsent(cluster2, internalClient));
+            }
             injectedClient.closeAsync();
         };
+    }
+
+    @Test
+    public void testRepeatedlyPublishMixedMessageAndReplMarkers() throws Exception {
+        // Inject a mechanism to drop all send receipt, to implement a scenario: the messages of the internal producer
+        // of the replicator will be resent after a disconnection.
+        AtomicBoolean stuckSendReceipt = new AtomicBoolean(true);
+        Runnable cleanInjection = injectReplicatorClientCnx((conf, eventLoopGroup) -> new ClientCnx(
+                InstrumentProvider.NOOP, conf, eventLoopGroup) {
+            @Override
+            protected void handleSendReceipt(CommandSendReceipt sendReceipt) {
+                if (stuckSendReceipt.get()) {
+                    // discard all send receipt, to make the producer republish.
+                } else {
+                    super.handleSendReceipt(sendReceipt);
+                }
+            }
+        });
+
+        // Create topics.
+        // - Enable deduplication on the remote cluster.
+        // - Enable replicated subscription.
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/tp_");
+        final String subscription = "s1";
+        admin1.topics().createNonPartitionedTopic(topicName);
+        Consumer<Integer> consumer1 = client1.newConsumer(Schema.INT32).topic(topicName).subscriptionName(subscription)
+                .replicateSubscriptionState(true).subscribe();
+        admin2.topics().createSubscription(topicName, subscription, MessageId.earliest);
+        consumer1.close();
+        waitReplicatorStarted(topicName);
+        PersistentTopic persistentTopic1 =
+                (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
+        PersistentTopic persistentTopic2 =
+                (PersistentTopic) pulsar2.getBrokerService().getTopic(topicName, false).join().get();
+        admin2.topicPolicies().setDeduplicationStatus(topicName, true);
+        Awaitility.await().untilAsserted(() -> {
+            MessageDeduplication messageDeduplication2 = persistentTopic2.getMessageDeduplication();
+            assertEquals(String.valueOf(messageDeduplication2.getStatus()), "Enabled");
+        });
+        assertTrue(persistentTopic1.getSubscriptions().get(subscription).isReplicated());
+        assertTrue(persistentTopic1.getReplicatedSubscriptionController().isPresent());
+        ReplicatedSubscriptionsController replicatedSubscriptionsController =
+                persistentTopic1.getReplicatedSubscriptionController().get();
+        admin2.topics().setReplicationClusters(topicName, Arrays.asList(cluster1, cluster2));
+
+        // Publish mixed user messages and replicated markers/
+        // - Publish a user msg.
+        // - Replicated marker will be sent internally per seconds
+        Producer<Integer> producer = client1.newProducer(Schema.INT32).topic(topicName).create();
+        int messageCount = 15;
+        for (int i = 0; i < messageCount; i++) {
+            producer.send(i);
+            log.info().attr("sentMessage", i).log("Sent message");
+            // The replicated marker will be sent internally per seconds. We wait 1.2s here, a replicated marker will
+            // be sent.
+            Thread.sleep(1200);
+            log.info().attr("replicationSnapshot", replicatedSubscriptionsController.getLastCompletedSnapshotId())
+                    .log("latest replication snapshot");
+        }
+        producer.close();
+
+        //
+        GeoPersistentReplicator replicator = (GeoPersistentReplicator) persistentTopic1.getReplicators().get(cluster2);
+        long backlog = replicator.getCursor().getNumberOfEntriesInBacklog(true);
+        Awaitility.await().untilAsserted(() -> {
+            log.info().attr("replicationBacklog", backlog).log("replication backlog");
+            assertTrue(backlog >= messageCount * 2);
+        });
+
+        // 1. Remove the injection, which discarded send receipt of the internal producer of the replicator.
+        // 2. Trigger a reconnection of the internal producer of the replicator.
+        // The internal producer will retry to publish.
+        stuckSendReceipt.set(false);
+        replicator.producer.getClientCnx().ctx().channel().close();
+        Producer<Integer> producer2 = client1.newProducer(Schema.INT32).topic(topicName).create();
+        producer2.close();
+        waitReplicatorStarted(topicName);
+
+        // Verify: all messages are sent, and no duplicated messages.
+        Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
+            assertEquals(replicator.getCursor().getNumberOfEntriesInBacklog(true), 0);
+        });
+        Consumer<Integer> consumer2 = client2.newConsumer(Schema.INT32).topic(topicName).subscriptionName(subscription)
+                .replicateSubscriptionState(true).subscribe();
+        for (int i = 0; i < messageCount; i++) {
+            Message<Integer> msg = consumer2.receive(2, TimeUnit.SECONDS);
+            assertNotNull(msg);
+            log.info().attr("receivedMessage", msg.getValue()).log("Received message");
+            assertEquals(msg.getValue(), i);
+        }
+
+        // cleanup.
+        cleanInjection.run();
+        admin1.topics().deleteSubscription(topicName, subscription);
+        admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1));
+        admin2.topics().setReplicationClusters(topicName, Arrays.asList(cluster2));
+        admin1.topics().unload(topicName);
+        admin2.topics().unload(topicName);
     }
 
     @DataProvider(name = "deduplicationArgs")
@@ -214,13 +324,11 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
             (conf, eventLoopGroup) -> new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup) {
 
                 @Override
-                protected ByteBuf newConnectCommand() throws Exception {
+                protected ByteBuf buildConnectCommand(AuthData authData) throws Exception {
                     if (supportsReplDedupByLidAndEid) {
-                        return super.newConnectCommand();
+                        return super.buildConnectCommand(authData);
                     }
-                    authenticationDataProvider = authentication.getAuthData(remoteHostName);
-                    AuthData authData = authenticationDataProvider.authenticate(AuthData.INIT_AUTH_DATA);
-                    BaseCommand cmd = Commands.newConnectWithoutSerialize(authentication.getAuthMethodName(), authData,
+                    BaseCommand cmd = Commands.newConnectWithoutSerialize(authMethodName(), authData,
                             this.protocolVersion, clientVersion, proxyToTargetBrokerAddress,
                             null, null, null, null, null);
                     cmd.getConnect().getFeatureFlags().setSupportsReplDedupByLidAndEid(false);
@@ -251,7 +359,7 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
                         }
 
                         Object data = invocation.getArguments()[0];
-                        if (true && !(data instanceof ByteBufPair)) {
+                        if (!(data instanceof ByteBufPair)) {
                             return invocation.callRealMethod();
                         }
                         // Repeatedly send every message.
@@ -379,7 +487,7 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
             for (ManagedCursor cursor : tp1.getManagedLedger().getCursors()) {
                 if (cursor.getName().equals("pulsar.repl.r2")) {
                     long replBacklog = cursor.getNumberOfEntriesInBacklog(true);
-                    log.info("repl backlog: {}", replBacklog);
+                    log.info().attr("replBacklog", replBacklog).log("repl backlog");
                     assertEquals(replBacklog, 0);
                 }
             }
@@ -395,19 +503,20 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
                 break;
             }
             MessageIdAdv messageIdAdv = (MessageIdAdv) msg.getMessageId();
-            log.info("received msg. source {}, target {}:{}", StringUtils.join(msg.getProperties().values(), ":"),
-                    messageIdAdv.getLedgerId(), messageIdAdv.getEntryId());
+            log.info().attr("msgSource", StringUtils.join(msg.getProperties().values(), ":"))
+                    .attr("target", messageIdAdv.getLedgerId()).attr("entryId", messageIdAdv.getEntryId())
+                    .log("received msg. source, target");
             msgReceived.add(String.valueOf(msg.getValue()));
             consumer.acknowledgeAsync(msg);
         }
-        log.info("c1 topic stats-internal: "
-                + JACKSON.writeValueAsString(admin1.topics().getInternalStats(topicName)));
-        log.info("c2 topic stats-internal: "
-                + JACKSON.writeValueAsString(admin2.topics().getInternalStats(topicName)));
-        log.info("c1 topic stats-internal: "
-                + JACKSON.writeValueAsString(admin1.topics().getStats(topicName)));
-        log.info("c2 topic stats-internal: "
-                + JACKSON.writeValueAsString(admin2.topics().getStats(topicName)));
+        log.info().attr("writeValueAsString", JACKSON.writeValueAsString(admin1.topics().getInternalStats(topicName)))
+                .log("c1 topic stats-internal");
+        log.info().attr("writeValueAsString", JACKSON.writeValueAsString(admin2.topics().getInternalStats(topicName)))
+                .log("c2 topic stats-internal");
+        log.info().attr("writeValueAsString", JACKSON.writeValueAsString(admin1.topics().getStats(topicName)))
+                .log("c1 topic stats-internal");
+        log.info().attr("writeValueAsString", JACKSON.writeValueAsString(admin2.topics().getStats(topicName)))
+                .log("c2 topic stats-internal");
         assertEquals(msgReceived, msgSent);
         consumer.close();
 
@@ -472,20 +581,21 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
                 break;
             }
             MessageIdAdv messageIdAdv = (MessageIdAdv) msg.getMessageId();
-            log.info("received msg. source {}, target {}:{}", StringUtils.join(msg.getProperties().values(), ":"),
-                    messageIdAdv.getLedgerId(), messageIdAdv.getEntryId());
+            log.info().attr("msgSource", StringUtils.join(msg.getProperties().values(), ":"))
+                    .attr("target", messageIdAdv.getLedgerId()).attr("entryId", messageIdAdv.getEntryId())
+                    .log("received msg. source, target");
             msgReceived2.add(String.valueOf(msg.getValue()));
             consumer2.acknowledgeAsync(msg);
         }
         // Verify: all messages were copied correctly.
-        log.info("c1 topic stats-internal: "
-                + JACKSON.writeValueAsString(admin1.topics().getInternalStats(topicName)));
-        log.info("c2 topic stats-internal: "
-                + JACKSON.writeValueAsString(admin2.topics().getInternalStats(topicName)));
-        log.info("c1 topic stats-internal: "
-                + JACKSON.writeValueAsString(admin1.topics().getStats(topicName)));
-        log.info("c2 topic stats-internal: "
-                + JACKSON.writeValueAsString(admin2.topics().getStats(topicName)));
+        log.info().attr("writeValueAsString", JACKSON.writeValueAsString(admin1.topics().getInternalStats(topicName)))
+                .log("c1 topic stats-internal");
+        log.info().attr("writeValueAsString", JACKSON.writeValueAsString(admin2.topics().getInternalStats(topicName)))
+                .log("c2 topic stats-internal");
+        log.info().attr("writeValueAsString", JACKSON.writeValueAsString(admin1.topics().getStats(topicName)))
+                .log("c1 topic stats-internal");
+        log.info().attr("writeValueAsString", JACKSON.writeValueAsString(admin2.topics().getStats(topicName)))
+                .log("c2 topic stats-internal");
         assertEquals(msgReceived2, msgSent);
         consumer2.close();
 
@@ -527,6 +637,7 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
      * 4. Verify: All 4 messages are copied to the remote cluster.
      */
     @Test(timeOut = 360 * 1000, dataProvider = "enabledDeduplication")
+    @SuppressWarnings("unchecked")
     public void testDeduplicationNotLostMessage(boolean enabledDeduplication) throws Exception {
         waitInternalClientCreated();
 
@@ -556,7 +667,7 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
                             }
 
                             Object data = invocation.getArguments()[0];
-                            if (true && !(data instanceof ByteBufPair)) {
+                            if (!(data instanceof ByteBufPair)) {
                                 return invocation.callRealMethod();
                             }
                             // Repeatedly send every message.
@@ -671,7 +782,7 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
                 for (ManagedCursor cursor : tp1.getManagedLedger().getCursors()) {
                     if (cursor.getName().equals("pulsar.repl.r2")) {
                         long replBacklog = cursor.getNumberOfEntriesInBacklog(true);
-                        log.info("repl backlog: {}", replBacklog);
+                        log.info().attr("replBacklog", replBacklog).log("repl backlog");
                         assertEquals(replBacklog, 0);
                     }
                 }
@@ -699,7 +810,7 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
             for (ManagedCursor cursor : tp12.getManagedLedger().getCursors()) {
                 if (cursor.getName().equals("pulsar.repl.r2")) {
                     long replBacklog = cursor.getNumberOfEntriesInBacklog(true);
-                    log.info("repl backlog: {}", replBacklog);
+                    log.info().attr("replBacklog", replBacklog).log("repl backlog");
                     assertEquals(replBacklog, 0);
                 }
             }
@@ -717,13 +828,14 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
                 break;
             }
             MessageIdAdv messageIdAdv = (MessageIdAdv) msg.getMessageId();
-            log.info("received msg. source {}, target {}:{}", StringUtils.join(msg.getProperties().values(), ":"),
-                    messageIdAdv.getLedgerId(), messageIdAdv.getEntryId());
+            log.info().attr("msgSource", StringUtils.join(msg.getProperties().values(), ":"))
+                    .attr("target", messageIdAdv.getLedgerId()).attr("entryId", messageIdAdv.getEntryId())
+                    .log("received msg. source, target");
             msgReceived.add(new String(msg.getData(), StandardCharsets.UTF_8));
             consumer.acknowledgeAsync(msg);
         }
 
-        log.info("received msgs: {}", msgReceived);
+        log.info().attr("receivedMsgs", msgReceived).log("received msgs");
         assertTrue(msgReceived.contains("1"));
         assertTrue(msgReceived.contains("2"));
         assertTrue(msgReceived.contains("3"));
@@ -751,6 +863,7 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
     }
 
     @Test(timeOut = 360 * 1000, dataProvider = "enabledDeduplication")
+    @SuppressWarnings("unchecked")
     public void testReplicationLoadSchemaTimeout(boolean enabledDeduplication) throws Exception {
         waitInternalClientCreated();
 
@@ -777,6 +890,7 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
         Runnable taskToClearInjection = injectReplicatorClientCnx(
             (conf, eventLoopGroup) -> new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup) {
                 @Override
+                @SuppressWarnings("unchecked")
                 protected void handleGetSchemaResponse(CommandGetSchemaResponse commandGetSchemaResponse) {
                     if (getSchemaSuccess.get()) {
                         getSchemaSuccess.set(false);
@@ -791,13 +905,15 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
                             (CompletableFuture<CommandGetSchemaResponse>) pendingRequests.remove(requestId);
                     if (future == null) {
                         duplicatedResponseCounter.incrementAndGet();
-                        log.warn("{} Received unknown request id from server: {}", ctx.channel(), requestId);
+                        log.warn().attr("channel", ctx.channel()).attr("fromServer", requestId)
+                                .log("Received unknown request id from server");
                         return;
                     }
                     future.completeExceptionally(new PulsarClientException.TimeoutException("Mocked timeout"));
                 }
 
                 @Override
+                @SuppressWarnings("unchecked")
                 protected void handleGetOrCreateSchemaResponse(CommandGetOrCreateSchemaResponse
                                                                        commandGetOrCreateSchemaResponse) {
 
@@ -815,7 +931,8 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
                             (CompletableFuture<CommandGetOrCreateSchemaResponse>) pendingRequests.remove(requestId);
                     if (future == null) {
                         duplicatedResponseCounter.incrementAndGet();
-                        log.warn("{} Received unknown request id from server: {}", ctx.channel(), requestId);
+                        log.warn().attr("channel", ctx.channel()).attr("fromServer", requestId)
+                                .log("Received unknown request id from server");
                         return;
                     }
                     future.completeExceptionally(new PulsarClientException.TimeoutException("Mocked timeout"));
@@ -823,6 +940,7 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
             });
 
         // Create topics and enable deduplication.
+        @SuppressWarnings("unchecked")
         final String topicName = BrokerTestUtil.newUniqueName("persistent://" + nonReplicatedNamespace + "/tp_");
         admin1.topics().createNonPartitionedTopic(topicName);
         admin1.topics().createSubscription(topicName, "s1", MessageId.earliest);
@@ -879,7 +997,7 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
             for (ManagedCursor cursor : tp1.getManagedLedger().getCursors()) {
                 if (cursor.getName().equals("pulsar.repl.r2")) {
                     long replBacklog = cursor.getNumberOfEntriesInBacklog(true);
-                    log.info("repl backlog: {}", replBacklog);
+                    log.info().attr("replBacklog", replBacklog).log("repl backlog");
                     assertEquals(replBacklog, 0);
                 }
             }
@@ -895,12 +1013,13 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
                 break;
             }
             MessageIdAdv messageIdAdv = (MessageIdAdv) msg.getMessageId();
-            log.info("received msg. source {}, target {}:{}", StringUtils.join(msg.getProperties().values(), ":"),
-                    messageIdAdv.getLedgerId(), messageIdAdv.getEntryId());
+            log.info().attr("msgSource", StringUtils.join(msg.getProperties().values(), ":"))
+                    .attr("target", messageIdAdv.getLedgerId()).attr("entryId", messageIdAdv.getEntryId())
+                    .log("received msg. source, target");
             msgReceived.add(new String(msg.getData(), StandardCharsets.UTF_8));
             consumer.acknowledgeAsync(msg);
         }
-        log.info("received msgs: {}", msgReceived);
+        log.info().attr("receivedMsgs", msgReceived).log("received msgs");
         assertTrue(msgReceived.contains("1"));
         assertTrue(msgReceived.contains("2"));
         assertTrue(msgReceived.contains("2-1"));

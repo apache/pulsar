@@ -34,6 +34,7 @@ import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
 import org.apache.pulsar.common.naming.TopicName;
@@ -44,11 +45,14 @@ import org.testng.annotations.Test;
 
 public class FileSystemOffloaderLocalFileTest {
     private OrderedScheduler scheduler;
+    private OrderedExecutor bkExecutor;
     private LedgerOffloaderStats offloaderStats;
 
     @BeforeClass
     public void setup() throws Exception {
         scheduler = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("offloader").build();
+        // The mock BookKeeper client needs an OrderedExecutor (not an OrderedScheduler) as its main worker pool.
+        bkExecutor = OrderedExecutor.newBuilder().numThreads(1).name("offloader-bk").build();
         offloaderStats = LedgerOffloaderStats.create(true, true, scheduler, 60);
     }
 
@@ -56,6 +60,9 @@ public class FileSystemOffloaderLocalFileTest {
     public void cleanup() throws Exception {
         if (scheduler != null) {
             scheduler.shutdown();
+        }
+        if (bkExecutor != null) {
+            bkExecutor.shutdownNow();
         }
         if (offloaderStats != null) {
             offloaderStats.close();
@@ -83,10 +90,10 @@ public class FileSystemOffloaderLocalFileTest {
 
         // prepare the data in bookkeeper
         @Cleanup
-        BookKeeper bk = new PulsarMockBookKeeper(scheduler);
-        LedgerHandle lh = bk.createLedger(1,1,1, BookKeeper.DigestType.CRC32, "".getBytes());
+        BookKeeper bk = new PulsarMockBookKeeper(bkExecutor);
+        LedgerHandle lh = bk.createLedger(1, 1, 1, BookKeeper.DigestType.CRC32, "".getBytes());
         for (int i = 0; i <  numberOfEntries; i++) {
-            byte[] entry = ("foobar"+i).getBytes();
+            byte[] entry = ("foobar" + i).getBytes();
             lh.addEntry(entry);
         }
         lh.close();
@@ -107,10 +114,10 @@ public class FileSystemOffloaderLocalFileTest {
         ReadHandle toTest = offloader.readOffloaded(read.getId(), uuid, offloadDriverMetadata).get();
         assertEquals(toTest.getLastAddConfirmed(), read.getLastAddConfirmed());
         LedgerEntries toTestEntries = toTest.read(0, numberOfEntries - 1);
-        LedgerEntries toWriteEntries = read.read(0,numberOfEntries - 1);
+        LedgerEntries toWriteEntries = read.read(0, numberOfEntries - 1);
         Iterator<LedgerEntry> toTestIter = toTestEntries.iterator();
         Iterator<LedgerEntry> toWriteIter = toWriteEntries.iterator();
-        while(toTestIter.hasNext()) {
+        while (toTestIter.hasNext()) {
             LedgerEntry toWriteEntry = toWriteIter.next();
             LedgerEntry toTestEntry = toTestIter.next();
 
@@ -123,10 +130,10 @@ public class FileSystemOffloaderLocalFileTest {
         toWriteEntries.close();
 
         toTestEntries = toTest.read(1, numberOfEntries - 1);
-        toWriteEntries = read.read(1,numberOfEntries - 1);
+        toWriteEntries = read.read(1, numberOfEntries - 1);
         toTestIter = toTestEntries.iterator();
         toWriteIter = toWriteEntries.iterator();
-        while(toTestIter.hasNext()) {
+        while (toTestIter.hasNext()) {
             LedgerEntry toWriteEntry = toWriteIter.next();
             LedgerEntry toTestEntry = toTestIter.next();
 

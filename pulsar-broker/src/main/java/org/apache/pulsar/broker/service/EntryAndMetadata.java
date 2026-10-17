@@ -23,6 +23,7 @@ import io.netty.buffer.ByteBuf;
 import java.util.function.ToIntFunction;
 import lombok.Getter;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.EntryReadCountHandler;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
@@ -42,12 +43,22 @@ public class EntryAndMetadata implements Entry {
     }
 
     public static EntryAndMetadata create(final Entry entry, final MessageMetadata metadata) {
+        if (entry instanceof EntryAndMetadata entryAndMetadata) {
+            return entryAndMetadata;
+        }
         return new EntryAndMetadata(entry, metadata);
     }
 
     @VisibleForTesting
     public static EntryAndMetadata create(final Entry entry) {
-        return create(entry, Commands.peekAndCopyMessageMetadata(entry.getDataBuffer(), "", -1));
+        if (entry instanceof EntryAndMetadata entryAndMetadata) {
+            return entryAndMetadata;
+        }
+        MessageMetadata msgMetadata = entry.getMessageMetadata();
+        if (msgMetadata == null) {
+            msgMetadata = Commands.peekAndCopyMessageMetadata(entry.getDataBuffer(), "", -1);
+        }
+        return create(entry, msgMetadata);
     }
 
     public byte[] getStickyKey() {
@@ -135,5 +146,10 @@ public class EntryAndMetadata implements Entry {
     @VisibleForTesting
     public Entry unwrap() {
         return entry;
+    }
+
+    @Override
+    public EntryReadCountHandler getReadCountHandler() {
+        return entry.getReadCountHandler();
     }
 }

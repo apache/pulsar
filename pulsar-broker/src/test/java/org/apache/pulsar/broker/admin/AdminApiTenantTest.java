@@ -24,7 +24,7 @@ import static org.testng.Assert.assertTrue;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -35,9 +35,9 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-admin")
-@Slf4j
+@CustomLog
 public class AdminApiTenantTest extends MockedPulsarServiceBaseTest {
-    private final String CLUSTER = "test";
+    private static final String CLUSTER = "test";
 
     @BeforeClass
     @Override
@@ -60,8 +60,9 @@ public class AdminApiTenantTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testCreateAndDeleteTenant() throws PulsarAdminException {
-        String tenant = "test-tenant-"+ UUID.randomUUID();
-        admin.tenants().createTenant(tenant, TenantInfo.builder().allowedClusters(Collections.singleton(CLUSTER)).build());
+        String tenant = "test-tenant-" + UUID.randomUUID();
+        admin.tenants().createTenant(tenant, TenantInfo.builder()
+                .allowedClusters(Collections.singleton(CLUSTER)).build());
         List<String> tenants = admin.tenants().getTenants();
         assertTrue(tenants.contains(tenant));
         admin.tenants().deleteTenant(tenant);

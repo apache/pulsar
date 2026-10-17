@@ -39,6 +39,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.transaction.exception.coordinator.TransactionCoordinatorException;
@@ -69,13 +70,9 @@ import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.TransactionMetadataStoreStateException;
 import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriterConfig;
 import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class TransactionMetadataStoreService {
-
-    private static final Logger LOG = LoggerFactory.getLogger(TransactionMetadataStoreService.class);
-
     private final Map<TransactionCoordinatorID, TransactionMetadataStore> stores;
     private final TransactionMetadataStoreProvider transactionMetadataStoreProvider;
     private final PulsarService pulsarService;
@@ -91,7 +88,6 @@ public class TransactionMetadataStoreService {
     private final ExecutorService internalPinnedExecutor;
 
     private static final long HANDLE_PENDING_CONNECT_TIME_OUT = 30000L;
-
 
     public TransactionMetadataStoreService(TransactionMetadataStoreProvider transactionMetadataStoreProvider,
                                            PulsarService pulsarService, TransactionBufferClient tbClient,
@@ -143,7 +139,7 @@ public class TransactionMetadataStoreService {
                                     // we need to put store into stores map before
                                     // handle committing and aborting transaction.
                                     stores.put(tcId, store);
-                                    LOG.info("Added new transaction meta store {}", tcId);
+                                    log.info().attr("tcId", tcId).log("Added new transaction meta store");
                                     recoverTracker.handleCommittingAndAbortingTransaction();
                                     timeoutTracker.start();
 
@@ -189,7 +185,10 @@ public class TransactionMetadataStoreService {
                                         break;
                                     }
                                 }
-                                LOG.error("Add transaction metadata store with id {} error", tcId.getId(), e);
+                                log.error()
+                                        .attr("tcId", tcId.getId())
+                                        .exception(e)
+                                        .log("Add transaction metadata store error");
                             });
                             return null;
                         });
@@ -198,10 +197,10 @@ public class TransactionMetadataStoreService {
                         // other will be added to the deque, when the op of openTransactionMetadataStore finished
                         // then handle the requests witch in the queue
                         deque.add(completableFuture);
-                        if (LOG.isDebugEnabled()) {
-                            LOG.debug("Handle tc client connect added into pending queue! tcId : {}", tcId);
-                        }
-                    }
+                            log.debug()
+                                    .attr("tcId", tcId)
+                                    .log("Handle tc client connect added into pending queue");
+                                            }
                 })).exceptionally(ex -> {
                     Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                     completableFuture.completeExceptionally(realCause);
@@ -243,9 +242,9 @@ public class TransactionMetadataStoreService {
             if (metadataStore != null) {
                 metadataStore.closeAsync().whenComplete((v, ex) -> {
                     if (ex != null) {
-                        LOG.error("Close transaction metadata store with id " + tcId, ex);
+                        log.error().attr("tcId", tcId).exception(ex).log("Close transaction metadata store");
                     } else {
-                        LOG.info("Removed and closed transaction meta store {}", tcId);
+                        log.info().attr("tcId", tcId).log("Removed and closed transaction meta store");
                     }
                 });
             }
@@ -333,7 +332,7 @@ public class TransactionMetadataStoreService {
             default:
                 TransactionCoordinatorException.UnsupportedTxnActionException exception =
                         new TransactionCoordinatorException.UnsupportedTxnActionException(txnID, txnAction);
-                LOG.error(exception.getMessage());
+                log.error(exception.getMessage());
                 future.completeExceptionally(exception);
                 return;
         }
@@ -351,16 +350,20 @@ public class TransactionMetadataStoreService {
                         return;
                     }
                     if (!isRetryableException(ex)) {
-                        LOG.error("End transaction fail! TxnId : {}, "
-                                + "TxnAction : {}", txnID, txnAction, ex);
+                        log.error()
+                                .attr("txnId", txnID)
+                                .attr("txnAction", txnAction)
+                                .exception(ex)
+                                .log("End transaction fail! TxnId: , TxnAction");
                         future.completeExceptionally(ex);
                         return;
                     }
-                    if (LOG.isDebugEnabled()) {
-                        LOG.debug("EndTxnInTransactionBuffer retry! TxnId : {}, "
-                                + "TxnAction : {}", txnID, txnAction, ex);
-                    }
-                    transactionOpRetryTimer.newTimeout(timeout ->
+                        log.debug()
+                                .attr("txnId", txnID)
+                                .attr("txnAction", txnAction)
+                                .exception(ex)
+                                .log("EndTxnInTransactionBuffer retry! TxnId: , TxnAction");
+                                        transactionOpRetryTimer.newTimeout(timeout ->
                                     endTransaction(txnID, txnAction, isTimeout, future),
                             endTransactionRetryIntervalTime, TimeUnit.MILLISECONDS);
                 });
@@ -374,10 +377,11 @@ public class TransactionMetadataStoreService {
             default -> false;
         };
         if (!isLegal) {
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("EndTxnInTransactionBuffer op retry! TxnId : {}, TxnAction : {}", txnID, txnAction);
-            }
-            return FutureUtil.failedFuture(
+                log.debug()
+                        .attr("txnId", txnID)
+                        .attr("txnAction", txnAction)
+                        .log("EndTxnInTransactionBuffer op retry! TxnId : , TxnAction");
+                        return FutureUtil.failedFuture(
                     new InvalidTxnStatusException(txnID, expectStatus, txnStatus));
         }
        return CompletableFuture.completedFuture(null);
@@ -401,11 +405,11 @@ public class TransactionMetadataStoreService {
             if (isRetryableException(e)) {
                 endTransaction(txnID, TxnAction.ABORT_VALUE, true);
             } else {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("Transaction have been handle complete, "
-                            + "don't need to handle by transaction timeout! TxnId : {}", txnID);
-                }
-            }
+                    log.debug()
+                            .attr("txnId", txnID)
+                            .log("Transaction have been handle complete, don't need to handle by transaction"
+                                    + " timeout! TxnId");
+                            }
             return null;
         });
     }
@@ -494,15 +498,14 @@ public class TransactionMetadataStoreService {
                 });
     }
 
-
     public void close () {
         this.internalPinnedExecutor.shutdown();
         stores.forEach((tcId, metadataStore) ->
             metadataStore.closeAsync().whenComplete((v, ex) -> {
                 if (ex != null) {
-                    LOG.error("Close transaction metadata store with id " + tcId, ex);
+                    log.error().attr("tcId", tcId).exception(ex).log("Close transaction metadata store");
                 } else {
-                    LOG.info("Removed and closed transaction meta store {}", tcId);
+                    log.info().attr("tcId", tcId).log("Removed and closed transaction meta store");
                 }
         }));
         stores.clear();

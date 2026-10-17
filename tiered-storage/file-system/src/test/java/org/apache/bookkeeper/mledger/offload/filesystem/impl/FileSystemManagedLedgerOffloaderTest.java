@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.offload.filesystem.impl;
 
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
@@ -37,6 +38,7 @@ import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
+import org.apache.bookkeeper.mledger.OffloadedLedgerHandle;
 import org.apache.bookkeeper.mledger.impl.LedgerOffloaderStatsImpl;
 import org.apache.bookkeeper.mledger.offload.filesystem.FileStoreTestBase;
 import org.apache.hadoop.conf.Configuration;
@@ -60,7 +62,7 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
     @Override
     public void init() throws Exception {
         super.init();
-        this.bk = new PulsarMockBookKeeper(scheduler);
+        this.bk = new PulsarMockBookKeeper(bkExecutor);
         this.toWrite = buildReadHandle();
         map.put("ManagedLedgerName", managedLedgerName);
     }
@@ -75,12 +77,12 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
 
     private ReadHandle buildReadHandle() throws Exception {
 
-        lh = bk.createLedger(1,1,1, BookKeeper.DigestType.CRC32, "foobar".getBytes());
+        lh = bk.createLedger(1, 1, 1, BookKeeper.DigestType.CRC32, "foobar".getBytes());
 
         int i = 0;
         int blocksWritten = 1;
         while (blocksWritten <= numberOfEntries) {
-            byte[] entry = ("foobar"+i).getBytes();
+            byte[] entry = ("foobar" + i).getBytes();
             blocksWritten++;
             lh.addEntry(entry);
             i++;
@@ -104,6 +106,20 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
     }
 
     @Test
+    public void testReadHandleIsOffloadedLedgerHandle() throws Exception {
+        UUID uuid = UUID.randomUUID();
+        fileSystemManagedLedgerOffloader.offload(toWrite, uuid, map).get();
+        ReadHandle readHandle = fileSystemManagedLedgerOffloader.readOffloaded(toWrite.getId(), uuid, map).get();
+        try {
+            // The managed ledger relies on this marker to tell that the entries of a ledger are read from tiered
+            // storage, e.g. for the metrics of the search of a message position by timestamp
+            assertThat(readHandle).isInstanceOf(OffloadedLedgerHandle.class);
+        } finally {
+            readHandle.close();
+        }
+    }
+
+    @Test
     public void testOffloadAndRead() throws Exception {
         LedgerOffloader offloader = fileSystemManagedLedgerOffloader;
         UUID uuid = UUID.randomUUID();
@@ -111,10 +127,10 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
         ReadHandle toTest = offloader.readOffloaded(toWrite.getId(), uuid, map).get();
         assertEquals(toTest.getLastAddConfirmed(), toWrite.getLastAddConfirmed());
         LedgerEntries toTestEntries = toTest.read(0, numberOfEntries - 1);
-        LedgerEntries toWriteEntries = toWrite.read(0,numberOfEntries - 1);
+        LedgerEntries toWriteEntries = toWrite.read(0, numberOfEntries - 1);
         Iterator<LedgerEntry> toTestIter = toTestEntries.iterator();
         Iterator<LedgerEntry> toWriteIter = toWriteEntries.iterator();
-        while(toTestIter.hasNext()) {
+        while (toTestIter.hasNext()) {
             LedgerEntry toWriteEntry = toWriteIter.next();
             LedgerEntry toTestEntry = toTestIter.next();
 
@@ -126,10 +142,10 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
         toTestEntries.close();
         toWriteEntries.close();
         toTestEntries = toTest.read(1, numberOfEntries - 1);
-        toWriteEntries = toWrite.read(1,numberOfEntries - 1);
+        toWriteEntries = toWrite.read(1, numberOfEntries - 1);
         toTestIter = toTestEntries.iterator();
         toWriteIter = toWriteEntries.iterator();
-        while(toTestIter.hasNext()) {
+        while (toTestIter.hasNext()) {
             LedgerEntry toWriteEntry = toWriteIter.next();
             LedgerEntry toTestEntry = toTestIter.next();
 

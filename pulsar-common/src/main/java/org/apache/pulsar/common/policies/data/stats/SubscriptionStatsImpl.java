@@ -21,7 +21,6 @@ package org.apache.pulsar.common.policies.data.stats;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -65,6 +64,16 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     /** Get the publish time of the earliest message in the backlog. */
     public long earliestMsgPublishTimeInBacklog;
 
+    /**
+     * Age of oldest unacknowledged message for this subscription, in seconds.
+     * <p>
+     * This is a best-effort cached value from the broker's periodic subscription backlog-age refresh. The value is
+     * {@code -1} when it is unknown, not applicable, the subscription has no backlog, or the broker has disabled
+     * subscription backlog-age computation.
+     * </p>
+     */
+    public long oldestBacklogMessageAgeSeconds = -1;
+
     /** Number of entries in the subscription backlog that do not contain the delay messages. */
     public long msgBacklogNoDelayed;
 
@@ -92,6 +101,9 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
 
     /** Total rate of messages expired on this subscription (msg/s). */
     public double msgRateExpired;
+
+    /** The count of expired messages on this subscription. */
+    public long msgExpired;
 
     /** Total messages expired on this subscription. */
     public long totalMsgExpired;
@@ -125,9 +137,6 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
 
     /** Whether the Key_Shared subscription mode is AUTO_SPLIT or STICKY. */
     public String keySharedMode;
-
-    /** This is for Key_Shared subscription to get the recentJoinedConsumers in the Key_Shared subscription. */
-    public Map<String, String> consumersAfterMarkDeletePosition;
 
     /**
      * For Key_Shared AUTO_SPLIT ordered subscriptions: The current number of hashes in the draining state.
@@ -188,7 +197,6 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
 
     public SubscriptionStatsImpl() {
         this.consumers = new ArrayList<>();
-        this.consumersAfterMarkDeletePosition = new LinkedHashMap<>();
         this.subscriptionProperties = new HashMap<>();
         this.bucketDelayedIndexStats = new HashMap<>();
     }
@@ -209,17 +217,18 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         unackedMessages = 0;
         type = null;
         msgRateExpired = 0;
+        msgExpired = 0;
         totalMsgExpired = 0;
         lastExpireTimestamp = 0L;
         lastMarkDeleteAdvancedTimestamp = 0L;
         consumers.clear();
-        consumersAfterMarkDeletePosition.clear();
         drainingHashesCount = 0;
         drainingHashesClearedTotal = 0L;
         drainingHashesUnackedMessages = 0;
         nonContiguousDeletedMessagesRanges = 0;
         nonContiguousDeletedMessagesRangesSerializedSize = 0;
         earliestMsgPublishTimeInBacklog = 0L;
+        oldestBacklogMessageAgeSeconds = -1;
         delayedMessageIndexSizeInBytes = 0;
         subscriptionProperties.clear();
         filterProcessedMsgCount = 0;
@@ -254,6 +263,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         this.unackedMessages += stats.unackedMessages;
         this.type = stats.type;
         this.msgRateExpired += stats.msgRateExpired;
+        this.msgExpired += stats.msgExpired;
         this.totalMsgExpired += stats.totalMsgExpired;
         this.isReplicated |= stats.isReplicated;
         this.isDurable |= stats.isDurable;
@@ -268,7 +278,6 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
             }
         }
         this.allowOutOfOrderDelivery |= stats.allowOutOfOrderDelivery;
-        this.consumersAfterMarkDeletePosition.putAll(stats.consumersAfterMarkDeletePosition);
         this.drainingHashesCount += stats.drainingHashesCount;
         this.drainingHashesClearedTotal += stats.drainingHashesClearedTotal;
         this.drainingHashesUnackedMessages += stats.drainingHashesUnackedMessages;
@@ -285,6 +294,8 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
                     stats.earliestMsgPublishTimeInBacklog
             );
         }
+        this.oldestBacklogMessageAgeSeconds = Math.max(
+                this.oldestBacklogMessageAgeSeconds, stats.oldestBacklogMessageAgeSeconds);
         this.delayedMessageIndexSizeInBytes += stats.delayedMessageIndexSizeInBytes;
         this.subscriptionProperties.putAll(stats.subscriptionProperties);
         this.filterProcessedMsgCount += stats.filterProcessedMsgCount;

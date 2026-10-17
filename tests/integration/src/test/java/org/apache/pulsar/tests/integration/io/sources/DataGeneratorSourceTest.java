@@ -18,10 +18,15 @@
  */
 package org.apache.pulsar.tests.integration.io.sources;
 
+import static org.apache.pulsar.tests.integration.suites.PulsarTestSuite.retryStrategically;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import com.google.gson.Gson;
 import java.util.ArrayList;
 import java.util.List;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -38,17 +43,10 @@ import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-
-import static org.apache.pulsar.tests.integration.suites.PulsarTestSuite.retryStrategically;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
-
 /**
- * This tests verifies that a batch source can be successfully submitted and run via the pulsar-admin CLI
+ * This tests verifies that a batch source can be successfully submitted and run via the pulsar-admin CLI.
  */
-@Slf4j
+@CustomLog
 public class DataGeneratorSourceTest extends PulsarStandaloneTestSuite {
 
     @Test(groups = {"source"})
@@ -145,7 +143,7 @@ public class DataGeneratorSourceTest extends PulsarStandaloneTestSuite {
             commands.add("--producer-config");
             commands.add(new Gson().toJson(producerConfig));
         }
-        log.info("Run command : {}", StringUtils.join(commands, ' '));
+        log.info().attr("command", StringUtils.join(commands, ' ')).log("Run command");
         ContainerExecResult result = container.execCmd(commands.toArray(new String[0]));
         assertTrue(
                 result.getStdout().contains("Created successfully"),
@@ -181,7 +179,7 @@ public class DataGeneratorSourceTest extends PulsarStandaloneTestSuite {
                 }
                 return false;
             } catch (Exception e) {
-                log.error("Encountered error when getting source status", e);
+                log.error().exception(e).log("Encountered error when getting source status");
                 return false;
             }
         }, 10, 200);
