@@ -360,8 +360,6 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
 
             generateManagedLedgerBookieClientMetrics(pulsar, stream);
 
-            generateMetadataStoreMetrics(pulsar, stream);
-
             if (metricsProviders != null) {
                 for (PrometheusRawMetricsProvider metricsProvider : metricsProviders) {
                     metricsProvider.generate(stream);
@@ -518,20 +516,8 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
             if (statsProvider instanceof NullStatsProvider) {
                 return;
             }
-            writeStatsProviderMetrics(statsProvider, stream);
-        }
-    }
 
-    private static void generateMetadataStoreMetrics(PulsarService pulsar, SimpleTextOutputStream stream) {
-        StatsProvider statsProvider = pulsar.getMetadataStoreStatsProvider();
-        if (statsProvider instanceof NullStatsProvider) {
-            return;
-        }
-        writeStatsProviderMetrics(statsProvider, stream);
-    }
-
-    private static void writeStatsProviderMetrics(StatsProvider statsProvider, SimpleTextOutputStream stream) {
-        try (Writer writer = new OutputStreamWriter(new BufferedOutputStream(new OutputStream() {
+            try (Writer writer = new OutputStreamWriter(new BufferedOutputStream(new OutputStream() {
                 @Override
                 public void write(int b) throws IOException {
                     stream.writeByte(b);
@@ -544,8 +530,9 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
             }), StandardCharsets.UTF_8)) {
                 statsProvider.writeAllMetrics(writer);
             } catch (IOException e) {
-                log.error().exception(e).log("Failed to write metrics");
+                log.error().exception(e).log("Failed to write managed ledger bookie client metrics");
             }
+        }
     }
 
     public MetricsBuffer renderToBuffer(Executor executor, List<PrometheusRawMetricsProvider> metricsProviders) {
