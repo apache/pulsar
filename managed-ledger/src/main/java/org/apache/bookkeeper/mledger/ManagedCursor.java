@@ -84,30 +84,18 @@ public interface ManagedCursor {
 
     /**
      * Update the last active time of the cursor.
-     * @Deprecated call {@link #updateLastActive(boolean)} instead/
+     *
      */
-    @Deprecated
     void updateLastActive();
 
     /**
-     * Update the last active time of the cursor.
-     * @param active when update latest active time, the subscription is not active(in other words, all consumers are
-     *              unregistered), please set the value to "false".
-     *
+     * Mark the cursor as idle from now on, unless it is already idle, e.g. because its subscription has no consumers
+     * anymore. The last active time of an idle cursor is the time since which it is idle: unlike the last active time
+     * of a cursor in use, it is persisted with the cursor position and kept when the cursor is recovered, until
+     * {@link #updateLastActive()} is called again.
      */
-    default CompletableFuture<Void> updateLastActive(boolean active) {
+    default void markIdle() {
         updateLastActive();
-        return CompletableFuture.completedFuture(null);
-    }
-
-    /**
-     * Get the last active time or inactive time of the cursor.
-     *
-     * @return If the value is negative, it indicates the last inactive time and has not been active since then.
-     *     If the value is positive, it indicates the last active time (the last time delete was called, markDelete).
-     */
-    default long getLastActiveOrInActive() {
-        return getLastActive();
     }
 
     /**

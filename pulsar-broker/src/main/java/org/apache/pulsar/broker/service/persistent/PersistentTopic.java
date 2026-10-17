@@ -3923,16 +3923,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         || isSystemCursor(subName)) {
                     return;
                 }
-                // lastActiveOrInActive > 0: latest active time, the value will be update when consumers registered
-                //                           or acknowledged messages.
-                // lastActiveOrInActive < 0: latest inactive time, the value will be update when all consumers
-                //                           unregistered.
-                long lastActiveOrInActive = sub.cursor.getLastActiveOrInActive();
-                if (lastActiveOrInActive > 0) {
-                    return;
-                }
-                long lastInActive = Math.abs(lastActiveOrInActive);
-                if (System.currentTimeMillis() - lastInActive > expirationTimeMillis) {
+                if (System.currentTimeMillis() - sub.cursor.getLastActive() > expirationTimeMillis) {
                     sub.delete().thenAccept(v -> log.info()
                             .attr("subscription", subName)
                             .attr("lastActive", sub.cursor.getLastActive())
