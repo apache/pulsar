@@ -55,6 +55,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -97,14 +98,11 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoun
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.NonAppendableLedgerOffloader;
 import org.apache.bookkeeper.mledger.util.Futures;
-import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.commons.lang3.tuple.ImmutableTriple;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.bookie.rackawareness.IsolatedBookieEnsemblePlacementPolicy;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -2448,30 +2446,6 @@ public class BrokerService implements Closeable {
             return null;
         });
         return result;
-    }
-
-    /**
-     * @return Triple [namespace policies, global topic policies, topic policies].
-     */
-    public CompletableFuture<Triple<Optional<Policies>, Optional<TopicPolicies>, Optional<TopicPolicies>>>
-    getCombinedTopicPolicies(@NonNull TopicName topicName) {
-        if (topicName == null) {
-            return FutureUtil.failedFuture(new NullPointerException("topicName"));
-        }
-        NamespaceName namespace = topicName.getNamespaceObject();
-        NamespaceResources nsr = pulsar.getPulsarResources().getNamespaceResources();
-        final CompletableFuture<Optional<TopicPolicies>> topicPoliciesFuture =
-                getTopicPoliciesBypassSystemTopic(topicName, TopicPoliciesService.GetType.LOCAL_ONLY);
-        final CompletableFuture<Optional<TopicPolicies>> globalTopicPoliciesFuture =
-                getTopicPoliciesBypassSystemTopic(topicName, TopicPoliciesService.GetType.GLOBAL_ONLY);
-        final CompletableFuture<Optional<Policies>> nsPolicies = nsr.getPoliciesAsync(namespace);
-        return topicPoliciesFuture.thenCombine(globalTopicPoliciesFuture, (topicP, globalTopicP) -> {
-            return new ImmutablePair<>(topicP, globalTopicP);
-        }).thenCombine(nsPolicies, (topicPoliciesPair, np) -> {
-            Optional<TopicPolicies> topicP = topicPoliciesPair.getLeft();
-            Optional<TopicPolicies> globalTopicP = topicPoliciesPair.getRight();
-            return new ImmutableTriple<>(np, globalTopicP, topicP);
-        });
     }
 
     public CompletableFuture<ManagedLedgerConfig> getManagedLedgerConfig(@NonNull TopicName topicName) {
@@ -4860,35 +4834,34 @@ public class BrokerService implements Closeable {
     }
 
     /**
-     * @return CompletableFuture<Triple<Optional<Policies>, whether the current cluster is allowed to access the topic.
+     * Whether the current cluster is allowed to access the topic, by the same rule that is applied when the topic is
+     * loaded: the effective replication clusters (topic level, then global topic level, then namespace level) or the
+     * namespace-level allowed clusters contain the current cluster.
      */
     public CompletableFuture<Boolean> isCurrentClusterAllowed(@NonNull TopicName topicName) {
-        final String cluster = getPulsar().getConfig().getClusterName();
-        return getCombinedTopicPolicies(topicName).thenApply(triple -> {
-            Optional<TopicPolicies> topicP = triple.getRight();
-            Optional<TopicPolicies> globalTopicP = triple.getMiddle();
-            Optional<Policies> nsPolicies = triple.getLeft();
-            // Disabled a cluster for a namespace manually.
-            if (nsPolicies.isPresent() && !isCurrentClusterAllowed(topicName.getNamespaceObject(), nsPolicies.get())) {
-                return false;
-            }
-            // Manually enabled topic-level replication, which can skip to set a namespace-level replication.
-            if (topicP.isPresent() && CollectionUtils.isNotEmpty(topicP.get().getReplicationClusters())) {
-                if (topicP.get().getReplicationClusters().contains(cluster)) {
-                    return true;
-                } else {
-                    return false;
-                }
-            }
-            if (globalTopicP.isPresent() && CollectionUtils.isNotEmpty(globalTopicP.get().getReplicationClusters())) {
-                if (globalTopicP.get().getReplicationClusters().contains(cluster)) {
-                    return true;
-                } else {
-                    return false;
-                }
-            }
-            return true;
-        });
+        final String cluster = pulsar.getConfig().getClusterName();
+        final CompletableFuture<Optional<TopicPolicies>> topicPoliciesFuture =
+                getTopicPoliciesBypassSystemTopic(topicName, TopicPoliciesService.GetType.LOCAL_ONLY);
+        final CompletableFuture<Optional<TopicPolicies>> globalTopicPoliciesFuture =
+                getTopicPoliciesBypassSystemTopic(topicName, TopicPoliciesService.GetType.GLOBAL_ONLY);
+        final CompletableFuture<Optional<Policies>> nsPoliciesFuture = pulsar.getPulsarResources()
+                .getNamespaceResources().getPoliciesAsync(topicName.getNamespaceObject());
+        return CompletableFuture.allOf(topicPoliciesFuture, globalTopicPoliciesFuture, nsPoliciesFuture)
+                .thenApply(__ -> {
+                    Optional<Policies> nsPolicies = nsPoliciesFuture.join();
+                    List<String> topicClusters = topicPoliciesFuture.join()
+                            .map(TopicPolicies::getReplicationClusters)
+                            .or(() -> globalTopicPoliciesFuture.join().map(TopicPolicies::getReplicationClusters))
+                            .orElse(null);
+                    Collection<String> replicationClusters = topicClusters != null ? topicClusters
+                            : nsPolicies.map(p -> p.replication_clusters).orElse(null);
+                    // A topic without replication clusters is loaded without checking the cluster either.
+                    if (isEmpty(replicationClusters)) {
+                        return true;
+                    }
+                    return replicationClusters.contains(cluster)
+                            || nsPolicies.map(p -> p.allowed_clusters.contains(cluster)).orElse(false);
+                });
     }
 
     /***
