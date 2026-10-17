@@ -35,10 +35,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import lombok.Getter;
@@ -93,6 +96,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected final ExecutorService externalPinnedExecutor;
     protected final ExecutorService internalPinnedExecutor;
     private final ListenerTaskScheduler listenerTaskScheduler;
+    private final AtomicReference<ListenerRetry> listenerRetry = new AtomicReference<>();
+    private final AtomicInteger listenerQueueGeneration = new AtomicInteger();
     protected final UnAckedMessageTracker unAckedMessageTracker;
     final GrowableArrayBlockingQueue<Message<T>> incomingMessages;
     protected Map<MessageIdAdv, MessageIdImpl[]> unAckedChunkedMessageIdSequenceMap = new ConcurrentHashMap<>();
@@ -1231,14 +1236,30 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         try {
             Message<T> msg;
             do {
+                // A rejected message keeps its place ahead of subsequent messages until submission succeeds.
+                if (listenerRetry.get() != null) {
+                    return;
+                }
+                int generation = listenerQueueGeneration.get();
                 msg = internalReceive(0, TimeUnit.MILLISECONDS);
                 if (msg != null) {
                     // Trigger the notification on the message listener in a separate thread to avoid blocking the
                     // internal pinned executor thread while the message processing happens
                     final Message<T> finalMsg = msg;
                     MESSAGE_LISTENER_QUEUE_SIZE_UPDATER.incrementAndGet(this);
+                    Runnable task = () -> callMessageListener(finalMsg);
                     try {
-                        messageListenerExecutor.execute(msg, () -> callMessageListener(finalMsg));
+                        messageListenerExecutor.execute(msg, task);
+                    } catch (RejectedExecutionException error) {
+                        ListenerRetry retry = new ListenerRetry(msg, task);
+                        listenerRetry.set(retry);
+                        if (generation != listenerQueueGeneration.get()
+                                || getState() == State.Closing || getState() == State.Closed) {
+                            retry.cancel();
+                        } else {
+                            retry.schedule();
+                        }
+                        return;
                     } catch (RuntimeException | Error error) {
                         // A failed submission has dequeued a message, but may leave more messages to drain.
                         // Preserve a later turn even when earlier failures consumed the coalesced notification.
@@ -1254,6 +1275,114 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             log.warn().exception(e)
                     .log("Failed to dequeue the message for listener");
         }
+    }
+
+    /** Only the exceptional submission path allocates a retry; normal listener dispatch is unchanged. */
+    private final class ListenerRetry implements Runnable {
+        private static final int WAITING = 0;
+        private static final int SUBMITTING = 1;
+        private static final int FINISHED = 2;
+        private static final int CANCELLED = 3;
+
+        private final Message<T> message;
+        private final Runnable task;
+        private final MessageId messageId;
+        private final AtomicInteger state = new AtomicInteger(WAITING);
+        private volatile Timeout timeout;
+        private long delayMillis = 100;
+
+        private ListenerRetry(Message<T> message, Runnable task) {
+            this.message = message;
+            this.task = task;
+            this.messageId = message.getMessageId();
+        }
+
+        private void schedule() {
+            try {
+                Timeout next = client.timer().newTimeout(ignored -> {
+                    try {
+                        internalPinnedExecutor.execute(this);
+                    } catch (RejectedExecutionException e) {
+                        cancel();
+                    }
+                }, delayMillis, TimeUnit.MILLISECONDS);
+                timeout = next;
+                // Cancellation may race with the timer registration.
+                if (state.get() != WAITING) {
+                    next.cancel();
+                }
+                delayMillis = Math.min(delayMillis * 2, 1000);
+            } catch (RuntimeException e) {
+                cancel();
+                log.debug().exception(e).log("Unable to schedule rejected listener task during shutdown");
+            }
+        }
+
+        @Override
+        public void run() {
+            if (!state.compareAndSet(WAITING, SUBMITTING)) {
+                return;
+            }
+            try {
+                messageListenerExecutor.execute(message, () -> {
+                    if (state.get() == CANCELLED) {
+                        release();
+                    } else {
+                        task.run();
+                    }
+                });
+            } catch (RejectedExecutionException e) {
+                if (state.compareAndSet(SUBMITTING, WAITING)) {
+                    schedule();
+                } else {
+                    // Cancellation leaves an in-flight submission responsible for its message.
+                    release();
+                }
+                return;
+            } catch (RuntimeException | Error e) {
+                state.set(FINISHED);
+                listenerRetry.compareAndSet(this, null);
+                release();
+                listenerTaskScheduler.trigger();
+                throw e;
+            }
+            // An accepted task owns the message even if cancellation raced with execute().
+            state.compareAndSet(SUBMITTING, FINISHED);
+            listenerRetry.compareAndSet(this, null);
+            listenerTaskScheduler.trigger();
+        }
+
+        private void cancel() {
+            int previous = state.getAndSet(CANCELLED);
+            Timeout current = timeout;
+            if (current != null) {
+                current.cancel();
+            }
+            listenerRetry.compareAndSet(this, null);
+            if (previous == WAITING) {
+                release();
+            }
+        }
+
+        private void release() {
+            try {
+                message.release();
+            } finally {
+                MESSAGE_LISTENER_QUEUE_SIZE_UPDATER.decrementAndGet(ConsumerBase.this);
+            }
+        }
+    }
+
+    // Close and seek discard a retry. Ordinary redelivery keeps it like an already queued listener task,
+    // so callMessageListener can return its permit and check the updated consumer epoch.
+    final MessageId clearListenerRetry() {
+        listenerQueueGeneration.incrementAndGet();
+        ListenerRetry retry = listenerRetry.getAndSet(null);
+        if (retry != null) {
+            retry.cancel();
+            return retry.messageId;
+        }
+        return null;
     }
 
     private void executeMessageListener(Message<?> message, Runnable runnable) {
