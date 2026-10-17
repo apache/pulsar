@@ -18,9 +18,12 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -131,6 +134,31 @@ public class ScalableTopicsAuthZTest extends AuthZTest {
         assertNotAuthorized(() -> nobody.scalableTopics().getMetadata(topic));
         assertAuthorized(() -> tenantManagerAdmin.scalableTopics().getMetadata(topic));
         assertAuthorized(() -> superUserAdmin.scalableTopics().getMetadata(topic));
+    }
+
+    @Test
+    public void testEncodedTopicAndSegmentAuthZ() throws Exception {
+        String topic = NAMESPACE + "/encoded+topic-" + UUID.randomUUID();
+        superUserAdmin.scalableTopics().createScalableTopic(topic, 1);
+        @Cleanup
+        PulsarAdmin nobody = nobodyAdmin();
+        assertNotAuthorized(() -> nobody.scalableTopics().getMetadata(topic));
+        tenantManagerAdmin.scalableTopics().getMetadata(topic);
+
+        String segment = segmentTopicOf(topic);
+        assertThat(nobody.scalableTopics().checkSegmentOwnerAsync(segment)).failsWithin(10, TimeUnit.SECONDS)
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(PulsarAdminException.NotAuthorizedException.class);
+        assertThat(tenantManagerAdmin.scalableTopics().checkSegmentOwnerAsync(segment))
+                .failsWithin(10, TimeUnit.SECONDS)
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(PulsarAdminException.NotAuthorizedException.class);
+        superUserAdmin.scalableTopics().checkSegmentOwnerAsync(segment).get(10, TimeUnit.SECONDS);
+        assertNotAuthorized(() -> nobody.scalableTopics().createSegment(segment, null));
+        assertNotAuthorized(() -> tenantManagerAdmin.scalableTopics().createSegment(segment, null));
+        superUserAdmin.scalableTopics().createSegment(segment, null);
+        superUserAdmin.scalableTopics().deleteSegment(segment, true);
+        superUserAdmin.scalableTopics().deleteScalableTopic(topic, true);
     }
 
     @Test

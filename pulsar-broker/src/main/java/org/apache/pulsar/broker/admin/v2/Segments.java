@@ -72,10 +72,15 @@ import org.apache.pulsar.common.util.FutureUtil;
 @Tag(name = "segments", description = "Segment topic admin APIs")
 public class Segments extends AdminResource {
 
-    private TopicName segmentTopicName(String tenant, String namespace,
+    /** Preserve the v2 path interpretation used by older controller brokers. */
+    protected String topicLocalName(String encodedTopic) {
+        return encodedTopic;
+    }
+
+    protected TopicName segmentTopicName(String tenant, String namespace,
                                        String encodedTopic, String descriptor) {
         return TopicName.get(TopicDomain.segment.value() + "://" + tenant + "/" + namespace + "/"
-                + encodedTopic + "/" + descriptor);
+                + topicLocalName(encodedTopic) + "/" + descriptor);
     }
 
     @PUT
