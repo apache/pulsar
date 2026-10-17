@@ -87,9 +87,10 @@ class LockManagerImpl<T> implements LockManager<T> {
 
         CompletableFuture<ResourceLock<T>> result = new CompletableFuture<>();
         lock.acquire(value).thenRun(() -> {
+            ResourceLockImpl<T> replaced = null;
             synchronized (LockManagerImpl.this) {
                 if (state == State.Ready) {
-                    locks.put(path, lock);
+                    replaced = locks.put(path, lock);
                     lock.getLockExpiredFuture().thenRun(() -> {
                         log.info().attr("path", path).log("Released resource lock");
                         synchronized (LockManagerImpl.this) {
@@ -100,6 +101,15 @@ class LockManagerImpl<T> implements LockManager<T> {
                     // LockManager was closed in between. Release the lock asynchronously
                     lock.release();
                 }
+            }
+            if (replaced != null && replaced != lock) {
+                // The previous handle for this path is superseded: retire it, so that a
+                // revalidation of it that is still scheduled or in flight cannot re-create
+                // the path and resurrect a torn-down resource. Done outside this lock
+                // manager's monitor: retire() synchronizes on the superseded lock, and taking
+                // that monitor while holding this one can deadlock with the superseded lock's
+                // own release, whose completion reaches back for this monitor.
+                replaced.retire();
             }
             result.complete(lock);
         }).exceptionally(ex -> {
