@@ -345,7 +345,6 @@ public abstract class PulsarWebResource {
                     if (tenantInfoOptional.isEmpty()) {
                         throw new RestException(Status.NOT_FOUND, "Tenant does not exist");
                     }
-                    TenantInfo tenantInfo = tenantInfoOptional.get();
                     if (pulsar.getConfiguration().isAuthenticationEnabled() && pulsar.getConfiguration()
                             .isAuthorizationEnabled()) {
                         if (!isClientAuthenticated(clientAppId)) {
@@ -377,15 +376,8 @@ public abstract class PulsarWebResource {
                         } else {
                             return pulsar.getBrokerService()
                                     .getAuthorizationService()
-                                    .isSuperUser(clientAppId, authenticationData)
-                                    .thenCompose(isSuperUser -> {
-                                        if (!isSuperUser) {
-                                            return pulsar.getBrokerService().getAuthorizationService()
-                                                    .isTenantAdmin(tenant, clientAppId, tenantInfo, authenticationData);
-                                        } else {
-                                            return CompletableFuture.completedFuture(true);
-                                        }
-                                    }).thenAccept(authorized -> {
+                                    .isSuperUserOrTenantAdmin(tenant, clientAppId, authenticationData)
+                                    .thenAccept(authorized -> {
                                         if (!authorized) {
                                             throw new RestException(Status.UNAUTHORIZED,
                                                     "Don't have permission to administrate resources on this tenant");
