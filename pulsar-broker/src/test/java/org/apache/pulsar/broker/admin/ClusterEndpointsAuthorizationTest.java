@@ -22,6 +22,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
+import java.util.LinkedHashSet;
+import java.util.UUID;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
@@ -43,8 +45,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import java.util.LinkedHashSet;
-import java.util.UUID;
 
 
 @Test(groups = "broker-admin")
@@ -83,7 +83,8 @@ public class ClusterEndpointsAuthorizationTest extends MockedPulsarStandalone {
     @AfterMethod(alwaysRun = true)
     public void after() throws IllegalAccessException {
         if (orignalAuthorizationService != null) {
-            FieldUtils.writeField(getPulsarService().getBrokerService(), "authorizationService", orignalAuthorizationService, true);
+            FieldUtils.writeField(getPulsarService().getBrokerService(), "authorizationService",
+                    orignalAuthorizationService, true);
         }
     }
 
@@ -93,6 +94,10 @@ public class ClusterEndpointsAuthorizationTest extends MockedPulsarStandalone {
         if (superUserAdmin != null) {
             superUserAdmin.close();
             superUserAdmin = null;
+        }
+        if (nobodyAdmin != null) {
+            nobodyAdmin.close();
+            nobodyAdmin = null;
         }
         spyAuthorizationService = null;
         orignalAuthorizationService = null;
@@ -361,7 +366,9 @@ public class ClusterEndpointsAuthorizationTest extends MockedPulsarStandalone {
 
         // test allow cluster operation
         verify(spyAuthorizationService)
-                .allowClusterOperationAsync(eq(clusterName), eq(ClusterOperation.UPDATE_FAILURE_DOMAIN), any(), any(), any());
+                .allowClusterOperationAsync(eq(clusterName),
+                        eq(ClusterOperation.UPDATE_FAILURE_DOMAIN), any(), any(),
+                        any());
         // fallback to superuser
         verify(spyAuthorizationService).isSuperUser(any(), any());
         // ---- test nobody
@@ -377,7 +384,9 @@ public class ClusterEndpointsAuthorizationTest extends MockedPulsarStandalone {
 
         // test allow cluster operation
         verify(spyAuthorizationService)
-                .allowClusterOperationAsync(eq(clusterName), eq(ClusterOperation.GET_FAILURE_DOMAIN), any(), any(), any());
+                .allowClusterOperationAsync(eq(clusterName),
+                        eq(ClusterOperation.GET_FAILURE_DOMAIN), any(), any(),
+                        any());
         // fallback to superuser
         verify(spyAuthorizationService).isSuperUser(any(), any());
         // ---- test nobody
@@ -397,7 +406,9 @@ public class ClusterEndpointsAuthorizationTest extends MockedPulsarStandalone {
 
         // test allow cluster operation
         verify(spyAuthorizationService)
-                .allowClusterOperationAsync(eq(clusterName), eq(ClusterOperation.GET_FAILURE_DOMAIN), any(), any(), any());
+                .allowClusterOperationAsync(eq(clusterName),
+                        eq(ClusterOperation.GET_FAILURE_DOMAIN), any(), any(),
+                        any());
         // fallback to superuser
         verify(spyAuthorizationService).isSuperUser(any(), any());
         // ---- test nobody
@@ -416,7 +427,9 @@ public class ClusterEndpointsAuthorizationTest extends MockedPulsarStandalone {
 
         // test allow cluster operation
         verify(spyAuthorizationService)
-                .allowClusterOperationAsync(eq(clusterName), eq(ClusterOperation.DELETE_FAILURE_DOMAIN), any(), any(), any());
+                .allowClusterOperationAsync(eq(clusterName),
+                        eq(ClusterOperation.DELETE_FAILURE_DOMAIN), any(), any(),
+                        any());
         // fallback to superuser
         verify(spyAuthorizationService).isSuperUser(any(), any());
         // ---- test nobody

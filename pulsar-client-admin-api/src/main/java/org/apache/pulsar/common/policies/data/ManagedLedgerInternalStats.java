@@ -71,6 +71,9 @@ public class ManagedLedgerInternalStats {
     /** The list of all cursors on this topic. Each subscription in the topic stats has a cursor. */
     public Map<String, CursorStats> cursors;
 
+    /** The properties map of the managed ledger. */
+    public Map<String, String> properties;
+
     /**
      * Ledger information.
      */
@@ -81,6 +84,7 @@ public class ManagedLedgerInternalStats {
         public boolean offloaded;
         public String metadata;
         public boolean underReplicated;
+        public Map<String, String> properties;
     }
 
     /**

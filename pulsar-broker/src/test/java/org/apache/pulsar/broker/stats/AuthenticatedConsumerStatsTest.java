@@ -46,8 +46,8 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class AuthenticatedConsumerStatsTest extends ConsumerStatsTest{
-    private final String ADMIN_TOKEN;
-    private final String TOKEN_PUBLIC_KEY;
+    private final String adminToken;
+    private final String tokenPublicKey;
     private final KeyPair kp;
 
     AuthenticatedConsumerStatsTest() throws NoSuchAlgorithmException {
@@ -55,9 +55,10 @@ public class AuthenticatedConsumerStatsTest extends ConsumerStatsTest{
         kp = kpg.generateKeyPair();
 
         byte[] encodedPublicKey = kp.getPublic().getEncoded();
-        TOKEN_PUBLIC_KEY = "data:;base64," + Base64.getEncoder().encodeToString(encodedPublicKey);
-        ADMIN_TOKEN = generateToken(kp, "admin");
+        tokenPublicKey = "data:;base64," + Base64.getEncoder().encodeToString(encodedPublicKey);
+        adminToken = generateToken(kp, "admin");
     }
+    @SuppressWarnings("deprecation")
 
 
     private String generateToken(KeyPair kp, String subject) {
@@ -74,12 +75,12 @@ public class AuthenticatedConsumerStatsTest extends ConsumerStatsTest{
 
     @Override
     protected void customizeNewPulsarClientBuilder(ClientBuilder clientBuilder) {
-        clientBuilder.authentication(AuthenticationFactory.token(ADMIN_TOKEN));
+        clientBuilder.authentication(AuthenticationFactory.token(adminToken));
     }
 
     @Override
     protected void customizeNewPulsarAdminBuilder(PulsarAdminBuilder pulsarAdminBuilder) {
-        pulsarAdminBuilder.authentication(AuthenticationFactory.token(ADMIN_TOKEN));
+        pulsarAdminBuilder.authentication(AuthenticationFactory.token(adminToken));
     }
 
     @BeforeMethod
@@ -96,13 +97,13 @@ public class AuthenticatedConsumerStatsTest extends ConsumerStatsTest{
         providers.add(AuthenticationProviderToken.class.getName());
         conf.setAuthenticationProviders(providers);
         conf.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());
-        conf.setBrokerClientAuthenticationParameters("token:" + ADMIN_TOKEN);
+        conf.setBrokerClientAuthenticationParameters("token:" + adminToken);
 
         conf.setClusterName("test");
 
         // Set provider domain name
         Properties properties = new Properties();
-        properties.setProperty("tokenPublicKey", TOKEN_PUBLIC_KEY);
+        properties.setProperty("tokenPublicKey", tokenPublicKey);
         conf.setProperties(properties);
 
         super.internalSetup();

@@ -23,6 +23,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import io.netty.util.HashedWheelTimer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BrokenBarrierException;
@@ -31,8 +32,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-
-import io.netty.util.HashedWheelTimer;
+import lombok.Cleanup;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAllowedException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -40,6 +40,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderListener;
@@ -47,29 +48,14 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
-public class TopicTerminationTest extends BrokerTestBase {
-
-    @BeforeMethod
-    @Override
-    protected void setup() throws Exception {
-        super.baseSetup();
-    }
-
-    @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
-
-    private final String topicName = "persistent://prop/ns-abc/topic0";
+public class TopicTerminationTest extends SharedPulsarBaseTest {
 
     @Test
     public void testSimpleTermination() throws Exception {
+        String topicName = newTopicName();
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
@@ -92,6 +78,7 @@ public class TopicTerminationTest extends BrokerTestBase {
 
     @Test(groups = "broker")
     public void testCreateProducerOnTerminatedTopic() throws Exception {
+        String topicName = newTopicName();
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
@@ -112,8 +99,17 @@ public class TopicTerminationTest extends BrokerTestBase {
         }
     }
 
+    @Test(groups = "broker")
     public void testCreatingProducerTasksCleanupWhenOnTerminatedTopic() throws Exception {
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+        String topicName = newTopicName();
+        // Use a dedicated PulsarClient so that the timer is not shared with other tests.
+        // The original test asserted timer.pendingTimeouts() == 0, which is unreliable
+        // when using the shared pulsarClient because other tests' producers/consumers
+        // may leave pending timeouts in the shared HashedWheelTimer.
+        @Cleanup
+        PulsarClient client = newPulsarClient();
+
+        Producer<byte[]> producer = client.newProducer().topic(topicName)
                 .enableBatching(false)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .create();
@@ -127,20 +123,23 @@ public class TopicTerminationTest extends BrokerTestBase {
         producer.close();
 
         try {
-            pulsarClient.newProducer().topic(topicName).create();
+            client.newProducer().topic(topicName).create();
             fail("Should have thrown exception");
         } catch (PulsarClientException.TopicTerminatedException e) {
             // Expected
         }
-        HashedWheelTimer timer = (HashedWheelTimer) ((PulsarClientImpl) pulsarClient).timer();
+        HashedWheelTimer timer = (HashedWheelTimer) ((PulsarClientImpl) client).timer();
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(timer.pendingTimeouts(), 0));
     }
 
     @Test(timeOut = 20000)
     public void testTerminateWhilePublishing() throws Exception {
+        String topicName = newTopicName();
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .sendTimeout(5, TimeUnit.SECONDS)
             .create();
 
         CyclicBarrier barrier = new CyclicBarrier(2);
@@ -169,7 +168,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         boolean alreadyFailed = false;
 
         try {
-            FutureUtil.waitForAll(futures).get();
+            FutureUtil.waitForAll(futures).get(10, TimeUnit.SECONDS);
         } catch (Exception e) {
             // Ignore for now, check is below
         }
@@ -186,6 +185,7 @@ public class TopicTerminationTest extends BrokerTestBase {
 
     @Test(groups = "broker")
     public void testDoubleTerminate() throws Exception {
+        String topicName = newTopicName();
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
@@ -205,6 +205,7 @@ public class TopicTerminationTest extends BrokerTestBase {
 
     @Test(groups = "broker")
     public void testTerminatePartitionedTopic() throws Exception {
+        String topicName = newTopicName();
         admin.topics().createPartitionedTopic(topicName, 4);
 
         try {
@@ -217,11 +218,12 @@ public class TopicTerminationTest extends BrokerTestBase {
 
     @Test(timeOut = 20000)
     public void testSimpleTerminationConsumer() throws Exception {
+        String topicName = newTopicName();
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .create();
-        org.apache.pulsar.client.api.Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName("my-sub").subscribe();
 
         MessageId msgId1 = producer.send("test-msg-1".getBytes());
@@ -254,6 +256,7 @@ public class TopicTerminationTest extends BrokerTestBase {
 
     @Test(timeOut = 20000)
     public void testSimpleTerminationMessageListener() throws Exception {
+        String topicName = newTopicName();
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
@@ -261,7 +264,7 @@ public class TopicTerminationTest extends BrokerTestBase {
 
         CountDownLatch latch = new CountDownLatch(1);
 
-        org.apache.pulsar.client.api.Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName("my-sub").messageListener(new MessageListener<byte[]>() {
 
                     @Override
@@ -293,6 +296,7 @@ public class TopicTerminationTest extends BrokerTestBase {
 
     @Test(timeOut = 20000)
     public void testSimpleTerminationReader() throws Exception {
+        String topicName = newTopicName();
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
@@ -324,6 +328,7 @@ public class TopicTerminationTest extends BrokerTestBase {
 
     @Test(timeOut = 20000)
     public void testSimpleTerminationReaderListener() throws Exception {
+        String topicName = newTopicName();
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
@@ -360,6 +365,7 @@ public class TopicTerminationTest extends BrokerTestBase {
 
     @Test(timeOut = 20000)
     public void testSubscribeOnTerminatedTopic() throws Exception {
+        String topicName = newTopicName();
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
@@ -370,7 +376,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         MessageId lastMessageId = admin.topics().terminateTopicAsync(topicName).get();
         assertEquals(lastMessageId, msgId2);
 
-        org.apache.pulsar.client.api.Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName("my-sub").subscribe();
 
         Awaitility.await().untilAsserted(() -> assertTrue(consumer.hasReachedEndOfTopic()));
@@ -378,13 +384,14 @@ public class TopicTerminationTest extends BrokerTestBase {
 
     @Test(timeOut = 20000)
     public void testSubscribeOnTerminatedTopicWithNoMessages() throws Exception {
+        String topicName = newTopicName();
         pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .create();
         admin.topics().terminateTopicAsync(topicName).get();
 
-        org.apache.pulsar.client.api.Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName("my-sub").subscribe();
 
         Awaitility.await().untilAsserted(() -> assertTrue(consumer.hasReachedEndOfTopic()));

@@ -29,15 +29,17 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
+import lombok.CustomLog;
 import lombok.NonNull;
-import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.MetadataSessionExpiredPolicy;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreTableView;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.tableview.impl.MetadataStoreTableViewImpl;
 
-@Slf4j
+@CustomLog
 public class ServiceUnitStateMetadataStoreTableViewImpl extends ServiceUnitStateTableViewBase {
     public static final String PATH_PREFIX = "/service_unit_state";
     private static final String VALID_PATH_REG_EX = "^\\/service_unit_state\\/.*\\/0x[0-9a-fA-F]{8}_0x[0-9a-fA-F]{8}$";
@@ -47,20 +49,30 @@ public class ServiceUnitStateMetadataStoreTableViewImpl extends ServiceUnitState
         try {
             VALID_PATH_PATTERN = Pattern.compile(VALID_PATH_REG_EX);
         } catch (PatternSyntaxException error) {
-            log.error("Invalid regular expression {}", VALID_PATH_REG_EX, error);
+            log.error().attr("expression", VALID_PATH_REG_EX).exception(error).log("Invalid regular expression");
             throw new IllegalArgumentException(error);
         }
     }
     private ServiceUnitStateDataConflictResolver conflictResolver;
     private volatile MetadataStoreTableView<ServiceUnitStateData> tableview;
 
+    @Override
     public void start(PulsarService pulsar,
                       BiConsumer<String, ServiceUnitStateData> tailItemListener,
-                      BiConsumer<String, ServiceUnitStateData> existingItemListener)
+                      BiConsumer<String, ServiceUnitStateData> existingItemListener,
+                      BiConsumer<String, ServiceUnitStateData> outdatedItemListeners)
             throws MetadataStoreException {
         init(pulsar);
         conflictResolver = new ServiceUnitStateDataConflictResolver();
         conflictResolver.setStorageType(MetadataStore);
+        if (!(pulsar.getLocalMetadataStore() instanceof MetadataStoreExtended)
+            && !MetadataSessionExpiredPolicy.shutdown.equals(pulsar.getConfig().getZookeeperSessionExpiredPolicy())) {
+            String errorMsg = String.format("Your current metadata store [%s] does not support the registration of "
+                    + "session event listeners. Please set \"zookeeperSessionExpiredPolicy\" to \"shutdown\";"
+                    + " otherwise, you will encounter the issue that messages lost because of conflicted topic loading",
+                    pulsar.getLocalMetadataStore().getClass().getName());
+            log.warn(errorMsg);
+        }
         tableview = new MetadataStoreTableViewImpl<>(ServiceUnitStateData.class,
                 pulsar.getBrokerId(),
                 pulsar.getLocalMetadataStore(),
@@ -69,10 +81,19 @@ public class ServiceUnitStateMetadataStoreTableViewImpl extends ServiceUnitState
                 this::validateServiceUnitPath,
                 List.of(this::updateOwnedServiceUnits, tailItemListener),
                 List.of(this::updateOwnedServiceUnits, existingItemListener),
-                TimeUnit.SECONDS.toMillis(pulsar.getConfiguration().getMetadataStoreOperationTimeoutSeconds())
+                List.of(this::invalidateOwnedServiceUnits, outdatedItemListeners),
+                true,
+                TimeUnit.SECONDS.toMillis(pulsar.getConfiguration().getMetadataStoreOperationTimeoutSeconds()),
+                t -> handleTableViewShutDownEvent(t)
         );
         tableview.start();
 
+    }
+
+    protected void handleTableViewShutDownEvent(Throwable throwable) {
+        log.error("The component of load-balance, which named metadata store table view has shutdown. This Broker can"
+                + " not work anymore, start tp shutdow,");
+        pulsar.shutdownNow();
     }
 
     protected boolean resolveConflict(ServiceUnitStateData prev, ServiceUnitStateData cur) {
@@ -129,6 +150,11 @@ public class ServiceUnitStateMetadataStoreTableViewImpl extends ServiceUnitState
     @Override
     public void flush(long waitDurationInMillis) {
         // no-op
+    }
+
+    @Override
+    public boolean isMetadataStoreBased() {
+        return true;
     }
 
     @Override

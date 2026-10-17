@@ -35,31 +35,48 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.EventLoopGroup;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import lombok.extern.slf4j.Slf4j;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.LogEvent;
+import org.apache.logging.log4j.core.Logger;
+import org.apache.logging.log4j.core.appender.AbstractAppender;
+import org.apache.logging.log4j.core.layout.PatternLayout;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.qos.AsyncTokenBucket;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.service.BacklogQuotaManager;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.broker.qos.AsyncTokenBucket;
 import org.apache.pulsar.compaction.CompactionServiceFactory;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -67,7 +84,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class MessageDuplicationTest extends BrokerTestBase {
 
@@ -86,7 +103,8 @@ public class MessageDuplicationTest extends BrokerTestBase {
         doReturn(serviceConfiguration).when(pulsarService).getConfiguration();
         PersistentTopic persistentTopic = mock(PersistentTopic.class);
         ManagedLedger managedLedger = mock(ManagedLedger.class);
-        MessageDeduplication messageDeduplication = spyWithClassAndConstructorArgs(MessageDeduplication.class, pulsarService, persistentTopic, managedLedger);
+        MessageDeduplication messageDeduplication = spyWithClassAndConstructorArgs(MessageDeduplication.class,
+                pulsarService, persistentTopic, managedLedger);
         doReturn(true).when(messageDeduplication).isEnabled();
 
         String producerName1 = "producer1";
@@ -99,12 +117,14 @@ public class MessageDuplicationTest extends BrokerTestBase {
 
         MessageDeduplication.MessageDupStatus status = messageDeduplication.isDuplicate(publishContext1, byteBuf1);
         assertEquals(status, MessageDeduplication.MessageDupStatus.NotDup);
+        byteBuf1.release();
 
         Long lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
         assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 0);
 
         status = messageDeduplication.isDuplicate(publishContext2, byteBuf2);
+        byteBuf2.release();
         assertEquals(status, MessageDeduplication.MessageDupStatus.NotDup);
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName2);
         assertNotNull(lastSequenceIdPushed);
@@ -113,6 +133,7 @@ public class MessageDuplicationTest extends BrokerTestBase {
         byteBuf1 = getMessage(producerName1, 1);
         publishContext1 = getPublishContext(producerName1, 1);
         status = messageDeduplication.isDuplicate(publishContext1, byteBuf1);
+        byteBuf1.release();
         assertEquals(status, MessageDeduplication.MessageDupStatus.NotDup);
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
         assertNotNull(lastSequenceIdPushed);
@@ -121,6 +142,7 @@ public class MessageDuplicationTest extends BrokerTestBase {
         byteBuf1 = getMessage(producerName1, 5);
         publishContext1 = getPublishContext(producerName1, 5);
         status = messageDeduplication.isDuplicate(publishContext1, byteBuf1);
+        byteBuf1.release();
         assertEquals(status, MessageDeduplication.MessageDupStatus.NotDup);
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
         assertNotNull(lastSequenceIdPushed);
@@ -129,6 +151,7 @@ public class MessageDuplicationTest extends BrokerTestBase {
         byteBuf1 = getMessage(producerName1, 0);
         publishContext1 = getPublishContext(producerName1, 0);
         status = messageDeduplication.isDuplicate(publishContext1, byteBuf1);
+        byteBuf1.release();
         // should expect unknown because highestSequencePersisted is empty
         assertEquals(status, MessageDeduplication.MessageDupStatus.Unknown);
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
@@ -141,6 +164,7 @@ public class MessageDuplicationTest extends BrokerTestBase {
         byteBuf1 = getMessage(producerName1, 0);
         publishContext1 = getPublishContext(producerName1, 0);
         status = messageDeduplication.isDuplicate(publishContext1, byteBuf1);
+        byteBuf1.release();
         // now that highestSequencedPersisted, message with seqId of zero can be classified as a dup
         assertEquals(status, MessageDeduplication.MessageDupStatus.Dup);
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
@@ -160,6 +184,7 @@ public class MessageDuplicationTest extends BrokerTestBase {
 
         publishContext1 = getPublishContext(producerName1, 4, 8);
         status = messageDeduplication.isDuplicate(publishContext1, byteBuf1);
+        byteBuf1.release();
         assertEquals(status, MessageDeduplication.MessageDupStatus.Unknown);
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
         assertNotNull(lastSequenceIdPushed);
@@ -167,6 +192,53 @@ public class MessageDuplicationTest extends BrokerTestBase {
     }
 
     @Test
+    public void testConcurrentDuplicateCheckForSameProducer() throws Exception {
+        PulsarService pulsarService = mock(PulsarService.class);
+        ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
+        serviceConfiguration.setBrokerDeduplicationEntriesInterval(BROKER_DEDUPLICATION_ENTRIES_INTERVAL);
+        serviceConfiguration.setBrokerDeduplicationMaxNumberOfProducers(BROKER_DEDUPLICATION_MAX_NUMBER_PRODUCERS);
+        serviceConfiguration.setReplicatorPrefix(REPLICATOR_PREFIX);
+
+        doReturn(serviceConfiguration).when(pulsarService).getConfiguration();
+        MessageDeduplication messageDeduplication = spyWithClassAndConstructorArgs(MessageDeduplication.class,
+                pulsarService, mock(PersistentTopic.class), mock(ManagedLedger.class));
+        doReturn(true).when(messageDeduplication).isEnabled();
+
+        int threads = 32;
+        ExecutorService executor = Executors.newFixedThreadPool(threads);
+        CountDownLatch start = new CountDownLatch(1);
+        ByteBuf message = getMessage("producer", 1);
+        List<Future<MessageDeduplication.MessageDupStatus>> results = new ArrayList<>();
+        try {
+            for (int i = 0; i < threads; i++) {
+                Topic.PublishContext context = getPublishContext("producer", 1);
+                results.add(executor.submit(() -> {
+                    start.await();
+                    return messageDeduplication.isDuplicate(context, message);
+                }));
+            }
+            start.countDown();
+
+            int accepted = 0;
+            int unknown = 0;
+            for (Future<MessageDeduplication.MessageDupStatus> result : results) {
+                switch (result.get()) {
+                    case NotDup -> accepted++;
+                    case Unknown -> unknown++;
+                    default -> throw new AssertionError("A sequence cannot be known persisted before completion");
+                }
+            }
+            assertEquals(accepted, 1);
+            assertEquals(unknown, threads - 1);
+            assertEquals(messageDeduplication.highestSequencedPushed.get("producer").longValue(), 1L);
+        } finally {
+            message.release();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     public void testInactiveProducerRemove() throws Exception {
         PulsarService pulsarService = mock(PulsarService.class);
         PersistentTopic topic = mock(PersistentTopic.class);
@@ -179,7 +251,8 @@ public class MessageDuplicationTest extends BrokerTestBase {
         serviceConfiguration.setBrokerDeduplicationProducerInactivityTimeoutMinutes(1);
 
         doReturn(serviceConfiguration).when(pulsarService).getConfiguration();
-        MessageDeduplication messageDeduplication = spyWithClassAndConstructorArgs(MessageDeduplication.class, pulsarService, topic, managedLedger);
+        MessageDeduplication messageDeduplication = spyWithClassAndConstructorArgs(MessageDeduplication.class,
+                pulsarService, topic, managedLedger);
         doReturn(true).when(messageDeduplication).isEnabled();
 
         ManagedCursor managedCursor = mock(ManagedCursor.class);
@@ -250,9 +323,9 @@ public class MessageDuplicationTest extends BrokerTestBase {
         doReturn(mock(CompactionServiceFactory.class)).when(pulsarService).getCompactionServiceFactory();
 
         ManagedLedger managedLedger = mock(ManagedLedger.class);
-        MessageDeduplication messageDeduplication = spy(new MessageDeduplication(pulsarService, mock(PersistentTopic.class), managedLedger));
+        MessageDeduplication messageDeduplication = spy(new MessageDeduplication(pulsarService,
+                mock(PersistentTopic.class), managedLedger));
         doReturn(true).when(messageDeduplication).isEnabled();
-
 
         EventLoopGroup eventLoopGroup = mock(EventLoopGroup.class);
 
@@ -268,9 +341,10 @@ public class MessageDuplicationTest extends BrokerTestBase {
         doReturn(pulsarService).when(brokerService).pulsar();
         doReturn(pulsarService).when(brokerService).getPulsar();
         doReturn(new BacklogQuotaManager(pulsarService)).when(brokerService).getBacklogQuotaManager();
-        doReturn(AsyncTokenBucket.DEFAULT_SNAPSHOT_CLOCK).when(pulsarService).getMonotonicSnapshotClock();
+        doReturn(AsyncTokenBucket.DEFAULT_SNAPSHOT_CLOCK).when(pulsarService).getMonotonicClock();
 
-        PersistentTopic persistentTopic = spyWithClassAndConstructorArgs(PersistentTopic.class, "topic-1", brokerService, managedLedger, messageDeduplication);
+        PersistentTopic persistentTopic = spyWithClassAndConstructorArgs(PersistentTopic.class,
+                "topic-1", brokerService, managedLedger, messageDeduplication);
 
         String producerName1 = "producer1";
         ByteBuf byteBuf1 = getMessage(producerName1, 0);
@@ -296,9 +370,12 @@ public class MessageDuplicationTest extends BrokerTestBase {
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName2);
         assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 1);
+        byteBuf2.release();
+
         lastSequenceIdPushed = messageDeduplication.highestSequencedPersisted.get(producerName2);
         assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 1);
+        byteBuf1.release();
 
         byteBuf1 = getMessage(producerName1, 1);
         publishContext1 = getPublishContext(producerName1, 1);
@@ -311,6 +388,7 @@ public class MessageDuplicationTest extends BrokerTestBase {
         lastSequenceIdPushed = messageDeduplication.highestSequencedPersisted.get(producerName1);
         assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 1);
+        byteBuf1.release();
 
         byteBuf1 = getMessage(producerName1, 5);
         publishContext1 = getPublishContext(producerName1, 5);
@@ -323,6 +401,7 @@ public class MessageDuplicationTest extends BrokerTestBase {
         lastSequenceIdPushed = messageDeduplication.highestSequencedPersisted.get(producerName1);
         assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 5);
+        byteBuf1.release();
 
         // publish dup
         byteBuf1 = getMessage(producerName1, 0);
@@ -333,6 +412,7 @@ public class MessageDuplicationTest extends BrokerTestBase {
         assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 5);
         verify(publishContext1, times(1)).completed(eq(null), eq(-1L), eq(-1L));
+        byteBuf1.release();
 
         // publish message unknown dup status
         byteBuf1 = getMessage(producerName1, 6);
@@ -346,16 +426,19 @@ public class MessageDuplicationTest extends BrokerTestBase {
         lastSequenceIdPushed = messageDeduplication.highestSequencedPersisted.get(producerName1);
         assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 5);
+        byteBuf1.release();
 
         // publish same message again
         byteBuf1 = getMessage(producerName1, 6);
         publishContext1 = getPublishContext(producerName1, 6);
         persistentTopic.publishMessage(byteBuf1, publishContext1);
         verify(managedLedger, times(5)).asyncAddEntry(any(ByteBuf.class), anyInt(), any(), any());
-        verify(publishContext1, times(1)).completed(any(MessageDeduplication.MessageDupUnknownException.class), eq(-1L), eq(-1L));
+        verify(publishContext1, times(1))
+                .completed(any(MessageDeduplication.MessageDupUnknownException.class), eq(-1L), eq(-1L));
 
         // complete seq 6 message eventually
         persistentTopic.addComplete(PositionFactory.create(0, 5), null, publishContext1);
+        byteBuf1.release();
 
         // simulate failure
         byteBuf1 = getMessage(producerName1, 7);
@@ -376,6 +459,7 @@ public class MessageDuplicationTest extends BrokerTestBase {
         lastSequenceIdPushed = messageDeduplication.highestSequencedPersisted.get(producerName2);
         assertEquals(lastSequenceIdPushed.longValue(), 1);
         verify(messageDeduplication, times(1)).resetHighestSequenceIdPushed();
+        byteBuf1.release();
 
         // try dup
         byteBuf1 = getMessage(producerName1, 6);
@@ -386,6 +470,7 @@ public class MessageDuplicationTest extends BrokerTestBase {
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
         assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 6);
+        byteBuf1.release();
 
         // try new message
         byteBuf1 = getMessage(producerName1, 8);
@@ -399,6 +484,7 @@ public class MessageDuplicationTest extends BrokerTestBase {
         lastSequenceIdPushed = messageDeduplication.highestSequencedPersisted.get(producerName1);
         assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 8);
+        byteBuf1.release();
 
     }
 
@@ -408,8 +494,11 @@ public class MessageDuplicationTest extends BrokerTestBase {
                 .setSequenceId(seqId)
                 .setPublishTime(System.currentTimeMillis());
 
-        return serializeMetadataAndPayload(
-                Commands.ChecksumType.Crc32c, messageMetadata, io.netty.buffer.Unpooled.copiedBuffer(new byte[0]));
+        ByteBuf payload = Unpooled.copiedBuffer(new byte[0]);
+        ByteBuf byteBuf = serializeMetadataAndPayload(
+                Commands.ChecksumType.Crc32c, messageMetadata, payload);
+        payload.release();
+        return byteBuf;
     }
 
     public Topic.PublishContext getPublishContext(String producerName, long seqId) {
@@ -482,7 +571,8 @@ public class MessageDuplicationTest extends BrokerTestBase {
         final MessageDeduplication messageDeduplication = persistentTopic.getMessageDeduplication();
         assertFalse(messageDeduplication.getInactiveProducers().containsKey(producerName));
         producer.close();
-        Awaitility.await().untilAsserted(() -> assertTrue(messageDeduplication.getInactiveProducers().containsKey(producerName)));
+        Awaitility.await().untilAsserted(() -> assertTrue(messageDeduplication
+                .getInactiveProducers().containsKey(producerName)));
         admin.topicPolicies().setDeduplicationStatus(topicName, false);
         Awaitility.await().untilAsserted(() -> {
                     final Boolean deduplicationStatus = admin.topicPolicies().getDeduplicationStatus(topicName);
@@ -493,6 +583,100 @@ public class MessageDuplicationTest extends BrokerTestBase {
         assertTrue(messageDeduplication.getInactiveProducers().isEmpty());
     }
 
+    @Test(dataProvider = "trueFalse", timeOut = 60000)
+    public void testReconnectDuringInactiveProducerPurge(boolean disconnectAfterReconnect) throws Exception {
+        String topicName = "persistent://prop/ns-abc/" + UUID.randomUUID();
+        String producerName = "reconnecting-producer";
+        try (Reader<String> reader = pulsarClient.newReader(Schema.STRING).topic(topicName)
+                .startMessageId(MessageId.earliest).create()) {
+            try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName)
+                    .producerName(producerName).enableBatching(false).create()) {
+                producer.newMessage().sequenceId(5).value("before-reconnect").send();
+            }
+            PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicName)
+                    .get().orElseThrow();
+            MessageDeduplication deduplication = topic.getMessageDeduplication();
+            Awaitility.await().until(() -> {
+                Long inactiveSince = deduplication.getInactiveProducers().get(producerName);
+                return inactiveSince != null && inactiveSince < System.currentTimeMillis();
+            });
+            long originalInactiveSince = deduplication.getInactiveProducers().get(producerName);
+
+            CountDownLatch candidateSelected = new CountDownLatch(1);
+            CountDownLatch resumePurge = new CountDownLatch(1);
+            // Pause the actual purge after it reads the expired entry, without replacing its maps or callbacks.
+            AbstractAppender appender = new AbstractAppender("pause-dedup-purge", null,
+                    PatternLayout.createDefaultLayout(), false, null) {
+                @Override
+                public void append(LogEvent event) {
+                    if (event.getLoggerName().equals(MessageDeduplication.class.getName())
+                            && event.getMessage().getFormattedMessage()
+                                    .equals("Purging dedup information for producer")
+                            && producerName.equals(event.getContextData().getValue("producerName"))) {
+                        candidateSelected.countDown();
+                        try {
+                            assertTrue(resumePurge.await(30, TimeUnit.SECONDS), "Purge was not resumed");
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            throw new AssertionError(e);
+                        }
+                    }
+                }
+            };
+            Logger logger = (Logger) LogManager.getLogger(MessageDeduplication.class);
+            ExecutorService executor = Executors.newSingleThreadExecutor(new DefaultThreadFactory("dedup-purge-test"));
+            int inactivityTimeout = conf.getBrokerDeduplicationProducerInactivityTimeoutMinutes();
+            appender.start();
+            logger.addAppender(appender);
+            conf.setBrokerDeduplicationProducerInactivityTimeoutMinutes(0);
+            try {
+                Future<?> purge = executor.submit(topic::checkMessageDeduplicationInfo);
+                assertTrue(candidateSelected.await(30, TimeUnit.SECONDS), "Purge did not select the expired producer");
+                try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName)
+                        .producerName(producerName).enableBatching(false).create()) {
+                    producer.newMessage().sequenceId(6).value("after-reconnect").send();
+                    assertFalse(deduplication.getInactiveProducers().containsKey(producerName));
+                    Long refreshedInactiveSince = null;
+                    if (disconnectAfterReconnect) {
+                        producer.close();
+                        Awaitility.await().untilAsserted(() -> {
+                            Long inactiveSince = deduplication.getInactiveProducers().get(producerName);
+                            assertNotNull(inactiveSince);
+                            assertTrue(inactiveSince > originalInactiveSince,
+                                    "The replacement producer must have a refreshed inactivity timestamp");
+                        });
+                        refreshedInactiveSince = deduplication.getInactiveProducers().get(producerName);
+                    }
+                    resumePurge.countDown();
+                    purge.get(30, TimeUnit.SECONDS);
+
+                    if (disconnectAfterReconnect) {
+                        assertEquals(deduplication.getInactiveProducers().get(producerName), refreshedInactiveSince,
+                                "The stale purge must preserve the refreshed inactivity record");
+                        try (Producer<String> retryProducer = pulsarClient.newProducer(Schema.STRING).topic(topicName)
+                                .producerName(producerName).enableBatching(false).create()) {
+                            assertEquals(retryProducer.newMessage().sequenceId(6).value("retry").send(),
+                                    new MessageIdImpl(-1, -1, -1),
+                                    "A retry after reconnect and disconnect must still be deduplicated");
+                        }
+                    } else {
+                        assertEquals(producer.newMessage().sequenceId(6).value("retry").send(),
+                                new MessageIdImpl(-1, -1, -1), "A retry after reconnect must still be deduplicated");
+                    }
+                    assertEquals(reader.readNext(10, TimeUnit.SECONDS).getValue(), "before-reconnect");
+                    assertEquals(reader.readNext(10, TimeUnit.SECONDS).getValue(), "after-reconnect");
+                    assertFalse(reader.hasMessageAvailable(), "The retry must not add another stored message");
+                }
+            } finally {
+                resumePurge.countDown();
+                executor.shutdownNow();
+                conf.setBrokerDeduplicationProducerInactivityTimeoutMinutes(inactivityTimeout);
+                logger.removeAppender(appender);
+                appender.stop();
+                assertTrue(executor.awaitTermination(30, TimeUnit.SECONDS));
+            }
+        }
+    }
 
     @Test
     public void testMessageDeduplicationShouldNotWorkForSystemTopic() throws PulsarAdminException {

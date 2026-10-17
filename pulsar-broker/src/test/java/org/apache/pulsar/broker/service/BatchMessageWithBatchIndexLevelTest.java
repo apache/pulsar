@@ -35,8 +35,8 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
@@ -58,19 +58,26 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
-public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
+public class BatchMessageWithBatchIndexLevelTest extends BrokerTestBase {
 
     @BeforeClass
     @Override
     protected void setup() throws Exception {
         conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
         super.baseSetup();
+    }
+
+    @AfterClass(alwaysRun = true)
+    @Override
+    protected void cleanup() throws Exception {
+        super.internalCleanup();
     }
 
     @Test
@@ -85,9 +92,8 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
                 .newConsumer()
                 .topic(topicName)
                 .subscriptionName(subscriptionName)
-                .receiverQueueSize(10)
+                .receiverQueueSize(numMsgs)
                 .subscriptionType(SubscriptionType.Shared)
-                .enableBatchIndexAcknowledgment(true)
                 .negativeAckRedeliveryDelay(100, TimeUnit.MILLISECONDS)
                 .subscribe();
 
@@ -114,27 +120,29 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
         consumer.acknowledge(receive1);
         consumer.acknowledge(receive2);
         Awaitility.await().untilAsserted(() -> {
-            assertEquals(dispatcher.getConsumers().get(0).getUnackedMessages(), 18);
+            // Since https://github.com/apache/pulsar/pull/23931 improved the mechanism of estimate average entry size,
+            // broker will deliver much messages than before. So edit 18 -> 38 here.
+            assertEquals(dispatcher.getConsumers().get(0).getUnackedMessages(), 38);
         });
         Message<byte[]> receive3 = consumer.receive();
         Message<byte[]> receive4 = consumer.receive();
         consumer.acknowledge(receive3);
         consumer.acknowledge(receive4);
         Awaitility.await().untilAsserted(() -> {
-            assertEquals(dispatcher.getConsumers().get(0).getUnackedMessages(), 16);
+            assertEquals(dispatcher.getConsumers().get(0).getUnackedMessages(), 36);
         });
         // Block cmd-flow send until verify finish. see: https://github.com/apache/pulsar/pull/17436.
         consumer.pause();
         Message<byte[]> receive5 = consumer.receive();
         consumer.negativeAcknowledge(receive5);
         Awaitility.await().pollInterval(1, TimeUnit.MILLISECONDS).untilAsserted(() -> {
-            assertEquals(dispatcher.getConsumers().get(0).getUnackedMessages(), 0);
+            assertEquals(dispatcher.getConsumers().get(0).getUnackedMessages(), 20);
         });
         // Unblock cmd-flow.
         consumer.resume();
         consumer.receive();
         Awaitility.await().untilAsserted(() -> {
-            assertEquals(dispatcher.getConsumers().get(0).getUnackedMessages(), 16);
+            assertEquals(dispatcher.getConsumers().get(0).getUnackedMessages(), 36);
         });
     }
 
@@ -210,7 +218,6 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
                 .subscriptionName(subscriptionName)
                 .subscriptionType(SubscriptionType.Shared)
                 .receiverQueueSize(10)
-                .enableBatchIndexAcknowledgment(true)
                 .negativeAckRedeliveryDelay(100, TimeUnit.MILLISECONDS)
                 .subscribe();
 
@@ -223,13 +230,13 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
                 .enableBatching(true)
                 .create();
 
-        final int N = 20;
-        for (int i = 0; i < N; i++) {
+        final int num = 20;
+        for (int i = 0; i < num; i++) {
             String value = "test-" + i;
             producer.sendAsync(value);
         }
         producer.flush();
-        for (int i = 0; i < N; i++) {
+        for (int i = 0; i < num; i++) {
             Message<String> msg = consumer.receive();
             if (i % 2 == 0) {
                 consumer.acknowledgeAsync(msg);
@@ -252,7 +259,6 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
                 .subscriptionName(subscriptionName2)
                 .subscriptionType(SubscriptionType.Shared)
                 .receiverQueueSize(10)
-                .enableBatchIndexAcknowledgment(true)
                 .negativeAckRedeliveryDelay(100, TimeUnit.MILLISECONDS)
                 .subscribe();
         @Cleanup
@@ -264,12 +270,12 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
                 .enableBatching(true)
                 .create();
 
-        for (int i = 0; i < N; i++) {
+        for (int i = 0; i < num; i++) {
             String value = "test-" + i;
             producer2.sendAsync(value);
         }
         producer2.flush();
-        for (int i = 0; i < N; i++) {
+        for (int i = 0; i < num; i++) {
             Message<String> msg = consumer2.receive();
             if (i % 2 == 0) {
                 consumer.acknowledgeAsync(msg);
@@ -308,7 +314,6 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
                 .isAckReceiptEnabled(true)
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Shared)
-                .enableBatchIndexAcknowledgment(true)
                 .subscribe();
 
         @Cleanup
@@ -320,7 +325,6 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
                 .isAckReceiptEnabled(true)
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Shared)
-                .enableBatchIndexAcknowledgment(true)
                 .subscribe();
 
         for (int i = 0; i < 5; i++) {
@@ -383,7 +387,6 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
                 .subscriptionName(subscriptionName)
                 .subscriptionType(SubscriptionType.Shared)
                 .negativeAckRedeliveryDelay(redeliveryDelaySeconds, TimeUnit.SECONDS)
-                .enableBatchIndexAcknowledgment(true)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .acknowledgmentGroupTime(1, TimeUnit.HOURS)
                 .subscribe();
@@ -434,7 +437,9 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
             consumer.acknowledge(message);
         }
 
-        log.info("messagesSent: {}, messagesReceived: {}", messagesSent, messagesReceived);
+        log.info().attr("messagesSent", messagesSent)
+                .attr("messagesReceived", messagesReceived)
+                .log("Messages sent and received");
         Assert.assertEquals(messagesReceived.size(), messagesSent.size());
 
         // cleanup.
@@ -459,7 +464,6 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
                 .subscriptionName("sub")
                 .subscriptionType(SubscriptionType.Shared)
                 .acknowledgmentGroupTime(100, TimeUnit.MILLISECONDS)
-                .enableBatchIndexAcknowledgment(true)
                 .isAckReceiptEnabled(true)
                 .subscribe();
 
@@ -490,7 +494,6 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
                 .topic(topicName)
                 .receiverQueueSize(receiverQueueSize)
                 .subscriptionName(subName)
-                .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(SubscriptionType.Shared)
                 .isAckReceiptEnabled(true);
 
@@ -540,7 +543,8 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
             ledgerId = msgId.getLedgerId();
             entryId = msgId.getEntryId();
         }
-        getCursor(topicName, subName).delete(AckSetStateUtil.createPositionWithAckSet(ledgerId, entryId, bitSetRecyclable.toLongArray()));
+        getCursor(topicName, subName).delete(AckSetStateUtil.createPositionWithAckSet(ledgerId, entryId,
+                bitSetRecyclable.toLongArray()));
         // step 4: send messages to consumer2.
         receiveMessageSignal2.complete(null);
         // Verify: Consumer2 will get all the 100 messages, and "unAckMessages" is 100.
@@ -585,6 +589,7 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
     /***
      * After {@param signal} complete, the consumer({@param consumerName}) start to receive messages.
      */
+    @SuppressWarnings("unchecked")
     private org.apache.pulsar.broker.service.Consumer makeConsumerReceiveMessagesDelay(String topic, String sub,
                                                             String consumerName,
                                                             CompletableFuture<Void> signal) throws Exception {
@@ -611,8 +616,8 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
             long totalBytes = (long) invocation.getArguments()[4];
             long totalChunkedMessages = (long) invocation.getArguments()[5];
             RedeliveryTracker redeliveryTracker = (RedeliveryTracker) invocation.getArguments()[6];
-            return signal.thenApply(__ -> originalConsumer.sendMessages(entries, batchSizes, batchIndexesAcks, totalMessages, totalBytes,
-                    totalChunkedMessages, redeliveryTracker)).join();
+            return signal.thenApply(__ -> originalConsumer.sendMessages(entries, batchSizes, batchIndexesAcks,
+                    totalMessages, totalBytes, totalChunkedMessages, redeliveryTracker)).join();
         }).when(spyServiceConsumer)
                 .sendMessages(anyList(), any(), any(), anyInt(), anyLong(), anyLong(), any());
         doAnswer(invocation -> {
@@ -624,8 +629,8 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
             long totalChunkedMessages = (long) invocation.getArguments()[5];
             RedeliveryTracker redeliveryTracker = (RedeliveryTracker) invocation.getArguments()[6];
             long epoch = (long) invocation.getArguments()[7];
-            return signal.thenApply(__ -> originalConsumer.sendMessages(entries, batchSizes, batchIndexesAcks, totalMessages, totalBytes,
-                    totalChunkedMessages, redeliveryTracker, epoch)).join();
+            return signal.thenApply(__ -> originalConsumer.sendMessages(entries, batchSizes, batchIndexesAcks,
+                    totalMessages, totalBytes, totalChunkedMessages, redeliveryTracker, epoch)).join();
         }).when(spyServiceConsumer)
                 .sendMessages(anyList(), any(), any(), anyInt(), anyLong(), anyLong(), any(), anyLong());
 
@@ -659,12 +664,11 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
         final int receiverQueueSize = 1000;
         final int ackedMessagesCountInTheFistStep = 2;
         admin.topics().createNonPartitionedTopic(topicName);
-        admin.topics(). createSubscription(topicName, subName, MessageId.earliest);
+        admin.topics().createSubscription(topicName, subName, MessageId.earliest);
         ConsumerBuilder<String> consumerBuilder = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topicName)
                 .receiverQueueSize(receiverQueueSize)
                 .subscriptionName(subName)
-                .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(SubscriptionType.Shared)
                 .isAckReceiptEnabled(true);
 
@@ -676,7 +680,7 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
                 .create();
         CompletableFuture<MessageId>  lastSent = null;
         for (int i = 1;  i <=  100;  i++) {
-            lastSent = producer. sendAsync(i + "");
+            lastSent = producer.sendAsync(i + "");
         }
         producer.flush();
         lastSent.join();
@@ -684,7 +688,7 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
         // Ack 2 messages, and trigger a redelivery.
         Consumer<String>  consumer1 = consumerBuilder.subscribe();
         for (int i = 0;  i <  ackedMessagesCountInTheFistStep;  i++) {
-            Message msg = consumer1. receive(2, TimeUnit.SECONDS);
+            Message msg = consumer1.receive(2, TimeUnit.SECONDS);
             assertNotNull(msg);
             consumer1.acknowledge(msg);
         }
@@ -725,7 +729,7 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
 
     private org.apache.pulsar.broker.service.Consumer getTheUniqueServiceConsumer(String topic, String sub) {
         PersistentTopic persistentTopic =
-                (PersistentTopic) pulsar.getBrokerService(). getTopic(topic, false).join().get();
+                (PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).join().get();
         AbstractPersistentDispatcherMultipleConsumers dispatcher =
                 (AbstractPersistentDispatcherMultipleConsumers) persistentTopic.getSubscription(sub).getDispatcher();
         return dispatcher.getConsumers().iterator().next();

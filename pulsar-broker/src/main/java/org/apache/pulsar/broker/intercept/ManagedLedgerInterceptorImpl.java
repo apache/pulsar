@@ -23,23 +23,22 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.intercept.ManagedLedgerPayloadProcessor;
 import org.apache.pulsar.common.protocol.Commands;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.jspecify.annotations.Nullable;
 
+@CustomLog
 public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
-    private static final Logger log = LoggerFactory.getLogger(ManagedLedgerInterceptorImpl.class);
     private static final String INDEX = "index";
     private final Set<BrokerEntryMetadataInterceptor> brokerEntryMetadataInterceptors;
 
-    private final AppendIndexMetadataInterceptor appendIndexMetadataInterceptor;
+    private final @Nullable AppendIndexMetadataInterceptor appendIndexMetadataInterceptor;
     private final Set<ManagedLedgerPayloadProcessor.Processor> inputProcessors;
     private final Set<ManagedLedgerPayloadProcessor.Processor> outputProcessors;
 
@@ -113,16 +112,20 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
 
     @Override
     public CompletableFuture<Void> onManagedLedgerLastLedgerInitialize(String name, LastEntryHandle lh) {
+        if (appendIndexMetadataInterceptor == null) {
+            // there's no index generator to recover when the AppendIndexMetadataInterceptor isn't configured,
+            // so reading the last entry would be pointless
+            return CompletableFuture.completedFuture(null);
+        }
         return lh.readLastEntryAsync().thenAccept(lastEntryOptional -> {
             if (lastEntryOptional.isPresent()) {
                 Entry lastEntry = lastEntryOptional.get();
                 try {
-                    BrokerEntryMetadata brokerEntryMetadata =
-                            Commands.parseBrokerEntryMetadataIfExist(lastEntry.getDataBuffer());
-                    if (brokerEntryMetadata != null && brokerEntryMetadata.hasIndex()) {
-                        appendIndexMetadataInterceptor.recoveryIndexGenerator(
-                                brokerEntryMetadata.getIndex());
-                    }
+                    Commands.peekBrokerEntryMetadataAndConsume(lastEntry.getDataBuffer(), brokerEntryMetadata -> {
+                        if (brokerEntryMetadata != null && brokerEntryMetadata.hasIndex()) {
+                            appendIndexMetadataInterceptor.recoveryIndexGenerator(brokerEntryMetadata.getIndex());
+                        }
+                    });
                 } finally {
                     lastEntry.release();
                 }
