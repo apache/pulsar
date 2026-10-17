@@ -22,6 +22,7 @@ import static org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterUtil.acqu
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.prometheus.client.Counter;
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.URI;
@@ -32,6 +33,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeoutException;
+import java.util.function.BiConsumer;
 import java.util.function.BooleanSupplier;
 import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
@@ -40,6 +43,7 @@ import org.apache.pulsar.broker.topiclistlimit.TopicListSizeResultCache;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.BinaryProtoLookupService;
 import org.apache.pulsar.client.impl.ClientCnx;
+import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandGetSchema;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
@@ -55,6 +59,7 @@ import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterImpl;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.netty.NettyChannelUtil;
 import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
 
@@ -248,15 +253,15 @@ public class LookupProxyHandler {
     private void handlePartitionMetadataResponse(CommandPartitionedTopicMetadata partitionMetadata,
             long clientRequestId) {
         String topicName = TopicName.toFullTopicName(partitionMetadata.getTopic());
+        boolean metadataAutoCreationEnabled = partitionMetadata.isMetadataAutoCreationEnabled();
+        BiConsumer<ServerError, String> onError = (error, message) ->
+                writeAndFlush(Commands.newPartitionMetadataResponse(error, message, clientRequestId));
 
-        String serviceUrl = getBrokerServiceUrl(clientRequestId);
+        String serviceUrl = getBrokerServiceUrl(onError);
         if (serviceUrl == null) {
-            log.warn()
-                    .attr("topic", topicName)
-                    .log("No available broker for to lookup partition metadata");
             return;
         }
-        InetSocketAddress addr = getAddr(serviceUrl, clientRequestId);
+        InetSocketAddress addr = getAddr(serviceUrl, onError);
         if (addr == null) {
             return;
         }
@@ -266,33 +271,55 @@ public class LookupProxyHandler {
                 .attr("topic", topicName)
                 .attr("clientRequestId", clientRequestId)
                 .log("Getting connection for partition metadata lookup");
-        proxyConnection.getConnectionPool().getConnection(addr).thenAccept(clientCnx -> {
-            // Connected to backend broker
-            long requestId = proxyConnection.newRequestId();
-            ByteBuf command;
-            command = Commands.newPartitionMetadataRequest(topicName.toString(), requestId,
-                    partitionMetadata.isMetadataAutoCreationEnabled());
-            clientCnx.newLookup(command, requestId).whenComplete((r, t) -> {
-                if (t != null) {
-                    log.warn()
-                            .attr("topic", topicName)
-                            .exception(t)
-                            .log("failed to get Partitioned");
-                    PulsarClientException pce = PulsarClientException.unwrap(t);
-                    writeAndFlush(Commands.newLookupErrorResponse(ClientCnx.revertClientExToErrorCode(pce),
-                            t.getMessage(), clientRequestId));
-                } else {
-                    writeAndFlush(
-                        Commands.newPartitionMetadataResponse(r.partitions, clientRequestId));
-                }
-                proxyConnection.getConnectionPool().releaseConnection(clientCnx);
-            });
-        }).exceptionally(ex -> {
-            // Failed to connect to backend broker
-            writeAndFlush(Commands.newPartitionMetadataResponse(getServerError(ex),
-                    ex.getMessage(), clientRequestId));
-            return null;
+        // The frontend connection can clear its pool while the backend request is pending.
+        ConnectionPool connectionPool = proxyConnection.getConnectionPool();
+        FutureUtil.supplySafely(() -> connectionPool.getConnection(addr)).whenComplete((clientCnx, connectionError) -> {
+            if (connectionError != null) {
+                writePartitionMetadataError(connectionError, clientRequestId, ServerError.ServiceNotReady);
+                return;
+            }
+            FutureUtil.supplySafely(() -> {
+                long requestId = proxyConnection.newRequestId();
+                ByteBuf command = Commands.newPartitionMetadataRequest(topicName, requestId,
+                        metadataAutoCreationEnabled);
+                return clientCnx.newLookup(command, requestId);
+            }).whenComplete((result, error) -> connectionPool.releaseConnection(clientCnx))
+                    .whenComplete((result, error) -> {
+                        if (error != null) {
+                            log.warn()
+                                    .attr("topic", topicName)
+                                    .exception(error)
+                                    .log("failed to get Partitioned");
+                            writePartitionMetadataError(error, clientRequestId, ServerError.UnknownError);
+                        } else {
+                            writeAndFlush(Commands.newPartitionMetadataResponse(result.partitions, clientRequestId));
+                        }
+                    });
         });
+    }
+
+    private void writePartitionMetadataError(Throwable error, long clientRequestId, ServerError fallbackError) {
+        Throwable cause = FutureUtil.unwrapCompletionException(error);
+        if (cause == null) {
+            cause = error;
+        }
+        ServerError serverError;
+        if (cause instanceof PulsarClientException.TimeoutException
+                || cause instanceof PulsarClientException.ConnectException
+                || cause instanceof PulsarClientException.NotConnectedException
+                || cause instanceof PulsarClientException.AlreadyClosedException
+                || cause instanceof TimeoutException
+                || (cause instanceof IOException && !(cause instanceof PulsarClientException))) {
+            serverError = ServerError.ServiceNotReady;
+        } else if (cause instanceof PulsarClientException clientException) {
+            serverError = ClientCnx.revertClientExToErrorCode(clientException);
+            if (serverError == ServerError.UnknownError) {
+                serverError = fallbackError;
+            }
+        } else {
+            serverError = fallbackError;
+        }
+        writeAndFlush(Commands.newPartitionMetadataResponse(serverError, cause.getMessage(), clientRequestId));
     }
 
     public void handleGetTopicsOfNamespace(CommandGetTopicsOfNamespace commandGetTopicsOfNamespace) {
@@ -524,6 +551,11 @@ public class LookupProxyHandler {
      *  Get default broker service url or discovery an available broker.
      **/
     private String getBrokerServiceUrl(long clientRequestId) {
+        return getBrokerServiceUrl((error, message) ->
+                writeAndFlush(Commands.newError(clientRequestId, error, message)));
+    }
+
+    private String getBrokerServiceUrl(BiConsumer<ServerError, String> onError) {
         if (StringUtils.isNotBlank(brokerServiceURL)) {
             return brokerServiceURL;
         }
@@ -536,24 +568,34 @@ public class LookupProxyHandler {
                     .attr("e", e.getMessage())
                     .exception(e)
                     .log("Failed to get next active broker");
-            writeAndFlush(Commands.newError(
-                    clientRequestId, ServerError.ServiceNotReady, e.getMessage()
-            ));
+            onError.accept(ServerError.ServiceNotReady, e.getMessage());
             return null;
         }
-        return this.connectWithTLS ? availableBroker.getPulsarServiceUrlTls() : availableBroker.getPulsarServiceUrl();
+        String serviceUrl = availableBroker == null ? null
+                : (connectWithTLS ? availableBroker.getPulsarServiceUrlTls() : availableBroker.getPulsarServiceUrl());
+        if (StringUtils.isBlank(serviceUrl)) {
+            onError.accept(ServerError.ServiceNotReady, "No broker service URL available");
+            return null;
+        }
+        return serviceUrl;
     }
 
     private InetSocketAddress getAddr(String brokerServiceUrl, long clientRequestId) {
-        URI brokerURI;
+        return getAddr(brokerServiceUrl, (error, message) ->
+                writeAndFlush(Commands.newError(clientRequestId, error, message)));
+    }
+
+    private InetSocketAddress getAddr(String brokerServiceUrl, BiConsumer<ServerError, String> onError) {
         try {
-            brokerURI = new URI(brokerServiceUrl);
-        } catch (URISyntaxException e) {
-            writeAndFlush(
-                    Commands.newError(clientRequestId, ServerError.MetadataError, e.getMessage()));
+            URI brokerURI = new URI(brokerServiceUrl);
+            if (StringUtils.isBlank(brokerURI.getHost()) || brokerURI.getPort() <= 0) {
+                throw new IllegalArgumentException("Invalid broker service URL: " + brokerServiceUrl);
+            }
+            return InetSocketAddress.createUnresolved(brokerURI.getHost(), brokerURI.getPort());
+        } catch (URISyntaxException | IllegalArgumentException e) {
+            onError.accept(ServerError.MetadataError, e.getMessage());
             return null;
         }
-        return InetSocketAddress.createUnresolved(brokerURI.getHost(), brokerURI.getPort());
     }
 
     private ServerError getServerError(Throwable error) {
