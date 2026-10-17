@@ -1377,6 +1377,12 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     }
 
     protected synchronized NavigableSet<Position> getMessagesToReplayNow(int maxMessagesToRead, long bytesToRead) {
+        boolean delayedMessagesAvailable =
+                delayedDeliveryTracker.isPresent() && delayedDeliveryTracker.get().hasMessageAvailable();
+        if (!delayedMessagesAvailable && redeliveryMessages.isEmpty()) {
+            // nothing to replay, the common case: skip the size cap's estimate, which the normal read computes again
+            return Collections.emptyNavigableSet();
+        }
         int cappedMaxMessagesToRead = cursor.applyMaxSizeCap(maxMessagesToRead, bytesToRead);
         if (cappedMaxMessagesToRead < maxMessagesToRead) {
             log.debug()
@@ -1384,7 +1390,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                     .attr("maxMessagesToRead", maxMessagesToRead)
                     .log("Capped max messages to read from redelivery list");
         }
-        if (delayedDeliveryTracker.isPresent() && delayedDeliveryTracker.get().hasMessageAvailable()) {
+        if (delayedMessagesAvailable) {
             delayedDeliveryTracker.get().resetTickTime(topic.getDelayedDeliveryTickTimeMillis());
             NavigableSet<Position> messagesAvailableNow =
                     delayedDeliveryTracker.get().getScheduledMessages(cappedMaxMessagesToRead);

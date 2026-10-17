@@ -147,6 +147,9 @@ public class FunctionConfig {
     private Boolean skipToLatest;
     // Pulsar client API for the function's own topics; null picks it from the topic domains
     private ClientApi clientApi;
+    // Memory limit of the Pulsar client used by each Java function instance; null uses the worker default.
+    // Ignored by the worker's thread runtime, where all instances share one client configured by the worker.
+    private MemoryLimit pulsarClientMemoryLimit;
 
     @Builder.Default
     private SubscriptionInitialPosition subscriptionPosition = SubscriptionInitialPosition.Latest;
