@@ -37,6 +37,7 @@ import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.proto.KeyValue;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.Stat;
 
 @CustomLog
@@ -83,14 +84,13 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
                             .withOrderingKey(name)
                             .execute()
                             .thenAccept(readHandle -> {
-                                readHandle.readLastAddConfirmedAsync().thenAccept(lastAddConfirmed -> {
+                                FutureUtil.supplySafely(readHandle::readLastAddConfirmedAsync).thenAccept(lac -> {
                                     LedgerInfo info = new LedgerInfo().setLedgerId(lastLedgerId)
-                                            .setEntries(lastAddConfirmed + 1).setSize(readHandle.getLength())
+                                            .setEntries(lac + 1).setSize(readHandle.getLength())
                                             .setTimestamp(clock.millis());
                                     ledgers.put(lastLedgerId, info);
-
-                                    future.complete(null);
-                                }).exceptionally(ex -> {
+                                }).whenComplete((ignored, error) -> closeReadHandleAsync(readHandle, log))
+                                        .thenRun(() -> future.complete(null)).exceptionally(ex -> {
                                     if (ex instanceof CompletionException
                                             && ex.getCause() instanceof IllegalArgumentException) {
                                         // The last ledger was empty, so we cannot read the last add confirmed.
