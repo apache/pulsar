@@ -280,7 +280,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 // No explicit null write is needed for a missing ackSet. EntryBatchIndexesAcks is reset before
                 // reuse, so absent ack sets are already null.
                 if (ackSet != null) {
-                    indexesAcks.setIndexesAcks(i, Pair.of(batchSize, ackSet));
+                    indexesAcks.setIndexesAcks(i, batchSize, ackSet);
                 }
             }
 
