@@ -20,7 +20,7 @@ package org.apache.pulsar.broker.admin;
 
 import java.util.Set;
 import java.util.UUID;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -34,7 +34,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-admin")
 public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
 
@@ -72,17 +72,19 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testSetThenRemoveMessageTTL() throws Exception {
         admin.topics().setMessageTTL(testTopic, 100);
-        log.info("Message TTL set success on topic: {}", testTopic);
+        log.info().attr("topic", testTopic).log("Message TTL set success on topic");
 
         waitForZooKeeperWatchers();
         Integer messageTTL = admin.topics().getMessageTTL(testTopic);
-        log.info("Message TTL {} get on topic: {}", testTopic, messageTTL);
+        log.info().attr("topic", testTopic).attr("messageTTL", messageTTL)
+                .log("Message TTL get on topic");
         Assert.assertEquals(messageTTL.intValue(), 100);
 
         waitForZooKeeperWatchers();
         admin.topics().removeMessageTTL(testTopic);
         messageTTL = admin.topics().getMessageTTL(testTopic);
-        log.info("Message TTL {} get on topic: {}", testTopic, messageTTL);
+        log.info().attr("topic", testTopic).attr("messageTTL", messageTTL)
+                .log("Message TTL get on topic");
         Assert.assertNull(messageTTL);
     }
 
@@ -109,15 +111,17 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
     public void testGetMessageTTL() throws Exception {
         // Check default topic level message TTL.
         Integer messageTTL = admin.topics().getMessageTTL(testTopic);
-        log.info("Message TTL {} get on topic: {}", testTopic, messageTTL);
+        log.info().attr("topic", testTopic).attr("messageTTL", messageTTL)
+                .log("Message TTL get on topic");
         Assert.assertNull(messageTTL);
 
         admin.topics().setMessageTTL(testTopic, 200);
-        log.info("Message TTL set success on topic: {}", testTopic);
+        log.info().attr("topic", testTopic).log("Message TTL set success on topic");
 
         waitForZooKeeperWatchers();
         messageTTL = admin.topics().getMessageTTL(testTopic);
-        log.info("Message TTL {} get on topic: {}", testTopic, messageTTL);
+        log.info().attr("topic", testTopic).attr("messageTTL", messageTTL)
+                .log("Message TTL get on topic");
         Assert.assertEquals(messageTTL.intValue(), 200);
     }
     @SuppressWarnings("deprecation")

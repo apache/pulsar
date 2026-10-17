@@ -21,7 +21,7 @@ package org.apache.pulsar.proxy.server;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
 import java.util.Optional;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
@@ -34,7 +34,7 @@ import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 
-@Slf4j
+@CustomLog
 public class ProxyPatternConsumerBackPressureMultipleConsumersTest extends
         PatternConsumerBackPressureMultipleConsumersTest {
 

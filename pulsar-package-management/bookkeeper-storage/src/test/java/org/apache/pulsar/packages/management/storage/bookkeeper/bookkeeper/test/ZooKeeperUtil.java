@@ -25,6 +25,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import org.apache.bookkeeper.test.ZooKeeperCluster;
 import org.apache.bookkeeper.util.IOUtils;
 import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
@@ -33,11 +34,9 @@ import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.server.NIOServerCnxnFactory;
 import org.apache.zookeeper.server.ZooKeeperServer;
 import org.apache.zookeeper.test.ClientBase;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class ZooKeeperUtil implements ZooKeeperCluster {
-    static final Logger LOG;
     protected Integer zooKeeperPort = 0;
     private InetSocketAddress zkaddr;
     protected ZooKeeperServer zks;
@@ -73,7 +72,7 @@ public class ZooKeeperUtil implements ZooKeeperCluster {
     }
 
     public void startCluster() throws Exception {
-        LOG.debug("Running ZK server");
+        log.debug("Running ZK server");
         ClientBase.setupTestEnv();
         this.zkTmpDir = IOUtils.createTempDir("zookeeper", "test");
         this.restartCluster();
@@ -93,8 +92,8 @@ public class ZooKeeperUtil implements ZooKeeperCluster {
 
         boolean b = ClientBase.waitForServerUp(this.getZooKeeperConnectString(),
                 (long) ClientBase.CONNECTION_TIMEOUT);
-        LOG.debug("Server up: " + b);
-        LOG.debug("Instantiate ZK Client");
+        log.debug("Server up: " + b);
+        log.debug("Instantiate ZK Client");
         this.zkc = ZooKeeperClient.newBuilder().connectString(this.getZooKeeperConnectString())
                 .sessionTimeoutMs(10000).build();
     }
@@ -118,7 +117,7 @@ public class ZooKeeperUtil implements ZooKeeperCluster {
                             timeUnit.sleep((long) time);
                             t.resume();
                         } catch (Exception var2) {
-                            ZooKeeperUtil.LOG.error("Error suspending thread", var2);
+                            log.error().exception(var2).log("Error suspending thread");
                         }
 
                     }
@@ -155,6 +154,5 @@ public class ZooKeeperUtil implements ZooKeeperCluster {
 
     static {
         System.setProperty("zookeeper.4lw.commands.whitelist", "*");
-        LOG = LoggerFactory.getLogger(ZooKeeperUtil.class);
     }
 }

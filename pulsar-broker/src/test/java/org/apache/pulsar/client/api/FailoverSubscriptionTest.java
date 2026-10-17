@@ -21,7 +21,7 @@ package org.apache.pulsar.client.api;
 import static org.testng.Assert.assertEquals;
 import java.util.HashMap;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer;
@@ -30,7 +30,7 @@ import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-api")
 public class FailoverSubscriptionTest extends SharedPulsarBaseTest {
 

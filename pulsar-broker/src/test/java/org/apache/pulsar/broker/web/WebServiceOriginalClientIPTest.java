@@ -22,7 +22,7 @@ import static org.testng.Assert.assertTrue;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import nl.altindag.console.ConsoleCaptor;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.assertj.core.api.ThrowingConsumer;
@@ -37,7 +37,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class WebServiceOriginalClientIPTest extends MockedPulsarServiceBaseTest {
     HttpClient httpClient;
@@ -91,7 +91,10 @@ public class WebServiceOriginalClientIPTest extends MockedPulsarServiceBaseTest 
 
             // Validate that the client IP passed in X-Forwarded-For is logged
             assertTrue(consoleCaptor.getStandardOutput().stream()
-                    .anyMatch(line -> line.contains("RequestLog") && line.contains("[R:11.22.33.44:12345 via ")));
+                    .anyMatch(line -> line.contains("HTTP request")
+                            && line.contains("clientAddr=11.22.33.44")
+                            && line.contains("clientPort=12345")
+                            && line.contains("clientAddrReal=")));
         });
     }
 
@@ -110,7 +113,10 @@ public class WebServiceOriginalClientIPTest extends MockedPulsarServiceBaseTest 
 
             // Validate that the client IP passed in Forwarded is logged
             assertTrue(consoleCaptor.getStandardOutput().stream()
-                    .anyMatch(line -> line.contains("RequestLog") && line.contains("[R:11.22.33.44:12345 via ")));
+                    .anyMatch(line -> line.contains("HTTP request")
+                            && line.contains("clientAddr=11.22.33.44")
+                            && line.contains("clientPort=12345")
+                            && line.contains("clientAddrReal=")));
         });
     }
 
@@ -135,8 +141,11 @@ public class WebServiceOriginalClientIPTest extends MockedPulsarServiceBaseTest 
 
             // Validate that the client IP and destination IP passed in HA Proxy protocol is logged
             assertTrue(consoleCaptor.getStandardOutput().stream()
-                    .anyMatch(line -> line.contains("RequestLog") && line.contains("[R:99.22.33.44:1234 via ")
-                            && line.contains(" dst 5.4.3.1:4321]")));
+                    .anyMatch(line -> line.contains("HTTP request")
+                            && line.contains("clientAddr=99.22.33.44")
+                            && line.contains("clientPort=1234")
+                            && line.contains("localAddr=5.4.3.1")
+                            && line.contains("localPort=4321")));
         });
     }
 

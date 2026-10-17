@@ -236,6 +236,9 @@ public class MembershipManagerTest {
         functionRuntimeManager.setAssignment(assignment1);
         functionRuntimeManager.setAssignment(assignment2);
 
+        // Clear any invocations from setup
+        Mockito.clearInvocations(functionRuntimeManager, schedulerManager);
+
         membershipManager.checkFailures(functionMetaDataManager, functionRuntimeManager, schedulerManager);
 
         verify(schedulerManager, times(0)).schedule();
@@ -244,6 +247,9 @@ public class MembershipManagerTest {
         Instance instance = createInstance(function2, 0);
         String instanceId = FunctionCommon.getFullyQualifiedInstanceId(instance);
         assertNotNull(membershipManager.unsignedFunctionDurations.get(instanceId));
+
+        // Clear invocations before second checkFailures
+        Mockito.clearInvocations(functionRuntimeManager, schedulerManager);
 
         membershipManager.unsignedFunctionDurations.put(instanceId,
                 membershipManager.unsignedFunctionDurations.get(instanceId) - 30001);

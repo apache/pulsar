@@ -21,15 +21,15 @@ package org.apache.pulsar.client.admin.internal;
 import static org.asynchttpclient.Dsl.post;
 import static org.asynchttpclient.Dsl.put;
 import com.google.gson.Gson;
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.GenericType;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import java.io.File;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.GenericType;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Source;
 import org.apache.pulsar.client.admin.Sources;
@@ -46,7 +46,7 @@ import org.asynchttpclient.request.body.multipart.StringPart;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 
-@Slf4j
+@CustomLog
 @SuppressWarnings("deprecation")
 public class SourcesImpl extends ComponentResource implements Sources, Source {
 

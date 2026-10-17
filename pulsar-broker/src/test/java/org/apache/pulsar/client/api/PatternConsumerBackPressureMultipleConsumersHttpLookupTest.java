@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.client.api;
 
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-impl")
 public class PatternConsumerBackPressureMultipleConsumersHttpLookupTest
         extends PatternConsumerBackPressureMultipleConsumersTest {

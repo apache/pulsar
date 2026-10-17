@@ -20,7 +20,7 @@ package org.apache.pulsar.broker;
 
 import java.util.ArrayList;
 import java.util.List;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.metadata.TestZKServer;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -31,7 +31,7 @@ import org.jspecify.annotations.NonNull;
 /**
  * Multiple brokers with a real test Zookeeper server (instead of the mock server).
  */
-@Slf4j
+@CustomLog
 public abstract class MultiBrokerTestZKBaseTest extends MultiBrokerBaseTest {
     TestZKServer testZKServer;
     List<MetadataStoreExtended> storesToClose = new ArrayList<>();
@@ -51,7 +51,7 @@ public abstract class MultiBrokerTestZKBaseTest extends MultiBrokerBaseTest {
             try {
                 store.close();
             } catch (Exception e) {
-                log.error("Error in closing metadata store", e);
+                log.error().exception(e).log("Error in closing metadata store");
             }
         }
         storesToClose.clear();
@@ -59,7 +59,7 @@ public abstract class MultiBrokerTestZKBaseTest extends MultiBrokerBaseTest {
             try {
                 testZKServer.close();
             } catch (Exception e) {
-                log.error("Error in stopping ZK server", e);
+                log.error().exception(e).log("Error in stopping ZK server");
             }
             testZKServer = null;
         }

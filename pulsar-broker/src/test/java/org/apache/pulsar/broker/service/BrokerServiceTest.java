@@ -21,6 +21,8 @@ package org.apache.pulsar.broker.service;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateTableViewImpl.TOPIC;
 import static org.apache.pulsar.common.naming.SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN;
 import static org.apache.pulsar.common.naming.SystemTopicNames.TRANSACTION_COORDINATOR_LOG;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doNothing;
@@ -31,6 +33,7 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -68,7 +71,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -88,6 +91,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceExcept
 import org.apache.pulsar.broker.service.PulsarMetadataEventSynchronizer.State;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.stats.BrokerOperabilityMetrics.TopicLoadFailureReason;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
@@ -141,9 +145,151 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class BrokerServiceTest extends BrokerTestBase {
+
+    @Test
+    public void testTopicLoadTimeoutReason() {
+        TopicLoadingContext context = new TopicLoadingContext(TopicName.get("persistent://public/default/test"), true,
+                new CompletableFuture<>(), mock(PulsarStats.class));
+        assertEquals(context.getTopicLoadTimeoutReason(), TopicLoadFailureReason.TIMEOUT);
+
+        assertTimeoutReason(context, TopicLoadingTracePoints.NAMESPACE_POLICIES,
+                TopicLoadFailureReason.TIMEOUT_LOAD_NAMESPACE_POLICIES);
+        assertTimeoutReason(context, TopicLoadingTracePoints.LOCAL_TOPIC_POLICIES,
+                TopicLoadFailureReason.TIMEOUT_LOAD_TOPIC_POLICIES);
+        assertTimeoutReason(context, TopicLoadingTracePoints.GLOBAL_TOPIC_POLICIES,
+                TopicLoadFailureReason.TIMEOUT_LOAD_TOPIC_POLICIES);
+        assertTimeoutReason(context, TopicLoadingTracePoints.LOCAL_POLICIES,
+                TopicLoadFailureReason.TIMEOUT_LOAD_NAMESPACE_POLICIES);
+        assertTimeoutReason(context, TopicLoadingTracePoints.OPEN_ML, TopicLoadFailureReason.TIMEOUT_LOAD_ML);
+        assertTimeoutReason(context, TopicLoadingTracePoints.INIT, TopicLoadFailureReason.TIMEOUT_INIT);
+        assertTimeoutReason(context, TopicLoadingTracePoints.PRE_CREATE_COMPACTED_SUB,
+                TopicLoadFailureReason.TIMEOUT_INIT);
+        assertTimeoutReason(context, TopicLoadingTracePoints.REPLICATION, TopicLoadFailureReason.TIMEOUT_INIT);
+        assertTimeoutReason(context, TopicLoadingTracePoints.DEDUPLICATION, TopicLoadFailureReason.TIMEOUT_DEDUP);
+
+        assertTimeoutReasonWithPendingInit(TopicLoadingTracePoints.NAMESPACE_POLICIES,
+                TopicLoadFailureReason.TIMEOUT_LOAD_NAMESPACE_POLICIES);
+        assertTimeoutReasonWithPendingInit(TopicLoadingTracePoints.LOCAL_TOPIC_POLICIES,
+                TopicLoadFailureReason.TIMEOUT_LOAD_TOPIC_POLICIES);
+    }
+
+    @Test
+    public void testTopicLoadFailureReasonIsTraced() {
+        TopicLoadingContext context = new TopicLoadingContext(TopicName.get("persistent://public/default/test"), true,
+                new CompletableFuture<>(), mock(PulsarStats.class));
+        CompletableFuture<Void> future = new CompletableFuture<>();
+
+        context.trace(TopicLoadingTracePoints.NAMESPACE_POLICIES, future);
+        future.completeExceptionally(new RuntimeException());
+
+        assertEquals(context.getTopicLoadFailureReason(), TopicLoadFailureReason.FAILED_LOAD_NAMESPACE_POLICIES);
+    }
+
+    @Test
+    public void testCloseRecordsTimeoutTime() {
+        TopicLoadingContext timeoutContext = new TopicLoadingContext(
+                TopicName.get("persistent://public/default/test-timeout"), true,
+                new CompletableFuture<>(), mock(PulsarStats.class));
+        timeoutContext.close(true);
+        assertTrue(timeoutContext.isClosed());
+        assertNotNull(timeoutContext.getTimeoutTimeInMillis());
+        assertFalse(timeoutContext.getSnapshot().success());
+        assertTrue(timeoutContext.getSnapshot().description().contains("state: failure"));
+        assertTrue(timeoutContext.getSnapshot().description().contains("timeout timestamp:"));
+
+        TopicLoadingContext successfulContext = new TopicLoadingContext(
+                TopicName.get("persistent://public/default/test-success"), true,
+                new CompletableFuture<>(), mock(PulsarStats.class));
+        successfulContext.close(false);
+        assertTrue(successfulContext.isClosed());
+        assertNull(successfulContext.getTimeoutTimeInMillis());
+    }
+
+    @Test
+    public void testTimeoutSnapshotIncludesFailureStateAndPendingSteps() {
+        TopicLoadingContext context = new TopicLoadingContext(
+                TopicName.get("persistent://public/default/test-timeout"), true,
+                new CompletableFuture<>(), mock(PulsarStats.class));
+        CompletableFuture<Void> pendingFuture = new CompletableFuture<>();
+        context.trace(TopicLoadingTracePoints.NAMESPACE_POLICIES, pendingFuture);
+
+        // This is the same order used by the topic-future completion observer before it emits the timeout log.
+        context.close(true);
+        var snapshot = context.getSnapshot();
+
+        assertFalse(snapshot.completed());
+        assertFalse(snapshot.success());
+        assertTrue(snapshot.description().contains("state: failure"));
+        assertTrue(snapshot.description().contains("pending steps: " + TopicLoadingTracePoints.NAMESPACE_POLICIES));
+        assertTrue(snapshot.description().contains("timeout timestamp:"));
+
+        pendingFuture.complete(null);
+    }
+
+    @Test
+    public void testConcurrentPolicyLoadFailureReasonUsesFirstPendingReason() {
+        TopicLoadingContext context = new TopicLoadingContext(TopicName.get("persistent://public/default/test"), true,
+                new CompletableFuture<>(), mock(PulsarStats.class));
+        CompletableFuture<Void> namespacePolicies = new CompletableFuture<>();
+        CompletableFuture<Void> topicPolicies = new CompletableFuture<>();
+
+        context.trace(TopicLoadingTracePoints.NAMESPACE_POLICIES, namespacePolicies);
+        context.trace(TopicLoadingTracePoints.LOCAL_TOPIC_POLICIES, topicPolicies);
+        namespacePolicies.completeExceptionally(new RuntimeException("failure"));
+
+        assertEquals(context.getTopicLoadFailureReason(), TopicLoadFailureReason.FAILED_LOAD_NAMESPACE_POLICIES);
+    }
+
+    @Test
+    public void testCompletedFailureIsAttributedToItsTracePoint() {
+        TopicLoadingContext context = new TopicLoadingContext(TopicName.get("persistent://public/default/test"), true,
+                new CompletableFuture<>(), mock(PulsarStats.class));
+        CompletableFuture<Void> namespacePolicies = new CompletableFuture<>();
+
+        context.trace(TopicLoadingTracePoints.NAMESPACE_POLICIES, namespacePolicies);
+        context.trace(TopicLoadingTracePoints.OWNERSHIP,
+                CompletableFuture.failedFuture(new RuntimeException("failure")));
+
+        assertEquals(context.getTopicLoadFailureReason(), TopicLoadFailureReason.FAILED_CHECK_OWNERSHIP);
+    }
+
+    @Test
+    public void testNonStageTraceIsPending() {
+        TopicLoadingContext context = new TopicLoadingContext(TopicName.get("persistent://public/default/test"), true,
+                new CompletableFuture<>(), mock(PulsarStats.class));
+        CompletableFuture<Void> future = new CompletableFuture<>();
+
+        context.trace(TopicLoadingTracePoints.OWNERSHIP, future);
+        assertTrue(context.isTracePending(TopicLoadingTracePoints.OWNERSHIP));
+
+        future.complete(null);
+        assertFalse(context.isTracePending(TopicLoadingTracePoints.OWNERSHIP));
+    }
+
+    private void assertTimeoutReason(TopicLoadingContext context, String stage,
+                                     TopicLoadFailureReason expected) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        context.trace(stage, future);
+        assertEquals(context.getTopicLoadTimeoutReason(), expected);
+        future.complete(null);
+    }
+
+    private void assertTimeoutReasonWithPendingInit(String stage, TopicLoadFailureReason expected) {
+        TopicLoadingContext context = new TopicLoadingContext(TopicName.get("persistent://public/default/test"), true,
+                new CompletableFuture<>(), mock(PulsarStats.class));
+        final var initTracePoint = context.startTrace(TopicLoadingTracePoints.INIT);
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        context.trace(stage, future);
+
+        context.close(true);
+        assertEquals(context.getTopicLoadTimeoutReason(), expected);
+
+        future.complete(null);
+        context.finishTrace(initTracePoint, null);
+    }
 
     @BeforeClass
     @Override
@@ -760,7 +906,11 @@ public class BrokerServiceTest extends BrokerTestBase {
 
             fail("should fail");
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("unable to find valid certification path to requested target"));
+            // The PKIX failure is reported by the JDK trust manager the TLS engine delegates to, so it always
+            // appears in the cause chain. Which engine surfaces it, and therefore what the top-level message
+            // says, depends on the configured TLS provider: the JDK engine says "General SSLEngine problem"
+            // and the OpenSSL engine says "General OpenSslEngine problem". Assert on the chain, not the tip.
+            assertThat(e).hasStackTraceContaining("unable to find valid certification path to requested target");
         } finally {
             pulsarClient.close();
         }
@@ -1191,7 +1341,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         // try to create topic which should fail as bundle is disable
         CompletableFuture<Optional<Topic>> futureResult = pulsar.getBrokerService()
                 .loadOrCreatePersistentTopic(new TopicLoadingContext(topic, true,
-                        new CompletableFuture<>()));
+                new CompletableFuture<>(), mock(PulsarStats.class)));
 
         try {
             futureResult.get();
@@ -1202,6 +1352,49 @@ public class BrokerServiceTest extends BrokerTestBase {
             }
 
         }
+    }
+
+    @Test
+    public void testTopicLoadMetricsWhenOwnershipCheckFails() throws Exception {
+        String namespace = "prop/disabledBundleMetrics" + UUID.randomUUID().toString().replace("-", "");
+        String topic = "persistent://" + namespace + "/topic";
+        admin.namespaces().createNamespace(namespace);
+        admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("test"), false);
+
+        TopicName topicName = TopicName.get(topic);
+        NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(topicName);
+        pulsar.getNamespaceService().getOwnershipCache().updateBundleState(bundle, false).join();
+
+        try (JerseyClient httpClient = JerseyClientBuilder.createClient()) {
+            double bundleUnloadingBefore = getTopicLoadFailureMetric(httpClient, "bundle_unloading");
+            double ownershipCheckBefore = getTopicLoadFailureMetric(httpClient, "failed_check_ownership");
+
+            CompletableFuture<Optional<Topic>> topicFuture = pulsar.getBrokerService().getTopic(topicName, true, null);
+            try {
+                topicFuture.get();
+                fail("Topic creation should fail when the namespace bundle is disabled");
+            } catch (ExecutionException e) {
+                assertTrue(e.getCause() instanceof BrokerServiceException.ServiceUnitNotReadyException);
+            }
+
+            Awaitility.await().untilAsserted(() -> {
+                assertEquals(getTopicLoadFailureMetric(httpClient, "bundle_unloading"), bundleUnloadingBefore + 1);
+                assertEquals(getTopicLoadFailureMetric(httpClient, "failed_check_ownership"), ownershipCheckBefore);
+            });
+        } finally {
+            pulsar.getNamespaceService().getOwnershipCache().updateBundleState(bundle, true).join();
+            admin.namespaces().deleteNamespace(namespace);
+        }
+    }
+
+    private double getTopicLoadFailureMetric(JerseyClient httpClient, String reason) {
+        String response = httpClient.target(pulsar.getWebServiceAddress()).path("/metrics/")
+                .request().get(String.class);
+        Multimap<String, PrometheusMetricsClient.Metric> metrics = PrometheusMetricsClient.parseMetrics(response);
+        return metrics.get("topic_load_failed_total").stream()
+                .filter(metric -> reason.equals(metric.tags.get("reason")))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Missing topic load failure metric for " + reason)).value;
     }
 
     @Test
@@ -1235,7 +1428,8 @@ public class BrokerServiceTest extends BrokerTestBase {
             for (int i = 0; i < 10; i++) {
                 // try to create topic which should fail as bundle is disable
                 CompletableFuture<Optional<Topic>> futureResult = pulsar.getBrokerService().loadOrCreatePersistentTopic(
-                        new TopicLoadingContext(TopicName.get(topicName + "_" + i), false, new CompletableFuture<>()));
+                        new TopicLoadingContext(TopicName.get(topicName + "_" + i), false, new CompletableFuture<>(),
+                                mock(PulsarStats.class)));
                 loadFutures.add(futureResult);
             }
 
@@ -1328,6 +1522,188 @@ public class BrokerServiceTest extends BrokerTestBase {
         // check if the subscription exist.
         assertNotNull(topic.getSubscription(Compactor.COMPACTION_SUBSCRIPTION));
 
+    }
+
+    @Test
+    public void testCleanUnloadedTopicFromCacheDoesNotRemoveNewTopicFuture() throws Exception {
+        final String namespace = "prop/ns-abc";
+        final String topicName = "persistent://" + namespace + "/cleanUnloadedTopicFromCache-"
+                + UUID.randomUUID();
+        final BrokerService brokerService = pulsar.getBrokerService();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        producer.close();
+        Topic topic = brokerService.getTopicReference(topicName).orElseThrow();
+        CompletableFuture<Optional<Topic>> originalTopicFuture = brokerService.getTopics().get(topicName);
+        assertNotNull(originalTopicFuture);
+        NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
+        BlockingCompletedFuture<Optional<Topic>> oldTopicFuture =
+                new BlockingCompletedFuture<>(Optional.of(topic));
+        brokerService.getTopics().put(topicName, oldTopicFuture);
+        ((AbstractTopic) topic).isFenced = true;
+
+        CompletableFuture<Optional<Topic>> newTopicFuture =
+                CompletableFuture.completedFuture(Optional.of(mock(Topic.class)));
+        List<TopicEventsListener.EventStage> unloadEvents = new ArrayList<>();
+        TopicEventsListener listener = (name, event, stage, t) -> {
+            if (topicName.equals(name) && event == TopicEventsListener.TopicEvent.UNLOAD) {
+                unloadEvents.add(stage);
+            }
+        };
+        brokerService.addTopicEventListener(listener);
+        try {
+            Map<String, CompletableFuture<Optional<Topic>>> topicFutures = Map.of(topicName, oldTopicFuture);
+            CompletableFuture<Void> cleanupFuture = CompletableFuture.runAsync(
+                    () -> brokerService.cleanUnloadedTopicFromCache(bundle, topicFutures));
+            assertTrue(oldTopicFuture.awaitIsDone(5, TimeUnit.SECONDS),
+                    "cleanup should capture the old future before it is replaced");
+
+            // Simulate a reload racing after the bundle cleanup has captured the old future.
+            brokerService.getTopics().put(topicName, newTopicFuture);
+            oldTopicFuture.allowIsDone();
+            cleanupFuture.get(5, TimeUnit.SECONDS);
+
+            assertTrue(brokerService.getTopics().get(topicName) == newTopicFuture,
+                    "A stale bundle unload cleanup must not remove a newer topic future");
+            assertTrue(unloadEvents.isEmpty(),
+                    "A stale bundle unload cleanup must not dispatch unload events");
+        } finally {
+            oldTopicFuture.allowIsDone();
+            brokerService.removeTopicEventListener(listener);
+            brokerService.getTopics().put(topicName, originalTopicFuture);
+            topic.close(false, true).get(5, TimeUnit.SECONDS);
+        }
+    }
+
+    @Test
+    public void testUnloadBeforeDoesNotStartTopicReload() throws Exception {
+        final String namespace = "prop/ns-abc";
+        final String topicName = "persistent://" + namespace + "/unloadBeforeDoesNotStartTopicReload-"
+                + UUID.randomUUID();
+        final BrokerService brokerService = pulsar.getBrokerService();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        producer.close();
+        Topic topic = brokerService.getTopicReference(topicName).orElseThrow();
+        CompletableFuture<Optional<Topic>> topicFuture = brokerService.getTopics().get(topicName);
+        assertNotNull(topicFuture);
+
+        AtomicReference<CompletableFuture<Optional<Topic>>> futureAtUnloadBefore = new AtomicReference<>();
+        TopicEventsListener listener = (name, event, stage, t) -> {
+            if (topicName.equals(name) && event == TopicEventsListener.TopicEvent.UNLOAD) {
+                if (stage == TopicEventsListener.EventStage.BEFORE) {
+                    futureAtUnloadBefore.set(brokerService.getTopic(TopicName.get(topicName), true, null));
+                }
+            }
+        };
+        brokerService.addTopicEventListener(listener);
+        try {
+            topic.close(true, true).get(5, TimeUnit.SECONDS);
+
+            assertTrue(futureAtUnloadBefore.get() == topicFuture,
+                    "UNLOAD BEFORE must return the existing topic future instead of starting a reload");
+            assertNull(brokerService.getTopics().get(topicName),
+                    "UNLOAD SUCCESS must observe the topic cache entry removed");
+        } finally {
+            brokerService.removeTopicEventListener(listener);
+        }
+    }
+
+    @Test
+    public void testRemoveTopicFromCacheIgnoresReentrantUnloadCallback() throws Exception {
+        final String namespace = "prop/ns-abc";
+        final String topicName = "persistent://" + namespace + "/removeTopicFromCacheReentrant-"
+                + UUID.randomUUID();
+        final BrokerService brokerService = pulsar.getBrokerService();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        producer.close();
+        Topic topic = brokerService.getTopicReference(topicName).orElseThrow();
+
+        List<TopicEventsListener.EventStage> unloadEvents = new ArrayList<>();
+        AtomicReference<Throwable> reentrantCallbackError = new AtomicReference<>();
+        TopicEventsListener listener = (name, event, stage, t) -> {
+            if (topicName.equals(name) && event == TopicEventsListener.TopicEvent.UNLOAD) {
+                unloadEvents.add(stage);
+                if (stage == TopicEventsListener.EventStage.BEFORE) {
+                    try {
+                        brokerService.removeTopicFromCache((AbstractTopic) topic).get(5, TimeUnit.SECONDS);
+                    } catch (Throwable e) {
+                        reentrantCallbackError.set(e);
+                    }
+                }
+            }
+        };
+        brokerService.addTopicEventListener(listener);
+        try {
+            brokerService.removeTopicFromCache((AbstractTopic) topic).get(5, TimeUnit.SECONDS);
+
+            assertNull(reentrantCallbackError.get(), "A reentrant cache cleanup should complete without error");
+            assertEquals(unloadEvents, List.of(TopicEventsListener.EventStage.BEFORE,
+                    TopicEventsListener.EventStage.SUCCESS));
+        } finally {
+            brokerService.removeTopicEventListener(listener);
+            topic.close(false, true).get(5, TimeUnit.SECONDS);
+        }
+    }
+
+    @Test
+    public void testRemoveTopicFromCacheDoesNotRemoveSupersededTopicFuture() throws Exception {
+        final String namespace = "prop/ns-abc";
+        final String topicName = "persistent://" + namespace + "/removeSupersededTopicFromCache-"
+                + UUID.randomUUID();
+        final BrokerService brokerService = pulsar.getBrokerService();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        producer.close();
+        Topic topic = brokerService.getTopicReference(topicName).orElseThrow();
+        CompletableFuture<Optional<Topic>> oldTopicFuture = brokerService.getTopics().get(topicName);
+        assertNotNull(oldTopicFuture);
+
+        List<TopicEventsListener.EventStage> unloadEvents = new ArrayList<>();
+        TopicEventsListener listener = (name, event, stage, t) -> {
+            if (topicName.equals(name) && event == TopicEventsListener.TopicEvent.UNLOAD) {
+                unloadEvents.add(stage);
+            }
+        };
+        brokerService.addTopicEventListener(listener);
+
+        CompletableFuture<Optional<Topic>> newTopicFuture =
+                CompletableFuture.completedFuture(Optional.of(topic));
+        // Simulate the same topic being reloaded before the old topic close callback removes it.
+        brokerService.getTopics().put(topicName, newTopicFuture);
+        try {
+            brokerService.removeTopicFromCache((AbstractTopic) topic).get(5, TimeUnit.SECONDS);
+
+            assertTrue(brokerService.getTopics().get(topicName) == newTopicFuture,
+                    "A stale topic close callback must not remove a newer topic future");
+            assertTrue(unloadEvents.isEmpty(),
+                    "A stale topic close callback must not dispatch unload events");
+        } finally {
+            brokerService.removeTopicEventListener(listener);
+            brokerService.getTopics().put(topicName, oldTopicFuture);
+            brokerService.removeTopicFromCache((AbstractTopic) topic).get(5, TimeUnit.SECONDS);
+        }
+    }
+
+    @Test
+    public void testCleanUnloadedTopicFromCacheRemovesInactiveBundleTopicFuture() throws Exception {
+        final String namespace = "prop/ns-abc";
+        final String topicName = "persistent://" + namespace + "/cleanInactiveUnloadedTopicFromCache-"
+                + UUID.randomUUID();
+        final BrokerService brokerService = pulsar.getBrokerService();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        producer.close();
+        Topic topic = brokerService.getTopicReference(topicName).orElseThrow();
+        NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
+
+        pulsar.getNamespaceService().getOwnershipCache().updateBundleState(bundle, false).get(5, TimeUnit.SECONDS);
+        ((AbstractTopic) topic).isFenced = true;
+        try {
+            brokerService.cleanUnloadedTopicFromCache(bundle, brokerService.getTopicFuturesInBundle(bundle));
+
+            assertFalse(brokerService.getTopics().containsKey(topicName),
+                    "Inactive bundle cleanup should remove the matching topic future");
+        } finally {
+            pulsar.getNamespaceService().getOwnershipCache().updateBundleState(bundle, true).get(5, TimeUnit.SECONDS);
+            topic.close(false, true).get(5, TimeUnit.SECONDS);
+        }
     }
 
     @Test
@@ -1598,7 +1974,8 @@ public class BrokerServiceTest extends BrokerTestBase {
                 } catch (PulsarAdminException.NotFoundException e) {
                     // expected exception
                 } catch (PulsarAdminException | InterruptedException e) {
-                    log.error("Exception in {}", Thread.currentThread().getName(), e);
+                    log.error().attr("thread", Thread.currentThread().getName())
+                            .exception(e).log("Exception in thread");
                 }
             }, "getStatsThread#" + i);
             getStatsThread.start();
@@ -1761,7 +2138,9 @@ public class BrokerServiceTest extends BrokerTestBase {
             for (PrometheusMetricsClient.Metric metric : metricMap.get("pulsar_topic_load_failed_count")) {
                 topicLoadFailedCount += metric.value;
             }
-            return topicLoadFailedCount >= 1D;
+            return topicLoadFailedCount >= 1D
+                    && metricMap.get("topic_load_failed_total").stream()
+                    .anyMatch(metric -> "others".equals(metric.tags.get("reason")) && metric.value >= 1D);
         });
 
         // Remove the injection.
@@ -1981,6 +2360,133 @@ public class BrokerServiceTest extends BrokerTestBase {
     }
 
     @Test
+    public void testManagedLedgerReadEntriesCallbackInlineConfiguration() throws Exception {
+        var serviceConfiguration = pulsar.getConfiguration();
+        boolean originalInline = serviceConfiguration.isManagedLedgerReadEntriesCallbackInline();
+        TopicName topicName = TopicName.get("persistent://prop/ns-abc/read-callback-" + UUID.randomUUID());
+        try {
+            for (boolean inline : new boolean[]{true, false}) {
+                serviceConfiguration.setManagedLedgerReadEntriesCallbackInline(inline);
+                ManagedLedgerConfig ledgerConfig = pulsar.getBrokerService().getManagedLedgerConfig(topicName)
+                        .get(10, TimeUnit.SECONDS);
+                assertThat(ledgerConfig.isReadEntriesCallbackInline())
+                        .as("broker read callback policy must reach the configuration used to open the ledger")
+                        .isEqualTo(inline);
+            }
+        } finally {
+            serviceConfiguration.setManagedLedgerReadEntriesCallbackInline(originalInline);
+        }
+    }
+
+    @Test
+    public void testManagedLedgerContinueCachingAddedEntriesConfiguration() throws Exception {
+        var serviceConfiguration = pulsar.getConfiguration();
+        Long originalContinueCaching =
+                serviceConfiguration.getManagedLedgerContinueCachingAddedEntriesAfterLastActiveCursorLeavesMillis();
+        TopicName topicName = TopicName.get("persistent://prop/ns-abc/continue-caching-" + UUID.randomUUID());
+        try {
+            serviceConfiguration.setManagedLedgerContinueCachingAddedEntriesAfterLastActiveCursorLeavesMillis(12345L);
+            ManagedLedgerConfig ledgerConfig = pulsar.getBrokerService().getManagedLedgerConfig(topicName)
+                    .get(10, TimeUnit.SECONDS);
+            assertThat(ledgerConfig.getContinueCachingAddedEntriesAfterLastActiveCursorLeavesMillis())
+                    .isEqualTo(12345L);
+
+            // unset defaults to 2 * managedLedgerCacheEvictionTimeThresholdMillis
+            serviceConfiguration.setManagedLedgerContinueCachingAddedEntriesAfterLastActiveCursorLeavesMillis(null);
+            ledgerConfig = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get(10, TimeUnit.SECONDS);
+            assertThat(ledgerConfig.getContinueCachingAddedEntriesAfterLastActiveCursorLeavesMillis())
+                    .isEqualTo(2 * serviceConfiguration.getManagedLedgerCacheEvictionTimeThresholdMillis());
+        } finally {
+            serviceConfiguration.setManagedLedgerContinueCachingAddedEntriesAfterLastActiveCursorLeavesMillis(
+                    originalContinueCaching);
+        }
+    }
+
+    @Test
+    public void testManagedLedgerAddEntryHandoverMaxBatchItemsConfiguration() throws Exception {
+        String setting = "managedLedgerAddEntryHandoverMaxBatchItems";
+        var serviceConfiguration = pulsar.getConfiguration();
+        int originalBatchSize = serviceConfiguration.getManagedLedgerAddEntryHandoverMaxBatchItems();
+        TopicName topicName = TopicName.get("persistent://prop/ns-abc/add-entry-handover-" + UUID.randomUUID());
+        BrokerService brokerService = pulsar.getBrokerService();
+        assertThat(brokerService.isDynamicConfiguration(setting)).isTrue();
+        assertThat(brokerService.validateDynamicConfiguration(setting, "0")).isTrue();
+        assertThat(brokerService.validateDynamicConfiguration(setting, "256")).isTrue();
+        assertThat(brokerService.validateDynamicConfiguration(setting, "-1")).isFalse();
+        assertThat(brokerService.validateDynamicConfiguration(setting, "abc")).isFalse();
+        try {
+            for (int batchSize : new int[]{0, 1, 256}) {
+                serviceConfiguration.setManagedLedgerAddEntryHandoverMaxBatchItems(batchSize);
+                ManagedLedgerConfig ledgerConfig = brokerService.getManagedLedgerConfig(topicName)
+                        .get(10, TimeUnit.SECONDS);
+                assertThat(ledgerConfig.getAddEntryHandoverMaxBatchItems()).isEqualTo(batchSize);
+            }
+        } finally {
+            serviceConfiguration.setManagedLedgerAddEntryHandoverMaxBatchItems(originalBatchSize);
+        }
+    }
+
+    @Test
+    public void testManagedLedgerAddEntryHandoverMaxBatchBytesSizeConfiguration() throws Exception {
+        String setting = "managedLedgerAddEntryHandoverMaxBatchBytesSize";
+        var serviceConfiguration = pulsar.getConfiguration();
+        long originalBytesSize = serviceConfiguration.getManagedLedgerAddEntryHandoverMaxBatchBytesSize();
+        TopicName topicName = TopicName.get("persistent://prop/ns-abc/add-entry-handover-bytes-" + UUID.randomUUID());
+        BrokerService brokerService = pulsar.getBrokerService();
+        assertThat(brokerService.isDynamicConfiguration(setting)).isTrue();
+        assertThat(brokerService.validateDynamicConfiguration(setting, "0")).isTrue();
+        assertThat(brokerService.validateDynamicConfiguration(setting, "10737418240")).isTrue();
+        assertThat(brokerService.validateDynamicConfiguration(setting, "-1")).isFalse();
+        assertThat(brokerService.validateDynamicConfiguration(setting, "abc")).isFalse();
+        try {
+            for (long bytesSize : new long[]{0, 1024, 10L * 1024 * 1024 * 1024}) {
+                serviceConfiguration.setManagedLedgerAddEntryHandoverMaxBatchBytesSize(bytesSize);
+                ManagedLedgerConfig ledgerConfig = brokerService.getManagedLedgerConfig(topicName)
+                        .get(10, TimeUnit.SECONDS);
+                assertThat(ledgerConfig.getAddEntryHandoverMaxBatchBytesSize()).isEqualTo(bytesSize);
+            }
+        } finally {
+            serviceConfiguration.setManagedLedgerAddEntryHandoverMaxBatchBytesSize(originalBytesSize);
+        }
+    }
+
+    @Test
+    public void testManagedLedgerAddEntryHandoverMaxBatchItemsDynamicUpdate() throws Exception {
+        String setting = "managedLedgerAddEntryHandoverMaxBatchItems";
+        String bytesSizeSetting = "managedLedgerAddEntryHandoverMaxBatchBytesSize";
+        var serviceConfiguration = pulsar.getConfiguration();
+        int originalBatchSize = serviceConfiguration.getManagedLedgerAddEntryHandoverMaxBatchItems();
+        long originalBytesSize = serviceConfiguration.getManagedLedgerAddEntryHandoverMaxBatchBytesSize();
+        String topicName = "persistent://prop/ns-abc/add-entry-handover-dynamic-" + UUID.randomUUID();
+        admin.topics().createNonPartitionedTopic(topicName);
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
+        try {
+            admin.brokers().updateDynamicConfiguration(setting, "16");
+            admin.brokers().updateDynamicConfiguration(bytesSizeSetting, "65536");
+            Awaitility.await().untilAsserted(() -> {
+                assertThat(serviceConfiguration.getManagedLedgerAddEntryHandoverMaxBatchItems()).isEqualTo(16);
+                assertThat(topic.getManagedLedger().getConfig().getAddEntryHandoverMaxBatchItems()).isEqualTo(16);
+                assertThat(serviceConfiguration.getManagedLedgerAddEntryHandoverMaxBatchBytesSize()).isEqualTo(65536);
+                assertThat(topic.getManagedLedger().getConfig().getAddEntryHandoverMaxBatchBytesSize())
+                        .isEqualTo(65536);
+            });
+            assertThatThrownBy(() -> admin.brokers().updateDynamicConfiguration(setting, "-1"))
+                    .isInstanceOf(PulsarAdminException.class);
+            assertThatThrownBy(() -> admin.brokers().updateDynamicConfiguration(bytesSizeSetting, "-1"))
+                    .isInstanceOf(PulsarAdminException.class);
+        } finally {
+            admin.brokers().deleteDynamicConfiguration(setting);
+            admin.brokers().deleteDynamicConfiguration(bytesSizeSetting);
+            Awaitility.await().untilAsserted(() -> {
+                assertThat(serviceConfiguration.getManagedLedgerAddEntryHandoverMaxBatchItems())
+                        .isEqualTo(originalBatchSize);
+                assertThat(serviceConfiguration.getManagedLedgerAddEntryHandoverMaxBatchBytesSize())
+                        .isEqualTo(originalBytesSize);
+            });
+        }
+    }
+
+    @Test
     public void testTlsWithAuthParams() throws Exception {
         final String topicName = "persistent://prop/ns-abc/newTopic";
         final String subName = "newSub";
@@ -1989,37 +2495,36 @@ public class BrokerServiceTest extends BrokerTestBase {
         Set<String> providers = new HashSet<>();
         providers.add("org.apache.pulsar.broker.authentication.AuthenticationProviderTls");
 
-        conf.setAuthenticationEnabled(true);
-        conf.setAuthenticationProviders(providers);
-        conf.setBrokerServicePortTls(Optional.of(0));
-        conf.setWebServicePortTls(Optional.of(0));
-        conf.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
-        conf.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
-        conf.setTlsAllowInsecureConnection(false);
-        conf.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
-        conf.setNumExecutorThreadPoolSize(5);
-        restartBroker();
-
-        String authParam = String.format("tlsCertFile:%s,tlsKeyFile:%s", getTlsFileForClient("admin.cert"),
-                getTlsFileForClient("admin.key-pk8"));
-        String authClassName = "org.apache.pulsar.client.impl.auth.AuthenticationTls";
-        ClientConfigurationData conf = new ClientConfigurationData();
-        conf.setServiceUrl(brokerUrlTls.toString());
-        conf.setAuthParams(authParam);
-        conf.setAuthPluginClassName(authClassName);
-        conf.setTlsAllowInsecureConnection(true);
-
-        PulsarClient pulsarClient = null;
         try {
-            pulsarClient = (new ClientBuilderImpl(conf)).build();
+            conf.setAuthenticationEnabled(true);
+            conf.setAuthenticationProviders(providers);
+            conf.setBrokerServicePortTls(Optional.of(0));
+            conf.setWebServicePortTls(Optional.of(0));
+            conf.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+            conf.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
+            conf.setTlsAllowInsecureConnection(false);
+            conf.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
+            conf.setNumExecutorThreadPoolSize(5);
+            restartBroker();
 
-            @Cleanup
-            Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
-                    .subscribe();
-        } catch (Exception e) {
-            fail("should not fail");
+            String authParam = String.format("tlsCertFile:%s,tlsKeyFile:%s", getTlsFileForClient("admin.cert"),
+                    getTlsFileForClient("admin.key-pk8"));
+            String authClassName = "org.apache.pulsar.client.impl.auth.AuthenticationTls";
+            ClientConfigurationData conf = new ClientConfigurationData();
+            conf.setServiceUrl(brokerUrlTls.toString());
+            conf.setAuthParams(authParam);
+            conf.setAuthPluginClassName(authClassName);
+            conf.setTlsAllowInsecureConnection(true);
+
+            try (PulsarClient pulsarClient = new ClientBuilderImpl(conf).build()) {
+                @Cleanup
+                Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                        .subscribe();
+            } catch (Exception e) {
+                fail("should not fail", e);
+            }
         } finally {
-            pulsarClient.close();
+            resetState();
         }
     }
 
@@ -2050,6 +2555,118 @@ public class BrokerServiceTest extends BrokerTestBase {
         assertFalse(MockTopicPoliciesService.FAILED_TOPICS.contains(topicName));
     }
 
+    @Test
+    public void testCleanUnloadedTopicFromCacheIsGenerationSafe() throws Exception {
+        final String topicName = "persistent://prop/ns-abc/staleCleanupTest-" + UUID.randomUUID();
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        BrokerService brokerService = pulsar.getBrokerService();
+        NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
+
+        // Generation 1: load the topic and capture its future the way a real unload snapshot would.
+        Topic staleGenerationTopic = brokerService.getTopic(topicName, true).get().orElseThrow();
+        CompletableFuture<Optional<Topic>> staleGenerationFuture =
+                CompletableFuture.completedFuture(Optional.of(staleGenerationTopic));
+
+        // Simulate re-acquisition: the topic is closed and reloaded, installing a *new* generation's future/topic
+        // under the same name, while this broker still owns and serves the bundle.
+        admin.topics().unload(topicName);
+        Topic newGenerationTopic = brokerService.getTopic(topicName, true).get().orElseThrow();
+        assertNotSame(newGenerationTopic, staleGenerationTopic);
+
+        // A stale cleanup call for the old generation's unload arrives late. It must only ever act on the exact
+        // future it captured at unload start, never on a newer generation's entry for the same topic name.
+        brokerService.cleanUnloadedTopicFromCache(bundle, Map.of(topicName, staleGenerationFuture));
+
+        assertTrue(brokerService.getTopicReference(topicName).isPresent(),
+                "stale cleanup wrongly evicted the newer generation's topic from the cache");
+    }
+
+    @Test
+    public void testCleanUnloadedTopicFromCacheIsGenerationSafeForBookkeeping() throws Exception {
+        final String topicName = "persistent://prop/ns-abc/staleCleanupBookkeepingTest-" + UUID.randomUUID();
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        BrokerService brokerService = pulsar.getBrokerService();
+        NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
+
+        // Generation 1: load the topic and capture its future the way a real unload snapshot would.
+        Topic staleGenerationTopic = brokerService.getTopic(topicName, true).get().orElseThrow();
+        CompletableFuture<Optional<Topic>> staleGenerationFuture =
+                CompletableFuture.completedFuture(Optional.of(staleGenerationTopic));
+
+        // Simulate re-acquisition: the topic is closed and reloaded, installing a *new* generation's future/topic
+        // under the same name, while this broker still owns and serves the bundle.
+        admin.topics().unload(topicName);
+        brokerService.getTopic(topicName, true).get().orElseThrow();
+        // addTopicToStatsMaps() runs asynchronously off the topic-load future, so wait for it to land.
+        Awaitility.await().untilAsserted(() ->
+                assertTrue(brokerService.getTopicStats(bundle).containsKey(topicName),
+                        "the newer generation should be tracked in the per-bundle stats index after reload"));
+
+        // A stale cleanup call for the old generation's unload arrives late. The topics-map removal is a
+        // guarded no-op (proven by testCleanUnloadedTopicFromCacheIsGenerationSafe above), but the surrounding
+        // bookkeeping around it must be gated on that same guard too, not run unconditionally.
+        brokerService.cleanUnloadedTopicFromCache(bundle, Map.of(topicName, staleGenerationFuture));
+
+        assertTrue(brokerService.getTopicStats(bundle).containsKey(topicName),
+                "stale cleanup wrongly stripped the still-live newer generation's topic from the per-bundle "
+                        + "stats index (multiLayerTopicsMap), even though the topics-map removal itself was "
+                        + "correctly skipped");
+    }
+
+    @Test
+    public void testCleanUnloadedTopicFromCacheRemovesMatchingSnapshot() throws Exception {
+        final String topicName = "persistent://prop/ns-abc/staleCleanupMatchTest-" + UUID.randomUUID();
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        BrokerService brokerService = pulsar.getBrokerService();
+        NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
+        Topic topic = brokerService.getTopic(topicName, true).get().orElseThrow();
+        // The bundle cleanup only ever runs after unloadServiceUnit has attempted to close the topic, which
+        // fences it synchronously even on a failed/incomplete close. Mirror that precondition here.
+        ((AbstractTopic) topic).isFenced = true;
+
+        // A snapshot that matches exactly what is currently cached must still be cleaned up: this is the
+        // legitimate backstop case (a topic whose close() failed to remove itself from the cache).
+        Map<String, CompletableFuture<Optional<Topic>>> currentSnapshot = brokerService.getTopicFuturesInBundle(bundle);
+        brokerService.cleanUnloadedTopicFromCache(bundle, currentSnapshot);
+
+        assertFalse(brokerService.getTopicReference(topicName).isPresent(),
+                "cleanup should still remove a topic future that matches what was captured");
+    }
+
+    private static class BlockingCompletedFuture<T> extends CompletableFuture<T> {
+        private final CountDownLatch isDoneEntered = new CountDownLatch(1);
+        private final CountDownLatch allowIsDone = new CountDownLatch(1);
+
+        BlockingCompletedFuture(T value) {
+            complete(value);
+        }
+
+        @Override
+        public boolean isDone() {
+            isDoneEntered.countDown();
+            try {
+                if (!allowIsDone.await(10, TimeUnit.SECONDS)) {
+                    throw new AssertionError("Timed out waiting to resume topic-cache cleanup");
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new AssertionError("Interrupted while waiting to resume topic-cache cleanup", e);
+            }
+            return super.isDone();
+        }
+
+        boolean awaitIsDone(long timeout, TimeUnit unit) throws InterruptedException {
+            return isDoneEntered.await(timeout, unit);
+        }
+
+        void allowIsDone() {
+            allowIsDone.countDown();
+        }
+    }
+
     static class MockTopicPoliciesService extends TopicPoliciesService.TopicPoliciesServiceDisabled {
 
         static final Set<TopicName> FAILED_TOPICS = ConcurrentHashMap.newKeySet();
@@ -2065,4 +2682,3 @@ public class BrokerServiceTest extends BrokerTestBase {
         }
     }
 }
-

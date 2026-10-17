@@ -23,7 +23,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.util.Optional;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -34,7 +34,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-admin")
 public class BookiesApiTest extends MockedPulsarServiceBaseTest {
 
@@ -124,7 +124,7 @@ public class BookiesApiTest extends MockedPulsarServiceBaseTest {
         assertTrue(conf.isEmpty());
 
         BookiesClusterInfo bookies = admin.bookies().getBookies();
-        log.info("bookies info {}", bookies);
+        log.info().attr("bookies", bookies).log("Bookies info");
         assertEquals(bookies.getBookies().size(),
                 pulsar.getBookKeeperClient()
                 .getMetadataClientDriver()

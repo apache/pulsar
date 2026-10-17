@@ -24,6 +24,7 @@ import static org.mockito.Mockito.when;
 import com.google.common.collect.Sets;
 import java.util.HashSet;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -46,17 +47,14 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
+@CustomLog
 public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBaseTest {
-
-    private static final Logger log = LoggerFactory.getLogger(NamespaceEventsSystemTopicServiceTest.class);
 
     private static final String NAMESPACE1 = "system-topic/namespace-1";
     private static final String NAMESPACE2 = "system-topic/namespace-2";
@@ -131,7 +129,7 @@ public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBa
         SystemTopicClient.Reader reader = systemTopicClientForNamespace1.newReader();
         @Cleanup("release")
         Message<PulsarEvent> received = reader.readNext();
-        log.info("Receive pulsar event from system topic : {}", received.getValue());
+        log.info().attr("systemTopic", received.getValue()).log("Receive pulsar event from system topic");
 
         // test event send and receive
         Assert.assertEquals(received.getValue(), event);
@@ -142,7 +140,7 @@ public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBa
         SystemTopicClient.Reader reader1 = systemTopicClientForNamespace1.newReader();
         @Cleanup("release")
         Message<PulsarEvent> received1 = reader1.readNext();
-        log.info("Receive pulsar event from system topic : {}", received1.getValue());
+        log.info().attr("systemTopic", received1.getValue()).log("Receive pulsar event from system topic");
         Assert.assertEquals(received1.getValue(), event);
 
         // test writers and readers

@@ -21,7 +21,7 @@ package org.apache.pulsar.broker.namespace;
 import static org.testng.AssertJUnit.assertTrue;
 import com.google.common.collect.Sets;
 import java.util.Random;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -34,7 +34,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class OwnerShipCacheForCurrentServerTest extends OwnerShipForCurrentServerTestBase {
 

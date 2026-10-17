@@ -41,6 +41,12 @@ public class MigrationState {
 
 
 
-    public static final String MIGRATION_FLAG_PATH = "/pulsar/migration-coordinator/migration";
-    public static final String PARTICIPANTS_PATH = "/pulsar/migration-coordinator/participants";
+    /**
+     * Root of the migration coordination state. This subtree is only meaningful in the source
+     * store and is never copied into the target store.
+     */
+    public static final String COORDINATOR_PATH = "/pulsar/migration-coordinator";
+
+    public static final String MIGRATION_FLAG_PATH = COORDINATOR_PATH + "/migration";
+    public static final String PARTICIPANTS_PATH = COORDINATOR_PATH + "/participants";
 }

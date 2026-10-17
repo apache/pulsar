@@ -30,16 +30,16 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerStats;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.ProducerStats;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @SuppressWarnings("deprecation")
+@CustomLog
 public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
 
     private static final long serialVersionUID = 1L;
@@ -116,10 +116,12 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
                 .without(SerializationFeature.FAIL_ON_EMPTY_BEANS);
 
         try {
-            log.info("Starting Pulsar consumer status recorder with config: {}", w.writeValueAsString(conf));
-            log.info("Pulsar client config: {}", w.writeValueAsString(pulsarClient.getConfiguration()));
+            log.info().attr("config", w.writeValueAsString(conf))
+                    .log("Starting Pulsar consumer status recorder with config");
+            log.info().attr("config", w.writeValueAsString(pulsarClient.getConfiguration()))
+                    .log("Pulsar client config");
         } catch (IOException e) {
-            log.error("Failed to dump config info", e);
+            log.error().exception(e).log("Failed to dump config info");
         }
 
         stat = (timeout) -> {
@@ -150,20 +152,25 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
                 int prefetchQueueSize = consumerImpl.incomingMessages.size();
                 if ((currentNumMsgsReceived | currentNumBytesReceived | currentNumReceiveFailed | currentNumAcksSent
                         | currentNumAcksFailed | prefetchQueueSize) != 0) {
-                    log.info(
-                            "[{}] [{}] [{}] Prefetched messages: {} --- "
-                                    + "Consume throughput received: {} msgs/s --- {} Mbit/s --- "
-                                    + "Ack sent rate: {} ack/s --- " + "Failed messages: {} --- batch messages: {} ---"
-                                    + "Failed acks: {}",
-                            consumerImpl.getTopic(), consumerImpl.getSubscription(), consumerImpl.consumerName,
-                            prefetchQueueSize, THROUGHPUT_FORMAT.format(receivedMsgsRate),
-                            THROUGHPUT_FORMAT.format(receivedBytesRate * 8 / 1024 / 1024),
-                            THROUGHPUT_FORMAT.format(currentNumAcksSent / elapsed), currentNumReceiveFailed,
-                            currentNumBatchReceiveFailed, currentNumAcksFailed);
+                    log.info().attr("topic", consumerImpl.getTopic())
+                            .attr("subscription", consumerImpl.getSubscription())
+                            .attr("consumerName", consumerImpl.consumerName)
+                            .attr("prefetchedMessages", prefetchQueueSize)
+                            .attr("receivedMsgRate", THROUGHPUT_FORMAT.format(receivedMsgsRate))
+                            .attr("receivedBytesRateMbps",
+                                    THROUGHPUT_FORMAT.format(receivedBytesRate * 8 / 1024 / 1024))
+                            .attr("ackSentRate", THROUGHPUT_FORMAT.format(currentNumAcksSent / elapsed))
+                            .attr("failedMessages", currentNumReceiveFailed)
+                            .attr("failedBatchMessages", currentNumBatchReceiveFailed)
+                            .attr("failedAcks", currentNumAcksFailed)
+                            .log("Consumer stats");
                 }
             } catch (Exception e) {
-                log.error("[{}] [{}] [{}]: {}", consumerImpl.getTopic(), consumerImpl.subscription
-                        , consumerImpl.consumerName, e.getMessage());
+                log.error().attr("topic", consumerImpl.getTopic())
+                        .attr("subscription", consumerImpl.subscription)
+                        .attr("consumerName", consumerImpl.consumerName)
+                        .exception(e)
+                        .log("Failed to update consumer stats");
             } finally {
                 // schedule the next stat info
                 statTimeout = pulsarClient.timer().newTimeout(stat, statsIntervalSeconds, TimeUnit.SECONDS);
@@ -356,6 +363,4 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
     public double getRateBytesReceived() {
         return receivedBytesRate;
     }
-
-    private static final Logger log = LoggerFactory.getLogger(ConsumerStatsRecorderImpl.class);
 }

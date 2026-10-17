@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.cache;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
@@ -27,7 +28,7 @@ import static org.testng.Assert.fail;
 import java.lang.reflect.Field;
 import java.util.concurrent.CountDownLatch;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.cache.PendingReadsManager;
@@ -45,7 +46,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
-@Slf4j
+@CustomLog
 public class MinimumBacklogCacheStrategyTest extends ProducerConsumerBase {
     @BeforeMethod
     @Override
@@ -80,7 +81,7 @@ public class MinimumBacklogCacheStrategyTest extends ProducerConsumerBase {
     @Test
     @SuppressWarnings("unchecked")
     public void testBacklogConsumerCacheReads() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("test", methodName).log("-- Starting test --");
 
         final long totalMessages = 200;
         final int receiverSize = 10;
@@ -150,7 +151,7 @@ public class MinimumBacklogCacheStrategyTest extends ProducerConsumerBase {
         latch.await();
 
         // Verify: EntryCache has been invalidated
-        verify(entryCache, atLeastOnce()).insert(any());
+        verify(entryCache, atLeastOnce()).insert(any(), anyBoolean());
 
         for (int i = 0; i < totalSub; i++) {
             consumers[i].close();

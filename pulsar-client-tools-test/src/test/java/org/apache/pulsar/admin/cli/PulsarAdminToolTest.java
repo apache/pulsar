@@ -57,7 +57,7 @@ import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.admin.cli.extensions.CustomCommandFactory;
 import org.apache.pulsar.admin.cli.utils.SchemaExtractor;
 import org.apache.pulsar.client.admin.Bookies;
@@ -74,6 +74,7 @@ import org.apache.pulsar.client.admin.ProxyStats;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.ResourceQuotas;
+import org.apache.pulsar.client.admin.ScalableTopics;
 import org.apache.pulsar.client.admin.Schemas;
 import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.client.admin.TopicPolicies;
@@ -120,6 +121,7 @@ import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.protocol.schema.PostSchemaPayload;
+import org.apache.pulsar.common.stats.AnalyzeSubscriptionBacklogResult;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mockito;
@@ -127,7 +129,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 import picocli.CommandLine;
 
-@Slf4j
+@CustomLog
 public class PulsarAdminToolTest {
 
     @Test
@@ -1588,6 +1590,21 @@ public class PulsarAdminToolTest {
         verify(mockTopics).setOffloadPolicies("persistent://myprop/ns1/ds2", offloadPolicies2);
     }
 
+    @Test
+    public void scalableTopicsStats() throws Exception {
+        PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
+        ScalableTopics mockScalableTopics = mock(ScalableTopics.class);
+        when(admin.scalableTopics()).thenReturn(mockScalableTopics);
+
+        CmdScalableTopics cmdScalableTopics = new CmdScalableTopics(() -> admin);
+
+        cmdScalableTopics.run(split("stats myprop/ns1/ds1"));
+        verify(mockScalableTopics).getStats("myprop/ns1/ds1");
+
+        cmdScalableTopics.run(split("segment-stats segment://myprop/ns1/ds1/0000-ffff-3"));
+        verify(mockScalableTopics).getSegmentStats("segment://myprop/ns1/ds1/0000-ffff-3");
+    }
+
 
     @SuppressWarnings({"deprecation", "unchecked"})
     @Test
@@ -2322,6 +2339,40 @@ public class PulsarAdminToolTest {
     }
 
     @Test
+    public void topicsAnalyzeBacklogParameterParsing() throws Exception {
+        PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
+        Topics mockTopics = mock(Topics.class);
+        when(admin.topics()).thenReturn(mockTopics);
+
+        AnalyzeSubscriptionBacklogResult backlogResult = new AnalyzeSubscriptionBacklogResult();
+        doReturn(backlogResult).when(mockTopics)
+                .analyzeSubscriptionBacklog(eq("persistent://myprop/ns1/ds1"), eq("sub1"), Mockito.any());
+        doReturn(backlogResult).when(mockTopics)
+                .analyzeSubscriptionBacklog(eq("persistent://myprop/ns1/ds1"), eq("sub1"), Mockito.any(),
+                        Mockito.any());
+
+        CmdTopics cmdTopics = new CmdTopics(() -> admin);
+        cmdTopics.run(split("analyze-backlog persistent://myprop/ns1/ds1 -s sub1 --position 1:1"));
+        verify(mockTopics).analyzeSubscriptionBacklog(eq("persistent://myprop/ns1/ds1"), eq("sub1"),
+                eq(Optional.of(new MessageIdImpl(1, 1, -1))));
+
+        cmdTopics = new CmdTopics(() -> admin);
+        cmdTopics.run(split("analyze-backlog persistent://myprop/ns1/ds1 -s sub1 -b 100 --plain --quiet"));
+        verify(mockTopics).analyzeSubscriptionBacklog(eq("persistent://myprop/ns1/ds1"), eq("sub1"),
+                eq(Optional.empty()), Mockito.any());
+    }
+
+    @Test
+    public void topicsAnalyzeBacklogRejectsNonPositiveBacklogScanMaxEntries() {
+        PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
+        Topics mockTopics = mock(Topics.class);
+        when(admin.topics()).thenReturn(mockTopics);
+
+        CmdTopics cmdTopics = new CmdTopics(() -> admin);
+        assertFalse(cmdTopics.run(split("analyze-backlog persistent://myprop/ns1/ds1 -s sub1 -b 0")));
+    }
+
+    @Test
     public void bookies() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         Bookies mockBookies = mock(Bookies.class);
@@ -2664,7 +2715,7 @@ public class PulsarAdminToolTest {
     public void customCommandsFactoryImmutable() throws Exception {
         File narFile = new File(PulsarAdminTool.class.getClassLoader()
                 .getResource("cliextensions/customCommands-nar.nar").getFile());
-        log.info("NAR FILE is {}", narFile);
+        log.info().attr("value", narFile).log("NAR FILE is");
 
         PulsarAdminBuilder builder = mock(PulsarAdminBuilder.class);
         PulsarAdmin admin = mock(PulsarAdmin.class);
@@ -2714,7 +2765,7 @@ public class PulsarAdminToolTest {
     private static String runCustomCommand(String[] args) throws Exception {
         File narFile = new File(PulsarAdminTool.class.getClassLoader()
                 .getResource("cliextensions/customCommands-nar.nar").getFile());
-        log.info("NAR FILE is {}", narFile);
+        log.info().attr("value", narFile).log("NAR FILE is");
 
         PulsarAdminBuilder builder = mock(PulsarAdminBuilder.class);
         PulsarAdmin admin = mock(PulsarAdmin.class);
@@ -2735,7 +2786,7 @@ public class PulsarAdminToolTest {
         try (CaptureStdOut capture = new CaptureStdOut(tool.commander, logs)) {
             tool.run(args);
         }
-        log.info("Captured out: {}", logs);
+        log.info().attr("value", logs).log("Captured out:");
         return logs.toString();
     }
 

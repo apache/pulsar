@@ -18,11 +18,12 @@
  */
 
 plugins {
-    id("pulsar.java-conventions")
+    id("pulsar.public-java-library-conventions")
     id("pulsar.shadow-conventions")
 }
 
 dependencies {
+    implementation(libs.slog)
     implementation(libs.zookeeper)
     implementation(project(":jetty-upgrade:pulsar-zookeeper-prometheus-metrics"))
     implementation(libs.jetty.server)

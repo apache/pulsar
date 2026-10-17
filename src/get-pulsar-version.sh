@@ -21,4 +21,4 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP_LEVEL_DIR="$(dirname "$SCRIPT_DIR")"
 
-grep "^pulsar " "$TOP_LEVEL_DIR/gradle/libs.versions.toml" | sed 's/.*= *"//' | sed 's/"//'
+grep '^version[[:space:]]*=' "$TOP_LEVEL_DIR/gradle.properties" | sed 's/^version[[:space:]]*=[[:space:]]*//'

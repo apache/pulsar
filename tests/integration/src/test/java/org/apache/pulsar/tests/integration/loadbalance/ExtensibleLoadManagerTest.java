@@ -40,7 +40,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
@@ -65,7 +65,7 @@ import org.testng.annotations.Test;
 /**
  * Integration tests for Pulsar ExtensibleLoadManagerImpl.
  */
-@Slf4j
+@CustomLog
 public class ExtensibleLoadManagerTest extends TestRetrySupport {
 
     private static final int NUM_BROKERS = 3;
@@ -134,33 +134,55 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
     }
 
     @BeforeMethod(alwaysRun = true)
-    public void startBroker() {
-        if (pulsarCluster != null) {
-            pulsarCluster.getBrokers().forEach(brokerContainer -> {
-                if (!brokerContainer.isRunning()) {
-                    brokerContainer.start();
-                }
-            });
-            String topicName = "persistent://" + DEFAULT_NAMESPACE + "/startBrokerCheck";
-            Awaitility.await().atMost(120, TimeUnit.SECONDS).ignoreExceptions().until(
+    public void startBroker() throws Exception {
+        if (pulsarCluster == null) {
+            return;
+        }
+        pulsarCluster.getBrokers().forEach(brokerContainer -> {
+            if (!brokerContainer.isRunning()) {
+                brokerContainer.start();
+            }
+        });
+        // Build admin clients once and reuse across poll iterations to avoid the per-tick
+        // connection churn (3 brokers x N polls of admin builder/close). Connection setup
+        // contends with brokers that are still warming up after a stop/restart.
+        // We only check getActiveBrokers and intentionally avoid a topic lookup probe: the broker
+        // accepts HTTP requests before ServiceUnitStateChannel reaches Started, and a lookup in that
+        // window fails fast with "Invalid channel state:LeaderElectionServiceStarted", which would
+        // make this poll loop spin without ever giving the channel time to finish starting.
+        List<BrokerContainer> brokers = new ArrayList<>(pulsarCluster.getBrokers());
+        List<PulsarAdmin> brokerAdmins = new ArrayList<>(brokers.size());
+        try {
+            for (BrokerContainer brokerContainer : brokers) {
+                brokerAdmins.add(PulsarAdmin.builder()
+                        .serviceHttpUrl(brokerContainer.getHttpServiceUrl()).build());
+            }
+            Awaitility.await().atMost(180, TimeUnit.SECONDS).until(
                     () -> {
-                        for (BrokerContainer brokerContainer : pulsarCluster.getBrokers()) {
-                            try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(
-                                    brokerContainer.getHttpServiceUrl()).build()) {
-                                if (admin.brokers().getActiveBrokers(clusterName).size() != NUM_BROKERS) {
+                        for (int i = 0; i < brokers.size(); i++) {
+                            BrokerContainer brokerContainer = brokers.get(i);
+                            PulsarAdmin brokerAdmin = brokerAdmins.get(i);
+                            try {
+                                if (brokerAdmin.brokers().getActiveBrokers(clusterName).size() != NUM_BROKERS) {
+                                    log.info()
+                                            .attr("broker", brokerContainer.getHostName())
+                                            .attr("see", NUM_BROKERS)
+                                            .log("Broker does not see active brokers yet");
                                     return false;
                                 }
-                                try {
-                                    admin.topics().createPartitionedTopic(topicName, 10);
-                                } catch (PulsarAdminException.ConflictException e) {
-                                    // expected
-                                }
-                                admin.lookups().lookupPartitionedTopic(topicName);
+                            } catch (Exception e) {
+                                log.warn()
+                                        .attr("broker", brokerContainer.getHostName())
+                                        .attr("yet", e.getMessage())
+                                        .log("Broker is not ready yet");
+                                return false;
                             }
                         }
                         return true;
                     }
             );
+        } finally {
+            brokerAdmins.forEach(PulsarAdmin::close);
         }
     }
 
@@ -184,7 +206,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
                 try {
                     result.add(admin.lookups().lookupPartitionedTopic(topicName));
                 } catch (PulsarAdminException e) {
-                    log.error("Lookup partitioned topic failed.", e);
+                    log.error().exception(e).log("Lookup partitioned topic failed.");
                 }
                 latch.countDown();
             });
@@ -234,7 +256,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
         String topicName = "persistent://" + DEFAULT_NAMESPACE + "/testSplitBundleAdminApi";
         createNonPartitionedTopicAndRetry(topicName);
         String broker = admin.lookups().lookupTopic(topicName);
-        log.info("The topic: {} owned by {}", topicName, broker);
+        log.info().attr("topic", topicName).attr("by", broker).log("The topic: owned by");
         BundlesData bundles = admin.namespaces().getBundles(DEFAULT_NAMESPACE);
         int numBundles = bundles.getNumBundles();
         var bundleRanges = bundles.getBoundaries().stream().map(Long::decode).sorted().toList();
@@ -274,7 +296,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
         assertTrue(admin.namespaces().getNamespaces(DEFAULT_TENANT).contains(namespace));
         admin.topics().createPartitionedTopic(topicName, 2);
         String broker = admin.lookups().lookupTopic(topicName);
-        log.info("The topic: {} owned by: {}", topicName, broker);
+        log.info().attr("topic", topicName).attr("by", broker).log("The topic: owned by");
         admin.namespaces().deleteNamespace(namespace, true);
         assertFalse(admin.namespaces().getNamespaces(DEFAULT_TENANT).contains(namespace));
     }
@@ -285,7 +307,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
 
         createNonPartitionedTopicAndRetry(topicName);
         String broker = admin.lookups().lookupTopic(topicName);
-        log.info("The topic: {} owned by: {}", topicName, broker);
+        log.info().attr("topic", topicName).attr("by", broker).log("The topic: owned by");
 
         int idx = extractBrokerIndex(broker);
         for (BrokerContainer container : pulsarCluster.getBrokers()) {
@@ -344,7 +366,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
 
             assertEquals(brokers.size(), 1);
             result.add(brokers.iterator().next());
-            log.info("Topic: {}, lookup result: {}", topic, brokers.iterator().next());
+            log.info().attr("topic", topic).attr("result", brokers.iterator().next()).log("Topic: , lookup result");
         }
 
         assertEquals(result.size(), NUM_BROKERS);
@@ -433,7 +455,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
                         admin.lookups().lookupTopicAsync(topic).get(5, TimeUnit.SECONDS);
                         fail();
                     } catch (Exception ex) {
-                        log.error("Failed to lookup topic: ", ex);
+                        log.error().exception(ex).log("Failed to lookup topic");
                         assertThat(ex.getMessage()).contains("Service Unavailable");
                     }
                 }
@@ -450,7 +472,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
                 return true;
                 //expected when retried
             } catch (Exception e) {
-                log.error("Failed to create topic: ", e);
+                log.error().exception(e).log("Failed to create topic");
                 return false;
             }
         });

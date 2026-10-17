@@ -146,6 +146,7 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
         return filterImplementations("ZooKeeper", "MockZooKeeper");
     }
 
+
     protected Object[][] filterImplementations(String... providers) {
         Set<String> providersSet = Set.of(providers);
         return Arrays.stream(allImplementations())
@@ -158,8 +159,7 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
             return null;
         }
         if (oxiaServer == null) {
-            oxiaServer = new OxiaContainer(OxiaContainer.DEFAULT_IMAGE_NAME);
-            oxiaServer.start();
+            oxiaServer = OxiaTestServer.start(1);
         }
         return oxiaServer.getServiceAddress();
     }

@@ -21,8 +21,8 @@ package org.apache.pulsar.functions.worker;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -40,7 +40,7 @@ import org.apache.pulsar.client.api.ReaderBuilder;
  * after it computes a new scheduling.  When a worker loses leadership,
  * the worker is start reading from the assignments topic again.
  */
-@Slf4j
+@CustomLog
 public class FunctionAssignmentTailer implements AutoCloseable {
 
     private final FunctionRuntimeManager functionRuntimeManager;
@@ -104,7 +104,7 @@ public class FunctionAssignmentTailer implements AutoCloseable {
                     try {
                         tailerThread.join(5000, 0);
                     } catch (InterruptedException e) {
-                        log.warn("Waiting for assignment tailer thread to stop is interrupted", e);
+                        log.warn().exception(e).log("Waiting for assignment tailer thread to stop is interrupted");
                     }
 
                     if (tailerThread.isAlive()) {
@@ -127,12 +127,13 @@ public class FunctionAssignmentTailer implements AutoCloseable {
 
             exitOnEndOfTopic = false;
         } catch (IOException e) {
-            log.error("Failed to stop function assignment tailer", e);
+            log.error().exception(e).log("Failed to stop function assignment tailer");
         }
     }
 
     private Reader<byte[]> createReader(MessageId startMessageId) throws PulsarClientException {
-        log.info("Assignment tailer will start reading from message id {}", startMessageId);
+        log.info().attr("startMessageId", startMessageId)
+                .log("Assignment tailer will start reading");
 
         return WorkerUtils.createReader(
                 readerBuilder,
@@ -157,13 +158,13 @@ public class FunctionAssignmentTailer implements AutoCloseable {
                     }
                 } catch (Throwable th) {
                     if (isRunning) {
-                        log.error("Encountered error in assignment tailer", th);
+                        log.error().exception(th).log("Encountered error in assignment tailer");
                         // trigger fatal error
                         isRunning = false;
                         errorNotifier.triggerError(th);
                     } else {
                         if (!(th instanceof InterruptedException || th.getCause() instanceof InterruptedException)) {
-                            log.warn("Encountered error when assignment tailer is not running", th);
+                            log.warn().exception(th).log("Encountered error when assignment tailer is not running");
                         }
                     }
                 }

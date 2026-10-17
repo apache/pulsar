@@ -19,12 +19,13 @@
 package org.apache.pulsar.tests.integration.plugins;
 
 import io.netty.buffer.ByteBuf;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
 import java.io.IOException;
 import java.util.Map;
-import javax.servlet.FilterChain;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
@@ -36,12 +37,9 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class LoggingBrokerInterceptor implements BrokerInterceptor {
-
-    private final Logger log = LoggerFactory.getLogger(LoggingBrokerInterceptor.class);
 
 
     @Override
@@ -66,7 +64,7 @@ public class LoggingBrokerInterceptor implements BrokerInterceptor {
 
     @Override
     public void initialize(PulsarService pulsarService) {
-        log.info("initialize: " + (pulsarService != null ? "OK" : "NULL"));
+        log.infof("initialize: %s", pulsarService != null ? "OK" : "NULL");
     }
 
     @Override
@@ -78,8 +76,7 @@ public class LoggingBrokerInterceptor implements BrokerInterceptor {
     @Override
     @SuppressWarnings("deprecation")
     public void beforeSendMessage(Subscription subscription, Entry entry, long[] ackSet, MessageMetadata msgMetadata) {
-        log.info("beforeSendMessage: "
-                + ("producer".equals(msgMetadata.getProducerName()) ? "OK" : "WRONG"));
+        log.infof("beforeSendMessage: %s", "producer".equals(msgMetadata.getProducerName()) ? "OK" : "WRONG");
     }
 
     @Override

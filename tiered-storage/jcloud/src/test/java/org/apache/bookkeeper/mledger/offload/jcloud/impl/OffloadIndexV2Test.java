@@ -26,7 +26,7 @@ import io.netty.buffer.Unpooled;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockV2;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockV2Builder;
@@ -35,7 +35,7 @@ import org.apache.bookkeeper.mledger.offload.jcloud.impl.OffloadIndexBlockV2Impl
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class OffloadIndexV2Test {
 
     // prepare metadata, then use builder to build a StreamingOffloadIndexBlockImpl
@@ -45,7 +45,7 @@ public class OffloadIndexV2Test {
         OffloadIndexBlockV2Builder blockBuilder = OffloadIndexBlockV2Builder.create();
         final long ledgerId = 1; // use dummy ledgerId, from BK 4.12 the ledger is is required
         LedgerInfo metadata = OffloadIndexTest.createLedgerInfo(ledgerId);
-        log.debug("created metadata: {}", metadata.toString());
+        log.debug().attr("metadata", metadata).log("Created metadata");
 
         blockBuilder.addLedgerMeta(ledgerId, metadata).withDataObjectLength(1).withDataBlockHeaderLength(23455);
 
@@ -114,8 +114,10 @@ public class OffloadIndexV2Test {
         assertEquals(dataHeaderLength, 23455);
 
         wrapper.skipBytes(segmentMetadataLength);
-        log.debug("magic: {}, blockLength: {}, metadataLength: {}, indexCount: {}",
-                magic, indexBlockLength, segmentMetadataLength, indexEntryCount);
+        log.debug().attr("magic", magic).attr("blockLength", indexBlockLength)
+                .attr("metadataLength", segmentMetadataLength)
+                .attr("indexCount", indexEntryCount)
+                .log("Index block details");
 
         // verify entry
         OffloadIndexEntry e1 = OffloadIndexEntryImpl.of(wrapper.readLong(), wrapper.readInt(),
@@ -146,7 +148,7 @@ public class OffloadIndexV2Test {
         OffloadIndexBlockV2 indexBlock2 = blockBuilder.fromStream(out2);
         // 1. verify metadata that got from inputstream success.
         LedgerMetadata metadata2 = indexBlock2.getLedgerMetadata(ledgerId);
-        log.debug("built metadata: {}", metadata2.toString());
+        log.debug().attr("metadata", metadata2).log("Built metadata");
         assertEquals(metadata.getLedgerId(), metadata2.getLedgerId());
         assertEquals(metadata.getEntries() - 1, metadata2.getLastEntryId());
         assertEquals(metadata.getSize(), metadata2.getLength());
@@ -188,8 +190,8 @@ public class OffloadIndexV2Test {
         final long ledgerId2 = 2;
         LedgerInfo metadata1 = OffloadIndexTest.createLedgerInfo(ledgerId1);
         LedgerInfo metadata2 = OffloadIndexTest.createLedgerInfo(ledgerId2);
-        log.debug("created metadata: {}", metadata1.toString());
-        log.debug("created metadata: {}", metadata2.toString());
+        log.debug().attr("metadata", metadata1).log("Created metadata1");
+        log.debug().attr("metadata", metadata2).log("Created metadata2");
 
         blockBuilder.addLedgerMeta(ledgerId1, metadata1)
                 .addLedgerMeta(ledgerId2, metadata2)
@@ -263,8 +265,10 @@ public class OffloadIndexV2Test {
         assertEquals(dataHeaderLength, 23455);
 
         wrapper.skipBytes(segmentMetadataLength);
-        log.debug("magic: {}, blockLength: {}, metadataLength: {}, indexCount: {}",
-                magic, indexBlockLength, segmentMetadataLength, indexEntryCount);
+        log.debug().attr("magic", magic).attr("blockLength", indexBlockLength)
+                .attr("metadataLength", segmentMetadataLength)
+                .attr("indexCount", indexEntryCount)
+                .log("Index block details");
 
         // verify entry
         OffloadIndexEntry e1 = OffloadIndexEntryImpl.of(wrapper.readLong(), wrapper.readInt(),
@@ -305,13 +309,13 @@ public class OffloadIndexV2Test {
         // 1. verify metadata that got from inputstream success.
         //TODO change to meaningful things
 //        LedgerMetadata metadata1back = indexBlock2.getLedgerMetadata(ledgerId1);
-//        log.debug("built metadata: {}", metadata1back.toString());
+//        log.debug().attr("value", metadata1back.toString()).log("built metadata:");
 //        assertEquals(metadata1back.getAckQuorumSize(), metadata1.getAckQuorumSize());
 //        assertEquals(metadata1back.getEnsembleSize(), metadata1.getEnsembleSize());
 //        assertEquals(metadata1back.getDigestType(), metadata1.getDigestType());
 //        assertEquals(metadata1back.getAllEnsembles().entrySet(), metadata1.getAllEnsembles().entrySet());
 //        LedgerMetadata metadata2back = indexBlock2.getLedgerMetadata(ledgerId2);
-//        log.debug("built metadata: {}", metadata2back.toString());
+//        log.debug().attr("value", metadata2back.toString()).log("built metadata:");
 //        assertEquals(metadata2back.getAckQuorumSize(), metadata1.getAckQuorumSize());
 //        assertEquals(metadata2back.getEnsembleSize(), metadata1.getEnsembleSize());
 //        assertEquals(metadata2back.getDigestType(), metadata1.getDigestType());

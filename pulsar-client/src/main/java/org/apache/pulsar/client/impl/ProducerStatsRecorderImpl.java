@@ -20,20 +20,21 @@ package org.apache.pulsar.client.impl;
 
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import com.yahoo.sketches.quantiles.DoublesSketch;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import java.io.IOException;
 import java.text.DecimalFormat;
+import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
+import lombok.CustomLog;
+import org.apache.datasketches.kll.KllDoublesSketch;
 import org.apache.pulsar.client.api.ProducerStats;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @SuppressWarnings("deprecation")
+@CustomLog
 public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
 
     private static final long serialVersionUID = 1L;
@@ -53,9 +54,9 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
     private final LongAdder totalAcksReceived;
     private static final DecimalFormat DEC = new DecimalFormat("0.000");
     private static final DecimalFormat THROUGHPUT_FORMAT = new DecimalFormat("0.00");
-    private final transient DoublesSketch ds;
-    private final transient DoublesSketch batchSizeDs;
-    private final transient DoublesSketch msgSizeDs;
+    private final transient KllDoublesSketch ds;
+    private final transient KllDoublesSketch batchSizeDs;
+    private final transient KllDoublesSketch msgSizeDs;
 
     private volatile double sendMsgsRate;
     private volatile double sendBytesRate;
@@ -74,9 +75,9 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
         totalBytesSent = new LongAdder();
         totalSendFailed = new LongAdder();
         totalAcksReceived = new LongAdder();
-        ds = DoublesSketch.builder().build(256);
-        batchSizeDs = DoublesSketch.builder().build(256);
-        msgSizeDs = DoublesSketch.builder().build(256);
+        ds = KllDoublesSketch.newHeapInstance(256);
+        batchSizeDs = KllDoublesSketch.newHeapInstance(256);
+        msgSizeDs = KllDoublesSketch.newHeapInstance(256);
     }
 
     public ProducerStatsRecorderImpl(PulsarClientImpl pulsarClient, ProducerConfigurationData conf,
@@ -92,9 +93,9 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
         totalBytesSent = new LongAdder();
         totalSendFailed = new LongAdder();
         totalAcksReceived = new LongAdder();
-        ds = DoublesSketch.builder().build(256);
-        batchSizeDs = DoublesSketch.builder().build(256);
-        msgSizeDs = DoublesSketch.builder().build(256);
+        ds = KllDoublesSketch.newHeapInstance(256);
+        batchSizeDs = KllDoublesSketch.newHeapInstance(256);
+        msgSizeDs = KllDoublesSketch.newHeapInstance(256);
         init(conf);
     }
 
@@ -103,10 +104,11 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
                 .without(SerializationFeature.FAIL_ON_EMPTY_BEANS);
 
         try {
-            log.info("Starting Pulsar producer perf with config: {}", w.writeValueAsString(conf));
-            log.info("Pulsar client config: {}", w.writeValueAsString(pulsarClient.getConfiguration()));
+            log.info().attr("config", w.writeValueAsString(conf)).log("Starting Pulsar producer perf with config");
+            log.info().attr("config", w.writeValueAsString(pulsarClient.getConfiguration()))
+                    .log("Pulsar client config");
         } catch (IOException e) {
-            log.error("Failed to dump config info", e);
+            log.error().exception(e).log("Failed to dump config info");
         }
 
         stat = (timeout) -> {
@@ -118,7 +120,10 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
             try {
                 updateStats();
             } catch (Exception e) {
-                log.error("[{}] [{}]: {}", producer.getTopic(), producer.getProducerName(), e.getMessage());
+                log.error().attr("topic", producer.getTopic())
+                        .attr("producerName", producer.getProducerName())
+                        .exception(e)
+                        .log("Failed to update producer stats");
             } finally {
                 // schedule the next stat info
                 statTimeout = pulsarClient.timer().newTimeout(stat, statsIntervalSeconds, TimeUnit.SECONDS);
@@ -150,17 +155,17 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
         totalAcksReceived.add(currentNumAcksReceived);
 
         synchronized (ds) {
-            latencyPctValues = ds.getQuantiles(PERCENTILES);
+            latencyPctValues = getQuantiles(ds);
             ds.reset();
         }
 
         synchronized (batchSizeDs) {
-            batchSizePctValues = batchSizeDs.getQuantiles(PERCENTILES);
+            batchSizePctValues = getQuantiles(batchSizeDs);
             batchSizeDs.reset();
         }
 
         synchronized (msgSizeDs) {
-            msgSizePctValues = msgSizeDs.getQuantiles(PERCENTILES);
+            msgSizePctValues = getQuantiles(msgSizeDs);
             msgSizeDs.reset();
         }
 
@@ -176,28 +181,43 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
                 }
             }
 
-            log.info("[{}] [{}] --- Publish throughput: {} msg/s --- {} Mbit/s --- "
-                            + "Latency: med: {} ms - 95pct: {} ms - 99pct: {} ms - 99.9pct: {} ms - max: {} ms --- "
-                            + "BatchSize: med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - max: {} --- "
-                            + "MsgSize: med: {} bytes - 95pct: {} bytes - 99pct: {} bytes - 99.9pct: {} bytes "
-                            + "- max: {} bytes --- "
-                            + "Ack received rate: {} ack/s --- Failed messages: {} --- Pending messages: {}",
-                    producer.getTopic(),
-                    producer.getProducerName(),
-                    THROUGHPUT_FORMAT.format(sendMsgsRate),
-                    THROUGHPUT_FORMAT.format(sendBytesRate / 1024 / 1024 * 8),
-                    DEC.format(latencyPctValues[0]), DEC.format(latencyPctValues[2]),
-                    DEC.format(latencyPctValues[3]), DEC.format(latencyPctValues[4]),
-                    DEC.format(latencyPctValues[5]),
-                    DEC.format(batchSizePctValues[0]), DEC.format(batchSizePctValues[2]),
-                    DEC.format(batchSizePctValues[3]), DEC.format(batchSizePctValues[4]),
-                    DEC.format(batchSizePctValues[5]),
-                    DEC.format(msgSizePctValues[0]), DEC.format(msgSizePctValues[2]),
-                    DEC.format(msgSizePctValues[3]), DEC.format(msgSizePctValues[4]),
-                    DEC.format(msgSizePctValues[5]),
-                    THROUGHPUT_FORMAT.format(currentNumAcksReceived / elapsed), currentNumSendFailedMsgs,
-                    getPendingQueueSize());
+            log.info().attr("topic", producer.getTopic())
+                    .attr("producerName", producer.getProducerName())
+                    .attr("sendMsgRate", THROUGHPUT_FORMAT.format(sendMsgsRate))
+                    .attr("sendBytesRateMbps", THROUGHPUT_FORMAT.format(sendBytesRate / 1024 / 1024 * 8))
+                    .attr("latencyMedMs", DEC.format(latencyPctValues[0]))
+                    .attr("latency95pctMs", DEC.format(latencyPctValues[2]))
+                    .attr("latency99pctMs", DEC.format(latencyPctValues[3]))
+                    .attr("latency999pctMs", DEC.format(latencyPctValues[4]))
+                    .attr("latencyMaxMs", DEC.format(latencyPctValues[5]))
+                    .attr("batchSizeMed", DEC.format(batchSizePctValues[0]))
+                    .attr("batchSize95pct", DEC.format(batchSizePctValues[2]))
+                    .attr("batchSize99pct", DEC.format(batchSizePctValues[3]))
+                    .attr("batchSize999pct", DEC.format(batchSizePctValues[4]))
+                    .attr("batchSizeMax", DEC.format(batchSizePctValues[5]))
+                    .attr("msgSizeMedBytes", DEC.format(msgSizePctValues[0]))
+                    .attr("msgSize95pctBytes", DEC.format(msgSizePctValues[2]))
+                    .attr("msgSize99pctBytes", DEC.format(msgSizePctValues[3]))
+                    .attr("msgSize999pctBytes", DEC.format(msgSizePctValues[4]))
+                    .attr("msgSizeMaxBytes", DEC.format(msgSizePctValues[5]))
+                    .attr("ackReceivedRate", THROUGHPUT_FORMAT.format(currentNumAcksReceived / elapsed))
+                    .attr("failedMessages", currentNumSendFailedMsgs)
+                    .attr("pendingMessages", getPendingQueueSize())
+                    .log("Publish stats");
         }
+    }
+
+    /**
+     * Returns the configured percentile quantiles for the given sketch. KllDoublesSketch throws on an empty
+     * sketch, so an array of {@link Double#NaN} is returned in that case to preserve the previous behavior.
+     */
+    private static double[] getQuantiles(KllDoublesSketch sketch) {
+        if (sketch.isEmpty()) {
+            double[] values = new double[PERCENTILES.length];
+            Arrays.fill(values, Double.NaN);
+            return values;
+        }
+        return sketch.getQuantiles(PERCENTILES);
     }
 
     @Override
@@ -343,6 +363,4 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
             statTimeout = null;
         }
     }
-
-    private static final Logger log = LoggerFactory.getLogger(ProducerStatsRecorderImpl.class);
 }

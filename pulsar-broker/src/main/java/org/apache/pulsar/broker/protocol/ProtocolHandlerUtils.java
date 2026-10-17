@@ -25,8 +25,8 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import lombok.CustomLog;
 import lombok.experimental.UtilityClass;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
@@ -36,7 +36,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
  * Util class to search and load {@link ProtocolHandler}s.
  */
 @UtilityClass
-@Slf4j
+@CustomLog
 class ProtocolHandlerUtils {
 
     static final String PULSAR_PROTOCOL_HANDLER_DEFINITION_FILE = "pulsar-protocol-handler.yml";
@@ -76,7 +76,7 @@ class ProtocolHandlerUtils {
     public static ProtocolHandlerDefinitions searchForHandlers(String handlersDirectory,
                                                                String narExtractionDirectory) throws IOException {
         Path path = Paths.get(handlersDirectory).toAbsolutePath().normalize();
-        log.info("Searching for protocol handlers in {}", path);
+        log.info().attr("path", path).log("Searching for protocol handlers");
 
         ProtocolHandlerDefinitions handlers = new ProtocolHandlerDefinitions();
         if (!path.toFile().exists()) {
@@ -89,7 +89,7 @@ class ProtocolHandlerUtils {
                 try {
                     ProtocolHandlerDefinition phDef =
                         ProtocolHandlerUtils.getProtocolHandlerDefinition(archive.toString(), narExtractionDirectory);
-                    log.info("Found protocol handler from {} : {}", archive, phDef);
+                    log.info().attr("archive", archive).attr("phDef", phDef).log("Found protocol handler");
 
                     checkArgument(StringUtils.isNotBlank(phDef.getName()));
                     checkArgument(StringUtils.isNotBlank(phDef.getHandlerClass()));
@@ -100,10 +100,10 @@ class ProtocolHandlerUtils {
 
                     handlers.handlers().put(phDef.getName(), metadata);
                 } catch (Throwable t) {
-                    log.warn("Failed to load connector from {}."
-                        + " It is OK however if you want to use this protocol handler,"
-                        + " please make sure you put the correct protocol handler NAR"
-                        + " package in the handlers directory.", archive, t);
+                    log.warn()
+                            .attr("archive", archive)
+                            .exception(t)
+                            .log("Failed to load protocol handler");
                 }
             }
         }

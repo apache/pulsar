@@ -20,9 +20,9 @@ package org.apache.pulsar.functions.runtime.thread;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import java.util.Optional;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -35,6 +35,7 @@ import org.apache.pulsar.functions.instance.InstanceCache;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
+import org.apache.pulsar.functions.instance.v5.LazyPulsarClientV5;
 import org.apache.pulsar.functions.runtime.RuntimeCustomizer;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeUtils;
@@ -49,7 +50,7 @@ import org.apache.pulsar.functions.worker.WorkerConfig;
 /**
  * Thread based function container factory implementation.
  */
-@Slf4j
+@CustomLog
 @NoArgsConstructor
 public class ThreadRuntimeFactory implements RuntimeFactory {
 
@@ -58,6 +59,8 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
     private FunctionCacheManager fnCache;
     private ClientBuilder clientBuilder;
     private PulsarClient pulsarClient;
+    // created on first use by a component whose topics use the V5 client
+    private LazyPulsarClientV5 pulsarClientV5;
     private PulsarAdmin pulsarAdmin;
     private String stateStorageImplClass;
     private String storageServiceUrl;
@@ -128,9 +131,12 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
         this.pulsarAdmin =
                 exposePulsarAdminClientEnabled ? InstanceUtils.createPulsarAdminClient(pulsarWebServiceUrl, authConfig)
                         : null;
+        Optional<Long> clientMemoryLimit = calculateClientMemoryLimit(memoryLimit);
         this.clientBuilder = InstanceUtils
-                .createPulsarClientBuilder(pulsarServiceUrl, authConfig, calculateClientMemoryLimit(memoryLimit));
+                .createPulsarClientBuilder(pulsarServiceUrl, authConfig, clientMemoryLimit);
         this.pulsarClient = this.clientBuilder.build();
+        this.pulsarClientV5 = new LazyPulsarClientV5(
+                () -> InstanceUtils.createPulsarClientV5Builder(pulsarServiceUrl, authConfig, clientMemoryLimit));
         this.stateStorageImplClass = stateStorageImplClass;
         this.storageServiceUrl = storageServiceUrl;
         this.collectorRegistry = collectorRegistry;
@@ -204,9 +210,10 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
                     secretsProviderConfigurator.getSecretsProviderClassName(instanceConfig.getFunctionDetails());
             secretsProvider =
                     (SecretsProvider) Reflections.createInstance(secretsProviderClassName, this.rootClassLoader);
-            log.info("Initializing secrets provider {} with configs: {}",
-                    secretsProvider.getClass().getName(),
-                    secretsProviderConfigurator.getSecretsProviderConfig(instanceConfig.getFunctionDetails()));
+            log.info().attr("className", secretsProvider.getClass().getName())
+                    .attr("config", secretsProviderConfigurator
+                            .getSecretsProviderConfig(instanceConfig.getFunctionDetails()))
+                    .log("Initializing secrets provider");
             secretsProvider
                     .init(secretsProviderConfigurator.getSecretsProviderConfig(instanceConfig.getFunctionDetails()));
         }
@@ -218,6 +225,7 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
             jarFile,
             transformFunctionFile,
             pulsarClient,
+            pulsarClientV5,
             clientBuilder,
             pulsarAdmin,
             stateStorageImplClass,
@@ -241,8 +249,10 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
         try {
             pulsarClient.close();
         } catch (PulsarClientException e) {
-            log.warn("Failed to close pulsar client when closing function container factory", e);
+            log.warn().exception(e)
+                    .log("Failed to close pulsar client when closing function container factory");
         }
+        pulsarClientV5.close();
         if (pulsarAdmin != null) {
             pulsarAdmin.close();
         }

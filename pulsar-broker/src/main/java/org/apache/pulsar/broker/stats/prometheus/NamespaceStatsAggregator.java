@@ -25,7 +25,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Function;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
@@ -49,7 +49,7 @@ import org.apache.pulsar.compaction.CompactedTopicContext;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.CompactorMXBean;
 
-@Slf4j
+@CustomLog
 public class NamespaceStatsAggregator {
 
     private static final FastThreadLocal<AggregatedBrokerStats> localBrokerStats =
@@ -86,6 +86,8 @@ public class NamespaceStatsAggregator {
         Optional<CompactorMXBean> compactorMXBean = getCompactorMXBean(pulsar);
         LongAdder topicsCount = new LongAdder();
         Map<String, Long> localNamespaceTopicCount = new HashMap<>();
+        boolean exposeSubscriptionBacklogAge =
+                pulsar.getConfiguration().isExposeSubscriptionBacklogAgeInPrometheus();
         pulsar.getBrokerService().getMultiLayerTopicsMap().forEach((namespace, bundlesMap) -> {
             namespaceStats.reset();
             topicsCount.reset();
@@ -118,7 +120,7 @@ public class NamespaceStatsAggregator {
 
                     topicsCount.add(1);
                     TopicStats.printTopicStats(stream, topicStats, compactorMXBean, cluster, namespace, name,
-                        splitTopicAndPartitionIndexLabel, customLabelAndValues);
+                        splitTopicAndPartitionIndexLabel, exposeSubscriptionBacklogAge, customLabelAndValues);
                 } else {
                     namespaceStats.updateStats(topicStats);
                 }
@@ -152,6 +154,7 @@ public class NamespaceStatsAggregator {
         subsStats.bytesOutCounter = subscriptionStats.bytesOutCounter;
         subsStats.msgOutCounter = subscriptionStats.msgOutCounter;
         subsStats.msgBacklog = subscriptionStats.msgBacklog;
+        subsStats.backlogAgeSeconds = subscriptionStats.oldestBacklogMessageAgeSeconds;
         subsStats.msgDelayed = subscriptionStats.msgDelayed;
         subsStats.msgInReplay = subscriptionStats.msgInReplay;
         subsStats.msgRateExpired = subscriptionStats.msgRateExpired;
@@ -592,14 +595,11 @@ public class NamespaceStatsAggregator {
         stream.writeSample(metricName, value, labels);
     }
 
-
     private static void writeMetric(PrometheusMetricStreams stream, String metricName, Number value, String cluster,
                                     String namespace) {
         String[] labels = new String[]{"cluster", cluster, "namespace", namespace};
         stream.writeSample(metricName, value, labels);
     }
-
-
 
     private static void writeReplicationStat(PrometheusMetricStreams stream, String metricName,
                                              AggregatedNamespaceStats namespaceStats,
@@ -614,6 +614,5 @@ public class NamespaceStatsAggregator {
             );
         }
     }
-
 
 }

@@ -31,6 +31,7 @@ import java.util.Properties;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import javax.crypto.SecretKey;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -44,8 +45,6 @@ import org.awaitility.Awaitility;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -69,9 +68,8 @@ import org.testng.annotations.Test;
  */
 @SuppressWarnings("deprecation")
 @Test(groups = "websocket")
+@CustomLog
 public class ProxyRoleAuthTest extends ProducerConsumerBase {
-
-    private static final Logger log = LoggerFactory.getLogger(ProxyRoleAuthTest.class);
 
     // JWT token authentication setup with different roles
     private static final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
@@ -139,7 +137,7 @@ public class ProxyRoleAuthTest extends ProducerConsumerBase {
         proxyServer = new ProxyServer(proxyConfig);
         WebSocketServiceStarter.start(proxyServer, service);
 
-        log.info("WebSocket Proxy Server started on port: {}", proxyServer.getListenPortHTTP().get());
+        log.info().attr("port", proxyServer.getListenPortHTTP().get()).log("WebSocket Proxy Server started on port");
     }
 
     protected WebSocketProxyConfiguration getProxyConfig() {
@@ -180,7 +178,7 @@ public class ProxyRoleAuthTest extends ProducerConsumerBase {
             }
             log.info("WebSocket clients stopped successfully");
         } catch (Exception e) {
-            log.error("Error stopping WebSocket clients: {}", e.getMessage());
+            log.error().exceptionMessage(e).log("Error stopping WebSocket clients");
         }
 
         try {
@@ -191,7 +189,7 @@ public class ProxyRoleAuthTest extends ProducerConsumerBase {
                 proxyServer.stop();
             }
         } catch (Exception e) {
-            log.error("Error stopping proxy server: {}", e.getMessage());
+            log.error().exceptionMessage(e).log("Error stopping proxy server");
         }
 
         super.internalCleanup();
@@ -236,7 +234,7 @@ public class ProxyRoleAuthTest extends ProducerConsumerBase {
             // Add JWT token authentication for WebSocket client
             consumeRequest.setHeader("Authorization", "Bearer " + CLIENT_TOKEN);
             Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeRequest);
-            log.info("Connecting consumer to: {} with CLIENT_TOKEN", consumeUri);
+            log.info().attr("consumer", consumeUri).log("Connecting consumer to: with CLIENT_TOKEN");
 
             // Connect producer with CLIENT_TOKEN in Authorization header
             produceClient.start();
@@ -244,7 +242,7 @@ public class ProxyRoleAuthTest extends ProducerConsumerBase {
             // Add JWT token authentication for WebSocket client
             produceRequest.setHeader("Authorization", "Bearer " + CLIENT_TOKEN);
             Future<Session> producerFuture = produceClient.connect(produceSocket, produceRequest);
-            log.info("Connecting producer to: {} with CLIENT_TOKEN", produceUri);
+            log.info().attr("producer", produceUri).log("Connecting producer to: with CLIENT_TOKEN");
 
             // Verify connections are established
             Session consumerSession = consumerFuture.get(10, TimeUnit.SECONDS);
@@ -263,9 +261,10 @@ public class ProxyRoleAuthTest extends ProducerConsumerBase {
                                 "Consumer should receive all produced messages");
                     });
 
-            log.info("Successfully produced and consumed {} messages through WebSocket proxy "
-                    + "with JWT token authorization",
-                    produceSocket.getBuffer().size());
+            log.info()
+                    .attr("consumed", produceSocket.getBuffer().size())
+                    .log("Successfully produced and consumed messages through WebSocket proxy"
+                            + " with JWT token authorization");
 
             // Verify that we successfully exchanged messages with JWT token authentication
             // This proves that the WebSocket dummy principal fix is working correctly:
@@ -286,7 +285,7 @@ public class ProxyRoleAuthTest extends ProducerConsumerBase {
                     produceClient.stop();
                 }
             } catch (Exception e) {
-                log.warn("Error stopping WebSocket clients in finally block: {}", e.getMessage());
+                log.warn().exceptionMessage(e).log("Error stopping WebSocket clients in finally block");
             }
         }
     }
@@ -322,7 +321,7 @@ public class ProxyRoleAuthTest extends ProducerConsumerBase {
             consumeRequest.setHeader("Authorization", "Bearer " + UNAUTHORIZED_TOKEN);
             Future<Session> consumerFuture = unauthorizedConsumeClient.connect(consumeSocket, consumeRequest);
 
-            log.info("Attempting to connect consumer with unauthorized token to: {}", consumeUri);
+            log.info().attr("token", consumeUri).log("Attempting to connect consumer with unauthorized token to");
 
             try {
                 Session consumerSession = consumerFuture.get(10, TimeUnit.SECONDS);
@@ -332,7 +331,9 @@ public class ProxyRoleAuthTest extends ProducerConsumerBase {
                 }
             } catch (Exception e) {
                 // Expected: Connection should fail due to authorization
-                log.info("Consumer connection correctly failed with unauthorized token: {}", e.getMessage());
+                log.info()
+                        .exceptionMessage(e)
+                        .log("Consumer connection correctly failed with unauthorized token");
             }
 
             // Test unauthorized producer connection
@@ -345,7 +346,7 @@ public class ProxyRoleAuthTest extends ProducerConsumerBase {
             produceRequest.setHeader("Authorization", "Bearer " + UNAUTHORIZED_TOKEN);
             Future<Session> producerFuture = unauthorizedProduceClient.connect(produceSocket, produceRequest);
 
-            log.info("Attempting to connect producer with unauthorized token to: {}", produceUri);
+            log.info().attr("token", produceUri).log("Attempting to connect producer with unauthorized token to");
 
             try {
                 Session producerSession = producerFuture.get(10, TimeUnit.SECONDS);
@@ -355,7 +356,9 @@ public class ProxyRoleAuthTest extends ProducerConsumerBase {
                 }
             } catch (Exception e) {
                 // Expected: Connection should fail due to authorization
-                log.info("Producer connection correctly failed with unauthorized token: {}", e.getMessage());
+                log.info()
+                        .exceptionMessage(e)
+                        .log("Producer connection correctly failed with unauthorized token");
             }
 
             log.info("Test passed: Unauthorized tokens are correctly rejected by WebSocket proxy");
@@ -370,7 +373,9 @@ public class ProxyRoleAuthTest extends ProducerConsumerBase {
                     unauthorizedProduceClient.stop();
                 }
             } catch (Exception e) {
-                log.warn("Error stopping unauthorized WebSocket clients in finally block: {}", e.getMessage());
+                log.warn()
+                        .exceptionMessage(e)
+                        .log("Error stopping unauthorized WebSocket clients in finally block");
             }
         }
     }
@@ -392,7 +397,7 @@ public class ProxyRoleAuthTest extends ProducerConsumerBase {
                     .build());
         } catch (Exception e) {
             // Cluster might already exist, ignore
-            log.debug("Cluster creation failed (may already exist): {}", e.getMessage());
+            log.debug().exceptionMessage(e).log("Cluster creation failed (may already exist)");
         }
 
         try {
@@ -403,7 +408,7 @@ public class ProxyRoleAuthTest extends ProducerConsumerBase {
                     .build());
         } catch (Exception e) {
             // Tenant might already exist, ignore
-            log.debug("Tenant creation failed (may already exist): {}", e.getMessage());
+            log.debug().exceptionMessage(e).log("Tenant creation failed (may already exist)");
         }
 
         try {
@@ -411,7 +416,7 @@ public class ProxyRoleAuthTest extends ProducerConsumerBase {
             admin.namespaces().createNamespace(namespaceName);
         } catch (Exception e) {
             // Namespace might already exist, ignore
-            log.debug("Namespace creation failed (may already exist): {}", e.getMessage());
+            log.debug().exceptionMessage(e).log("Namespace creation failed (may already exist)");
         }
 
         // Grant permissions for WebSocket proxy and client
@@ -421,9 +426,9 @@ public class ProxyRoleAuthTest extends ProducerConsumerBase {
                     Sets.newHashSet(
                         org.apache.pulsar.common.policies.data.AuthAction.consume,
                         org.apache.pulsar.common.policies.data.AuthAction.produce));
-            log.info("Granted permissions for namespace: {}", namespaceName);
+            log.info().attr("namespace", namespaceName).log("Granted permissions for namespace");
         } catch (Exception e) {
-            log.warn("Failed to grant permissions (may already exist): {}", e.getMessage());
+            log.warn().exceptionMessage(e).log("Failed to grant permissions (may already exist)");
         }
     }
 }

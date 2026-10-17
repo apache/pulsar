@@ -22,7 +22,7 @@ import io.netty.buffer.UnpooledByteBufAllocator;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.discover.RegistrationClient.RegistrationListener;
@@ -36,7 +36,7 @@ import org.apache.zookeeper.ZooKeeper;
  * Test BookKeeperClient which allows access to members we don't
  * wish to expose in the public API.
  */
-@Slf4j
+@CustomLog
 public class PulsarBookKeeperTestClient extends BookKeeper {
     PulsarBookKeeperTestStatsProvider statsProvider;
 
@@ -88,8 +88,9 @@ public class PulsarBookKeeperTestClient extends BookKeeper {
      */
     private Future<?> waitForBookieInSet(BookieId id,
                                          boolean writable) throws Exception {
-        log.info("Wait for {} to become {}",
-                id, writable ? "writable" : "readonly");
+        log.info().attr("bookieId", id)
+                .attr("target", writable ? "writable" : "readonly")
+                .log("Wait for bookie to become target state");
 
         CompletableFuture<Void> readOnlyFuture = new CompletableFuture<>();
         CompletableFuture<Void> writableFuture = new CompletableFuture<>();

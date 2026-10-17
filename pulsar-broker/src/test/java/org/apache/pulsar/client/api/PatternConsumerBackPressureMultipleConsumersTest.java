@@ -32,7 +32,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -50,7 +50,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-impl")
 public class PatternConsumerBackPressureMultipleConsumersTest extends MockedPulsarServiceBaseTest {
 
@@ -114,7 +114,7 @@ public class PatternConsumerBackPressureMultipleConsumersTest extends MockedPuls
                     try {
                         client.close();
                     } catch (PulsarClientException e) {
-                        log.error("Failed to close client {}", client, e);
+                        log.error().attr("closeClient", client).exception(e).log("Failed to close client");
                     }
                 }
             };
@@ -142,20 +142,25 @@ public class PatternConsumerBackPressureMultipleConsumersTest extends MockedPuls
                                     if (ex == null) {
                                         success.incrementAndGet();
                                     } else {
-                                        log.error("Failed to get topic list.", ex);
+                                        log.error().exception(ex).log("Failed to get topic list.");
                                     }
-                                    log.info("latch-count: {}, succeed: {}, available direct mem: {} MB, "
-                                                    + "free heap mem: {} MB",
-                                            latch.getCount(), success.get(),
-                                            (DirectMemoryUtils.jvmMaxDirectMemory()
-                                                    - JvmMetrics.getJvmDirectMemoryUsed())
-                                                    / (1024 * 1024), Runtime.getRuntime().freeMemory() / (1024 * 1024));
+                                    log.info()
+                                            .attr("latchCount", latch.getCount())
+                                            .attr("succeed", success.get())
+                                            .attr("availableDirectMemMB",
+                                                    (DirectMemoryUtils.jvmMaxDirectMemory()
+                                                            - JvmMetrics.getJvmDirectMemoryUsed())
+                                                            / (1024 * 1024))
+                                            .attr("freeHeapMemMB",
+                                                    Runtime.getRuntime().freeMemory()
+                                                            / (1024 * 1024))
+                                            .log("topic list request progress");
                                     latch.countDown();
                                 });
                     } catch (Exception e) {
                         semaphore.release();
                         latch.countDown();
-                        log.error("Failed to execute getTopicsUnderNamespace request.", e);
+                        log.error().exception(e).log("Failed to execute getTopicsUnderNamespace request.");
                     }
                 });
             }
@@ -234,8 +239,8 @@ public class PatternConsumerBackPressureMultipleConsumersTest extends MockedPuls
         List<ByteBuf> buffers = new ArrayList<>();
         if (availableMemory > directMemoryRequired) {
             long allocateRemaining = availableMemory - directMemoryRequired;
-            log.info("Making allocations for {} MB to reduce available direct memory",
-                    allocateRemaining / (1024 * 1024));
+            log.info().attr("allocationsFor", allocateRemaining / (1024 * 1024))
+                    .log("Making allocations for MB to reduce available direct memory");
             int blockSize = 5 * 1024 * 1024;
             while (allocateRemaining > 0) {
                 ByteBuf byteBuf = PulsarByteBufAllocator.DEFAULT.directBuffer(blockSize);

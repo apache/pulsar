@@ -40,12 +40,11 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -53,8 +52,8 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
+@CustomLog
 public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
-    private static final Logger log = LoggerFactory.getLogger(SimpleProducerConsumerStatTest.class);
 
     @BeforeMethod
     @Override
@@ -95,7 +94,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "batch_with_timeout")
     public void testSyncProducerAndConsumer(int batchMessageDelayMs, int ackTimeoutSec) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer()
                 .topic("persistent://my-property/my-ns/my-topic1").subscriptionName("my-subscriber-name");
 
@@ -127,7 +126,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         for (int i = 0; i < numMessages; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
-            log.info("Received message: [{}]", receivedMessage);
+            log.info().attr("message", receivedMessage).log("Received message");
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
@@ -137,12 +136,12 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         consumer.close();
         producer.close();
         validatingLogInfo(consumer, producer, isAckTimeoutTaskEnabledForCumulativeAck);
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("method", methodName).log("Exiting test");
     }
 
     @Test(dataProvider = "batch_with_timeout")
     public void testAsyncProducerAndAsyncAck(int batchMessageDelayMs, int ackTimeoutSec) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer()
                 .topic("persistent://my-property/my-ns/my-topic2").subscriptionName("my-subscriber-name");
         if (ackTimeoutSec > 0) {
@@ -194,13 +193,13 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         consumer.close();
         producer.close();
         validatingLogInfo(consumer, producer, batchMessageDelayMs == 0 && ackTimeoutSec > 0);
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("method", methodName).log("Exiting test");
     }
 
     @Test(dataProvider = "batch_with_timeout")
     public void testAsyncProducerAndReceiveAsyncAndAsyncAck(int batchMessageDelayMs, int ackTimeoutSec)
             throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer()
                 .topic("persistent://my-property/my-ns/my-topic2").subscriptionName("my-subscriber-name");
         if (ackTimeoutSec > 0) {
@@ -242,7 +241,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
             Thread.sleep(10);
             msg = futureMsg.get();
             String receivedMessage = new String(msg.getData());
-            log.info("Received message: [{}]", receivedMessage);
+            log.info().attr("message", receivedMessage).log("Received message");
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
@@ -255,12 +254,12 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         consumer.close();
         producer.close();
         validatingLogInfo(consumer, producer, batchMessageDelayMs == 0 && ackTimeoutSec > 0);
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("method", methodName).log("Exiting test");
     }
 
     @Test(dataProvider = "batch", timeOut = 100000)
     public void testMessageListener(int batchMessageDelayMs) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
 
         int numMessages = 100;
         final CountDownLatch latch = new CountDownLatch(numMessages);
@@ -270,7 +269,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
                 .messageListener((consumer1, msg) -> {
                     assertNotNull(msg, "Message cannot be null");
                     String receivedMessage = new String(msg.getData());
-                    log.debug("Received message [{}] in the listener", receivedMessage);
+                    log.debug().attr("message", receivedMessage).log("Received message in the listener");
                     consumer1.acknowledgeAsync(msg);
                     latch.countDown();
                 }).subscribe();
@@ -302,13 +301,13 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         consumer.close();
         producer.close();
         validatingLogInfo(consumer, producer, true);
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("method", methodName).log("Exiting test");
     }
     @SuppressWarnings("deprecation")
 
     @Test(dataProvider = "batch")
     public void testSendTimeout(int batchMessageDelayMs) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic5")
                 .subscriptionName("my-subscriber-name").subscribe();
@@ -351,12 +350,12 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         assertEquals(pStat.getTotalSendFailed(), 1);
         assertEquals(cStat.getTotalMsgsReceived(), 0);
         assertEquals(cStat.getTotalMsgsReceived(), cStat.getTotalAcksSent());
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("method", methodName).log("Exiting test");
     }
 
     @Test
     public void testBatchMessagesRateOut() throws PulsarClientException, InterruptedException, PulsarAdminException {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
         String topicName = "persistent://my-property/my-ns/testBatchMessagesRateOut";
         double produceRate = 17;
         int batchSize = 5;
@@ -380,7 +379,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         double actualRate = admin.topics().getStats(topicName).getMsgRateOut();
         assertTrue(actualRate > (produceRate / batchSize));
         consumer.unsubscribe();
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("method", methodName).log("Exiting test");
     }
     @SuppressWarnings("deprecation")
 
@@ -401,7 +400,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
     @Test
     public void testAddBrokerLatencyStats() throws Exception {
 
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
                 .topic("persistent://my-property/my-ns/my-topic1");
@@ -442,12 +441,12 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
 
         assertTrue(latencyCaptured);
         producer.close();
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("method", methodName).log("Exiting test");
     }
 
     @Test(dataProvider =  "batchingEnabled")
     public void testProducerPendingQueueSizeStats(boolean batchingEnabled) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
                 .topic("persistent://my-property/my-ns/my-topic1");
 
@@ -473,7 +472,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
     @SuppressWarnings("deprecation")
     @Test
     public void testPartitionTopicStats() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
 
         String topicName = "persistent://my-property/my-ns/testPartitionTopicStats";
         int numPartitions = 10;
@@ -499,7 +498,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         for (int i = 0; i < numMessages; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
-            log.info("Received message: [{}]", receivedMessage);
+            log.info().attr("message", receivedMessage).log("Received message");
             Assert.assertTrue(messageSet.add(receivedMessage), "Received duplicate message " + receivedMessage);
         }
         Assert.assertEquals(messageSet.size(), numMessages);
@@ -524,12 +523,12 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         consumer.close();
         producer.close();
 
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("method", methodName).log("Exiting test");
     }
 
     @Test
     public void testMsgRateExpired() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
 
         String topicName = "persistent://my-property/my-ns/" + methodName;
         String subName = "my-sub";
@@ -566,7 +565,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         assertEquals(pulsar.getBrokerService().getTopicStats().get(topicName)
                         .getSubscriptions().get(subName).getTotalMsgExpired(), numMessages);
 
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("method", methodName).log("Exiting test");
     }
     @SuppressWarnings("deprecation")
 

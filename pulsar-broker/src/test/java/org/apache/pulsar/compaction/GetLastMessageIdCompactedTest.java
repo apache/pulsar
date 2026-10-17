@@ -28,7 +28,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
@@ -51,7 +51,7 @@ import org.awaitility.Awaitility;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-impl")
 public class GetLastMessageIdCompactedTest extends SharedPulsarBaseTest {
 
@@ -501,7 +501,10 @@ public class GetLastMessageIdCompactedTest extends SharedPulsarBaseTest {
         MessageIdAdv readMsgId = (MessageIdAdv) MessageId.earliest;
         while (reader.hasMessageAvailable()) {
             final var msg = reader.readNext();
-            log.info("Read key: {}, value: {}", msg.getKey(), Optional.ofNullable(msg.getValue()).orElse("(null)"));
+            log.info()
+                    .attr("key", msg.getKey())
+                    .attr("value", Optional.ofNullable(msg.getValue()).orElse("(null)"))
+                    .log("Read key: , value");
             readMsgId = (MessageIdAdv) msg.getMessageId();
         }
         assertEquals(readMsgId, msgId);

@@ -22,6 +22,7 @@ import java.io.Closeable;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.transaction.TransactionBuilder;
+import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
@@ -400,4 +401,11 @@ public interface PulsarClient extends Closeable {
      * @since 2.7.0
      */
     TransactionBuilder newTransaction();
+
+    /**
+     * Returns the {@link TransactionCoordinatorClient} used by this client.
+     * This is a lower-level API, meant mainly for usage in streaming engines.
+     * @return the Transaction Coordinator Client associated with this Pulsar Client
+     */
+    TransactionCoordinatorClient getTransactionCoordinatorClient();
 }

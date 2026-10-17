@@ -40,8 +40,8 @@ import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import lombok.Builder;
+import lombok.CustomLog;
 import lombok.NonNull;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -56,7 +56,7 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.jspecify.annotations.Nullable;
 
-@Slf4j
+@CustomLog
 public class MetadataStoreTableViewImpl<T> implements MetadataStoreTableView<T> {
 
     private static final int FILL_TIMEOUT_IN_MILLIS = 300_000;
@@ -197,10 +197,8 @@ public class MetadataStoreTableViewImpl<T> implements MetadataStoreTableView<T> 
         MutableBoolean updated = new MutableBoolean();
         data.compute(key, (k, prev) -> {
             if (Objects.equals(prev, cur)) {
-                if (log.isDebugEnabled()) {
-                    log.debug("{} skipped item key={} value={} prev={}",
-                            name, key, cur, prev);
-                }
+                log.debug().attr("name", name).attr("key", key).attr("value", cur).attr("prev", prev)
+                        .log("Skipped item");
                 updated.setValue(false);
                 return prev;
             } else {
@@ -213,13 +211,14 @@ public class MetadataStoreTableViewImpl<T> implements MetadataStoreTableView<T> 
 
     public void handleSessionEvent(SessionEvent sessionEvent) {
         if (CollectionUtils.isEmpty(outdatedItemListeners)) {
-            log.warn("{} Skipped handle metadata store session event {} because does not set itemOutdatedListeners",
-                name, sessionEvent);
+            log.warn().attr("name", name).attr("event", sessionEvent)
+                    .log("Skipped handle metadata store session event because does not set itemOutdatedListeners");
             return;
         }
         if (sessionEvent == SessionEvent.SessionLost) {
             Map<String, T> snapshot = new HashMap<>(data);
-            log.warn("{} clearing owned bundles because metadata store session lost {}",  name, snapshot);
+            log.warn().attr("name", name).attr("snapshot", snapshot)
+                    .log("Clearing owned bundles because metadata store session lost");
             for (Map.Entry<String, T> entry : snapshot.entrySet()) {
                 for (var listener : outdatedItemListeners) {
                     try {
@@ -229,12 +228,16 @@ public class MetadataStoreTableViewImpl<T> implements MetadataStoreTableView<T> 
                         }
                     } catch (Throwable e) {
                         if (tableViewShutDownListener == null) {
-                            log.warn("{} failed to listen item whose state is unknown because of metadata store"
-                                    + " session lost. key:{}, val:{}", name, entry.getKey(), entry.getValue(), e);
+                            log.warn().attr("name", name).attr("key", entry.getKey())
+                                    .attr("value", entry.getValue()).exception(e)
+                                    .log("Failed to listen item whose state is unknown"
+                                            + " because of metadata store session lost");
                         } else {
-                            log.warn("{} Shutdown table view, because failed to listen item whose state is unknown due"
-                                    + " to metadata store session lost. key:{}, val:{}", name, entry.getKey(),
-                                    entry.getValue(), e);
+                            log.warn().attr("name", name).attr("key", entry.getKey())
+                                    .attr("value", entry.getValue()).exception(e)
+                                    .log("Shutdown table view, because failed to listen item"
+                                            + " whose state is unknown due to"
+                                            + " metadata store session lost");
                             tableViewShutDownListener.accept(e);
                         }
                         break;
@@ -242,14 +245,16 @@ public class MetadataStoreTableViewImpl<T> implements MetadataStoreTableView<T> 
                 }
             }
         } else if (sessionEvent == SessionEvent.SessionReestablished) {
-            log.info("{} Refilling bundle owner list after metadata store session reestablished",  name);
+            log.info().attr("name", name).log("Refilling bundle owner list after metadata store session reestablished");
             // Since just get a session expired issue, we'd better to print the initialize detail logs.
             fillAsync(null, true).exceptionally(ex -> {
                 if (tableViewShutDownListener == null) {
-                    log.warn("{} failed to fill existing items after session reestablished", name, ex);
+                    log.warn().attr("name", name).exception(ex)
+                            .log("Failed to fill existing items after session reestablished");
                 } else {
-                    log.error("{} Shutdown table view because failed to fill existing items after session"
-                        + " reestablished", name, ex);
+                    log.error().attr("name", name).exception(ex)
+                            .log("Shutdown table view because failed to fill"
+                                    + " existing items after session reestablished");
                     tableViewShutDownListener.accept(ex);
                 }
                 return null;
@@ -259,19 +264,13 @@ public class MetadataStoreTableViewImpl<T> implements MetadataStoreTableView<T> 
 
     private void handleTailItem(String key, T val) {
         if (updateData(key, val)) {
-            if (log.isDebugEnabled()) {
-                log.debug("{} applying item key={} value={}",
-                        name,
-                        key,
-                        val);
-            }
+            log.debug().attr("name", name).attr("key", key).attr("value", val).log("Applying item");
             for (var listener : tailItemListeners) {
                 try {
                     listener.accept(key, val);
                 } catch (Throwable e) {
-                    log.error("{} failed to listen tail item key:{}, val:{}",
-                            name,
-                            key, val, e);
+                    log.error().attr("name", name).attr("key", key).attr("value", val).exception(e)
+                            .log("Failed to listen tail item");
                 }
             }
         }
@@ -287,7 +286,7 @@ public class MetadataStoreTableViewImpl<T> implements MetadataStoreTableView<T> 
             var val = valOpt.orElse(null);
             handleTailItem(key, val);
         }).exceptionally(e -> {
-            log.error("{} failed to handle notification for path:{}", name, path, e);
+            log.error().attr("name", name).attr("path", path).exception(e).log("Failed to handle notification");
             return null;
         });
     }
@@ -313,18 +312,14 @@ public class MetadataStoreTableViewImpl<T> implements MetadataStoreTableView<T> 
                     valOpt.ifPresent(val -> {
                         String key = getKey(path);
                         updateData(key, val);
-                        if (log.isDebugEnabled()) {
-                            log.debug("{} applying existing item key={} value={}",
-                                    name,
-                                    key,
-                                    val);
-                        }
+                        log.debug().attr("name", name).attr("key", key).attr("value", val)
+                                .log("Applying existing item");
                         for (var listener : existingItemListeners) {
                             try {
                                 listener.accept(key, val);
                             } catch (Throwable e) {
-                                log.error("{} failed to listen existing item key:{}, val:{}", name, key, val,
-                                        e);
+                                log.error().attr("name", name).attr("key", key).attr("value", val).exception(e)
+                                        .log("Failed to listen existing item");
                                 throw e;
                             }
                         }
@@ -341,7 +336,7 @@ public class MetadataStoreTableViewImpl<T> implements MetadataStoreTableView<T> 
         long maxWaitTime = Math.min(timeoutInMillis, FILL_TIMEOUT_IN_MILLIS);
         try {
             fillAsync(loadedCounter, false).get(maxWaitTime, TimeUnit.MILLISECONDS);
-            log.info("{} completed filling existing items with size:{}", name, loadedCounter.get());
+            log.info().attr("name", name).attr("size", loadedCounter.get()).log("Completed filling existing items");
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             String err = name + " failed to fill existing items in "
                     + TimeUnit.MILLISECONDS.toSeconds(maxWaitTime) + " secs. Filled count:"
@@ -364,7 +359,7 @@ public class MetadataStoreTableViewImpl<T> implements MetadataStoreTableView<T> 
                     count.incrementAndGet();
                 }
                 if (printDetails) {
-                    log.info("handling exist leaf {}", path);
+                    log.info().attr("path", path).log("Handling existing leaf");
                 }
                 return handleExisting(path);
             } else {
@@ -373,7 +368,7 @@ public class MetadataStoreTableViewImpl<T> implements MetadataStoreTableView<T> 
                 // client works in a single thread, and all OPs will be packaged into a batch, the more the faster.
                 // If metadata store receives too many requests, it will split them into multi requests itself.
                 if (printDetails) {
-                    log.info("handling exist dir {}", path);
+                    log.info().attr("path", path).log("Handling existing dir");
                 }
                 List<CompletableFuture<Void>> futureList = new ArrayList<>();
                 for (var child : children) {

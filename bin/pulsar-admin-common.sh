@@ -97,10 +97,20 @@ PULSAR_CLASSPATH="$PULSAR_JAR:$PULSAR_CLASSPATH:$PULSAR_EXTRA_CLASSPATH"
 PULSAR_CLASSPATH="`dirname $PULSAR_LOG_CONF`:$PULSAR_CLASSPATH"
 OPTS="$OPTS -Dlog4j.configurationFile=`basename $PULSAR_LOG_CONF`"
 OPTS="-Djava.net.preferIPv4Stack=true $OPTS"
+# Bridge java.util.logging (JUL) to Log4j2 so that JUL logs from third-party libraries
+# (Jersey, gRPC, Guava, etc.) are bridged into the Log4j2 configuration (conf/log4j2.yaml)
+OPTS="-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager $OPTS"
 # Required to allow sun.misc.Unsafe on JDK 24 without warnings
 # Also required for enabling unsafe memory access for Netty since 4.1.121.Final
 if [[ $JAVA_MAJOR_VERSION -ge 23 ]]; then
   OPTS="--sun-misc-unsafe-memory-access=allow $OPTS"
+fi
+# Use compact object headers (JEP 519, https://openjdk.org/jeps/519), which shrink object headers from 12 to 8 bytes
+# and so reduce heap usage and improve cache locality. They are a product feature since JDK 25 and the default from
+# JDK 27 on (JEP 534, https://openjdk.org/jeps/534). The option is prepended so that the configured options can
+# override it with -XX:-UseCompactObjectHeaders.
+if [[ $JAVA_MAJOR_VERSION -eq 25 || $JAVA_MAJOR_VERSION -eq 26 ]]; then
+  OPTS="-XX:+UseCompactObjectHeaders $OPTS"
 fi
 
 # Allow Netty to use reflection access
@@ -117,6 +127,14 @@ fi
 if [[ $JAVA_MAJOR_VERSION -ge 11 ]]; then
   # Required by Netty for optimized direct byte buffer access
   OPTS="$OPTS --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/jdk.internal.misc=ALL-UNNAMED"
+fi
+
+if [[ $JAVA_MAJOR_VERSION -ge 24 ]]; then
+  # Netty loads native libraries (epoll, io_uring, tcnative) via java.lang.System::loadLibrary,
+  # which is a restricted method from Java 24 onwards. Without this the JVM prints a warning to
+  # stderr on every invocation, and restricted methods will be blocked outright in a future
+  # release. bin/pulsar already sets this for the server side.
+  OPTS="$OPTS --enable-native-access=ALL-UNNAMED"
 fi
 # These two settings work together to ensure the Pulsar process exits immediately and predictably
 # if it runs out of either Java heap memory or its internal off-heap memory,
@@ -143,6 +161,10 @@ OPTS="-XX:+ExitOnOutOfMemoryError -Dpulsar.allocator.exit_on_oom=true $OPTS"
 # than chunk size (8MB) and can reuse Netty's memory pool.
 OPTS="-Dio.netty.recycler.maxCapacityPerThread=4096 -Dio.netty.allocator.maxOrder=10 $OPTS"
 
+# Disable Netty's leak detection by default, as bin/pulsar does, since it costs CPU on the hot paths;
+# -Dio.netty.leakDetection.level in PULSAR_EXTRA_OPTS, which comes later on the command line, overrides it.
+OPTS="-Dio.netty.leakDetection.level=disabled $OPTS"
+
 OPTS="-cp $PULSAR_CLASSPATH $OPTS"
 
 OPTS="$OPTS $PULSAR_EXTRA_OPTS"
@@ -150,7 +172,9 @@ OPTS="$OPTS $PULSAR_EXTRA_OPTS"
 # log directory & file
 PULSAR_LOG_DIR=${PULSAR_LOG_DIR:-"$PULSAR_HOME/logs"}
 PULSAR_LOG_APPENDER=${PULSAR_LOG_APPENDER:-"RoutingAppender"}
-PULSAR_LOG_CONSOLE_JSON_TEMPLATE=${PULSAR_LOG_CONSOLE_JSON_TEMPLATE:-"classpath:EcsLayout.json"}
+# PULSAR_LOG_CONSOLE_JSON_TEMPLATE is deprecated — use PULSAR_LOG_JSON_TEMPLATE
+PULSAR_LOG_JSON_TEMPLATE=${PULSAR_LOG_JSON_TEMPLATE:-${PULSAR_LOG_CONSOLE_JSON_TEMPLATE:-"file:$PULSAR_HOME/conf/OtelLogLayout.json"}}
+PULSAR_LOG_FORMAT=${PULSAR_LOG_FORMAT:-"text"}
 PULSAR_LOG_LEVEL=${PULSAR_LOG_LEVEL:-"info"}
 PULSAR_LOG_ROOT_LEVEL=${PULSAR_LOG_ROOT_LEVEL:-"${PULSAR_LOG_LEVEL}"}
 PULSAR_ROUTING_APPENDER_DEFAULT=${PULSAR_ROUTING_APPENDER_DEFAULT:-"Console"}
@@ -158,7 +182,8 @@ PULSAR_LOG_IMMEDIATE_FLUSH="${PULSAR_LOG_IMMEDIATE_FLUSH:-"false"}"
 
 #Configure log configuration system properties
 OPTS="$OPTS -Dpulsar.log.appender=$PULSAR_LOG_APPENDER"
-OPTS="$OPTS -Dpulsar.log.console.json.template=$PULSAR_LOG_CONSOLE_JSON_TEMPLATE"
+OPTS="$OPTS -Dpulsar.log.json.template=$PULSAR_LOG_JSON_TEMPLATE"
+OPTS="$OPTS -Dpulsar.log.format=$PULSAR_LOG_FORMAT"
 OPTS="$OPTS -Dpulsar.log.dir=$PULSAR_LOG_DIR"
 OPTS="$OPTS -Dpulsar.log.level=$PULSAR_LOG_LEVEL"
 OPTS="$OPTS -Dpulsar.log.root.level=$PULSAR_LOG_ROOT_LEVEL"

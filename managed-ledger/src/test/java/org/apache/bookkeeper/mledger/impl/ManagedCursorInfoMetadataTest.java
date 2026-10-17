@@ -22,7 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
 import java.io.IOException;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.MetadataCompressionConfig;
 import org.apache.bookkeeper.mledger.proto.ManagedCursorInfo;
 import org.apache.pulsar.common.api.proto.CompressionType;
@@ -32,7 +32,7 @@ import org.testng.annotations.Test;
 /**
  * ManagedCursorInfo metadata test.
  */
-@Slf4j
+@CustomLog
 public class ManagedCursorInfoMetadataTest {
     private static final String INVALID_TYPE = "INVALID_TYPE";
 
@@ -83,8 +83,10 @@ public class ManagedCursorInfoMetadataTest {
         }
 
         byte[] compressionBytes = metaStore.compressCursorInfo(managedCursorInfo);
-        log.info("[{}] Uncompressed data size: {}, compressed data size: {}",
-                compressionType, managedCursorInfo.getSerializedSize(), compressionBytes.length);
+        log.info().attr("compressionType", compressionType)
+                .attr("uncompressedSize", managedCursorInfo.getSerializedSize())
+                .attr("compressedSize", compressionBytes.length)
+                .log("Encoded managed cursor info");
         if (compressionType == null || compressionType.equals(CompressionType.NONE.name())) {
             assertEquals(compressionBytes.length, managedCursorInfo.getSerializedSize());
         }

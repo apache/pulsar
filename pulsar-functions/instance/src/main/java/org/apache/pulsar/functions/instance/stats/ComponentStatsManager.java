@@ -25,11 +25,11 @@ import java.util.Arrays;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.apache.pulsar.functions.proto.FunctionStatus;
 
-@Slf4j
+@CustomLog
 public abstract class ComponentStatsManager implements AutoCloseable {
 
     protected String[] metricsLabels;
@@ -81,7 +81,7 @@ public abstract class ComponentStatsManager implements AutoCloseable {
             try {
                 reset();
             } catch (Exception e) {
-                log.error("Failed to reset metrics for 1min window", e);
+                log.error().exception(e).log("Failed to reset metrics for 1min window");
             }
         }, 1, 1, TimeUnit.MINUTES);
     }

@@ -18,28 +18,30 @@
  */
 package org.apache.pulsar.broker.admin.v2;
 
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiParam;
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.container.AsyncResponse;
+import jakarta.ws.rs.container.Suspended;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response.Status;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.container.AsyncResponse;
-import javax.ws.rs.container.Suspended;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.discover.RegistrationClient;
 import org.apache.bookkeeper.meta.MetadataClientDriver;
@@ -53,18 +55,20 @@ import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
 import org.apache.pulsar.common.policies.data.RawBookieInfo;
 
 @Path("/bookies")
-@Api(value = "/bookies", description = "Configure bookies rack placement", tags = "bookies")
+@Tag(name = "bookies", description = "Configure bookies rack placement")
 @Produces(MediaType.APPLICATION_JSON)
-@Slf4j
 @SuppressWarnings("deprecation")
 public class Bookies extends AdminResource {
     private static final String PATH_SEPARATOR = "/";
 
     @GET
     @Path("/racks-info")
-    @ApiOperation(value = "Gets the rack placement information for all the bookies in the cluster",
-            response = BookiesRackConfiguration.class)
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission")})
+    @Operation(summary = "Gets the rack placement information for all the bookies in the cluster")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200",
+                    description = "Gets the rack placement information for all the bookies in the cluster",
+                    content = @Content(schema = @Schema(implementation = BookiesRackConfiguration.class))),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission")})
     public void getBookiesRackInfo(@Suspended final AsyncResponse asyncResponse) {
         validateSuperUserAccess();
 
@@ -79,9 +83,12 @@ public class Bookies extends AdminResource {
 
     @GET
     @Path("/all")
-    @ApiOperation(value = "Gets raw information for all the bookies in the cluster",
-            response = BookiesClusterInfo.class)
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission")})
+    @Operation(summary = "Gets raw information for all the bookies in the cluster")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200",
+                    description = "Gets raw information for all the bookies in the cluster",
+                    content = @Content(schema = @Schema(implementation = BookiesClusterInfo.class))),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission")})
     public BookiesClusterInfo getAllBookies() throws Exception {
         validateSuperUserAccess();
 
@@ -100,9 +107,12 @@ public class Bookies extends AdminResource {
 
     @GET
     @Path("/racks-info/{bookie}")
-    @ApiOperation(value = "Gets the rack placement information for a specific bookie in the cluster",
-            response = BookieInfo.class)
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission")})
+    @Operation(summary = "Gets the rack placement information for a specific bookie in the cluster")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200",
+                    description = "Gets the rack placement information for a specific bookie in the cluster",
+                    content = @Content(schema = @Schema(implementation = BookieInfo.class))),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission")})
     public void getBookieRackInfo(@Suspended final AsyncResponse asyncResponse,
                                   @PathParam("bookie") String bookieAddress) throws Exception {
         validateSuperUserAccess();
@@ -125,10 +135,10 @@ public class Bookies extends AdminResource {
 
     @DELETE
     @Path("/racks-info/{bookie}")
-    @ApiOperation(value = "Removed the rack placement information for a specific bookie in the cluster")
+    @Operation(summary = "Removed the rack placement information for a specific bookie in the cluster")
     @ApiResponses(value = {
-            @ApiResponse(code = 204, message = "Operation successful"),
-            @ApiResponse(code = 403, message = "Don't have admin permission")
+            @ApiResponse(responseCode = "204", description = "Operation successful"),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission")
     })
     public void deleteBookieRackInfo(@Suspended final AsyncResponse asyncResponse,
                                      @PathParam("bookie") String bookieAddress) throws Exception {
@@ -146,7 +156,7 @@ public class Bookies extends AdminResource {
 
                     return brc;
                 }).thenAccept(__ -> {
-            log.info("Removed {} from rack mapping info", bookieAddress);
+            log.info().attr("bookieAddress", bookieAddress).log("Removed from rack mapping info");
             asyncResponse.resume(Response.noContent().build());
         }).exceptionally(ex -> {
             asyncResponse.resume(ex);
@@ -156,18 +166,18 @@ public class Bookies extends AdminResource {
 
     @POST
     @Path("/racks-info/{bookie}")
-    @ApiOperation(value = "Updates the rack placement information for a specific bookie in the cluster (note."
+    @Operation(summary = "Updates the rack placement information for a specific bookie in the cluster (note."
             + " bookie address format:`address:port`)")
     @ApiResponses(value = {
-            @ApiResponse(code = 204, message = "Operation successful"),
-            @ApiResponse(code = 403, message = "Don't have admin permission")}
+            @ApiResponse(responseCode = "204", description = "Operation successful"),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission")}
     )
     public void updateBookieRackInfo(@Suspended final AsyncResponse asyncResponse,
-                                     @ApiParam(value = "The bookie address", required = true)
+                                     @Parameter(description = "The bookie address", required = true)
                                      @PathParam("bookie") String bookieAddress,
-                                     @ApiParam(value = "The group", required = true)
+                                     @Parameter(description = "The group", required = true)
                                      @QueryParam("group") String group,
-                                     @ApiParam(value = "The bookie info", required = true)
+                                     @RequestBody(description = "The bookie info", required = true)
                                      BookieInfo bookieInfo) throws Exception {
         validateSuperUserAccess();
 
@@ -198,7 +208,7 @@ public class Bookies extends AdminResource {
 
                     return brc;
                 }).thenAccept(__ -> {
-            log.info("Updated rack mapping info for {}", bookieAddress);
+            log.info().attr("bookieAddress", bookieAddress).log("Updated rack mapping info");
             asyncResponse.resume(Response.noContent().build());
         }).exceptionally(ex -> {
             asyncResponse.resume(ex);

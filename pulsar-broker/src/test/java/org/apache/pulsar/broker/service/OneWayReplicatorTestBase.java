@@ -38,12 +38,13 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.GeoPersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -55,6 +56,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.common.naming.SystemTopicNames;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -69,7 +71,7 @@ import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 
-@Slf4j
+@CustomLog
 public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
 
     protected final String defaultTenant = "public";
@@ -114,9 +116,9 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
         }
 
         // Start BK.
-        bkEnsemble1 = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble1 = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble1.start();
-        bkEnsemble2 = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble2 = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble2.start();
     }
 
@@ -342,8 +344,9 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
         try {
             cleanupPulsarResources();
         } catch (Exception e) {
-            log.warn("Failed to cleanup Pulsar resources during shutdown, "
-                    + "continuing with broker/ZK/BK shutdown", e);
+            log.warn().exception(e).log(
+                    "Failed to cleanup Pulsar resources during shutdown,"
+                            + " continuing with broker/ZK/BK shutdown");
         }
 
         // shutdown.
@@ -407,8 +410,13 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
         Awaitility.await().untilAsserted(() -> {
             Optional<Topic> topicOptional2 = remoteCluster.getBrokerService().getTopic(topicName, false).get();
             assertTrue(topicOptional2.isPresent());
-            PersistentTopic persistentTopic2 = (PersistentTopic) topicOptional2.get();
-            assertFalse(persistentTopic2.getProducers().isEmpty());
+            if (TopicName.get(topicName).getDomain().equals(TopicDomain.persistent)) {
+                PersistentTopic persistentTopic2 = (PersistentTopic) topicOptional2.get();
+                assertFalse(persistentTopic2.getProducers().isEmpty());
+            } else {
+                NonPersistentTopic nonPersistentTopic2 = (NonPersistentTopic) topicOptional2.get();
+                assertFalse(nonPersistentTopic2.getProducers().isEmpty());
+            }
         });
     }
 

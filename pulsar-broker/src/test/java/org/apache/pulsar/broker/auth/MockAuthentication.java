@@ -21,14 +21,13 @@ package org.apache.pulsar.broker.auth;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class MockAuthentication implements Authentication {
-    private static final Logger log = LoggerFactory.getLogger(MockAuthentication.class);
     private String user;
 
     public MockAuthentication() {

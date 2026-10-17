@@ -28,7 +28,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LinuxInfoUtils;
@@ -37,7 +37,7 @@ import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class LinuxBrokerHostUsageImplTest {
 
     @Test
@@ -107,6 +107,7 @@ public class LinuxBrokerHostUsageImplTest {
         Assert.assertTrue(limit >= usage);
         Assert.assertTrue(percentUsage > 0);
 
-        log.info("usage: {}, limit: {}, percentUsage: {}", usage, limit, percentUsage);
+        log.info().attr("usage", usage).attr("limit", limit)
+                .attr("percentUsage", percentUsage).log("Host usage");
     }
 }

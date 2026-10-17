@@ -20,13 +20,13 @@ package org.apache.pulsar.client.api;
 
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-api")
 public class ServiceUrlProviderTest extends SharedPulsarBaseTest {
     @SuppressWarnings("deprecation")

@@ -32,7 +32,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import net.bytebuddy.description.type.TypeDefinition;
 import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.pool.TypePool;
@@ -63,7 +63,7 @@ import picocli.CommandLine;
 import picocli.CommandLine.Option;
 
 
-@Slf4j
+@CustomLog
 public class JavaInstanceStarter implements AutoCloseable {
     @Option(names = "--function_details", description = "Function details json\n", required = true)
     public String functionDetailsJsonString;
@@ -258,7 +258,7 @@ public class JavaInstanceStarter implements AutoCloseable {
                 .addService(new InstanceControlImpl(runtimeSpawner))
                 .build()
                 .start();
-        log.info("JavaInstance Server started, listening on " + port);
+        log.info().attr("port", port).log("JavaInstance Server started");
         java.lang.Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             // Use stderr here since the logger may have been reset by its JVM shutdown hook.
             try {
@@ -272,7 +272,7 @@ public class JavaInstanceStarter implements AutoCloseable {
         runtimeSpawner.start();
 
         // starting metrics server
-        log.info("Starting metrics server on port {}", metricsPort);
+        log.info().attr("metricsPort", metricsPort).log("Starting metrics server");
         metricsServer = new HTTPServer(new InetSocketAddress(metricsPort), collectorRegistry, true);
 
         if (expectedHealthCheckInterval > 0) {
@@ -285,7 +285,8 @@ public class JavaInstanceStarter implements AutoCloseable {
                                 close();
                             }
                         } catch (Exception e) {
-                            log.error("Error occurred when checking for latest health check", e);
+                            log.error().exception(e)
+                                    .log("Error occurred when checking for latest health check");
                         }
                     }, expectedHealthCheckInterval * 1000, expectedHealthCheckInterval * 1000, TimeUnit.MILLISECONDS);
         }
@@ -413,7 +414,7 @@ public class JavaInstanceStarter implements AutoCloseable {
                 responseObserver.onNext(response);
                 responseObserver.onCompleted();
             } catch (Exception e) {
-                log.error("Exception in JavaInstance doing getFunctionStatus", e);
+                log.error().exception(e).log("Exception in JavaInstance doing getFunctionStatus");
                 throw new RuntimeException(e);
             }
         }
@@ -428,7 +429,8 @@ public class JavaInstanceStarter implements AutoCloseable {
                     responseObserver.onNext(metrics);
                     responseObserver.onCompleted();
                 } catch (InterruptedException | ExecutionException e) {
-                    log.error("Exception in JavaInstance doing getAndResetMetrics", e);
+                    log.error().exception(e)
+                            .log("Exception in JavaInstance doing getAndResetMetrics");
                     throw new RuntimeException(e);
                 }
             }
@@ -444,7 +446,8 @@ public class JavaInstanceStarter implements AutoCloseable {
                     responseObserver.onNext(metrics);
                     responseObserver.onCompleted();
                 } catch (InterruptedException | ExecutionException e) {
-                    log.error("Exception in JavaInstance doing getAndResetMetrics", e);
+                    log.error().exception(e)
+                            .log("Exception in JavaInstance doing getMetrics");
                     throw new RuntimeException(e);
                 }
             }
@@ -459,7 +462,7 @@ public class JavaInstanceStarter implements AutoCloseable {
                     responseObserver.onNext(new Empty());
                     responseObserver.onCompleted();
                 } catch (InterruptedException | ExecutionException e) {
-                    log.error("Exception in JavaInstance doing resetMetrics", e);
+                    log.error().exception(e).log("Exception in JavaInstance doing resetMetrics");
                     throw new RuntimeException(e);
                 }
             }

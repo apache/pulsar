@@ -23,7 +23,7 @@ import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -42,7 +42,7 @@ import org.testng.annotations.Test;
 import org.testng.internal.thread.ThreadTimeoutException;
 
 @Test
-@Slf4j
+@CustomLog
 public class ClientWithSocks5ProxyTest extends BrokerTestBase {
 
     private Socks5Server server;
@@ -71,7 +71,7 @@ public class ClientWithSocks5ProxyTest extends BrokerTestBase {
             try {
                 server.start();
             } catch (Exception e) {
-                log.error("start socks5 server error", e);
+                log.error().exception(e).log("start socks5 server error");
             }
         });
         thread.setDaemon(true);

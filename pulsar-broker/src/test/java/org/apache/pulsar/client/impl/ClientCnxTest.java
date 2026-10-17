@@ -26,7 +26,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -48,7 +48,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-impl")
 public class ClientCnxTest extends MockedPulsarServiceBaseTest {
 
@@ -223,7 +223,7 @@ public class ClientCnxTest extends MockedPulsarServiceBaseTest {
             // Verify: the next publish will finish.
             MessageId messageId = p.sendAsync("1").get(10, TimeUnit.SECONDS);
             MessageIdAdv messageIdAdv = (MessageIdAdv) messageId;
-            log.info("sent {}:{}", messageIdAdv.getLedgerId(), messageIdAdv.getEntryId());
+            log.info().attr("sent", messageIdAdv.getLedgerId()).attr("entryId", messageIdAdv.getEntryId()).log("sent");
         } finally {
             // cleanup orphan producers.
             serverCnx.ctx().close();

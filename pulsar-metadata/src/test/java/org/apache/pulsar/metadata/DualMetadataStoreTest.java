@@ -32,7 +32,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.common.migration.MigrationPhase;
 import org.apache.pulsar.common.migration.MigrationState;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -44,11 +44,12 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.impl.DualMetadataStore;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class DualMetadataStoreTest extends BaseMetadataStoreTest {
 
 
@@ -361,7 +362,7 @@ public class DualMetadataStoreTest extends BaseMetadataStoreTest {
 
         // Verify participant registration node exists
         List<String> participants = sourceStore.getChildren(MigrationState.PARTICIPANTS_PATH).join();
-        log.info("participants: {}", participants);
+        log.info().attr("participants", participants).log("participants");
         assertEquals(participants.size(), 1);
         assertTrue(participants.get(0).startsWith("id-"));
     }
@@ -396,7 +397,7 @@ public class DualMetadataStoreTest extends BaseMetadataStoreTest {
 
         // Verify participant registration node exists under chroot
         List<String> participants = sourceStore.getChildren(MigrationState.PARTICIPANTS_PATH).join();
-        log.info("Participants in chroot {}: {}", chrootPath, participants);
+        log.info().attr("chrootPath", chrootPath).attr("participants", participants).log("Participants in chroot");
         assertEquals(participants.size(), 1);
         assertTrue(participants.get(0).startsWith("id-"));
 
@@ -449,5 +450,67 @@ public class DualMetadataStoreTest extends BaseMetadataStoreTest {
 
         // Exists should check target in COMPLETED phase
         assertTrue(dualStore.exists(targetPath).join());
+    }
+
+    @Test
+    public void testStoreCreatedDuringMigration() throws Exception {
+        String prefix = newKey();
+
+        @Cleanup
+        MetadataStore rawStore = new ZKMetadataStore(zks.getConnectionString(),
+                MetadataStoreConfig.builder().build(), false);
+
+        String targetUrl = "memory:" + UUID.randomUUID();
+        @Cleanup
+        MetadataStore targetStore = MetadataStoreFactory.create(targetUrl,
+                MetadataStoreConfig.builder().build());
+
+        // The migration is already in PREPARATION phase before the store gets created
+        MigrationState preparationState = new MigrationState(MigrationPhase.PREPARATION, targetUrl);
+        rawStore.put(MigrationState.MIGRATION_FLAG_PATH,
+                ObjectMapperFactory.getMapper().writer().writeValueAsBytes(preparationState),
+                Optional.empty()).join();
+
+        @Cleanup
+        DualMetadataStore dualStore = new DualMetadataStore(
+                new ZKMetadataStore(zks.getConnectionString(), MetadataStoreConfig.builder().build(), true),
+                MetadataStoreConfig.builder().build());
+
+        // Writes must be blocked while the migration is in progress
+        String path = prefix + "/test-key";
+        byte[] data = "test-data".getBytes(StandardCharsets.UTF_8);
+        try {
+            dualStore.put(path, data, Optional.empty()).join();
+            fail("Should have thrown IllegalStateException");
+        } catch (CompletionException e) {
+            assertTrue(e.getCause() instanceof IllegalStateException);
+        }
+
+        // Even though it missed the PREPARATION notification, the store must acknowledge the
+        // preparation (delete its participant node), so that the coordinator is not stalled
+        Awaitility.await().untilAsserted(() ->
+                assertTrue(rawStore.getChildren(MigrationState.PARTICIPANTS_PATH).join().isEmpty()));
+
+        // Complete the migration
+        MigrationState completedState = new MigrationState(MigrationPhase.COMPLETED, targetUrl);
+        rawStore.put(MigrationState.MIGRATION_FLAG_PATH,
+                ObjectMapperFactory.getMapper().writer().writeValueAsBytes(completedState),
+                Optional.empty()).join();
+
+        // Once the store has processed the completion, writes must succeed and land in the target store
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+            dualStore.put(path, data, Optional.empty()).join();
+            assertTrue(targetStore.get(path).join().isPresent());
+        });
+
+        Optional<GetResult> targetResult = targetStore.get(path).join();
+        assertTrue(targetResult.isPresent());
+        assertEquals(new String(targetResult.get().getValue(), StandardCharsets.UTF_8), "test-data");
+
+        // Reads now come from the target store as well
+        assertTrue(dualStore.get(path).join().isPresent());
+
+        // The key must not have been written to the source store
+        assertFalse(rawStore.get(path).join().isPresent());
     }
 }

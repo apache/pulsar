@@ -37,9 +37,9 @@ import java.util.concurrent.TimeUnit;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema.Parser;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.pulsar.TestNGInstanceOrder;
@@ -78,7 +78,7 @@ import org.testng.annotations.Listeners;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
-@Slf4j
+@CustomLog
 @Listeners({ TestNGInstanceOrder.class })
 public class SimpleSchemaTest extends ProducerConsumerBase {
 
@@ -1309,8 +1309,14 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         Schema<?> schemaV1 = messageV1.getReaderSchema().get();
         Message<?> messageV2 = consumer.receive();
         Schema<?> schemaV2 = messageV2.getReaderSchema().get();
-        log.info("schemaV1 {} {}", schemaV1.getSchemaInfo(), schemaV1.getNativeSchema());
-        log.info("schemaV2 {} {}", schemaV2.getSchemaInfo(), schemaV2.getNativeSchema());
+        log.info()
+                .attr("schemaV1", schemaV1.getSchemaInfo())
+                .attr("nativeSchema", schemaV1.getNativeSchema())
+                .log("schemaV1");
+        log.info()
+                .attr("schemaV2", schemaV2.getSchemaInfo())
+                .attr("nativeSchema", schemaV2.getNativeSchema())
+                .log("schemaV2");
         assertTrue(schemaV1.getSchemaInfo().getSchemaDefinition().contains("V1Data"));
         assertTrue(schemaV2.getSchemaInfo().getSchemaDefinition().contains("V2Data"));
         org.apache.avro.Schema avroSchemaV1 = (org.apache.avro.Schema) schemaV1.getNativeSchema().get();
@@ -1510,7 +1516,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         for (int i = 0; i < numMessages; i++) {
             final Message<V1Data> msg = consumer.receive(3, TimeUnit.SECONDS);
             assertNotNull(msg);
-            log.info("Received {} from {}", msg.getValue().i, topic);
+            log.info().attr("value", msg.getValue().i).attr("topic", topic).log("Received from");
             assertEquals(msg.getValue().i, i);
             assertEquals(msg.getReaderSchema().orElse(Schema.BYTES).getSchemaInfo(), schema.getSchemaInfo());
             consumer.acknowledge(msg);

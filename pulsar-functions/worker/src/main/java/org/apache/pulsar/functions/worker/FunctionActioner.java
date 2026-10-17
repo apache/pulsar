@@ -45,14 +45,15 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import lombok.CustomLog;
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.io.BatchSourceConfig;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
@@ -70,13 +71,14 @@ import org.apache.pulsar.functions.proto.SourceSpec;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.utils.Actions;
+import org.apache.pulsar.functions.utils.ClientApiResolver;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.SourceConfigUtils;
 import org.apache.pulsar.functions.utils.ValidatableFunctionPackage;
 import org.apache.pulsar.functions.utils.io.Connector;
 
 @Data
-@Slf4j
+@CustomLog
 public class FunctionActioner {
 
     private final WorkerConfig workerConfig;
@@ -109,8 +111,10 @@ public class FunctionActioner {
             FunctionDetails functionDetails = functionMetaData.getFunctionDetails();
             int instanceId = functionRuntimeInfo.getFunctionInstance().getInstanceId();
 
-            log.info("{}/{}/{}-{} Starting function ...", functionDetails.getTenant(), functionDetails.getNamespace(),
-                    functionDetails.getName(), instanceId);
+            log.info().attr("tenant", functionDetails.getTenant())
+                    .attr("namespace", functionDetails.getNamespace())
+                    .attr("functionName", functionDetails.getName())
+                    .attr("instanceId", instanceId).log("Starting function");
 
             String packageFile;
             String transformFunctionPackageFile = null;
@@ -143,8 +147,10 @@ public class FunctionActioner {
         } catch (Exception ex) {
             FunctionDetails details = functionRuntimeInfo.getFunctionInstance()
                     .getFunctionMetaData().getFunctionDetails();
-            log.error("{}/{}/{} Error starting function", details.getTenant(), details.getNamespace(),
-                    details.getName(), ex);
+            log.error().attr("tenant", details.getTenant())
+                    .attr("namespace", details.getNamespace())
+                    .attr("functionName", details.getName())
+                    .exception(ex).log("Error starting function");
             functionRuntimeInfo.setStartupException(ex);
         }
     }
@@ -243,7 +249,7 @@ public class FunctionActioner {
         File pkgDir = pkgFile.getParentFile();
 
         if (pkgFile.exists()) {
-            log.warn("Function package exists already {} deleting it", pkgFile);
+            log.warn().attr("pkgFile", pkgFile).log("Function package exists already, deleting it");
             pkgFile.delete();
         }
 
@@ -256,10 +262,14 @@ public class FunctionActioner {
         String pkgLocationPath = pkgLocation.getPackagePath();
         boolean downloadFromHttp = isPkgUrlProvided && pkgLocationPath.startsWith(HTTP);
         boolean downloadFromPackageManagementService = isPkgUrlProvided && hasPackageTypePrefix(pkgLocationPath);
-        log.info("{}/{}/{} Function package file {} will be downloaded from {}", tempPkgFile, details.getTenant(),
-                details.getNamespace(), details.getName(),
-                downloadFromHttp ? pkgLocationPath : pkgLocation);
+        log.info().attr("tenant", details.getTenant())
+                .attr("namespace", details.getNamespace())
+                .attr("functionName", details.getName())
+                .attr("pkgFile", tempPkgFile)
+                .attr("source", downloadFromHttp ? pkgLocationPath : pkgLocation)
+                .log("Function package file will be downloaded");
 
+        long downloadStartMs = System.currentTimeMillis();
         if (downloadFromHttp) {
             if (!packageUrlValidator.isValidPackageUrl(componentType, pkgLocationPath)) {
                 throw new IllegalArgumentException("Package URL " + pkgLocationPath + " is not valid");
@@ -275,6 +285,13 @@ public class FunctionActioner {
                         pkgLocationPath);
             }
         }
+        log.info().attr("tenant", details.getTenant())
+                .attr("namespace", details.getNamespace())
+                .attr("functionName", details.getName())
+                .attr("pkgFile", tempPkgFile)
+                .attr("sizeBytes", tempPkgFile.length())
+                .attr("durationMs", System.currentTimeMillis() - downloadStartMs)
+                .log("Function package file downloaded");
 
         try {
             // create a hardlink, if there are two concurrent createLink operations, one will fail.
@@ -283,12 +300,14 @@ public class FunctionActioner {
                 Files.createLink(
                         Paths.get(pkgFile.toURI()),
                         Paths.get(tempPkgFile.toURI()));
-                log.info("Function package file is linked from {} to {}",
-                        tempPkgFile, pkgFile);
+                log.info().attr("source", tempPkgFile)
+                        .attr("target", pkgFile)
+                        .log("Function package file is linked");
             } catch (FileAlreadyExistsException faee) {
                 // file already exists
-                log.warn("Function package has been downloaded from {} and saved at {}",
-                        pkgLocation, pkgFile);
+                log.warn().attr("source", pkgLocation)
+                        .attr("pkgFile", pkgFile)
+                        .log("Function package has been downloaded");
             }
         } finally {
             tempPkgFile.delete();
@@ -296,7 +315,8 @@ public class FunctionActioner {
 
         if (details.getRuntime() == FunctionDetails.Runtime.GO && !pkgFile.canExecute()) {
             pkgFile.setExecutable(true);
-            log.info("Golang function package file {} is set to executable", pkgFile);
+            log.info().attr("pkgFile", pkgFile)
+                    .log("Golang function package file is set to executable");
         }
     }
 
@@ -313,8 +333,10 @@ public class FunctionActioner {
                 MoreFiles.deleteRecursively(
                         Paths.get(pkgDir.toURI()), RecursiveDeleteOption.ALLOW_INSECURE);
             } catch (IOException e) {
-                log.warn("Failed to delete package for function: {}",
-                        FunctionCommon.getFullyQualifiedName(functionMetaData.getFunctionDetails()), e);
+                log.warn().attr("function",
+                        FunctionCommon.getFullyQualifiedName(
+                                functionMetaData.getFunctionDetails()))
+                        .exception(e).log("Failed to delete package for function");
             }
         }
     }
@@ -323,8 +345,11 @@ public class FunctionActioner {
         Instance instance = functionRuntimeInfo.getFunctionInstance();
         FunctionMetaData functionMetaData = instance.getFunctionMetaData();
         FunctionDetails details = functionMetaData.getFunctionDetails();
-        log.info("{}/{}/{}-{} Stopping function...", details.getTenant(), details.getNamespace(), details.getName(),
-                instance.getInstanceId());
+        log.info().attr("tenant", details.getTenant())
+                .attr("namespace", details.getNamespace())
+                .attr("functionName", details.getName())
+                .attr("instanceId", instance.getInstanceId())
+                .log("Stopping function");
         if (functionRuntimeInfo.getRuntimeSpawner() != null) {
             functionRuntimeInfo.getRuntimeSpawner().close();
             functionRuntimeInfo.setRuntimeSpawner(null);
@@ -336,7 +361,11 @@ public class FunctionActioner {
     public void terminateFunction(FunctionRuntimeInfo functionRuntimeInfo) {
         FunctionDetails details = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionDetails();
         String fqfn = FunctionCommon.getFullyQualifiedName(details);
-        log.info("{}-{} Terminating function...", fqfn, functionRuntimeInfo.getFunctionInstance().getInstanceId());
+        log.info().attr("function", fqfn)
+                .attr("instanceId",
+                        functionRuntimeInfo.getFunctionInstance()
+                                .getInstanceId())
+                .log("Terminating function");
 
         if (functionRuntimeInfo.getRuntimeSpawner() != null) {
             functionRuntimeInfo.getRuntimeSpawner().close();
@@ -346,8 +375,12 @@ public class FunctionActioner {
                 functionRuntimeInfo.getRuntimeSpawner()
                         .getRuntimeFactory().getAuthProvider().ifPresent(functionAuthProvider -> {
                             try {
-                                log.info("{}-{} Cleaning up authentication data for function...", fqfn,
-                                        functionRuntimeInfo.getFunctionInstance().getInstanceId());
+                                log.info().attr("function", fqfn)
+                                        .attr("instanceId",
+                                                functionRuntimeInfo
+                                                        .getFunctionInstance()
+                                                        .getInstanceId())
+                                        .log("Cleaning up authentication data for function");
                                 functionAuthProvider
                                         .cleanUpAuthData(
                                                 details,
@@ -357,7 +390,9 @@ public class FunctionActioner {
                                                                 .getFunctionAuthenticationSpec()))));
 
                             } catch (Exception e) {
-                                log.error("Failed to cleanup auth data for function: {}", fqfn, e);
+                                log.error().attr("function", fqfn)
+                                    .exception(e)
+                                    .log("Failed to cleanup auth data for function");
                             }
                         });
             }
@@ -377,6 +412,7 @@ public class FunctionActioner {
                         .getFunctionDetails().getSource().getSubscriptionName();
 
                 deleteSubscription(topic, consumerSpec, subscriptionName,
+                        details.getClientApi() == FunctionDetails.ClientApi.V5,
                         String.format("Cleaning up subscriptions for function %s", fqfn));
             });
         }
@@ -386,7 +422,7 @@ public class FunctionActioner {
     }
 
     private void deleteSubscription(String topic, ConsumerSpec consumerSpec,
-                                    String subscriptionName, String msg) {
+                                    String subscriptionName, boolean usesClientV5, String msg) {
         try {
             Actions.newBuilder()
                     .addAction(
@@ -397,7 +433,7 @@ public class FunctionActioner {
                         .supplier(
                           getDeleteSubscriptionSupplier(topic,
                             consumerSpec.isIsRegexPattern(),
-                            subscriptionName)
+                            subscriptionName, usesClientV5)
                         )
                         .build())
                     .run();
@@ -406,13 +442,52 @@ public class FunctionActioner {
         }
     }
 
+    /**
+     * Returns the scalable topic that a {@code persistent://} topic was migrated to, or {@code null} if it was not
+     * migrated. The V5 client keeps consuming a migrated input under its {@code persistent://} name, so the
+     * subscription to delete is the scalable topic's, which spans the legacy topic and the new segments.
+     */
+    private String migratedScalableTopic(String topic) {
+        TopicName topicName = TopicName.get(TopicName.get(topic).getPartitionedTopicName());
+        String scalableTopic = TopicDomain.topic.value() + "://" + topicName.getNamespace() + "/"
+                + topicName.getLocalName();
+        try {
+            pulsarAdmin.scalableTopics().getMetadata(scalableTopic);
+            return scalableTopic;
+        } catch (PulsarAdminException e) {
+            if (!(e instanceof PulsarAdminException.NotFoundException)) {
+                // fall back to the persistent:// subscription, as for a topic that was not migrated
+                log.warn().attr("topic", topic).exceptionMessage(e)
+                        .log("Failed to check whether the topic was migrated to a scalable topic");
+            }
+            return null;
+        }
+    }
+
     private Supplier<Actions.ActionResult> getDeleteSubscriptionSupplier(
       String topic, boolean isRegex, String subscriptionName) {
+        return getDeleteSubscriptionSupplier(topic, isRegex, subscriptionName, false);
+    }
+
+    /**
+     * @param usesClientV5 whether the component reads its inputs with the V5 client, which follows a
+     *                     {@code persistent://} input that PIP-475 has migrated to a scalable topic
+     */
+    private Supplier<Actions.ActionResult> getDeleteSubscriptionSupplier(
+      String topic, boolean isRegex, String subscriptionName, boolean usesClientV5) {
         return () -> {
             try {
+                String scalableTopic = null;
+                if (!isRegex) {
+                    scalableTopic = ClientApiResolver.isScalableTopic(topic) ? topic
+                            : usesClientV5 ? migratedScalableTopic(topic) : null;
+                }
                 if (isRegex) {
                     pulsarAdmin.namespaces().unsubscribeNamespace(TopicName
                       .get(topic).getNamespace(), subscriptionName);
+                } else if (scalableTopic != null) {
+                    // a scalable topic's subscription spans its segments and its consumer group
+                    pulsarAdmin.scalableTopics().deleteSubscription(scalableTopic, subscriptionName);
                 } else {
                     pulsarAdmin.topics().deleteSubscription(topic,
                       subscriptionName);
@@ -644,7 +719,8 @@ public class FunctionActioner {
                       .build())
                   .run();
             } catch (InterruptedException e) {
-                log.error("Error setting up instance subscription for intermediate topic", e);
+                log.error().exception(e)
+                        .log("Error setting up instance subscription for intermediate topic");
                 throw new RuntimeException(e);
             }
         }

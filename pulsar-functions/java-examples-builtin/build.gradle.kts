@@ -22,6 +22,9 @@ plugins {
     id("pulsar.nar-conventions")
 }
 
+// This is an example module — don't publish to Maven repositories
+tasks.withType<PublishToMavenRepository>().configureEach { enabled = false }
+
 dependencies {
     implementation(project(":pulsar-functions:pulsar-functions-api-examples"))
 }

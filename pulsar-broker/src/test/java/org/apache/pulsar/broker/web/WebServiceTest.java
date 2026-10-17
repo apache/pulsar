@@ -56,6 +56,7 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.PulsarService;
@@ -72,14 +73,12 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.common.util.SecurityUtility;
+import org.apache.pulsar.common.util.tls.PemReader;
 import org.apache.pulsar.utils.ResourceUtils;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.BoundRequestBuilder;
 import org.asynchttpclient.DefaultAsyncHttpClient;
 import org.asynchttpclient.Response;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
@@ -89,6 +88,7 @@ import org.testng.annotations.Test;
  * tests for now as this test class was added quite a bit after the class was written.
  */
 @Test(groups = "broker")
+@CustomLog
 public class WebServiceTest {
 
     private PulsarTestContext pulsarTestContext;
@@ -106,7 +106,6 @@ public class WebServiceTest {
             ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.cert.pem");
     private static final String CLIENT_KEY_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.key-pk8.pem");
-
 
     @Test
     public void testWebExecutorMetrics() throws Exception {
@@ -269,7 +268,8 @@ public class WebServiceTest {
 
     @Test
     public void testRateLimiting() throws Exception {
-        setupEnv(false, false, false, false, 10.0, false);
+        double rateLimit = 10.0;
+        setupEnv(false, false, false, false, rateLimit, false);
 
         // setupEnv makes HTTP calls to create the cluster, tenant, and namespace.
         var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
@@ -283,7 +283,7 @@ public class WebServiceTest {
         // Make requests without exceeding the max rate
         for (int i = 0; i < 5; i++) {
             makeHttpRequest(false, false);
-            Thread.sleep(200);
+            Thread.sleep(rateLimitPauseMillis(rateLimit));
         }
 
         metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
@@ -422,10 +422,10 @@ public class WebServiceTest {
                 }
             }
 
-            log.info("Response Content: {}", content);
+            log.info().attr("responseContent", content).log("Response Content");
             assertTrue(content.toString().contains("process_cpu_seconds_total"));
         } catch (IOException e) {
-            log.error("Failed to decompress the content, likely the content is not compressed ", e);
+            log.error().exception(e).log("Failed to decompress the content, likely the content is not compressed ");
             fail();
         } finally {
             connection.disconnect();
@@ -460,7 +460,7 @@ public class WebServiceTest {
             connection.disconnect();
         }
 
-        log.info("Response Content: {}", content);
+        log.info().attr("responseContent", content).log("Response Content");
 
         assertTrue(content.toString().contains("process_cpu_seconds_total"));
     }
@@ -471,8 +471,8 @@ public class WebServiceTest {
             if (useTls) {
                 KeyManager[] keyManagers = null;
                 if (useAuth) {
-                    Certificate[] tlsCert = SecurityUtility.loadCertificatesFromPemFile(CLIENT_CERT_FILE_PATH);
-                    PrivateKey tlsKey = SecurityUtility.loadPrivateKeyFromPemFile(CLIENT_KEY_FILE_PATH);
+                    Certificate[] tlsCert = PemReader.loadCertificatesFromPemFile(CLIENT_CERT_FILE_PATH);
+                    PrivateKey tlsKey = PemReader.loadPrivateKeyFromPemFile(CLIENT_KEY_FILE_PATH);
 
                     KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
                     ks.load(null, null);
@@ -491,7 +491,7 @@ public class WebServiceTest {
                 response = new URL(brokerLookUpUrl).openStream();
             }
             String resp = CharStreams.toString(new InputStreamReader(response));
-            log.info("Response: {}", resp);
+            log.info().attr("response", resp).log("Response");
             return resp;
         } finally {
             Closeables.close(response, false);
@@ -573,13 +573,32 @@ public class WebServiceTest {
         } catch (ConflictException ce) {
             // This is OK.
         }
+        sleepForRateLimiter(rateLimit);
+
         try {
             pulsarAdmin.tenants().createTenant("my-property",
                     TenantInfo.builder().allowedClusters(Sets.newHashSet(config.getClusterName())).build());
+        } catch (Exception e) {
+            // This is OK.
+        }
+        sleepForRateLimiter(rateLimit);
+
+        try {
             pulsarAdmin.namespaces().createNamespace("my-property/my-namespace");
         } catch (Exception e) {
             // This is OK.
         }
+        sleepForRateLimiter(rateLimit);
+    }
+
+    private static void sleepForRateLimiter(double rateLimit) throws InterruptedException {
+        if (rateLimit > 0) {
+            Thread.sleep(rateLimitPauseMillis(rateLimit));
+        }
+    }
+
+    private static long rateLimitPauseMillis(double rateLimit) {
+        return (long) Math.ceil((1000.0 / rateLimit) * 2);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -595,5 +614,4 @@ public class WebServiceTest {
         pulsar = null;
     }
 
-    private static final Logger log = LoggerFactory.getLogger(WebServiceTest.class);
 }

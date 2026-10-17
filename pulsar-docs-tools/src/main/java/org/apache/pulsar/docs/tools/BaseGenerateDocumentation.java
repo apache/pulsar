@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.docs.tools;
 
-import io.swagger.annotations.ApiModelProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.io.Serializable;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
@@ -29,8 +29,8 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import lombok.CustomLog;
 import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.reflect.MethodUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -39,7 +39,7 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.ScopeType;
 
-@Slf4j
+@CustomLog
 @Command(name = "gen-doc", showDefaultValues = true, scope = ScopeType.INHERIT)
 public abstract class BaseGenerateDocumentation implements Callable<Integer> {
 
@@ -76,14 +76,14 @@ public abstract class BaseGenerateDocumentation implements Callable<Integer> {
 
     protected abstract String generateDocumentByClassName(String className) throws Exception;
 
-    protected Predicate<Field> isRequiredApiModel = field -> {
-        ApiModelProperty modelProperty = field.getAnnotation(ApiModelProperty.class);
-        return modelProperty.required();
+    protected Predicate<Field> isRequiredSchema = field -> {
+        Schema schema = field.getAnnotation(Schema.class);
+        return schema.requiredMode() == Schema.RequiredMode.REQUIRED;
     };
 
-    protected Predicate<Field> isOptionalApiModel = field -> {
-        ApiModelProperty modelProperty = field.getAnnotation(ApiModelProperty.class);
-        return !modelProperty.required();
+    protected Predicate<Field> isOptionalSchema = field -> {
+        Schema schema = field.getAnnotation(Schema.class);
+        return schema.requiredMode() != Schema.RequiredMode.REQUIRED;
     };
 
     private Annotation getFieldContextAnnotation(Field field) {
@@ -150,14 +150,14 @@ public abstract class BaseGenerateDocumentation implements Callable<Integer> {
         }
     }
 
-    protected void writeDocListByApiModel(List<Field> fieldList, StringBuilder sb, Object obj) throws Exception {
+    protected void writeDocListBySchema(List<Field> fieldList, StringBuilder sb, Object obj) throws Exception {
         for (Field field : fieldList) {
-            ApiModelProperty modelProperty = field.getAnnotation(ApiModelProperty.class);
+            Schema schema = field.getAnnotation(Schema.class);
             field.setAccessible(true);
 
-            String name = StringUtils.isBlank(modelProperty.name()) ? field.getName() : modelProperty.name();
+            String name = StringUtils.isBlank(schema.name()) ? field.getName() : schema.name();
             sb.append("### ").append(name).append("\n");
-            sb.append(modelProperty.value().replace(">", "\\>")).append("\n\n");
+            sb.append(schema.description().replace(">", "\\>")).append("\n\n");
             sb.append("**Type**: `").append(field.getType().getCanonicalName()).append("`\n\n");
             sb.append("**Default**: `").append(field.get(obj)).append("`\n\n");
         }
@@ -212,7 +212,7 @@ public abstract class BaseGenerateDocumentation implements Callable<Integer> {
         return sb.toString();
     }
 
-    protected String generateDocByApiModelProperty(String className, String type) throws Exception {
+    protected String generateDocBySchema(String className, String type) throws Exception {
         final StringBuilder sb = new StringBuilder();
 
         Class<?> clazz = Class.forName(className);
@@ -220,16 +220,16 @@ public abstract class BaseGenerateDocumentation implements Callable<Integer> {
         Field[] fields = clazz.getDeclaredFields();
         ArrayList<Field> fieldList = new ArrayList<>(Arrays.asList(fields));
 
-        fieldList.removeIf(f -> f.getAnnotation(ApiModelProperty.class) == null);
+        fieldList.removeIf(f -> f.getAnnotation(Schema.class) == null);
         fieldList.sort(Comparator.comparing(Field::getName));
-        List<Field> requiredFields = fieldList.stream().filter(isRequiredApiModel).collect(Collectors.toList());
-        List<Field> optionalFields = fieldList.stream().filter(isOptionalApiModel).collect(Collectors.toList());
+        List<Field> requiredFields = fieldList.stream().filter(isRequiredSchema).collect(Collectors.toList());
+        List<Field> optionalFields = fieldList.stream().filter(isOptionalSchema).collect(Collectors.toList());
 
         sb.append("# ").append(type).append("\n\n");
         sb.append("## Required\n");
-        writeDocListByApiModel(requiredFields, sb, obj);
+        writeDocListBySchema(requiredFields, sb, obj);
         sb.append("## Optional\n");
-        writeDocListByApiModel(optionalFields, sb, obj);
+        writeDocListBySchema(optionalFields, sb, obj);
 
         return sb.toString();
     }

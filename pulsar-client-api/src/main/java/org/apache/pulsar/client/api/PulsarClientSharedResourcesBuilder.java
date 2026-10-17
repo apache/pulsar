@@ -119,4 +119,20 @@ public interface PulsarClientSharedResourcesBuilder {
      */
     PulsarClientSharedResourcesBuilder configureTimer(Consumer<TimerConfig> configurer);
 
+    /**
+     * Configures the memory limit settings.
+     *
+     * @param configurer a consumer that configures the memory limit settings
+     * @return this builder instance for method chaining
+     */
+    PulsarClientSharedResourcesBuilder configureMemoryLimitController(Consumer<MemoryLimitConfig> configurer);
+
+    /**
+     * Configures the open telemetry settings.
+     *
+     * @param configurer a consumer that configures the open telemetry settings
+     * @return this builder instance for method chaining
+     */
+    PulsarClientSharedResourcesBuilder configureOpenTelemetry(Consumer<OpenTelemetryConfig> configurer);
+
 }

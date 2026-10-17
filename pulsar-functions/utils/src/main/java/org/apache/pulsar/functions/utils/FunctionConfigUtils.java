@@ -38,9 +38,9 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import lombok.AllArgsConstructor;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.description.type.TypeDefinition;
 import net.bytebuddy.pool.TypePool;
 import org.apache.commons.lang3.StringUtils;
@@ -64,7 +64,7 @@ import org.apache.pulsar.functions.proto.SourceSpec;
 import org.apache.pulsar.functions.proto.SubscriptionPosition;
 import org.apache.pulsar.functions.proto.SubscriptionType;
 
-@Slf4j
+@CustomLog
 public class FunctionConfigUtils {
 
     @Getter
@@ -379,6 +379,9 @@ public class FunctionConfigUtils {
             functionDetails.setBuiltin(builtin);
         }
 
+        functionDetails.setClientApi(FunctionCommon.convertClientApi(functionConfig.getClientApi()));
+        ClientApiResolver.resolve(functionDetails);
+
         return validateFunctionDetails(functionDetails);
     }
 
@@ -431,6 +434,9 @@ public class FunctionConfigUtils {
             Map<String, String> schemaProps = new HashMap<>();
             input.forEachSchemaProperties(schemaProps::put);
             consumerConfig.setSchemaProperties(schemaProps);
+            Map<String, String> consumerProps = new HashMap<>();
+            input.forEachConsumerProperties(consumerProps::put);
+            consumerConfig.setConsumerProperties(consumerProps);
             consumerConfig.setPoolMessages(input.isPoolMessages());
             consumerConfigMap.put(topicName, consumerConfig);
         });
@@ -465,6 +471,7 @@ public class FunctionConfigUtils {
         if (!isEmpty(functionDetails.getLogTopic())) {
             functionConfig.setLogTopic(functionDetails.getLogTopic());
         }
+        functionConfig.setClientApi(FunctionCommon.convertClientApi(functionDetails.getClientApi()));
         if (functionDetails.getSink().isForwardSourceMessageProperty()) {
             functionConfig.setForwardSourceMessageProperty(functionDetails.getSink().isForwardSourceMessageProperty());
         }
@@ -754,8 +761,15 @@ public class FunctionConfigUtils {
             throw new IllegalArgumentException("There is currently no support windowing in python");
         }
 
-        if (functionConfig.getMaxMessageRetries() != null && functionConfig.getMaxMessageRetries() >= 0) {
-            throw new IllegalArgumentException("Message retries not yet supported in python");
+        // The Python runtime honours FunctionDetails.retryDetails, so message retries and a dead letter
+        // topic are no longer refused outright. Zero is still refused: it asks for no redelivery at all
+        // before the dead letter topic, and the Python client cannot express that -- ConsumerDeadLetterPolicy
+        // requires a maxRedeliverCount of at least 1. Accepting it would create a function whose dead letter
+        // topic never receives anything, which is the silently ineffective configuration this support was
+        // added to remove. A negative value leaves retries unset, as it does on the Java path.
+        if (functionConfig.getMaxMessageRetries() != null && functionConfig.getMaxMessageRetries() == 0) {
+            throw new IllegalArgumentException("maxMessageRetries must be at least 1 in python; the Python "
+                    + "client cannot express a redelivery count of 0");
         }
     }
 
@@ -770,10 +784,6 @@ public class FunctionConfigUtils {
 
         if (functionConfig.getMaxMessageRetries() != null && functionConfig.getMaxMessageRetries() >= 0) {
             throw new IllegalArgumentException("Message retries not yet supported in Go function");
-        }
-
-        if (functionConfig.getRetainKeyOrdering() != null && functionConfig.getRetainKeyOrdering()) {
-            throw new IllegalArgumentException("Retain Key Orderering not yet supported in Go function");
         }
     }
 
@@ -1062,6 +1072,9 @@ public class FunctionConfigUtils {
         }
         if (!StringUtils.isEmpty(newConfig.getLogTopic())) {
             mergedConfig.setLogTopic(newConfig.getLogTopic());
+        }
+        if (newConfig.getClientApi() != null) {
+            mergedConfig.setClientApi(newConfig.getClientApi());
         }
         if (newConfig.getProcessingGuarantees() != null && !newConfig.getProcessingGuarantees()
                 .equals(existingConfig.getProcessingGuarantees())) {

@@ -30,9 +30,9 @@ import io.netty.buffer.ByteBufAllocator;
 import java.util.Collections;
 import java.util.List;
 import lombok.AllArgsConstructor;
+import lombok.CustomLog;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaValidationException;
 import org.apache.pulsar.client.api.SchemaSerializationException;
@@ -56,7 +56,7 @@ import org.skyscreamer.jsonassert.JSONAssert;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class JSONSchemaTest {
 
     public static void assertJSONEqual(String s1, String s2) throws JSONException{

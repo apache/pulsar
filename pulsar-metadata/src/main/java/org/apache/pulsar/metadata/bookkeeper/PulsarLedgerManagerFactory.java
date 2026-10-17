@@ -26,7 +26,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.conf.AbstractConfiguration;
 import org.apache.bookkeeper.meta.AbstractZkLedgerManager;
 import org.apache.bookkeeper.meta.LayoutManager;
@@ -38,7 +38,7 @@ import org.apache.bookkeeper.meta.LedgerUnderreplicationManager;
 import org.apache.bookkeeper.replication.ReplicationException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
-@Slf4j
+@CustomLog
 public class PulsarLedgerManagerFactory implements LedgerManagerFactory {
 
     private static final int CUR_VERSION = 1;
@@ -126,8 +126,8 @@ public class PulsarLedgerManagerFactory implements LedgerManagerFactory {
         for (String ledgersRootPathChildren : ledgersRootPathChildrenList) {
             if ((!AbstractZkLedgerManager.isSpecialZnode(ledgersRootPathChildren))
                     && (!ledgerManager.isLedgerParentNode(ledgersRootPathChildren))) {
-                log.error("Found unexpected node : {} under ledgersRootPath : {} so exiting nuke operation",
-                        ledgersRootPathChildren, ledgerRootPath);
+                log.error().attr("node", ledgersRootPathChildren).attr("ledgersRootPath", ledgerRootPath)
+                        .log("Found unexpected node under ledgersRootPath, exiting nuke operation");
                 return false;
             }
         }
@@ -152,8 +152,8 @@ public class PulsarLedgerManagerFactory implements LedgerManagerFactory {
                     throw new IOException(e);
                 }
             } else {
-                log.error("Found unexpected node : {} under ledgersRootPath : {} so exiting nuke operation",
-                        ledgersRootPathChild, ledgerRootPath);
+                log.error().attr("node", ledgersRootPathChild).attr("ledgersRootPath", ledgerRootPath)
+                        .log("Found unexpected node under ledgersRootPath, exiting nuke operation");
                 return false;
             }
         }

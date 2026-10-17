@@ -30,7 +30,7 @@ import java.util.List;
 import java.util.Set;
 import javax.crypto.SecretKey;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
@@ -52,7 +52,7 @@ import org.testng.annotations.Test;
  * Unit tests for schema admin api.
  */
 @SuppressWarnings("deprecation")
-@Slf4j
+@CustomLog
 @Test(groups = "broker-admin")
 public class AdminApiSchemaWithAuthTest extends MockedPulsarServiceBaseTest {
 

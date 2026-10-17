@@ -30,12 +30,12 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
-@Slf4j
+@CustomLog
 public class IOConfigUtils {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -69,7 +69,8 @@ public class IOConfigUtils {
                         try {
                             secret = secretsGetter.apply(field.getName());
                         } catch (Exception e) {
-                            log.warn("Failed to read secret {}", field.getName(), e);
+                            log.warn().attr("secret", field.getName()).exception(e)
+                                    .log("Failed to read secret");
                             break;
                         }
                         if (secret != null) {

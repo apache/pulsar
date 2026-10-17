@@ -24,7 +24,7 @@ import java.nio.file.Path;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.RandomUtils;
 import org.apache.pulsar.metadata.api.GetResult;
@@ -36,7 +36,7 @@ import org.apache.pulsar.metadata.api.Stat;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class RocksdbMetadataStoreTest {
 
     @Test
@@ -66,10 +66,10 @@ public class RocksdbMetadataStoreTest {
         MetadataStore store;
         Path tempDir;
         tempDir = Files.createTempDirectory("RocksdbMetadataStoreTest");
-        log.info("Temp dir:{}", tempDir.toAbsolutePath());
+        log.info().attr("tempDir", tempDir.toAbsolutePath()).log("Temp dir");
         String optionFilePath =
                 getClass().getClassLoader().getResource("rocksdb_option_file_example.ini").getPath();
-        log.info("optionFilePath={}", optionFilePath);
+        log.info().attr("optionFilePath", optionFilePath).log("Option file path");
         store = MetadataStoreFactory.create("rocksdb:" + tempDir.toAbsolutePath(),
                 MetadataStoreConfig.builder().configFilePath(optionFilePath).build());
         Assert.assertTrue(store instanceof RocksdbMetadataStore);
@@ -90,7 +90,7 @@ public class RocksdbMetadataStoreTest {
         });
 
         Assert.assertNotNull(f.get());
-        log.info("put result:{}", f.get());
+        log.info().attr("result", f.get()).log("put result");
         Assert.assertNotNull(store.put(path + "/a", data, Optional.of(-1L)));
         Assert.assertNotNull(store.put(path + "/b", data, Optional.of(-1L)));
         Assert.assertNotNull(store.put(path + "/c", data, Optional.of(-1L)));
@@ -117,7 +117,7 @@ public class RocksdbMetadataStoreTest {
     public void testMultipleInstances() throws Exception {
 
         Path tempDir = Files.createTempDirectory("RocksdbMetadataStoreTest");
-        log.info("Temp dir:{}", tempDir.toAbsolutePath());
+        log.info().attr("tempDir", tempDir.toAbsolutePath()).log("Temp dir");
         MetadataStore store1 = MetadataStoreFactory.create("rocksdb:" + tempDir.toAbsolutePath(),
                 MetadataStoreConfig.builder().build());
 

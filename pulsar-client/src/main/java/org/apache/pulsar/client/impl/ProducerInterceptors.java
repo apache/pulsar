@@ -21,20 +21,18 @@ package org.apache.pulsar.client.impl;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.interceptor.ProducerInterceptor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A container that holds the list{@link ProducerInterceptor}
  * and wraps calls to the chain of custom interceptors.
  */
+@CustomLog
 public class ProducerInterceptors implements Closeable {
-
-    private static final Logger log = LoggerFactory.getLogger(ProducerInterceptors.class);
 
     private final List<ProducerInterceptor> interceptors;
 
@@ -67,10 +65,11 @@ public class ProducerInterceptors implements Closeable {
                 interceptorMessage = interceptor.beforeSend(producer, interceptorMessage);
             } catch (Throwable e) {
                 if (producer != null) {
-                    log.warn("Error executing interceptor beforeSend callback for topicName:{} ",
-                            producer.getTopic(), e);
+                    log.warn().attr("topic", producer.getTopic())
+                            .exception(e)
+                            .log("Error executing interceptor beforeSend callback for topicName");
                 } else {
-                    log.warn("Error Error executing interceptor beforeSend callback ", e);
+                    log.warn().exception(e).log("Error Error executing interceptor beforeSend callback ");
                 }
             }
         }
@@ -99,7 +98,7 @@ public class ProducerInterceptors implements Closeable {
                 }
                 interceptor.onSendAcknowledgement(producer, message, msgId, exception);
             } catch (Throwable e) {
-                log.warn("Error executing interceptor onSendAcknowledgement callback ", e);
+                log.warn().exception(e).log("Error executing interceptor onSendAcknowledgement callback ");
             }
         }
     }
@@ -109,7 +108,7 @@ public class ProducerInterceptors implements Closeable {
             try {
                 interceptor.onPartitionsChange(topicName, partitions);
             } catch (Throwable e) {
-                log.warn("Error executing interceptor onPartitionsChange callback ", e);
+                log.warn().exception(e).log("Error executing interceptor onPartitionsChange callback ");
             }
         }
     }
@@ -120,7 +119,7 @@ public class ProducerInterceptors implements Closeable {
             try {
                 interceptor.close();
             } catch (Throwable e) {
-                log.error("Fail to close producer interceptor ", e);
+                log.error().exception(e).log("Fail to close producer interceptor ");
             }
         }
     }

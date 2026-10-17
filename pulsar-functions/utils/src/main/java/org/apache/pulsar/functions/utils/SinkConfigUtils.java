@@ -37,10 +37,10 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import lombok.AllArgsConstructor;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.description.type.TypeDefinition;
 import net.bytebuddy.pool.TypePool;
 import org.apache.commons.lang3.StringUtils;
@@ -65,7 +65,7 @@ import org.apache.pulsar.functions.proto.SourceSpec;
 import org.apache.pulsar.functions.proto.SubscriptionPosition;
 import org.apache.pulsar.functions.proto.SubscriptionType;
 
-@Slf4j
+@CustomLog
 public class SinkConfigUtils {
 
     @Getter
@@ -273,6 +273,9 @@ public class SinkConfigUtils {
             functionDetails.setCustomRuntimeOptions(sinkConfig.getCustomRuntimeOptions());
         }
 
+        functionDetails.setClientApi(FunctionCommon.convertClientApi(sinkConfig.getClientApi()));
+        ClientApiResolver.resolve(functionDetails);
+
         return FunctionConfigUtils.validateFunctionDetails(functionDetails);
     }
 
@@ -331,6 +334,7 @@ public class SinkConfigUtils {
         if (!isEmpty(functionDetails.getLogTopic())) {
             sinkConfig.setLogTopic(functionDetails.getLogTopic());
         }
+        sinkConfig.setClientApi(FunctionCommon.convertClientApi(functionDetails.getClientApi()));
 
         sinkConfig.setProcessingGuarantees(convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
 
@@ -363,8 +367,8 @@ public class SinkConfigUtils {
                         ObjectMapperFactory.getMapper().getObjectMapper()
                                 .readValue(functionDetails.getSink().getConfigs(), typeRef);
             } catch (IOException e) {
-                log.error("Failed to read configs for sink {}", FunctionCommon.getFullyQualifiedName(functionDetails),
-                        e);
+                log.error().attr("sink", FunctionCommon.getFullyQualifiedName(functionDetails))
+                        .exception(e).log("Failed to read configs for sink");
                 throw new RuntimeException(e);
             }
             sinkConfig.setConfigs(configMap);
@@ -635,6 +639,9 @@ public class SinkConfigUtils {
         }
         if (!StringUtils.isEmpty(newConfig.getLogTopic())) {
             mergedConfig.setLogTopic(newConfig.getLogTopic());
+        }
+        if (newConfig.getClientApi() != null) {
+            mergedConfig.setClientApi(newConfig.getClientApi());
         }
 
         if (newConfig.getInputs() != null) {
