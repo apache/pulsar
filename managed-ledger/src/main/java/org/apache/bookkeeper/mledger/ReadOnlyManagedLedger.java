@@ -33,8 +33,15 @@ public interface ReadOnlyManagedLedger extends AutoCloseable {
     /**
      * Close this read-only managed ledger, releasing cached read handles and
      * other BookKeeper resources. Safe to call once; subsequent calls are no-ops.
+     *
+     * <p>Default implementation is a no-op to preserve binary compatibility with
+     * existing custom read-only ledger backends introduced by PIP-384. Built-in
+     * implementations ({@link ManagedLedgerImpl}, {@link ReadOnlyManagedLedgerImplWrapper})
+     * override this to perform actual cleanup.
      */
     @Override
-    void close() throws InterruptedException, ManagedLedgerException;
+    default void close() throws Exception {
+        // Default no-op for backward compatibility with PIP-384 custom implementations
+    }
 
 }

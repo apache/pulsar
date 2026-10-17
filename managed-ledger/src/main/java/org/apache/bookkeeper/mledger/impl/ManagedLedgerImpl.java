@@ -2422,6 +2422,18 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     CompletableFuture<ReadHandle> getLedgerHandle(long ledgerId) {
+        // Pre-check: reject admission after shutdown to prevent inserting handles
+        // that would never be invalidated by asyncClose.
+        State currentState = STATE_UPDATER.get(this);
+        if (currentState == State.Closed) {
+            return CompletableFuture.failedFuture(
+                    new ManagedLedgerAlreadyClosedException("Managed ledger is closed"));
+        }
+        if (currentState == State.Terminated) {
+            return CompletableFuture.failedFuture(
+                    new ManagedLedgerTerminatedException("Managed ledger is terminated"));
+        }
+
         CompletableFuture<ReadHandle> ledgerHandle = ledgerCache.get(ledgerId);
         if (ledgerHandle != null) {
             return ledgerHandle;
@@ -2480,8 +2492,29 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     ledgerCache.remove(ledgerId, promise);
                     promise.completeExceptionally(createManagedLedgerException(ex));
                 } else {
-                    log.debug().attr("ledgerId", ledgerId).log("Successfully opened ledger for reading");
-                    promise.complete(res);
+                    // Post-check: if the state transitioned to Closed or Terminated while
+                    // the open was in flight, close the freshly created handle and remove
+                    // it from the cache so we don't leak handles inserted after asyncClose drained.
+                    State finalState = STATE_UPDATER.get(this);
+                    if (finalState == State.Closed || finalState == State.Terminated) {
+                        log.debug().attr("ledgerId", ledgerId)
+                                .attr("state", finalState)
+                                .log("Handle opened after shutdown, closing immediately");
+                        ledgerCache.remove(ledgerId, promise);
+                        res.closeAsync().whenComplete((v, closeEx) -> {
+                            if (closeEx != null) {
+                                log.warn().attr("ledgerId", ledgerId).exception(closeEx)
+                                        .log("Failed to close late-inserted read handle");
+                            }
+                        });
+                        promise.completeExceptionally(
+                                new ManagedLedgerAlreadyClosedException(
+                                        "Managed ledger closed while opening ledger for reading"));
+                    } else {
+                        log.debug().attr("ledgerId", ledgerId)
+                                .log("Successfully opened ledger for reading");
+                        promise.complete(res);
+                    }
                 }
             }, executor);
             return promise;
