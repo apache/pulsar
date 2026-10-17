@@ -235,6 +235,42 @@ public class PendingAcksMapTest {
     }
 
     @Test
+    public void removeAllUpTo_KeepsAnEntryThatTheCallbackAddsToAnotherLedgerAfterEmptyingTheCurrentOne() {
+        Consumer consumer = createMockConsumer("consumer1");
+        PendingAcksMap pendingAcksMap = new PendingAcksMap(consumer, () -> null, () -> null);
+        pendingAcksMap.addPendingAckIfAllowed(1L, 1L, 1, 123);
+
+        pendingAcksMap.removeAllUpTo(1L, 1L, (ledgerId, entryId, batchSize, stickyKeyHash) -> {
+            // emptying the ledger map that the removal iterates, then adding an entry to another ledger
+            pendingAcksMap.remove(1L, 1L);
+            pendingAcksMap.addPendingAckIfAllowed(2L, 1L, 1, 124);
+        });
+
+        assertFalse(pendingAcksMap.contains(1L, 1L));
+        assertTrue(pendingAcksMap.contains(2L, 1L));
+        assertEquals(pendingAcksMap.size(), 1);
+    }
+
+    @Test
+    public void forEachAndClear_DoesntVisitAnEntryThatTheCallbackAddsToAnotherLedgerAfterEmptyingTheCurrentOne() {
+        Consumer consumer = createMockConsumer("consumer1");
+        PendingAcksMap pendingAcksMap = new PendingAcksMap(consumer, () -> null, () -> null);
+        pendingAcksMap.addPendingAckIfAllowed(1L, 1L, 1, 123);
+        List<String> visited = new ArrayList<>();
+
+        pendingAcksMap.forEachAndClear((ledgerId, entryId, batchSize, stickyKeyHash) -> {
+            visited.add(ledgerId + ":" + entryId);
+            if (ledgerId == 1L) {
+                pendingAcksMap.remove(1L, 1L);
+                pendingAcksMap.addPendingAckIfAllowed(2L, 5L, 1, 124);
+            }
+        });
+
+        assertEquals(visited, List.of("1:1"));
+        assertEquals(pendingAcksMap.size(), 0);
+    }
+
+    @Test
     public void removeAllUpTo_KeepsTheSizeWhenTheCallbackThrows() {
         Consumer consumer = createMockConsumer("consumer1");
         PendingAcksMap pendingAcksMap = new PendingAcksMap(consumer, () -> null, () -> null);

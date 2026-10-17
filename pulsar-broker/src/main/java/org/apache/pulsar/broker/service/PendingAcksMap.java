@@ -114,6 +114,9 @@ public class PendingAcksMap {
     // A ledger map that became empty, reused for the next ledger: a consumer whose pending acks drop to none between
     // messages, as on a topic with a low rate, doesn't allocate a ledger map for each message. Guarded by the lock
     private PendingAcksLedgerMap emptyLedgerMap;
+    // The number of traversals whose callbacks may change the map. While one runs, a ledger map that a callback empties
+    // isn't reused: the traversal may still be iterating it. Guarded by the write lock
+    private int mutableTraversals;
 
     PendingAcksMap(Consumer consumer, Supplier<PendingAcksAddHandler> pendingAcksAddHandlerSupplier,
                    Supplier<PendingAcksRemoveHandler> pendingAcksRemoveHandlerSupplier) {
@@ -222,6 +225,7 @@ public class PendingAcksMap {
     private void internalForEachAndClear(PendingAcksConsumer processor, boolean close) {
         try {
             writeLock.lock();
+            mutableTraversals++;
             if (close) {
                 closed = true;
             }
@@ -242,6 +246,7 @@ public class PendingAcksMap {
             pendingAcks.clear();
             size = 0;
         } finally {
+            mutableTraversals--;
             writeLock.unlock();
         }
     }
@@ -311,7 +316,7 @@ public class PendingAcksMap {
             handleRemovePendingAck(ledgerId, entryId, stickyKeyHash);
             if (ledgerMap.isEmpty()) {
                 pendingAcks.remove(ledgerId);
-                emptyLedgerMap = ledgerMap;
+                recycleEmptyLedgerMap(ledgerMap);
             }
             return true;
         } finally {
@@ -372,7 +377,7 @@ public class PendingAcksMap {
             handleRemovePendingAck(ledgerId, entryId, PendingAckValues.stickyKeyHash(removedEntry));
             if (ledgerMap.isEmpty()) {
                 pendingAcks.remove(ledgerId);
-                emptyLedgerMap = ledgerMap;
+                recycleEmptyLedgerMap(ledgerMap);
             }
             return true;
         } finally {
@@ -400,7 +405,7 @@ public class PendingAcksMap {
             handleRemovePendingAck(ledgerId, entryId, PendingAckValues.stickyKeyHash(removedEntry));
             if (ledgerMap.isEmpty()) {
                 pendingAcks.remove(ledgerId);
-                emptyLedgerMap = ledgerMap;
+                recycleEmptyLedgerMap(ledgerMap);
             }
             return PendingAckValues.remainingUnacked(removedEntry);
         } finally {
@@ -446,6 +451,7 @@ public class PendingAcksMap {
             if (useWriteLock) {
                 writeLock.lock();
                 acquiredWriteLock = true;
+                mutableTraversals++;
             } else {
                 readLock.lock();
             }
@@ -489,7 +495,7 @@ public class PendingAcksMap {
                 }
                 if (ledgerMap.isEmpty()) {
                     ledgerMapIterator.remove();
-                    emptyLedgerMap = ledgerMap;
+                    recycleEmptyLedgerMap(ledgerMap);
                 }
             }
         } finally {
@@ -497,6 +503,7 @@ public class PendingAcksMap {
                 pendingAcksRemoveHandler.endBatch();
             }
             if (acquiredWriteLock) {
+                mutableTraversals--;
                 writeLock.unlock();
             } else {
                 readLock.unlock();
@@ -504,6 +511,12 @@ public class PendingAcksMap {
                     internalRemoveAllUpTo(markDeleteLedgerId, markDeleteEntryId, true, removedEntryCallback);
                 }
             }
+        }
+    }
+
+    private void recycleEmptyLedgerMap(PendingAcksLedgerMap ledgerMap) {
+        if (mutableTraversals == 0) {
+            emptyLedgerMap = ledgerMap;
         }
     }
 
