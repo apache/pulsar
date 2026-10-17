@@ -21,6 +21,7 @@ package org.apache.pulsar.common.semaphore;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -45,6 +46,7 @@ import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter.AsyncDualMemoryLimiterPermit;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter.LimitType;
 import org.apache.pulsar.common.semaphore.AsyncSemaphore.PermitAcquireCancelledException;
+import org.apache.pulsar.common.semaphore.AsyncSemaphore.PermitAcquireLimitExceededException;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -598,6 +600,149 @@ public class AsyncDualMemoryLimiterUtilTest {
         assertThat(result).failsWithin(Duration.ofSeconds(1));
         assertThat(limiter.getLimiter(LimitType.HEAP_MEMORY).getAcquiredPermits()).isEqualTo(0);
         assertThat(limiter.getLimiter(LimitType.HEAP_MEMORY).getAvailablePermits()).isEqualTo(10000);
+    }
+
+    @Test
+    public void testWithAcquiredPermitsSkipsFunctionWhenCancelledAfterPermitsAreGranted() throws Exception {
+        // the request gets cancelled after the permits have been granted, but before the function is executed
+        AtomicBoolean cancelled = new AtomicBoolean(false);
+        CompletableFuture<AsyncDualMemoryLimiterPermit> permitFuture =
+                limiter.acquire(100, LimitType.HEAP_MEMORY, cancelled::get);
+        assertThat(permitFuture).succeedsWithin(Duration.ofSeconds(1));
+        cancelled.set(true);
+
+        AtomicBoolean functionExecuted = new AtomicBoolean(false);
+        AtomicReference<Throwable> capturedError = new AtomicReference<>();
+        CompletableFuture<String> result = AsyncDualMemoryLimiterUtil.withPermitsFuture(
+                permitFuture,
+                cancelled::get,
+                permit -> {
+                    functionExecuted.set(true);
+                    return CompletableFuture.completedFuture("success");
+                },
+                throwable -> {
+                    capturedError.set(throwable);
+                    return CompletableFuture.completedFuture("cancelled");
+                },
+                limiter::release
+        );
+
+        assertThat(result).succeedsWithin(Duration.ofSeconds(1)).isEqualTo("cancelled");
+        assertThat(functionExecuted.get()).isFalse();
+        assertThat(capturedError.get()).isInstanceOf(PermitAcquireCancelledException.class);
+        assertThat(limiter.getLimiter(LimitType.HEAP_MEMORY).getAcquiredPermits()).isEqualTo(0);
+    }
+
+    @Test
+    public void testWithUpdatedPermitsSkipsFunctionWhenCancelledAfterPermitsAreGranted() throws Exception {
+        AtomicBoolean cancelled = new AtomicBoolean(false);
+        AtomicBoolean innerFunctionExecuted = new AtomicBoolean(false);
+        AtomicReference<Throwable> capturedError = new AtomicReference<>();
+        CompletableFuture<String> result = limiter.withAcquiredPermits(100, LimitType.HEAP_MEMORY, cancelled::get,
+                initialPermit -> {
+                    // the request is cancelled while the listing is in progress
+                    cancelled.set(true);
+                    return limiter.withUpdatedPermits(initialPermit, 50, cancelled::get, updatedPermit -> {
+                        innerFunctionExecuted.set(true);
+                        return CompletableFuture.completedFuture("success");
+                    }, throwable -> {
+                        capturedError.set(throwable);
+                        return CompletableFuture.completedFuture("cancelled");
+                    });
+                }, CompletableFuture::failedFuture);
+
+        assertThat(result).succeedsWithin(Duration.ofSeconds(1)).isEqualTo("cancelled");
+        assertThat(innerFunctionExecuted.get()).isFalse();
+        assertThat(capturedError.get()).isInstanceOf(PermitAcquireCancelledException.class);
+        assertThat(limiter.getLimiter(LimitType.HEAP_MEMORY).getAcquiredPermits()).isEqualTo(0);
+    }
+
+    @Test
+    public void testAcquireDirectMemoryPermitsAndWriteAndFlushSkipsWriteWhenCancelledAfterPermitsAreGranted()
+            throws Exception {
+        // simulate a permit grant that races with the cancellation of the request
+        AsyncDualMemoryLimiter dualMemoryLimiter = mock(AsyncDualMemoryLimiter.class);
+        AsyncDualMemoryLimiterPermit permit = mock(AsyncDualMemoryLimiterPermit.class);
+        when(dualMemoryLimiter.acquire(anyLong(), any(), any())).thenReturn(CompletableFuture.completedFuture(permit));
+        ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
+        AtomicReference<Throwable> capturedError = new AtomicReference<>();
+
+        CompletableFuture<Void> result = AsyncDualMemoryLimiterUtil.acquireDirectMemoryPermitsAndWriteAndFlush(
+                ctx,
+                dualMemoryLimiter,
+                () -> true,
+                createTestCommand(),
+                throwable -> {
+                    capturedError.set(throwable);
+                    return CompletableFuture.completedFuture(null);
+                }
+        );
+
+        assertThat(result).succeedsWithin(Duration.ofSeconds(1));
+        verify(ctx, never()).writeAndFlush(any());
+        verify(dualMemoryLimiter, times(1)).release(permit);
+        assertThat(capturedError.get()).isInstanceOf(PermitAcquireCancelledException.class);
+    }
+
+    @Test
+    public void testWithAcquiredPermitsCallsErrorHandlerWhenRequestIsLargerThanLimit() {
+        AtomicBoolean functionExecuted = new AtomicBoolean(false);
+        AtomicReference<Throwable> capturedError = new AtomicReference<>();
+
+        // the limiter rejects the request synchronously, the failure is passed to the error handler
+        CompletableFuture<String> result = limiter.withAcquiredPermits(10001, LimitType.HEAP_MEMORY, () -> false,
+                permit -> {
+                    functionExecuted.set(true);
+                    return CompletableFuture.completedFuture("success");
+                }, throwable -> {
+                    capturedError.set(throwable);
+                    return CompletableFuture.completedFuture("too large");
+                });
+
+        assertThat(result).succeedsWithin(Duration.ofSeconds(1)).isEqualTo("too large");
+        assertThat(functionExecuted.get()).isFalse();
+        assertThat(capturedError.get()).isInstanceOf(PermitAcquireLimitExceededException.class);
+        assertThat(limiter.getLimiter(LimitType.HEAP_MEMORY).getAcquiredPermits()).isEqualTo(0);
+    }
+
+    @Test
+    public void testWithUpdatedPermitsCallsErrorHandlerWhenRequestIsLargerThanLimit() {
+        AtomicBoolean innerFunctionExecuted = new AtomicBoolean(false);
+        AtomicReference<Throwable> capturedError = new AtomicReference<>();
+
+        CompletableFuture<String> result = limiter.withAcquiredPermits(100, LimitType.HEAP_MEMORY, () -> false,
+                initialPermit -> limiter.withUpdatedPermits(initialPermit, 10001, () -> false, updatedPermit -> {
+                    innerFunctionExecuted.set(true);
+                    return CompletableFuture.completedFuture("success");
+                }, throwable -> {
+                    capturedError.set(throwable);
+                    return CompletableFuture.completedFuture("too large");
+                }), CompletableFuture::failedFuture);
+
+        assertThat(result).succeedsWithin(Duration.ofSeconds(1)).isEqualTo("too large");
+        assertThat(innerFunctionExecuted.get()).isFalse();
+        assertThat(capturedError.get()).isInstanceOf(PermitAcquireLimitExceededException.class);
+        // the initial permits are released after the outer function completes
+        assertThat(limiter.getLimiter(LimitType.HEAP_MEMORY).getAcquiredPermits()).isEqualTo(0);
+    }
+
+    @Test
+    public void testAcquireDirectMemoryPermitsAndWriteAndFlushCallsErrorHandlerWhenCommandIsLargerThanLimit() {
+        limiter.close();
+        // a direct memory limit smaller than the serialized command
+        limiter = new AsyncDualMemoryLimiterImpl(10000, 100, 5000, 1, 100, 5000);
+        ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
+        AtomicReference<Throwable> capturedError = new AtomicReference<>();
+
+        CompletableFuture<Void> result = AsyncDualMemoryLimiterUtil.acquireDirectMemoryPermitsAndWriteAndFlush(
+                ctx, limiter, () -> false, createTestCommand(), throwable -> {
+                    capturedError.set(throwable);
+                    return CompletableFuture.completedFuture(null);
+                });
+
+        assertThat(result).succeedsWithin(Duration.ofSeconds(1));
+        verify(ctx, never()).writeAndFlush(any());
+        assertThat(capturedError.get()).isInstanceOf(PermitAcquireLimitExceededException.class);
     }
 
     private BaseCommand createTestCommand() {

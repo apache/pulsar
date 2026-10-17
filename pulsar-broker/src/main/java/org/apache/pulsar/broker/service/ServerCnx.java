@@ -198,6 +198,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterImpl;
+import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterUtil;
 import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.topics.TopicsPattern;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -3544,8 +3545,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                     Map<String, String> properties,
                                                     Semaphore lookupSemaphore) {
         BooleanSupplier isPermitRequestCancelled = () -> !ctx().channel().isActive();
-        TopicListSizeResultCache.ResultHolder
-                listSizeHolder = service.getTopicListSizeResultCache().getTopicListSize(namespaceName.toString(), mode);
+        TopicListSizeResultCache.ResultHolder listSizeHolder = service.getTopicListSizeResultCache()
+                .getTopicListSize(namespaceName.toString(), mode, properties);
         listSizeHolder.getSizeAsync().thenAccept(initialSize -> {
             maxTopicListInFlightLimiter.withAcquiredPermits(initialSize,
                     AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY, isPermitRequestCancelled, initialPermits -> {
@@ -3590,22 +3591,23 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                 return commandSender.sendGetTopicsOfNamespaceResponse(filteredTopics,
                                                         hash,
                                                         filterTopics, !hashUnchanged, requestId, ex -> {
-                                                            log.warn()
-                                                                    .exceptionMessage(ex)
-                                                                    .log("Failed to acquire direct memory permits for "
-                                                                            + "GetTopicsOfNamespace");
-                                                            commandSender.sendErrorResponse(requestId,
-                                                                    ServerError.TooManyRequests,
-                                                                    "Cannot acquire permits for direct memory");
+                                                            if (!isTopicListRequestCancelled(ex,
+                                                                    "Failed to acquire direct memory permits for "
+                                                                            + "GetTopicsOfNamespace")) {
+                                                                commandSender.sendErrorResponse(requestId,
+                                                                        ServerError.TooManyRequests,
+                                                                        "Cannot acquire permits for direct memory");
+                                                            }
                                                             return CompletableFuture.completedFuture(null);
                                                         });
                                             }, t -> {
-                                                log.warn()
-                                                        .exceptionMessage(t)
-                                                        .log("Failed to acquire heap memory permits for "
-                                                                + "GetTopicsOfNamespace");
-                                                writeAndFlush(Commands.newError(requestId, ServerError.TooManyRequests,
-                                                        "Failed due to heap memory limit exceeded"));
+                                                if (!isTopicListRequestCancelled(t,
+                                                        "Failed to acquire heap memory permits for "
+                                                                + "GetTopicsOfNamespace")) {
+                                                    writeAndFlush(Commands.newError(requestId,
+                                                            ServerError.TooManyRequests,
+                                                            "Failed due to heap memory limit exceeded"));
+                                                }
                                                 return CompletableFuture.completedFuture(null);
                                             });
                                 }).whenComplete((__, ___) -> {
@@ -3622,16 +3624,35 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                     return null;
                                 });
                     }, t -> {
-                        log.warn()
-                                .exceptionMessage(t)
-                                .log("Failed to acquire initial heap memory permits for GetTopicsOfNamespace");
                         listSizeHolder.resetIfInitializing();
-                        writeAndFlush(Commands.newError(requestId, ServerError.TooManyRequests,
-                                "Failed due to heap memory limit exceeded"));
+                        if (!isTopicListRequestCancelled(t,
+                                "Failed to acquire initial heap memory permits for GetTopicsOfNamespace")) {
+                            writeAndFlush(Commands.newError(requestId, ServerError.TooManyRequests,
+                                    "Failed due to heap memory limit exceeded"));
+                        }
                         lookupSemaphore.release();
                         return CompletableFuture.completedFuture(null);
                     });
         });
+    }
+
+    /**
+     * Logs a failure to acquire topic list memory permits. A request that was cancelled, because the connection
+     * was closed, is logged at debug level, since there is no client to respond to.
+     *
+     * @return true if the request was cancelled and no error response should be sent
+     */
+    private boolean isTopicListRequestCancelled(Throwable t, String failureMessage) {
+        if (AsyncDualMemoryLimiterUtil.isPermitAcquireCancelled(t)) {
+            log.debug()
+                    .attr("remoteAddress", remoteAddress)
+                    .log("GetTopicsOfNamespace was cancelled since the connection was closed");
+            return true;
+        }
+        log.warn()
+                .exceptionMessage(t)
+                .log(failureMessage);
+        return false;
     }
 
 

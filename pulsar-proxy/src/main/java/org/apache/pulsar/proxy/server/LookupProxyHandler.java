@@ -21,6 +21,7 @@ package org.apache.pulsar.proxy.server;
 import static org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterUtil.acquireDirectMemoryPermitsAndWriteAndFlush;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.util.ReferenceCountUtil;
 import io.prometheus.client.Counter;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -55,6 +56,7 @@ import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterImpl;
+import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterUtil;
 import org.apache.pulsar.common.util.netty.NettyChannelUtil;
 import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
 
@@ -374,7 +376,8 @@ public class LookupProxyHandler {
             command = Commands.newGetTopicsOfNamespaceRequest(namespaceName, requestId, mode,
                     topicsPattern, topicsHash, propertiesMap);
 
-            internalPerformGetTopicsOfNamespace(clientRequestId, namespaceName, mode, clientCnx, command, requestId);
+            internalPerformGetTopicsOfNamespace(clientRequestId, namespaceName, mode, propertiesMap, clientCnx,
+                    command, requestId);
             proxyConnection.getConnectionPool().releaseConnection(clientCnx);
         }).exceptionally(ex -> {
             // Failed to connect to backend broker
@@ -385,11 +388,12 @@ public class LookupProxyHandler {
     }
 
     private void internalPerformGetTopicsOfNamespace(long clientRequestId, String namespaceName,
-                                                     CommandGetTopicsOfNamespace.Mode mode, ClientCnx clientCnx,
+                                                     CommandGetTopicsOfNamespace.Mode mode,
+                                                     Map<String, String> properties, ClientCnx clientCnx,
                                                      ByteBuf command, long requestId) {
         BooleanSupplier isPermitRequestCancelled = () -> !proxyConnection.ctx().channel().isActive();
         TopicListSizeResultCache.ResultHolder
-                listSizeHolder = topicListSizeResultCache.getTopicListSize(namespaceName, mode);
+                listSizeHolder = topicListSizeResultCache.getTopicListSize(namespaceName, mode, properties);
         listSizeHolder.getSizeAsync().thenAccept(initialSize -> {
             maxTopicListInFlightLimiter.withAcquiredPermits(initialSize,
                     AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY, isPermitRequestCancelled, initialPermits -> {
@@ -412,27 +416,27 @@ public class LookupProxyHandler {
                                             return handleWritingGetTopicsResponse(clientRequestId, r,
                                                     isPermitRequestCancelled);
                                         }, t2 -> {
-                                            log.warn()
-                                                    .attr("clientAddress", clientAddress)
-                                                    .attr("GetTopicsOfNamespace", t2.getMessage())
-                                                    .log("Failed to acquire actual heap memory permits for " + "");
-                                            writeAndFlush(
-                                                    Commands.newError(clientRequestId, ServerError.TooManyRequests,
-                                                            "Failed due to heap memory limit exceeded"));
-
+                                            if (!isTopicListRequestCancelled(t2,
+                                                    "Failed to acquire actual heap memory permits for "
+                                                            + "GetTopicsOfNamespace")) {
+                                                writeAndFlush(
+                                                        Commands.newError(clientRequestId,
+                                                                ServerError.TooManyRequests,
+                                                                "Failed due to heap memory limit exceeded"));
+                                            }
                                             return CompletableFuture.completedFuture(null);
                                         });
                             }
                         });
                     }, t -> {
-                        log.warn()
-                                .attr("clientAddress", clientAddress)
-                                .attr("GetTopicsOfNamespace", t.getMessage())
-                                .log("Failed to acquire initial heap memory permits for");
+                        // the command wasn't sent to the broker, release it
+                        ReferenceCountUtil.safeRelease(command);
                         listSizeHolder.resetIfInitializing();
-                        writeAndFlush(Commands.newError(clientRequestId, ServerError.TooManyRequests,
-                                "Failed due to heap memory limit exceeded"));
-
+                        if (!isTopicListRequestCancelled(t,
+                                "Failed to acquire initial heap memory permits for GetTopicsOfNamespace")) {
+                            writeAndFlush(Commands.newError(clientRequestId, ServerError.TooManyRequests,
+                                    "Failed due to heap memory limit exceeded"));
+                        }
                         return CompletableFuture.completedFuture(null);
                     }).exceptionally(ex -> {
                 listSizeHolder.resetIfInitializing();
@@ -449,14 +453,33 @@ public class LookupProxyHandler {
                 r.isChanged(), clientRequestId);
         return acquireDirectMemoryPermitsAndWriteAndFlush(proxyConnection.ctx(), maxTopicListInFlightLimiter,
                 isCancelled, responseCommand, t -> {
-                    log.warn()
-                            .attr("clientAddress", clientAddress)
-                            .attr("GetTopicsOfNamespace", t.getMessage())
-                            .log("Failed to acquire actual direct memory permits for");
-                    writeAndFlush(Commands.newError(clientRequestId, ServerError.TooManyRequests,
-                            "Failed due to direct memory limit exceeded"));
+                    if (!isTopicListRequestCancelled(t,
+                            "Failed to acquire actual direct memory permits for GetTopicsOfNamespace")) {
+                        writeAndFlush(Commands.newError(clientRequestId, ServerError.TooManyRequests,
+                                "Failed due to direct memory limit exceeded"));
+                    }
                     return CompletableFuture.completedFuture(null);
                 });
+    }
+
+    /**
+     * Logs a failure to acquire topic list memory permits. A request that was cancelled, because the client
+     * connection was closed, is logged at debug level, since there is no client to respond to.
+     *
+     * @return true if the request was cancelled and no error response should be sent
+     */
+    private boolean isTopicListRequestCancelled(Throwable t, String failureMessage) {
+        if (AsyncDualMemoryLimiterUtil.isPermitAcquireCancelled(t)) {
+            log.debug()
+                    .attr("clientAddress", clientAddress)
+                    .log("GetTopicsOfNamespace was cancelled since the client connection was closed");
+            return true;
+        }
+        log.warn()
+                .attr("clientAddress", clientAddress)
+                .exceptionMessage(t)
+                .log(failureMessage);
+        return false;
     }
 
     public void handleGetSchema(CommandGetSchema commandGetSchema) {

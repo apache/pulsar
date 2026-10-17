@@ -30,6 +30,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.matches;
@@ -128,6 +129,8 @@ import org.apache.pulsar.broker.service.scalable.ScalableTopicService;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.utils.ClientChannelHelper;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
+import org.apache.pulsar.broker.topiclistlimit.TopicListMemoryLimiter;
+import org.apache.pulsar.broker.topiclistlimit.TopicListSizeResultCache;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -187,6 +190,8 @@ import org.apache.pulsar.common.protocol.schema.EmptyVersion;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.scalable.HashRange;
+import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter;
+import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterImpl;
 import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
@@ -4979,4 +4984,66 @@ public class ServerCnxTest {
         channel.finish();
     }
 
+
+    @Test(timeOut = 30000)
+    public void testGetTopicsOfNamespaceLargerThanHeapMemoryLimit() throws Exception {
+        long topicListSize = TopicListMemoryLimiter.estimateTopicListSize(topics);
+        // both the initial size estimate and the topic list are larger than the heap memory limit
+        AsyncDualMemoryLimiterImpl limiter =
+                new AsyncDualMemoryLimiterImpl(topicListSize - 1, 10, 1000, 1_000_000, 10, 1000);
+        try {
+            doReturn(limiter).when(brokerService).getMaxTopicListInFlightLimiter();
+            doReturn(new TopicListSizeResultCache()).when(brokerService).getTopicListSizeResultCache();
+            resetChannel();
+            setChannelConnected();
+            var lookupSemaphore = brokerService.getLookupRequestSemaphore();
+            int initialPermits = lookupSemaphore.availablePermits();
+            for (long requestId = 1; requestId <= 3; requestId++) {
+                channel.writeInbound(Commands.newGetTopicsOfNamespaceRequest(
+                        "use/ns-abc", requestId, CommandGetTopicsOfNamespace.Mode.ALL, null, null, null));
+                // the request is rejected instead of being left without a response
+                CommandError error = (CommandError) getResponse();
+                assertEquals(error.getRequestId(), requestId);
+                assertEquals(error.getError(), ServerError.TooManyRequests);
+                // the lookup permit is released
+                assertEquals(lookupSemaphore.availablePermits(), initialPermits);
+            }
+        } finally {
+            channel.finish();
+            limiter.close();
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void testGetTopicsOfNamespaceLargerThanHeapMemoryLimitFailsFastAfterMeasuring() throws Exception {
+        long topicListSize = TopicListMemoryLimiter.estimateTopicListSize(topics);
+        AsyncDualMemoryLimiterImpl limiter =
+                new AsyncDualMemoryLimiterImpl(topicListSize - 1, 10, 1000, 1_000_000, 10, 1000);
+        try {
+            doReturn(limiter).when(brokerService).getMaxTopicListInFlightLimiter();
+            // like the broker's cache: the initial estimate fits within the limit, so the first request lists the
+            // topics and is rejected when the permits are updated to the size of the topic list
+            doReturn(new TopicListSizeResultCache(topicListSize - 1, () -> true))
+                    .when(brokerService).getTopicListSizeResultCache();
+            resetChannel();
+            setChannelConnected();
+            clearInvocations(namespaceService);
+            var lookupSemaphore = brokerService.getLookupRequestSemaphore();
+            int initialPermits = lookupSemaphore.availablePermits();
+            for (long requestId = 1; requestId <= 3; requestId++) {
+                channel.writeInbound(Commands.newGetTopicsOfNamespaceRequest(
+                        "use/ns-abc", requestId, CommandGetTopicsOfNamespace.Mode.ALL, null, null, null));
+                CommandError error = (CommandError) getResponse();
+                assertEquals(error.getRequestId(), requestId);
+                assertEquals(error.getError(), ServerError.TooManyRequests);
+                assertEquals(lookupSemaphore.availablePermits(), initialPermits);
+            }
+            // only the first request listed the topics, the later requests failed without listing them
+            verify(namespaceService, times(1)).getListOfUserTopicsByProperties(any(), any(), any());
+            assertEquals(limiter.getLimiter(AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY).getAcquiredPermits(), 0);
+        } finally {
+            channel.finish();
+            limiter.close();
+        }
+    }
 }
