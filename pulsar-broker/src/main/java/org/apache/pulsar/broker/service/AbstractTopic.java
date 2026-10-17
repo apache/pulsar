@@ -874,16 +874,15 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
         if (allowAutoUpdateSchema(isReplicatorProducer)) {
             return schemaRegistryService.putSchemaIfAbsent(id, schema, getSchemaCompatibilityStrategy());
         } else {
-            return schemaRegistryService.trimDeletedSchemaAndGetList(id).thenCompose(schemaAndMetadataList ->
-                    schemaRegistryService.getSchemaVersionBySchemaData(schemaAndMetadataList, schema)
-                            .thenCompose(schemaVersion -> {
-                                if (schemaVersion == null) {
-                                    return FutureUtil.failedFuture(new IncompatibleSchemaException(
-                                            "Schema not found and schema auto updating is disabled."));
-                                } else {
-                                    return CompletableFuture.completedFuture(schemaVersion);
-                                }
-                            }));
+            return schemaRegistryService.findSchemaVersionForSchemaRegistration(id, schema)
+                    .thenCompose(schemaVersion -> {
+                        if (schemaVersion == null) {
+                            return FutureUtil.failedFuture(new IncompatibleSchemaException(
+                                    "Schema not found and schema auto updating is disabled."));
+                        } else {
+                            return CompletableFuture.completedFuture(schemaVersion);
+                        }
+                    });
         }
     }
 
