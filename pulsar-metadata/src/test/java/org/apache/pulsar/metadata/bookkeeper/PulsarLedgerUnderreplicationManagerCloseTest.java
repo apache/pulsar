@@ -73,13 +73,13 @@ public class PulsarLedgerUnderreplicationManagerCloseTest extends BaseMetadataSt
                 AtomicInteger attempts = new AtomicInteger();
                 doAnswer(invocation -> {
                     String path = invocation.getArgument(0);
-                    Optional<Long> version = invocation.getArgument(1);
                     if (attempts.getAndIncrement() == missingPosition) {
-                        // Remove the actual node before the manager's delete, without relying on map iteration order.
-                        return store.delete(path, version).thenCompose(__ -> store.delete(path, version));
+                        // Remove the actual node before the manager's ownership read, without relying on map
+                        // iteration order.
+                        return store.delete(path, Optional.empty()).thenCompose(__ -> store.get(path));
                     }
-                    return store.delete(path, version);
-                }).when(observed).delete(anyString(), any());
+                    return store.get(path);
+                }).when(observed).get(anyString());
 
                 owner.close();
 
@@ -286,15 +286,19 @@ public class PulsarLedgerUnderreplicationManagerCloseTest extends BaseMetadataSt
                 owner.acquireUnderreplicatedLedger(ledgerId);
                 CompletableFuture<Void> delayedAcknowledgement = new CompletableFuture<>();
                 AtomicInteger attempts = new AtomicInteger();
+                CompletableFuture<Void> actualDelete = new CompletableFuture<>();
                 doAnswer(invocation -> {
                     attempts.incrementAndGet();
-                    store.delete(invocation.getArgument(0), invocation.getArgument(1)).get(5, TimeUnit.SECONDS);
-                    return delayedAcknowledgement;
+                    // The delete runs on the store's callback thread, so chain on it instead of blocking.
+                    FutureUtil.completeAfter(actualDelete,
+                            store.delete(invocation.getArgument(0), invocation.getArgument(1)));
+                    return actualDelete.thenCompose(__ -> delayedAcknowledgement);
                 }).when(observed).delete(anyString(), any());
 
                 assertThatThrownBy(() -> owner.close(100, TimeUnit.MILLISECONDS))
                         .isInstanceOf(UnavailableException.class)
                         .hasCauseInstanceOf(TimeoutException.class);
+                actualDelete.get(5, TimeUnit.SECONDS);
                 other.acquireUnderreplicatedLedger(ledgerId);
                 delayedAcknowledgement.complete(null);
 
@@ -317,15 +321,19 @@ public class PulsarLedgerUnderreplicationManagerCloseTest extends BaseMetadataSt
             try (var owner = newManager(observed, root)) {
                 owner.acquireUnderreplicatedLedger(ledgerId);
                 CompletableFuture<Void> delayedAcknowledgement = new CompletableFuture<>();
+                CompletableFuture<Void> actualDelete = new CompletableFuture<>();
                 doAnswer(invocation -> {
-                    store.delete(invocation.getArgument(0), invocation.getArgument(1)).get(5, TimeUnit.SECONDS);
-                    return delayedAcknowledgement;
+                    // The delete runs on the store's callback thread, so chain on it instead of blocking.
+                    FutureUtil.completeAfter(actualDelete,
+                            store.delete(invocation.getArgument(0), invocation.getArgument(1)));
+                    return actualDelete.thenCompose(__ -> delayedAcknowledgement);
                 }).when(observed).delete(anyString(), any());
 
                 try {
                     assertThatThrownBy(() -> owner.close(100, TimeUnit.MILLISECONDS))
                             .isInstanceOf(UnavailableException.class)
                             .hasCauseInstanceOf(TimeoutException.class);
+                    actualDelete.get(5, TimeUnit.SECONDS);
                     assertThat(store.get(path).get(5, TimeUnit.SECONDS))
                             .as("the original lock was deleted before its acknowledgement")
                             .isEmpty();
