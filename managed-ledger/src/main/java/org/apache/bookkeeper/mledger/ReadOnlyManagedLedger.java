@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger;
 
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 public interface ReadOnlyManagedLedger {
 
@@ -29,5 +30,18 @@ public interface ReadOnlyManagedLedger {
     ReadOnlyCursor createReadOnlyCursor(Position position);
 
     Map<String, String> getProperties();
+
+    /**
+     * Close this read-only managed ledger asynchronously.
+     *
+     * <p>The default implementation is a no-op for backward compatibility. Implementations that own resources should
+     * override this method and release them without blocking the calling thread.
+     *
+     * @return a future that completes when the managed-ledger close operation finishes; cleanup started by the close
+     *         operation may finish asynchronously
+     */
+    default CompletableFuture<Void> asyncClose() {
+        return CompletableFuture.completedFuture(null);
+    }
 
 }

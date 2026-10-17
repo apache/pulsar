@@ -43,6 +43,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.ReadOnlyManagedLedger;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.awaitility.Awaitility;
 import org.testng.annotations.DataProvider;
@@ -181,10 +182,11 @@ public class ReadOnlyManagedLedgerHandleCloseTest extends MockedBookKeeperTestCa
         ReadOnlyManagedLedgerImpl readOnly = new ReadOnlyManagedLedgerImpl(factory, bkc, factory.getMetaStore(),
                 config, executor, ledger.getName());
         readOnly.initialize().get(5, TimeUnit.SECONDS);
+        int openedHandleCount = openedHandles.size();
         openCompletion = new CompletableFuture<>();
         CompletableFuture<ReadHandle> opening = readOnly.getLedgerHandle(position.getLedgerId());
-        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> openedHandles.size() == 2);
-        LedgerHandle handle = openedHandles.get(1);
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> openedHandles.size() > openedHandleCount);
+        LedgerHandle handle = openedHandles.get(openedHandleCount);
         assertThat(opening).isNotDone();
 
         readOnly.close();
@@ -192,6 +194,111 @@ public class ReadOnlyManagedLedgerHandleCloseTest extends MockedBookKeeperTestCa
         verify(handle, never()).closeAsync();
         openCompletion.complete(null);
         opening.get(5, TimeUnit.SECONDS);
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> verify(handle).closeAsync());
+    }
+
+    @Test
+    public void testCloseRejectsHandleInsertedAfterCloseStarts() throws Exception {
+        ManagedLedgerConfig config = defaultConfig().setRetentionTime(1, TimeUnit.DAYS);
+        ManagedLedger ledger = factory.open("readonly-close-during-open", config);
+        Position position = ledger.addEntry(new byte[] {1});
+        ReadOnlyManagedLedgerImpl readOnly = new ReadOnlyManagedLedgerImpl(factory, bkc, factory.getMetaStore(),
+                config, executor, ledger.getName());
+        readOnly.initialize().get(5, TimeUnit.SECONDS);
+        int openedHandleCount = openedHandles.size();
+        CompletableFuture<Void> openAttemptStarted = new CompletableFuture<>();
+        CompletableFuture<Void> allowOpenToProceed = new CompletableFuture<>();
+        doAnswer(invocation -> {
+            openAttemptStarted.complete(null);
+            allowOpenToProceed.get(5, TimeUnit.SECONDS);
+            return trackOpens((OpenBuilder) invocation.callRealMethod());
+        }).when(bkc).newOpenLedgerOp();
+        CompletableFuture<CompletableFuture<ReadHandle>> openingAttempt = new CompletableFuture<>();
+        Thread openingThread = new Thread(() -> {
+            try {
+                openingAttempt.complete(readOnly.getLedgerHandle(position.getLedgerId()));
+            } catch (Throwable error) {
+                openingAttempt.completeExceptionally(error);
+            }
+        }, "read-only-ledger-opening");
+        openingThread.start();
+        openAttemptStarted.get(5, TimeUnit.SECONDS);
+        CompletableFuture<Void> closing = new CompletableFuture<>();
+        Thread closingThread = new Thread(() -> {
+            try {
+                readOnly.close();
+                closing.complete(null);
+            } catch (Throwable error) {
+                closing.completeExceptionally(error);
+            }
+        }, "read-only-ledger-closing");
+        closingThread.start();
+
+        try {
+            // Let close mark the ledger before computeIfAbsent can insert the future. The cache's write lock keeps
+            // the close-side scan from finishing until the open is allowed to proceed.
+            Awaitility.await().atMost(5, TimeUnit.SECONDS).until(readOnly::isClosingOrClosed);
+            allowOpenToProceed.complete(null);
+
+            CompletableFuture<ReadHandle> opening = openingAttempt.get(5, TimeUnit.SECONDS);
+
+            assertThatThrownBy(() -> opening.get(5, TimeUnit.SECONDS))
+                    .hasCauseInstanceOf(ManagedLedgerAlreadyClosedException.class);
+            closing.get(5, TimeUnit.SECONDS);
+            Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> openedHandles.size() > openedHandleCount);
+            LedgerHandle handle = openedHandles.get(openedHandleCount);
+            Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> verify(handle).closeAsync());
+            assertThat(readOnly.ledgerCache.size()).isZero();
+        } finally {
+            allowOpenToProceed.complete(null);
+            openingThread.join(TimeUnit.SECONDS.toMillis(5));
+            closingThread.join(TimeUnit.SECONDS.toMillis(5));
+            assertThat(openingThread.isAlive()).isFalse();
+            assertThat(closingThread.isAlive()).isFalse();
+        }
+    }
+
+    @Test
+    public void testFactoryWrapperCloseReleasesCachedHandle() throws Exception {
+        ManagedLedgerConfig config = defaultConfig().setRetentionTime(1, TimeUnit.DAYS);
+        ManagedLedger ledger = factory.open("readonly-factory-wrapper-close", config);
+        Position position = ledger.addEntry(new byte[] {1});
+        CompletableFuture<ReadOnlyManagedLedger> opening = new CompletableFuture<>();
+        factory.asyncOpenReadOnlyManagedLedger(ledger.getName(),
+                new AsyncCallbacks.OpenReadOnlyManagedLedgerCallback() {
+                    @Override
+                    public void openReadOnlyManagedLedgerComplete(ReadOnlyManagedLedger managedLedger, Object ctx) {
+                        opening.complete(managedLedger);
+                    }
+
+                    @Override
+                    public void openReadOnlyManagedLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                        opening.completeExceptionally(exception);
+                    }
+                }, config, null);
+        ReadOnlyManagedLedger readOnly = opening.get(5, TimeUnit.SECONDS);
+        int openedHandleCount = openedHandles.size();
+        CompletableFuture<Void> reading = new CompletableFuture<>();
+
+        readOnly.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
+            @Override
+            public void readEntryComplete(Entry entry, Object ctx) {
+                entry.release();
+                reading.complete(null);
+            }
+
+            @Override
+            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                reading.completeExceptionally(exception);
+            }
+        }, null);
+        reading.get(5, TimeUnit.SECONDS);
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> openedHandles.size() > openedHandleCount);
+        LedgerHandle handle = openedHandles.get(openedHandleCount);
+        verify(handle, never()).closeAsync();
+
+        readOnly.asyncClose().get(5, TimeUnit.SECONDS);
+
         Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> verify(handle).closeAsync());
     }
 }

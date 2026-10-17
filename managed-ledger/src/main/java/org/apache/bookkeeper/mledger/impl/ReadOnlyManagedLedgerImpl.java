@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Range;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -161,7 +162,7 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
     }
 
     @Override
-    public synchronized void asyncClose(AsyncCallbacks.CloseCallback callback, Object ctx) {
+    public void asyncClose(AsyncCallbacks.CloseCallback callback, Object ctx) {
         closingOrClosed = true;
         // There is no current write handle, so the parent's write-close callback cannot release this cache.
         ledgerCache.forEach((ledgerId, readHandle) -> invalidateReadHandle(ledgerId));
@@ -181,6 +182,11 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
             return CompletableFuture.failedFuture(new ManagedLedgerAlreadyClosedException("Managed ledger is closed"));
         }
         return handle;
+    }
+
+    @VisibleForTesting
+    boolean isClosingOrClosed() {
+        return closingOrClosed;
     }
 
     @Override
