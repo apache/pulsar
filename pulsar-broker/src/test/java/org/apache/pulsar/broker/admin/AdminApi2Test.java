@@ -67,6 +67,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
 import lombok.CustomLog;
@@ -128,6 +129,7 @@ import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.BrokerAssignment;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.BundlesData;
@@ -138,6 +140,7 @@ import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationPolicyUnloadScope;
+import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
@@ -1674,6 +1677,60 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertFalse(isolationData.isPrimary());
 
         admin.clusters().deleteNamespaceIsolationPolicy(cluster, policyName1);
+    }
+
+    @Test
+    public void brokerNamespaceIsolationPoliciesWithBrokerId() throws Exception {
+        String cluster = pulsar.getConfiguration().getClusterName();
+        String brokerHost = pulsar.getAdvertisedAddress();
+        String brokerId = pulsar.getBrokerId();
+        String namespace = defaultTenant + "/test_ns_iso_broker_id_" + System.currentTimeMillis();
+        String policyName = "policy-broker-id";
+
+        // a primary entry that names the broker id (host:port), as listed by `pulsar-admin brokers list`
+        NamespaceIsolationData policyData = NamespaceIsolationData.builder()
+                .namespaces(Collections.singletonList(namespace))
+                .primary(new ArrayList<>(List.of(brokerId)))
+                .autoFailoverPolicy(AutoFailoverPolicyData.builder()
+                        .policyType(AutoFailoverPolicyType.min_available)
+                        .parameters(Map.of("min_limit", "1", "usage_threshold", "100"))
+                        .build())
+                .build();
+        admin.clusters().createNamespaceIsolationPolicy(cluster, policyName, policyData);
+        try {
+            BrokerNamespaceIsolationDataImpl brokerIsolationData = (BrokerNamespaceIsolationDataImpl) admin.clusters()
+                    .getBrokerWithNamespaceIsolationPolicy(cluster, brokerId);
+            assertTrue(brokerIsolationData.isPrimary());
+            assertEquals(brokerIsolationData.getNamespaceRegex(), List.of(namespace));
+            List<BrokerNamespaceIsolationData> brokerIsolationDataList =
+                    admin.clusters().getBrokersWithNamespaceIsolationPolicy(cluster);
+            assertEquals(brokerIsolationDataList.size(), 1);
+            assertTrue(brokerIsolationDataList.get(0).isPrimary());
+
+            // the namespace is placed on the broker, and its ownership status is primary
+            admin.namespaces().createNamespace(namespace, Set.of(cluster));
+            assertTrue(admin.lookups().lookupTopic(namespace + "/topic1").contains(brokerHost));
+            Map<String, NamespaceOwnershipStatus> ownedBundles =
+                    admin.brokers().getOwnedNamespaces(cluster, brokerId).entrySet().stream()
+                            .filter(e -> e.getKey().startsWith(namespace + "/"))
+                            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+            assertFalse(ownedBundles.isEmpty());
+            ownedBundles.values().forEach(status -> {
+                assertTrue(status.is_controlled);
+                assertEquals(status.broker_assignment, BrokerAssignment.primary);
+            });
+
+            // a host-only primary entry is reported for the broker id as well
+            policyData.getPrimary().clear();
+            policyData.getPrimary().add(brokerHost);
+            admin.clusters().updateNamespaceIsolationPolicy(cluster, policyName, policyData);
+            brokerIsolationData = (BrokerNamespaceIsolationDataImpl) admin.clusters()
+                    .getBrokerWithNamespaceIsolationPolicy(cluster, brokerId);
+            assertTrue(brokerIsolationData.isPrimary());
+            assertEquals(brokerIsolationData.getNamespaceRegex(), List.of(namespace));
+        } finally {
+            admin.clusters().deleteNamespaceIsolationPolicy(cluster, policyName);
+        }
     }
 
     // create 1 namespace:

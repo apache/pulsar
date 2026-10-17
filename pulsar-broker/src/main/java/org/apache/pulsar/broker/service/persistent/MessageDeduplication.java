@@ -130,7 +130,7 @@ public class MessageDeduplication {
     private final int maxNumberOfProducers;
 
     // Map used to track the inactive producer along with the timestamp of their last activity
-    private final Map<String, Long> inactiveProducers = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, Long> inactiveProducers = new ConcurrentHashMap<>();
 
     private final String replicatorPrefix;
 
@@ -162,6 +162,9 @@ public class MessageDeduplication {
         boolean shouldBeEnabled = topic.isDeduplicationEnabled();
         synchronized (this) {
             if (status == Status.Recovering) {
+                if (!shouldBeEnabled) {
+                    return statusChangeFuture.handle((__, e) -> null).thenCompose(__ -> checkStatus());
+                }
                 return statusChangeFuture;
             }
             if (status == Status.Removing) {
@@ -192,7 +195,7 @@ public class MessageDeduplication {
                 }, null);
             }
 
-            if (status == Status.Enabled && !shouldBeEnabled) {
+            if ((status == Status.Enabled || status == Status.Failed) && !shouldBeEnabled) {
                 // Disabled deduping
                 CompletableFuture<Void> future = new CompletableFuture<>();
                 status = Status.Removing;
@@ -688,9 +691,9 @@ public class MessageDeduplication {
         }
 
         Iterator<Map.Entry<String, Long>> mapIterator = inactiveProducers.entrySet().iterator();
-        boolean hasInactive = false;
+        AtomicBoolean hasInactive = new AtomicBoolean();
         while (mapIterator.hasNext()) {
-            java.util.Map.Entry<String, Long> entry = mapIterator.next();
+            Map.Entry<String, Long> entry = mapIterator.next();
             String producerName = entry.getKey();
             long lastActiveTimestamp = entry.getValue();
 
@@ -698,13 +701,21 @@ public class MessageDeduplication {
                 log.info()
                         .attr("producerName", producerName)
                         .log("Purging dedup information for producer");
-                mapIterator.remove();
-                highestSequencedPushed.remove(producerName);
-                highestSequencedPersisted.remove(producerName);
-                hasInactive = true;
+                // The iterator can retain an expired entry after a reconnect removes it. Recheck inactivity
+                // and remove the sequence IDs atomically with producerAdded/producerRemoved for this name,
+                // so a newly registered producer cannot publish before its old state has been purged.
+                inactiveProducers.computeIfPresent(producerName, (name, inactiveSince) -> {
+                    if (inactiveSince < minimumActiveTimestamp) {
+                        highestSequencedPushed.remove(name);
+                        highestSequencedPersisted.remove(name);
+                        hasInactive.set(true);
+                        return null;
+                    }
+                    return inactiveSince;
+                });
             }
         }
-        if (hasInactive && isEnabled()) {
+        if (hasInactive.get() && isEnabled()) {
             takeSnapshot(getManagedCursor().getMarkDeletedPosition());
         }
     }

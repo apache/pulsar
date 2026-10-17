@@ -43,6 +43,37 @@ application-visible order across Key_Shared hash-range reassignment.
   workstation whose CPU runs at a fixed base frequency: without a rate limit, the gateways publish faster than the
   applications receive, and an application that falls behind can stall for tens of seconds. It uses the high-memory
   configuration.
+- [`iot-telemetry-catch-up.yaml`](../iot-telemetry-catch-up.yaml) measures how quickly consumers that join a live
+  stream catch up. The gateways publish at the high-rate scenario's 30,000 messages per second for 180 s, and 4 of
+  the 5 applications join after the measurement starts, 3 of them 2 s apart, at 20, 22 and 24 s, and the last one at
+  60 s. Each late application has its subscription from the start, so its backlog builds up until it joins, and it
+  then reads the backlog while the gateways keep publishing. The report's Catch-up section shows each application's
+  backlog when it joined and how long it took to catch up. An application that is still behind when the gateways
+  finish can't catch up, since no newer message comes; the report then shows when it received its last message.
+  - **The broker's entry cache:** a subscription without consumers isn't an active cursor, so nothing keeps the
+    entries for a late application before it joins. Once the 3 that join 2 s apart are reading, the entries that the
+    first of them reads from storage are expected to be read by the others behind it, so they stay in the cache for
+    its time to live, `managedLedgerCacheEvictionTimeThresholdMillis` (1 s), extended up to
+    `managedLedgerCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes` (5) times, about 6 s, which the
+    2 s spacing is within. The others then read them from the cache. The last application is too far behind for that,
+    and reads its backlog from storage.
+  - **Where reads come from:** the managed ledger's cache hit and miss rates (`pulsar_ml_cache_hits_rate`,
+    `pulsar_ml_cache_misses_rate`) in the metrics show which reads the cache served.
+- [`iot-telemetry-offload.yaml`](../iot-telemetry-offload.yaml) measures catch-up reads from tiered storage. The
+  gateways publish 100,000 unbatched 1 KiB messages at 10,000 messages per second to one topic, whose ledgers roll
+  over at 25,000 entries and which the brokers offload to an S3-compatible SeaweedFS as soon as they do, deleting them
+  from BookKeeper at once. Six applications with one pod each join 30 s after the measurement starts, once the
+  gateways have finished; before they do, the launcher moves their subscriptions' positions 10,240 messages apart and
+  unloads the topic. The brokers reach the storage with 10 ms of delay each way. See
+  [Offloading](../../docs/offloading.md).
+- [`iot-telemetry-offload-random-seeks.yaml`](../iot-telemetry-offload-random-seeks.yaml) measures random reads of
+  offloaded ledgers by time: after 110,000 unbatched 1 KiB messages 1 ms apart, which one application receives and
+  the namespace retains, the launcher seeks a subscription of its own 500 times to random publish times and reads the
+  message at each. See [Random seeks](../../docs/offloading.md#random-seeks).
+- [`iot-telemetry-offload-seek.yaml`](../iot-telemetry-offload-seek.yaml) measures seeks by timestamp in offloaded
+  ledgers: 110,000 unbatched 1 KiB messages 1 ms apart, and six late applications whose subscriptions the launcher
+  resets to publish times spread over the offloaded ledgers before they read their backlogs. The storage logs every
+  request, so that the report counts the reads of the searches. See [Offloading](../../docs/offloading.md).
 - [`iot-telemetry-max-rate.yaml`](../iot-telemetry-max-rate.yaml) runs the high-rate scenario's 500 gateways at the
   maximum rate: `rate: 0` removes the rate limit, so the gateways publish four million unbatched 128-byte messages
   as fast as the cluster takes them, with at most 100,000 in flight. One application consumes them with twenty pods
@@ -87,8 +118,13 @@ outputs are in different directories, pass a common shared coordination director
 process in that run. Reusing the directory is fine; use a new run ID for each invocation of the workload.
 
 Set `gateways.producer.batchingEnabled` in the workload section to compare batched and unbatched keyed messages without
-changing the tool implementation. Batched runs use `BatcherBuilder.KEY_BASED`, which keeps each batch to
-one key as required for Key_Shared delivery.
+changing the tool implementation. With Key_Shared subscriptions, batched runs use `BatcherBuilder.KEY_BASED`, which
+keeps each batch to one key as Key_Shared delivery requires; with Shared and Failover subscriptions, they use the
+default batcher, which batches messages of any device together. A gateway has a producer for each topic, and the
+gateways send each message through a random gateway, so a producer receives a message every `gateways.count *
+topics.count / rate` seconds on average. A batch has more than one message only when that is shorter than the
+producer's batching delay, `gateways.producer.batchingMaxPublishDelayMillis`, which is the client's default, 1 ms, when
+the scenario doesn't set it.
 
 Warmup messages exercise the same producer, client, connection, topic and consumer paths as measured messages. They
 remain in the monotonic device sequences and end-to-end delivery checks, but are excluded from throughput. For a
@@ -112,9 +148,20 @@ separate scenario with normal or deliberately short limits when measuring rollov
 or long-running storage behavior. BookKeeper entry-log flushing and disk-space checks remain enabled.
 
 Set `rate: 0` together with a positive `measurement.messages` to remove producer pacing. Set
-`gateways.producer.precreate: true` to open every gateway/topic producer before throughput timing begins. The gateways'
-summary, `gateways-summary.json`, reports `messagesPerSecond` only for the post-warmup measurement phase and retains
-`wholeRunMessagesPerSecond` as startup and warmup context.
+`gateways.producer.precreate: true` to open every gateway/topic producer before throughput timing begins.
+
+With `precreate: true`, the gateways create their producers in a random order, up to
+`gateways.producer.precreateConcurrency` (32) at a time, as independent gateways connect. Each gateway's client opens a
+connection for its lookup and then one to the topic's broker, and a broker assigns the connections that it accepts to
+its I/O threads in turn: in this test topology, where the service URL and the topics' owner are the same broker,
+gateways that connected one at a time put every data connection on every other I/O thread, so half of the broker's
+I/O threads served the traffic. Concurrent connections spread the data connections over the I/O threads on average,
+not evenly. Runs made before this setting existed created the producers one at a time in the order of the gateways;
+`precreateConcurrency: 1` reproduces that, and a scenario without the setting gets 32. With `precreate: false`, the
+gateways create each producer when they first send to its topic, one at a time, so the pattern remains.
+
+The gateways' summary, `gateways-summary.json`, reports `messagesPerSecond` only for the post-warmup measurement phase
+and retains `wholeRunMessagesPerSecond` as startup and warmup context.
 
 ## Settings
 
@@ -148,25 +195,61 @@ workloads:
         maxOutstanding: 20000  # messages in flight across the gateways
         batchingEnabled: true
         precreate: false       # open every producer before the first message
+        precreateConcurrency: 32  # with precreate, producers created at the same time, in a random order
+        # batchingMaxPublishDelayMillis: 10  # how long a batch waits for more messages; the client's default is 1 ms
       env:                     # the gateways' container, which runs every gateway; from the memory configuration
         PULSAR_MEM: -Xms512m -Xmx512m -XX:MaxDirectMemorySize=256m -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch
     topics:
       count: 30
       prefix: persistent://public/default/iot-telemetry-
-    applications:              # each a Key_Shared subscription, consumed through its pods
+    applications:              # each a subscription of its own, consumed through its pods
       count: 20
       podsPerApplication: 100  # a Pulsar client with a consumer of the subscription each
       subscriptionPrefix: iot-application-
+      subscriptionType: Key_Shared  # not set in the base file: Key_Shared, Shared or Failover
       client:                  # the client resources that every pod's client shares
         ioThreads: 8
         listenerThreads: 16
       env:                     # the applications' container, which runs every application; from the memory configuration
         PULSAR_MEM: -Xms1536m -Xmx1536m -XX:MaxDirectMemorySize=256m -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch
+      joinSeconds: []          # not set in the base file: each application's join after the measurement starts, in s
+      caughtUpLatencyMillis: 1000  # not set in the base file: a late application has caught up within this latency
+      skipMessages: []         # not set in the base file: the messages of each topic each late application skips
+      unloadBeforeJoin: false  # not set in the base file: unload the topics before the late applications join
+      resetToMillis: []        # not set in the base file: the publish time each late application resets to, in ms
     behaviors:
       podRestarts:             # each application restarts this fraction of its pods every intervalSeconds
         intervalSeconds: 0
         fraction: 0.0
 ```
+
+`applications.joinSeconds` has each application join after the measurement starts: a list with a value for each
+application, in seconds, where 0 joins at the start, as every application does without the setting. An application
+that joins later creates its subscription at the earliest position when the applications start, before the gateways
+publish, so that the subscription keeps the backlog until the application opens its pods; it doesn't take part in
+the warmup. It has caught up when each of its topics has delivered a measured message within
+`applications.caughtUpLatencyMillis` of its publishing; the time includes opening its pods, and with Key_Shared
+redeliveries a few older messages may still arrive after it. The report's Catch-up section shows when each late
+application joined, its subscription's backlog then, and how long it took to catch up. The warmup and the latest join
+have to be within the timeout, which also has to leave room for the last application to catch up.
+
+`applications.skipMessages` and `applications.unloadBeforeJoin` prepare the late applications' join, which the
+launcher carries out at the earliest late application's join time: it moves each late application's subscription
+forward by its number of messages on every topic, a value for each application, and then unloads every topic. The
+late applications wait for it before they open their pods. `applications.resetToMillis` resets each late
+application's subscription by timestamp instead, to the publish time this many milliseconds after the measurement's
+start, -1 for none, once the gateways have finished; the application then expects as many messages as its backlog
+had. Skipping and resetting need `gateways.producer.batchingEnabled: false`,
+since the launcher skips entries. An application that skips messages expects every message but the skipped ones, each
+device's from the first one that it receives. [Offloading](../../docs/offloading.md) uses them to read a backlog from
+tiered storage from staggered positions.
+
+`applications.subscriptionType` is the subscriptions' type, Key_Shared by default. With Shared, a device's messages
+arrive in any order, so the applications check for lost and duplicated messages but not for their order, and the
+gateways batch messages of any device together, with the producer's default batcher; with Key_Shared and Failover the
+applications check each device's order, and with Key_Shared the gateways keep a batch to one device, as the next
+section describes. Skipping messages and resetting subscriptions need Key_Shared or Failover, since an application
+then expects each device's messages from the first one that it receives.
 
 `timeoutSeconds` bounds the whole workload: the applications stop waiting for messages after it and the run fails,
 the gateways give up waiting for a warmup round or the measurement's start, and the launcher waits for the containers
@@ -236,9 +319,10 @@ application. It must report zero invalid messages and zero ordering violations. 
 for Pulsar's at-least-once delivery model and are counted separately so comparisons can detect changes in their
 frequency. The persisted gateway and application state checks for missing tail messages after all clients stop.
 
-Key_Shared scenarios use the key-based producer batcher. It keeps every batch to one key so the broker can
-route all messages for a device through the same Key_Shared hash range. Changing the batcher changes the
-ordering contract exercised by the scenario and should not be mixed into a performance comparison.
+Key_Shared scenarios use the key-based producer batcher, which keeps every batch to one key so the broker can route
+all messages for a device through the same Key_Shared hash range; the other subscription types use the default
+batcher. Comparing subscription types with batching on therefore also changes the batches, and changing the batcher
+changes the ordering contract exercised by the scenario, so neither should be mixed into a performance comparison.
 
 The full topology opens 100 gateway clients and 2,000 application clients, all in the applications' container. Across
 30 topics and 20 applications, this creates 60,000 internal topic consumers. The medium-memory configuration gives the

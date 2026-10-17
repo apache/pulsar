@@ -29,8 +29,17 @@ into the workload containers.
 ## Sections
 
 - `cluster`: the Pulsar topology. `brokers` and `bookies` each have `replicas`, the number of containers, and `env`,
-  their environment variables, such as Pulsar settings and `PULSAR_MEM`. The IoT telemetry scenarios get it from a
+  their environment variables, such as Pulsar settings and `PULSAR_MEM`. `brokers.bootstrap: all` lists every broker
+  in the workloads' service URL instead of the first, see
+  [Brokers in the service URL](../../docs/network-conditions.md#brokers-in-the-service-url). `remote` adds a second
+  cluster that the workload's topics replicate to, with applications that consume there, see
+  [Geo-replication](../../docs/network-conditions.md#geo-replication). The IoT telemetry scenarios get it from a
   [memory configuration](../README.md#memory-configurations), which also sets the workload containers' `PULSAR_MEM`.
+  A scenario with `offload`, or whose late applications skip messages, reset their subscriptions or unload their
+  topics before they join, also starts one Pulsar proxy, through which the launcher sends its admin requests, such as
+  setting the offload policies and skipping or resetting subscriptions: the proxy forwards a topic's request to the
+  broker that owns the topic, whose name in the cluster's network the launcher's host can't resolve. The workloads
+  connect to the brokers directly, and the remote cluster has no proxy.
 - `workloads`: named workload configurations, currently `iotTelemetry`, see [the IoT telemetry
   scenario](iot-telemetry.md#settings). Its `gateways.env` and `applications.env` are the environment variables of the
   gateways' and the applications' containers, such as `PULSAR_MEM`, which sets the JVM's heap and direct memory, or
@@ -47,6 +56,13 @@ into the workload containers.
   [Profiling](../../docs/profiling.md#configuring-profiling).
 - `heapDumps`: optional heap dumps of the broker, the gateways and the applications, when they run out of memory, at
   the highest heap usage and at given times, see [Heap dumps](../../docs/heap-dumps.md).
+- `network`: optional network conditions and faults between the containers, delay, jitter, loss, a rate,
+  partitions, connection resets and silent disconnections, for the whole run or for a time, see
+  [Network conditions and network faults](../../docs/network-conditions.md).
+- `offload`: optional; the brokers offload the topics' ledgers to an S3-compatible SeaweedFS in a container, with the
+  namespace's offload policies, see [Offloading to tiered storage](../../docs/offloading.md). Its optional `seeks`
+  section makes the launcher seek a subscription of its own to random publish times after the workloads and read the
+  message at each position, see [Random seeks](../../docs/offloading.md#random-seeks).
 - `metrics`: optional; `metrics.intervalSeconds`, 5 by default, is how often VictoriaMetrics scrapes the metrics of
   the brokers, the bookies and ZooKeeper, and the period of the broker's stats, see [Metrics](../../docs/metrics.md).
 - `output`: optional; `output.name` names the scenario's runs in the reports hierarchy instead of the file name, see

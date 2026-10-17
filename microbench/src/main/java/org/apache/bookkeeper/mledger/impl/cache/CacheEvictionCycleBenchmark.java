@@ -64,9 +64,11 @@ public class CacheEvictionCycleBenchmark {
 
     @Benchmark
     public long insertAndEvict() {
+        // the batch's entries are consecutive, so they're inserted in order, as a read from storage inserts them
+        RangeCache.Inserter inserter = cache.newInserter();
         for (EntryImpl entry : entries) {
             entry.retain();
-            if (!cache.put(entry.getPosition(), entry)) {
+            if (!inserter.put(entry.getPosition(), entry, entry.getLength())) {
                 entry.release();
                 throw new IllegalStateException("Duplicate cache entry");
             }

@@ -202,11 +202,9 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
         this.completionExecutor = client.v4Client().externalExecutorProvider().getExecutor();
         this.asyncView = new AsyncProducerV5<>(this);
 
-        // Register for layout changes
-        dagWatch.setListener(this);
-
-        // Initialize with the current layout
+        // Initialize with the current layout, then register for the layouts after it
         applyLayout(initialLayout);
+        dagWatch.setListener(this);
     }
 
     @Override
@@ -433,18 +431,13 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
                     var v4MsgId = sendV4(producer, send);
                     return new MessageIdV5(v4MsgId, segmentId);
                 } catch (PulsarClientException e) {
-                    // Thrown while (re)creating the per-segment producer — already a V5 exception
-                    // (it may wrap a v4 TopicTerminated/AlreadyClosed cause).
+                    // Thrown while (re)creating the per-segment producer or by its send(): the V5
+                    // exception for the v4 failure, which is its cause (a v4 TopicTerminated or
+                    // AlreadyClosed one when the segment is gone).
                     if (!isSegmentGoneError(e)) {
                         throw e;
                     }
                     lastError = e;
-                } catch (org.apache.pulsar.client.api.PulsarClientException e) {
-                    // Thrown by the v4 producer's send().
-                    if (!isSegmentGoneError(e)) {
-                        throw new PulsarClientException(e.getMessage(), e);
-                    }
-                    lastError = new PulsarClientException(e.getMessage(), e);
                 }
                 // The target segment is gone: sealed by a split/merge, or terminated by a
                 // regular-to-scalable migration. Wait for the DAG watch to deliver the new
@@ -473,29 +466,33 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
     /**
      * The v4 {@code send()} with the payload accounting handed over in between its steps: enqueue,
      * drop this layer's share of the payload, flush so that a batched message does not wait out the
-     * batching delay, then wait for the acknowledgement.
+     * batching delay, then wait for the acknowledgement. It fails with the V5 exception for the
+     * send's own failure, as the async send does, not for its v4 {@code PulsarClientException.unwrap},
+     * which turns a failure of another type, such as a transaction that is no longer open, into a
+     * plain v4 exception.
      */
     private org.apache.pulsar.client.api.MessageId sendV4(org.apache.pulsar.client.api.Producer<T> producer,
-                                                          PendingSend<T> send)
-            throws org.apache.pulsar.client.api.PulsarClientException {
+                                                          PendingSend<T> send) throws PulsarClientException {
+        var ackFuture = buildV4Message(producer, send).sendAsync();
+        if (!ackFuture.isDone()) {
+            releasePayloadShare(send);
+            producer.flushAsync();
+        }
         try {
-            var ackFuture = buildV4Message(producer, send).sendAsync();
-            if (!ackFuture.isDone()) {
-                releasePayloadShare(send);
-                producer.flushAsync();
-            }
             return ackFuture.get();
-        } catch (Exception e) {
-            throw org.apache.pulsar.client.api.PulsarClientException.unwrap(e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarClientException("Interrupted while waiting for the send to be acknowledged", e);
+        } catch (ExecutionException e) {
+            throw V5ExceptionMappings.toV5Exception(e);
         }
     }
 
     /**
      * True if {@code t} (or one of its causes) signals that the target segment is gone —
      * sealed by a split/merge or terminated by a regular-to-scalable migration — so the send
-     * should be retried once the new layout arrives. Handles both the v4 exceptions thrown by
-     * {@code send()} and the V5-wrapped exceptions thrown while (re)creating the per-segment
-     * producer on a now-terminated topic.
+     * should be retried once the new layout arrives. Handles both the v4 exceptions that fail an
+     * async send and the V5 exceptions, caused by them, that fail a blocking one.
      */
     private static boolean isSegmentGoneError(Throwable t) {
         for (Throwable cause = t; cause != null; cause = cause.getCause()) {
@@ -649,7 +646,7 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
                     .log("Target segment gone, retrying async send after layout update");
             retry.run();
         } else {
-            finish(send, null, ex);
+            finish(send, null, V5ExceptionMappings.toV5Exception(ex));
         }
     }
 
@@ -997,14 +994,7 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
             Thread.currentThread().interrupt();
             throw new PulsarClientException("Interrupted while creating segment producer", e);
         } catch (ExecutionException e) {
-            Throwable cause = e.getCause();
-            if (cause instanceof org.apache.pulsar.client.api.PulsarClientException v4Exc) {
-                throw new PulsarClientException(v4Exc.getMessage(), v4Exc);
-            }
-            if (cause instanceof PulsarClientException v5Exc) {
-                throw v5Exc;
-            }
-            throw new PulsarClientException(cause != null ? cause : e);
+            throw V5ExceptionMappings.toV5Exception(e);
         }
     }
 }

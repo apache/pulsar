@@ -89,6 +89,18 @@ tasks.register<JavaExec>("renderHdrHistograms") {
     mainClass.set("org.apache.pulsar.tests.performance.report.HdrHistogramRenderer")
 }
 
+// Charts a baseline run (A) against a comparison run (B) with the same axes for both, combined in one diagram and in
+// separate panels: --args='--baseline <run directory> --comparison <run directory> --output <directory>', and
+// optionally --baseline-label, --comparison-label and --no-labels-in-file-names. Paths resolve from the repository
+// root.
+tasks.register<JavaExec>("compareRuns") {
+    group = "verification"
+    description = "Chart a baseline run (A) against a comparison run (B) with the same axes for both"
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("org.apache.pulsar.tests.performance.report.ComparisonCharts")
+    workingDir(rootProject.projectDir)
+}
+
 // Serves the reports root over HTTP. -Pperformance.reportsDir chooses the root as for the launcher's tasks,
 // -Pperformance.reportsServer.bindAddress and -Pperformance.reportsServer.port where to listen, and
 // -Pperformance.reportsServer.baseUrl the URL that it prints, which the launcher's tasks print the reports' URLs with;

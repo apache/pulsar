@@ -38,7 +38,6 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.resolver.NameResolver;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import jakarta.ws.rs.ProcessingException;
-import jakarta.ws.rs.client.Client;
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.Response.Status;
 import java.io.ByteArrayOutputStream;
@@ -57,6 +56,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 import javax.net.ssl.SSLEngine;
 import lombok.CustomLog;
@@ -67,7 +67,6 @@ import lombok.SneakyThrows;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
 import org.apache.pulsar.PulsarVersion;
-import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
 import org.apache.pulsar.client.impl.PulsarClientSharedResourcesImpl;
 import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
 import org.apache.pulsar.client.impl.ServiceNameResolver;
@@ -98,7 +97,6 @@ import org.asynchttpclient.channel.DefaultKeepAliveStrategy;
 import org.asynchttpclient.proxy.ProxyServer;
 import org.asynchttpclient.proxy.ProxyType;
 import org.asynchttpclient.uri.Uri;
-import org.glassfish.jersey.client.ClientProperties;
 import org.glassfish.jersey.client.ClientRequest;
 import org.glassfish.jersey.client.ClientResponse;
 import org.glassfish.jersey.client.spi.AsyncConnectorCallback;
@@ -137,18 +135,15 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
     @Setter
     private boolean followRedirects = true;
 
-    public AsyncHttpConnector(Client client, ClientConfigurationData conf, int autoCertRefreshTimeSeconds,
+    public AsyncHttpConnector(ClientConfigurationData conf, int autoCertRefreshTimeSeconds,
                               boolean acceptGzipCompression) {
-        this(client, conf, autoCertRefreshTimeSeconds, acceptGzipCompression, TlsFactoryOwnership.none());
+        this(conf, autoCertRefreshTimeSeconds, acceptGzipCompression, TlsFactoryOwnership.none());
     }
 
-    AsyncHttpConnector(Client client, ClientConfigurationData conf, int autoCertRefreshTimeSeconds,
+    AsyncHttpConnector(ClientConfigurationData conf, int autoCertRefreshTimeSeconds,
                        boolean acceptGzipCompression, TlsFactoryOwnership suppliedTlsFactory) {
-        this((int) client.getConfiguration().getProperty(ClientProperties.CONNECT_TIMEOUT),
-                (int) client.getConfiguration().getProperty(ClientProperties.READ_TIMEOUT),
-                PulsarAdminImpl.DEFAULT_REQUEST_TIMEOUT_SECONDS * 1000,
-                autoCertRefreshTimeSeconds,
-                conf, acceptGzipCompression, null, suppliedTlsFactory);
+        this(conf.getConnectionTimeoutMs(), conf.getReadTimeoutMs(), conf.getRequestTimeoutMs(),
+                autoCertRefreshTimeSeconds, conf, acceptGzipCompression, null, suppliedTlsFactory);
     }
 
     public AsyncHttpConnector(int connectTimeoutMs, int readTimeoutMs,
@@ -503,11 +498,28 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
 
     private CompletableFuture<Response> retryOrTimeOut(ClientRequest request) {
         final CompletableFuture<Response> resultFuture = new CompletableFuture<>();
-        retryOperation(resultFuture, () -> oneShot(serviceNameResolver.resolveHost(), request), maxRetries);
+        // The deadline and the timeout start before the first attempt, which can block this thread, e.g. to resolve
+        // the host name. AsyncHttpClient times out each attempt after the same duration, on its own timer, which can
+        // fire before ours: once the deadline has passed, a failed attempt is not retried
+        final BooleanSupplier requestTimedOut;
         if (requestTimeout != null) {
+            long deadlineNanos = nanoTime() + requestTimeout.toNanos();
+            requestTimedOut = () -> nanoTime() - deadlineNanos >= 0;
             FutureUtil.addTimeoutHandling(resultFuture, requestTimeout, delayer, () -> REQUEST_TIMEOUT_EXCEPTION);
+        } else {
+            requestTimedOut = () -> false;
         }
+        retryOperation(resultFuture, () -> oneShot(serviceNameResolver.resolveHost(), request), maxRetries,
+                requestTimedOut);
         return resultFuture;
+    }
+
+    /**
+     * @return the current time of the clock that request deadlines are measured with, in nanoseconds
+     */
+    @VisibleForTesting
+    long nanoTime() {
+        return System.nanoTime();
     }
 
     // TODO: There are problems with this solution since AsyncHttpClient already contains logic to retry requests.
@@ -515,7 +527,8 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
     private <T> void retryOperation(
             final CompletableFuture<T> resultFuture,
             final Supplier<CompletableFuture<T>> operation,
-            final int retries) {
+            final int retries,
+            final BooleanSupplier requestTimedOut) {
 
         if (!resultFuture.isDone()) {
             final CompletableFuture<T> operationFuture = operation.get();
@@ -530,6 +543,10 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
                             } else if (throwable instanceof MaxRedirectException) {
                                 // don't retry on max redirect
                                 resultFuture.completeExceptionally(throwable);
+                            } else if (requestTimedOut.getAsBoolean()) {
+                                log.debug().exception(throwable)
+                                        .log("Request timeout has elapsed. Failing the operation instead of retrying");
+                                resultFuture.completeExceptionally(REQUEST_TIMEOUT_EXCEPTION);
                             } else {
                                 if (retries > 0) {
                                     log.debug().attr("remainingRetries", retries)
@@ -537,7 +554,8 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
                                     retryOperation(
                                             resultFuture,
                                             operation,
-                                            retries - 1);
+                                            retries - 1,
+                                            requestTimedOut);
                                 } else {
                                     log.debug().exception(throwable)
                                             .log("Number of retries has been exhausted. Failing the operation");

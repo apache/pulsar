@@ -221,7 +221,7 @@ ORDER BY samples DESC
 LIMIT 45;
 ```
 
-### Analysing collapsed stacktrace files with quack_flamegraph
+### Analyzing collapsed stacktrace files with quack_flamegraph
 
 AI agents can automate analysis by combining quack_flamegraph's functions in DuckDB queries and views, as the
 `leaf_by_frame` view above demonstrates. They can join results and add `WHERE` clauses to narrow the analysis,

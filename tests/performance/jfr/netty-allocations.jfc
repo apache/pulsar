@@ -24,7 +24,7 @@
   them: every buffer allocation, reallocation and free, and every chunk of memory that an allocator allocates, frees
   or returns for reuse. Netty 4.2.4 and later emit them, from AdaptivePoolingAllocator and PooledByteBufAllocator;
   Netty 4.1, which Pulsar 4.x uses, has none, so a Pulsar 4.x image records none of them. An event that the JVM's Netty
-  version doesn't have is ignored, such as io.netty.ReturnChunk, which no Netty release has yet (4.2.18).
+  version doesn't have is ignored, such as io.netty.ReturnChunk, which no Netty release has yet (4.2.19).
 
   A profiled component records them when its profiling settings list this file in jfrConfigurations, such as
   jfrConfigurations: [profile, netty-allocations.jfc] in configs/profile-broker-netty-allocations.yaml, which also sets

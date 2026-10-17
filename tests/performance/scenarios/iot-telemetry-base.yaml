@@ -53,11 +53,13 @@ workloads:
         maxOutstanding: 20000
         batchingEnabled: true
         precreate: false
+        precreateConcurrency: 32
     topics:
       count: 30
       prefix: persistent://public/default/iot-telemetry-
-    # Each application is a Key_Shared subscription of its own, consumed through its pods, each a Pulsar client with a
-    # consumer. One container runs every application, as one runs every gateway.
+    # Each application is a subscription of its own, Key_Shared unless subscriptionType sets Shared or Failover,
+    # consumed through its pods, each a Pulsar client with a consumer. One container runs every application, as one
+    # runs every gateway.
     applications:
       count: 1
       podsPerApplication: 1
