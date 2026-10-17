@@ -69,6 +69,13 @@ public abstract class SharedPulsarBaseTest {
     }
 
     /**
+     * The shared {@link PulsarService}, for tests that need broker-internal accessors.
+     */
+    protected PulsarService getPulsar() {
+        return pulsar;
+    }
+
+    /**
      * Returns the web service URL (http://...) for HTTP-based lookups and admin operations.
      */
     protected String getWebServiceUrl() {

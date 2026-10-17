@@ -1,0 +1,34 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# A broker loses its network for 45 s of the measurement, in the failover cluster: no clients, no other broker, no
+# bookies and no metadata store, beyond the metadata session's 30 s timeout, as a broker's host that drops off the
+# network does. Its metadata session is lost, and the other broker can take its topics over when the clients look them
+# up again, while the bookies fence the isolated broker's ledgers. Clients notice a silent connection only through their
+# keep-alive, in 30-60 s with the default 30 s interval, which overlaps the 45 s outage: --set
+# network.impairments.broker-1-isolated.duration=90s separates the failover from the recovery.
+#
+# Look for: when the topics move to the other broker, the fencing, the clients' reconnections, ordering and duplicates.
+
+extends: failover-cluster.yaml
+network:
+  impairments:
+    broker-1-isolated:
+      between: [broker-1, [clients, broker-0, bookies, metadata]]
+      partition: true
+      start: 30s
+      duration: 45s

@@ -28,8 +28,8 @@ import lombok.NoArgsConstructor;
  * for acks, under the participant's notification prefix:
  *
  * <pre>
- *   /txn-segment-events/&lt;segment&gt;-&lt;seq&gt;            partitionKey=&lt;segment&gt;
- *   /txn-subscription-events/&lt;segment&gt;:&lt;sub&gt;-&lt;seq&gt;  partitionKey=&lt;segment&gt;:&lt;sub&gt;
+ *   /txn/segment-events/&lt;segment&gt;-&lt;seq&gt;            partitionKey=&lt;segment&gt;
+ *   /txn/subscription-events/&lt;segment&gt;:&lt;sub&gt;-&lt;seq&gt;  partitionKey=&lt;segment&gt;:&lt;sub&gt;
  * </pre>
  *
  * <p>Each participant subscribes to its own ordered stream via {@code subscribeSequence} and

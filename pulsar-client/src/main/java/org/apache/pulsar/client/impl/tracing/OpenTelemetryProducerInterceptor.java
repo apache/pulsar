@@ -45,7 +45,6 @@ public class OpenTelemetryProducerInterceptor implements ProducerInterceptor {
 
     private final Tracer tracer;
     private final TextMapPropagator propagator;
-    private String topic;
 
     public OpenTelemetryProducerInterceptor(InstrumentProvider instrumentProvider) {
         this.tracer = instrumentProvider.getTracer();
@@ -70,9 +69,7 @@ public class OpenTelemetryProducerInterceptor implements ProducerInterceptor {
         }
 
         try {
-            if (topic == null) {
-                topic = producer.getTopic();
-            }
+            String topic = producer.getTopic();
 
             // Create a span for this message publication
             // The span will be linked to the current context, which may have been set by:
@@ -83,6 +80,9 @@ public class OpenTelemetryProducerInterceptor implements ProducerInterceptor {
             if (TracingContext.isValid(span) && message instanceof TraceableMessage) {
                 // Attach the span directly to the message
                 ((TraceableMessage) message).setTracingSpan(span);
+                // Inject trace context into message properties so the consumer
+                // can extract it and correlate its span with this producer span
+                TracingContext.injectContext(message, Context.current().with(span), propagator);
                 log.debug().attr("topic", topic).log("Created producer span");
             }
         } catch (Exception e) {

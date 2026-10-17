@@ -25,7 +25,6 @@ import io.opentelemetry.exporter.prometheus.PrometheusHttpServer;
 import io.opentelemetry.instrumentation.runtimetelemetry.RuntimeTelemetry;
 import io.opentelemetry.instrumentation.runtimetelemetry.RuntimeTelemetryBuilder;
 import io.opentelemetry.instrumentation.runtimetelemetry.internal.Experimental;
-import io.opentelemetry.instrumentation.runtimetelemetry.internal.Internal;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdk;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
@@ -47,6 +46,7 @@ import org.apache.commons.lang3.StringUtils;
 public class OpenTelemetryService implements Closeable {
 
     public static final String OTEL_SDK_DISABLED_KEY = "otel.sdk.disabled";
+    static final String OTEL_EXPORTER_PROMETHEUS_HOST_KEY = "otel.exporter.prometheus.host";
     static final int MAX_CARDINALITY_LIMIT = 10000;
 
     private final AtomicReference<OpenTelemetrySdk> openTelemetrySdkReference = new AtomicReference<>();
@@ -79,7 +79,13 @@ public class OpenTelemetryService implements Closeable {
                 // Cardinality limit includes the overflow attribute set, so we need to add 1.
                 "otel.java.metrics.cardinality.limit", Integer.toString(MAX_CARDINALITY_LIMIT + 1),
                 // Reduce number of allocations by using reusable data mode.
-                "otel.java.exporter.memory_mode", MemoryMode.REUSABLE_DATA.name()
+                "otel.java.exporter.memory_mode", MemoryMode.REUSABLE_DATA.name(),
+                // Preserve the pre-OpenTelemetry-1.62.0 behavior of binding the Prometheus exporter's HTTP server
+                // to all interfaces. OpenTelemetry 1.62.0 changed the default host from "0.0.0.0" to "localhost",
+                // which makes the metrics endpoint unreachable from outside the host (e.g. another container or a
+                // remote Prometheus scraper). Supplied as a default, so it is still overridden by an explicit
+                // OTEL_EXPORTER_PROMETHEUS_HOST environment variable / otel.exporter.prometheus.host system property.
+                OTEL_EXPORTER_PROMETHEUS_HOST_KEY, "0.0.0.0"
         ));
 
         sdkBuilder.addResourceCustomizer(
@@ -124,8 +130,7 @@ public class OpenTelemetryService implements Closeable {
         // For a list of exposed metrics, see https://opentelemetry.io/docs/specs/semconv/runtime/jvm-metrics/
         RuntimeTelemetryBuilder runtimeTelemetryBuilder =
                 RuntimeTelemetry.builder(openTelemetrySdkReference.get());
-        // Disable JFR-based telemetry and rely on JMX-based metrics only.
-        Internal.setDisableAllJfrFeatures(runtimeTelemetryBuilder, true);
+        // Leave JFR metrics unselected (disabled by default) and rely on JMX-based metrics only.
         // Emit experimental JMX-based runtime metrics in addition to the stable ones.
         Experimental.setEmitExperimentalMetrics(runtimeTelemetryBuilder, true);
         runtimeTelemetryReference.set(runtimeTelemetryBuilder.build());

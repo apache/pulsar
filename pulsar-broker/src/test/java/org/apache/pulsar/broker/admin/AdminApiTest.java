@@ -36,6 +36,9 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
+import jakarta.ws.rs.client.InvocationCallback;
+import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.Response.Status;
 import java.lang.reflect.Field;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -58,9 +61,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import javax.ws.rs.client.InvocationCallback;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.Response.Status;
 import lombok.Builder;
 import lombok.Cleanup;
 import lombok.CustomLog;
@@ -154,6 +154,8 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-admin")
 public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
+    private static final String BROKER_SHUTDOWN_TIMEOUT_MS = "brokerShutdownTimeoutMs";
+
     private MockedPulsarService mockPulsarSetup;
 
     private PulsarService otherPulsar;
@@ -216,6 +218,14 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     @AfterMethod(alwaysRun = true)
     public void resetClusters() throws Exception {
+        if (pulsar == null || !pulsar.isRunning()) {
+            // A test method left the broker stopped, for example because stopBroker() failed. Throwing from
+            // here is a TestNG configuration failure, which makes TestNG skip every remaining test method of
+            // this class. TestRetrySupport recreates the shared test context before the next test method.
+            log.warn().log("Broker isn't running, skipping the cleanup of the previous test method");
+            return;
+        }
+        restoreBrokerShutdownTimeout();
         pulsar.getConfiguration().setForceDeleteTenantAllowed(true);
         pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
         for (String tenant : admin.tenants().getTenants()) {
@@ -235,6 +245,25 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         resetConfig();
         applyDefaultConfig();
         setupClusters();
+    }
+
+    /**
+     * Several test methods of this class lower the {@code brokerShutdownTimeoutMs} dynamic configuration to 10ms.
+     * The broker applies dynamic configuration changes asynchronously, so when the value is left behind it can
+     * become effective while a later test method is shutting the broker down in stopBroker() or restartBroker().
+     * PulsarService#close then fails with "Timeout in close" and leaves the test holding a broker that is no
+     * longer listening, which fails this @AfterMethod and skips the remaining test methods of the class.
+     */
+    private void restoreBrokerShutdownTimeout() throws Exception {
+        String overriddenValue = admin.brokers().getAllDynamicConfigurations().get(BROKER_SHUTDOWN_TIMEOUT_MS);
+        if (overriddenValue == null) {
+            return;
+        }
+        long overriddenTimeoutMs = Long.parseLong(overriddenValue);
+        // removing the dynamic configuration makes the broker restore the value it was started with
+        admin.brokers().deleteDynamicConfiguration(BROKER_SHUTDOWN_TIMEOUT_MS);
+        Awaitility.await().untilAsserted(
+                () -> assertNotEquals(pulsar.getConfiguration().getBrokerShutdownTimeoutMs(), overriddenTimeoutMs));
     }
 
     private void setupClusters() throws PulsarAdminException {
@@ -562,11 +591,11 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // wait config to be updated
         Awaitility.await().until(() -> {
-            return conf.getLoadBalancerSheddingIntervalMinutes() == 10;
+            return pulsar.getConfiguration().getLoadBalancerSheddingIntervalMinutes() == 10;
         });
 
         // verify value is updated
-        assertEquals(conf.getLoadBalancerSheddingIntervalMinutes(), 10);
+        assertEquals(pulsar.getConfiguration().getLoadBalancerSheddingIntervalMinutes(), 10);
     }
 
     @Test
@@ -754,6 +783,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.brokers().updateDynamicConfiguration(configName, Long.toString(shutdownTime));
         // Now, znode is created: updateConfigurationAndRegisterListeners and check if configuration updated
         assertEquals(Long.parseLong(admin.brokers().getAllDynamicConfigurations().get(configName)), shutdownTime);
+        // wait until the broker has applied the value, so that the @AfterMethod always has to restore it
+        Awaitility.await().until(() -> pulsar.getConfiguration().getBrokerShutdownTimeoutMs() == shutdownTime);
     }
 
     @Test
@@ -1716,6 +1747,24 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         for (Producer<byte[]> producer : producers) {
             producer.close();
         }
+    }
+
+    @Test
+    public void testNamespaceSplitBundleWithFlowOrQpsAlgorithmUsesRequestedAlgorithm() throws Exception {
+        final String namespace = "prop-xyz/flow-or-qps-split";
+        final String topicName = "persistent://" + namespace + "/topic-1";
+        admin.namespaces().createNamespace(namespace, 1);
+        admin.topics().createNonPartitionedTopic(topicName);
+        admin.lookups().lookupTopic(topicName);
+
+        try {
+            admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0xffffffff", true,
+                    NamespaceBundleSplitAlgorithm.FLOW_OR_QPS_EQUALLY_DIVIDE);
+        } catch (Exception e) {
+            fail("split bundle with flow_or_qps_equally_divide shouldn't have thrown exception", e);
+        }
+
+        assertEquals(admin.namespaces().getBundles(namespace).getNumBundles(), 1);
     }
 
     @Test
@@ -3101,7 +3150,13 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(receivedMessages.size(), 0);
 
         consumer.close();
-        admin.topics().deleteSubscription(topicName, "my-sub");
+        // consumer.close() returns when the close request is dispatched, but the broker may not
+        // have processed the disconnect yet, so deleteSubscription can still see active consumers
+        // and return HTTP 412. Retry until the broker has detected the disconnect.
+        final String topicNameFinal = topicName;
+        Awaitility.await()
+                .ignoreExceptionsInstanceOf(PulsarAdminException.PreconditionFailedException.class)
+                .untilAsserted(() -> admin.topics().deleteSubscription(topicNameFinal, "my-sub"));
         admin.topics().deletePartitionedTopic(topicName);
     }
 
@@ -4077,6 +4132,31 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             // reset config
             pulsar.getConfiguration().setAllowAclChangesOnNonExistentTopics(false);
         }
+    }
+
+    @Test
+    @SneakyThrows
+    public void testDeleteTopicAlsoDeletePermissionGranted() {
+        String namespace = BrokerTestUtil.newUniqueName("prop-xyz/ns");
+        admin.namespaces().createNamespace(namespace);
+        String topic = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/tp");
+        String role = "test-role";
+        Set<AuthAction> permissions = EnumSet.of(AuthAction.produce, AuthAction.consume);
+
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topics().grantPermission(topic, role, permissions);
+        Awaitility.await().untilAsserted(() -> {
+            Policies nsPolicies = admin.namespaces().getPolicies(namespace);
+            assertTrue(nsPolicies.auth_policies.getTopicAuthentication().containsKey(topic));
+            assertThat(admin.topics().getPermissions(topic)).containsEntry(role, permissions);
+        });
+
+        // Verify: the permission record will be removed after the topic was removed.
+        admin.topics().delete(topic);
+        Awaitility.await().untilAsserted(() -> {
+            Policies nsPolicies = admin.namespaces().getPolicies(namespace);
+            assertFalse(nsPolicies.auth_policies.getTopicAuthentication().containsKey(topic));
+        });
     }
 
     @Test

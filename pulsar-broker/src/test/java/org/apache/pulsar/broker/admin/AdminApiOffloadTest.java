@@ -37,8 +37,12 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.apache.pulsar.common.policies.data.OffloadPoliciesImpl.EXTRA_CONFIG_PREFIX;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -50,6 +54,9 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.opentelemetry.api.common.Attributes;
+import jakarta.ws.rs.client.Client;
+import jakarta.ws.rs.client.ClientBuilder;
+import jakarta.ws.rs.core.Response;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -78,6 +85,7 @@ import org.apache.pulsar.common.policies.data.OffloadedReadPriority;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.awaitility.Awaitility;
+import org.mockito.ArgumentCaptor;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -116,6 +124,44 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @Test
+    public void testScanOffloadedLedgersUsesMergedNamespaceOffloadPolicies() throws Exception {
+        pulsar.getConfig().getProperties().setProperty("managedLedgerOffloadDriver", "aws-s3");
+        pulsar.getConfig().getProperties().setProperty("managedLedgerOffloadBucket", "broker-bucket");
+        pulsar.getConfig().getProperties().setProperty("managedLedgerOffloadRegion", "us-east-1");
+        pulsar.getConfig().getProperties().setProperty(
+                EXTRA_CONFIG_PREFIX + "tieredStorageBucketPrefix", "broker-prefix");
+
+        admin.namespaces().setOffloadThreshold(myNamespace, 1024L);
+
+        LedgerOffloader offloader = mock(LedgerOffloader.class);
+        doReturn(Map.of()).when(offloader).getOffloadDriverMetadata();
+        doNothing().when(offloader).scanLedgers(any(), anyMap());
+        ArgumentCaptor<OffloadPoliciesImpl> offloadPoliciesCaptor = ArgumentCaptor.forClass(OffloadPoliciesImpl.class);
+        doReturn(offloader).when(pulsar).getManagedLedgerOffloader(eq(NamespaceName.get(myNamespace)),
+                offloadPoliciesCaptor.capture());
+
+        Client client = ClientBuilder.newClient();
+        try {
+            try (Response response = client.target(pulsar.getWebServiceAddress()
+                    + "/admin/v2/namespaces/" + myNamespace + "/scanOffloadedLedgers").request().get()) {
+                assertEquals(response.getStatus(), Response.Status.OK.getStatusCode());
+                response.readEntity(String.class);
+            }
+        } finally {
+            client.close();
+        }
+
+        OffloadPoliciesImpl offloadPolicies = offloadPoliciesCaptor.getValue();
+        assertEquals(offloadPolicies.getManagedLedgerOffloadDriver(), "aws-s3");
+        assertEquals(offloadPolicies.getManagedLedgerOffloadBucket(), "broker-bucket");
+        assertEquals(offloadPolicies.getManagedLedgerOffloadRegion(), "us-east-1");
+        assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(), Long.valueOf(1024L));
+        assertEquals(offloadPolicies.getManagedLedgerExtraConfigurations(),
+                Map.of("tieredStorageBucketPrefix", "broker-prefix"));
+        verify(offloader).scanLedgers(any(), anyMap());
     }
 
     private void testOffload(String topicName, String mlName) throws Exception {

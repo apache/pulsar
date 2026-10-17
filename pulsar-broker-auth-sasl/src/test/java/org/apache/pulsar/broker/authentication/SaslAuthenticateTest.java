@@ -18,19 +18,23 @@
  */
 package org.apache.pulsar.broker.authentication;
 
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.collect.ImmutableSet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -40,10 +44,11 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import javax.security.auth.login.Configuration;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.commons.io.FileUtils;
@@ -61,13 +66,13 @@ import org.apache.pulsar.client.impl.auth.AuthenticationSasl;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.sasl.SaslConstants;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.testng.Assert;
+import org.awaitility.Awaitility;
+import org.mockito.ArgumentCaptor;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import org.testng.collections.CollectionUtils;
 
 @CustomLog
 public class SaslAuthenticateTest extends ProducerConsumerBase {
@@ -220,7 +225,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
     @Override
     protected void cleanup() throws Exception {
         FileUtils.deleteQuietly(secretKeyFile);
-        Assert.assertFalse(secretKeyFile.exists());
+        assertFalse(secretKeyFile.exists());
         super.internalCleanup();
     }
 
@@ -309,59 +314,71 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
-    public void testSaslOnlyAuthFirstStage() throws Exception {
+    public void testSaslOnlyAuthFirstStageKeepsInflightContextsBeforeExpiry() throws Exception {
         @Cleanup
         AuthenticationProviderSasl saslServer = new AuthenticationProviderSasl();
-        // The cache expiration time is set to 500ms. Residual auth info should be cleaned up
-        conf.setInflightSaslContextExpiryMs(500);
+        conf.setInflightSaslContextExpiryMs(Integer.MAX_VALUE);
         saslServer.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         HttpServletRequest servletRequest = mock(HttpServletRequest.class);
-        doReturn("Init").when(servletRequest).getHeader("State");
-        // 10 clients only do one-stage verification, resulting in 10 auth info remaining in memory
+        doReturn(SaslConstants.SASL_STATE_CLIENT_INIT).when(servletRequest).getHeader(SaslConstants.SASL_HEADER_STATE);
         for (int i = 0; i < 10; i++) {
-            AuthenticationDataProvider dataProvider =  authSasl.getAuthData("localhost");
+            AuthenticationDataProvider dataProvider =  authSasl.getAuthData(localHostname);
             AuthData initData1 = dataProvider.authenticate(AuthData.INIT_AUTH_DATA);
             doReturn(Base64.getEncoder().encodeToString(initData1.getBytes())).when(
-                    servletRequest).getHeader("SASL-Token");
-            doReturn(String.valueOf(i)).when(servletRequest).getHeader("SASL-Server-ID");
+                    servletRequest).getHeader(SaslConstants.SASL_AUTH_TOKEN);
+            doReturn(String.valueOf(i)).when(servletRequest).getHeader(SaslConstants.SASL_STATE_SERVER);
             saslServer.authenticateHttpRequest(servletRequest, mock(HttpServletResponse.class));
         }
-        Field field = AuthenticationProviderSasl.class.getDeclaredField("authStates");
-        field.setAccessible(true);
-        Cache<Long, AuthenticationState> cache = (Cache<Long, AuthenticationState>) field.get(saslServer);
+
+        Cache<Long, AuthenticationState> cache = saslServer.getAuthStates();
         assertEquals(cache.asMap().size(), 10);
-        // Add more auth info into memory
-        for (int i = 0; i < 10; i++) {
-            AuthenticationDataProvider dataProvider =  authSasl.getAuthData("localhost");
-            AuthData initData1 = dataProvider.authenticate(AuthData.INIT_AUTH_DATA);
-            doReturn(Base64.getEncoder().encodeToString(initData1.getBytes())).when(
-                    servletRequest).getHeader("SASL-Token");
-            doReturn(String.valueOf(10 + i)).when(servletRequest).getHeader("SASL-Server-ID");
-            saslServer.authenticateHttpRequest(servletRequest, mock(HttpServletResponse.class));
-        }
-        long start = System.currentTimeMillis();
-        while (true) {
-            if (System.currentTimeMillis() - start > 5000) {
-                fail();
-            }
-            cache = (Cache<Long, AuthenticationState>) field.get(saslServer);
-            // Residual auth info should be cleaned up
-            if (CollectionUtils.hasElements(cache.asMap())) {
-                break;
-            }
-            Thread.sleep(5);
-        }
     }
 
     @Test
-    @SuppressWarnings("unchecked")
+    public void testSaslOnlyAuthFirstStageExpiresResidualContexts() throws Exception {
+        @Cleanup
+        AuthenticationProviderSasl saslServer = new AuthenticationProviderSasl();
+        conf.setInflightSaslContextExpiryMs(50);
+        saslServer.initialize(AuthenticationProvider.Context.builder().config(conf).build());
+
+        HttpServletRequest servletRequest = mock(HttpServletRequest.class);
+        doReturn(SaslConstants.SASL_STATE_CLIENT_INIT).when(servletRequest).getHeader(SaslConstants.SASL_HEADER_STATE);
+        // The cache is keyed by the server-generated state id, which the broker returns in the
+        // SASL-Server-ID response header, not by the SASL-Server-ID request header.
+        Set<Long> stateIds = new HashSet<>();
+        for (int i = 0; i < 10; i++) {
+            AuthenticationDataProvider dataProvider =  authSasl.getAuthData(localHostname);
+            AuthData initData1 = dataProvider.authenticate(AuthData.INIT_AUTH_DATA);
+            doReturn(Base64.getEncoder().encodeToString(initData1.getBytes())).when(
+                    servletRequest).getHeader(SaslConstants.SASL_AUTH_TOKEN);
+            doReturn(String.valueOf(i)).when(servletRequest).getHeader(SaslConstants.SASL_STATE_SERVER);
+            HttpServletResponse response = mock(HttpServletResponse.class);
+            saslServer.authenticateHttpRequest(servletRequest, response);
+            ArgumentCaptor<String> stateId = ArgumentCaptor.forClass(String.class);
+            verify(response).setHeader(eq(SaslConstants.SASL_STATE_SERVER), stateId.capture());
+            stateIds.add(Long.parseLong(stateId.getValue()));
+        }
+        assertEquals(stateIds.size(), 10);
+
+        Cache<Long, AuthenticationState> cache = saslServer.getAuthStates();
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+            for (long stateId : stateIds) {
+                assertNull(cache.getIfPresent(stateId));
+            }
+            // Expired entries are physically removed only by Caffeine maintenance, so run it before
+            // checking that no residual context is left in memory.
+            cache.cleanUp();
+            assertTrue(cache.asMap().isEmpty());
+        });
+    }
+
+    @Test
     public void testMaxInflightContext() throws Exception {
         @Cleanup
         AuthenticationProviderSasl saslServer = new AuthenticationProviderSasl();
         HttpServletRequest servletRequest = mock(HttpServletRequest.class);
-        doReturn("Init").when(servletRequest).getHeader("State");
+        doReturn(SaslConstants.SASL_STATE_CLIENT_INIT).when(servletRequest).getHeader(SaslConstants.SASL_HEADER_STATE);
         conf.setInflightSaslContextExpiryMs(Integer.MAX_VALUE);
         conf.setMaxInflightSaslContext(1);
         saslServer.initialize(AuthenticationProvider.Context.builder().config(conf).build());
@@ -370,14 +387,65 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
             AuthenticationDataProvider dataProvider =  authSasl.getAuthData("localhost");
             AuthData initData1 = dataProvider.authenticate(AuthData.INIT_AUTH_DATA);
             doReturn(Base64.getEncoder().encodeToString(initData1.getBytes())).when(
-                    servletRequest).getHeader("SASL-Token");
-            doReturn(String.valueOf(i)).when(servletRequest).getHeader("SASL-Server-ID");
+                    servletRequest).getHeader(SaslConstants.SASL_AUTH_TOKEN);
+            doReturn(String.valueOf(i)).when(servletRequest).getHeader(SaslConstants.SASL_STATE_SERVER);
             saslServer.authenticateHttpRequest(servletRequest, mock(HttpServletResponse.class));
         }
-        Field field = AuthenticationProviderSasl.class.getDeclaredField("authStates");
-        field.setAccessible(true);
-        Cache<Long, AuthenticationState> cache = (Cache<Long, AuthenticationState>) field.get(saslServer);
+        Cache<Long, AuthenticationState> cache = saslServer.getAuthStates();
         //only 1 context was left in the memory
-        assertEquals(cache.asMap().size(), 1);
+        // Caffeine may perform size-based eviction asynchronously, so force maintenance before asserting.
+        cache.cleanUp();
+        assertEquals(cache.asMap().size(), conf.getMaxInflightSaslContext());
+    }
+
+    @Test
+    public void testMaxInflightContextWithDelayedCaffeineMaintenance() throws Exception {
+        @Cleanup
+        AuthenticationProviderSasl saslServer = new AuthenticationProviderSasl();
+        HttpServletRequest servletRequest = mock(HttpServletRequest.class);
+        doReturn(SaslConstants.SASL_STATE_CLIENT_INIT).when(servletRequest).getHeader(SaslConstants.SASL_HEADER_STATE);
+        conf.setInflightSaslContextExpiryMs(Integer.MAX_VALUE);
+        conf.setMaxInflightSaslContext(1);
+        saslServer.initialize(AuthenticationProvider.Context.builder().config(conf).build());
+
+        CountDownLatch maintenanceStarted = new CountDownLatch(1);
+        CountDownLatch allowMaintenance = new CountDownLatch(1);
+        @Cleanup("shutdownNow")
+        ExecutorService maintenanceExecutor = Executors.newSingleThreadExecutor();
+        Cache<Long, AuthenticationState> delayedMaintenanceCache = Caffeine.newBuilder()
+                .maximumSize(conf.getMaxInflightSaslContext())
+                .expireAfterWrite(conf.getInflightSaslContextExpiryMs(), TimeUnit.MILLISECONDS)
+                .executor(command -> maintenanceExecutor.execute(() -> {
+                    maintenanceStarted.countDown();
+                    try {
+                        allowMaintenance.await();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                    command.run();
+                }))
+                .build();
+        saslServer.setAuthStates(delayedMaintenanceCache);
+
+        try {
+            for (int i = 0; i < 10; i++) {
+                AuthenticationDataProvider dataProvider = authSasl.getAuthData("localhost");
+                AuthData initData1 = dataProvider.authenticate(AuthData.INIT_AUTH_DATA);
+                doReturn(Base64.getEncoder().encodeToString(initData1.getBytes())).when(
+                        servletRequest).getHeader(SaslConstants.SASL_AUTH_TOKEN);
+                doReturn(String.valueOf(i)).when(servletRequest).getHeader(SaslConstants.SASL_STATE_SERVER);
+                saslServer.authenticateHttpRequest(servletRequest, mock(HttpServletResponse.class));
+            }
+            assertTrue(maintenanceStarted.await(5, TimeUnit.SECONDS));
+
+            Cache<Long, AuthenticationState> cache = saslServer.getAuthStates();
+            assertTrue(cache.asMap().size() > conf.getMaxInflightSaslContext());
+
+            // Caffeine may perform size-based eviction asynchronously, so force maintenance before asserting.
+            cache.cleanUp();
+            assertEquals(cache.asMap().size(), conf.getMaxInflightSaslContext());
+        } finally {
+            allowMaintenance.countDown();
+        }
     }
 }

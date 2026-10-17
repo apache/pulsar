@@ -166,8 +166,11 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         when(mockProvider.newPendingAckStore(any()))
                 // First, the method newPendingAckStore will fail with a retryable exception.
                 .thenReturn(FutureUtil.failedFuture(new ManagedLedgerException("mock fail new store")))
-                // Then, the method will be executed successfully.
-                .thenCallRealMethod();
+                // Then, the method will be executed successfully. Delegate to the real provider
+                // rather than thenCallRealMethod(): the configured provider is now the dispatching
+                // provider, and a Mockito mock of it has null delegate fields, so calling its real
+                // method would NPE. The original real provider behaves identically for this topic.
+                .thenAnswer(invocation -> pendingAckStoreProvider.newPendingAckStore(invocation.getArgument(0)));
         transactionPendingAckStoreProviderField.set(pulsarServiceList.get(0), mockProvider);
         Consumer<byte[]> consumer3 = pulsarClient.newConsumer()
                 .subscriptionName("subName3")

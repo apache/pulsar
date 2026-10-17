@@ -20,7 +20,7 @@ package org.apache.pulsar.client.impl.conf;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import io.swagger.annotations.ApiModelProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.io.Serializable;
 import java.util.HashSet;
 import java.util.List;
@@ -43,10 +43,10 @@ public class ReaderConfigurationData<T> implements Serializable, Cloneable {
 
     private static final long serialVersionUID = 1L;
 
-    @ApiModelProperty(
+    @Schema(
             name = "topicNames",
-            required = true,
-            value = "Topic name"
+            requiredMode = Schema.RequiredMode.REQUIRED,
+            description = "Topic name"
     )
     private Set<String> topicNames = new HashSet<>();
 
@@ -56,9 +56,9 @@ public class ReaderConfigurationData<T> implements Serializable, Cloneable {
     @JsonIgnore
     private long startMessageFromRollbackDurationInSec;
 
-    @ApiModelProperty(
+    @Schema(
             name = "receiverQueueSize",
-            value = "Size of a consumer's receiver queue.\n"
+            description = "Size of a consumer's receiver queue.\n"
                     + "\n"
                     + "For example, the number of messages that can be accumulated by a consumer before an "
                     + "application calls `Receive`.\n"
@@ -68,45 +68,45 @@ public class ReaderConfigurationData<T> implements Serializable, Cloneable {
     )
     private int receiverQueueSize = 1000;
 
-    @ApiModelProperty(
+    @Schema(
             name = "readerListener",
-            value = "A listener that is called for message received."
+            description = "A listener that is called for message received."
     )
     private ReaderListener<T> readerListener;
 
-    @ApiModelProperty(
+    @Schema(
             name = "readerDecryptFailListener",
-            value = "A listener that is called for encrypted message received and decrypt fail."
+            description = "A listener that is called for encrypted message received and decrypt fail."
     )
     private ReaderDecryptFailListener<T> readerDecryptFailListener;
 
-    @ApiModelProperty(
+    @Schema(
             name = "readerName",
-            value = "Reader name"
+            description = "Reader name"
     )
     private String readerName = null;
 
-    @ApiModelProperty(
+    @Schema(
             name = "subscriptionRolePrefix",
-            value = "Prefix of subscription role."
+            description = "Prefix of subscription role."
     )
     private String subscriptionRolePrefix = null;
 
-    @ApiModelProperty(
+    @Schema(
             name = "subscriptionName",
-            value = "Subscription name"
+            description = "Subscription name"
     )
     private String subscriptionName = null;
 
-    @ApiModelProperty(
+    @Schema(
             name = "cryptoKeyReader",
-            value = "Interface that abstracts the access to a key store."
+            description = "Interface that abstracts the access to a key store."
     )
     private CryptoKeyReader cryptoKeyReader = null;
 
-    @ApiModelProperty(
+    @Schema(
             name = "cryptoFailureAction",
-            value = "Consumer should take action when it receives a message that can not be decrypted.\n"
+            description = "Consumer should take action when it receives a message that can not be decrypted.\n"
                     + "* **FAIL**: this is the default option to fail messages until crypto succeeds.\n"
                     + "* **DISCARD**: silently acknowledge and not deliver message to an application.\n"
                     + "* **CONSUME**: deliver encrypted messages to applications. It is the application's"
@@ -114,23 +114,24 @@ public class ReaderConfigurationData<T> implements Serializable, Cloneable {
                     + "\n"
                     + "The message decompression fails.\n"
                     + "\n"
-                    + "If messages contain batch messages, a client is not be able to retrieve individual messages in"
+                    + "If messages contain batch messages, a client is not able to retrieve individual messages in"
                     + " batch.\n"
                     + "\n"
                     + "Delivered encrypted message contains {@link EncryptionContext} which contains encryption and "
                     + "compression information in it using which application can decrypt consumed message payload."
-                    + "cannot set with {@link ReaderDecryptFailListener}, and if ReaderDecryptFailListener are set,\n"
-                    + "application should responsible for handling decryption failure."
+                    + " It cannot be set together with a {@link ReaderDecryptFailListener}, and if a"
+                    + " ReaderDecryptFailListener is set,\n"
+                    + "the application is responsible for handling decryption failures."
     )
     private ConsumerCryptoFailureAction cryptoFailureAction;
 
     @JsonIgnore
     private transient MessageCrypto<?, ?> messageCrypto = null;
 
-    @ApiModelProperty(
+    @Schema(
             name = "readCompacted",
-            value = "If enabling `readCompacted`, a consumer reads messages from a compacted topic rather than a full "
-                    + "message backlog of a topic.\n"
+            description = "If enabling `readCompacted`, a consumer reads messages from a compacted topic rather than "
+                    + "a full message backlog of a topic.\n"
                     + "\n"
                     + "A consumer only sees the latest value for each key in the compacted topic, up until reaching "
                     + "the point in the topic message when compacting backlog. Beyond that point, send messages as "
@@ -144,9 +145,9 @@ public class ReaderConfigurationData<T> implements Serializable, Cloneable {
     )
     private boolean readCompacted = false;
 
-    @ApiModelProperty(
+    @Schema(
             name = "resetIncludeHead",
-            value = "If set to true, the first message to be returned is the one specified by `messageId`.\n"
+            description = "If set to true, the first message to be returned is the one specified by `messageId`.\n"
                     + "\n"
                     + "If set to false, the first message to be returned is the one next to the message specified by "
                     + "`messageId`."

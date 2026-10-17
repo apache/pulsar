@@ -42,6 +42,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
@@ -277,6 +278,104 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         } else {
             assertFalse(channel1.isChannelOwnerAsync().get(2, TimeUnit.SECONDS));
             assertTrue(channel2.isChannelOwnerAsync().get(2, TimeUnit.SECONDS));
+        }
+    }
+
+    @Test(priority = 1)
+    public void testCompletedGetOwnerRequestDoesNotRemoveNewRequest() {
+        ServiceUnitStateChannelImpl channel = (ServiceUnitStateChannelImpl) channel1;
+        String serviceUnit = namespaceName + "/0x10000000_0x10000001";
+        var getOwnerRequests = channel.getOwnerRequests();
+        getOwnerRequests.remove(serviceUnit);
+        CompletableFuture<String> oldRequest = channel.dedupeGetOwnerRequest(serviceUnit);
+        assertEquals(getOwnerRequests.get(serviceUnit), oldRequest);
+
+        CompletableFuture<String> newRequest = null;
+        try {
+            // State-event handlers remove the current request before completing it, allowing a later lookup
+            // to install a new request generation before the old request's completion cleanup runs.
+            assertTrue(getOwnerRequests.remove(serviceUnit, oldRequest));
+            newRequest = channel.dedupeGetOwnerRequest(serviceUnit);
+            assertTrue(newRequest != oldRequest);
+            assertTrue(getOwnerRequests.get(serviceUnit) == newRequest);
+
+            // The previous unconditional removal would remove newRequest here.
+            assertTrue(oldRequest.complete(brokerId1));
+
+            assertTrue(getOwnerRequests.get(serviceUnit) == newRequest,
+                    "A stale get-owner cleanup must not remove a newer request future");
+
+            assertTrue(newRequest.complete(brokerId2));
+            assertFalse(getOwnerRequests.containsKey(serviceUnit),
+                    "The newer request must remove itself after completion");
+        } finally {
+            getOwnerRequests.remove(serviceUnit);
+            oldRequest.cancel(false);
+            if (newRequest != null) {
+                newRequest.cancel(false);
+            }
+        }
+    }
+
+    @Test(priority = 1)
+    public void testSkippedEventDoesNotRemoveNewGetOwnerRequest() throws Exception {
+        ServiceUnitStateChannelImpl channel = (ServiceUnitStateChannelImpl) channel1;
+        String serviceUnit = namespaceName + "/0x10000002_0x10000003";
+        var getOwnerRequests = channel.getOwnerRequests();
+        CompletableFuture<String> oldRequest = new CompletableFuture<>();
+        CompletableFuture<String> newRequest = new CompletableFuture<>();
+        try {
+            overrideTableView(channel, serviceUnit, new ServiceUnitStateData(Owned, brokerId1, 1));
+            getOwnerRequests.put(serviceUnit, oldRequest);
+            oldRequest.whenComplete((__, ___) -> getOwnerRequests.put(serviceUnit, newRequest));
+
+            channel.handleSkippedEvent(serviceUnit);
+
+            assertEquals(oldRequest.getNow(null), brokerId1);
+            assertTrue(getOwnerRequests.get(serviceUnit) == newRequest,
+                    "A stale skipped-event cleanup must not remove a newer request future");
+        } finally {
+            getOwnerRequests.remove(serviceUnit);
+            oldRequest.cancel(false);
+            overrideTableView(channel, serviceUnit, null);
+        }
+    }
+
+    @Test(priority = 1)
+    public void testCompletedCleanupJobDoesNotRemoveNewCleanupJob() {
+        ServiceUnitStateChannelImpl channel = (ServiceUnitStateChannelImpl) channel1;
+        String broker = brokerId3;
+        var cleanupJobs = channel.getCleanupJobs();
+        cleanupJobs.remove(broker);
+        channel.scheduleCleanup(broker, 60L);
+        CompletableFuture<Void> oldJob = cleanupJobs.get(broker);
+        assertNotNull(oldJob);
+
+        CompletableFuture<Void> newJob = null;
+        try {
+            // Broker-creation handling removes a cleanup job before cancelling it. A later broker-deletion
+            // event can therefore schedule a new job before the old job's completion cleanup runs.
+            assertTrue(cleanupJobs.remove(broker, oldJob));
+            channel.scheduleCleanup(broker, 60L);
+            newJob = cleanupJobs.get(broker);
+            assertNotNull(newJob);
+            assertTrue(newJob != oldJob);
+
+            // The previous unconditional removal would remove newJob here.
+            assertTrue(oldJob.cancel(false));
+
+            assertTrue(cleanupJobs.get(broker) == newJob,
+                    "A stale cleanup job completion must not remove a newer cleanup job future");
+
+            assertTrue(newJob.cancel(false));
+            assertFalse(cleanupJobs.containsKey(broker),
+                    "The newer cleanup job must remove itself after completion");
+        } finally {
+            cleanupJobs.remove(broker);
+            oldJob.cancel(false);
+            if (newJob != null) {
+                newJob.cancel(false);
+            }
         }
     }
 
@@ -820,6 +919,59 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
             assertTrue(future.isCancelled());
         });
 
+    }
+
+    @Test(priority = 8)
+    public void handleBrokerCreationEventDoesNotCancelNewCleanupJobTest() {
+        ServiceUnitStateChannelImpl channel = (ServiceUnitStateChannelImpl) channel1;
+        var cleanupJobs = channel.getCleanupJobs();
+        String broker = brokerId2;
+        CompletableFuture<Void> healthCheck = new CompletableFuture<>();
+        cleanupJobs.remove(broker);
+        channel.scheduleCleanup(broker, 60L);
+        CompletableFuture<Void> oldJob = cleanupJobs.get(broker);
+        assertNotNull(oldJob);
+
+        reset(brokers);
+        doReturn(healthCheck).when(brokers).healthcheckAsync(any());
+        doReturn(brokers).when(pulsarAdmin).brokers();
+        CompletableFuture<Void> newJob = null;
+        try {
+            channel.handleBrokerRegistrationEvent(broker, NotificationType.Created);
+            verify(brokers, times(1)).healthcheckAsync(any());
+
+            // The old cleanup can finish while the asynchronous health check is still pending. A later
+            // broker-deletion event can then schedule a new cleanup job for the same broker.
+            assertTrue(oldJob.complete(null));
+            assertFalse(cleanupJobs.containsKey(broker));
+            channel.scheduleCleanup(broker, 60L);
+            newJob = cleanupJobs.get(broker);
+            assertNotNull(newJob);
+            assertTrue(newJob != oldJob);
+
+            healthCheck.complete(null);
+
+            CompletableFuture<Void> expectedNewJob = newJob;
+            Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+                assertTrue(cleanupJobs.get(broker) == expectedNewJob,
+                        "A stale broker-creation callback must not remove a newer cleanup job");
+                assertFalse(expectedNewJob.isCancelled());
+            });
+
+            assertTrue(newJob.cancel(false));
+            assertFalse(cleanupJobs.containsKey(broker),
+                    "The newer cleanup job must remove itself after cancellation");
+        } finally {
+            cleanupJobs.remove(broker);
+            oldJob.cancel(false);
+            if (newJob != null) {
+                newJob.cancel(false);
+            }
+            reset(brokers);
+            doReturn(CompletableFuture.failedFuture(new RuntimeException("failed"))).when(brokers)
+                    .healthcheckAsync(any());
+            reset(pulsarAdmin);
+        }
     }
 
     @Test(priority = 9)
@@ -2075,9 +2227,132 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    private static ConcurrentHashMap<String, CompletableFuture<Optional<String>>> getOwnerRequests(
+    @Test
+    public void testCleanupDrainsAssignmentsAndRejectsNewOnes() throws Exception {
+        var channel = (ServiceUnitStateChannelImpl) channel1;
+        var tableView = channel.getTableView();
+        var delayedTableView = spy(tableView);
+        String serviceUnit = namespaceName + "/0x00000000_0xffffffff";
+        String lateServiceUnit = namespaceName2 + "/0x00000000_0xffffffff";
+        var pendingAssignment = new CompletableFuture<ServiceUnitStateData>();
+        var published = new CompletableFuture<Void>();
+        var disabled = new CompletableFuture<Void>();
+        doReturn(CompletableFuture.completedFuture(Optional.empty()))
+                .when(loadManager).selectAsync(any(), any(), any());
+        doAnswer(invocation -> {
+            ServiceUnitStateData data = invocation.getArgument(1);
+            if (data.state() == Assigning && !data.force()) {
+                pendingAssignment.complete(data);
+                return published;
+            }
+            return tableView.put(serviceUnit, data);
+        }).when(delayedTableView).put(eq(serviceUnit), any(ServiceUnitStateData.class));
+        doAnswer(invocation -> {
+            invocation.callRealMethod();
+            disabled.complete(null);
+            return null;
+        }).when(channel).disable();
+        channel.setTableView(delayedTableView);
+        @Cleanup("shutdownNow")
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        CompletableFuture<Void> cleanup = null;
+        try {
+            channel.publishAssignEventAsync(serviceUnit, brokerId1);
+            var assignment = pendingAssignment.get(10, TimeUnit.SECONDS);
+            cleanup = CompletableFuture.runAsync(channel::cleanOwnerships, executor);
+            disabled.get(10, TimeUnit.SECONDS);
+            assertFalse(cleanup.isDone(), "Cleanup must wait for the accepted assignment write");
+            var rejected = expectThrows(ExecutionException.class,
+                    () -> channel.publishAssignEventAsync(lateServiceUnit, brokerId1).get(10, TimeUnit.SECONDS));
+            assertTrue(rejected.getCause() instanceof IllegalStateException);
+            assertNull(tableView.get(lateServiceUnit));
+            tableView.put(serviceUnit, assignment).get(10, TimeUnit.SECONDS);
+            published.complete(null);
+            cleanup.get(10, TimeUnit.SECONDS);
+            Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+                var remaining = tableView.get(serviceUnit);
+                assertTrue(remaining == null || remaining.state() == Free,
+                        "An accepted assignment must be included in cleanup: " + remaining);
+            });
+        } finally {
+            published.complete(null);
+            if (cleanup != null) {
+                cleanup.get(10, TimeUnit.SECONDS);
+            }
+            doCallRealMethod().when(channel).disable();
+            channel.setTableView(tableView);
+            channel.enable();
+            tableView.delete(serviceUnit).get(10, TimeUnit.SECONDS);
+            tableView.delete(lateServiceUnit).get(10, TimeUnit.SECONDS);
+        }
+    }
+
+    @DataProvider
+    public Object[][] cleanupDestination() {
+        return new Object[][]{{false}, {true}};
+    }
+
+    @Test(dataProvider = "cleanupDestination")
+    public void testCleanupRetriesConcurrentAssignment(boolean hasDestinationBroker) throws Exception {
+        var channel = (ServiceUnitStateChannelImpl) channel1;
+        var tableView = channel.getTableView();
+        var delayedTableView = spy(tableView);
+        String serviceUnit = namespaceName + "/0x00000000_0xffffffff";
+        var pendingOwned = new CompletableFuture<ServiceUnitStateData>();
+        var ownedPublished = new CompletableFuture<Void>();
+        var conflictingOverride = new CompletableFuture<ServiceUnitStateData>();
+        doReturn(CompletableFuture.completedFuture(
+                hasDestinationBroker ? Optional.of(brokerId2) : Optional.empty()))
+                .when(loadManager).selectAsync(any(), any(), any());
+        doAnswer(invocation -> {
+            ServiceUnitStateData data = invocation.getArgument(1);
+            if (data.state() == Owned && !data.force()) {
+                pendingOwned.complete(data);
+                return ownedPublished;
+            }
+            var owned = pendingOwned.getNow(null);
+            if (data.force() && owned != null && data.versionId() == owned.versionId()) {
+                // Publish the delayed Owned update before the cleanup's same-version override. Both writes
+                // succeed, but the real conflict resolver discards the stale cleanup update.
+                return tableView.put(serviceUnit, owned).thenCompose(__ -> {
+                    ownedPublished.complete(null);
+                    conflictingOverride.complete(data);
+                    return tableView.put(serviceUnit, data);
+                });
+            }
+            return tableView.put(serviceUnit, data);
+        }).when(delayedTableView).put(eq(serviceUnit), any(ServiceUnitStateData.class));
+        channel.setTableView(delayedTableView);
+        try {
+            var assignment = channel.publishAssignEventAsync(serviceUnit, brokerId1);
+            var owned = pendingOwned.get(10, TimeUnit.SECONDS);
+            assertEquals(2L, owned.versionId());
+            channel.cleanOwnerships();
+            assertEquals(owned.versionId(), conflictingOverride.get(10, TimeUnit.SECONDS).versionId());
+            Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+                var remaining = tableView.get(serviceUnit);
+                if (hasDestinationBroker) {
+                    assertNotNull(remaining);
+                    assertEquals(Owned, remaining.state());
+                    assertEquals(brokerId2, remaining.dstBroker());
+                } else {
+                    assertTrue(remaining == null || remaining.state() == Free,
+                            "Cleanup must not leave the concurrently assigned bundle owned by the stopped broker: "
+                                    + remaining);
+                }
+            });
+            assertTrue(assignment.isDone());
+        } finally {
+            ownedPublished.complete(null);
+            channel.setTableView(tableView);
+            channel.enable();
+            tableView.delete(serviceUnit).get(10, TimeUnit.SECONDS);
+        }
+    }
+
+    private static ConcurrentHashMap<String, CompletableFuture<String>> getOwnerRequests(
             ServiceUnitStateChannel channel) throws IllegalAccessException {
-        return (ConcurrentHashMap<String, CompletableFuture<Optional<String>>>)
+        return (ConcurrentHashMap<String, CompletableFuture<String>>)
                 FieldUtils.readDeclaredField(channel,
                         "getOwnerRequests", true);
     }
@@ -2150,14 +2425,13 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
     private static ServiceUnitStateTableView getTableView(ServiceUnitStateChannel channel)
             throws IllegalAccessException {
-        return (ServiceUnitStateTableView)
-                FieldUtils.readField(channel, "tableview", true);
+        return ((ServiceUnitStateChannelImpl) channel).getTableView();
     }
 
     private static void setTableView(ServiceUnitStateChannel channel,
                                      ServiceUnitStateTableView tableView)
             throws IllegalAccessException {
-        FieldUtils.writeField(channel, "tableview", tableView, true);
+        ((ServiceUnitStateChannelImpl) channel).setTableView(tableView);
     }
 
     private static void waitUntilState(ServiceUnitStateChannel channel, String key)

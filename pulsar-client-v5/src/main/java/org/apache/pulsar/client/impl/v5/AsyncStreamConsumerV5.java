@@ -49,16 +49,7 @@ final class AsyncStreamConsumerV5<T> implements AsyncStreamConsumer<T> {
 
     @Override
     public CompletableFuture<List<Message<T>>> receiveMulti(int maxNumMessages, Duration timeout) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                var msgs = consumer.receiveMulti(maxNumMessages, timeout);
-                List<Message<T>> result = new java.util.ArrayList<>();
-                msgs.forEach(result::add);
-                return result;
-            } catch (Exception e) {
-                throw new java.util.concurrent.CompletionException(e);
-            }
-        });
+        return consumer.receiveMultiAsync(maxNumMessages, timeout);
     }
 
     @Override

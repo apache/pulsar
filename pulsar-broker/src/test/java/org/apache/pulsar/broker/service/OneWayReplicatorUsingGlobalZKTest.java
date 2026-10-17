@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.service.TopicPoliciesService.GetType.GLOBAL_ONLY;
 import static org.apache.pulsar.broker.service.TopicPoliciesService.GetType.LOCAL_ONLY;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -28,6 +29,7 @@ import static org.testng.Assert.fail;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -51,9 +53,12 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
+import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
+import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
@@ -118,6 +123,41 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         super.testReplicatorCreateTopic(isPartitioned);
     }
 
+    @Test
+    public void testDeletingTopicOnOneClusterKeepsSharedTopicPermissions() throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/topic-permissions-");
+        String role = "test-role";
+        Set<AuthAction> permissions = EnumSet.of(AuthAction.produce, AuthAction.consume);
+
+        admin1.topics().createNonPartitionedTopic(topic);
+        waitReplicatorStarted(topic);
+        admin1.topics().grantPermission(topic, role, permissions);
+        Awaitility.await().untilAsserted(() -> {
+            assertThat(admin1.topics().getPermissions(topic)).containsEntry(role, permissions);
+            assertThat(admin2.topics().getPermissions(topic)).containsEntry(role, permissions);
+        });
+
+        admin1.topicPolicies(true).setReplicationClusters(topic, Arrays.asList(cluster1));
+        Awaitility.await().untilAsserted(() -> {
+            assertFalse(admin2.topics().getList(replicatedNamespace).contains(topic));
+            assertThat(admin1.topics().getPermissions(topic)).containsEntry(role, permissions);
+        });
+
+        admin1.topicPolicies(true).setReplicationClusters(topic, Arrays.asList(cluster1, cluster2));
+        Awaitility.await().untilAsserted(() -> {
+            assertThat(admin1.topics().getPermissions(topic)).containsEntry(role, permissions);
+            assertThat(admin2.topics().getPermissions(topic)).containsEntry(role, permissions);
+        });
+
+        // clear topic.
+        admin1.topicPolicies(true).setReplicationClusters(topic, Arrays.asList(cluster1));
+        Awaitility.await().untilAsserted(() -> {
+            assertFalse(admin2.topics().getList(replicatedNamespace).contains(topic));
+            assertThat(admin1.topics().getPermissions(topic)).containsEntry(role, permissions);
+        });
+        admin1.topics().delete(topic);
+    }
+
     @Override
     @Test
     public void testDeleteRemoteTopicByGlobalPolicy() throws Exception {
@@ -161,6 +201,15 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
             assertFalse(global2.contains(cluster2));
         });
         waitReplicatorStopped(subTopic, pulsar1, pulsar2, true);
+
+        try {
+            admin2.topics().createMissedPartitions(topicName);
+            fail("The action that creates mission partitions should have thrown exception");
+        } catch (Exception e) {
+            assertTrue(e.getMessage().contains("is not allowed to be loaded up"));
+        }
+        assertFalse(admin2.topics().getList(replicatedNamespace)
+            .contains(TopicName.get(topicName).getPartition(0).toString()));
 
         // Remove global policy.
         admin1.topicPolicies(true).removeReplicationClusters(topicName);
@@ -823,6 +872,82 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         admin2.topics().delete(tp, false);
     }
 
+    @Test(enabled = false)
+    public void testDisconnectAndReconnectReplicator(boolean binaryWayRepl,
+                                                     boolean hasLocalProducerRegistered,
+                                                     boolean localProducerHasTraffic,
+                                                     boolean hasRemoteProducerTraffic,
+                                                     boolean hasRemoteProducerRegistered) throws Exception {
+        super.testDisconnectAndReconnectReplicator(binaryWayRepl, hasLocalProducerRegistered, localProducerHasTraffic,
+                hasRemoteProducerTraffic, hasRemoteProducerRegistered);
+    }
+
+    @Test
+    public void testTopicGCDoesNotDisconnectReplicatorWhenRemoteProducerIsActive() throws Exception {
+        int replicationInactiveThresholdSeconds = pulsar1.getConfig().getBrokerReplicationInactiveThresholdSeconds();
+        pulsar1.getConfig().setBrokerReplicationInactiveThresholdSeconds(3600);
+        final String topic = BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/tp_");
+        admin1.topics().createNonPartitionedTopic(topic);
+        Producer<String> producer1 = client1.newProducer(Schema.STRING).topic(topic).create();
+
+        try {
+            producer1.send("msg-1");
+            waitReplicatorStarted(topic, pulsar1);
+            waitReplicatorStarted(topic, pulsar2);
+            PersistentTopic persistentTopic2 = (PersistentTopic) broker2.getTopic(topic, false)
+                    .join().get();
+
+            // Set inactive policies.
+            InactiveTopicPolicies  inactiveTopicPolicies = new InactiveTopicPolicies();
+            inactiveTopicPolicies.setInactiveTopicDeleteMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
+            inactiveTopicPolicies.setMaxInactiveDurationSeconds(10);
+            inactiveTopicPolicies.setDeleteWhileInactive(true);
+            admin2.topicPolicies().setInactiveTopicPolicies(topic, inactiveTopicPolicies);
+
+            // Ensure policies were set successfully.
+            Awaitility.await().untilAsserted(() -> {
+                assertFalse(persistentTopic2.getProducers().values().stream()
+                        .anyMatch(producer -> !producer.isRemote()));
+                assertTrue(persistentTopic2.getSubscriptions().isEmpty());
+                assertTrue(persistentTopic2.getInactiveTopicPolicies().isDeleteWhileInactive());
+                assertEquals(persistentTopic2.getInactiveTopicPolicies().getMaxInactiveDurationSeconds(), 10);
+
+                Replicator replicator = persistentTopic2.getReplicators().get(cluster1);
+                assertNotNull(replicator);
+                assertTrue(replicator.isConnected());
+                assertEquals(replicator.getNumberOfEntriesInBacklog(), 0);
+            });
+
+            // Trigger GC.
+            persistentTopic2.disconnectReplicatorsIfNoTrafficAndBacklog();
+            persistentTopic2.checkGC();
+            Thread.sleep(15 * 1000);
+            persistentTopic2.disconnectReplicatorsIfNoTrafficAndBacklog();
+            persistentTopic2.checkGC();
+
+            // Verify: the replication is not disconnected due to Topic GC.
+            Replicator replicator = persistentTopic2.getReplicators().get(cluster1);
+            assertNotNull(replicator);
+            assertTrue(replicator.isConnected());
+
+            // Verify: the replication still works.
+            producer1.send("msg-2");
+            Awaitility.await().untilAsserted(() -> {
+                assertEquals(admin2.topics().getStats(topic).getReplication().get(cluster1).getReplicationBacklog(), 0);
+            });
+
+        } finally {
+            pulsar1.getConfig().setBrokerReplicationInactiveThresholdSeconds(replicationInactiveThresholdSeconds);
+            producer1.close();
+            admin1.topics().setReplicationClusters(topic, Arrays.asList(cluster1));
+            admin2.topics().setReplicationClusters(topic, Arrays.asList(cluster2));
+            waitReplicatorStopped(topic, pulsar1, pulsar2, false);
+            waitReplicatorStopped(topic, pulsar2, pulsar1, false);
+            admin1.topics().delete(topic, false);
+            admin2.topics().delete(topic, false);
+        }
+    }
+
     @Test
     public void testUpdateNamespacePolicies() throws Exception {
         // Create a namespace and allow both clusters to access.
@@ -848,5 +973,29 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         // cleanup.
         p.close();
         admin1.topics().delete(topic);
+    }
+
+    /**
+     * A cluster in the namespace-level allowed clusters can load the topic even when the topic-level replication
+     * clusters do not contain it, so it is allowed to create the missed partitions too.
+     */
+    @Test
+    public void testCreateMissedPartitionsOnAllowedClusterOutsideTopicReplication() throws Exception {
+        final String ns1 = defaultTenant + "/ns_" + UUID.randomUUID().toString().replace("-", "");
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + ns1 + "/tp");
+        final String subTopic = TopicName.get(topicName).getPartition(0).toString();
+        admin1.namespaces().createNamespace(ns1);
+        admin1.namespaces().setNamespaceAllowedClusters(ns1, new HashSet<>(Arrays.asList(cluster1, cluster2)));
+        admin1.namespaces().setNamespaceReplicationClusters(ns1,
+                new HashSet<>(Arrays.asList(cluster1, cluster2)), true);
+        admin1.topics().createPartitionedTopic(topicName, 1);
+        admin1.topicPolicies(true).setReplicationClusters(topicName, Arrays.asList(cluster1));
+        Awaitility.await().untilAsserted(() -> {
+            Set<String> global2 = admin2.topicPolicies(true).getReplicationClusters(topicName, false);
+            assertEquals(global2, Collections.singleton(cluster1));
+        });
+
+        admin2.topics().createMissedPartitions(topicName);
+        assertTrue(admin2.topics().getList(ns1).contains(subTopic));
     }
 }
