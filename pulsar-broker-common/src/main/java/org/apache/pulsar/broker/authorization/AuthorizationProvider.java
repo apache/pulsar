@@ -377,8 +377,9 @@ public interface AuthorizationProvider extends Closeable {
      * Grant on a topic the permissions granted on another topic, for a topic that takes over from another one, such
      * as the scalable topic a regular topic is migrated to: the roles allowed on the source topic keep their access.
      *
-     * <p>Only the permissions granted on the source topic itself are copied, not those of its namespace. A role keeps
-     * the permissions already granted to it on the target topic, and gains those granted to it on the source topic.
+     * <p>Both topics are in the same namespace. Only the permissions granted on the source topic itself are copied,
+     * not those of the namespace. A role keeps the permissions already granted to it on the target topic, and gains
+     * those granted to it on the source topic.
      *
      * <p>The default implementation copies nothing: a provider that stores the permissions granted on topics should
      * override it.
