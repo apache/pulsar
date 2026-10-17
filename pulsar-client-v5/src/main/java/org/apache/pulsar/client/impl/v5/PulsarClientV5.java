@@ -46,9 +46,10 @@ final class PulsarClientV5 implements PulsarClient {
     private final Duration transactionTimeout;
 
     /**
-     * The open V5 producers on scalable topics. Closing the v4 client closes the per-segment v4
-     * producers but not these, whose sends waiting for a new layout would then never complete: they
-     * are closed first.
+     * The V5 producers on scalable topics, until their close completes. Closing the v4 client closes
+     * the per-segment v4 producers but not these, whose sends waiting for a new layout would then
+     * never complete: they are closed first, and the v4 client once they are, including those already
+     * closing.
      */
     private final Set<ScalableTopicProducer<?>> producers = ConcurrentHashMap.newKeySet();
 

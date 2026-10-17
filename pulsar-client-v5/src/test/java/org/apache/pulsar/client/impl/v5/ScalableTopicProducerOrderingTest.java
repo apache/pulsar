@@ -93,6 +93,9 @@ public class ScalableTopicProducerOrderingTest {
     private final Map<String, Long> segmentIds = new HashMap<>();
     private TestExecutor dispatchExecutor;
     private ExecutorService completionExecutor;
+    private ExecutorProvider external;
+    /** What the segment producers' {@code closeAsync} returns. */
+    private volatile CompletableFuture<Void> segmentCloseResult;
     private MemoryLimitController memory;
     private PulsarClientImpl v4;
     private PulsarClientV5 client;
@@ -103,6 +106,7 @@ public class ScalableTopicProducerOrderingTest {
     public void setup() {
         sent.clear();
         closedSegments.clear();
+        segmentCloseResult = CompletableFuture.completedFuture(null);
         for (var layout : List.of(L0, L1, L2)) {
             for (var segment : layout.activeSegments()) {
                 segmentIds.put(segment.attachTopicName(), segment.segmentId());
@@ -112,7 +116,7 @@ public class ScalableTopicProducerOrderingTest {
         completionExecutor = MoreExecutors.newDirectExecutorService();
         memory = new MemoryLimitController(64 * 1024 * 1024);
         v4 = mock(PulsarClientImpl.class);
-        ExecutorProvider external = mock(ExecutorProvider.class);
+        external = mock(ExecutorProvider.class);
         EventLoopGroup eventLoopGroup = mock(EventLoopGroup.class);
         when(v4.getMemoryLimitController()).thenReturn(memory);
         when(v4.getInternalExecutorService()).thenReturn(dispatchExecutor);
@@ -268,7 +272,7 @@ public class ScalableTopicProducerOrderingTest {
     }
 
     @Test
-    public void closingTheClientWaitsForTheQueuedDispatchBeforeClosingTheV4Client() {
+    public void closingTheClientFailsTheSendsBehindAQueuedChainHop() {
         create(L0);
         client.registerProducer(producer);
         // The send's dispatch chain starts with a hop to the dispatch executor, which is behind.
@@ -276,18 +280,95 @@ public class ScalableTopicProducerOrderingTest {
         var a1 = send(KEY_A, "a1");
         assertThat(sent).isEmpty();
 
+        // Closing the v4 client would drop the hop: closing the producer fails the send without it.
         var closed = client.closeAsync();
-        assertThat(closed).isNotDone();
-        verify(v4, never()).closeAsync();
-
-        // The dispatch runs, finds the segment producer closed and fails the send; then the v4
-        // client closes.
-        dispatchExecutor.paused = false;
-        dispatchExecutor.runAll();
-        assertThat(a1).isCompletedExceptionally();
         assertThat(closed).isCompleted();
         verify(v4).closeAsync();
+        assertClosedFailure(a1);
         assertThat(memory.currentUsage()).isZero();
+
+        dispatchExecutor.paused = false;
+        dispatchExecutor.runAll();
+        assertThat(sent).isEmpty();
+    }
+
+    @Test
+    public void closingTheClientCompletesTheWaitingSendsBeforeItsExecutorsShutDown() {
+        // The completion executor is behind, and closing the v4 client drops its queued tasks.
+        var completions = new TestExecutor();
+        completions.paused = true;
+        completionExecutor = completions;
+        when(external.getExecutor()).thenReturn(completionExecutor);
+        when(v4.closeAsync()).thenAnswer(__ -> {
+            completions.shutdownNow();
+            dispatchExecutor.shutdownNow();
+            return CompletableFuture.completedFuture(null);
+        });
+        create(L0);
+        client.registerProducer(producer);
+
+        send(KEY_A, "a1");
+        applyLayout(L1, L0);
+        // Held behind a1, which is in flight on the retiring segment 0.
+        var a2 = send(KEY_A, "a2");
+        assertThat(producer.waitingSendCount()).isEqualTo(1);
+
+        assertThat(client.closeAsync()).isCompleted();
+        assertClosedFailure(a2);
+    }
+
+    @Test
+    public void closingTheClientWaitsForAProducerThatIsAlreadyClosing() {
+        create(L0);
+        client.registerProducer(producer);
+        var a1 = send(KEY_A, "a1");
+        assertThat(values(0)).containsExactly("a1");
+
+        // The segment producer takes its time to close.
+        var segmentClosed = new CompletableFuture<Void>();
+        segmentCloseResult = segmentClosed;
+        var producerClosed = producer.closeAsync();
+        assertThat(producerClosed).isNotDone();
+
+        var clientClosed = client.closeAsync();
+        assertThat(clientClosed).isNotDone();
+        verify(v4, never()).closeAsync();
+
+        complete(0, new AlreadyClosedException("closed"));
+        segmentClosed.complete(null);
+        assertThat(producerClosed).isCompleted();
+        assertThat(clientClosed).isCompleted();
+        verify(v4).closeAsync();
+        assertThat(a1).isCompletedExceptionally();
+        assertThat(memory.currentUsage()).isZero();
+    }
+
+    @Test
+    public void closingTheClientDoesNotWaitForASegmentProducerThatIsNotCreatedYet() {
+        // The segment producer waits for exclusive access, which another client holds.
+        var creation = new CompletableFuture<Producer<String>>();
+        doAnswer(__ -> creation).when(v4).createSegmentProducerAsync(any(), any());
+        create(L0);
+        client.registerProducer(producer);
+        var a1 = send(KEY_A, "a1");
+        assertThat(a1).isNotDone();
+
+        assertThat(client.closeAsync()).isCompleted();
+        verify(v4).closeAsync();
+        assertClosedFailure(a1);
+        assertThat(memory.currentUsage()).isZero();
+
+        // Created after all: it is closed, and nothing is sent to it.
+        creation.complete(segmentProducer(0));
+        dispatchExecutor.runAll();
+        assertThat(closedSegments).contains(0L);
+        assertThat(sent).isEmpty();
+    }
+
+    private static void assertClosedFailure(CompletableFuture<org.apache.pulsar.client.api.v5.MessageId> send) {
+        Class<?> alreadyClosed = org.apache.pulsar.client.api.v5.PulsarClientException.AlreadyClosedException.class;
+        assertThat(send).failsWithin(0, TimeUnit.SECONDS).withThrowableThat()
+                .havingCause().isInstanceOf(alreadyClosed);
     }
 
     private void create(ClientSegmentLayout initial) {
@@ -384,7 +465,7 @@ public class ScalableTopicProducerOrderingTest {
         });
         when(producer.closeAsync()).thenAnswer(__ -> {
             closedSegments.add(segmentId);
-            return CompletableFuture.completedFuture(null);
+            return segmentCloseResult;
         });
         return producer;
     }

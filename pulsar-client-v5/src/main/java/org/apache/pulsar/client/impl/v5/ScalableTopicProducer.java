@@ -145,9 +145,10 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
 
     /**
      * Where the caller's future is completed when its result did not arrive on an IO thread: on
-     * the dispatch thread, the timer, the thread closing the producer. Code chained on the future
-     * may block, and a send from it may wait for memory, which none of those threads can afford to
-     * do (see {@link #finish}). Results that arrive on an IO thread complete in place.
+     * the dispatch thread or the timer. Code chained on the future may block, and a send from it may
+     * wait for memory, which neither thread can afford to do (see {@link #finish}). Results that
+     * arrive on an IO thread complete in place, and so do all results once closing, when a send
+     * from the chained code fails fast.
      */
     private final ExecutorService completionExecutor;
 
@@ -196,6 +197,14 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
      * {@link #closeAsync} waits for them along with the current chains.
      */
     private final Set<CompletableFuture<?>> droppedChainTails = ConcurrentHashMap.newKeySet();
+
+    /**
+     * The heads of the dispatch chains, until they complete. {@link #closeAsync} fails the ones still
+     * pending, and with them the sends behind them: a head waits for the segment producer to be
+     * created, which under {@code WAIT_FOR_EXCLUSIVE} can take forever, and then for a hop to the
+     * dispatch executor, which the client drops if it shuts down first.
+     */
+    private final Set<CompletableFuture<?>> pendingChainHeads = ConcurrentHashMap.newKeySet();
 
     /**
      * Currently in-flight async sends. {@link #flushAsync()} snapshots and
@@ -1163,7 +1172,8 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
      * queued behind it, nor on the timer or the thread closing the producer. A result delivered
      * inside the dispatch link, whether a failure raised in {@code sendAsync} or an acknowledgement
      * that beat the callback registration, is on the dispatch thread. Those complete on
-     * {@link #completionExecutor}.
+     * {@link #completionExecutor}, unless this producer or the client is closing: then they complete
+     * in place, as nothing may be left queued on an executor the client is about to shut down.
      */
     private void finish(PendingSend<T> send, MessageId messageId, Throwable failure) {
         if (!send.finished.compareAndSet(false, true)) {
@@ -1176,11 +1186,13 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
             return;
         }
         boolean offload = send.dispatching || (failure != null && !isEventLoopThread());
-        if (!offload || client.v4Client().isClosed()) {
-            // In place: the result arrived on an IO thread, or the client is closing. Its executors
-            // are shut down with it, with shutdownNow(), which drops whatever is still queued: a
-            // completion handed to the executor now could be lost and the caller's future never
-            // complete. Once the executors are gone, the same happens below.
+        if (!offload || isShuttingDown()) {
+            // In place: the result arrived on an IO thread, or this producer or the client is
+            // closing. The client's executors are shut down with it, with shutdownNow(), which drops
+            // whatever is still queued: a completion handed to the executor now could be lost and the
+            // caller's future never complete. Closing the client closes this producer first, so a
+            // completion queued while this producer closes could be lost the same way. Once the
+            // executors are gone, the same happens below.
             complete(send, messageId, failure);
             return;
         }
@@ -1228,9 +1240,13 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
             if (!closed) {
                 // The head completes on the IO thread that finishes creating the segment producer, and
                 // every link queued behind it would run there in one burst: hop off it first.
-                var prev = dispatchChains.computeIfAbsent(segmentId,
-                        id -> getOrCreateSegmentProducerAsync(id)
-                                .thenApplyAsync(Function.identity(), dispatchExecutor));
+                var prev = dispatchChains.computeIfAbsent(segmentId, id -> {
+                    var head = getOrCreateSegmentProducerAsync(id)
+                            .thenApplyAsync(Function.identity(), dispatchExecutor);
+                    pendingChainHeads.add(head);
+                    head.whenComplete((__, ___) -> pendingChainHeads.remove(head));
+                    return head;
+                });
                 var next = prev.thenApply(producer -> {
                     dispatchOp.accept(producer);
                     return producer;
@@ -1308,11 +1324,16 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
     }
 
     /**
-     * Close the producer: fail the sends waiting for a layout, close the segment producers, and wait
-     * for the sends on the dispatch chains to be handed to them, which fails them as the segment
-     * producers are closed. Waiting for the chains matters when the client closes next: its executors
-     * drop queued tasks when they shut down, among them the hop that starts a chain, which would leave
-     * the sends behind it pending for good. Idempotent.
+     * Close the producer: fail the sends waiting for a layout and those behind a dispatch chain head
+     * that is still pending, close the segment producers, and wait for the sends on the dispatch
+     * chains to be handed to them, which fails them as the segment producers are closed.
+     *
+     * <p>Nothing this waits for depends on the client's executors or on a segment producer still
+     * being created: the client closes its producers first and then shuts its executors down, which
+     * drops their queued tasks, and a segment producer waiting for exclusive access may never be
+     * created. A segment producer still being created is closed once it is, without waiting for it;
+     * closing the client closes it right away. The producer stays registered with the client until
+     * this completes, so that closing the client waits for it too. Idempotent.
      */
     CompletableFuture<Void> closeAsync() {
         CompletableFuture<Void> result = new CompletableFuture<>();
@@ -1320,7 +1341,6 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
             return closeFuture.get();
         }
         closed = true;
-        client.deregisterProducer(this);
         dagWatch.close();
 
         // No new layout is coming: fail the sends waiting for one. The sends in flight fail as their
@@ -1331,11 +1351,16 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
         for (var future : segmentProducers.values()) {
             // If creation failed, there's nothing to close — swallow so a single bad
             // segment doesn't fail the overall close.
-            futures.add(future.thenCompose(p -> p.closeAsync())
-                    .exceptionally(__ -> null));
+            var segmentClosed = future.thenCompose(p -> p.closeAsync()).exceptionally(__ -> null);
+            if (future.isDone()) {
+                futures.add(segmentClosed);
+            }
         }
-        // Collected after closing is visible, under the lock: no link is appended after this.
+        // Collected after closing is visible, under the lock: no chain is started or link appended
+        // after this.
+        List<CompletableFuture<?>> heads;
         synchronized (dispatchLock) {
+            heads = new ArrayList<>(pendingChainHeads);
             for (var tail : dispatchChains.values()) {
                 futures.add(tail.handle((__, ___) -> null));
             }
@@ -1343,10 +1368,16 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
                 futures.add(tail.handle((__, ___) -> null));
             }
         }
+        // Outside the lock: the sends behind the heads fail in place, and the caller's code chained
+        // on them runs here.
+        for (var head : heads) {
+            head.completeExceptionally(new PulsarClientException.AlreadyClosedException("Producer already closed"));
+        }
         CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new))
                 .whenComplete((__, ___) -> {
                     segmentProducers.clear();
                     dispatchChains.clear();
+                    client.deregisterProducer(this);
                     result.complete(null);
                 });
         return result;
