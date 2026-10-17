@@ -723,6 +723,11 @@ public class PulsarTestContext implements AutoCloseable {
 
         protected void handlePreallocatePorts(ServiceConfiguration config) {
             if (super.preallocatePorts) {
+                // Pre-allocate ports for callers that need the port number BEFORE the broker
+                // starts (e.g. to build advertised-listener URLs). PortManager hands out ports
+                // outside the ephemeral range, so the kernel won't auto-assign them to other
+                // processes. Tests that don't need a pre-known port should leave
+                // preallocatePorts=false and let the broker bind to 0 directly.
                 config.getBrokerServicePort().ifPresent(portNumber -> {
                     if (portNumber == 0) {
                         config.setBrokerServicePort(Optional.of(PortManager.nextLockedFreePort()));

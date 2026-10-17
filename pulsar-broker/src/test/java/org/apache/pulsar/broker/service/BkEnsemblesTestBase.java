@@ -86,7 +86,7 @@ public abstract class BkEnsemblesTestBase extends TestRetrySupport {
         incrementSetupNumber();
         try {
             // start local bookie and zookeeper
-            bkEnsemble = new LocalBookkeeperEnsemble(numberOfBookies, 0, () -> 0);
+            bkEnsemble = new LocalBookkeeperEnsemble(numberOfBookies, 0);
             bkEnsemble.start();
 
             // start pulsar service

@@ -50,7 +50,7 @@ public abstract class TransactionMetaStoreTestBase extends TestRetrySupport {
     protected final void setup() throws Exception {
         log.info().attr("class", getClass().getSimpleName()).log("---- Initializing -----");
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble.start();
 
         String[] args = new String[]{

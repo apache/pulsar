@@ -1,18 +1,26 @@
 <!--
 ### Contribution Checklist
-  
-  - PR title format should be *[type][component] summary*. For details, see *[Guideline - Pulsar PR Naming Convention](https://pulsar.apache.org/contribute/develop-semantic-title/)*. 
+
+  - PR title format should be *[type][component] summary*. The valid `[type]` and `[component]`/scope
+    prefixes are enforced by CI (see `.github/workflows/ci-semantic-pull-request.yml`); for details,
+    see *[Guideline - Pulsar PR Naming Convention](https://pulsar.apache.org/contribute/develop-semantic-title/)*.
 
   - Fill out the template below to describe the changes contributed by the pull request. That will give reviewers the context they need to do the review.
-  
+
+  - The **Motivation** and **Modifications** sections are required: explain *why* (the problem/context)
+    and *what/how* (the change). A title alone, or a description that only restates the title, is not enough.
+
   - Each pull request should address only one issue, not mix up code from multiple issues.
-  
+
   - Each commit in the pull request has a meaningful commit message
+
+  - For the local build/test/PR workflow see `CONTRIBUTING.md`, and for coding conventions see
+    `CODING.md`. If you use an AI coding assistant, see `AGENTS.md`.
 
   - Once all items of the checklist are addressed, remove the above text and this checklist, leaving only the filled out template below.
 -->
 
-<!-- Either this PR fixes an issue, -->
+<!-- Either this PR fixes/closes an issue — use "Fixes #xyz" or, equivalently, "Closes #xyz", -->
 
 Fixes #xyz
 

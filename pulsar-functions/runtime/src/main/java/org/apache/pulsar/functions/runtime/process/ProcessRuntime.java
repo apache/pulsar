@@ -241,6 +241,15 @@ class ProcessRuntime implements Runtime {
             retval.completeExceptionally(new RuntimeException("Not alive"));
             return retval;
         }
+        if (!isAlive()){
+            FunctionStatus status = new FunctionStatus();
+            status.setRunning(false);
+            if (deathException != null && deathException.getMessage() != null) {
+                status.setFailureException(deathException.getMessage());
+            }
+            retval.complete(status);
+            return retval;
+        }
         stub.withDeadlineAfter(GRPC_TIMEOUT_SECS, TimeUnit.SECONDS)
                 .getFunctionStatus(new Empty(), new StreamObserver<>() {
             @Override
@@ -384,6 +393,7 @@ class ProcessRuntime implements Runtime {
             log.info().attr("args", String.join(" ", processBuilder.command()))
                     .log("ProcessBuilder starting the process");
             process = processBuilder.start();
+            log.info().attr("pid", process.pid()).log("Process started");
         } catch (Exception ex) {
             log.error().exception(ex).log("Starting process failed");
             deathException = ex;
@@ -391,11 +401,12 @@ class ProcessRuntime implements Runtime {
         }
         try {
             int exitValue = process.exitValue();
-            log.error().attr("exitValue", exitValue)
+            log.error().attr("pid", process.pid())
+                    .attr("exitValue", exitValue)
                     .log("Instance Process quit unexpectedly");
             tryExtractingDeathException();
         } catch (IllegalThreadStateException ex) {
-            log.info("Started process successfully");
+            log.info().attr("pid", process.pid()).log("Started process successfully");
         }
     }
 

@@ -26,6 +26,7 @@ import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.Closeable;
@@ -52,6 +53,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.util.StringUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -61,6 +63,7 @@ import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
@@ -652,6 +655,57 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
         admin.topics().unload(topic);
         admin.topics().delete(topic);
         bkClient2.close();
+    }
+
+    /**
+     * Terminating a topic closes the current ledger under the publishes that are still in flight. The topic must not
+     * stay fenced afterwards: a terminated topic still has to be drained, so consumers must be able to subscribe to it.
+     */
+    @Test
+    public void testConsumerCanSubscribeAfterTerminateWithInFlightPublish() throws Exception {
+        final String namespace = BrokerTestUtil.newUniqueName("prop/ns");
+        final String topic = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/tp");
+        admin.namespaces().createNamespace(namespace);
+        admin.topics().createNonPartitionedTopic(topic);
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .build();
+        Producer<String> producer = client.newProducer(Schema.STRING)
+                .enableBatching(false)
+                .topic(topic)
+                .create();
+        producer.send("1");
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
+                .getTopic(topic, false).join().get();
+
+        // Delay the bookie responses, so that the next publish is still in flight when the topic gets terminated.
+        Closeable cancellation = injectBKServerDelayForCurrentLedger(topic, 10, TimeUnit.SECONDS, 0);
+        producer.sendAsync("2");
+        Awaitility.await().untilAsserted(() -> assertEquals(persistentTopic.getPendingWriteOps().get(), 1));
+
+        CompletableFuture<MessageId> terminated = persistentTopic.terminate();
+        // Under load, more publishes reach the terminated topic before its producers get disconnected.
+        CompletableFuture<Exception> latePublish = new CompletableFuture<>();
+        persistentTopic.publishMessage(Unpooled.wrappedBuffer("3".getBytes()),
+                (e, ledgerId, entryId) -> latePublish.complete(e));
+        terminated.get(10, TimeUnit.SECONDS);
+        assertTrue(latePublish.get(10, TimeUnit.SECONDS) instanceof TopicTerminatedException);
+        cancellation.close();
+
+        // The publish that was in flight is failed, rather than being left pending forever.
+        Awaitility.await().untilAsserted(() -> assertEquals(persistentTopic.getPendingWriteOps().get(), 0));
+
+        Consumer<String> consumer = client.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("s1")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+        Message<String> msg = consumer.receive(10, TimeUnit.SECONDS);
+        assertNotNull(msg);
+        assertEquals(msg.getValue(), "1");
     }
 
 }

@@ -989,7 +989,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             globalZkS.start();
 
             // Start region 1
-            bkEnsemble1 = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+            bkEnsemble1 = new LocalBookkeeperEnsemble(3, 0);
             bkEnsemble1.start();
 
             // NOTE: we have to instantiate a new copy of System.getProperties() to make sure pulsar1 and pulsar2 have
@@ -1019,7 +1019,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             // Start region 2
 
             // Start zk & bks
-            bkEnsemble2 = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+            bkEnsemble2 = new LocalBookkeeperEnsemble(3, 0);
             bkEnsemble2.start();
 
             config2 = new ServiceConfiguration();
@@ -1046,7 +1046,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             // Start region 3
 
             // Start zk & bks
-            bkEnsemble3 = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+            bkEnsemble3 = new LocalBookkeeperEnsemble(3, 0);
             bkEnsemble3.start();
 
             config3 = new ServiceConfiguration();

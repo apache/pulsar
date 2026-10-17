@@ -19,12 +19,70 @@
 package org.apache.pulsar.client.api.v5.config;
 
 import java.time.Duration;
+import java.util.Objects;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 
 /**
  * Transaction configuration for the Pulsar client.
  *
- * @param timeout transaction timeout. If the transaction is not committed or aborted within this duration, it will
- *                be automatically aborted by the broker.
+ * <p>Construct via {@link #builder()}.
  */
-public record TransactionPolicy(Duration timeout) {
+@EqualsAndHashCode
+@ToString
+public final class TransactionPolicy {
+
+    private final Duration timeout;
+
+    private TransactionPolicy(Duration timeout) {
+        Objects.requireNonNull(timeout, "timeout must not be null");
+        if (timeout.isNegative() || timeout.isZero()) {
+            throw new IllegalArgumentException("timeout must be > 0");
+        }
+        this.timeout = timeout;
+    }
+
+    /**
+     * @return transaction timeout — if the transaction is not committed or aborted within this duration,
+     *         the broker automatically aborts it
+     */
+    public Duration timeout() {
+        return timeout;
+    }
+
+    /**
+     * @return a new builder for constructing a {@link TransactionPolicy}
+     */
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    /**
+     * Builder for {@link TransactionPolicy}.
+     */
+    public static final class Builder {
+        private Duration timeout;
+
+        private Builder() {
+        }
+
+        /**
+         * Transaction timeout. Required. The broker auto-aborts transactions that
+         * neither commit nor abort within this duration.
+         *
+         * @param timeout the transaction timeout
+         * @return this builder
+         */
+        public Builder timeout(Duration timeout) {
+            this.timeout = timeout;
+            return this;
+        }
+
+        /**
+         * @return a new {@link TransactionPolicy} instance
+         */
+        public TransactionPolicy build() {
+            return new TransactionPolicy(timeout);
+        }
+    }
 }

@@ -332,7 +332,7 @@ public class NegativeAcksTest extends SharedPulsarBaseTest {
      */
     @Test
     public void testNegativeAcksWithBatch() throws Exception {
-        admin.namespaces().setIsAllowAutoUpdateSchema(getNamespace(), true);
+        admin.namespaces().setIsAllowAutoUpdateSchema(getNamespace(), true, true);
         String topic = newTopicName();
 
         @Cleanup

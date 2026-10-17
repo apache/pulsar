@@ -25,9 +25,9 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.fail;
+import jakarta.ws.rs.core.Response;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
-import javax.ws.rs.core.Response;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -145,6 +145,23 @@ public class AdminApiDynamicConfigurationsTest extends MockedPulsarServiceBaseTe
         admin.brokers().deleteDynamicConfiguration("maxConcurrentTopicLoadRequest");
         Awaitility.await().untilAsserted(() -> {
             assertEquals(pulsar.getConfig().getMaxConcurrentTopicLoadRequest(), defaultValue);
+        });
+    }
+
+    @Test
+    public void testUpdateTopicLoadTimeoutSeconds() throws PulsarAdminException {
+        // Record the default value;
+        long defaultValue = pulsar.getConfig().getTopicLoadTimeoutSeconds();
+        // Set dynamic config.
+        long newValue = defaultValue + 1000;
+        admin.brokers().updateDynamicConfiguration("topicLoadTimeoutSeconds", newValue + "");
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(pulsar.getConfig().getTopicLoadTimeoutSeconds(), newValue);
+        });
+        // Verify: it has been reverted to the default value.
+        admin.brokers().deleteDynamicConfiguration("topicLoadTimeoutSeconds");
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(pulsar.getConfig().getTopicLoadTimeoutSeconds(), defaultValue);
         });
     }
 

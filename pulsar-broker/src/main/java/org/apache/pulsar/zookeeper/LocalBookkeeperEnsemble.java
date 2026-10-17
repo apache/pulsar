@@ -24,6 +24,7 @@
 
 package org.apache.pulsar.zookeeper;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.bookkeeper.stream.protocol.ProtocolConstants.DEFAULT_STREAM_CONF;
 import static org.apache.commons.io.FileUtils.cleanDirectory;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -42,7 +43,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import lombok.CustomLog;
@@ -91,46 +91,18 @@ public class LocalBookkeeperEnsemble {
     int numberOfBookies;
     private final boolean clearOldData;
 
-    private static class BasePortManager implements Supplier<Integer> {
-
-        private int port;
-
-        public BasePortManager(int basePort) {
-            this.port = basePort;
-        }
-
-        @Override
-        public synchronized Integer get() {
-            return port++;
-        }
+    public LocalBookkeeperEnsemble(int numberOfBookies, int zkPort) {
+        this(numberOfBookies, zkPort, 4181, null, null, true, null);
     }
 
-    private final Supplier<Integer> portManager;
-
-    public LocalBookkeeperEnsemble(int numberOfBookies, int zkPort, Supplier<Integer> portManager) {
-        this(numberOfBookies, zkPort, 4181, null, null, true, null, portManager);
-    }
-
-    public LocalBookkeeperEnsemble(int numberOfBookies, int zkPort, int bkBasePort, String zkDataDirName,
+    public LocalBookkeeperEnsemble(int numberOfBookies, int zkPort, String zkDataDirName,
             String bkDataDirName, boolean clearOldData) {
-        this(numberOfBookies, zkPort, bkBasePort, 4181, zkDataDirName, bkDataDirName, clearOldData, null);
+        this(numberOfBookies, zkPort, 4181, zkDataDirName, bkDataDirName, clearOldData, null);
     }
 
-    public LocalBookkeeperEnsemble(int numberOfBookies, int zkPort, int bkBasePort, String zkDataDirName,
+    public LocalBookkeeperEnsemble(int numberOfBookies, int zkPort, String zkDataDirName,
             String bkDataDirName, boolean clearOldData, String advertisedAddress) {
-        this(numberOfBookies, zkPort, bkBasePort, 4181, zkDataDirName, bkDataDirName, clearOldData, advertisedAddress);
-    }
-
-    public LocalBookkeeperEnsemble(int numberOfBookies,
-                                   int zkPort,
-                                   int bkBasePort,
-                                   int streamStoragePort,
-                                   String zkDataDirName,
-                                   String bkDataDirName,
-                                   boolean clearOldData,
-                                   String advertisedAddress) {
-        this(numberOfBookies, zkPort, streamStoragePort, zkDataDirName, bkDataDirName, clearOldData, advertisedAddress,
-                bkBasePort != 0 ? new BasePortManager(bkBasePort) : () -> 0);
+        this(numberOfBookies, zkPort, 4181, zkDataDirName, bkDataDirName, clearOldData, advertisedAddress);
     }
 
     public LocalBookkeeperEnsemble(int numberOfBookies,
@@ -139,10 +111,8 @@ public class LocalBookkeeperEnsemble {
             String zkDataDirName,
             String bkDataDirName,
             boolean clearOldData,
-            String advertisedAddress,
-            Supplier<Integer> portManager) {
+            String advertisedAddress) {
         this.numberOfBookies = numberOfBookies;
-        this.portManager = portManager;
         this.streamStoragePort = streamStoragePort;
         this.zkDataDirName = zkDataDirName;
         this.bkDataDirName = bkDataDirName;
@@ -158,6 +128,12 @@ public class LocalBookkeeperEnsemble {
     private String hostPort;
     private final String advertisedAddress;
     private int zkPort;
+    private int bookieBasePort;
+
+    public void setBookieBasePort(int bookieBasePort) {
+        checkArgument(bookieBasePort >= 0 && bookieBasePort <= 65535, "Invalid bookie base port: %s", bookieBasePort);
+        this.bookieBasePort = bookieBasePort;
+    }
 
     NIOServerCnxnFactory serverFactory;
     ZooKeeperServer zks;
@@ -301,7 +277,9 @@ public class LocalBookkeeperEnsemble {
                 cleanDirectory(bkDataDir);
             }
 
-            int bookiePort = portManager.get();
+            // The bookie identity is independent of the listening port.
+            int bookiePort = bookieBasePort == 0 ? 0 : bookieBasePort + i;
+            checkArgument(bookiePort <= 65535, "Bookie port out of range: %s", bookiePort);
             String bookieId = "bk" + i + "test";
             // Ensure registration Z-nodes are cleared when standalone service is restarted ungracefully
             deleteBookieRegistrationZnode(
@@ -385,10 +363,10 @@ public class LocalBookkeeperEnsemble {
             } catch (NamespaceNotFoundException nnfe) {
                 log.info("Creating default namespace");
                 try {
+                    NamespaceConfiguration nsConf = new NamespaceConfiguration();
+                    nsConf.setDefaultStreamConf().copyFrom(DEFAULT_STREAM_CONF);
                     NamespaceProperties ns =
-                        FutureUtils.result(admin.createNamespace("default", NamespaceConfiguration.newBuilder()
-                            .setDefaultStreamConf(DEFAULT_STREAM_CONF)
-                            .build()));
+                        FutureUtils.result(admin.createNamespace("default", nsConf));
                     log.info().attr("n", ns).log("Successfully created 'default' namespace :\n");
                 } catch (NamespaceExistsException nee) {
                     // namespace already exists
@@ -441,6 +419,10 @@ public class LocalBookkeeperEnsemble {
     public void startStandalone(ServerConfiguration conf, boolean enableStreamStorage) throws Exception {
         log.debug("Local ZK/BK starting ...");
         conf.setAdvertisedAddress(advertisedAddress);
+        // This is an embedded, localhost-only ensemble (advertised address is a loopback address), so
+        // loopback binding must be permitted. BookKeeper forbids binding to a loopback address unless
+        // allowLoopback is set. Mirror the start(boolean) path, which sets this for the same reason.
+        conf.setAllowLoopback(true);
 
         runZookeeper(1000);
         initializeZookeper();
@@ -506,23 +488,47 @@ public class LocalBookkeeperEnsemble {
     public void stop() throws Exception {
         if (null != streamStorage) {
             log.debug("Local bk stream storage stopping ...");
-            streamStorage.close();
-        }
-
-        log.debug("Local ZK/BK stopping ...");
-        for (LifecycleComponent bookie : bookieComponents) {
             try {
-                if (bookie != null) {
-                    bookie.close();
-                }
+                streamStorage.close();
             } catch (Exception e) {
-                log.warn().exception(e).log("failed to shutdown bookie");
+                log.warn().exception(e).log("failed to shutdown stream storage");
             }
         }
 
-        zkc.close();
-        zks.shutdown();
-        serverFactory.shutdown();
+        log.debug("Local ZK/BK stopping ...");
+        if (bookieComponents != null) {
+            for (LifecycleComponent bookie : bookieComponents) {
+                try {
+                    if (bookie != null) {
+                        bookie.close();
+                    }
+                } catch (Exception e) {
+                    log.warn().exception(e).log("failed to shutdown bookie");
+                }
+            }
+        }
+
+        if (zkc != null) {
+            try {
+                zkc.close();
+            } catch (Exception e) {
+                log.warn().exception(e).log("failed to close zk client");
+            }
+        }
+        if (zks != null) {
+            try {
+                zks.shutdown();
+            } catch (Exception e) {
+                log.warn().exception(e).log("failed to shutdown zk server");
+            }
+        }
+        if (serverFactory != null) {
+            try {
+                serverFactory.shutdown();
+            } catch (Exception e) {
+                log.warn().exception(e).log("failed to shutdown zk server factory");
+            }
+        }
 
         if (zkDataCleanupManager != null) {
             zkDataCleanupManager.shutdown();
@@ -530,7 +536,11 @@ public class LocalBookkeeperEnsemble {
         log.debug("Local ZK/BK stopped");
         for (File managedDir : temporaryDirectories) {
             log.info().attr("directory", managedDir).log("deleting test directory");
-            FileUtils.deleteDirectory(managedDir);
+            try {
+                FileUtils.deleteDirectory(managedDir);
+            } catch (Exception e) {
+                log.warn().attr("directory", managedDir).exception(e).log("failed to delete test directory");
+            }
         }
         temporaryDirectories.clear();
     }

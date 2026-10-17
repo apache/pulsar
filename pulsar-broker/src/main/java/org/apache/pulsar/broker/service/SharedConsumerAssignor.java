@@ -92,7 +92,7 @@ public class SharedConsumerAssignor {
             if (metadata == null || !metadata.hasUuid() || !metadata.hasChunkId() || !metadata.hasNumChunksFromMsg()) {
                 consumerToEntries.computeIfAbsent(consumer, __ -> new ArrayList<>()).add(entryAndMetadata);
             } else {
-                final Consumer consumerForUuid = getConsumerForUuid(metadata, consumer, availablePermits);
+                final Consumer consumerForUuid = getConsumerForUuid(metadata, consumer);
                 if (consumerForUuid == null) {
                     unassignedMessageProcessor.accept(entryAndMetadata);
                     continue;
@@ -123,9 +123,7 @@ public class SharedConsumerAssignor {
         return null;
     }
 
-    private Consumer getConsumerForUuid(final MessageMetadata metadata,
-                                        final Consumer defaultConsumer,
-                                        final int currentAvailablePermits) {
+    private Consumer getConsumerForUuid(final MessageMetadata metadata, final Consumer defaultConsumer) {
         final String uuid = metadata.getUuid();
         Consumer consumer = uuidToConsumer.get(uuid);
         if (consumer == null) {
@@ -144,7 +142,9 @@ public class SharedConsumerAssignor {
             // The last chunk is received, we should remove the cache
             uuidToConsumer.remove(uuid);
         }
-        consumerToPermits.put(consumer, currentAvailablePermits - 1);
+        // Decrement target consumer's permits, not the loop's local availablePermits — on a cache
+        // redirect those track different consumers.
+        consumerToPermits.put(consumer, permits - 1);
         return consumer;
     }
 }

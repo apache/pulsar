@@ -20,35 +20,42 @@ package org.apache.pulsar.client.api.v5.config;
 
 import java.time.Duration;
 import java.util.Objects;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 
 /**
  * Connection-level settings for the Pulsar client.
  *
  * <p>Groups TCP connection timeout, connection pool sizing, keep-alive, idle timeout,
  * TCP no-delay, I/O and callback threading, and proxy configuration.
+ *
+ * <p>Construct via {@link #builder()}.
  */
-public record ConnectionPolicy(
-        Duration connectionTimeout,
-        int connectionsPerBroker,
-        boolean enableTcpNoDelay,
-        Duration keepAliveInterval,
-        Duration connectionMaxIdleTime,
-        int ioThreads,
-        int callbackThreads,
-        String proxyServiceUrl,
-        ProxyProtocol proxyProtocol,
-        BackoffPolicy connectionBackoff
-) {
+@EqualsAndHashCode
+@ToString
+public final class ConnectionPolicy {
 
-    /**
-     * Create a connection policy with the given parameters.
-     *
-     * @throws NullPointerException if {@code connectionTimeout}, {@code keepAliveInterval},
-     *         {@code connectionMaxIdleTime}, or {@code connectionBackoff} is null
-     * @throws IllegalArgumentException if {@code connectionsPerBroker}, {@code ioThreads},
-     *         or {@code callbackThreads} is less than 1
-     */
-    public ConnectionPolicy {
+    private final Duration connectionTimeout;
+    private final int connectionsPerBroker;
+    private final boolean enableTcpNoDelay;
+    private final Duration keepAliveInterval;
+    private final Duration connectionMaxIdleTime;
+    private final int ioThreads;
+    private final int callbackThreads;
+    private final String proxyServiceUrl;
+    private final ProxyProtocol proxyProtocol;
+    private final BackoffPolicy connectionBackoff;
+
+    private ConnectionPolicy(Duration connectionTimeout,
+                             int connectionsPerBroker,
+                             boolean enableTcpNoDelay,
+                             Duration keepAliveInterval,
+                             Duration connectionMaxIdleTime,
+                             int ioThreads,
+                             int callbackThreads,
+                             String proxyServiceUrl,
+                             ProxyProtocol proxyProtocol,
+                             BackoffPolicy connectionBackoff) {
         Objects.requireNonNull(connectionTimeout, "connectionTimeout must not be null");
         Objects.requireNonNull(keepAliveInterval, "keepAliveInterval must not be null");
         Objects.requireNonNull(connectionMaxIdleTime, "connectionMaxIdleTime must not be null");
@@ -62,12 +69,90 @@ public record ConnectionPolicy(
         if (callbackThreads < 1) {
             throw new IllegalArgumentException("callbackThreads must be >= 1");
         }
+        this.connectionTimeout = connectionTimeout;
+        this.connectionsPerBroker = connectionsPerBroker;
+        this.enableTcpNoDelay = enableTcpNoDelay;
+        this.keepAliveInterval = keepAliveInterval;
+        this.connectionMaxIdleTime = connectionMaxIdleTime;
+        this.ioThreads = ioThreads;
+        this.callbackThreads = callbackThreads;
+        this.proxyServiceUrl = proxyServiceUrl;
+        this.proxyProtocol = proxyProtocol;
+        this.connectionBackoff = connectionBackoff;
     }
 
     /**
-     * Create a builder for constructing a {@link ConnectionPolicy}.
-     *
-     * @return a new builder with sensible defaults
+     * @return the maximum duration to wait for a TCP connection to a broker
+     */
+    public Duration connectionTimeout() {
+        return connectionTimeout;
+    }
+
+    /**
+     * @return the number of TCP connections maintained per broker
+     */
+    public int connectionsPerBroker() {
+        return connectionsPerBroker;
+    }
+
+    /**
+     * @return whether TCP no-delay (Nagle disabled) is enabled
+     */
+    public boolean enableTcpNoDelay() {
+        return enableTcpNoDelay;
+    }
+
+    /**
+     * @return the interval between TCP keep-alive probes
+     */
+    public Duration keepAliveInterval() {
+        return keepAliveInterval;
+    }
+
+    /**
+     * @return the maximum idle duration before a connection is closed
+     */
+    public Duration connectionMaxIdleTime() {
+        return connectionMaxIdleTime;
+    }
+
+    /**
+     * @return the number of I/O threads
+     */
+    public int ioThreads() {
+        return ioThreads;
+    }
+
+    /**
+     * @return the number of callback threads
+     */
+    public int callbackThreads() {
+        return callbackThreads;
+    }
+
+    /**
+     * @return the proxy service URL, or {@code null} if no proxy is configured
+     */
+    public String proxyServiceUrl() {
+        return proxyServiceUrl;
+    }
+
+    /**
+     * @return the proxy protocol, or {@code null} if no proxy is configured
+     */
+    public ProxyProtocol proxyProtocol() {
+        return proxyProtocol;
+    }
+
+    /**
+     * @return the broker-reconnection backoff policy
+     */
+    public BackoffPolicy connectionBackoff() {
+        return connectionBackoff;
+    }
+
+    /**
+     * @return a new builder for constructing a {@link ConnectionPolicy}
      */
     public static Builder builder() {
         return new Builder();

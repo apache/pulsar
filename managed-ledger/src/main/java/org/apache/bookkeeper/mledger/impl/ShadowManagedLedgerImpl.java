@@ -163,7 +163,14 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
                     }
                 });
                 //open ledger in readonly mode.
-                bookKeeper.asyncOpenLedgerNoRecovery(lastLedgerId, digestType, config.getPassword(), opencb, null);
+                bookKeeper.newOpenLedgerOp()
+                        .withRecovery(false)
+                        .withLedgerId(lastLedgerId)
+                        .withDigestType(config.getDigestType())
+                        .withPassword(config.getPassword())
+                        .withOrderingKey(name)
+                        .execute()
+                        .whenComplete((rh, ex) -> completeOpenCallback(log, lastLedgerId, opencb, rh, ex));
 
             }
 
@@ -196,6 +203,11 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
         }
 
         initLastConfirmedEntry();
+        // Keep the shadow source in the stored properties, so that the ledgers listed by this managed ledger
+        // are known to belong to the source managed ledger also when it is opened or deleted without this config.
+        if (config.getShadowSource() != null) {
+            propertiesMap.put(ManagedLedgerConfig.PROPERTY_SOURCE_TOPIC_KEY, config.getShadowSource());
+        }
         // Save it back to ensure all nodes exist and properties are persisted.
         store.asyncUpdateLedgerIds(name, getManagedLedgerInfo(), ledgersStat, new MetaStore.MetaStoreCallback<>() {
             @Override
@@ -344,9 +356,7 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
         if (lastLedgerId != null && !(currentLedger != null && currentLedger.getId() == lastLedgerId)) {
             ledgers.put(lastLedgerId, newLedgerInfos.get(lastLedgerId));
             mbean.startDataLedgerOpenOp();
-            //open ledger in readonly mode.
-            bookKeeper.asyncOpenLedgerNoRecovery(lastLedgerId, digestType, config.getPassword(),
-                    (rc, lh, ctx1) -> executor.execute(() -> {
+            AsyncCallback.OpenCallback opencb = (rc, lh, ctx1) -> executor.execute(() -> {
                         mbean.endDataLedgerOpenOp();
                         log.debug().attr("name", name).attr("ledgerId", lastLedgerId).log("Opened new source ledger");
                         if (rc == BKException.Code.OK) {
@@ -371,7 +381,16 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
                                     .attr("errorMessage", BKException.getMessage(rc))
                                     .log("Failed to open source ledger");
                         }
-                    }), null);
+                    });
+            //open ledger in readonly mode.
+            bookKeeper.newOpenLedgerOp()
+                    .withRecovery(false)
+                    .withLedgerId(lastLedgerId)
+                    .withDigestType(config.getDigestType())
+                    .withPassword(config.getPassword())
+                    .withOrderingKey(name)
+                    .execute()
+                    .whenComplete((rh, ex) -> completeOpenCallback(log, lastLedgerId, opencb, rh, ex));
         }
 
         //handle old ledgers deleted.
@@ -426,6 +445,15 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
     @Override
     protected void updateLastLedgerCreatedTimeAndScheduleRolloverTask() {
         this.lastLedgerCreatedTimestamp = clock.millis();
+    }
+
+    /**
+     * The ledgers listed by a shadow managed ledger belong to the source managed ledger. Trimming or deleting the
+     * shadow managed ledger must only update its own metadata and leave the source ledgers untouched.
+     */
+    @Override
+    protected boolean ownsLedgerData() {
+        return false;
     }
 
     @Override

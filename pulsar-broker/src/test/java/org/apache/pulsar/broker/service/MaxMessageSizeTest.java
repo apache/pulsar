@@ -54,7 +54,7 @@ public class MaxMessageSizeTest {
     @BeforeMethod
     void setup() {
         try {
-            bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+            bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
             ServerConfiguration conf = new ServerConfiguration();
             conf.setNettyMaxFrameSizeBytes(10 * 1024 * 1024 + 10 * 1024);
             bkEnsemble.startStandalone(conf, false);

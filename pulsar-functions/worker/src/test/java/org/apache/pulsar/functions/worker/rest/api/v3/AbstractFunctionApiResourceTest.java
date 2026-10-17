@@ -26,6 +26,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import com.google.common.collect.Lists;
+import jakarta.ws.rs.core.Response;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -35,7 +36,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
-import javax.ws.rs.core.Response;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
@@ -1018,6 +1018,42 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
                 functionConfig,
                 null, null);
 
+    }
+
+    @Test
+    public void testUpdateFunctionWithExistingFileUrl() throws IOException {
+
+        String fileLocation = FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath();
+        String filePackageUrl = "file://" + fileLocation;
+
+        FunctionConfig functionConfig = new FunctionConfig();
+        functionConfig.setOutput(OUTPUT_TOPIC);
+        functionConfig.setOutputSerdeClassName(OUTPUT_SERDE_CLASS_NAME);
+        functionConfig.setTenant(TENANT);
+        functionConfig.setNamespace(NAMESPACE);
+        functionConfig.setName(FUNCTION);
+        functionConfig.setClassName(CLASS_NAME);
+        // increment parallelism to avoid 'Update contains no change' exception
+        functionConfig.setParallelism(PARALLELISM + 1);
+        functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
+        functionConfig.setCustomSerdeInputs(TOPICS_TO_SER_DE_CLASS_NAME);
+
+        FunctionMetaData existingMetaData = new FunctionMetaData();
+        existingMetaData.setFunctionDetails().copyFrom(createDefaultFunctionDetails());
+        existingMetaData.setPackageLocation().setPackagePath(filePackageUrl);
+
+        when(mockedManager.containsFunction(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(true);
+        when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(existingMetaData);
+
+        updateFunction(
+                TENANT,
+                NAMESPACE,
+                FUNCTION,
+                null,
+                null,
+                null,
+                functionConfig,
+                null, null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "function failed to register")

@@ -18,12 +18,12 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions;
 
-import static org.apache.pulsar.common.util.PortManager.nextLockedFreePort;
 import java.util.Optional;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicDomain;
+import org.apache.pulsar.common.util.PortManager;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
@@ -46,8 +46,10 @@ public class ExtensibleLoadManagerImplWithAdvertisedListenersTest extends Extens
     @Override
     protected ServiceConfiguration updateConfig(ServiceConfiguration conf) {
         super.updateConfig(conf);
-        int privatePulsarPort = nextLockedFreePort();
-        int publicPulsarPort = nextLockedFreePort();
+        // Pre-allocate ports because advertised listener URLs are baked into config
+        // before the broker starts.
+        int privatePulsarPort = PortManager.nextLockedFreePort();
+        int publicPulsarPort = PortManager.nextLockedFreePort();
         conf.setInternalListenerName("internal");
         conf.setBindAddresses("external:pulsar://localhost:" + publicPulsarPort);
         conf.setAdvertisedListeners(

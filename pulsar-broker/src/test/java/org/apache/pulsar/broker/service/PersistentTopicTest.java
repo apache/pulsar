@@ -59,6 +59,7 @@ import java.net.InetSocketAddress;
 import java.net.URL;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -80,6 +81,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import lombok.Cleanup;
 import lombok.CustomLog;
+import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
@@ -356,7 +358,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         topic.publishMessage(payload, publishContext);
 
         assertTrue(latch.await(1, TimeUnit.SECONDS));
-        assertTrue(topic.getLastMaxReadPositionMovedForwardTimestamp() > lastMaxReadPositionMovedForwardTimestamp);
+        assertEquals(topic.getLastMaxReadPositionMovedForwardTimestamp(), lastMaxReadPositionMovedForwardTimestamp,
+                "Topics without a replicated-subscription controller should not maintain the snapshot timestamp");
     }
 
     @Test
@@ -384,7 +387,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         PersistentDispatcherSingleActiveConsumer dispatcher = new PersistentDispatcherSingleActiveConsumer(cursor,
                 SubType.Exclusive, 1, topic, null);
         Consumer consumer = mock(Consumer.class);
-        dispatcher.readEntriesFailed(new ManagedLedgerException.InvalidCursorPositionException("failed"), consumer);
+        dispatcher.readEntriesFailed(new ManagedLedgerException.InvalidCursorPositionException("failed"), consumer, 0L);
         verify(topic, atLeast(1)).getBrokerService();
     }
 
@@ -1491,6 +1494,15 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         // create topic
         PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
+        // Note: this test class does not actually create the namespace. It creates the topic without namespace
+        // creation, so the following injected metadata-store path is never accessed because the namespace
+        // replication-cluster policy does not include the current broker’s cluster. We add the missing namespace
+        // policy here so the deletion flow reaches the injected path and the subsequent assertion is exercised.
+        List<String> nsList = topic.getBrokerService().getPulsar().getPulsarResources().getTenantResources()
+                .getListOfNamespaces("prop");
+        assertFalse(nsList.contains(TopicName.get(successTopicName).getNamespace()));
+        topic.topicPolicies.getReplicationClusters().updateNamespaceValue(
+                Arrays.asList(topic.getBrokerService().getPulsar().getConfig().getClusterName()));
 
         Field isFencedField = AbstractTopic.class.getDeclaredField("isFenced");
         isFencedField.setAccessible(true);
@@ -1680,17 +1692,19 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     }
 
     /**
-     * NonPersistentReplicator.removeReplicator doesn't remove replicator in atomic way and does in multiple step:
-     * 1. disconnect replicator producer
+     * PersistentReplicator.removeReplicator doesn't remove replicator in atomic way and does in multiple step:
+     * 1. Turn off replication.
      * <p>
-     * 2. close cursor
+     * 2. Broker will do two things:
+     *   2-1. terminate replication.
+     *   2-2. delete cursor that named "repl.x"
      * <p>
-     * 3. remove from replicator-list.
+     * 3. remove the terminated replicator from "topic.replicators".
      * <p>
      *
-     * If we try to startReplicationProducer before step-c finish then it should not avoid restarting repl-producer.
-     *
-     * @throws Exception
+     * Test:
+     *  do: try to restart replicator producer before step-2-2 finish.
+     *  verify: the replicator producer will not be started.
      */
     @Test
     @SuppressWarnings("unchecked")
@@ -1748,9 +1762,14 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         // step-2 now, policies doesn't have removed replication cluster so, it should not invoke "startProducer" of the
         // replicator
         // try to start replicator again
-        topic.startReplProducers().join();
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(replicator.getState(), AbstractReplicator.State.Terminated);
+        });
+        replicator.startProducer();
+        Thread.sleep(10_000);
         // verify: replicator.startProducer is not invoked
-        verify(replicator, Mockito.times(1)).startProducer();
+        assertEquals(replicator.getState(), AbstractReplicator.State.Terminated);
+        assertFalse(replicator.isConnected());
 
         // step-3 : complete the callback to remove replicator from the list
         ArgumentCaptor<DeleteCursorCallback> captor = ArgumentCaptor.forClass(DeleteCursorCallback.class);
@@ -1815,15 +1834,18 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     public void testCompactorSubscription() {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         CompactedTopic compactedTopic = mock(CompactedTopic.class);
+        CompactedTopicContext compactedTopicContext = mock(CompactedTopicContext.class);
+        LedgerHandle ledgerHandle = mock(LedgerHandle.class);
+        when(compactedTopicContext.getLedger()).thenReturn(ledgerHandle);
         when(compactedTopic.newCompactedLedger(any(Position.class), anyLong()))
-                .thenReturn(CompletableFuture.completedFuture(mock(CompactedTopicContext.class)));
+                .thenReturn(CompletableFuture.completedFuture(compactedTopicContext));
         PersistentSubscription sub = new PulsarCompactorSubscription(topic, compactedTopic,
                 Compactor.COMPACTION_SUBSCRIPTION,
                 cursorMock);
         Position position = PositionFactory.create(1, 1);
         long ledgerId = 0xc0bfefeL;
-        sub.acknowledgeMessage(Collections.singletonList(position), AckType.Cumulative,
-                Map.of(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY, ledgerId));
+        sub.acknowledgeMessageAsync(Collections.singletonList(position), AckType.Cumulative,
+                Map.of(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY, ledgerId)).join();
         verify(compactedTopic, Mockito.times(1)).newCompactedLedger(position, ledgerId);
     }
 
@@ -1994,7 +2016,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         assertFalse(cursor3.isActive());
 
         // Write messages to ledger
-        CountDownLatch latch = new CountDownLatch(backloggedThreshold);
+        CountDownLatch latch = new CountDownLatch(backloggedThreshold + 1);
         for (int i = 0; i < backloggedThreshold + 1; i++) {
             String content = "entry"; // 5 bytes
             ByteBuf entry = getMessageWithMetadata(content.getBytes());
@@ -2069,6 +2091,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     @Test
     public void testCheckInactiveSubscriptions() throws Exception {
         pulsarTestContext.getConfig().setSubscriptionExpirationTimeMinutes(5);
+        pulsarTestContext.getConfig().setAdditionalSystemCursorNames(Set.of("additionalSystemCursor"));
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
 
         final var subscriptions = new ConcurrentHashMap<String, PersistentSubscription>();
@@ -2087,6 +2110,11 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 spyWithClassAndConstructorArgsRecordingInvocations(PersistentSubscription.class, topic,
                         "nonDeletableSubscription2", cursorMock, true);
         subscriptions.put(nonDeletableSubscription2.getName(), nonDeletableSubscription2);
+        // This subscription is an additional system cursor.
+        PersistentSubscription nonDeletableSubscription3 =
+                spyWithClassAndConstructorArgsRecordingInvocations(PersistentSubscription.class, topic,
+                        "additionalSystemCursor", cursorMock, false);
+        subscriptions.put(nonDeletableSubscription3.getName(), nonDeletableSubscription3);
 
         Field field = topic.getClass().getDeclaredField("subscriptions");
         field.setAccessible(true);
@@ -2111,6 +2139,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         verify(nonDeletableSubscription1, times(0)).delete();
         verify(deletableSubscription1, times(1)).delete();
         verify(nonDeletableSubscription2, times(0)).delete();
+        verify(nonDeletableSubscription3, times(0)).delete();
     }
 
     @Test
@@ -2320,19 +2349,20 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         TopicPoliciesService topicPoliciesService = mock(TopicPoliciesService.class);
         doReturn(topicPoliciesService).when(pulsarTestContext.getPulsarService()).getTopicPoliciesService();
-        CompletableFuture<Optional<TopicPolicies>> topicPoliciesFuture = new CompletableFuture<>();
         TopicPolicies topicPolicies = new TopicPolicies();
         List<String> topicClusters = new ArrayList<>();
         topicClusters.add("topic-cluster");
         topicPolicies.setReplicationClusters(topicClusters);
-        Optional<TopicPolicies> optionalTopicPolicies = Optional.of(topicPolicies);
-        topicPoliciesFuture.complete(optionalTopicPolicies);
-        when(topicPoliciesService.getTopicPoliciesAsync(any(), any()))
+        when(topicPoliciesService.registerListenerAsync(any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(true));
+        when(topicPoliciesService.getTopicPoliciesAsync(any(), eq(TopicPoliciesService.GetType.GLOBAL_ONLY)))
+                .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+        when(topicPoliciesService.getTopicPoliciesAsync(any(), eq(TopicPoliciesService.GetType.LOCAL_ONLY)))
                 .thenReturn(CompletableFuture.completedFuture(Optional.of(topicPolicies)));
 
         topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         topic.initialize().join();
-        assertEquals(topic.getHierarchyTopicPolicies().getReplicationClusters().get(), namespaceClusters);
+        assertEquals(topic.getHierarchyTopicPolicies().getReplicationClusters().get(), topicClusters);
     }
 
     @Test

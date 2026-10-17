@@ -20,9 +20,9 @@ package org.apache.pulsar.metadata.impl;
 
 import com.google.common.annotations.VisibleForTesting;
 import java.util.Collections;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -44,8 +44,9 @@ import org.apache.pulsar.metadata.api.MetadataStoreLifecycle;
 import org.apache.pulsar.metadata.api.MetadataStoreProvider;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
+import org.apache.pulsar.metadata.api.Option;
+import org.apache.pulsar.metadata.api.OptionsHelper;
 import org.apache.pulsar.metadata.api.Stat;
-import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.impl.batching.AbstractBatchedMetadataStore;
@@ -113,6 +114,11 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
             zkc.addWatch("/", eventWatcher, AddWatchMode.PERSISTENT_RECURSIVE);
             initBatchStrategy();
         } catch (Throwable t) {
+            try {
+                super.close();
+            } catch (Exception e) {
+                t.addSuppressed(e);
+            }
             throw new MetadataStoreException(t);
         }
     }
@@ -165,11 +171,17 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                         } else {
                             log.error().attr("code", Code.get(rc))
                                     .log("Failed to recreate persistent watch on ZooKeeper");
+                            // Only another session may reestablish the session on the re-connectable client, which
+                            // replaces it below
                             if (sessionWatcher != null) {
-                                sessionWatcher.setSessionInvalid();
+                                if (zkc instanceof PulsarZooKeeperClient) {
+                                    sessionWatcher.setSessionReplaced();
+                                } else {
+                                    sessionWatcher.setSessionInvalid();
+                                }
                             }
                             // On the re-connectable client, mark the session as expired to trigger a new reconnect,
-                            // and we will have the chance to set the watch again.
+                            // and we will have the chance to set the watch again on the new session.
                             if (zkc instanceof PulsarZooKeeperClient) {
                                 ((PulsarZooKeeperClient) zkc).process(
                                         new WatchedEvent(Watcher.Event.EventType.None,
@@ -389,7 +401,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
     }
 
     @Override
-    public CompletableFuture<Boolean> existsFromStore(String path) {
+    public CompletableFuture<Boolean> existsFromStore(String path, Set<Option> opts) {
         CompletableFuture<Boolean> future = new CompletableFuture<>();
 
         try {
@@ -573,18 +585,13 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
         }
     }
 
-    private static CreateMode getCreateMode(EnumSet<CreateOption> options) {
-        if (options.contains(CreateOption.Ephemeral)) {
-            if (options.contains(CreateOption.Sequential)) {
-                return CreateMode.EPHEMERAL_SEQUENTIAL;
-            } else {
-                return CreateMode.EPHEMERAL;
-            }
-        } else if (options.contains(CreateOption.Sequential)) {
-            return CreateMode.PERSISTENT_SEQUENTIAL;
-        } else {
-            return CreateMode.PERSISTENT;
+    private static CreateMode getCreateMode(Set<Option> opts) {
+        boolean ephemeral = OptionsHelper.isEphemeral(opts);
+        boolean sequential = OptionsHelper.isSequential(opts);
+        if (ephemeral) {
+            return sequential ? CreateMode.EPHEMERAL_SEQUENTIAL : CreateMode.EPHEMERAL;
         }
+        return sequential ? CreateMode.PERSISTENT_SEQUENTIAL : CreateMode.PERSISTENT;
     }
 
     public long getZkSessionId() {

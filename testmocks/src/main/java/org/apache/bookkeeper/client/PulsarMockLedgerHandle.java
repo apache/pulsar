@@ -28,8 +28,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.CustomLog;
 import lombok.Getter;
@@ -64,24 +66,36 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
     @VisibleForTesting
     @Getter
     boolean fenced = false;
+    // Number of asyncClose() invocations; used to assert handles are closed instead of leaked.
+    @VisibleForTesting
+    @Getter
+    final AtomicInteger asyncCloseCount = new AtomicInteger(0);
     // Count for total length of the entries
     final AtomicLong totalLengthCounter = new AtomicLong(0);
 
     public PulsarMockLedgerHandle(PulsarMockBookKeeper bk, long id,
                            DigestType digest, byte[] passwd) throws GeneralSecurityException {
-        super(bk.getClientCtx(), id, new Versioned<>(createMetadata(id, digest, passwd), new LongVersion(0L)),
+        this(bk, id, digest, passwd, Collections.emptyMap());
+    }
+
+    public PulsarMockLedgerHandle(PulsarMockBookKeeper bk, long id,
+                           DigestType digest, byte[] passwd,
+                           Map<String, byte[]> customMetadata) throws GeneralSecurityException {
+        super(bk.getClientCtx(), id,
+              new Versioned<>(createMetadata(id, digest, passwd, customMetadata), new LongVersion(0L)),
               digest, passwd, WriteFlag.NONE);
         this.bk = bk;
         this.id = id;
         this.digest = digest;
         this.passwd = Arrays.copyOf(passwd, passwd.length);
 
-        readHandle = new PulsarMockReadHandle(bk, id, getLedgerMetadata(), entries,
+        readHandle = new PulsarMockReadHandle(bk, id, getLedgerMetadata(), digest, passwd, entries,
                 bk::getReadHandleInterceptor, totalLengthCounter);
     }
 
     @Override
     public void asyncClose(CloseCallback cb, Object ctx) {
+        asyncCloseCount.incrementAndGet();
         bk.getProgrammedFailure().thenComposeAsync((res) -> {
             fenced = true;
 
@@ -104,6 +118,15 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
 
     @Override
     public void asyncReadEntries(final long firstEntry, final long lastEntry, final ReadCallback cb, final Object ctx) {
+        asyncReadEntries(bk, entries, this, firstEntry, lastEntry, cb, ctx);
+    }
+
+    /**
+     * Legacy callback-style read over the entries of a mock ledger, shared by the write handle and by the read-only
+     * views returned from {@link PulsarMockBookKeeper#newOpenLedgerOp()}.
+     */
+    static void asyncReadEntries(PulsarMockBookKeeper bk, List<LedgerEntryImpl> entries, LedgerHandle lh,
+                                 long firstEntry, long lastEntry, ReadCallback cb, Object ctx) {
         bk.getProgrammedFailure().thenComposeAsync((res) -> {
                 log.debug().attr("first", firstEntry).attr("last", lastEntry)
                         .attr("total", entries.size()).log("readEntries");
@@ -124,7 +147,7 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
                     }
                 }
 
-                Enumeration<LedgerEntry> entries = new Enumeration<LedgerEntry>() {
+                Enumeration<LedgerEntry> readEntries = new Enumeration<LedgerEntry>() {
                         @Override
                         public boolean hasMoreElements() {
                             return !seq.isEmpty();
@@ -135,13 +158,12 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
                             return seq.remove();
                         }
                     };
-                return FutureUtils.value(entries);
+                return FutureUtils.value(readEntries);
             }).whenCompleteAsync((res, exception) -> {
                     if (exception != null) {
-                        cb.readComplete(PulsarMockBookKeeper.getExceptionCode(exception),
-                                PulsarMockLedgerHandle.this, null, ctx);
+                        cb.readComplete(PulsarMockBookKeeper.getExceptionCode(exception), lh, null, ctx);
                     } else {
-                        cb.readComplete(BKException.Code.OK, PulsarMockLedgerHandle.this, res, ctx);
+                        cb.readComplete(BKException.Code.OK, lh, res, ctx);
                     }
                 }, bk.executor);
     }
@@ -271,13 +293,28 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
         return readHandle.readLastAddConfirmedAndEntryAsync(entryId, timeOutInMillis, parallel);
     }
 
-    private static LedgerMetadata createMetadata(long id, DigestType digest, byte[] passwd) {
+    @Override
+    public CompletableFuture<LedgerEntries> batchReadAsync(long startEntry, int maxCount, long maxSize) {
+        return readAsync(startEntry, PulsarMockReadHandle.batchReadLastEntry(entries, startEntry, maxCount, maxSize));
+    }
+
+    @Override
+    public CompletableFuture<LedgerEntries> batchReadUnconfirmedAsync(long startEntry, int maxCount, long maxSize) {
+        return readUnconfirmedAsync(startEntry,
+                PulsarMockReadHandle.batchReadLastEntry(entries, startEntry, maxCount, maxSize));
+    }
+
+    private static LedgerMetadata createMetadata(long id, DigestType digest, byte[] passwd,
+                                                   Map<String, byte[]> customMetadata) {
         List<BookieId> ensemble = new ArrayList<>(PulsarMockBookKeeper.getMockEnsemble());
-        return LedgerMetadataBuilder.create()
+        LedgerMetadataBuilder builder = LedgerMetadataBuilder.create()
             .withDigestType(digest.toApiDigestType())
             .withPassword(passwd)
             .withId(id)
-            .newEnsembleEntry(0L, ensemble)
-            .build();
+            .newEnsembleEntry(0L, ensemble);
+        if (customMetadata != null && !customMetadata.isEmpty()) {
+            builder.withCustomMetadata(customMetadata);
+        }
+        return builder.build();
     }
 }

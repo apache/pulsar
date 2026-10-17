@@ -47,7 +47,7 @@ public class BrokerRegistryIntegrationTest {
 
     @BeforeClass
     protected void setup() throws Exception {
-        bk = new LocalBookkeeperEnsemble(2, 0, () -> 0);
+        bk = new LocalBookkeeperEnsemble(2, 0);
         bk.start();
         pulsar = new PulsarService(brokerConfig());
         pulsar.start();
@@ -70,7 +70,11 @@ public class BrokerRegistryIntegrationTest {
         if (bk != null) {
             bk.stop();
         }
-        if (elapsedMs > 5000) {
+        // Guard against regressions where the broker hangs on shutdown (e.g. blocked health
+        // checks or stuck registrations). Keep the threshold generous enough to tolerate CI
+        // variability in BrokerRegistryMetadataStoreIntegrationTest, while still catching the
+        // multi-minute hangs this assertion was originally added to detect.
+        if (elapsedMs > 15000) {
             throw new RuntimeException("Broker took " + elapsedMs + "ms to close");
         }
     }

@@ -26,6 +26,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import com.google.common.base.Splitter;
+import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -37,7 +38,6 @@ import java.util.Map;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import javax.servlet.http.HttpServletRequest;
 import lombok.Cleanup;
 import lombok.Getter;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
@@ -55,10 +55,9 @@ import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
-import org.eclipse.jetty.ee8.websocket.api.RemoteEndpoint;
-import org.eclipse.jetty.ee8.websocket.api.Session;
-import org.eclipse.jetty.ee8.websocket.server.JettyServerUpgradeResponse;
+import org.eclipse.jetty.ee10.websocket.server.JettyServerUpgradeResponse;
 import org.eclipse.jetty.http.HttpStatus;
+import org.eclipse.jetty.websocket.api.Session;
 import org.mockito.Answers;
 import org.mockito.Mock;
 import org.testng.annotations.AfterClass;
@@ -388,11 +387,9 @@ public class AbstractWebSocketHandlerTest {
                 new WebSocketHandlerImpl(webSocketService, httpServletRequest, response);
 
         Session session = mock(Session.class);
-        RemoteEndpoint remoteEndpoint = mock(RemoteEndpoint.class);
-        when(session.getRemote()).thenReturn(remoteEndpoint);
 
         // onWebSocketClose
-        webSocketHandler.onWebSocketConnect(session);
+        webSocketHandler.onWebSocketOpen(session);
 
         ScheduledFuture<?> pingFuture = webSocketHandler.getPingFuture();
         assertNotNull(pingFuture);
@@ -403,7 +400,7 @@ public class AbstractWebSocketHandlerTest {
 
 
         // onWebSocketError
-        webSocketHandler.onWebSocketConnect(session);
+        webSocketHandler.onWebSocketOpen(session);
 
         pingFuture = webSocketHandler.getPingFuture();
         assertNotNull(pingFuture);

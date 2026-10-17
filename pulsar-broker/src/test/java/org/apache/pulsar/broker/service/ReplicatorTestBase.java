@@ -155,7 +155,7 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         globalZkS.start();
 
         // Start region 1
-        bkEnsemble1 = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble1 = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble1.start();
 
         // NOTE: we have to instantiate a new copy of System.getProperties() to make sure pulsar1 and pulsar2 have
@@ -174,7 +174,7 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         // Start region 2
 
         // Start zk & bks
-        bkEnsemble2 = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble2 = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble2.start();
 
         setConfig2DefaultValue();
@@ -190,7 +190,7 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         // Start region 3
 
         // Start zk & bks
-        bkEnsemble3 = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble3 = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble3.start();
 
         setConfig3DefaultValue();
@@ -206,7 +206,7 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         // Start region 4
 
         // Start zk & bks
-        bkEnsemble4 = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble4 = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble4.start();
 
         setConfig4DefaultValue();

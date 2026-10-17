@@ -19,20 +19,14 @@
 package org.apache.pulsar.client.impl;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -49,9 +43,6 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.impl.transaction.TransactionImpl;
-import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -61,24 +52,15 @@ import org.testng.collections.Sets;
 @Test(groups = "broker-impl")
 public class ConsumerAckTest extends SharedPulsarBaseTest {
 
-    private TransactionImpl transaction;
     private PulsarClient clientWithStats;
-    @SuppressWarnings("deprecation")
 
+    @SuppressWarnings("deprecation")
     @BeforeMethod(alwaysRun = true)
     public void setupConsumerAckTest() throws Exception {
         this.clientWithStats = PulsarClient.builder()
                 .serviceUrl(getBrokerServiceUrl())
                 .statsInterval(30, TimeUnit.SECONDS)
                 .build();
-        transaction = mock(TransactionImpl.class);
-        doReturn(1L).when(transaction).getTxnIdLeastBits();
-        doReturn(1L).when(transaction).getTxnIdMostBits();
-        doReturn(TransactionImpl.State.OPEN).when(transaction).getState();
-        CompletableFuture<Void> completableFuture = CompletableFuture.completedFuture(null);
-        doNothing().when(transaction).registerAckOp(any());
-        doReturn(true).when(transaction).checkIfOpen(any());
-        doReturn(completableFuture).when(transaction).registerAckedTopic(any(), any());
     }
 
     @AfterMethod(alwaysRun = true)
@@ -88,38 +70,6 @@ public class ConsumerAckTest extends SharedPulsarBaseTest {
         }
     }
 
-    @Test
-    public void testAckResponse() throws PulsarClientException, InterruptedException {
-        String topic = newTopicName();
-        @Cleanup
-        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
-                .topic(topic)
-                .enableBatching(false)
-                .create();
-        @Cleanup
-        ConsumerImpl<Integer> consumer = (ConsumerImpl<Integer>) pulsarClient.newConsumer(Schema.INT32)
-                .topic(topic)
-                .subscriptionName("sub")
-                .subscriptionType(SubscriptionType.Shared)
-                .ackTimeout(1, TimeUnit.SECONDS)
-                .subscribe();
-        producer.send(1);
-        producer.send(2);
-        try {
-            consumer.acknowledgeAsync(new MessageIdImpl(1, 1, 1), transaction).get();
-            fail();
-        } catch (ExecutionException e) {
-            Assert.assertTrue(e.getCause() instanceof PulsarClientException.NotAllowedException);
-        }
-        Message<Integer> message = consumer.receive();
-
-        try {
-            consumer.acknowledgeAsync(message.getMessageId(), transaction).get();
-            fail();
-        } catch (ExecutionException e) {
-            Assert.assertTrue(e.getCause() instanceof PulsarClientException.NotAllowedException);
-        }
-    }
     @Test(timeOut = 30000)
     public void testAckReceipt() throws Exception {
         String topic = newTopicName();

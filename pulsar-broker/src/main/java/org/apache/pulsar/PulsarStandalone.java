@@ -172,12 +172,12 @@ public class PulsarStandalone implements AutoCloseable {
         return zkPort;
     }
 
-    public int getBkPort() {
-        return bkPort;
-    }
-
     public String getZkDir() {
         return zkDir;
+    }
+
+    public int getBkPort() {
+        return bkPort;
     }
 
     public String getBkDir() {
@@ -237,13 +237,14 @@ public class PulsarStandalone implements AutoCloseable {
             hidden = true)
     private int zkPort = 2181;
 
-    @Option(names = { "--bookkeeper-port" }, description = "Local bookies base port")
-    private int bkPort = 3181;
-
     @Option(names = { "--zookeeper-dir" },
             description = "Local zooKeeper's data directory",
             hidden = true)
     private String zkDir = "data/standalone/zookeeper";
+
+    @Option(names = { "--bookkeeper-port" }, description = "Local bookies base port (bookie i uses base + i); "
+            + "0 selects kernel-assigned ports. Legacy data uses the port recorded in its bookie ID instead.")
+    private int bkPort = 0;
 
     @Option(names = { "--bookkeeper-dir" }, description = "Local bookies base data directory")
     private String bkDir = "data/standalone/bookkeeper";
@@ -358,9 +359,11 @@ public class PulsarStandalone implements AutoCloseable {
 
         //create default namespace
         createNameSpace(cluster, TopicName.PUBLIC_TENANT,
-                NamespaceName.get(TopicName.PUBLIC_TENANT, TopicName.DEFAULT_NAMESPACE));
+                NamespaceName.get(TopicName.PUBLIC_TENANT, TopicName.DEFAULT_NAMESPACE),
+                config.getDefaultNumberOfNamespaceBundles());
         //create pulsar system namespace
-        createNameSpace(cluster, SYSTEM_NAMESPACE.getTenant(), SYSTEM_NAMESPACE);
+        createNameSpace(cluster, SYSTEM_NAMESPACE.getTenant(), SYSTEM_NAMESPACE,
+                config.getDefaultNumberOfSystemNamespaceBundles());
         if (config.isTransactionCoordinatorEnabled()) {
             NamespaceResources.PartitionedTopicResources partitionedTopicResources =
                     broker.getPulsarResources().getNamespaceResources().getPartitionedTopicResources();
@@ -375,7 +378,8 @@ public class PulsarStandalone implements AutoCloseable {
         log.debug("--- setup completed ---");
     }
 
-    private void createNameSpace(String cluster, String publicTenant, NamespaceName ns) throws Exception {
+    private void createNameSpace(String cluster, String publicTenant, NamespaceName ns, int numBundles)
+            throws Exception {
         PulsarAdmin admin = broker.getAdminClient();
         try {
             final List<String> clusters = admin.clusters().getClusters();
@@ -396,7 +400,7 @@ public class PulsarStandalone implements AutoCloseable {
             }
             final List<String> namespaces = admin.namespaces().getNamespaces(publicTenant);
             if (!namespaces.contains(ns.toString())) {
-                admin.namespaces().createNamespace(ns.toString(), config.getDefaultNumberOfNamespaceBundles());
+                admin.namespaces().createNamespace(ns.toString(), numBundles);
             }
         } catch (PulsarAdminException e) {
             log.error()
@@ -470,8 +474,9 @@ public class PulsarStandalone implements AutoCloseable {
         bkCluster = BKCluster.builder()
                 .baseServerConfiguration(bkServerConf)
                 .metadataServiceUri(metadataStoreUrl)
-                .bkPort(bkPort)
                 .numBookies(numOfBk)
+                .bookieIdPrefix("bk")
+                .bkPort(bkPort)
                 .dataDir(bkDir)
                 .clearOldData(wipeData)
                 .build();
@@ -484,10 +489,11 @@ public class PulsarStandalone implements AutoCloseable {
         ServerConfiguration bkServerConf = new ServerConfiguration();
         bkServerConf.loadConf(new File(configFile).toURI().toURL());
         calculateCacheSize(bkServerConf);
-        // Start LocalBookKeeper
+        // Start LocalBookKeeper.
         bkEnsemble = new LocalBookkeeperEnsemble(
-                this.getNumOfBk(), this.getZkPort(), this.getBkPort(), this.getStreamStoragePort(), this.getZkDir(),
+                this.getNumOfBk(), this.getZkPort(), this.getStreamStoragePort(), this.getZkDir(),
                 this.getBkDir(), this.isWipeData(), "127.0.0.1");
+        bkEnsemble.setBookieBasePort(bkPort);
         bkEnsemble.startStandalone(bkServerConf, !this.isNoStreamStorage());
         config.setMetadataStoreUrl("zk:127.0.0.1:" + zkPort);
     }

@@ -38,7 +38,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -730,7 +729,7 @@ public class LocalRunner implements AutoCloseable {
 
     private ClassLoader isBuiltInFunction(String functionType) throws IOException {
         // Validate the connector type from the locally available connectors
-        TreeMap<String, FunctionArchive> functions = getFunctions();
+        Map<String, FunctionArchive> functions = getFunctions();
 
         String functionName = functionType.replaceFirst("^builtin://", "");
         FunctionArchive function = functions.get(functionName);
@@ -744,7 +743,7 @@ public class LocalRunner implements AutoCloseable {
 
     private ClassLoader isBuiltInSource(String sourceType) throws IOException {
         // Validate the connector type from the locally available connectors
-        TreeMap<String, Connector> connectors = getConnectors();
+        Map<String, Connector> connectors = getConnectors();
 
         String source = sourceType.replaceFirst("^builtin://", "");
         Connector connector = connectors.get(source);
@@ -758,7 +757,7 @@ public class LocalRunner implements AutoCloseable {
 
     private ClassLoader isBuiltInSink(String sinkType) throws IOException {
         // Validate the connector type from the locally available connectors
-        TreeMap<String, Connector> connectors = getConnectors();
+        Map<String, Connector> connectors = getConnectors();
 
         String sink = sinkType.replaceFirst("^builtin://", "");
         Connector connector = connectors.get(sink);
@@ -770,11 +769,11 @@ public class LocalRunner implements AutoCloseable {
         }
     }
 
-    private TreeMap<String, FunctionArchive> getFunctions() throws IOException {
+    private Map<String, FunctionArchive> getFunctions() throws IOException {
         return FunctionUtils.searchForFunctions(functionsDir, narExtractionDirectory, true);
     }
 
-    private TreeMap<String, Connector> getConnectors() throws IOException {
+    private Map<String, Connector> getConnectors() throws IOException {
         return ConnectorUtils.searchForConnectors(connectorsDir, narExtractionDirectory, true);
     }
 

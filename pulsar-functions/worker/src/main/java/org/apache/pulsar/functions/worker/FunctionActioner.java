@@ -53,6 +53,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.io.BatchSourceConfig;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
@@ -70,6 +71,7 @@ import org.apache.pulsar.functions.proto.SourceSpec;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.utils.Actions;
+import org.apache.pulsar.functions.utils.ClientApiResolver;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.SourceConfigUtils;
 import org.apache.pulsar.functions.utils.ValidatableFunctionPackage;
@@ -267,6 +269,7 @@ public class FunctionActioner {
                 .attr("source", downloadFromHttp ? pkgLocationPath : pkgLocation)
                 .log("Function package file will be downloaded");
 
+        long downloadStartMs = System.currentTimeMillis();
         if (downloadFromHttp) {
             if (!packageUrlValidator.isValidPackageUrl(componentType, pkgLocationPath)) {
                 throw new IllegalArgumentException("Package URL " + pkgLocationPath + " is not valid");
@@ -282,6 +285,13 @@ public class FunctionActioner {
                         pkgLocationPath);
             }
         }
+        log.info().attr("tenant", details.getTenant())
+                .attr("namespace", details.getNamespace())
+                .attr("functionName", details.getName())
+                .attr("pkgFile", tempPkgFile)
+                .attr("sizeBytes", tempPkgFile.length())
+                .attr("durationMs", System.currentTimeMillis() - downloadStartMs)
+                .log("Function package file downloaded");
 
         try {
             // create a hardlink, if there are two concurrent createLink operations, one will fail.
@@ -402,6 +412,7 @@ public class FunctionActioner {
                         .getFunctionDetails().getSource().getSubscriptionName();
 
                 deleteSubscription(topic, consumerSpec, subscriptionName,
+                        details.getClientApi() == FunctionDetails.ClientApi.V5,
                         String.format("Cleaning up subscriptions for function %s", fqfn));
             });
         }
@@ -411,7 +422,7 @@ public class FunctionActioner {
     }
 
     private void deleteSubscription(String topic, ConsumerSpec consumerSpec,
-                                    String subscriptionName, String msg) {
+                                    String subscriptionName, boolean usesClientV5, String msg) {
         try {
             Actions.newBuilder()
                     .addAction(
@@ -422,7 +433,7 @@ public class FunctionActioner {
                         .supplier(
                           getDeleteSubscriptionSupplier(topic,
                             consumerSpec.isIsRegexPattern(),
-                            subscriptionName)
+                            subscriptionName, usesClientV5)
                         )
                         .build())
                     .run();
@@ -431,13 +442,52 @@ public class FunctionActioner {
         }
     }
 
+    /**
+     * Returns the scalable topic that a {@code persistent://} topic was migrated to, or {@code null} if it was not
+     * migrated. The V5 client keeps consuming a migrated input under its {@code persistent://} name, so the
+     * subscription to delete is the scalable topic's, which spans the legacy topic and the new segments.
+     */
+    private String migratedScalableTopic(String topic) {
+        TopicName topicName = TopicName.get(TopicName.get(topic).getPartitionedTopicName());
+        String scalableTopic = TopicDomain.topic.value() + "://" + topicName.getNamespace() + "/"
+                + topicName.getLocalName();
+        try {
+            pulsarAdmin.scalableTopics().getMetadata(scalableTopic);
+            return scalableTopic;
+        } catch (PulsarAdminException e) {
+            if (!(e instanceof PulsarAdminException.NotFoundException)) {
+                // fall back to the persistent:// subscription, as for a topic that was not migrated
+                log.warn().attr("topic", topic).exceptionMessage(e)
+                        .log("Failed to check whether the topic was migrated to a scalable topic");
+            }
+            return null;
+        }
+    }
+
     private Supplier<Actions.ActionResult> getDeleteSubscriptionSupplier(
       String topic, boolean isRegex, String subscriptionName) {
+        return getDeleteSubscriptionSupplier(topic, isRegex, subscriptionName, false);
+    }
+
+    /**
+     * @param usesClientV5 whether the component reads its inputs with the V5 client, which follows a
+     *                     {@code persistent://} input that PIP-475 has migrated to a scalable topic
+     */
+    private Supplier<Actions.ActionResult> getDeleteSubscriptionSupplier(
+      String topic, boolean isRegex, String subscriptionName, boolean usesClientV5) {
         return () -> {
             try {
+                String scalableTopic = null;
+                if (!isRegex) {
+                    scalableTopic = ClientApiResolver.isScalableTopic(topic) ? topic
+                            : usesClientV5 ? migratedScalableTopic(topic) : null;
+                }
                 if (isRegex) {
                     pulsarAdmin.namespaces().unsubscribeNamespace(TopicName
                       .get(topic).getNamespace(), subscriptionName);
+                } else if (scalableTopic != null) {
+                    // a scalable topic's subscription spans its segments and its consumer group
+                    pulsarAdmin.scalableTopics().deleteSubscription(scalableTopic, subscriptionName);
                 } else {
                     pulsarAdmin.topics().deleteSubscription(topic,
                       subscriptionName);

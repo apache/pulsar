@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.api.v5;
 
 import java.io.IOException;
-import java.time.Instant;
 import org.apache.pulsar.client.api.v5.internal.PulsarClientProvider;
 
 /**
@@ -30,9 +29,12 @@ import org.apache.pulsar.client.api.v5.internal.PulsarClientProvider;
  * serialized for external storage (e.g. Flink state, S3) using {@link #toByteArray()}.
  *
  * <p>This is the sole position type used with {@link CheckpointConsumer} — for initial
- * positioning use the static factories {@link #earliest()}, {@link #latest()},
- * {@link #atTimestamp(Instant)}, or {@link #fromByteArray(byte[])} to restore from
- * a previously saved checkpoint.
+ * positioning use the static factories {@link #earliest()}, {@link #latest()}, or
+ * {@link #fromByteArray(byte[])} to restore from a previously saved checkpoint.
+ *
+ * <p>For timestamp-based positioning, use the {@code scalable-topics seek} admin
+ * operation on the subscription instead — see
+ * {@link org.apache.pulsar.client.admin.ScalableTopics#seekSubscription}.
  */
 public interface Checkpoint {
 
@@ -43,13 +45,6 @@ public interface Checkpoint {
      *         via {@link #fromByteArray(byte[])}
      */
     byte[] toByteArray();
-
-    /**
-     * The time at which this checkpoint was created.
-     *
-     * @return the creation timestamp of this checkpoint as an {@link Instant}
-     */
-    Instant creationTime();
 
     // --- Static factories ---
 
@@ -69,17 +64,6 @@ public interface Checkpoint {
      */
     static Checkpoint latest() {
         return PulsarClientProvider.get().latestCheckpoint();
-    }
-
-    /**
-     * A checkpoint that positions at the first message published at or after the given timestamp.
-     *
-     * @param timestamp the timestamp to position at
-     * @return a {@link Checkpoint} that will start consuming from the first message at or after
-     *         the given timestamp
-     */
-    static Checkpoint atTimestamp(Instant timestamp) {
-        return PulsarClientProvider.get().checkpointAtTimestamp(timestamp);
     }
 
     /**

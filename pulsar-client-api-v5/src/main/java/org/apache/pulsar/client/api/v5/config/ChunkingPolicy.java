@@ -18,14 +18,102 @@
  */
 package org.apache.pulsar.client.api.v5.config;
 
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
+
 /**
  * Configuration for chunking large messages that exceed the broker's max message size.
  *
- * @param enabled   whether chunking is enabled
- * @param chunkSize maximum size of each chunk in bytes
+ * <p>When chunking is enabled, the producer splits a payload larger than the
+ * configured chunk size into smaller pieces that are reassembled by the consumer.
+ *
+ * <p>Use {@link #ofDisabled()} to opt out, or {@link #builder()} to enable with a
+ * specific chunk size.
  */
-public record ChunkingPolicy(
-        boolean enabled,
-        int chunkSize
-) {
+@EqualsAndHashCode
+@ToString
+public final class ChunkingPolicy {
+
+    private static final ChunkingPolicy DISABLED = new ChunkingPolicy(false, 0);
+
+    private final boolean enabled;
+    private final int chunkSize;
+
+    private ChunkingPolicy(boolean enabled, int chunkSize) {
+        if (enabled && chunkSize <= 0) {
+            throw new IllegalArgumentException("chunkSize must be > 0 when chunking is enabled");
+        }
+        this.enabled = enabled;
+        this.chunkSize = chunkSize;
+    }
+
+    /**
+     * @return whether chunking is enabled
+     */
+    public boolean enabled() {
+        return enabled;
+    }
+
+    /**
+     * @return the maximum size of each chunk in bytes (only meaningful when {@link #enabled()})
+     */
+    public int chunkSize() {
+        return chunkSize;
+    }
+
+    /**
+     * Chunking disabled.
+     *
+     * @return a {@link ChunkingPolicy} with chunking disabled
+     */
+    public static ChunkingPolicy ofDisabled() {
+        return DISABLED;
+    }
+
+    /**
+     * @return a new builder for constructing a {@link ChunkingPolicy}
+     */
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    /**
+     * Builder for {@link ChunkingPolicy}.
+     */
+    public static final class Builder {
+        private boolean enabled = true;
+        private int chunkSize;
+
+        private Builder() {
+        }
+
+        /**
+         * Whether chunking is enabled. Default is {@code true}.
+         *
+         * @param enabled whether to chunk oversized payloads
+         * @return this builder
+         */
+        public Builder enabled(boolean enabled) {
+            this.enabled = enabled;
+            return this;
+        }
+
+        /**
+         * Maximum size of each chunk in bytes. Required when chunking is enabled.
+         *
+         * @param chunkSize the per-chunk size in bytes
+         * @return this builder
+         */
+        public Builder chunkSize(int chunkSize) {
+            this.chunkSize = chunkSize;
+            return this;
+        }
+
+        /**
+         * @return a new {@link ChunkingPolicy} instance
+         */
+        public ChunkingPolicy build() {
+            return new ChunkingPolicy(enabled, chunkSize);
+        }
+    }
 }

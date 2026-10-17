@@ -91,17 +91,6 @@ public interface CheckpointConsumer<T> extends Closeable {
      */
     Checkpoint checkpoint();
 
-    // --- Seek ---
-
-    /**
-     * Seek to a previously saved checkpoint, or to a sentinel position such as
-     * {@link Checkpoint#earliest()} or {@link Checkpoint#latest()}.
-     *
-     * @param checkpoint the checkpoint to seek to
-     * @throws PulsarClientException if the seek fails or a connection error occurs
-     */
-    void seek(Checkpoint checkpoint) throws PulsarClientException;
-
     // --- Async ---
 
     /**

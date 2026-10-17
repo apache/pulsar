@@ -23,6 +23,9 @@ plugins {
 
 dependencies {
     api(project(":pulsar-client-admin-api"))
+    implementation(project(":pulsar-common"))
     implementation(libs.guava)
     implementation(libs.commons.lang3)
+    implementation(libs.jackson.databind)
+    implementation(libs.slf4j.api)
 }

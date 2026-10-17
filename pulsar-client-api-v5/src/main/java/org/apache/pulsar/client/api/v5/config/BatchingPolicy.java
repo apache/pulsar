@@ -19,6 +19,9 @@
 package org.apache.pulsar.client.api.v5.config;
 
 import java.time.Duration;
+import java.util.Objects;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 
 /**
  * Configuration for producer message batching.
@@ -27,33 +30,68 @@ import java.time.Duration;
  * broker request to improve throughput. A batch is flushed when any of the
  * configured thresholds is reached.
  *
- * @param enabled        whether batching is enabled
- * @param maxPublishDelay maximum time to wait before flushing a batch
- * @param maxMessages    maximum number of messages in a single batch
- * @param maxSize       maximum size of a single batch
+ * <p>Construct via {@link #builder()}, or use {@link #ofDisabled()} to opt out.
  */
-public record BatchingPolicy(
-        boolean enabled,
-        Duration maxPublishDelay,
-        int maxMessages,
-        MemorySize maxSize
-) {
-    public BatchingPolicy {
+@EqualsAndHashCode
+@ToString
+public final class BatchingPolicy {
+
+    private static final Duration DEFAULT_MAX_PUBLISH_DELAY = Duration.ofMillis(1);
+    private static final int DEFAULT_MAX_MESSAGES = 1000;
+    private static final MemorySize DEFAULT_MAX_SIZE = MemorySize.ofKilobytes(128);
+
+    private static final BatchingPolicy DISABLED =
+            new BatchingPolicy(false, DEFAULT_MAX_PUBLISH_DELAY, DEFAULT_MAX_MESSAGES, DEFAULT_MAX_SIZE);
+
+    private final boolean enabled;
+    private final Duration maxPublishDelay;
+    private final int maxMessages;
+    private final MemorySize maxSize;
+
+    private BatchingPolicy(boolean enabled, Duration maxPublishDelay, int maxMessages, MemorySize maxSize) {
         if (maxPublishDelay == null) {
-            maxPublishDelay = Duration.ofMillis(1);
+            maxPublishDelay = DEFAULT_MAX_PUBLISH_DELAY;
         }
+        Objects.requireNonNull(maxSize, "maxSize must not be null");
         if (maxMessages < 0) {
             throw new IllegalArgumentException("maxMessages must be >= 0");
         }
         if (maxSize.bytes() < 0) {
             throw new IllegalArgumentException("maxBytes must be >= 0");
         }
+        this.enabled = enabled;
+        this.maxPublishDelay = maxPublishDelay;
+        this.maxMessages = maxMessages;
+        this.maxSize = maxSize;
     }
 
-    private static final BatchingPolicy DISABLED =
-            new BatchingPolicy(false, Duration.ofMillis(1), 1000, MemorySize.ofKilobytes(128));
-    private static final BatchingPolicy DEFAULT =
-            new BatchingPolicy(true, Duration.ofMillis(1), 1000, MemorySize.ofKilobytes(128));
+    /**
+     * @return whether batching is enabled
+     */
+    public boolean enabled() {
+        return enabled;
+    }
+
+    /**
+     * @return the maximum time to wait before flushing a batch
+     */
+    public Duration maxPublishDelay() {
+        return maxPublishDelay;
+    }
+
+    /**
+     * @return the maximum number of messages in a single batch
+     */
+    public int maxMessages() {
+        return maxMessages;
+    }
+
+    /**
+     * @return the maximum size of a single batch
+     */
+    public MemorySize maxSize() {
+        return maxSize;
+    }
 
     /**
      * Batching disabled.
@@ -65,23 +103,73 @@ public record BatchingPolicy(
     }
 
     /**
-     * Batching enabled with default thresholds (1ms delay, 1000 messages, 128KB).
-     *
-     * @return a {@link BatchingPolicy} with default batching thresholds
+     * @return a new builder for constructing a {@link BatchingPolicy}
      */
-    public static BatchingPolicy ofDefault() {
-        return DEFAULT;
+    public static Builder builder() {
+        return new Builder();
     }
 
     /**
-     * Batching enabled with custom thresholds.
-     *
-     * @param maxPublishDelay the maximum time to wait before flushing a batch
-     * @param maxMessages     the maximum number of messages in a single batch
-     * @param maxSize         the maximum size of a single batch
-     * @return a {@link BatchingPolicy} with batching enabled and the specified thresholds
+     * Builder for {@link BatchingPolicy}.
      */
-    public static BatchingPolicy of(Duration maxPublishDelay, int maxMessages, MemorySize maxSize) {
-        return new BatchingPolicy(true, maxPublishDelay, maxMessages, maxSize);
+    public static final class Builder {
+        private boolean enabled = true;
+        private Duration maxPublishDelay = DEFAULT_MAX_PUBLISH_DELAY;
+        private int maxMessages = DEFAULT_MAX_MESSAGES;
+        private MemorySize maxSize = DEFAULT_MAX_SIZE;
+
+        private Builder() {
+        }
+
+        /**
+         * Whether batching is enabled. Default is {@code true}.
+         *
+         * @param enabled whether to batch outgoing messages
+         * @return this builder
+         */
+        public Builder enabled(boolean enabled) {
+            this.enabled = enabled;
+            return this;
+        }
+
+        /**
+         * Maximum time the producer waits before flushing a partial batch.
+         *
+         * @param maxPublishDelay the upper bound on per-message latency added by batching
+         * @return this builder
+         */
+        public Builder maxPublishDelay(Duration maxPublishDelay) {
+            this.maxPublishDelay = maxPublishDelay;
+            return this;
+        }
+
+        /**
+         * Maximum number of messages per batch.
+         *
+         * @param maxMessages the message-count flush threshold
+         * @return this builder
+         */
+        public Builder maxMessages(int maxMessages) {
+            this.maxMessages = maxMessages;
+            return this;
+        }
+
+        /**
+         * Maximum payload size per batch.
+         *
+         * @param maxSize the size flush threshold
+         * @return this builder
+         */
+        public Builder maxSize(MemorySize maxSize) {
+            this.maxSize = maxSize;
+            return this;
+        }
+
+        /**
+         * @return a new {@link BatchingPolicy} instance
+         */
+        public BatchingPolicy build() {
+            return new BatchingPolicy(enabled, maxPublishDelay, maxMessages, maxSize);
+        }
     }
 }

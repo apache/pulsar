@@ -193,20 +193,29 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     }
 
     private void initPendingAckStore() {
-        if (changeToInitializingState()) {
-            if (!checkIfClose()) {
-                this.pendingAckStoreFuture =
-                        pendingAckStoreProvider.newPendingAckStore(persistentSubscription);
-                this.pendingAckStoreFuture.thenAccept(pendingAckStore -> {
-                    recoverTime.setRecoverStartTime(System.currentTimeMillis());
-                    pendingAckStore.replayAsync(this, internalPinnedExecutor);
-                }).exceptionallyAsync(e -> {
-                    // Handling the exceptions in `exceptionHandleFuture`,
-                    // it will be helpful to make the exception handling clearer.
-                    exceptionHandleFuture(e.getCause());
-                    return null;
-                }, internalPinnedExecutor);
+        CompletableFuture<PendingAckStore> storeFuture;
+        synchronized (this) {
+            if (!changeToInitializingState()) {
+                return;
             }
+            // Publish ownership before calling the provider so closeAsync() also waits for a store
+            // whose creation has started but whose future has not yet been returned.
+            storeFuture = new CompletableFuture<>();
+            this.pendingAckStoreFuture = storeFuture;
+        }
+        storeFuture.thenAccept(pendingAckStore -> {
+            if (!checkIfClose()) {
+                recoverTime.setRecoverStartTime(System.currentTimeMillis());
+                pendingAckStore.replayAsync(this, internalPinnedExecutor);
+            }
+        }).exceptionallyAsync(e -> {
+            exceptionHandleFuture(FutureUtil.unwrapCompletionException(e));
+            return null;
+        }, internalPinnedExecutor);
+        try {
+            FutureUtil.completeAfter(storeFuture, pendingAckStoreProvider.newPendingAckStore(persistentSubscription));
+        } catch (Exception e) {
+            storeFuture.completeExceptionally(e);
         }
     }
 
@@ -464,14 +473,19 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
             if (cumulativeAckOfTransaction.getKey().equals(txnID)) {
                 pendingAckStoreFuture.thenAccept(pendingAckStore -> pendingAckStore
                         .appendCommitMark(txnID, AckType.Cumulative).thenAccept(v -> {
-                                log.debug()
-                                        .attr("txnId", txnID)
-                                        .log("Transaction pending ack store commit cumulative success");
-                                                        persistentSubscription.acknowledgeMessage(
-                                    Collections.singletonList(cumulativeAckOfTransaction.getValue()),
-                                    AckType.Cumulative, properties);
-                            cumulativeAckOfTransaction = null;
-                            commitFuture.complete(null);
+                            log.debug()
+                                    .attr("txnId", txnID)
+                                    .log("Transaction pending ack store commit cumulative success");
+                            persistentSubscription.acknowledgeMessageAsync(
+                                            Collections.singletonList(cumulativeAckOfTransaction.getValue()),
+                                            AckType.Cumulative, properties)
+                                    .thenRun(() -> {
+                                        cumulativeAckOfTransaction = null;
+                                        commitFuture.complete(null);
+                                    }).exceptionally(ackError -> {
+                                        commitFuture.completeExceptionally(ackError);
+                                        return null;
+                                    });
                         }).exceptionally(e -> {
                             log.error()
                                     .attr("txnId", txnID)
@@ -496,12 +510,14 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                                     log.debug()
                                             .attr("txnId", txnID)
                                             .log("Transaction pending ack store commit individual success");
-                                                                individualAckCommitCommon(
-                                                                        txnID,
-                                                                        pendingAckMessageForCurrentTxn,
-                                                                        properties);
-                                commitFuture.complete(null);
-                                handleLowWaterMark(txnID, lowWaterMark);
+                                individualAckCommitCommon(txnID, pendingAckMessageForCurrentTxn, properties)
+                                        .thenRun(() -> {
+                                            commitFuture.complete(null);
+                                            handleLowWaterMark(txnID, lowWaterMark);
+                                        }).exceptionally(ackError -> {
+                                            commitFuture.completeExceptionally(ackError);
+                                            return null;
+                                        });
                             } else {
                                 commitFuture.complete(null);
                             }
@@ -770,7 +786,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     protected void handleCommit(TxnID txnID, AckType ackType, Map<String, Long> properties) {
         if (ackType == AckType.Cumulative) {
             if (this.cumulativeAckOfTransaction != null) {
-                persistentSubscription.acknowledgeMessage(
+                persistentSubscription.acknowledgeMessageAsync(
                         Collections.singletonList(this.cumulativeAckOfTransaction.getValue()),
                         AckType.Cumulative, properties);
             }
@@ -786,13 +802,16 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         }
     }
 
-    private void individualAckCommitCommon(TxnID txnID,
-                                           HashMap<Position, Position> currentTxn,
-                                           Map<String, Long> properties) {
+    private CompletableFuture<Void> individualAckCommitCommon(TxnID txnID,
+                                                              HashMap<Position, Position> currentTxn,
+                                                              Map<String, Long> properties) {
         if (currentTxn != null) {
-            persistentSubscription.acknowledgeMessage(new ArrayList<>(currentTxn.values()),
-                    AckType.Individual, properties);
-            individualAckOfTransaction.remove(txnID);
+            return persistentSubscription.acknowledgeMessageAsync(new ArrayList<>(currentTxn.values()),
+                    AckType.Individual, properties).thenRun(() -> {
+                        individualAckOfTransaction.remove(txnID);
+                    });
+        } else {
+            return CompletableFuture.completedFuture(null);
         }
     }
 
@@ -973,8 +992,10 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     }
 
     public void exceptionHandleFuture(Throwable t) {
-        if (isRetryableException(t)) {
-            this.state = State.None;
+        // Preserve Close atomically: closeAsync() changes the state outside the handle monitor.
+        // Resetting it after a separate close check could allow initPendingAckStore() to reopen the store.
+        boolean retryable = isRetryableException(t);
+        if (retryable && changeToNoneStateIfNotClosed()) {
             long retryTime = backoff.next().toMillis();
             log.warn()
                     .attr("name", persistentSubscription.getTopic().getName())
@@ -991,8 +1012,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         changeToErrorState();
         // ToDo: Add a new serverError `TransactionComponentLoadFailedException`
         //  and before that a `Unknown` will be returned first.
-        this.pendingAckStoreFuture = FutureUtil.failedFuture(new BrokerServiceException(
-                        String.format("[%s][%s] Failed to init transaction pending ack.", topicName, subName)));
+        // Keep the original store future, including for non-retryable replay failures, so closeAsync()
+        // can still close the store. Report initialization failure through the handle future below.
         final boolean completedNow = this.pendingAckHandleCompletableFuture.completeExceptionally(
                 new BrokerServiceException(
                 String.format("[%s][%s] Failed to init transaction pending ack.", topicName, subName)));
