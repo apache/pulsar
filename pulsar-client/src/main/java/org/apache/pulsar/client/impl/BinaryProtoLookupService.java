@@ -30,9 +30,9 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.impl.metrics.LatencyHistogram;
@@ -57,7 +57,7 @@ public class BinaryProtoLookupService implements LookupService {
     private final PulsarClientImpl client;
     private final ServiceNameResolver serviceNameResolver;
     private final boolean useTls;
-    private final ExecutorService scheduleExecutor;
+    private final ScheduledExecutorService scheduleExecutor;
     private final String listenerName;
     private final int maxLookupRedirects;
     private final ExecutorService lookupPinnedExecutor;
@@ -69,27 +69,29 @@ public class BinaryProtoLookupService implements LookupService {
 
     /**
      * @deprecated use {@link
-     * #BinaryProtoLookupService(PulsarClientImpl, String, String, boolean, ExecutorService, ExecutorService)} instead.
+     * #BinaryProtoLookupService(PulsarClientImpl, String, String, boolean, ScheduledExecutorService, ExecutorService)}
+     * instead.
      */
     @Deprecated
     public BinaryProtoLookupService(PulsarClientImpl client,
                                     String serviceUrl,
                                     boolean useTls,
-                                    ExecutorService scheduleExecutor)
+                                    ScheduledExecutorService scheduleExecutor)
             throws PulsarClientException {
         this(client, serviceUrl, null, useTls, scheduleExecutor);
     }
 
     /**
      * @deprecated use {@link
-     * #BinaryProtoLookupService(PulsarClientImpl, String, String, boolean, ExecutorService, ExecutorService)} instead.
+     * #BinaryProtoLookupService(PulsarClientImpl, String, String, boolean, ScheduledExecutorService, ExecutorService)}
+     * instead.
      */
     @Deprecated
     public BinaryProtoLookupService(PulsarClientImpl client,
                                     String serviceUrl,
                                     String listenerName,
                                     boolean useTls,
-                                    ExecutorService scheduleExecutor)
+                                    ScheduledExecutorService scheduleExecutor)
             throws PulsarClientException {
         this(client, serviceUrl, listenerName, useTls, scheduleExecutor, null);
     }
@@ -98,7 +100,7 @@ public class BinaryProtoLookupService implements LookupService {
                                     String serviceUrl,
                                     String listenerName,
                                     boolean useTls,
-                                    ExecutorService scheduleExecutor,
+                                    ScheduledExecutorService scheduleExecutor,
                                     ExecutorService lookupPinnedExecutor)
             throws PulsarClientException {
         this.client = client;
@@ -355,13 +357,14 @@ public class BinaryProtoLookupService implements LookupService {
                                                                                   String topicsPattern,
                                                                                   String topicsHash) {
         CompletableFuture<GetTopicsResult> topicsFuture = new CompletableFuture<>();
-        AtomicLong opTimeoutMs = new AtomicLong(client.getConfiguration().getOperationTimeoutMs());
+        long startTimeNanos = System.nanoTime();
+        long retryUntilNanos =
+                startTimeNanos + TimeUnit.MILLISECONDS.toNanos(client.getConfiguration().getOperationTimeoutMs());
         Backoff backoff = new BackoffBuilder()
                 .setInitialTime(100, TimeUnit.MILLISECONDS)
-                .setMandatoryStop(opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS)
                 .setMax(1, TimeUnit.MINUTES)
                 .create();
-        getTopicsUnderNamespace(serviceNameResolver.resolveHost(), namespace, backoff, opTimeoutMs,
+        getTopicsUnderNamespace(serviceNameResolver.resolveHost(), namespace, backoff, startTimeNanos, retryUntilNanos,
                 topicsFuture, mode, topicsPattern, topicsHash);
         return topicsFuture;
     }
@@ -374,50 +377,59 @@ public class BinaryProtoLookupService implements LookupService {
     private void getTopicsUnderNamespace(InetSocketAddress socketAddress,
                                          NamespaceName namespace,
                                          Backoff backoff,
-                                         AtomicLong remainingTime,
+                                         long startTimeNanos,
+                                         long retryUntilNanos,
                                          CompletableFuture<GetTopicsResult> getTopicsResultFuture,
                                          Mode mode,
                                          String topicsPattern,
                                          String topicsHash) {
-        long startTime = System.nanoTime();
-
-        client.getCnxPool().getConnection(socketAddress).thenAcceptAsync(clientCnx -> {
+        client.getCnxPool().getConnection(socketAddress).thenComposeAsync(clientCnx -> {
             long requestId = client.newRequestId();
             ByteBuf request = Commands.newGetTopicsOfNamespaceRequest(
                 namespace.toString(), requestId, mode, topicsPattern, topicsHash);
-
-            clientCnx.newGetTopicsOfNamespace(request, requestId).whenComplete((r, t) -> {
-                if (t != null) {
-                    histoListTopics.recordFailure(System.nanoTime() - startTime);
-                    getTopicsResultFuture.completeExceptionally(t);
-                } else {
-                    histoListTopics.recordSuccess(System.nanoTime() - startTime);
-                    if (log.isDebugEnabled()) {
-                        log.debug("[namespace: {}] Success get topics list in request: {}",
-                                namespace, requestId);
-                    }
-                    getTopicsResultFuture.complete(r);
+            return clientCnx.newGetTopicsOfNamespace(request, requestId)
+                    .whenComplete((r, t) -> client.getCnxPool().releaseConnection(clientCnx));
+        }, lookupPinnedExecutor).whenComplete((r, t) -> {
+            if (t == null) {
+                histoListTopics.recordSuccess(System.nanoTime() - startTimeNanos);
+                if (log.isDebugEnabled()) {
+                    log.debug("[namespace: {}] Success get topics list", namespace);
                 }
-                client.getCnxPool().releaseConnection(clientCnx);
-            });
-        }, lookupPinnedExecutor).exceptionally((e) -> {
-            long nextDelay = Math.min(backoff.next(), remainingTime.get());
-            if (nextDelay <= 0) {
-                getTopicsResultFuture.completeExceptionally(
-                    new PulsarClientException.TimeoutException(
-                        format("Could not get topics of namespace %s within configured timeout",
-                            namespace.toString())));
-                return null;
+                getTopicsResultFuture.complete(r);
+                return;
             }
-
-            ((ScheduledExecutorService) scheduleExecutor).schedule(() -> {
-                log.warn("[namespace: {}] Could not get connection while getTopicsUnderNamespace -- Will try again in"
-                                + " {} ms", namespace, nextDelay);
-                remainingTime.addAndGet(-nextDelay);
-                getTopicsUnderNamespace(socketAddress, namespace, backoff, remainingTime, getTopicsResultFuture,
-                        mode, topicsPattern, topicsHash);
-            }, nextDelay, TimeUnit.MILLISECONDS);
-            return null;
+            Throwable cause = FutureUtil.unwrapCompletionException(t);
+            if (cause instanceof PulsarClientException && !PulsarClientException.isRetriableError(cause)) {
+                histoListTopics.recordFailure(System.nanoTime() - startTimeNanos);
+                getTopicsResultFuture.completeExceptionally(cause);
+                return;
+            }
+            long remainingNanos = retryUntilNanos - System.nanoTime();
+            if (remainingNanos <= 0) {
+                histoListTopics.recordFailure(System.nanoTime() - startTimeNanos);
+                PulsarClientException.TimeoutException timeoutException =
+                        new PulsarClientException.TimeoutException(
+                                format("Could not get topics of namespace %s within configured timeout",
+                                        namespace.toString()));
+                timeoutException.initCause(cause);
+                getTopicsResultFuture.completeExceptionally(timeoutException);
+                return;
+            }
+            if (getTopicsResultFuture.isDone()) {
+                return;
+            }
+            long nextDelayMs = Math.min(backoff.next(), TimeUnit.NANOSECONDS.toMillis(remainingNanos));
+            log.warn("[namespace: {}] Failed to get topics under namespace -- Will try again in {} ms: {}",
+                    namespace, nextDelayMs, cause.getMessage());
+            try {
+                scheduleExecutor.schedule(() -> getTopicsUnderNamespace(socketAddress, namespace, backoff,
+                                startTimeNanos, retryUntilNanos, getTopicsResultFuture, mode, topicsPattern,
+                                topicsHash),
+                        nextDelayMs, TimeUnit.MILLISECONDS);
+            } catch (RejectedExecutionException e) {
+                histoListTopics.recordFailure(System.nanoTime() - startTimeNanos);
+                getTopicsResultFuture.completeExceptionally(cause);
+            }
         });
     }
 

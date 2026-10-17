@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.doAnswer;
@@ -33,30 +34,48 @@ import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.Unpooled;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.LookupException;
 import org.apache.pulsar.client.impl.BinaryProtoLookupService.LookupDataResult;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.BaseCommand.Type;
+import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
+import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.lookup.GetTopicsResult;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.FrameDecoderUtil;
+import org.apache.pulsar.common.topics.TopicList;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -114,7 +133,7 @@ public class BinaryProtoLookupServiceTest {
         doReturn(internalExecutor).when(client).getInternalExecutorService();
 
         lookup = spy(new BinaryProtoLookupService(client, "pulsar://localhost:6650", null, false,
-                mock(ExecutorService.class), internalExecutor));
+                mock(ScheduledExecutorService.class), internalExecutor));
 
         topicName = TopicName.get("persistent://tenant1/ns1/t1");
     }
@@ -232,7 +251,7 @@ public class BinaryProtoLookupServiceTest {
         when(client.instrumentProvider()).thenReturn(InstrumentProvider.NOOP);
         when(client.getCnxPool()).thenReturn(cnxPool);
 
-        // Never-completing connection prevents the thenAcceptAsync callback in getTopicsUnderNamespace from executing,
+        // Never-completing connection prevents the thenComposeAsync callback in getTopicsUnderNamespace from executing,
         // isolating only the deduplication logic without network calls.
         CompletableFuture<ClientCnx> neverCompletes = new CompletableFuture<>();
         when(cnxPool.getConnection(any(InetSocketAddress.class))).thenReturn(neverCompletes);
@@ -291,7 +310,7 @@ public class BinaryProtoLookupServiceTest {
         when(client.instrumentProvider()).thenReturn(InstrumentProvider.NOOP);
         when(client.getCnxPool()).thenReturn(cnxPool);
 
-        // Never-completing connection prevents the thenAcceptAsync callback in getTopicsUnderNamespace from executing,
+        // Never-completing connection prevents the thenComposeAsync callback in getTopicsUnderNamespace from executing,
         // isolating only the deduplication logic without network calls.
         CompletableFuture<ClientCnx> neverCompletes = new CompletableFuture<>();
         when(cnxPool.getConnection(any(InetSocketAddress.class))).thenReturn(neverCompletes);
@@ -362,7 +381,7 @@ public class BinaryProtoLookupServiceTest {
         when(client.instrumentProvider()).thenReturn(InstrumentProvider.NOOP);
         when(client.getCnxPool()).thenReturn(cnxPool);
 
-        // Never-completing connection prevents the thenAcceptAsync callback in getPartitionedTopicMetadata
+        // Never-completing connection prevents the thenComposeAsync callback in getPartitionedTopicMetadata
         // from executing, isolating only the deduplication logic without network calls.
         CompletableFuture<ClientCnx> neverCompletes = new CompletableFuture<>();
         when(cnxPool.getConnection(any(InetSocketAddress.class))).thenReturn(neverCompletes);
@@ -422,7 +441,7 @@ public class BinaryProtoLookupServiceTest {
         when(client.instrumentProvider()).thenReturn(InstrumentProvider.NOOP);
         when(client.getCnxPool()).thenReturn(cnxPool);
 
-        // Never-completing connection prevents the thenAcceptAsync callback in getPartitionedTopicMetadata
+        // Never-completing connection prevents the thenComposeAsync callback in getPartitionedTopicMetadata
         // from executing, so the test exercises only the deduplication map without network calls
         CompletableFuture<ClientCnx> neverCompletes = new CompletableFuture<>();
         when(cnxPool.getConnection(any(InetSocketAddress.class))).thenReturn(neverCompletes);
@@ -471,6 +490,149 @@ public class BinaryProtoLookupServiceTest {
             verify(cnxPool, times(4)).getConnection(any(InetSocketAddress.class));
         } finally {
             scheduler.shutdownNow();
+        }
+    }
+
+    @Test
+    public void testGetTopicsRetriesAfterConnectionClosedMidRequest() throws Exception {
+        GetTopicsFixture fixture = new GetTopicsFixture(30000);
+        CompletableFuture<GetTopicsResult> getTopicsFuture = fixture.getTopics();
+
+        CommandGetTopicsOfNamespace firstRequest = fixture.readGetTopicsRequest();
+        assertThat(fixture.scheduledTasks).isEmpty();
+
+        // the connection drops before the broker answered
+        fixture.channel.close().get();
+        assertThat(getTopicsFuture).isNotDone();
+        assertThat(fixture.scheduledTasks).hasSize(1);
+
+        // the retry sends the request again on a new connection
+        fixture.runScheduledTasks();
+        CommandGetTopicsOfNamespace secondRequest = fixture.readGetTopicsRequest();
+        assertThat(secondRequest.getRequestId()).isNotEqualTo(firstRequest.getRequestId());
+
+        List<String> topics = Collections.singletonList("persistent://public/default/test");
+        fixture.channel.writeInbound(Commands.serializeWithSize(Commands.newGetTopicsOfNamespaceResponseCommand(
+                topics, TopicList.calculateHash(topics), true, true, secondRequest.getRequestId())));
+
+        assertThat(getTopicsFuture).succeedsWithin(Duration.ofSeconds(1))
+                .satisfies(result -> assertThat(result.getTopics()).containsExactlyElementsOf(topics));
+    }
+
+    @Test
+    public void testGetTopicsFailsWithTimeoutWhenNoTimeIsLeftToRetry() throws Exception {
+        // a zero operation timeout leaves no time for a retry after the first failure
+        GetTopicsFixture fixture = new GetTopicsFixture(0);
+        CompletableFuture<GetTopicsResult> getTopicsFuture = fixture.getTopics();
+        fixture.readGetTopicsRequest();
+
+        fixture.channel.close().get();
+
+        assertThat(fixture.scheduledTasks).isEmpty();
+        assertThat(getTopicsFuture).failsWithin(Duration.ofSeconds(1))
+                .withThrowableOfType(ExecutionException.class)
+                .havingCause()
+                .isInstanceOf(PulsarClientException.TimeoutException.class)
+                .havingCause()
+                .isInstanceOf(PulsarClientException.ConnectException.class);
+    }
+
+    @Test
+    public void testGetTopicsDoesNotRetryNonRetriableError() throws Exception {
+        GetTopicsFixture fixture = new GetTopicsFixture(30000);
+        CompletableFuture<GetTopicsResult> getTopicsFuture = fixture.getTopics();
+        CommandGetTopicsOfNamespace request = fixture.readGetTopicsRequest();
+
+        fixture.channel.writeInbound(
+                Commands.newError(request.getRequestId(), ServerError.AuthorizationError, "not authorized"));
+
+        assertThat(fixture.scheduledTasks).isEmpty();
+        assertThat(getTopicsFuture).failsWithin(Duration.ofSeconds(1))
+                .withThrowableOfType(ExecutionException.class)
+                .havingCause()
+                .isInstanceOf(PulsarClientException.AuthorizationException.class);
+    }
+
+    /**
+     * Runs getTopicsUnderNamespace against a real {@link ClientCnx} on an {@link EmbeddedChannel}. Lookup callbacks
+     * run inline and retries are captured instead of scheduled, so a test drives every step itself.
+     */
+    private static class GetTopicsFixture {
+        private final List<Runnable> scheduledTasks = new ArrayList<>();
+        private final BinaryProtoLookupService lookupService;
+        private EmbeddedChannel channel;
+
+        GetTopicsFixture(long operationTimeoutMs) throws Exception {
+            ClientConfigurationData conf = new ClientConfigurationData();
+            conf.setOperationTimeoutMs(operationTimeoutMs);
+
+            EventLoopGroup eventLoopGroup = mock(EventLoopGroup.class);
+            doReturn(mock(io.netty.util.concurrent.ScheduledFuture.class)).when(eventLoopGroup)
+                    .scheduleAtFixedRate(any(Runnable.class), anyLong(), anyLong(), any(TimeUnit.class));
+
+            ConnectionPool cnxPool = mock(ConnectionPool.class);
+            doAnswer(invocation -> {
+                ClientCnx cnx = new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup);
+                channel = new EmbeddedChannel(new ChannelInitializer<Channel>() {
+                    @Override
+                    protected void initChannel(Channel ch) {
+                        FrameDecoderUtil.addFrameDecoder(ch.pipeline(), Commands.DEFAULT_MAX_MESSAGE_SIZE);
+                        ch.pipeline().addLast(cnx);
+                    }
+                });
+                assertThat(readCommand().getType()).isEqualTo(Type.CONNECT);
+                channel.writeInbound(Commands.newConnected(Commands.getCurrentProtocolVersion(), true));
+                return CompletableFuture.completedFuture(cnx);
+            }).when(cnxPool).getConnection(any(InetSocketAddress.class));
+
+            AtomicLong requestIds = new AtomicLong();
+            PulsarClientImpl client = mock(PulsarClientImpl.class);
+            doReturn(InstrumentProvider.NOOP).when(client).instrumentProvider();
+            doReturn(cnxPool).when(client).getCnxPool();
+            doReturn(conf).when(client).getConfiguration();
+            doAnswer(invocation -> requestIds.incrementAndGet()).when(client).newRequestId();
+
+            ScheduledExecutorService scheduler = mock(ScheduledExecutorService.class);
+            doAnswer(invocation -> {
+                scheduledTasks.add(invocation.getArgument(0));
+                return mock(ScheduledFuture.class);
+            }).when(scheduler).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+
+            lookupService = new BinaryProtoLookupService(client, "pulsar://localhost:6650", null, false, scheduler,
+                    MoreExecutors.newDirectExecutorService());
+        }
+
+        CompletableFuture<GetTopicsResult> getTopics() {
+            return lookupService.getTopicsUnderNamespace(NamespaceName.get("public", "default"), Mode.PERSISTENT,
+                    ".*", null);
+        }
+
+        void runScheduledTasks() {
+            List<Runnable> tasks = new ArrayList<>(scheduledTasks);
+            scheduledTasks.clear();
+            tasks.forEach(Runnable::run);
+        }
+
+        CommandGetTopicsOfNamespace readGetTopicsRequest() {
+            BaseCommand cmd = readCommand();
+            assertThat(cmd.getType()).isEqualTo(Type.GET_TOPICS_OF_NAMESPACE);
+            return cmd.getGetTopicsOfNamespace();
+        }
+
+        private BaseCommand readCommand() {
+            ByteBuf frame = channel.readOutbound();
+            assertNotNull(frame);
+            try {
+                frame.skipBytes(4); // total frame size
+                int cmdSize = (int) frame.readUnsignedInt();
+                BaseCommand cmd = new BaseCommand();
+                // Parse a copy: the command's fields are decoded lazily from the buffer, which is released below
+                cmd.parseFrom(Unpooled.wrappedBuffer(ByteBufUtil.getBytes(frame, frame.readerIndex(), cmdSize)),
+                        cmdSize);
+                return cmd;
+            } finally {
+                frame.release();
+            }
         }
     }
 }
