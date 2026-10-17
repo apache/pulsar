@@ -448,12 +448,13 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             availablePermits = 1;
         }
 
-        int messagesToRead = Math.min(availablePermits, readBatchSize);
+        int maxReadBatchSize = Math.min(readBatchSize, serviceConfig.getDispatcherMaxReadBatchSize());
+        int messagesToRead = Math.min(availablePermits, maxReadBatchSize);
         long bytesToRead = serviceConfig.getDispatcherMaxReadSizeBytes();
         // if turn of precise dispatcher flow control, adjust the records to read
         if (consumer.isPreciseDispatcherFlowControl()) {
             int avgMessagesPerEntry = Math.max(1, consumer.getAvgMessagesPerEntry());
-            messagesToRead = Math.min((int) Math.ceil(availablePermits * 1.0 / avgMessagesPerEntry), readBatchSize);
+            messagesToRead = Math.min((int) Math.ceil(availablePermits * 1.0 / avgMessagesPerEntry), maxReadBatchSize);
         }
 
         // throttle only if: (1) cursor is not active (or flag for throttle-nonBacklogConsumer is enabled) bcz

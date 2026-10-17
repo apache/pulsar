@@ -29,6 +29,7 @@ import com.google.common.collect.Range;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.opentelemetry.api.OpenTelemetry;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -148,6 +149,9 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
     //indicate whether shutdown() is called.
     private volatile boolean closed;
+    // How long shutdown waits for each managed ledger to close
+    private long shutdownLedgerCloseTimeoutMillis =
+            TimeUnit.SECONDS.toMillis(ManagedLedgerImpl.AsyncOperationTimeoutSeconds);
 
     /**
      * Keep a flag to indicate whether we're currently connected to the metadata service.
@@ -676,68 +680,13 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         readEntryTimeoutTracker.close();
         cacheEvictionExecutor.shutdownNow();
 
-        List<String> ledgerNames = new ArrayList<>(this.ledgers.keySet());
-        List<CompletableFuture<Void>> futures = new ArrayList<>(ledgerNames.size());
-        int numLedgers = ledgerNames.size();
-        log.info().attr("numLedgers", numLedgers).log("Closing ledgers");
-        for (String ledgerName : ledgerNames) {
-            CompletableFuture<ManagedLedgerImpl> ledgerFuture = ledgers.remove(ledgerName);
-            if (ledgerFuture == null) {
-                continue;
-            }
-            CompletableFuture<Void> future = new CompletableFuture<>();
-            futures.add(future);
-            ledgerFuture.whenCompleteAsync((managedLedger, throwable) -> {
-                if (throwable != null || managedLedger == null) {
-                    future.complete(null);
-                    return;
-                }
-                managedLedger.asyncClose(new AsyncCallbacks.CloseCallback() {
-                    @Override
-                    public void closeComplete(Object ctx) {
-                        future.complete(null);
-                    }
-
-                    @Override
-                    public void closeFailed(ManagedLedgerException exception, Object ctx) {
-                        log.warn().attr("managedLedger", managedLedger.getName()).exception(exception)
-                                .log("Got exception when closing managed ledger");
-                        future.complete(null);
-                    }
-                }, null);
-
-            }, scheduledExecutor.chooseThread());
-            //close pendingInitializeManagedLedger directly to make sure all callbacks is called.
-            PendingInitializeManagedLedger pendingLedger = pendingInitializeLedgers.get(ledgerName);
-            if (pendingLedger != null && !ledgerFuture.isDone()) {
-                ledgerFuture.completeExceptionally(new ManagedLedgerException.ManagedLedgerFactoryClosedException());
-            }
-        }
+        CompletableFuture<Void> closeLedgersFuture = closeLedgersOnShutdown();
         CompletableFuture<BookKeeper> bookkeeperFuture = isBookkeeperManaged
                 ? bookkeeperFactory.get()
                 : CompletableFuture.completedFuture(null);
         return bookkeeperFuture
-                .thenRun(() -> {
-                    log.info().attr("numLedgers", ledgers.size()).log("Closing ledgers");
-                    //make sure all callbacks is called.
-                    ledgers.forEach(((ledgerName, ledgerFuture) -> {
-                        if (!ledgerFuture.isDone()) {
-                            ledgerFuture.completeExceptionally(
-                                    new ManagedLedgerException.ManagedLedgerFactoryClosedException());
-                        } else {
-                            ManagedLedgerImpl managedLedger = ledgerFuture.getNow(null);
-                            if (managedLedger == null) {
-                                return;
-                            }
-                            try {
-                                managedLedger.close();
-                            } catch (Throwable throwable) {
-                                log.warn().attr("managedLedger", managedLedger.getName()).exception(throwable)
-                                        .log("Got exception when closing managed ledger");
-                            }
-                        }
-                    }));
-                }).whenCompleteAsync((__, ___) -> {
+                .thenCompose(__ -> closeLedgersFuture)
+                .whenCompleteAsync((__, ___) -> {
                     //wait for tasks in scheduledExecutor executed.
                     openTelemetryManagedCursorStats.close();
                     openTelemetryManagedLedgerStats.close();
@@ -752,6 +701,73 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                         }
                     }
                 });
+    }
+
+    /**
+     * Closes all the managed ledgers of the factory, then the ones that opens racing with the shutdown added in the
+     * meantime, until none is left.
+     */
+    private CompletableFuture<Void> closeLedgersOnShutdown() {
+        List<String> ledgerNames = new ArrayList<>(ledgers.keySet());
+        if (ledgerNames.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        log.info().attr("numLedgers", ledgerNames.size()).log("Closing ledgers");
+        List<CompletableFuture<Void>> futures = new ArrayList<>(ledgerNames.size());
+        for (String ledgerName : ledgerNames) {
+            CompletableFuture<ManagedLedgerImpl> ledgerFuture = ledgers.remove(ledgerName);
+            if (ledgerFuture != null) {
+                futures.add(closeLedgerOnShutdown(ledgerName, ledgerFuture));
+            }
+        }
+        return Futures.waitForAll(futures).thenCompose(__ -> closeLedgersOnShutdown());
+    }
+
+    private CompletableFuture<Void> closeLedgerOnShutdown(String ledgerName,
+                                                          CompletableFuture<ManagedLedgerImpl> ledgerFuture) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        ledgerFuture.whenCompleteAsync((managedLedger, throwable) -> {
+            if (throwable != null || managedLedger == null) {
+                future.complete(null);
+                return;
+            }
+            managedLedger.asyncClose(new AsyncCallbacks.CloseCallback() {
+                @Override
+                public void closeComplete(Object ctx) {
+                    future.complete(null);
+                }
+
+                @Override
+                public void closeFailed(ManagedLedgerException exception, Object ctx) {
+                    log.warn().attr("managedLedger", managedLedger.getName()).exception(exception)
+                            .log("Got exception when closing managed ledger");
+                    future.complete(null);
+                }
+            }, null);
+
+        }, scheduledExecutor.chooseThread());
+        //close pendingInitializeManagedLedger directly to make sure all callbacks is called.
+        PendingInitializeManagedLedger pendingLedger = pendingInitializeLedgers.get(ledgerName);
+        if (pendingLedger != null && !ledgerFuture.isDone()) {
+            ledgerFuture.completeExceptionally(new ManagedLedgerException.ManagedLedgerFactoryClosedException());
+        }
+        // Bound the wait, so that a ledger that never finishes opening or closing cannot hang the shutdown
+        return FutureUtil.addTimeoutHandling(future, Duration.ofMillis(shutdownLedgerCloseTimeoutMillis),
+                        scheduledExecutor, () -> FutureUtil.createTimeoutException("Timed out closing managed ledger",
+                                ManagedLedgerFactoryImpl.class, "closeLedgerOnShutdown"))
+                .exceptionally(ex -> {
+                    log.warn().attr("managedLedger", ledgerName).attr("timeoutMs", shutdownLedgerCloseTimeoutMillis)
+                            .log("Timed out closing managed ledger on shutdown");
+                    // Make sure that the callbacks of an open that is still in progress are called
+                    ledgerFuture.completeExceptionally(
+                            new ManagedLedgerException.ManagedLedgerFactoryClosedException());
+                    return null;
+                });
+    }
+
+    @VisibleForTesting
+    void setShutdownLedgerCloseTimeoutMillis(long shutdownLedgerCloseTimeoutMillis) {
+        this.shutdownLedgerCloseTimeoutMillis = shutdownLedgerCloseTimeoutMillis;
     }
 
     @Override
