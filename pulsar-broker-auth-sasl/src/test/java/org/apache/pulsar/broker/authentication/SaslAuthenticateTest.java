@@ -18,8 +18,10 @@
  */
 package org.apache.pulsar.broker.authentication;
 
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
@@ -33,7 +35,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -66,6 +67,7 @@ import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.sasl.SaslConstants;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.awaitility.Awaitility;
+import org.mockito.ArgumentCaptor;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -312,7 +314,6 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     public void testSaslOnlyAuthFirstStageKeepsInflightContextsBeforeExpiry() throws Exception {
         @Cleanup
         AuthenticationProviderSasl saslServer = new AuthenticationProviderSasl();
@@ -330,14 +331,11 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
             saslServer.authenticateHttpRequest(servletRequest, mock(HttpServletResponse.class));
         }
 
-        Field field = AuthenticationProviderSasl.class.getDeclaredField("authStates");
-        field.setAccessible(true);
-        Cache<Long, AuthenticationState> cache = (Cache<Long, AuthenticationState>) field.get(saslServer);
+        Cache<Long, AuthenticationState> cache = saslServer.getAuthStates();
         assertEquals(cache.asMap().size(), 10);
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     public void testSaslOnlyAuthFirstStageExpiresResidualContexts() throws Exception {
         @Cleanup
         AuthenticationProviderSasl saslServer = new AuthenticationProviderSasl();
@@ -346,22 +344,32 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
 
         HttpServletRequest servletRequest = mock(HttpServletRequest.class);
         doReturn(SaslConstants.SASL_STATE_CLIENT_INIT).when(servletRequest).getHeader(SaslConstants.SASL_HEADER_STATE);
+        // The cache is keyed by the server-generated state id, which the broker returns in the
+        // SASL-Server-ID response header, not by the SASL-Server-ID request header.
+        Set<Long> stateIds = new HashSet<>();
         for (int i = 0; i < 10; i++) {
             AuthenticationDataProvider dataProvider =  authSasl.getAuthData(localHostname);
             AuthData initData1 = dataProvider.authenticate(AuthData.INIT_AUTH_DATA);
             doReturn(Base64.getEncoder().encodeToString(initData1.getBytes())).when(
                     servletRequest).getHeader(SaslConstants.SASL_AUTH_TOKEN);
             doReturn(String.valueOf(i)).when(servletRequest).getHeader(SaslConstants.SASL_STATE_SERVER);
-            saslServer.authenticateHttpRequest(servletRequest, mock(HttpServletResponse.class));
+            HttpServletResponse response = mock(HttpServletResponse.class);
+            saslServer.authenticateHttpRequest(servletRequest, response);
+            ArgumentCaptor<String> stateId = ArgumentCaptor.forClass(String.class);
+            verify(response).setHeader(eq(SaslConstants.SASL_STATE_SERVER), stateId.capture());
+            stateIds.add(Long.parseLong(stateId.getValue()));
         }
+        assertEquals(stateIds.size(), 10);
 
-        Field field = AuthenticationProviderSasl.class.getDeclaredField("authStates");
-        field.setAccessible(true);
-        Cache<Long, AuthenticationState> cache = (Cache<Long, AuthenticationState>) field.get(saslServer);
-        Awaitility.await().atMost(5, TimeUnit.SECONDS).pollDelay(100, TimeUnit.MILLISECONDS).untilAsserted(() -> {
-            for (int i = 0; i < 10; i++) {
-                assertNull(cache.getIfPresent(((long) i)));
+        Cache<Long, AuthenticationState> cache = saslServer.getAuthStates();
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+            for (long stateId : stateIds) {
+                assertNull(cache.getIfPresent(stateId));
             }
+            // Expired entries are physically removed only by Caffeine maintenance, so run it before
+            // checking that no residual context is left in memory.
+            cache.cleanUp();
+            assertTrue(cache.asMap().isEmpty());
         });
     }
 
