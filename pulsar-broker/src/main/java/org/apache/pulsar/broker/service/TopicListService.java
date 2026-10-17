@@ -28,7 +28,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.SortedSet;
-import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.TreeSet;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -99,15 +99,15 @@ public class TopicListService {
             this.topicsPattern = topicsPattern;
             this.executor = executor;
             this.matchingTopics =
-                    TopicList.filterTopics(topics, topicsPattern, Collectors.toCollection(ConcurrentSkipListSet::new));
+                    TopicList.filterTopics(topics, topicsPattern, Collectors.toCollection(TreeSet::new));
             // start with in progress state since topic list update will be sent first
             this.sendingInProgress = true;
             this.sendTopicListUpdateTasks =
                     new LinkedBlockingDeque<>(topicListUpdateMaxQueueSize);
         }
 
-        public synchronized Collection<String> getMatchingTopics() {
-            return new ArrayList<>(matchingTopics);
+        public synchronized SortedSet<String> getMatchingTopics() {
+            return Collections.unmodifiableSortedSet(matchingTopics);
         }
 
         /***
