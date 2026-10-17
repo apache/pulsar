@@ -636,14 +636,6 @@ public class PulsarWorkerService implements WorkerService {
             }
         }
 
-        if (null != functionRuntimeManager) {
-            try {
-                functionRuntimeManager.close();
-            } catch (Exception e) {
-                log.warn().exception(e).log("Failed to close function runtime manager");
-            }
-        }
-
         if (null != clusterServiceCoordinator) {
             clusterServiceCoordinator.close();
         }
@@ -654,6 +646,14 @@ public class PulsarWorkerService implements WorkerService {
 
         if (null != schedulerManager) {
             schedulerManager.close();
+        }
+
+        if (null != functionRuntimeManager) {
+            try {
+                functionRuntimeManager.close();
+            } catch (Exception e) {
+                log.warn().exception(e).log("Failed to close function runtime manager");
+            }
         }
 
         if (null != leaderService) {

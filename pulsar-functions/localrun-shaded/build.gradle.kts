@@ -27,12 +27,13 @@ dependencies {
 }
 
 val shadePrefix = "org.apache.pulsar.functions.runtime.shaded"
+val pulsarGroupPattern = Regex.escape(project.group.toString())
 
 tasks.shadowJar {
     isZip64 = true
 
     dependencies {
-        include(dependency("org.apache.pulsar:.*"))
+        include(dependency("$pulsarGroupPattern:.*"))
         include(project(":pulsar-functions:pulsar-functions-local-runner-original"))
         include(project(":pulsar-client-original"))
         include(project(":pulsar-common"))
@@ -42,7 +43,6 @@ tasks.shadowJar {
         include(dependency("org.apache.commons:.*"))
         include(dependency("com.fasterxml.jackson.*:.*"))
         include(dependency("io.netty:.*"))
-        include(dependency("io.netty.incubator:.*"))
         include(dependency("com.google.*:.*"))
         include(dependency("jakarta.servlet:.*"))
         include(dependency("org.reactivestreams:reactive-streams"))
@@ -57,14 +57,13 @@ tasks.shadowJar {
         include(dependency("net.java.dev.jna:.*"))
         include(dependency("org.apache.zookeeper:.*"))
         include(dependency("com.thoughtworks.paranamer:paranamer"))
-        include(dependency("jline:.*"))
         include(dependency("org.rocksdb:.*"))
         include(dependency("org.eclipse.jetty.*:.*"))
         include(dependency("org.apache.avro:avro"))
         include(dependency("info.picocli:.*"))
         include(dependency("net.jodah:.*"))
         include(dependency("io.airlift:.*"))
-        include(dependency("com.yahoo.datasketches:.*"))
+        include(dependency("org.apache.datasketches:.*"))
     }
 
     // Exclude bouncycastle from pulsar-client (signatures would break if shaded)
@@ -80,8 +79,6 @@ tasks.shadowJar {
     relocateWithPrefix(shadePrefix, "com.squareup.okhttp")
     relocateWithPrefix(shadePrefix, "com.squareup.okio")
     relocateWithPrefix(shadePrefix, "com.thoughtworks.paranamer")
-    relocateWithPrefix(shadePrefix, "com.yahoo.datasketches")
-    relocateWithPrefix(shadePrefix, "com.yahoo.sketches")
     relocateWithPrefix(shadePrefix, "commons-cli")
     relocateWithPrefix(shadePrefix, "commons-codec")
     relocateWithPrefix(shadePrefix, "commons-io")
@@ -102,7 +99,6 @@ tasks.shadowJar {
     relocateWithPrefix(shadePrefix, "jakarta.servlet")
     relocateWithPrefix(shadePrefix, "jakarta.validation")
     relocateWithPrefix(shadePrefix, "jakarta.ws.rs")
-    relocateWithPrefix(shadePrefix, "jline")
     relocateWithPrefix(shadePrefix, "net.java.dev.jna")
     relocateWithPrefix(shadePrefix, "net.jodah")
     relocateWithPrefix(shadePrefix, "net.jpountz")
@@ -111,6 +107,7 @@ tasks.shadowJar {
     relocateWithPrefix(shadePrefix, "org.apache.bookkeeper")
     relocateWithPrefix(shadePrefix, "org.apache.commons")
     relocateWithPrefix(shadePrefix, "org.apache.curator")
+    relocateWithPrefix(shadePrefix, "org.apache.datasketches")
     relocateWithPrefix(shadePrefix, "org.apache.distributedlog")
     relocateWithPrefix(shadePrefix, "org.apache.jute")
     relocateWithPrefix(shadePrefix, "org.apache.yetus")

@@ -140,8 +140,11 @@ public class BrokersBase extends AdminResource {
     public void getLeaderBroker(@Suspended final AsyncResponse asyncResponse) {
         validateBothSuperuserAndBrokerOperation(pulsar().getConfig().getClusterName(),
                 pulsar().getBrokerId(), BrokerOperation.GET_LEADER_BROKER)
-                .thenAccept(__ -> {
-                    LeaderBroker leaderBroker = pulsar().getLeaderElectionService().getCurrentLeader()
+                // The authoritative read: waits for an in-progress leader election to settle
+                // instead of returning 404 while a re-election is still in flight.
+                .thenCompose(__ -> pulsar().getLeaderElectionService().readCurrentLeader())
+                .thenAccept(leader -> {
+                    LeaderBroker leaderBroker = leader
                             .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Couldn't find leader broker"));
                     BrokerInfo brokerInfo = BrokerInfo.builder()
                             .serviceUrl(leaderBroker.getServiceUrl())

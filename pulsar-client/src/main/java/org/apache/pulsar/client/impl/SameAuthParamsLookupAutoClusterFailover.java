@@ -19,10 +19,11 @@
 package org.apache.pulsar.client.impl;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import io.netty.channel.EventLoopGroup;
-import io.netty.util.concurrent.ScheduledFuture;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.CustomLog;
 import lombok.Getter;
@@ -35,7 +36,6 @@ import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.netty.EventLoopUtil;
 
 /**
  * A service URL provider that probes multiple Pulsar service URLs with the same authentication
@@ -50,7 +50,7 @@ import org.apache.pulsar.common.util.netty.EventLoopUtil;
 public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvider {
 
     private PulsarClientImpl pulsarClient;
-    private EventLoopGroup executor;
+    private ScheduledExecutorService executor;
     private volatile boolean closed;
     private ScheduledFuture<?> scheduledCheckTask;
     @Getter
@@ -79,9 +79,12 @@ public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvid
         }
         this.currentPulsarServiceIndex = 0;
         this.pulsarClient = (PulsarClientImpl) client;
-        this.executor = EventLoopUtil.newEventLoopGroup(1, false,
+        this.executor = Executors.newSingleThreadScheduledExecutor(
                 new ExecutorProvider.ExtendedThreadFactory("broker-service-url-check"));
-        scheduledCheckTask = executor.scheduleAtFixedRate(() -> {
+        // Use fixed-delay (not fixed-rate) scheduling: a probe can block up to its timeout, and with a
+        // plain single-threaded scheduled executor fixed-rate runs would otherwise pile up back-to-back
+        // and monopolize the thread. Fixed-delay leaves a gap after each check completes.
+        scheduledCheckTask = executor.scheduleWithFixedDelay(() -> {
             try {
                 if (closed) {
                     return;

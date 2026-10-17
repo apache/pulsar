@@ -30,6 +30,7 @@ import java.util.concurrent.ExecutorService;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.lang3.tuple.MutablePair;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.transaction.metadata.TxnIds;
 import org.apache.pulsar.broker.transaction.metadata.TxnMetadataStore;
@@ -82,6 +83,12 @@ public class MetadataPendingAckStore implements PendingAckStore {
     private final Object lock = new Object();
     /** Set of txnIdKeys we believe are OPEN — populated on append + recovery, drained by reconcile. */
     private final Set<String> openTxns = new HashSet<>();
+    /**
+     * The ack appends in progress, which {@link #closeAsync()} waits for: the ack records of a deleted subscription
+     * are deleted once it is closed, and none must land after that. Guarded by {@link #lock}, like the
+     * {@link #closed} check of an append.
+     */
+    private final Set<CompletableFuture<Void>> appendsInProgress = new HashSet<>();
 
     private final CompletableFuture<Void> recoveryFuture = new CompletableFuture<>();
     private volatile AutoCloseable eventSubscription;
@@ -165,7 +172,21 @@ public class MetadataPendingAckStore implements PendingAckStore {
                 return;
             }
             recoveryFuture.complete(null);
-            pendingAckHandle.changeToReadyState();
+            // Mirror the legacy MLPendingAckStore completion: flip the handle to Ready and
+            // complete the handle future — PersistentSubscription.addConsumer blocks on that
+            // future, so skipping it hangs every subscribe on a segment topic — then drain any
+            // ack requests queued during recovery. Run on the pinned executor so the
+            // state-machine transition and the cache drain stay single-threaded.
+            executorService.execute(() -> {
+                if (pendingAckHandle.changeToReadyState()) {
+                    pendingAckHandle.completeHandleFuture();
+                } else {
+                    pendingAckHandle.exceptionHandleFuture(
+                            new BrokerServiceException.ServiceUnitNotReadyException(
+                                    "Failed to change PendingAckHandle state to Ready"));
+                }
+                pendingAckHandle.handleCacheRequest();
+            });
             // Drain any events that fired during recovery.
             triggerReconcile();
         });
@@ -186,8 +207,12 @@ public class MetadataPendingAckStore implements PendingAckStore {
 
     private CompletableFuture<Void> appendAcks(TxnID txnID, List<MutablePair<Position, Integer>> positions,
                                                boolean cumulative) {
-        if (closed) {
-            return FutureUtil.failedFuture(new IllegalStateException("PendingAckStore is closed"));
+        CompletableFuture<Void> appended = new CompletableFuture<>();
+        synchronized (lock) {
+            if (closed) {
+                return FutureUtil.failedFuture(new IllegalStateException("PendingAckStore is closed"));
+            }
+            appendsInProgress.add(appended);
         }
         String txnIdKey = TxnIds.toKey(txnID);
         // Append one TxnOp per position. PendingAckHandleImpl already validates the txn isn't
@@ -199,11 +224,20 @@ public class MetadataPendingAckStore implements PendingAckStore {
                     p.getLedgerId(), p.getEntryId(), cumulative ? Boolean.TRUE : null);
             appends[i] = txnStore.appendOp(txnIdKey, op);
         }
-        return CompletableFuture.allOf(appends).thenRun(() -> {
+        CompletableFuture.allOf(appends).whenComplete((__, err) -> {
             synchronized (lock) {
-                openTxns.add(txnIdKey);
+                appendsInProgress.remove(appended);
+                if (err == null) {
+                    openTxns.add(txnIdKey);
+                }
+            }
+            if (err != null) {
+                appended.completeExceptionally(err);
+            } else {
+                appended.complete(null);
             }
         });
+        return appended;
     }
 
     @Override
@@ -295,11 +329,19 @@ public class MetadataPendingAckStore implements PendingAckStore {
 
     // ---- Close -------------------------------------------------------------
 
+    /**
+     * Completes once the ack appends in progress are done; no append starts after it is called. A failed append
+     * fails the ack it was for, not the close.
+     */
     @Override
     public CompletableFuture<Void> closeAsync() {
-        closed = true;
+        CompletableFuture<?>[] inProgress;
+        synchronized (lock) {
+            closed = true;
+            inProgress = appendsInProgress.toArray(new CompletableFuture<?>[0]);
+        }
         closeSubscriptionQuietly();
-        return CompletableFuture.completedFuture(null);
+        return CompletableFuture.allOf(inProgress).exceptionally(__ -> null);
     }
 
     private void closeSubscriptionQuietly() {

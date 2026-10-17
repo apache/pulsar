@@ -18,10 +18,15 @@
  */
 
 plugins {
-    id("pulsar.java-conventions")
+    id("pulsar.public-java-library-conventions")
 }
 
 dependencies {
+    // PIP-478: the auth SPI's AuthenticationInitContext exposes PulsarHttpClientFactory and the
+    // client builder accepts a TlsPolicy, so the HTTP + TLS factory SPIs are part of this API's
+    // surface; both SPI modules are published public libraries like this one.
+    api(project(":pulsar-tls-factory-api"))
+    api(project(":pulsar-http-client-api"))
     compileOnly(libs.protobuf.java)
     compileOnly(libs.opentelemetry.api)
 }

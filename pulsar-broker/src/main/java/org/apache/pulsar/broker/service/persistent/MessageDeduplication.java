@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
@@ -104,16 +105,17 @@ public class MessageDeduplication {
 
 
     private volatile Status status;
+    private CompletableFuture<Void> statusChangeFuture = CompletableFuture.completedFuture(null);
 
     // Map that contains the highest sequenceId that have been sent by each producers. The map will be updated before
     // the messages are persisted
     @VisibleForTesting
-    final Map<String, Long> highestSequencedPushed = new ConcurrentHashMap<>();
+    final ConcurrentMap<String, Long> highestSequencedPushed = new ConcurrentHashMap<>();
 
     // Map that contains the highest sequenceId that have been persistent by each producers. The map will be updated
     // after the messages are persisted
     @VisibleForTesting
-    final Map<String, Long> highestSequencedPersisted = new ConcurrentHashMap<>();
+    final ConcurrentMap<String, Long> highestSequencedPersisted = new ConcurrentHashMap<>();
 
     // Number of persisted entries after which to store a snapshot of the sequence ids map
     private final int snapshotInterval;
@@ -128,7 +130,7 @@ public class MessageDeduplication {
     private final int maxNumberOfProducers;
 
     // Map used to track the inactive producer along with the timestamp of their last activity
-    private final Map<String, Long> inactiveProducers = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, Long> inactiveProducers = new ConcurrentHashMap<>();
 
     private final String replicatorPrefix;
 
@@ -159,7 +161,10 @@ public class MessageDeduplication {
     public CompletableFuture<Void> checkStatus() {
         boolean shouldBeEnabled = topic.isDeduplicationEnabled();
         synchronized (this) {
-            if (status == Status.Recovering || status == Status.Removing) {
+            if (status == Status.Recovering) {
+                return statusChangeFuture;
+            }
+            if (status == Status.Removing) {
                 // If there's already a transition happening, check later for status
                 pulsar.getExecutor().schedule(this::checkStatus, 1, TimeUnit.MINUTES);
                 return CompletableFuture.completedFuture(null);
@@ -224,17 +229,27 @@ public class MessageDeduplication {
                         }, null);
 
                 return future;
-            } else if ((status == Status.Disabled || status == Status.Initialized) && shouldBeEnabled) {
+            } else if ((status == Status.Disabled || status == Status.Initialized || status == Status.Failed)
+                    && shouldBeEnabled) {
                 // Enable deduping
-                final var future = openCursor(managedLedger, PersistentTopic.DEDUPLICATION_CURSOR_NAME)
-                        .thenCompose(this::replayCursor);
-                future.exceptionally(e -> {
+                status = Status.Recovering;
+                final CompletableFuture<Void> future;
+                try {
+                    future = openCursor(managedLedger, PersistentTopic.DEDUPLICATION_CURSOR_NAME)
+                            .thenCompose(this::replayCursor);
+                } catch (Throwable e) {
                     status = Status.Failed;
+                    statusChangeFuture = CompletableFuture.failedFuture(e);
                     log.error().exception(e).log("Failed to enable deduplication");
-                    future.completeExceptionally(e);
-                    return null;
+                    return statusChangeFuture;
+                }
+                statusChangeFuture = future.whenComplete((__, e) -> {
+                    if (e != null) {
+                        status = Status.Failed;
+                        log.error().exception(e).log("Failed to enable deduplication");
+                    }
                 });
-                return future;
+                return statusChangeFuture;
             } else {
                 // Nothing to do, we are in the correct state
                 return CompletableFuture.completedFuture(null);
@@ -244,6 +259,11 @@ public class MessageDeduplication {
 
     private CompletableFuture<Void> replayCursor(ManagedCursor cursor) {
         managedCursor = cursor;
+        cursor.rewind();
+        snapshotCounter = 0;
+        highestSequencedPushed.clear();
+        highestSequencedPersisted.clear();
+        inactiveProducers.clear();
         // Load the sequence ids from the snapshot in the cursor properties
         managedCursor.getProperties().forEach((k, v) -> {
             producerRemoved(k);
@@ -251,6 +271,7 @@ public class MessageDeduplication {
             highestSequencedPersisted.put(k, v);
         });
         // Replay all the entries and apply all the sequence ids updates
+        final long startTimeReplayDedup = System.currentTimeMillis();
         log.info()
                 .attr("numberOfEntries", managedCursor.getNumberOfEntries())
                 .log("Replaying entries for deduplication");
@@ -267,13 +288,14 @@ public class MessageDeduplication {
             }
             snapshotCounter = replayTask.getNumEntriesProcessed();
             if (snapshotCounter >= snapshotInterval) {
+                log.info("Taking snapshot of sequence ids map");
                 return takeSnapshot(optPosition.get());
             } else {
                 return CompletableFuture.completedFuture(null);
             }
         }).thenRun(() -> {
             status = Status.Enabled;
-            log.info("Enabled deduplication");
+            log.info().attr("cost ms", System.currentTimeMillis() - startTimeReplayDedup).log("Enabled deduplication");
         });
     }
 
@@ -460,9 +482,10 @@ public class MessageDeduplication {
             publishContext.setProperty(IS_LAST_CHUNK, Boolean.FALSE);
             return MessageDupStatus.NotDup;
         }
-        // Synchronize the get() and subsequent put() on the map. This would only be relevant if the producer
-        // disconnects and re-connects very quickly. At that point the call can be coming from a different thread
-        synchronized (highestSequencedPushed) {
+        // A producer that disconnects and reconnects quickly can publish from two threads. Update its sequence
+        // atomically without serializing unrelated producers on one topic-wide monitor.
+        Long newHighestSequenceId = null;
+        while (true) {
             Long lastSequenceIdPushed = highestSequencedPushed.get(producerName);
             if (lastSequenceIdPushed != null && sequenceId <= lastSequenceIdPushed) {
                 log.debug()
@@ -484,7 +507,17 @@ public class MessageDeduplication {
                     return MessageDupStatus.Unknown;
                 }
             }
-            highestSequencedPushed.put(producerName, highestSequenceId);
+            if (newHighestSequenceId == null) {
+                newHighestSequenceId = highestSequenceId;
+            }
+            if (lastSequenceIdPushed == null) {
+                if (highestSequencedPushed.putIfAbsent(producerName, newHighestSequenceId) == null) {
+                    break;
+                }
+            } else if (highestSequencedPushed.replace(producerName, lastSequenceIdPushed,
+                    newHighestSequenceId)) {
+                break;
+            }
         }
         // Only put sequence ID into highestSequencedPushed and
         // highestSequencedPersisted until receive and persistent the last chunk.
@@ -655,9 +688,9 @@ public class MessageDeduplication {
         }
 
         Iterator<Map.Entry<String, Long>> mapIterator = inactiveProducers.entrySet().iterator();
-        boolean hasInactive = false;
+        AtomicBoolean hasInactive = new AtomicBoolean();
         while (mapIterator.hasNext()) {
-            java.util.Map.Entry<String, Long> entry = mapIterator.next();
+            Map.Entry<String, Long> entry = mapIterator.next();
             String producerName = entry.getKey();
             long lastActiveTimestamp = entry.getValue();
 
@@ -665,13 +698,21 @@ public class MessageDeduplication {
                 log.info()
                         .attr("producerName", producerName)
                         .log("Purging dedup information for producer");
-                mapIterator.remove();
-                highestSequencedPushed.remove(producerName);
-                highestSequencedPersisted.remove(producerName);
-                hasInactive = true;
+                // The iterator can retain an expired entry after a reconnect removes it. Recheck inactivity
+                // and remove the sequence IDs atomically with producerAdded/producerRemoved for this name,
+                // so a newly registered producer cannot publish before its old state has been purged.
+                inactiveProducers.computeIfPresent(producerName, (name, inactiveSince) -> {
+                    if (inactiveSince < minimumActiveTimestamp) {
+                        highestSequencedPushed.remove(name);
+                        highestSequencedPersisted.remove(name);
+                        hasInactive.set(true);
+                        return null;
+                    }
+                    return inactiveSince;
+                });
             }
         }
-        if (hasInactive && isEnabled()) {
+        if (hasInactive.get() && isEnabled()) {
             takeSnapshot(getManagedCursor().getMarkDeletedPosition());
         }
     }

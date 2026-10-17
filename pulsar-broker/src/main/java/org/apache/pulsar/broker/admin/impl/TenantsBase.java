@@ -45,6 +45,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -258,6 +259,13 @@ public class TenantsBase extends PulsarWebResource {
                 .thenCompose(__ -> hasActiveNamespace(tenant))
                 .thenCompose(__ -> tenantResources().deleteTenantAsync(tenant))
                 .thenCompose(__ -> pulsar().getPulsarResources().getTopicResources().clearTenantPersistence(tenant))
+                .thenCompose(__ -> {
+                    ScalableTopicResources scalableTopicResources =
+                            pulsar().getPulsarResources().getScalableTopicResources();
+                    return scalableTopicResources != null
+                            ? scalableTopicResources.clearTenantAsync(tenant)
+                            : CompletableFuture.completedFuture(null);
+                })
                 .thenCompose(__ -> pulsar().getPulsarResources().getNamespaceResources().deleteTenantAsync(tenant))
                 .thenCompose(__ -> pulsar().getPulsarResources().getNamespaceResources()
                             .getPartitionedTopicResources().clearPartitionedTopicTenantAsync(tenant))

@@ -96,6 +96,7 @@ public class TransactionMetaStoreHandler extends HandlerState
     // whether it must be reached through the proxy. Null leaderUri means assign-topic mode.
     private volatile URI leaderUri;
     private volatile boolean useProxy;
+    private final boolean scalable;
 
 
 
@@ -123,6 +124,10 @@ public class TransactionMetaStoreHandler extends HandlerState
         super(pulsarClient, topic);
         this.leaderUri = leaderUri;
         this.useProxy = useProxy;
+        // A handler built with a fixed leader URI is a v5 (metadata-store discovery) handler; one
+        // built with a topic name is a legacy v4 handler. The flag routes each command to the
+        // matching coordinator on the broker so v4 and v5 clients coexist.
+        this.scalable = leaderUri != null;
         this.transactionCoordinatorId = transactionCoordinatorId;
         this.timeoutQueue = new ConcurrentLinkedQueue<>();
         this.blockIfReachMaxPendingOps = true;
@@ -199,7 +204,8 @@ public class TransactionMetaStoreHandler extends HandlerState
             // if broker protocol version < 19, don't send TcClientConnectRequest to broker.
             if (cnx.getRemoteEndpointProtocolVersion() > ProtocolVersion.v18.getValue()) {
                 long requestId = client.newRequestId();
-                ByteBuf request = Commands.newTcClientConnectRequest(transactionCoordinatorId, requestId);
+                ByteBuf request =
+                        Commands.newTcClientConnectRequest(transactionCoordinatorId, requestId, scalable);
 
                 cnx.sendRequestWithId(request, requestId).thenRun(() -> {
                     internalPinnedExecutor.execute(() -> {
@@ -274,7 +280,7 @@ public class TransactionMetaStoreHandler extends HandlerState
             return callback;
         }
         long requestId = client.newRequestId();
-        ByteBuf cmd = Commands.newTxn(transactionCoordinatorId, requestId, unit.toMillis(timeout));
+        ByteBuf cmd = Commands.newTxn(transactionCoordinatorId, requestId, unit.toMillis(timeout), scalable);
         String description = String.format("Create new transaction %s", transactionCoordinatorId);
         OpForTxnIdCallBack op = OpForTxnIdCallBack.create(cmd, callback, client, description, cnx());
         internalPinnedExecutor.execute(() -> {
@@ -352,7 +358,7 @@ public class TransactionMetaStoreHandler extends HandlerState
         }
         long requestId = client.newRequestId();
         ByteBuf cmd = Commands.newAddPartitionToTxn(
-                requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), partitions);
+                requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), partitions, scalable);
         String description = String.format("Add partition %s to TXN %s", String.valueOf(partitions),
                 String.valueOf(txnID));
         OpForVoidCallBack op = OpForVoidCallBack
@@ -435,7 +441,7 @@ public class TransactionMetaStoreHandler extends HandlerState
         }
         long requestId = client.newRequestId();
         ByteBuf cmd = Commands.newAddSubscriptionToTxn(
-                requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), subscriptionList);
+                requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), subscriptionList, scalable);
         String description = String.format("Add subscription %s to TXN %s", toStringSubscriptionList(subscriptionList),
                 String.valueOf(txnID));
         OpForVoidCallBack op = OpForVoidCallBack.create(cmd, callback, client, description, cnx());
@@ -526,7 +532,8 @@ public class TransactionMetaStoreHandler extends HandlerState
             return callback;
         }
         long requestId = client.newRequestId();
-        BaseCommand cmd = Commands.newEndTxn(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), action);
+        BaseCommand cmd = Commands.newEndTxn(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(),
+                action, scalable);
         ByteBuf buf = Commands.serializeWithSize(cmd);
         String description = String.format("End [%s] TXN %s", String.valueOf(action), String.valueOf(txnID));
         OpForVoidCallBack op = OpForVoidCallBack.create(buf, callback, client, description, cnx());
@@ -756,6 +763,14 @@ public class TransactionMetaStoreHandler extends HandlerState
                 }
                 return true;
             case Connecting:
+            case Uninitialized:
+                // Not connected yet, but the handler is (or will be) establishing the connection. For
+                // the metadata-store coordinator the partition leader is still being resolved via the
+                // assignment watch, so the handler can sit in Uninitialized briefly after the client is
+                // built. Leave the op queued in pendingRequests; it is retried from connectionOpened
+                // once the handler is Ready, and the operation-timeout sweep fails it if the connection
+                // never comes. Failing fast here would make a freshly-built client's first request
+                // race the asynchronous connect.
                 return true;
             case Closing:
             case Closed:
@@ -767,7 +782,6 @@ public class TransactionMetaStoreHandler extends HandlerState
                 onResponse(op);
                 return false;
             case Failed:
-            case Uninitialized:
                 op.callback.completeExceptionally(
                         new TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException(
                                 "Transaction meta store handler for tcId "

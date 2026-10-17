@@ -47,14 +47,10 @@ public class FunctionUtils {
     private static final String PULSAR_IO_SERVICE_NAME = "pulsar-io.yaml";
 
     /**
-     * Computes MD5 digest of a file as lower-case hex (for function archive identity on reload).
+     * Computes a SHA-256 digest of a file as lower-case hex (for function archive identity on reload).
      */
-    public static String computeArchiveMd5Hex(Path path) throws IOException {
-        return calculateMd5Hex(path.toAbsolutePath().normalize().toFile());
-    }
-
-    private static String calculateMd5Hex(File file) throws IOException {
-        return HexFormat.of().formatHex(FileUtils.calculateMd5sum(file));
+    public static String computeArchiveChecksumHex(Path path) throws IOException {
+        return HexFormat.of().formatHex(FileUtils.calculateSha256sum(path.toAbsolutePath().normalize().toFile()));
     }
 
     /**
@@ -161,12 +157,12 @@ public class FunctionUtils {
                     FunctionDefinition funcDef = FunctionUtils.getFunctionDefinition(archive.toFile());
                     if (!StringUtils.isEmpty(funcDef.getFunctionClass())) {
                         String name = funcDef.getName();
-                        String md5Hex = computeArchiveMd5Hex(archive);
+                        String checksumHex = computeArchiveChecksumHex(archive);
                         FunctionArchive prev = remaining.remove(name);
                         if (prev != null
                                 && prev.getArchivePath() != null
                                 && archive.equals(prev.getArchivePath())
-                                && md5Hex.equals(prev.getArchiveMd5Hex())) {
+                                && checksumHex.equals(prev.getArchiveChecksumHex())) {
                             next.put(name, prev);
                         } else {
                             if (prev != null) {
@@ -178,7 +174,7 @@ public class FunctionUtils {
                                 toClose.add(prev);
                             }
                             next.put(name, new FunctionArchive(archive, funcDef, narExtractionDirectory,
-                                    enableClassloading, md5Hex));
+                                    enableClassloading, checksumHex));
                         }
                     }
                 } catch (Throwable t) {

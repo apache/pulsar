@@ -32,7 +32,6 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.oxia.client.ClientConfig;
 import io.oxia.client.api.AsyncOxiaClient;
-import io.oxia.client.session.SessionFactory;
 import io.oxia.client.session.SessionManager;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -622,8 +621,7 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         OxiaMetadataStore store = (OxiaMetadataStore) MetadataStoreFactory.create(oxia, config);
         var client = (AsyncOxiaClient) WhiteboxImpl.getInternalState(store, "client");
         var sessionManager = (SessionManager) WhiteboxImpl.getInternalState(client, "sessionManager");
-        var sessionFactory = (SessionFactory) WhiteboxImpl.getInternalState(sessionManager, "factory");
-        var clientConfig = (ClientConfig) WhiteboxImpl.getInternalState(sessionFactory, "config");
+        var clientConfig = (ClientConfig) WhiteboxImpl.getInternalState(sessionManager, "clientConfig");
         var sessionTimeout = clientConfig.sessionTimeout();
         assertEquals(sessionTimeout, Duration.ofSeconds(60));
     }

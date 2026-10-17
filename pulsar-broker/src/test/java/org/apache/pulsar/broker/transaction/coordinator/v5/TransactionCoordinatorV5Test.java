@@ -272,18 +272,27 @@ public class TransactionCoordinatorV5Test {
 
     @Test
     public void sweepTimeouts_abortsExpiredOpenTxnAndFansOut() throws Exception {
-        // 1ms timeout → deadline already in the past when the sweep runs.
+        // Wait until the positive timeout has actually expired before running the sweep.
         TxnID txnId = tc.newTransaction(TC_ID, 1L, "owner").get();
         String txnIdKey = TxnIds.toKey(txnId);
+        TxnHeader openHeader = txnStore.getHeader(txnIdKey).get().orElseThrow().value();
+        long deadlineMs = openHeader.getCreatedAt().toEpochMilli() + openHeader.getTimeout().toMillis();
+        Awaitility.await().until(() -> System.currentTimeMillis() >= deadlineMs);
+
         String segment = "segment://public/default/topic/0000-ffff-0";
         txnStore.appendOp(txnIdKey,
                 new TxnOp(TxnOpKind.WRITE, segment, null, 5L, 1L, null)).get();
 
         List<String> received = new ArrayList<>();
         try (var sub = txnStore.subscribeSegmentEvents(segment, received::add)) {
-            tc.sweepTimeouts().get();
-            var header = txnStore.getHeader(txnIdKey).get().orElseThrow();
-            assertThat(header.value().getState()).isEqualTo(TxnState.ABORTED);
+            // newTransaction and the first sweep can land in the same millisecond on a fast machine,
+            // leaving the 1ms-timeout txn not-yet-expired. The sweep is idempotent, so retry it until
+            // the deadline has elapsed and the txn is aborted.
+            Awaitility.await().untilAsserted(() -> {
+                tc.sweepTimeouts().get();
+                var header = txnStore.getHeader(txnIdKey).get().orElseThrow();
+                assertThat(header.value().getState()).isEqualTo(TxnState.ABORTED);
+            });
             // Fan-out fires for the participant.
             Awaitility.await().untilAsserted(() -> assertThat(received).isNotEmpty());
         }

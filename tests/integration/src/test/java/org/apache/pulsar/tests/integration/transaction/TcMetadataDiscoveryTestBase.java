@@ -64,8 +64,16 @@ public abstract class TcMetadataDiscoveryTestBase extends PulsarTestSuite {
         BrokerContainer brokerContainer = pulsarCluster.getBrokers().iterator().next();
         brokerContainer.execCmd(
                 "/pulsar/bin/pulsar", "initialize-transaction-coordinator-metadata",
-                "-cs", ZKContainer.NAME,
+                "-cs", configurationStoreConnectionString(),
                 "-c", pulsarCluster.getClusterName(),
                 "--initial-num-transaction-coordinators", Integer.toString(TC_PARALLELISM));
+    }
+
+    /**
+     * Configuration-store connection string used to initialize the transaction-coordinator metadata.
+     * Defaults to the ZooKeeper container; an Oxia-backed subclass overrides this with the Oxia URL.
+     */
+    protected String configurationStoreConnectionString() {
+        return ZKContainer.NAME;
     }
 }

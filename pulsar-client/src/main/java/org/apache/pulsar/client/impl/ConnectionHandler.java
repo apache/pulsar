@@ -227,9 +227,15 @@ public class ConnectionHandler {
     public void connectionClosed(ClientCnx cnx, Optional<Long> initialConnectionDelayMs, Optional<URI> hostUrl) {
         lastConnectionClosedTimestamp = System.currentTimeMillis();
         duringConnect.set(false);
-        // Remember an explicit reconnect target so a later first-attempt failure (reconnectLater)
-        // re-dials the same broker rather than falling back to the service URL.
-        hostUrl.ifPresent(uri -> this.explicitHostURI = uri);
+        // Only handlers already pinned to an explicit host (v5 TC metadata-store discovery) update
+        // the pin here, so a later first-attempt failure (reconnectLater) re-dials the current
+        // leader rather than falling back to the service URL. For lookup-based handlers
+        // (producers/consumers), the broker-assigned redirect in hostUrl may be wrong or stale:
+        // it is honored for the immediate reconnect attempt below only, and retries after a
+        // failure go through a fresh topic lookup instead of staying pinned to it.
+        if (explicitHostURI != null) {
+            hostUrl.ifPresent(uri -> this.explicitHostURI = uri);
+        }
         state.client.getCnxPool().releaseConnection(cnx);
         if (CLIENT_CNX_UPDATER.compareAndSet(this, cnx, null)) {
             if (!state.changeToConnecting()) {

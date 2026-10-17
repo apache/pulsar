@@ -33,6 +33,7 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.migration.MigrationState;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.coordination.impl.MigrationCoordinator;
 import org.apache.pulsar.metadata.impl.DualMetadataStore;
 
@@ -53,7 +54,14 @@ public class MetadataMigrationBase extends AdminResource {
         validateSuperUserAccess();
 
         try {
-            var ogr = pulsar().getLocalMetadataStore().get(MigrationState.MIGRATION_FLAG_PATH).get();
+            // The migration flag lives in the source store. Don't read it through the
+            // DualMetadataStore: once the migration is completed, its reads are routed to the
+            // target store, which doesn't hold the flag.
+            MetadataStore store = pulsar().getLocalMetadataStore();
+            if (store instanceof DualMetadataStore dualStore) {
+                store = dualStore.getSourceStore();
+            }
+            var ogr = store.get(MigrationState.MIGRATION_FLAG_PATH).get();
             if (ogr.isPresent()) {
                 return ObjectMapperFactory.getMapper().reader().readValue(ogr.get().getValue(), MigrationState.class);
             } else {
@@ -86,9 +94,27 @@ public class MetadataMigrationBase extends AdminResource {
 
         try {
             // Check if metadata store is wrapped with DualMetadataStore
-            if (!(pulsar().getLocalMetadataStore() instanceof DualMetadataStore)) {
+            if (!(pulsar().getLocalMetadataStore() instanceof DualMetadataStore dualStore)) {
                 throw new RestException(Response.Status.BAD_REQUEST, "Metadata store is not configured for migration. "
                         + "Please ensure you're using a supported source metadata store (e.g., ZooKeeper).");
+            }
+
+            // Reject the request if a migration is already in progress or was completed. The migration
+            // flag is always kept in the source store, so read it from there: after a completed
+            // migration the dual store would route the read to the target store.
+            var existingFlag = dualStore.getSourceStore().get(MigrationState.MIGRATION_FLAG_PATH).get();
+            if (existingFlag.isPresent()) {
+                MigrationState currentState = ObjectMapperFactory.getMapper().reader()
+                        .readValue(existingFlag.get().getValue(), MigrationState.class);
+                switch (currentState.getPhase()) {
+                    case PREPARATION, COPYING -> throw new RestException(Response.Status.CONFLICT,
+                            "Migration is already in progress (phase: " + currentState.getPhase() + ")");
+                    case COMPLETED -> throw new RestException(Response.Status.CONFLICT,
+                            "Migration has already been completed");
+                    default -> {
+                        // NOT_STARTED or FAILED: ok to start (or retry) the migration
+                    }
+                }
             }
 
             // Create coordinator
