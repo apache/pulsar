@@ -22,7 +22,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotSame;
@@ -35,6 +37,7 @@ import io.netty.util.TimerTask;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.time.Clock;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -46,9 +49,12 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -1284,6 +1290,264 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         } finally {
             storage.clean();
         }
+    }
+
+    @Test
+    public void testSnapshotBuildIsSubmittedOutsideTrackerMonitor() throws Exception {
+        AtomicReference<Runnable> buildTask = new AtomicReference<>();
+        AtomicReference<BucketDelayedDeliveryTracker> trackerReference = new AtomicReference<>();
+        Executor executor = command -> {
+            Assert.assertFalse(Thread.holdsLock(trackerReference.get()),
+                    "Snapshot build was submitted while holding the tracker monitor");
+            Assert.assertTrue(buildTask.compareAndSet(null, command));
+        };
+        AtomicLong now = new AtomicLong();
+        BucketSnapshotStorage storage = newCompletedSnapshotStorage();
+        BucketDelayedDeliveryTracker tracker = newAsyncSealTracker(executor, now, storage);
+        trackerReference.set(tracker);
+        when(storage.createBucketSnapshot(any(), any(), any(), any(), any())).thenAnswer(__ -> {
+            Assert.assertFalse(Thread.holdsLock(tracker),
+                    "Snapshot serialization was invoked while holding the tracker monitor");
+            return CompletableFuture.completedFuture(1L);
+        });
+
+        addMessagesAndTriggerSeal(tracker);
+
+        assertTrue(buildTask.get() != null, "The detached bucket should have been submitted for background build");
+        assertEquals(tracker.getLastMutableBucket().size(), 1);
+        assertEquals(tracker.getNumberOfDelayedMessages(), 4);
+        assertTrue(tracker.getImmutableBuckets().asMapOfRanges().isEmpty());
+
+        buildTask.get().run();
+
+        assertEquals(tracker.getImmutableBuckets().asMapOfRanges().size(), 1);
+        tracker.close();
+    }
+
+    @Test
+    public void testRejectedSealSubmissionFallsBackToMemoryMode() throws Exception {
+        AtomicLong now = new AtomicLong();
+        BucketSnapshotStorage storage = newCompletedSnapshotStorage();
+        Executor rejectingExecutor = command -> {
+            throw new RejectedExecutionException("test rejection");
+        };
+        BucketDelayedDeliveryTracker tracker = newAsyncSealTracker(rejectingExecutor, now, storage);
+
+        addMessagesAndTriggerSeal(tracker);
+
+        assertTrue(tracker.getImmutableBuckets().asMapOfRanges().isEmpty());
+        assertEquals(tracker.getSharedBucketPriorityQueue().size(), 3);
+        assertEquals(tracker.getLastMutableBucket().size(), 1);
+        assertEquals(tracker.getNumberOfDelayedMessages(), 4);
+
+        now.set(2_000);
+        assertEquals(tracker.getScheduledMessages(10).size(), 4);
+        assertEquals(tracker.getNumberOfDelayedMessages(), 0);
+        tracker.close();
+    }
+
+    @Test
+    public void testSnapshotBuildFailureRestoresAllIndexes() throws Exception {
+        AtomicReference<Runnable> buildTask = new AtomicReference<>();
+        AtomicLong now = new AtomicLong();
+        BucketSnapshotStorage storage = newCompletedSnapshotStorage();
+        BucketDelayedDeliveryTracker tracker = newAsyncSealTracker(buildTask::set, now, storage);
+
+        for (int entryId = 0; entryId < 3; entryId++) {
+            assertTrue(tracker.addMessage(1, entryId, 1_000));
+        }
+        // Corrupt the test bucket range so the builder fails after destructively popping an index.
+        tracker.getLastMutableBucket().endLedgerId = 0;
+        assertTrue(tracker.addMessage(2, 0, 1_000));
+        buildTask.get().run();
+
+        assertTrue(tracker.getImmutableBuckets().asMapOfRanges().isEmpty());
+        assertEquals(tracker.getSharedBucketPriorityQueue().size(), 3);
+        assertEquals(tracker.getLastMutableBucket().size(), 1);
+        assertEquals(tracker.getNumberOfDelayedMessages(), 4);
+
+        now.set(2_000);
+        assertEquals(tracker.getScheduledMessages(10).size(), 4);
+        assertEquals(tracker.getNumberOfDelayedMessages(), 0);
+        tracker.close();
+    }
+
+    @Test
+    public void testClearDuringSealDoesNotResurrectBucket() throws Exception {
+        AtomicReference<Runnable> buildTask = new AtomicReference<>();
+        AtomicLong now = new AtomicLong();
+        BucketSnapshotStorage storage = newCompletedSnapshotStorage();
+        BucketDelayedDeliveryTracker tracker = newAsyncSealTracker(buildTask::set, now, storage);
+
+        addMessagesAndTriggerSeal(tracker);
+        CompletableFuture<Void> clearFuture = tracker.clear();
+        assertFalse("Clear should wait for the detached bucket build to observe its generation fence",
+                clearFuture.isDone());
+
+        buildTask.get().run();
+        clearFuture.get(5, TimeUnit.SECONDS);
+
+        assertTrue(tracker.getImmutableBuckets().asMapOfRanges().isEmpty());
+        assertEquals(tracker.getSharedBucketPriorityQueue().size(), 0);
+        assertEquals(tracker.getLastMutableBucket().size(), 0);
+        assertEquals(tracker.getNumberOfDelayedMessages(), 0);
+        verify(storage, never()).createBucketSnapshot(any(), any(), any(), any(), any());
+
+        assertTrue(tracker.addMessage(3, 0, 3_000), "Tracker should be reusable after clear");
+        tracker.close();
+    }
+
+    @Test
+    public void testPersistenceFailureDuringClearDoesNotRestoreMessages() throws Exception {
+        AtomicLong now = new AtomicLong();
+        BucketSnapshotStorage storage = newCompletedSnapshotStorage();
+        CompletableFuture<Long> persistenceFuture = new CompletableFuture<>();
+        when(storage.createBucketSnapshot(any(), any(), any(), any(), any())).thenReturn(persistenceFuture);
+        BucketDelayedDeliveryTracker tracker = newAsyncSealTracker(Runnable::run, now, storage);
+
+        addMessagesAndTriggerSeal(tracker);
+        assertEquals(tracker.getImmutableBuckets().asMapOfRanges().size(), 1);
+
+        CompletableFuture<Void> clearFuture = tracker.clear();
+        assertFalse("Clear should wait for the in-flight snapshot persistence", clearFuture.isDone());
+        persistenceFuture.completeExceptionally(new RuntimeException("test persistence failure"));
+        clearFuture.get(5, TimeUnit.SECONDS);
+
+        assertTrue(tracker.getImmutableBuckets().asMapOfRanges().isEmpty());
+        assertEquals(tracker.getSharedBucketPriorityQueue().size(), 0);
+        assertEquals(tracker.getLastMutableBucket().size(), 0);
+        assertEquals(tracker.getNumberOfDelayedMessages(), 0);
+        verify(storage, never()).deleteBucketSnapshot(anyLong());
+        tracker.close();
+    }
+
+    @Test
+    public void testClearDeletesSnapshotWhenCreationChainFailsAfterAllocatingId() throws Exception {
+        AtomicLong now = new AtomicLong();
+        BucketSnapshotStorage storage = newCompletedSnapshotStorage();
+        CompletableFuture<Long> persistenceFuture = new CompletableFuture<>();
+        when(storage.createBucketSnapshot(any(), any(), any(), any(), any())).thenReturn(persistenceFuture);
+        BucketDelayedDeliveryTracker tracker = newAsyncSealTracker(Runnable::run, now, storage);
+
+        addMessagesAndTriggerSeal(tracker);
+        ImmutableBucket bucket = tracker.getImmutableBuckets().asMapOfRanges().values().iterator().next();
+        bucket.setBucketId(42L);
+
+        CompletableFuture<Void> clearFuture = tracker.clear();
+        persistenceFuture.completeExceptionally(new RuntimeException("test creation-chain failure"));
+        clearFuture.get(5, TimeUnit.SECONDS);
+
+        verify(storage).deleteBucketSnapshot(42L);
+        assertEquals(tracker.getNumberOfDelayedMessages(), 0);
+        tracker.close();
+    }
+
+    @Test
+    public void testCloseAsyncDuringSealDoesNotBlockCaller() throws Exception {
+        AtomicReference<Runnable> buildTask = new AtomicReference<>();
+        AtomicLong now = new AtomicLong();
+        BucketSnapshotStorage storage = newCompletedSnapshotStorage();
+        BucketDelayedDeliveryTracker tracker = newAsyncSealTracker(buildTask::set, now, storage);
+
+        addMessagesAndTriggerSeal(tracker);
+        CompletableFuture<Void> closeFuture = tracker.closeAsync();
+        assertFalse("closeAsync should return without waiting on the caller thread", closeFuture.isDone());
+
+        buildTask.get().run();
+        closeFuture.get(5, TimeUnit.SECONDS);
+
+        verify(storage, never()).createBucketSnapshot(any(), any(), any(), any(), any());
+        assertFalse("Closed tracker must reject new delayed messages", tracker.addMessage(3, 0, 3_000));
+        Assert.assertSame(tracker.closeAsync(), closeFuture);
+    }
+
+    @Test
+    public void testDueMessagesDuringSealRemainReachableAndDeduplicated() throws Exception {
+        AtomicReference<Runnable> buildTask = new AtomicReference<>();
+        AtomicLong now = new AtomicLong();
+        BucketSnapshotStorage storage = newCompletedSnapshotStorage();
+        BucketDelayedDeliveryTracker tracker = newAsyncSealTracker(buildTask::set, now, storage);
+
+        addMessagesAndTriggerSeal(tracker);
+        assertTrue(tracker.addMessage(1, 3, 1_000));
+        assertTrue(tracker.addMessage(1, 3, 1_000));
+        assertEquals(tracker.getNumberOfDelayedMessages(), 5);
+
+        now.set(2_000);
+        NavigableSet<Position> beforeBuild = tracker.getScheduledMessages(10);
+        assertEquals(beforeBuild.size(), 2);
+
+        buildTask.get().run();
+        NavigableSet<Position> afterBuild = tracker.getScheduledMessages(10);
+        assertEquals(afterBuild.size(), 3);
+        TreeSet<Position> delivered = new TreeSet<>(beforeBuild);
+        delivered.addAll(afterBuild);
+        assertEquals(delivered.size(), 5);
+        assertEquals(tracker.getNumberOfDelayedMessages(), 0);
+        tracker.close();
+    }
+
+    @Test
+    public void testLateMessageInSealingRangeSurvivesNextSealAndRemainsDeduplicated() throws Exception {
+        ArrayDeque<Runnable> buildTasks = new ArrayDeque<>();
+        AtomicLong now = new AtomicLong();
+        BucketSnapshotStorage storage = newCompletedSnapshotStorage();
+        BucketDelayedDeliveryTracker tracker = newAsyncSealTracker(buildTasks::addLast, now, storage);
+
+        addMessagesAndTriggerSeal(tracker);
+        assertTrue(tracker.addMessage(1, 3, 1_000));
+        assertTrue(tracker.addMessage(1, 3, 1_000));
+        assertTrue(tracker.addMessage(2, 1, 1_000));
+        assertTrue(tracker.addMessage(2, 2, 1_000));
+        assertEquals(tracker.getNumberOfDelayedMessages(), 7);
+
+        buildTasks.removeFirst().run();
+        assertTrue(tracker.addMessage(3, 0, 1_000));
+        assertEquals(buildTasks.size(), 1, "The second mutable bucket should seal independently");
+        buildTasks.removeFirst().run();
+
+        now.set(2_000);
+        NavigableSet<Position> delivered = tracker.getScheduledMessages(20);
+        assertEquals(delivered.size(), 8);
+        assertTrue(delivered.contains(PositionFactory.create(1, 3)));
+        assertEquals(tracker.getScheduledMessages(20).size(), 0);
+        assertEquals(tracker.getNumberOfDelayedMessages(), 0);
+        tracker.close();
+    }
+
+    private BucketDelayedDeliveryTracker newAsyncSealTracker(Executor executor, AtomicLong now,
+                                                              BucketSnapshotStorage storage) throws Exception {
+        AbstractPersistentDispatcherMultipleConsumers testDispatcher =
+                mock(AbstractPersistentDispatcherMultipleConsumers.class);
+        ManagedCursor cursor = mock(ManagedCursor.class);
+        when(cursor.getName()).thenReturn("async-seal-cursor");
+        when(cursor.getCursorProperties()).thenReturn(Map.of());
+        when(cursor.putCursorProperty(any(), any())).thenReturn(CompletableFuture.completedFuture(null));
+        when(cursor.removeCursorProperty(any())).thenReturn(CompletableFuture.completedFuture(null));
+        doReturn(cursor).when(testDispatcher).getCursor();
+        doReturn("persistent://public/default/async-seal / " + cursor.getName())
+                .when(testDispatcher).getName();
+        Clock testClock = mock(Clock.class);
+        when(testClock.millis()).thenAnswer(__ -> now.get());
+        bucketSnapshotStorage = storage;
+        return new BucketDelayedDeliveryTracker(testDispatcher, mock(Timer.class), 1, testClock,
+                true, storage, 3, TimeUnit.HOURS.toMillis(1), -1, 50, executor);
+    }
+
+    private static BucketSnapshotStorage newCompletedSnapshotStorage() {
+        BucketSnapshotStorage storage = mock(BucketSnapshotStorage.class);
+        when(storage.createBucketSnapshot(any(), any(), any(), any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(1L));
+        when(storage.getBucketSnapshotLength(anyLong())).thenReturn(CompletableFuture.completedFuture(0L));
+        when(storage.deleteBucketSnapshot(anyLong())).thenReturn(CompletableFuture.completedFuture(null));
+        return storage;
+    }
+
+    private static void addMessagesAndTriggerSeal(BucketDelayedDeliveryTracker tracker) {
+        for (int entryId = 0; entryId < 3; entryId++) {
+            assertTrue(tracker.addMessage(1, entryId, 1_000));
+        }
+        assertTrue(tracker.addMessage(2, 0, 1_000));
     }
 
     private static void assertCountersConsistent(BucketDelayedDeliveryTracker tracker) {

@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.delayed.bucket;
 
 import static org.apache.bookkeeper.mledger.util.Futures.executeWithRetry;
 import static org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTracker.DELAYED_BUCKET_KEY_PREFIX;
-import static org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTracker.NULL_LONG_PROMISE;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
@@ -349,8 +348,22 @@ class ImmutableBucket {
 
     CompletableFuture<Void> clear(BucketDelayedMessageIndexStats stats) {
         delayedIndexBitMap.clear();
-        return getSnapshotCreateFuture().orElse(NULL_LONG_PROMISE).exceptionally(e -> null)
-                .thenCompose(__ -> asyncDeleteBucketSnapshot(stats));
+        Optional<CompletableFuture<Long>> createFuture = getSnapshotCreateFuture();
+        if (createFuture.isEmpty()) {
+            // Recovered buckets don't have a create future; their id is read from the cursor property.
+            return asyncDeleteBucketSnapshot(stats);
+        }
+        return createFuture.get()
+                .handle((createdBucketId, error) -> getBucketId().orElse(error == null ? createdBucketId : null))
+                .thenCompose(createdBucketId -> {
+                    if (createdBucketId == null || createdBucketId < 0) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    if (getBucketId().isEmpty()) {
+                        setBucketId(createdBucketId);
+                    }
+                    return asyncDeleteBucketSnapshot(stats);
+                });
     }
 
     protected CompletableFuture<Long> asyncUpdateSnapshotLength() {
