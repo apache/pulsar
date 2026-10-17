@@ -196,6 +196,9 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
                 try {
                     store.put(layoutPath, layoutFormat.toTextFormat().getBytes(UTF_8), Optional.of(-1L)).get();
                 } catch (ExecutionException | InterruptedException e) {
+                    if (e instanceof InterruptedException) {
+                        Thread.currentThread().interrupt();
+                    }
                     if (!(e.getCause() instanceof MetadataStoreException.BadVersionException)) {
                         throw new RuntimeException(e);
                     }
@@ -424,6 +427,9 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
             // Explicit acquisition holds only the lock, without claiming an underreplication record version.
             internalAcquireUnderreplicatedLedger(ledgerId, Optional.empty());
         } catch (ExecutionException | TimeoutException | InterruptedException e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
             throw new ReplicationException.UnavailableException("Failed to acuire under-replicated ledger", e);
         }
     }

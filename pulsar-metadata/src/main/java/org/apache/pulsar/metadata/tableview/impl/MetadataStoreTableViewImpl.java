@@ -338,6 +338,9 @@ public class MetadataStoreTableViewImpl<T> implements MetadataStoreTableView<T> 
             fillAsync(loadedCounter, false).get(maxWaitTime, TimeUnit.MILLISECONDS);
             log.info().attr("name", name).attr("size", loadedCounter.get()).log("Completed filling existing items");
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
             String err = name + " failed to fill existing items in "
                     + TimeUnit.MILLISECONDS.toSeconds(maxWaitTime) + " secs. Filled count:"
                     + loadedCounter.get();

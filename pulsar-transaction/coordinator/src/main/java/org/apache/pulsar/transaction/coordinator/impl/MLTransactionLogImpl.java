@@ -291,7 +291,7 @@ public class MLTransactionLogImpl implements TransactionLog {
                     try {
                         Thread.sleep(1);
                     } catch (InterruptedException e) {
-                        //no-op
+                        Thread.currentThread().interrupt();
                     }
                 }
             }

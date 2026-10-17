@@ -83,6 +83,9 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
             try {
                 return getBookKeeperBuilder(conf, eventLoopGroup, statsLogger, bkConf).build();
             } catch (InterruptedException | BKException | IOException e) {
+                if (e instanceof InterruptedException) {
+                    Thread.currentThread().interrupt();
+                }
                 throw new RuntimeException(e);
             }
         });
