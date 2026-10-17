@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
@@ -60,6 +61,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.PulsarClientException.InvalidMessageException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SizeUnit;
@@ -420,15 +422,15 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
     /**
      * Chunks are processed on the connection's IO thread while the expiry task runs on another thread.
-     * With queue [A, B], A's completion removes A's context and then A's uuid. If expiry inspects A in
-     * between (no context, so it skips A as a stale head) and only removes it after completion already
-     * did, it must remove A itself, not whatever is now at the head: dropping B would leave B's context
-     * in chunkedMessagesMap with nothing in the queue referencing it, so it could never expire or be
-     * evicted.
+     * With queue [A, B], A's completion removes A's context and then A's uuid. If expiry could inspect A in
+     * between (no context, so it skips A as a stale head) and only remove it after completion already did,
+     * it might drop whatever is now at the head: dropping B would leave B's context in chunkedMessagesMap
+     * with nothing in the queue referencing it, so it could never expire or be evicted.
      *
-     * The interleaving is forced deterministically by wrapping chunkedMessagesMap: A's completion
-     * (map.remove("A") on the IO thread) starts expiry and waits until expiry has inspected A, and
-     * expiry (map.get("A")) then waits until completion has removed A's uuid before it continues.
+     * Completion and expiry both hold chunkedMessageLock, so expiry must not observe that intermediate
+     * state at all. The test wraps chunkedMessagesMap: A's completion (map.remove("A") on the IO thread,
+     * under the lock) starts expiry and waits until expiry either blocks or inspects A (map.get("A")),
+     * and inspecting A is a failure. Either way B must stay pending and reachable for expiry.
      */
     @Test
     public void testExpiryStaleHeadSkipDoesNotDropConcurrentLiveEntry() throws Exception {
@@ -461,6 +463,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
         final CountDownLatch expiryInspectedA = new CountDownLatch(1);
         final AtomicBoolean raceTriggered = new AtomicBoolean();
+        final AtomicBoolean expiryInspectedPartialRemoval = new AtomicBoolean();
         final AtomicReference<Thread> expiryThread = new AtomicReference<>();
         final AtomicReference<Throwable> expiryError = new AtomicReference<>();
         Map<String, ConsumerImpl.ChunkedMessageCtx> hookedMap =
@@ -480,11 +483,11 @@ public class MessageChunkingTest extends ProducerConsumerBase {
                     }, "test-chunk-expiry");
                     expiryThread.set(t);
                     t.start();
-                    try {
-                        expiryInspectedA.await(10, TimeUnit.SECONDS);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                    }
+                    // Completion holds chunkedMessageLock here, so expiry has to block on it instead of
+                    // inspecting A between A's map removal and its uuid removal.
+                    Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() ->
+                            t.getState() == Thread.State.BLOCKED || expiryInspectedA.getCount() == 0);
+                    expiryInspectedPartialRemoval.set(expiryInspectedA.getCount() == 0);
                 }
                 return removed;
             }
@@ -513,6 +516,8 @@ public class MessageChunkingTest extends ProducerConsumerBase {
             assertEquals(a.getValue(), "chunk-A-0|chunk-A-1|");
 
             assertTrue(raceTriggered.get(), "A's completion did not trigger the interleaving");
+            assertFalse(expiryInspectedPartialRemoval.get(),
+                    "expiry inspected A after its context was removed but before its uuid was");
             expiryThread.get().join(TimeUnit.SECONDS.toMillis(10));
             assertNull(expiryError.get());
 
@@ -707,6 +712,115 @@ public class MessageChunkingTest extends ProducerConsumerBase {
                 + "the broker stopped dispatching (receiverQueueSize=" + receiverQueueSize + ")");
         assertEquals(msg.getValue(), "chunk-live-0|chunk-live-1|");
         consumer.acknowledge(msg);
+    }
+
+    /**
+     * A non-persistent topic cannot carry chunked messages: the slicing block in
+     * {@code ProducerImpl.serializeAndSendMessage} is skipped for them, but {@code totalChunks} was computed
+     * from the payload size alone, so the send loop still ran once per "chunk" — publishing the whole payload
+     * that many times, and releasing the payload buffer more often than it was retained.
+     */
+    @Test
+    public void testLargeMessageOnNonPersistentTopicIsSentOnceWithoutChunking() throws Exception {
+        final String topicName = "non-persistent://my-property/my-ns/testNonPersistentChunking";
+        final String subName = "my-subscriber-name";
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName(subName)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                // small enough that the payload below would otherwise be split into several chunks
+                .chunkMaxMessageSize(100)
+                .enableChunking(true)
+                .enableBatching(false)
+                .create();
+
+        String payload = "a".repeat(500);
+        producer.newMessage().value(payload).send();
+
+        Message<String> received = consumer.receive(10, TimeUnit.SECONDS);
+        assertNotNull(received, "the message was not delivered");
+        assertEquals(received.getValue(), payload);
+
+        // Without the fix the same payload is published once per computed chunk, so more messages follow.
+        assertNull(consumer.receive(3, TimeUnit.SECONDS),
+                "the payload was published more than once on a non-persistent topic");
+    }
+
+    /**
+     * The chunking flag is inert on a non-persistent topic, so the message-size checks must behave as if it were
+     * off: a payload above the broker limit is rejected locally with {@link InvalidMessageException} instead of
+     * being sent to the broker as one oversized frame.
+     */
+    @Test
+    public void testLargeMessageOnNonPersistentTopicAboveBrokerLimitIsRejectedLocally() throws Exception {
+        final int maxMessageSize = 1024;
+        this.conf.setMaxMessageSize(maxMessageSize);
+        final String topicName = "non-persistent://my-property/my-ns/testNonPersistentChunkingAboveLimit";
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .enableChunking(true)
+                .enableBatching(false)
+                .sendTimeout(5, TimeUnit.SECONDS)
+                .create();
+
+        // Well above maxMessageSize plus the broker's frame padding: the payload cannot be sent as a single
+        // frame, so a local rejection is the only correct outcome.
+        byte[] payload = RandomUtils.nextBytes(maxMessageSize + Commands.MESSAGE_SIZE_FRAME_PADDING + 1024);
+        try {
+            producer.send(payload);
+            fail("an oversized message on a non-persistent topic must be rejected by the client");
+        } catch (InvalidMessageException expected) {
+            assertTrue(expected.getMessage().contains("exceeds"), expected.getMessage());
+        }
+    }
+
+    /**
+     * The final-size check runs on the complete frame, after the metadata has been added: a body within the limit
+     * whose metadata pushes the message over it must be rejected there on a non-persistent topic, since nothing will
+     * chunk it, and the producer must stay usable for the next valid message.
+     */
+    @Test
+    public void testNonPersistentMessageOverLimitOnlyWithMetadataIsRejectedLocally() throws Exception {
+        final int maxMessageSize = 1024;
+        final String topicName = "non-persistent://my-property/my-ns/testNonPersistentChunkingMetadataOverLimit";
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName("my-subscriber-name")
+                .subscribe();
+
+        @Cleanup
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+                .topic(topicName)
+                .enableChunking(true)
+                .enableBatching(false)
+                .sendTimeout(5, TimeUnit.SECONDS)
+                .create();
+        producer.getConnectionHandler().setMaxMessageSize(maxMessageSize);
+
+        // exactly at the limit, so the early check on the body passes and only the final check can reject it
+        byte[] payload = RandomUtils.nextBytes(maxMessageSize);
+        try {
+            producer.newMessage().value(payload).property("large-metadata", "y".repeat(400)).send();
+            fail("a message pushed over the limit by its metadata must be rejected by the client");
+        } catch (InvalidMessageException expected) {
+            assertTrue(expected.getMessage().contains("exceeds"), expected.getMessage());
+        }
+
+        byte[] valid = "valid".getBytes(StandardCharsets.UTF_8);
+        producer.send(valid);
+        Message<byte[]> received = consumer.receive(10, TimeUnit.SECONDS);
+        assertNotNull(received, "the valid message after the rejected one was not delivered");
+        assertEquals(received.getValue(), valid);
     }
 
     /**

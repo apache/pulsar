@@ -19,8 +19,7 @@
 package org.apache.pulsar.client.api.v5;
 
 import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
+import static org.testng.Assert.expectThrows;
 import java.time.Duration;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.v5.config.ProducerAccessMode;
@@ -84,18 +83,11 @@ public class V5ProducerAccessModeTest extends V5ClientBaseTest {
 
         // Second EXCLUSIVE on the same topic must fail at create() — the V5 builder
         // eagerly claims every active segment up front for exclusive access modes.
-        try {
-            v5Client.newProducer(Schema.string())
-                    .topic(topic)
-                    .accessMode(ProducerAccessMode.EXCLUSIVE)
-                    .create();
-            fail("a second EXCLUSIVE producer should not be able to attach");
-        } catch (PulsarClientException expected) {
-            String msg = expected.getMessage() == null ? "" : expected.getMessage();
-            assertTrue(msg.contains("Busy") || msg.contains("Fenced")
-                            || msg.contains("ProducerFenced") || msg.contains("ProducerBusy"),
-                    "unexpected error message for second EXCLUSIVE producer: " + msg);
-        }
+        expectThrows(PulsarClientException.ProducerBusyException.class, () ->
+                v5Client.newProducer(Schema.string())
+                        .topic(topic)
+                        .accessMode(ProducerAccessMode.EXCLUSIVE)
+                        .create());
 
         // The first producer is still healthy and can send.
         first.newMessage().value("still-here").send();

@@ -265,23 +265,33 @@ public class ScalableTopicPermissionsTest extends AuthZTest {
         assertNotAuthorized(() -> client.newProducer(Schema.string()).topic(topic).create());
     }
 
-    /** A role is a single path component of the permission endpoints, even when it contains '/' or '%'. */
+    /**
+     * A role reaches the permission endpoints unchanged, as a single path component: a '/' doesn't split it, a '%'
+     * doesn't escape anything, and a space and a '+' are different roles.
+     */
     @Test
     public void testGrantGetAndRevokeRolesWithReservedCharacters() throws Exception {
         String topic = newScalableTopic();
-        List<String> roles = List.of("group/app", "100%app");
-        for (String role : roles) {
-            superUserAdmin.scalableTopics().grantPermission(topic, role, Set.of(AuthAction.consume));
+        Map<String, Set<AuthAction>> grants = Map.of(
+                "group/app", Set.of(AuthAction.consume),
+                "100%app", Set.of(AuthAction.produce),
+                "team app", Set.of(AuthAction.consume),
+                "team+app", Set.of(AuthAction.produce, AuthAction.consume));
+        for (Map.Entry<String, Set<AuthAction>> grant : grants.entrySet()) {
+            superUserAdmin.scalableTopics().grantPermission(topic, grant.getKey(), grant.getValue());
         }
-        Map<String, Set<AuthAction>> permissions = superUserAdmin.scalableTopics().getPermissions(topic);
-        for (String role : roles) {
-            assertThat(permissions).containsEntry(role, Set.of(AuthAction.consume));
-        }
+        assertThat(superUserAdmin.scalableTopics().getPermissions(topic)).containsAllEntriesOf(grants);
 
-        for (String role : roles) {
+        superUserAdmin.scalableTopics().revokePermissions(topic, "team app");
+        assertThat(superUserAdmin.scalableTopics().getPermissions(topic))
+                .doesNotContainKey("team app")
+                .containsEntry("team+app", Set.of(AuthAction.produce, AuthAction.consume));
+
+        for (String role : List.of("group/app", "100%app", "team+app")) {
             superUserAdmin.scalableTopics().revokePermissions(topic, role);
         }
-        assertThat(superUserAdmin.scalableTopics().getPermissions(topic)).doesNotContainKeys("group/app", "100%app");
+        assertThat(superUserAdmin.scalableTopics().getPermissions(topic)).doesNotContainKeys("group/app", "100%app",
+                "team app", "team+app");
     }
 
     /** Revoking the permission granted on the topic disconnects the producers already attached to its segments. */
