@@ -738,6 +738,58 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
     }
 
     @Test(timeOut = 10000)
+    public void testPendingWritesToAllConsumersDeferNextReadUntilOneCompletes() throws Exception {
+        EventLoopGroup brokerExecutor = brokerMock.executor();
+        ArrayDeque<Runnable> readyTasks = new ArrayDeque<>();
+        doAnswer(inv -> {
+            readyTasks.add(inv.getArgument(0, Runnable.class));
+            return null;
+        }).when(brokerExecutor).execute(any(Runnable.class));
+        Promise<Void> firstWrite = ImmediateEventExecutor.INSTANCE.newPromise();
+        doAnswer(inv -> {
+            List<Entry> entries = inv.getArgument(0);
+            entries.stream().filter(Objects::nonNull).forEach(Entry::release);
+            return firstWrite;
+        }).when(consumerMock).sendMessages(anyList(), any(), any(), anyInt(), anyLong(), anyLong(), any());
+        Consumer secondConsumer = createMockConsumer();
+        doReturn("second-consumer").when(secondConsumer).consumerName();
+        doReturn(1000).when(secondConsumer).getAvailablePermits();
+        doReturn(true).when(secondConsumer).isWritable();
+        Promise<Void> secondWrite = ImmediateEventExecutor.INSTANCE.newPromise();
+        doAnswer(inv -> {
+            List<Entry> entries = inv.getArgument(0);
+            entries.stream().filter(Objects::nonNull).forEach(Entry::release);
+            return secondWrite;
+        }).when(secondConsumer).sendMessages(anyList(), any(), any(), anyInt(), anyLong(), anyLong(), any());
+        persistentDispatcher.addConsumer(consumerMock).join();
+        persistentDispatcher.addConsumer(secondConsumer).join();
+        persistentDispatcher.totalAvailablePermits = 2000;
+        String firstKey = generateKeyForConsumer(persistentDispatcher.getSelector(), consumerMock);
+        String secondKey = generateKeyForConsumer(persistentDispatcher.getSelector(), secondConsumer);
+        try {
+            persistentDispatcher.readEntriesComplete(new ArrayList<>(List.of(
+                    createEntry(1, 1, "first", 1, firstKey), createEntry(1, 2, "second", 2, secondKey))),
+                    PersistentDispatcherMultipleConsumers.ReadType.Normal);
+            verify(consumerMock).sendMessages(anyList(), any(), any(), anyInt(), anyLong(), anyLong(), any());
+            verify(secondConsumer).sendMessages(anyList(), any(), any(), anyInt(), anyLong(), anyLong(), any());
+            while (!readyTasks.isEmpty()) {
+                readyTasks.remove().run();
+            }
+            // Every eligible consumer received entries: the next read waits for a write to complete.
+            verify(cursorMock, never()).asyncReadEntriesWithSkipOrWait(anyInt(), anyLong(), any(), any(), any(),
+                    any());
+            firstWrite.setSuccess(null);
+            while (!readyTasks.isEmpty()) {
+                readyTasks.remove().run();
+            }
+            verify(cursorMock).asyncReadEntriesWithSkipOrWait(anyInt(), anyLong(), any(), any(), any(), any());
+        } finally {
+            firstWrite.trySuccess(null);
+            secondWrite.trySuccess(null);
+        }
+    }
+
+    @Test(timeOut = 10000)
     public void testOutOfOrderReplayFilterIncludesPositionWithoutStickyKeyHash() {
         persistentDispatcher.close();
         persistentDispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(
