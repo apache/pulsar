@@ -1272,7 +1272,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         Position readPos = readPosition;
         Position lastPosition = ledger.getLastPosition();
         Position nextPosition = lastPosition.getNext();
-        if (readPos.compareTo(nextPosition) > 0) {
+        if (readPos.compareTo(lastPosition) > 0) {
             log.debug()
                     .attr("readPosition", readPos)
                     .attr("lastPosition", lastPosition)
