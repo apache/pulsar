@@ -26,7 +26,7 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.stats.OpenTelemetryReplicatedSubscriptionStats;
@@ -35,7 +35,7 @@ import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshotRespons
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 
-@Slf4j
+@CustomLog
 public class ReplicatedSubscriptionsSnapshotBuilder {
 
     private final String snapshotId;
@@ -47,6 +47,7 @@ public class ReplicatedSubscriptionsSnapshotBuilder {
 
     private final boolean needTwoRounds;
     private boolean firstRoundComplete;
+    private boolean finalSnapshotMarkerPending;
 
     private long startTimeMillis;
     private final long timeoutMillis;
@@ -77,27 +78,26 @@ public class ReplicatedSubscriptionsSnapshotBuilder {
     }
 
     void start() {
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Starting new snapshot {} - Clusters: {}", controller.topic().getName(), snapshotId,
-                    missingClusters);
-        }
+        log.debug()
+                .attr("snapshotId", snapshotId)
+                .attr("clusters", missingClusters)
+                .log("Starting new snapshot");
         startTimeMillis = clock.millis();
         controller.writeMarker(
                 Markers.newReplicatedSubscriptionsSnapshotRequest(snapshotId, controller.localCluster()));
     }
 
     synchronized void receivedSnapshotResponse(Position position, ReplicatedSubscriptionsSnapshotResponse response) {
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Received response from {}", controller.topic().getName(),
-                    response.getCluster().getCluster());
-        }
+        log.debug()
+                .attr("cluster", response.getCluster().getCluster())
+                .log("Received response");
         String cluster = response.getCluster().getCluster();
         responses.putIfAbsent(cluster, new MarkersMessageIdData().copyFrom(response.getCluster().getMessageId()));
         missingClusters.remove(cluster);
 
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Missing clusters {}", controller.topic().getName(), missingClusters);
-        }
+        log.debug()
+                .attr("missingClusters", missingClusters)
+                .log("Missing clusters");
 
         if (!missingClusters.isEmpty()) {
             // We're still waiting for more responses to come back
@@ -116,15 +116,33 @@ public class ReplicatedSubscriptionsSnapshotBuilder {
             return;
         }
 
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Snapshot is complete {}", controller.topic().getName(), snapshotId);
+        if (finalSnapshotMarkerPending) {
+            return;
         }
+
+        finalSnapshotMarkerPending = true;
+        log.debug()
+                .attr("snapshotId", snapshotId)
+                .log("Snapshot is complete");
         // Snapshot is now complete, store it in the local topic
         Position p = position;
-        controller.writeMarker(
+        controller.writeMarkerAndGetPosition(
                 Markers.newReplicatedSubscriptionsSnapshot(snapshotId, controller.localCluster(),
-                        p.getLedgerId(), p.getEntryId(), responses));
-        controller.snapshotCompleted(snapshotId);
+                        p.getLedgerId(), p.getEntryId(), responses))
+                .whenComplete((ignored, exception) -> {
+                    if (exception != null) {
+                        synchronized (ReplicatedSubscriptionsSnapshotBuilder.this) {
+                            finalSnapshotMarkerPending = false;
+                        }
+                        log.debug()
+                                .attr("snapshotId", snapshotId)
+                                .exception(exception)
+                                .log("Failed to publish completed snapshot marker");
+                        return;
+                    }
+
+                    controller.snapshotCompleted(snapshotId);
+                });
 
     }
 

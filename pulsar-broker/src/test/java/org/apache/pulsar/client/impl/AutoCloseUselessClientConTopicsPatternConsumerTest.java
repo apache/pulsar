@@ -43,6 +43,7 @@ public class AutoCloseUselessClientConTopicsPatternConsumerTest extends AutoClos
         super.pulsarResourcesSetup();
         admin.topics().createNonPartitionedTopic(TOPIC_FULL_NAME);
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testConnectionAutoReleaseWhileUsingTopicsPatternConsumer() throws Exception {
@@ -71,6 +72,9 @@ public class AutoCloseUselessClientConTopicsPatternConsumerTest extends AutoClos
                 .topicsPattern(TOPIC_PATTERN)
                 .subscriptionName("my-subscription-y")
                 .subscribe();
+
+        waitForTopicListWatcherStarted(consumer);
+        waitForTopicListWatcherStarted(consumer2);
 
         // check that there are more than 3 connections
         // at least 3 connections are required:

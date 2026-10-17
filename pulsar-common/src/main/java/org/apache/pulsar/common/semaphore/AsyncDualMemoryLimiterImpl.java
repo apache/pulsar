@@ -18,22 +18,27 @@
  */
 package org.apache.pulsar.common.semaphore;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.function.BooleanSupplier;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.CustomLog;
 
 /**
  * Implementation of AsyncDualMemoryLimiter with separate limits for heap and direct memory.
+ *
+ * <p>Requests that had to wait for permits are completed on a dedicated pool, so their continuations don't run on
+ * the executor that handles the permits and timeouts, also when the common pool isn't usable.
  */
+@CustomLog
 public class AsyncDualMemoryLimiterImpl implements AsyncDualMemoryLimiter, AutoCloseable {
-    private static final Logger log = LoggerFactory.getLogger(AsyncDualMemoryLimiterImpl.class);
-
     private final ScheduledExecutorService executor;
     private final boolean shutdownExecutor;
+    private final ExecutorService completionExecutor;
     private final AsyncSemaphoreImpl heapLimiter;
     private final AsyncSemaphoreImpl directLimiter;
 
@@ -45,7 +50,8 @@ public class AsyncDualMemoryLimiterImpl implements AsyncDualMemoryLimiter, AutoC
      * @param maxDirectMemory max direct memory available for allocation
      * @param maxDirectQueueSize max number of requests that can be queued for direct memory allocation
      * @param directTimeoutMillis timeout in milliseconds for direct memory allocation
-     * @param executor executor service to use for scheduling timeouts, it is expected to be single threaded
+     * @param executor executor service to use for scheduling timeouts, it is expected to be single threaded and to
+     *                 remove cancelled tasks, see {@link ScheduledThreadPoolExecutor#setRemoveOnCancelPolicy(boolean)}
      */
     public AsyncDualMemoryLimiterImpl(long maxHeapMemory, int maxHeapQueueSize, long heapTimeoutMillis,
                                long maxDirectMemory, int maxDirectQueueSize, long directTimeoutMillis,
@@ -66,7 +72,7 @@ public class AsyncDualMemoryLimiterImpl implements AsyncDualMemoryLimiter, AutoC
     public AsyncDualMemoryLimiterImpl(long maxHeapMemory, int maxHeapQueueSize, long heapTimeoutMillis,
                                       long maxDirectMemory, int maxDirectQueueSize, long directTimeoutMillis) {
         this(maxHeapMemory, maxHeapQueueSize, heapTimeoutMillis, maxDirectMemory, maxDirectQueueSize,
-                directTimeoutMillis, createExecutor(), true);
+                directTimeoutMillis, AsyncSemaphoreImpl.createExecutor("async-dual-memory-limiter"), true);
     }
 
     AsyncDualMemoryLimiterImpl(long maxHeapMemory, int maxHeapQueueSize, long heapTimeoutMillis,
@@ -74,15 +80,13 @@ public class AsyncDualMemoryLimiterImpl implements AsyncDualMemoryLimiter, AutoC
                                ScheduledExecutorService executor, boolean shutdownExecutor) {
         this.executor = executor;
         this.shutdownExecutor = shutdownExecutor;
+        // threads are only started when a request had to wait for permits
+        this.completionExecutor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors(),
+                new DefaultThreadFactory("async-dual-memory-limiter-completion"));
         this.heapLimiter = new AsyncSemaphoreImpl(maxHeapMemory, maxHeapQueueSize, heapTimeoutMillis, executor,
-                this::recordHeapWaitTime);
+                false, completionExecutor, this::recordHeapWaitTime);
         this.directLimiter = new AsyncSemaphoreImpl(maxDirectMemory, maxDirectQueueSize, directTimeoutMillis, executor,
-                this::recordDirectWaitTime);
-    }
-
-    private static ScheduledExecutorService createExecutor() {
-        return Executors.newSingleThreadScheduledExecutor(
-                new DefaultThreadFactory("async-dual-memory-limiter"));
+                false, completionExecutor, this::recordDirectWaitTime);
     }
 
     @Override
@@ -93,7 +97,8 @@ public class AsyncDualMemoryLimiterImpl implements AsyncDualMemoryLimiter, AutoC
                 new DualMemoryLimiterPermit(limitType, result));
     }
 
-    protected AsyncSemaphore getLimiter(LimitType limitType) {
+    @VisibleForTesting
+    public AsyncSemaphore getLimiter(LimitType limitType) {
         switch (limitType) {
         case HEAP_MEMORY:
             return heapLimiter;
@@ -149,6 +154,8 @@ public class AsyncDualMemoryLimiterImpl implements AsyncDualMemoryLimiter, AutoC
         if (shutdownExecutor) {
             executor.shutdown();
         }
+        // already submitted completions still run after shutdown()
+        completionExecutor.shutdown();
     }
 
     private static class DualMemoryLimiterPermit implements AsyncDualMemoryLimiterPermit {
@@ -172,6 +179,12 @@ public class AsyncDualMemoryLimiterImpl implements AsyncDualMemoryLimiter, AutoC
 
         public AsyncSemaphore.AsyncSemaphorePermit getUnderlyingPermit() {
             return underlyingPermit;
+        }
+
+        @Override
+        public String toString() {
+            return "DualMemoryLimiterPermit@" + System.identityHashCode(this) + "{" + "limitType=" + limitType
+                    + ", permits=" + underlyingPermit.getPermits() + '}';
         }
     }
 }

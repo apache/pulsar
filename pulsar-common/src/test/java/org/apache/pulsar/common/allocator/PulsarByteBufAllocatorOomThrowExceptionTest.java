@@ -35,6 +35,7 @@ import org.testng.annotations.Test;
 public class PulsarByteBufAllocatorOomThrowExceptionTest {
 
     @Test
+    @SuppressWarnings("try")
     public void testDefaultConfig() {
         // Force initialize PulsarByteBufAllocator.DEFAULT before mock the ctor so that it is not polluted.
         assertNotNull(PulsarByteBufAllocator.DEFAULT);

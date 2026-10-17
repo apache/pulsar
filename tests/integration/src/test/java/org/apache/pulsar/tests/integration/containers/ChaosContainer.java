@@ -22,7 +22,7 @@ import com.github.dockerjava.api.DockerClient;
 import java.util.Base64;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.utils.DockerUtils;
@@ -31,7 +31,7 @@ import org.testcontainers.containers.GenericContainer;
 /**
  * A base container provides chaos capability.
  */
-@Slf4j
+@CustomLog
 public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends GenericContainer<SelfT> {
 
     protected final String clusterName;

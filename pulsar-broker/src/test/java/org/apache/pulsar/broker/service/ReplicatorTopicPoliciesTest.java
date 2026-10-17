@@ -797,7 +797,7 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         final String cluster3 = pulsar3.getConfig().getClusterName();
 
         admin1.namespaces().createNamespace(namespace, Sets.newHashSet(cluster1, cluster2, cluster3));
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2", "r3"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2", "r3"), false);
         // Create partitioned-topic from R1
         admin1.topics().createPartitionedTopic(topic, 3);
         // List partitioned topics from R2

@@ -81,6 +81,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
      * @param protocol
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test(dataProvider = "lookupType", timeOut = 10000)
     public void testPeerClusterTopicLookup(String protocol) throws Exception {
 
@@ -91,13 +92,13 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
 
         final String serviceUrl = protocol.equalsIgnoreCase("http") ? pulsar3.getWebServiceAddress()
                 : pulsar3.getBrokerServiceUrl();
-        final String namespace1 = "pulsar/global/peer1-" + protocol;
-        final String namespace2 = "pulsar/global/peer2-" + protocol;
+        final String namespace1 = "pulsar/peer1-" + protocol;
+        final String namespace2 = "pulsar/peer2-" + protocol;
         admin1.namespaces().createNamespace(namespace1);
         admin1.namespaces().createNamespace(namespace2);
         // add replication cluster
-        admin1.namespaces().setNamespaceReplicationClusters(namespace1, Sets.newHashSet("r1"));
-        admin1.namespaces().setNamespaceReplicationClusters(namespace2, Sets.newHashSet("r2"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace1, Sets.newHashSet("r1"), false);
+        admin1.namespaces().setNamespaceReplicationClusters(namespace2, Sets.newHashSet("r2"), false);
         admin1.clusters().updatePeerClusterNames("r3", null);
         // disable tls as redirection url is prepared according tls configuration
         pulsar1.getConfiguration().setTlsEnabled(false);
@@ -187,6 +188,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testPeerClusterInReplicationClusterListChange() throws Exception {
 
@@ -196,10 +198,10 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         admin1.clusters().updatePeerClusterNames("r3", null);
 
         final String serviceUrl = pulsar3.getBrokerServiceUrl();
-        final String namespace1 = BrokerTestUtil.newUniqueName("pulsar/global/peer-change-repl-ns");
+        final String namespace1 = BrokerTestUtil.newUniqueName("pulsar/peer-change-repl-ns");
         admin1.namespaces().createNamespace(namespace1);
         // add replication cluster
-        admin1.namespaces().setNamespaceReplicationClusters(namespace1, Sets.newHashSet("r1"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace1, Sets.newHashSet("r1"), false);
         admin1.clusters().updatePeerClusterNames("r3", null);
         // disable tls as redirection url is prepared according tls configuration
         pulsar1.getConfiguration().setTlsEnabled(false);
@@ -227,7 +229,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         producer.close();
 
         // change the repl cluster to peer-cluster r3 from r1
-        admin1.namespaces().setNamespaceReplicationClusters(namespace1, Sets.newHashSet("r3"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace1, Sets.newHashSet("r3"), false);
         NamespaceBundles bundles = pulsar1.getNamespaceService().getNamespaceBundleFactory()
                 .getBundles(NamespaceName.get(namespace1));
         NamespaceBundle bundle = bundles.getBundles().get(0);

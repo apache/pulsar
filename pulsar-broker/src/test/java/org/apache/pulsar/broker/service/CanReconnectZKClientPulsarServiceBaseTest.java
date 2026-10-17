@@ -27,7 +27,7 @@ import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -35,7 +35,9 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicType;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
+import org.apache.pulsar.metadata.impl.DualMetadataStore;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
@@ -45,7 +47,7 @@ import org.apache.zookeeper.ZooKeeper;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
 
-@Slf4j
+@CustomLog
 public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetrySupport {
     protected final String defaultTenant = "public";
     protected final String defaultNamespace = defaultTenant + "/default";
@@ -78,7 +80,7 @@ public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetr
         brokerConfigZk.start();
 
         // Start BK.
-        bkEnsemble = new LocalBookkeeperEnsemble(numberOfBookies, 0, () -> 0);
+        bkEnsemble = new LocalBookkeeperEnsemble(numberOfBookies, 0);
         bkEnsemble.start();
     }
 
@@ -88,10 +90,14 @@ public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetr
         pulsar = new PulsarService(config);
         pulsar.start();
         broker = pulsar.getBrokerService();
-        ZKMetadataStore zkMetadataStore = (ZKMetadataStore) pulsar.getLocalMetadataStore();
-        localZkOfBroker = zkMetadataStore.getZkClient();
-        zkMetadataStore.registerSessionListener(n -> {
-            log.info("Received session event: {}", n);
+        MetadataStoreExtended store = pulsar.getLocalMetadataStore();
+        if (store instanceof DualMetadataStore dms) {
+            localZkOfBroker = ((ZKMetadataStore) dms.getSourceStore()).getZkClient();
+        } else if (store instanceof ZKMetadataStore zkStore) {
+            localZkOfBroker = zkStore.getZkClient();
+        }
+        store.registerSessionListener(n -> {
+            log.info().attr("event", n).log("Received session event");
             sessionEvent = n;
         });
         ClientCnxn cnxn = WhiteboxImpl.getInternalState(localZkOfBroker, "cnxn");
@@ -131,7 +137,7 @@ public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetr
                     // Prevents high cpu usage.
                     Thread.sleep(5);
                 } catch (Exception e) {
-                    log.error("Try close the ZK connection of local metadata store failed: {}", e.toString());
+                    log.error().exceptionMessage(e).log("Try close the ZK connection of local metadata store failed");
                 }
             }
         });
@@ -150,7 +156,7 @@ public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetr
                     // Prevents high cpu usage.
                     Thread.sleep(5);
                 } catch (Exception e) {
-                    log.error("Try close the ZK connection of local metadata store failed: {}", e.toString());
+                    log.error().exceptionMessage(e).log("Try close the ZK connection of local metadata store failed");
                 }
             }
         });

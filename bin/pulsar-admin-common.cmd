@@ -61,6 +61,9 @@ set "PULSAR_CLASSPATH=%PULSAR_CLASSPATH%;%PULSAR_LOG_CONF_DIR%"
 
 set "OPTS=%OPTS% -Dlog4j.configurationFile="%PULSAR_LOG_CONF_BASENAME%""
 set "OPTS=-Djava.net.preferIPv4Stack=true %OPTS%"
+REM Bridge java.util.logging (JUL) to Log4j2 so that JUL logs from third-party libraries
+REM (Jersey, gRPC, Guava, etc.) are bridged into the Log4j2 configuration (conf/log4j2.yaml)
+set "OPTS=-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager %OPTS%"
 
 REM Allow Netty to use reflection access
 set "OPTS=%OPTS% -Dio.netty.tryReflectionSetAccessible=true"
@@ -71,6 +74,12 @@ if %JAVA_MAJOR_VERSION% GTR 23 (
   REM Also required for enabling unsafe memory access for Netty since 4.1.121.Final
   set "OPTS=--sun-misc-unsafe-memory-access=allow %OPTS%"
 )
+
+REM Use compact object headers (JEP 519, https://openjdk.org/jeps/519), which shrink object headers from 12 to 8 bytes
+REM and so reduce heap usage and improve cache locality. They are a product feature since JDK 25 and the default from
+REM JDK 27 on (JEP 534, https://openjdk.org/jeps/534). The option is prepended so that the configured options can
+REM override it with -XX:-UseCompactObjectHeaders.
+if %JAVA_MAJOR_VERSION% GEQ 25 if %JAVA_MAJOR_VERSION% LEQ 26 set "OPTS=-XX:+UseCompactObjectHeaders %OPTS%"
 
 if %JAVA_MAJOR_VERSION% GTR 8 (
   set "OPTS=%OPTS% --add-opens java.base/sun.net=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED"
@@ -83,16 +92,46 @@ if %JAVA_MAJOR_VERSION% GEQ 11 (
   REM Required by Netty for optimized direct byte buffer access
   set "OPTS=%OPTS% --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/jdk.internal.misc=ALL-UNNAMED"
 )
+REM These two settings work together to ensure the Pulsar process exits immediately and predictably
+REM if it runs out of either Java heap memory or its internal off-heap memory,
+REM as these are unrecoverable errors that require a process restart to clear the faulty state and restore operation
+set "OPTS=-Dpulsar.allocator.exit_on_oom=true %OPTS%"
+REM Netty tuning
+REM These settings are primarily used to modify the Netty allocator configuration,
+REM improving memory utilization and reducing the frequency of requesting off-heap memory from the OS
+REM
+REM Based on the netty source code, the allocator's default chunk size is calculated as:
+REM io.netty.allocator.pageSize (default: 8192) shifted left by
+REM io.netty.allocator.maxOrder (default: 9 after Netty 4.1.76.Final version).
+REM This equals 8192 * 2^9 = 4 MB：
+REM https://github.com/netty/netty/blob/4.1/buffer/src/main/java/io/netty/buffer/PooledByteBufAllocator.java#L105
+REM
+REM Allocations that are larger than chunk size are considered huge allocations and don't use the pool:
+REM https://github.com/netty/netty/blob/4.1/buffer/src/main/java/io/netty/buffer/PoolArena.java#L141-L142
+REM
+REM Currently, Pulsar defaults to a maximum single message size of 5 MB.
+REM Therefore, when frequently producing messages whose size exceeds the chunk size,
+REM Netty cannot utilize resources from the memory pool and must frequently allocate native memory.
+REM This can lead to increased physical memory fragmentation and higher reclamation costs.
+REM Thus, increasing io.netty.allocator.maxOrder to 10 to ensure that a single message is larger
+REM than chunk size (8MB) and can reuse Netty's memory pool.
+set "OPTS=-Dio.netty.recycler.maxCapacityPerThread=4096 -Dio.netty.allocator.maxOrder=10 %OPTS%"
 
 set "OPTS=-cp "%PULSAR_CLASSPATH%" %OPTS%"
 set "OPTS=%OPTS% %PULSAR_EXTRA_OPTS%"
 
 if "%PULSAR_LOG_DIR%" == "" set "PULSAR_LOG_DIR=%PULSAR_HOME%\logs"
 if "%PULSAR_LOG_APPENDER%" == "" set "PULSAR_LOG_APPENDER=RoutingAppender"
+REM PULSAR_LOG_CONSOLE_JSON_TEMPLATE is deprecated -- use PULSAR_LOG_JSON_TEMPLATE
+if "%PULSAR_LOG_JSON_TEMPLATE%" == "" set "PULSAR_LOG_JSON_TEMPLATE=%PULSAR_LOG_CONSOLE_JSON_TEMPLATE%"
+if "%PULSAR_LOG_JSON_TEMPLATE%" == "" set "PULSAR_LOG_JSON_TEMPLATE=file:%PULSAR_HOME%/conf/OtelLogLayout.json"
+if "%PULSAR_LOG_FORMAT%" == "" set "PULSAR_LOG_FORMAT=text"
 if "%PULSAR_ROUTING_APPENDER_DEFAULT%" == "" set "PULSAR_ROUTING_APPENDER_DEFAULT=Console"
 if "%PULSAR_LOG_IMMEDIATE_FLUSH%" == "" set "PULSAR_LOG_IMMEDIATE_FLUSH=false"
 
 set "OPTS=%OPTS% -Dpulsar.log.appender=%PULSAR_LOG_APPENDER%"
+set "OPTS=%OPTS% -Dpulsar.log.json.template=%PULSAR_LOG_JSON_TEMPLATE%"
+set "OPTS=%OPTS% -Dpulsar.log.format=%PULSAR_LOG_FORMAT%"
 set "OPTS=%OPTS% -Dpulsar.log.dir=%PULSAR_LOG_DIR%"
 if not "%PULSAR_LOG_LEVEL%" == "" set "OPTS=%OPTS% -Dpulsar.log.level=%PULSAR_LOG_LEVEL%"
 if not "%PULSAR_LOG_ROOT_LEVEL%" == "" (

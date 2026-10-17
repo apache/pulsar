@@ -97,6 +97,27 @@ public class TestCmdClusters {
     }
 
     @Test
+    public void testTlsFactoryOptions() throws Exception {
+        // PIP-478: a cluster entry may select its own PulsarTlsFactory for outbound connections to that
+        // remote cluster — the two legs configured from the cluster entry, the binary replication client
+        // and the cross-cluster admin client (not the broker-level peer-cluster lookup client).
+        ClusterData expected = ClusterData.builder()
+                .brokerClientTlsFactoryClassName("com.example.MyTlsFactory")
+                .brokerClientTlsFactoryConfig("k1=v1,k2=v2")
+                .build();
+
+        cmdClusters.run(new String[]{"create", "test_cluster",
+                "--tls-factory-class-name", "com.example.MyTlsFactory",
+                "--tls-factory-config", "k1=v1,k2=v2"});
+        verify(clusters).createCluster(eq("test_cluster"), eq(expected));
+
+        cmdClusters.run(new String[]{"update", "test_cluster",
+                "--tls-factory-class-name", "com.example.MyTlsFactory",
+                "--tls-factory-config", "k1=v1,k2=v2"});
+        verify(clusters).updateCluster(eq("test_cluster"), eq(expected));
+    }
+
+    @Test
     public void testListCmd() throws Exception {
         List<String> clusterList = Lists.newArrayList("us-west", "us-east", "us-cent");
         List<String> clusterResultList = Lists.newArrayList("us-west", "us-east", "us-cent(*)");

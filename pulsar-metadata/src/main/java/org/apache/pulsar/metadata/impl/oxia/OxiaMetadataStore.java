@@ -18,29 +18,41 @@
  */
 package org.apache.pulsar.metadata.impl.oxia;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.opentelemetry.api.OpenTelemetry;
+import io.oxia.client.OxiaClientBuilderImpl;
 import io.oxia.client.api.AsyncOxiaClient;
 import io.oxia.client.api.Notification;
 import io.oxia.client.api.OxiaClientBuilder;
 import io.oxia.client.api.PutResult;
+import io.oxia.client.api.RangeScanConsumer;
 import io.oxia.client.api.Version;
 import io.oxia.client.api.exceptions.KeyAlreadyExistsException;
 import io.oxia.client.api.exceptions.UnexpectedVersionIdException;
 import io.oxia.client.api.options.DeleteOption;
+import io.oxia.client.api.options.GetOption;
+import io.oxia.client.api.options.GetSequenceUpdatesOption;
+import io.oxia.client.api.options.ListOption;
 import io.oxia.client.api.options.PutOption;
+import io.oxia.client.api.options.RangeScanOption;
+import java.io.Closeable;
 import java.time.Duration;
 import java.util.Collections;
-import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
+import lombok.CustomLog;
 import lombok.NonNull;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
@@ -48,23 +60,39 @@ import org.apache.pulsar.metadata.api.MetadataEventSynchronizer;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.NotificationType;
+import org.apache.pulsar.metadata.api.Option;
+import org.apache.pulsar.metadata.api.OptionsHelper;
+import org.apache.pulsar.metadata.api.ScanConsumer;
 import org.apache.pulsar.metadata.api.Stat;
-import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
 
-@Slf4j
+@CustomLog
 public class OxiaMetadataStore extends AbstractMetadataStore {
 
     private final AsyncOxiaClient client;
+    // The request timeout of the client, which also bounds the index scans (see IndexScan)
+    private final Duration requestTimeout;
 
     private final String identity;
     private Optional<MetadataEventSynchronizer> synchronizer;
 
     public OxiaMetadataStore(AsyncOxiaClient oxia, String identity) {
-        super("oxia-metadata", OpenTelemetry.noop(), null);
+        this(oxia, identity, null);
+    }
+
+    @VisibleForTesting
+    OxiaMetadataStore(AsyncOxiaClient oxia, String identity, MetadataEventSynchronizer synchronizer) {
+        this(oxia, identity, synchronizer, OxiaClientBuilderImpl.DefaultRequestTimeout);
+    }
+
+    @VisibleForTesting
+    OxiaMetadataStore(AsyncOxiaClient oxia, String identity, MetadataEventSynchronizer synchronizer,
+                      Duration requestTimeout) {
+        super("oxia-metadata", OpenTelemetry.noop(), null, 1);
         this.client = oxia;
+        this.requestTimeout = requestTimeout;
         this.identity = identity;
-        this.synchronizer = Optional.empty();
+        this.synchronizer = Optional.ofNullable(synchronizer);
         init();
     }
 
@@ -75,12 +103,8 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
             boolean enableSessionWatcher)
             throws Exception {
         super("oxia-metadata", Objects.requireNonNull(metadataStoreConfig).getOpenTelemetry(),
-                metadataStoreConfig.getNodeSizeStats());
+                metadataStoreConfig.getNodeSizeStats(), metadataStoreConfig.getNumSerDesThreads());
 
-        var linger = metadataStoreConfig.getBatchingMaxDelayMillis();
-        if (!metadataStoreConfig.isBatchingEnabled()) {
-            linger = 0;
-        }
         synchronizer = Optional.ofNullable(metadataStoreConfig.getSynchronizer());
         identity = UUID.randomUUID().toString();
         OxiaClientBuilder oxiaClientBuilder = OxiaClientBuilder
@@ -88,12 +112,13 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
                 .clientIdentifier(identity)
                 .namespace(namespace)
                 .sessionTimeout(Duration.ofMillis(metadataStoreConfig.getSessionTimeoutMillis()))
-                .batchLinger(Duration.ofMillis(linger))
                 .maxRequestsPerBatch(metadataStoreConfig.getBatchingMaxOperations());
         if (StringUtils.isNotBlank(metadataStoreConfig.getConfigFilePath())) {
             oxiaClientBuilder.loadConfig(metadataStoreConfig.getConfigFilePath());
         }
         client = oxiaClientBuilder.asyncClient().get();
+        // The one the client was built with, which the config file can set
+        requestTimeout = ((OxiaClientBuilderImpl) oxiaClientBuilder).getClientConfig().requestTimeout();
         init();
     }
 
@@ -101,7 +126,6 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
         updateMetadataEventSynchronizer(synchronizer.orElse(null));
 
         client.notifications(this::notificationCallback);
-        super.registerSyncListener(synchronizer);
     }
 
     private void notificationCallback(Notification notification) {
@@ -121,7 +145,7 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
                             NotificationType.Deleted, keyDeleted.key()));
             notifyParentChildrenChanged(keyDeleted.key());
         } else {
-            log.warn("Unknown notification type {}", notification);
+            log.warn().attr("notification", notification).log("Unknown notification type");
         }
     }
 
@@ -148,11 +172,11 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
     }
 
     @Override
-    public CompletableFuture<List<String>> getChildrenFromStore(String path) {
+    public CompletableFuture<List<String>> getChildrenFromStore(String path, Set<Option> opts) {
         var pathWithSlash = path.endsWith("/") ? path : path + "/";
 
         return client
-                .list(pathWithSlash, pathWithSlash + "/")
+                .list(pathWithSlash, pathWithSlash + "/", listOptions(opts))
                 .thenApply(
                         children ->
                                 children.stream().map(child -> child.substring(pathWithSlash.length())).toList())
@@ -160,30 +184,27 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
     }
 
     @Override
-    protected CompletableFuture<Boolean> existsFromStore(String path) {
-        return client.get(path).thenApply(Objects::nonNull)
+    protected CompletableFuture<Boolean> existsFromStore(String path, Set<Option> opts) {
+        return client.get(path, getOptions(opts)).thenApply(Objects::nonNull)
                 .exceptionallyCompose(this::convertException);
     }
 
     @Override
-    protected CompletableFuture<Optional<GetResult>> storeGet(String path) {
-        return client.get(path).thenApply(res -> convertGetResult(path, res))
+    protected CompletableFuture<Optional<GetResult>> storeGet(String path, Set<Option> opts) {
+        return client.get(path, getOptions(opts)).thenApply(res -> convertGetResult(path, res))
                 .exceptionallyCompose(this::convertException);
     }
 
     @Override
-    protected CompletableFuture<Void> storeDelete(String path, Optional<Long> expectedVersion) {
-        return getChildrenFromStore(path)
+    protected CompletableFuture<Void> storeDelete(String path, Optional<Long> expectedVersion, Set<Option> opts) {
+        return getChildrenFromStore(path, opts)
                 .thenCompose(
                         children -> {
                             if (!children.isEmpty()) {
                                 return CompletableFuture.failedFuture(
-                                        new MetadataStoreException("Key '" + path + "' has children"));
+                                        new MetadataStoreException.NotEmptyException(path));
                             } else {
-                                Set<DeleteOption> delOption =
-                                        expectedVersion
-                                                .map(v -> Collections.singleton(DeleteOption.IfVersionIdEquals(v)))
-                                                .orElse(Collections.emptySet());
+                                Set<DeleteOption> delOption = deleteOptions(opts, expectedVersion);
                                 CompletableFuture<Boolean> result = client.delete(path, delOption);
                                 return result
                                         .thenCompose(
@@ -202,20 +223,109 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
 
     @Override
     protected CompletableFuture<Stat> storePut(
-            String path, byte[] data, Optional<Long> optExpectedVersion, EnumSet<CreateOption> options) {
+            String path, byte[] data, Optional<Long> optExpectedVersion, Set<Option> opts) {
+        return doStorePut(path, data, optExpectedVersion, opts);
+    }
+
+    @Override
+    protected CompletableFuture<Void> storeScanChildren(String parentPath, ScanConsumer consumer, Set<Option> opts) {
+        // Oxia's hierarchical sort makes [parentPath + "/", parentPath + "//") the canonical
+        // range covering exactly the immediate children — same convention getChildrenFromStore
+        // uses with `client.list(...)`.
+        String firstKey = parentPath.endsWith("/") ? parentPath : parentPath + "/";
+        String lastKey = firstKey + "/";
+        CompletableFuture<Void> done = new CompletableFuture<>();
+        try {
+            client.rangeScan(firstKey, lastKey, new io.oxia.client.api.RangeScanConsumer() {
+                @Override
+                public boolean onNext(io.oxia.client.api.GetResult result) {
+                    consumer.onNext(new GetResult(result.value(),
+                            convertStat(result.key(), result.version())));
+                    return true;
+                }
+
+                @Override
+                public void onError(Throwable throwable) {
+                    consumer.onError(throwable);
+                    done.completeExceptionally(throwable);
+                }
+
+                @Override
+                public void onCompleted() {
+                    consumer.onCompleted();
+                    done.complete(null);
+                }
+            }, rangeScanOptions(opts));
+        } catch (Throwable t) {
+            consumer.onError(t);
+            done.completeExceptionally(t);
+        }
+        return done;
+    }
+
+    @Override
+    protected CompletableFuture<Void> storeScanByIndex(
+            String scanPathPrefix, String indexName,
+            String fromKeyInclusive, String toKeyInclusive,
+            Predicate<GetResult> fallbackFilter,
+            ScanConsumer consumer, Set<Option> opts) {
+        // Index entries are stored at "<parentPath>/<secondaryKey>" by doStorePut, where
+        // parentPath == scanPathPrefix for records directly under the prefix. The API uses
+        // inclusive-on-both-sides bounds; Oxia's rangeScan(start, end, ...) is half-open, and it compares
+        // the bounds with whole index entries, which Oxia stores as the secondary key, a 0x01
+        // separator and the escaped primary key. So the end that follows the entries of
+        // `toKeyInclusive`, and precedes those of the keys that extend it (e.g. "k-12" for "k-1"),
+        // is `toKeyInclusive` followed by 0x02. Without `toKeyInclusive`, the range ends at the end
+        // of the level of the records, as the range [path + "/", path + "//") of
+        // getChildrenFromStore does with Oxia's hierarchical key sorting.
+        // The ranges follow that sorting, which orders the secondary keys by their number of '/'
+        // first: a range without `toKeyInclusive` leaves out the keys with a '/' (e.g.
+        // "tenant/ns1"), and the range ["b", "tenant/ns1"] also returns "zz".
+        String scopedFrom = fromKeyInclusive == null
+                ? scanPathPrefix + "/"
+                : scanPathPrefix + "/" + fromKeyInclusive;
+        String scopedTo = toKeyInclusive == null
+                ? scanPathPrefix + "//"
+                : scanPathPrefix + "/" + toKeyInclusive + "\u0002";
+        // The scan reads the records along with the index: each shard returns the records it holds.
+        // Getting them by their key afterwards would miss the records written with a partition key,
+        // since a get without that key goes to the shard of the record's key, not of its partition key.
+        // Native indexes already enforced the range; fallbackFilter is unused here (it's the
+        // scan-and-filter compat-path predicate).
+        Set<RangeScanOption> scanOpts = new HashSet<>(rangeScanOptions(opts));
+        scanOpts.add(RangeScanOption.UseIndex(indexName));
+        IndexScan scan = new IndexScan(consumer);
+        try {
+            client.rangeScan(scopedFrom, scopedTo, scan, scanOpts);
+        } catch (Throwable t) {
+            scan.fail(t);
+        }
+        return scan.done;
+    }
+
+    private CompletableFuture<Stat> doStorePut(
+            String path, byte[] data, Optional<Long> optExpectedVersion, Set<Option> opts) {
+        boolean sequential = OptionsHelper.isSequential(opts);
+        boolean ephemeral = OptionsHelper.isEphemeral(opts);
+        List<Long> sequenceKeysDeltas = OptionsHelper.sequenceKeysDeltas(opts);
+        Map<String, String> secondaryIndexes = OptionsHelper.secondaryIndexes(opts);
+        if (sequential && sequenceKeysDeltas != null) {
+            return CompletableFuture.failedFuture(new MetadataStoreException(
+                    "Sequential and SequenceKeysDeltas cannot be combined"));
+        }
         CompletableFuture<Void> parentsCreated = createParents(path);
         return parentsCreated.thenCompose(
                 __ -> {
                     var expectedVersion = optExpectedVersion;
-                    if (expectedVersion.isPresent()
-                            && expectedVersion.get() != -1L
-                            && options.contains(CreateOption.Sequential)) {
+                    if (expectedVersion.isPresent() && expectedVersion.get() != -1L
+                            && (sequential || sequenceKeysDeltas != null)) {
                         return CompletableFuture.failedFuture(
                                 new MetadataStoreException(
-                                        "Can't have expectedVersion and Sequential at the same time"));
+                                        "Can't have expectedVersion and Sequential/SequenceKeysDeltas at the "
+                                                + "same time"));
                     }
                     CompletableFuture<String> actualPath;
-                    if (options.contains(CreateOption.Sequential)) {
+                    if (sequential) {
                         var parent = parent(path);
                         var parentPath = parent == null ? "/" : parent;
 
@@ -239,18 +349,90 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
                                     })
                             .ifPresent(putOptions::add);
 
-                    if (options.contains(CreateOption.Ephemeral)) {
+                    if (ephemeral) {
                         putOptions.add(PutOption.AsEphemeralRecord);
                     }
+                    String partitionKey = OptionsHelper.partitionKey(opts);
+                    if (partitionKey != null) {
+                        putOptions.add(PutOption.PartitionKey(partitionKey));
+                    }
+                    if (sequenceKeysDeltas != null) {
+                        putOptions.add(PutOption.SequenceKeysDeltas(sequenceKeysDeltas));
+                    }
+                    var parentPath = parent(path);
+                    var parentPrefix = parentPath == null ? "" : parentPath;
+                    secondaryIndexes.forEach((indexName, secondaryKey) ->
+                            putOptions.add(PutOption.SecondaryIndex(indexName,
+                                    parentPrefix + "/" + secondaryKey)));
+
                     return actualPath
                             .thenCompose(
                                     aPath ->
                                             client
                                                     .put(aPath, data, putOptions)
                                                     .thenApply(res -> new PathWithPutResult(aPath, res)))
-                            .thenApply(res -> convertStat(res.path(), res.result().version()))
+                            // Use the effective key returned by Oxia — for SequenceKeysDeltas this is
+                            // the server-assigned key with sequence suffixes appended.
+                            .thenApply(res -> convertStat(res.result().key(), res.result().version()))
                             .exceptionallyCompose(this::convertException);
                 });
+    }
+
+    /** Build the Oxia {@link GetOption} set from {@code opts}, currently routing the partition key. */
+    private static Set<GetOption> getOptions(Set<Option> opts) {
+        String partitionKey = OptionsHelper.partitionKey(opts);
+        return partitionKey == null ? Set.of() : Set.of(GetOption.PartitionKey(partitionKey));
+    }
+
+    /** Build the Oxia {@link ListOption} set from {@code opts}, currently routing the partition key. */
+    private static Set<ListOption> listOptions(Set<Option> opts) {
+        String partitionKey = OptionsHelper.partitionKey(opts);
+        return partitionKey == null ? Set.of() : Set.of(ListOption.PartitionKey(partitionKey));
+    }
+
+    /**
+     * Build the Oxia {@link DeleteOption} set from {@code opts} together with the optional expected
+     * version.
+     */
+    private static Set<DeleteOption> deleteOptions(Set<Option> opts, Optional<Long> expectedVersion) {
+        String partitionKey = OptionsHelper.partitionKey(opts);
+        if (partitionKey == null && expectedVersion.isEmpty()) {
+            return Set.of();
+        }
+        Set<DeleteOption> result = new HashSet<>();
+        expectedVersion.ifPresent(v -> result.add(DeleteOption.IfVersionIdEquals(v)));
+        if (partitionKey != null) {
+            result.add(DeleteOption.PartitionKey(partitionKey));
+        }
+        return result;
+    }
+
+    /** Build the Oxia {@link RangeScanOption} set from {@code opts}, currently routing the partition key. */
+    private static Set<RangeScanOption> rangeScanOptions(Set<Option> opts) {
+        String partitionKey = OptionsHelper.partitionKey(opts);
+        return partitionKey == null ? Set.of() : Set.of(RangeScanOption.PartitionKey(partitionKey));
+    }
+
+    /**
+     * Build the Oxia {@link GetSequenceUpdatesOption} set from {@code opts}, currently routing the
+     * partition key.
+     */
+    private static Set<GetSequenceUpdatesOption> sequenceUpdatesOptions(Set<Option> opts) {
+        String partitionKey = OptionsHelper.partitionKey(opts);
+        return partitionKey == null
+                ? Set.of()
+                : Set.of(GetSequenceUpdatesOption.PartitionKey(partitionKey));
+    }
+
+    @Override
+    public AutoCloseable subscribeSequence(String prefix, Consumer<String> listener, Set<Option> opts) {
+        Closeable handle = client.getSequenceUpdates(prefix, listener, sequenceUpdatesOptions(opts));
+        return handle::close;
+    }
+
+    @Override
+    protected boolean supportsNativeSequenceKeys() {
+        return true;
     }
 
     private <T> CompletionStage<T> convertException(Throwable ex) {
@@ -317,4 +499,85 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
     }
 
     private record PathWithPutResult(String path, PutResult result) {}
+
+    /**
+     * Passes the records of an index range scan on to a {@link ScanConsumer}, and fails the scan when it doesn't end
+     * within the request timeout, as {@code list} does: the client retries the scan of a shard that doesn't answer
+     * with no deadline, and doesn't report the failed attempts, so the scan would wait for as long as a shard is
+     * unavailable.
+     */
+    private final class IndexScan implements RangeScanConsumer {
+
+        private final ScanConsumer consumer;
+        private final CompletableFuture<Void> done = new CompletableFuture<>();
+        // Completed when the scan ends, which cancels its timeout
+        private final CompletableFuture<Void> deadline = new CompletableFuture<>();
+        // Guarded by this: the client doesn't overlap its callbacks, but the timeout can come at any time
+        private boolean ended;
+        private Throwable consumerError;
+
+        IndexScan(ScanConsumer consumer) {
+            this.consumer = consumer;
+            // Handled off the timer thread, which the JDK shares among all the orTimeout calls
+            deadline.orTimeout(requestTimeout.toMillis(), TimeUnit.MILLISECONDS)
+                    .exceptionallyAsync(__ -> {
+                        fail(new TimeoutException("The index scan did not end within the request timeout of "
+                                + requestTimeout.toMillis() + " ms"));
+                        return null;
+                    });
+        }
+
+        @Override
+        public synchronized boolean onNext(io.oxia.client.api.GetResult result) {
+            if (ended) {
+                // The scan timed out: stop it
+                return false;
+            }
+            if (result.version().createdTimestamp() == 0) {
+                // A record deleted after the scan read its index entry: Oxia returns it as not found, without a
+                // version or a value
+                return true;
+            }
+            try {
+                consumer.onNext(new GetResult(result.value(), convertStat(result.key(), result.version())));
+                return true;
+            } catch (Throwable t) {
+                // Stopping the scan makes the client call onCompleted, which fails it
+                consumerError = t;
+                return false;
+            }
+        }
+
+        @Override
+        public void onError(Throwable throwable) {
+            fail(FutureUtil.unwrapCompletionException(throwable));
+        }
+
+        @Override
+        public synchronized void onCompleted() {
+            if (consumerError != null) {
+                fail(consumerError);
+            } else if (end()) {
+                consumer.onCompleted();
+                done.complete(null);
+            }
+        }
+
+        synchronized void fail(Throwable cause) {
+            if (end()) {
+                consumer.onError(cause);
+                done.completeExceptionally(cause);
+            }
+        }
+
+        // Called with the monitor held: true for the one call that ends the scan
+        private boolean end() {
+            if (ended) {
+                return false;
+            }
+            ended = true;
+            deadline.complete(null);
+            return true;
+        }
+    }
 }

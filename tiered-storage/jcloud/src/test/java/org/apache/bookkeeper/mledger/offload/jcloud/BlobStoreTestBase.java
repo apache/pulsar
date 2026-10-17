@@ -18,17 +18,15 @@
  */
 package org.apache.bookkeeper.mledger.offload.jcloud;
 
+import lombok.CustomLog;
 import org.jclouds.ContextBuilder;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 
+@CustomLog
 public abstract class BlobStoreTestBase {
-
-    private static final Logger log = LoggerFactory.getLogger(BlobStoreTestBase.class);
     public static final String BUCKET = "pulsar-unittest";
 
     protected BlobStoreContext context = null;
@@ -37,7 +35,7 @@ public abstract class BlobStoreTestBase {
     @BeforeMethod(alwaysRun = true)
     public void start() throws Exception {
         if (Boolean.parseBoolean(System.getProperty("testRealAWS", "false"))) {
-            log.info("TestReal AWS S3, bucket: {}", BUCKET);
+            log.info().attr("bucket", BUCKET).log("TestReal AWS S3");
             // To use this, must config credentials using "aws_access_key_id" as S3ID,
             // and "aws_secret_access_key" as S3Key. And bucket should exist in default region. e.g.
             //        props.setProperty("S3ID", "AXXXXXXQ");
@@ -49,7 +47,7 @@ public abstract class BlobStoreTestBase {
             // To use this, ~/.aws must be configured with credentials and a default region
             //s3client = AmazonS3ClientBuilder.standard().build();
         } else if (Boolean.parseBoolean(System.getProperty("testRealGCS", "false"))) {
-            log.info("TestReal GCS, bucket: {}", BUCKET);
+            log.info().attr("bucket", BUCKET).log("TestReal GCS");
             // To use this, must config credentials using "client_email" as GCSID and "private_key" as GCSKey.
             // And bucket should exist in default region. e.g.
             //        props.setProperty("GCSID", "5XXXXXXXXXX6-compute@developer.gserviceaccount.com");
@@ -59,11 +57,12 @@ public abstract class BlobStoreTestBase {
                 .build(BlobStoreContext.class);
             blobStore = context.getBlobStore();
         } else {
-            log.info("Test Transient, bucket: {}", BUCKET);
+            log.info().attr("bucket", BUCKET).log("Test Transient");
             context = ContextBuilder.newBuilder("transient").build(BlobStoreContext.class);
             blobStore = context.getBlobStore();
             boolean create = blobStore.createContainerInLocation(null, BUCKET);
-            log.debug("TestBase Create Bucket: {}, in blobStore, result: {}", BUCKET, create);
+            log.debug().attr("bucket", BUCKET).attr("result", create)
+                    .log("TestBase Create Bucket in blobStore");
         }
     }
 

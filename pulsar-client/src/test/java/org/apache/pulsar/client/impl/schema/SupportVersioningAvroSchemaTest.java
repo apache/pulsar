@@ -33,7 +33,7 @@ import org.testng.annotations.Test;
 
 public class SupportVersioningAvroSchemaTest {
     private MultiVersionSchemaInfoProvider multiVersionSchemaInfoProvider;
-    private AvroSchema schema;
+    private AvroSchema<?> schema;
     private GenericAvroSchema genericAvroSchema;
     private AvroSchema<SchemaTestUtils.FooV2> avroFooV2Schema;
 

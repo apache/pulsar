@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
+import io.github.merlimat.slog.Logger;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -26,18 +27,22 @@ import org.apache.pulsar.broker.service.schema.validator.SchemaRegistryServiceWi
 import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.Reflections;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public interface SchemaRegistryService extends SchemaRegistry {
-    Logger LOG = LoggerFactory.getLogger(SchemaRegistryService.class);
+    Logger LOG = Logger.get(SchemaRegistryService.class);
     long NO_SCHEMA_VERSION = -1L;
 
     static Map<SchemaType, SchemaCompatibilityCheck> getCheckers(Set<String> checkerClasses) throws Exception {
         Map<SchemaType, SchemaCompatibilityCheck> checkers = new HashMap<>();
+        boolean advancedSelected = checkerClasses.contains(
+                ProtobufNativeSchemaAdvancedCompatibilityCheck.class.getName());
         for (String className : checkerClasses) {
             SchemaCompatibilityCheck schemaCompatibilityCheck = Reflections.createInstance(className,
                     SchemaCompatibilityCheck.class, Thread.currentThread().getContextClassLoader());
+            if (advancedSelected && schemaCompatibilityCheck.getSchemaType() == SchemaType.PROTOBUF_NATIVE
+                    && checkers.containsKey(SchemaType.PROTOBUF_NATIVE)) {
+                throw new IllegalArgumentException("Multiple PROTOBUF_NATIVE compatibility checkers configured");
+            }
             checkers.put(schemaCompatibilityCheck.getSchemaType(), schemaCompatibilityCheck);
         }
         return checkers;
@@ -45,14 +50,42 @@ public interface SchemaRegistryService extends SchemaRegistry {
 
     static SchemaRegistryService create(SchemaStorage schemaStorage, Set<String> schemaRegistryCompatibilityCheckers,
                                         PulsarService pulsarService) {
+        boolean advancedSelected = schemaRegistryCompatibilityCheckers.contains(
+                ProtobufNativeSchemaAdvancedCompatibilityCheck.class.getName());
+        if (schemaRegistryCompatibilityCheckers.contains(ProtobufNativeSchemaCompatibilityCheck.class.getName())
+                && advancedSelected) {
+            throw new IllegalArgumentException("Configure only one PROTOBUF_NATIVE compatibility checker");
+        }
+        if (schemaStorage == null && advancedSelected) {
+            throw new IllegalStateException("Advanced PROTOBUF_NATIVE checker requires schema storage");
+        }
+        Map<SchemaType, SchemaCompatibilityCheck> checkers;
+        try {
+            checkers = getCheckers(schemaRegistryCompatibilityCheckers);
+        } catch (Exception e) {
+            throw new IllegalStateException("Unable to initialize configured schema compatibility checkers", e);
+        }
         if (schemaStorage != null) {
             try {
-                Map<SchemaType, SchemaCompatibilityCheck> checkers = getCheckers(schemaRegistryCompatibilityCheckers);
                 checkers.put(SchemaType.KEY_VALUE, new KeyValueSchemaCompatibilityCheck(checkers));
+
+                // PIP-464: propagate schemaJsonAllowLegacyJacksonFormat to JsonSchemaCompatibilityCheck
+                boolean allowLegacyJacksonFormat =
+                        pulsarService.getConfiguration().isSchemaJsonAllowLegacyJacksonFormat();
+                SchemaCompatibilityCheck jsonCheck = checkers.get(SchemaType.JSON);
+                if (jsonCheck instanceof JsonSchemaCompatibilityCheck) {
+                    ((JsonSchemaCompatibilityCheck) jsonCheck)
+                            .setAllowLegacyJacksonFormat(allowLegacyJacksonFormat);
+                }
+
                 return SchemaRegistryServiceWithSchemaDataValidator.of(
-                        new SchemaRegistryServiceImpl(schemaStorage, checkers, pulsarService));
+                        new SchemaRegistryServiceImpl(schemaStorage, checkers, pulsarService),
+                        allowLegacyJacksonFormat);
             } catch (Exception e) {
-                LOG.warn("Unable to create schema registry storage, defaulting to empty storage", e);
+                if (advancedSelected) {
+                    throw new IllegalStateException("Unable to initialize advanced PROTOBUF_NATIVE checker", e);
+                }
+                LOG.warn().exception(e).log("Unable to create schema registry storage, defaulting to empty storage");
             }
         }
         return new DefaultSchemaRegistryService();

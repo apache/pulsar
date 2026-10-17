@@ -34,6 +34,7 @@ import org.apache.pulsar.transaction.coordinator.impl.InMemTransactionMetadataSt
 import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriterConfig;
 import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 import org.testng.annotations.AfterClass;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Factory;
@@ -70,6 +71,13 @@ public class TransactionMetadataStoreProviderTest {
         this.store = this.provider.openStore(tcId, null, null,
                 null, new MLTransactionMetadataStoreTest.TransactionRecoverTrackerImpl(), 0L,
                 new TxnLogBufferedWriterConfig(), transactionTimer).get();
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void teardown() throws Exception {
+        if (store != null) {
+            store.closeAsync().get(5, TimeUnit.SECONDS);
+        }
     }
 
     @AfterClass

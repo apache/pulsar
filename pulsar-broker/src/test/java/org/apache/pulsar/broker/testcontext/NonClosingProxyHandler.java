@@ -61,6 +61,7 @@ public class NonClosingProxyHandler implements InvocationHandler {
      * @param instance proxy instance
      * @return delegate instance
      */
+    @SuppressWarnings("unchecked")
     public static <T extends K, K extends AutoCloseable> K getDelegate(T instance) {
         if (isNonClosingProxy(instance)) {
             return (T) ((NonClosingProxyHandler) Proxy.getInvocationHandler(instance)).getDelegate();

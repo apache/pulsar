@@ -21,12 +21,12 @@ package org.apache.pulsar.tests.integration.offload;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.tests.integration.containers.S3Container;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class TestS3Offload extends TestBaseOffload {
 
     private S3Container s3Container;

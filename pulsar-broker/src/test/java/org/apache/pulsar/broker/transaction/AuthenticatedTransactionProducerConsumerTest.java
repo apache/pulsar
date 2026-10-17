@@ -37,8 +37,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
@@ -51,7 +51,6 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
-import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AuthAction;
@@ -68,7 +67,7 @@ import org.testng.annotations.Test;
 /**
  * Test for consuming transaction messages.
  */
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class AuthenticatedTransactionProducerConsumerTest extends TransactionTestBase {
 
@@ -87,7 +86,7 @@ public class AuthenticatedTransactionProducerConsumerTest extends TransactionTes
         adminToken = generateToken(kp, "admin");
     }
 
-
+    @SuppressWarnings("deprecation")
     private String generateToken(KeyPair kp, String subject) {
         PrivateKey pkey = kp.getPrivate();
         long expMillis = System.currentTimeMillis() + Duration.ofHours(1).toMillis();
@@ -192,7 +191,6 @@ public class AuthenticatedTransactionProducerConsumerTest extends TransactionTes
                 .topic(TOPIC)
                 .subscribe();
 
-
         @Cleanup final Producer<String> producer = pulsarClientOwner
                 .newProducer(Schema.STRING)
                 .sendTimeout(60, TimeUnit.SECONDS)
@@ -209,8 +207,9 @@ public class AuthenticatedTransactionProducerConsumerTest extends TransactionTes
                             TransactionCoordinatorID.get(transaction.getTxnID().getMostSigBits()));
         }
 
-        final Throwable ex = syncGetException((
-                (PulsarClientImpl) pulsarClientOther).getTcClient().commitAsync(transaction.getTxnID())
+        final Throwable ex = syncGetException(pulsarClientOther
+                                                  .getTransactionCoordinatorClient()
+                                                  .commitAsync(transaction.getTxnID())
         );
         if (actor.equals("client") || actor.equals("admin")) {
             Assert.assertNull(ex);
@@ -247,11 +246,13 @@ public class AuthenticatedTransactionProducerConsumerTest extends TransactionTes
                             TransactionCoordinatorID.get(transaction.getTxnID().getMostSigBits()));
         }
 
-        final Throwable ex = syncGetException(((PulsarClientImpl) pulsarClientOther)
-                .getTcClient().addPublishPartitionToTxnAsync(transaction.getTxnID(), List.of(TOPIC)));
+        final Throwable ex = syncGetException(pulsarClientOther
+                                                  .getTransactionCoordinatorClient()
+                                                  .addPublishPartitionToTxnAsync(transaction.getTxnID(),
+                                                                                 List.of(TOPIC)));
 
         final TxnMeta txnMeta = pulsarServiceList.get(0).getTransactionMetadataStoreService()
-                .getTxnMeta(transaction.getTxnID()).get();
+                                                 .getTxnMeta(transaction.getTxnID()).get();
         if (actor.equals("client") || actor.equals("admin")) {
             Assert.assertNull(ex);
             Assert.assertEquals(txnMeta.producedPartitions(), List.of(TOPIC));
@@ -285,9 +286,9 @@ public class AuthenticatedTransactionProducerConsumerTest extends TransactionTes
                             TransactionCoordinatorID.get(transaction.getTxnID().getMostSigBits()));
         }
 
-
-        final Throwable ex = syncGetException(((PulsarClientImpl) pulsarClientOther)
-                .getTcClient().addSubscriptionToTxnAsync(transaction.getTxnID(), TOPIC, "sub"));
+        final Throwable ex = syncGetException(pulsarClientOther
+                                                  .getTransactionCoordinatorClient()
+                                                  .addSubscriptionToTxnAsync(transaction.getTxnID(), TOPIC, "sub"));
 
         final TxnMeta txnMeta = pulsarServiceList.get(0).getTransactionMetadataStoreService()
                 .getTxnMeta(transaction.getTxnID()).get();

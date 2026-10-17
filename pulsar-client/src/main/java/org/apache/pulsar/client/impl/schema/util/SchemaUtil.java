@@ -24,10 +24,12 @@ import org.apache.avro.NameValidator;
 import org.apache.avro.Schema;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.SchemaDefinitionBuilderImpl;
 import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
+import org.apache.pulsar.common.schema.AvroSchemaCompat;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
@@ -53,7 +55,7 @@ public class SchemaUtil {
     public static Schema parseAvroSchema(String schemaJson) {
         final Schema.Parser parser = new Schema.Parser(NameValidator.NO_VALIDATION);
         parser.setValidateDefaults(false);
-        return parser.parse(schemaJson);
+        return parser.parse(AvroSchemaCompat.normalizeNamedTypeReferences(schemaJson));
     }
 
     public static <T> SchemaInfo parseSchemaInfo(SchemaDefinition<T> schemaDefinition, SchemaType schemaType) {
@@ -64,6 +66,7 @@ public class SchemaUtil {
                 .type(schemaType).build();
     }
 
+    @SuppressWarnings("unchecked")
     public static Schema createAvroSchema(SchemaDefinition schemaDefinition) {
         Class pojo = schemaDefinition.getPojo();
 
@@ -102,7 +105,12 @@ public class SchemaUtil {
                      ? new ReflectData.AllowNull()
                      : new ReflectData();
             AvroSchema.addLogicalTypeConversions(reflectData, schemaDefinition.isJsr310ConversionEnabled(), false);
-            return reflectData.getSchema(pojo);
+            try {
+                return reflectData.getSchema(pojo);
+            } catch (RuntimeException e) {
+                throw new SchemaSerializationException(
+                        "Unable to create Avro schema for class " + pojo.getName(), e);
+            }
         }
     }
 }
