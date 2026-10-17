@@ -40,6 +40,7 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import jakarta.ws.rs.ProcessingException;
 import jakarta.ws.rs.client.Client;
 import jakarta.ws.rs.core.HttpHeaders;
+import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response.Status;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -48,6 +49,7 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.security.GeneralSecurityException;
 import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -69,9 +71,11 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
+import org.apache.pulsar.client.api.v5.auth.HttpAuthHeaders;
 import org.apache.pulsar.client.impl.PulsarClientSharedResourcesImpl;
 import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
 import org.apache.pulsar.client.impl.ServiceNameResolver;
+import org.apache.pulsar.client.impl.auth.v5.HttpChallengeTransport;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.tls.ClientTlsFactorySupport;
 import org.apache.pulsar.client.util.ExecutorProvider;
@@ -137,6 +141,10 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
     @Getter
     @Setter
     private boolean followRedirects = true;
+    // Built here, not by PulsarAdminImpl: the AsyncHttpClient and the name resolver it has to be paired
+    // with are both this connector's, and one shared instance is enough since the transport is stateless.
+    @Getter
+    private final HttpChallengeTransport challengeTransport = new AhcChallengeTransport();
 
     public AsyncHttpConnector(Client client, ClientConfigurationData conf, int autoCertRefreshTimeSeconds,
                               boolean acceptGzipCompression) {
@@ -424,6 +432,43 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
     @VisibleForTesting
     public int getConnectionTtlMs() {
         return (int) httpClient.getConfig().getConnectionTtl().toMillis();
+    }
+
+    /**
+     * A {@link HttpChallengeTransport} backed by this connector's AsyncHttpClient (PIP-478), the admin
+     * counterpart of the one {@code HttpClient} gives the lookup path: the SASL warmup rounds are issued by
+     * a client built from the admin's own {@code ClientConfigurationData} — the TLS factory the provider
+     * shares between its connectors, the proxy and the timeouts — rather than by one the authentication
+     * plugin builds for itself. Each round is a bodiless {@code GET} to the original URI.
+     */
+    private final class AhcChallengeTransport implements HttpChallengeTransport {
+        @Override
+        public CompletableFuture<Result> get(URI uri, HttpAuthHeaders requestHeaders, Duration timeout) {
+            CompletableFuture<Result> resultFuture = new CompletableFuture<>();
+            try {
+                BoundRequestBuilder builder = httpClient.prepareGet(uri.toString())
+                        .setHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON);
+                if (nameResolver != null) {
+                    builder.setNameResolver(nameResolver);
+                }
+                requestHeaders.asMap().forEach((name, value) -> builder.addHeader(name, value));
+                if (timeout != null && !timeout.isNegative() && !timeout.isZero()) {
+                    builder.setRequestTimeout(timeout);
+                }
+                builder.execute().toCompletableFuture().whenComplete((response, t) -> {
+                    if (t != null) {
+                        resultFuture.completeExceptionally(t);
+                        return;
+                    }
+                    Map<String, String> headers = new LinkedHashMap<>();
+                    response.getHeaders().forEach(entry -> headers.put(entry.getKey(), entry.getValue()));
+                    resultFuture.complete(new Result(response.getStatusCode(), HttpAuthHeaders.of(headers)));
+                });
+            } catch (Throwable t) {
+                resultFuture.completeExceptionally(t);
+            }
+            return resultFuture;
+        }
     }
 
     @Override

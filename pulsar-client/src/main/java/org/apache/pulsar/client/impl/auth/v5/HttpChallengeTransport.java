@@ -29,10 +29,11 @@ import org.apache.pulsar.client.api.v5.auth.HttpAuthHeaders;
  *
  * <p>The driver holds the single shared state machine; the transport is the only per-API piece. Each
  * round is re-issued as a <em>bodiless {@code GET} to the original request URI</em> — the v4 SASL takeover
- * preserved exactly — so no request body is ever replayed. Two adapters exist: an AsyncHttpClient-backed
- * one for the HTTP topic-lookup client ({@code HttpClient}) and a JAX-RS-backed one for the admin client
- * (backed by the built-in SASL plugin's own HTTP client, matching what {@code AuthenticationSasl} does
- * today).
+ * preserved exactly — so no request body is ever replayed. Each caller supplies the adapter backed by an
+ * HTTP client of its own — {@code HttpClient}'s for topic lookup, {@code AsyncHttpConnector}'s for the
+ * admin client — so the exchange is made with the TLS, proxy and timeout configuration that caller was
+ * built with. The built-in SASL plugin's JAX-RS-backed adapter is the default for a caller that supplies
+ * none.
  *
  * <p>Implementations MUST NOT throw synchronously: every failure — including argument validation — is
  * reported by completing the returned future exceptionally.
