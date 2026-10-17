@@ -36,6 +36,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
@@ -254,6 +255,38 @@ public class BrokerServiceTest extends BrokerTestBase {
                 CompletableFuture.failedFuture(new RuntimeException("failure")));
 
         assertEquals(context.getTopicLoadFailureReason(), TopicLoadFailureReason.FAILED_CHECK_OWNERSHIP);
+    }
+
+    @Test
+    public void testFailedOwnershipCheckBeforeOpeningTheManagedLedgerIsAnOwnershipFailure() {
+        TopicLoadingContext context = new TopicLoadingContext(TopicName.get("persistent://public/default/test"), true,
+                new CompletableFuture<>(), mock(PulsarStats.class));
+
+        context.trace(TopicLoadingTracePoints.OWNERSHIP, CompletableFuture.completedFuture(null));
+        context.trace(TopicLoadingTracePoints.OWNERSHIP_BEFORE_OPEN_ML,
+                CompletableFuture.failedFuture(new RuntimeException("failure")));
+
+        assertEquals(context.getTopicLoadFailureReason(), TopicLoadFailureReason.FAILED_CHECK_OWNERSHIP);
+    }
+
+    @Test
+    public void testTopicLoadDoesNotOpenTheManagedLedgerOfABundleNoLongerServed() throws Exception {
+        TopicName topicName = TopicName.get("persistent://prop/ns-abc/no-longer-served-" + UUID.randomUUID());
+        BrokerService brokerService = spy(pulsar.getBrokerService());
+        // the bundle stopped being served while the load waited for the steps before opening the managed ledger
+        doReturn(CompletableFuture.failedFuture(new BrokerServiceException.ServiceUnitNotReadyException(
+                "Namespace bundle is not served"))).when(brokerService).checkTopicNsOwnership(topicName.toString());
+        TopicLoadingContext context = new TopicLoadingContext(topicName, true, new CompletableFuture<>(),
+                mock(PulsarStats.class));
+
+        brokerService.createPersistentTopic0(context);
+
+        ExecutionException e = expectThrows(ExecutionException.class,
+                () -> context.getTopicFuture().get(10, TimeUnit.SECONDS));
+        assertTrue(e.getCause() instanceof BrokerServiceException.ServiceUnitNotReadyException, e.toString());
+        assertEquals(context.getTopicLoadFailureReason(), TopicLoadFailureReason.FAILED_CHECK_OWNERSHIP);
+        assertFalse(pulsar.getDefaultManagedLedgerFactory().getManagedLedgers()
+                .containsKey(topicName.getPersistenceNamingEncoding()));
     }
 
     @Test
