@@ -28,22 +28,20 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
+@CustomLog
 public class PulsarMultiHostClientTest extends SharedPulsarBaseTest {
-
-    private static final Logger log = LoggerFactory.getLogger(PulsarMultiHostClientTest.class);
 
     protected String methodName;
 
@@ -55,7 +53,7 @@ public class PulsarMultiHostClientTest extends SharedPulsarBaseTest {
 
     @Test
     public void testGetPartitionedTopicMetaData() {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
 
         final String topicName = newTopicName();
         final String subscriptionName = "my-subscriber-name";
@@ -74,17 +72,17 @@ public class PulsarMultiHostClientTest extends SharedPulsarBaseTest {
             consumer.close();
             producer.close();
         } catch (PulsarClientException pce) {
-            log.error("create producer or consumer error: ", pce);
+            log.error().exception(pce).log("create producer or consumer error");
             fail();
         }
 
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("method", methodName).log("Exiting test");
     }
     @SuppressWarnings("deprecation")
 
     @Test (timeOut = 15000)
     public void testGetPartitionedTopicDataTimeout() {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
 
         final String topicName = newTopicName();
 
@@ -102,10 +100,10 @@ public class PulsarMultiHostClientTest extends SharedPulsarBaseTest {
 
             fail();
         } catch (PulsarClientException pce) {
-            log.error("create producer error: ", pce);
+            log.error().exception(pce).log("create producer error");
         }
 
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("method", methodName).log("Exiting test");
     }
 
     private static int getFreePort() {
@@ -119,7 +117,7 @@ public class PulsarMultiHostClientTest extends SharedPulsarBaseTest {
 
     @Test
     public void testMultiHostUrlRetrySuccess() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
 
         final String topicName = newTopicName();
         final String subscriptionName = "my-subscriber-name";
@@ -140,7 +138,7 @@ public class PulsarMultiHostClientTest extends SharedPulsarBaseTest {
         for (int i = 0; i < 5; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
-            log.info("Produced message: [{}]", message);
+            log.info().attr("message", message).log("Produced message");
         }
 
         Message<byte[]> msg = null;
@@ -148,7 +146,7 @@ public class PulsarMultiHostClientTest extends SharedPulsarBaseTest {
         for (int i = 0; i < 5; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
-            log.info("Received message: [{}]", receivedMessage);
+            log.info().attr("message", receivedMessage).log("Received message");
             String expectedMessage = "my-message-" + i;
             Assert.assertEquals(receivedMessage, expectedMessage);
             Assert.assertTrue(messageSet.add(receivedMessage), "Duplicate message: " + receivedMessage);
@@ -160,6 +158,6 @@ public class PulsarMultiHostClientTest extends SharedPulsarBaseTest {
 
         producer.close();
 
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("method", methodName).log("Exiting test");
     }
 }

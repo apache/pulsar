@@ -31,18 +31,17 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.naming.TopicName;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
+@CustomLog
 public class MessageListenerExecutorTest extends SharedPulsarBaseTest {
-    private static final Logger log = LoggerFactory.getLogger(MessageListenerExecutorTest.class);
 
     protected String methodName;
 
@@ -53,7 +52,7 @@ public class MessageListenerExecutorTest extends SharedPulsarBaseTest {
 
     @Test
     public void testConsumerMessageListenerExecutorIsolation() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
 
         @Cleanup
         PulsarClient customClient = PulsarClient.builder()
@@ -111,7 +110,7 @@ public class MessageListenerExecutorTest extends SharedPulsarBaseTest {
                 .allMatch(delay -> delay < 1000);
         assertTrue(remainingAlmostNoDelay);
 
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
     }
 
     private CompletableFuture<Long> startConsumeAndComputeMaxConsumeDelay(PulsarClient theClient, String topic,
@@ -133,7 +132,7 @@ public class MessageListenerExecutorTest extends SharedPulsarBaseTest {
                         .subscriptionName(subscriptionName)
                         .messageListener((c1, msg) -> {
                             Assert.assertNotNull(msg, "Message cannot be null");
-                            log.debug("Received message [{}] in the listener", msg.getValue());
+                            log.debug().attr("value", msg.getValue()).log("Received message [] in the listener");
                             c1.acknowledgeAsync(msg);
                             maxConsumeDelay.set(Math.max(maxConsumeDelay.get(),
                                     System.currentTimeMillis() - msg.getValue()));

@@ -36,6 +36,7 @@ import static org.testng.Assert.fail;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -49,6 +50,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import lombok.Data;
 import org.apache.avro.reflect.Nullable;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
@@ -63,16 +65,14 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
+@CustomLog
 public class DeadLetterTopicTest extends SharedPulsarBaseTest {
-
-    private static final Logger log = LoggerFactory.getLogger(DeadLetterTopicTest.class);
 
     private String createMessagePayload(int size) {
         StringBuilder str = new StringBuilder();
@@ -125,7 +125,8 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         int totalReceived = 0;
         do {
             Message<byte[]> message = consumer.receive();
-            log.info("consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
+            log.info().attr("receivedMessage", message.getMessageId()).attr("value", new String(message.getData()))
+                    .log("consumer received message");
             totalReceived++;
         } while (totalReceived < sendMessages * (maxRedeliveryCount + 1));
 
@@ -133,8 +134,8 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         do {
             Message message = deadLetterConsumer.receive();
             assertEquals(message.getKey(), "test-key");
-            log.info("dead letter consumer received message : {} {}", message.getMessageId(),
-                    new String(message.getData()));
+            log.info().attr("receivedMessage", message.getMessageId()).attr("value", new String(message.getData()))
+                    .log("dead letter consumer received message");
             deadLetterConsumer.acknowledge(message);
             totalInDeadLetter++;
         } while (totalInDeadLetter < sendMessages);
@@ -186,7 +187,8 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         int totalReceived = 0;
         do {
             Message<byte[]> message = consumer.receive();
-            log.info("consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
+            log.info().attr("receivedMessage", message.getMessageId()).attr("value", new String(message.getData()))
+                    .log("consumer received message");
             totalReceived++;
         } while (totalReceived < sendMessages * (maxRedeliveryCount + 1));
 
@@ -194,8 +196,8 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         do {
             Message message = deadLetterConsumer.receive();
             assertEquals(message.getKeyBytes(), key);
-            log.info("dead letter consumer received message : {} {}", message.getMessageId(),
-                    new String(message.getData()));
+            log.info().attr("receivedMessage", message.getMessageId()).attr("value", new String(message.getData()))
+                    .log("dead letter consumer received message");
             deadLetterConsumer.acknowledge(message);
             totalInDeadLetter++;
         } while (totalInDeadLetter < sendMessages);
@@ -247,7 +249,8 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         int totalReceived = 0;
         do {
             Message<byte[]> message = consumer.receive();
-            log.info("consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
+            log.info().attr("receivedMessage", message.getMessageId()).attr("value", new String(message.getData()))
+                    .log("consumer received message");
             totalReceived++;
         } while (totalReceived < sendMessages * (maxRedeliveryCount + 1));
 
@@ -255,8 +258,8 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         do {
             Message message = deadLetterConsumer.receive();
             assertEquals(message.getOrderingKey(), key);
-            log.info("dead letter consumer received message : {} {}", message.getMessageId(),
-                    new String(message.getData()));
+            log.info().attr("receivedMessage", message.getMessageId()).attr("value", new String(message.getData()))
+                    .log("dead letter consumer received message");
             deadLetterConsumer.acknowledge(message);
             totalInDeadLetter++;
         } while (totalInDeadLetter < sendMessages);
@@ -308,8 +311,8 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         int totalReceived = 0;
         do {
             Message<byte[]> message = consumer.receive();
-            log.info("consumer received message : {} {}", message.getMessageId(),
-                    new String(message.getData()));
+            log.info().attr("receivedMessage", message.getMessageId()).attr("value", new String(message.getData()))
+                    .log("consumer received message");
             totalReceived++;
         } while (totalReceived < sendMessages * (maxRedeliveryCount + 1));
 
@@ -317,8 +320,8 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         do {
             Message<byte[]> message = deadLetterConsumer.receive();
             assertEquals(message.getEventTime(), testEventTime);
-            log.info("dead letter consumer received message : {} {}", message.getMessageId(),
-                    new String(message.getData()));
+            log.info().attr("receivedMessage", message.getMessageId()).attr("value", new String(message.getData()))
+                    .log("dead letter consumer received message");
             deadLetterConsumer.acknowledge(message);
             totalInDeadLetter++;
         } while (totalInDeadLetter < sendMessages);
@@ -378,7 +381,8 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         int totalReceived = 0;
         do {
             Message<byte[]> message = consumer.receive();
-            log.info("consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
+            log.info().attr("receivedMessage", message.getMessageId()).attr("value", new String(message.getData()))
+                    .log("consumer received message");
             totalReceived++;
         } while (totalReceived < sendMessages * (maxRedeliveryCount + 1));
 
@@ -386,8 +390,9 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         do {
             Message message = deadLetterConsumer.receive();
             assertTrue(deadLetterProducerNamePattern.matcher(message.getProducerName()).matches());
-            log.info("dead letter consumer received message : {} {}, dead letter producer name : {}",
-                    message.getMessageId(), new String(message.getData()), message.getProducerName());
+            log.info().attr("receivedMessage", message.getMessageId()).attr("value", new String(message.getData()))
+                    .attr("producerName", message.getProducerName())
+                    .log("dead letter consumer received message , dead letter producer name");
             deadLetterConsumer.acknowledge(message);
             totalInDeadLetter++;
         } while (totalInDeadLetter < sendMessages);
@@ -395,7 +400,6 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         deadLetterConsumer.close();
         consumer.close();
     }
-
 
     @Test(timeOut = 30000)
     public void testMultipleSameNameConsumersToDeadLetterTopic() throws Exception {
@@ -527,7 +531,7 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         do {
             Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
             assertNotNull(message, "The consumer should be able to receive messages.");
-            log.info("consumer received message : {}", message.getMessageId());
+            log.info().attr("receivedMessage", message.getMessageId()).log("consumer received message");
             totalReceived++;
         } while (totalReceived < sendMessages * (maxRedeliveryCount + 1));
 
@@ -537,7 +541,7 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
             assertNotNull(message, "the deadLetterConsumer should receive messages.");
             assertEquals(new String(message.getData()), messageContent.get(Integer.parseInt(message.getKey())));
             messageContent.remove(Integer.parseInt(message.getKey()));
-            log.info("dead letter consumer received message : {}", message.getMessageId());
+            log.info().attr("receivedMessage", message.getMessageId()).log("dead letter consumer received message");
             deadLetterConsumer.acknowledge(message);
             totalInDeadLetter++;
         } while (totalInDeadLetter < sendMessages);
@@ -555,8 +559,8 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
 
         Message<byte[]> checkMessage = checkConsumer.receive(3, TimeUnit.SECONDS);
         if (checkMessage != null) {
-            log.info("check consumer received message : {} {}", checkMessage.getMessageId(),
-                    new String(checkMessage.getData()));
+            log.info().attr("receivedMessage", checkMessage.getMessageId())
+                    .attr("value", new String(checkMessage.getData())).log("check consumer received message");
         }
         assertNull(checkMessage);
 
@@ -836,15 +840,15 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         int totalReceived = 0;
         do {
             Message<byte[]> message = consumer.receive();
-            log.info("consumer received message : {} {} - total = {}",
-                message.getMessageId(), new String(message.getData()), ++totalReceived);
+            log.info().attr("receivedMessage", message.getMessageId()).attr("value", new String(message.getData()))
+                    .attr("total", ++totalReceived).log("consumer received message : - total");
         } while (totalReceived < sendMessages * (maxRedeliveryCount + 1));
 
         int totalInDeadLetter = 0;
         do {
             Message message = deadLetterConsumer.receive();
-            log.info("dead letter consumer received message : {} {}", message.getMessageId(),
-                    new String(message.getData()));
+            log.info().attr("receivedMessage", message.getMessageId()).attr("value", new String(message.getData()))
+                    .log("dead letter consumer received message");
             deadLetterConsumer.acknowledge(message);
             totalInDeadLetter++;
         } while (totalInDeadLetter < sendMessages);
@@ -861,8 +865,8 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
 
         Message<byte[]> checkMessage = checkConsumer.receive(3, TimeUnit.SECONDS);
         if (checkMessage != null) {
-            log.info("check consumer received message : {} {}", checkMessage.getMessageId(),
-                    new String(checkMessage.getData()));
+            log.info().attr("receivedMessage", checkMessage.getMessageId())
+                    .attr("value", new String(checkMessage.getData())).log("check consumer received message");
         }
         assertNull(checkMessage);
 
@@ -908,14 +912,15 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         int totalReceived = 0;
         do {
             Message<byte[]> message = consumer.receive();
-            log.info("consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
+            log.info().attr("receivedMessage", message.getMessageId()).attr("value", new String(message.getData()))
+                    .log("consumer received message");
             totalReceived++;
         } while (totalReceived < sendMessages * (maxRedeliveryCount + 1));
         int totalInDeadLetter = 0;
         do {
             Message message = deadLetterConsumer.receive();
-            log.info("dead letter consumer received message : {} {}", message.getMessageId(),
-                    new String(message.getData()));
+            log.info().attr("receivedMessage", message.getMessageId()).attr("value", new String(message.getData()))
+                    .log("dead letter consumer received message");
             deadLetterConsumer.acknowledge(message);
             totalInDeadLetter++;
         } while (totalInDeadLetter < sendMessages);
@@ -931,8 +936,8 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
                 .subscribe();
         Message<byte[]> checkMessage = checkConsumer.receive(3, TimeUnit.SECONDS);
         if (checkMessage != null) {
-            log.info("check consumer received message : {} {}", checkMessage.getMessageId(),
-                    new String(checkMessage.getData()));
+            log.info().attr("receivedMessage", checkMessage.getMessageId())
+                    .attr("value", new String(checkMessage.getData())).log("check consumer received message");
         }
         assertNull(checkMessage);
         checkConsumer.close();
@@ -1014,7 +1019,8 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         int totalReceived = 0;
         do {
             Message<byte[]> message = consumer.receive();
-            log.info("consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
+            log.info().attr("receivedMessage", message.getMessageId()).attr("value", new String(message.getData()))
+                    .log("consumer received message");
             totalReceived++;
         } while (totalReceived < sendMessages * (maxRedeliveryCount + 1));
 
@@ -1022,8 +1028,8 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         do {
             Message message = deadLetterConsumer0.receive(3, TimeUnit.SECONDS);
             if (message != null) {
-                log.info("dead letter consumer received message : {} {}", message.getMessageId(),
-                        new String(message.getData()));
+                log.info().attr("receivedMessage", message.getMessageId()).attr("value", new String(message.getData()))
+                        .log("dead letter consumer received message");
                 deadLetterConsumer0.acknowledge(message);
                 totalInDeadLetter++;
             } else {
@@ -1034,8 +1040,8 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         do {
             Message message = deadLetterConsumer1.receive(3, TimeUnit.SECONDS);
             if (message != null) {
-                log.info("dead letter consumer received message : {} {}", message.getMessageId(),
-                        new String(message.getData()));
+                log.info().attr("receivedMessage", message.getMessageId()).attr("value", new String(message.getData()))
+                        .log("dead letter consumer received message");
                 deadLetterConsumer1.acknowledge(message);
                 totalInDeadLetter++;
             } else {
@@ -1057,8 +1063,8 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
 
         Message<byte[]> checkMessage = checkConsumer.receive(3, TimeUnit.SECONDS);
         if (checkMessage != null) {
-            log.info("check consumer received message : {} {}", checkMessage.getMessageId(),
-                    new String(checkMessage.getData()));
+            log.info().attr("receivedMessage", checkMessage.getMessageId())
+                    .attr("value", new String(checkMessage.getData())).log("check consumer received message");
         }
         assertNull(checkMessage);
 
@@ -1108,7 +1114,8 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
             if (message == null) {
                 break;
             }
-            log.info("consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
+            log.info().attr("receivedMessage", message.getMessageId()).attr("value", new String(message.getData()))
+                    .log("consumer received message");
             totalReceived++;
         } while (totalReceived < sendMessages * (maxRedeliveryCount + 1));
 
@@ -1128,8 +1135,8 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         do {
             Message<byte[]> message = deadLetterConsumer.receive(10, TimeUnit.SECONDS);
             assertNotNull(message, "Dead letter consumer can not receive messages.");
-            log.info("dead letter consumer received message : {} {}", message.getMessageId(),
-                    new String(message.getData()));
+            log.info().attr("receivedMessage", message.getMessageId()).attr("value", new String(message.getData()))
+                    .log("dead letter consumer received message");
             deadLetterConsumer.acknowledge(message);
             totalInDeadLetter++;
         } while (totalInDeadLetter < sendMessages);
@@ -1191,7 +1198,7 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         do {
             Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
             assertNotNull(message, "The consumer should be able to receive messages.");
-            log.info("consumer received message : {}", message.getMessageId());
+            log.info().attr("receivedMessage", message.getMessageId()).log("consumer received message");
             totalReceived++;
             consumer.reconsumeLater(message, 1, TimeUnit.SECONDS);
         } while (totalReceived < sendMessages * (maxRedeliveryCount + 1));
@@ -1202,7 +1209,7 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
             assertNotNull(message, "the deadLetterConsumer should receive messages.");
             assertEquals(new String(message.getData()), messageContent.get(Integer.parseInt(message.getKey())));
             messageContent.remove(Integer.parseInt(message.getKey()));
-            log.info("dead letter consumer received message : {}", message.getMessageId());
+            log.info().attr("receivedMessage", message.getMessageId()).log("dead letter consumer received message");
             deadLetterConsumer.acknowledge(message);
             totalInDeadLetter++;
         } while (totalInDeadLetter < sendMessages);
@@ -1237,8 +1244,8 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
 
         Message<byte[]> checkMessage = checkConsumer.receive(3, TimeUnit.SECONDS);
         if (checkMessage != null) {
-            log.info("check consumer received message : {} {}", checkMessage.getMessageId(),
-                    new String(checkMessage.getData()));
+            log.info().attr("receivedMessage", checkMessage.getMessageId())
+                    .attr("value", new String(checkMessage.getData())).log("check consumer received message");
         }
         assertNull(checkMessage);
 
@@ -1253,13 +1260,14 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
                 try {
                     message = consumer.receive(3, TimeUnit.SECONDS);
                 } catch (PulsarClientException e) {
-                    log.info("fail while receiving messages: {}", e.getMessage());
+                    log.info().exceptionMessage(e).log("fail while receiving messages");
                     break;
                 }
                 if (message == null) {
                     break;
                 }
-                log.info("consumer received message : {} {}", message.getMessageId(), new String(message.getData()));
+                log.info().attr("receivedMessage", message.getMessageId()).attr("value", new String(message.getData()))
+                        .log("consumer received message");
                 totalReceived.incrementAndGet();
                 if (totalReceived.get() >= sendMessages * (maxRedeliveryCount + 1)) {
                     break;
@@ -1328,10 +1336,9 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
                 .pollInterval(Duration.ofSeconds(1)).untilAsserted(() -> {
             assertTrue(admin.namespaces().getTopics(getNamespace()).contains(deadLetterTopic));
             assertTrue(admin.topics().getSubscriptions(deadLetterTopic).contains(dlqInitialSub));
+            // Each consumer creates its DLQ producer asynchronously after its final redelivery.
+            assertEquals(admin.topics().getStats(deadLetterTopic).getPublishers().size(), 2);
         });
-
-        // We should assert that all consumers are able to produce messages to DLQ
-        assertEquals(admin.topics().getStats(deadLetterTopic).getPublishers().size(), 2);
 
         Consumer<byte[]> deadLetterConsumer = newPulsarClient.newConsumer(Schema.BYTES)
                 .topic(deadLetterTopic)
@@ -1342,8 +1349,8 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         do {
             Message<byte[]> message = deadLetterConsumer.receive(10, TimeUnit.SECONDS);
             assertNotNull(message, "Dead letter consumer can not receive messages.");
-            log.info("dead letter consumer received message : {} {}", message.getMessageId(),
-                    new String(message.getData()));
+            log.info().attr("receivedMessage", message.getMessageId()).attr("value", new String(message.getData()))
+                    .log("dead letter consumer received message");
             deadLetterConsumer.acknowledge(message);
             totalInDeadLetter++;
         } while (totalInDeadLetter < sendMessages);
@@ -1504,18 +1511,20 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
                     String messageContent = new String(message.getData());
                     receivedMessages.add(messageContent);
                     totalReceived++;
-                    log.info("Received message: {} (total: {}), redelivery count: {}", messageContent,
-                            totalReceived, message.getRedeliveryCount());
+                    log.info().attr("receivedMessage", messageContent).attr("total", totalReceived)
+                            .attr("redeliveryCount", message.getRedeliveryCount())
+                            .log("Received message: (total:), redelivery count");
                     consumer.negativeAcknowledge(message);
                 }
             } catch (Exception e) {
-                log.warn("Exception while receiving message", e);
+                log.warn().exception(e).log("Exception while receiving message");
                 break;
             }
         }
 
-        log.info("Total messages received: {}, Expected: {}", totalReceived, sendMessages);
-        log.info("Unique messages received: {}", receivedMessages.size());
+        log.info().attr("messagesReceived", totalReceived).attr("expected", sendMessages)
+                .log("Total messages received, Expected");
+        log.info().attr("messagesReceived", receivedMessages.size()).log("Unique messages received");
 
         int totalInDeadLetter = 0;
 
@@ -1524,7 +1533,7 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
                 Message<byte[]> message = deadLetterConsumer.receive();
                 if (message != null) {
                     String messageContent = new String(message.getData());
-                    log.info("Dead letter message received: {}", messageContent);
+                    log.info().attr("messageReceived", messageContent).log("Dead letter message received");
                     deadLetterConsumer.acknowledge(message);
                     totalInDeadLetter++;
                 } else {
@@ -1532,12 +1541,13 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
                     break;
                 }
             } catch (Exception e) {
-                log.warn("Exception while receiving from DLQ", e);
+                log.warn().exception(e).log("Exception while receiving from DLQ");
                 break;
             }
         }
 
-        log.info("Total messages in dead letter queue: {}, Expected: {}", totalInDeadLetter, sendMessages);
+        log.info().attr("letterQueue", totalInDeadLetter).attr("expected", sendMessages)
+                .log("Total messages in dead letter queue");
         assertEquals(totalInDeadLetter, sendMessages,
                 "All messages should eventually reach DLQ, but flow control may prevent this");
 
@@ -1680,5 +1690,149 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         verify(client, times(0)).getPartitionedTopicMetadata(anyString(), anyBoolean(), anyBoolean());
     }
 
+    @Test
+    public void testAckedBatchMessageNotSentToDeadLetterTopicOnFinalRedeliveryRound() throws Exception {
+        final String topic = newTopicName();
+        final int maxRedeliveryCount = 3;
+        final int batchSize = 5;
+        final String subscriptionName = "my-subscription";
 
+        Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
+                .topic(topic)
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .enableBatchIndexAcknowledgment(true)
+                .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(maxRedeliveryCount).build())
+                .ackTimeout(1, TimeUnit.SECONDS)
+                .receiverQueueSize(100)
+                .subscribe();
+
+        @Cleanup
+        PulsarClient newPulsarClient = newPulsarClient();
+        Consumer<byte[]> deadLetterConsumer = newPulsarClient.newConsumer(Schema.BYTES)
+                .topic(topic + "-" + subscriptionName + "-DLQ")
+                .subscriptionName(subscriptionName)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
+                .topic(topic)
+                .enableBatching(true)
+                .batchingMaxPublishDelay(1, TimeUnit.SECONDS)
+                .create();
+        List<CompletableFuture<MessageId>> sendFutures = new ArrayList<>();
+        for (int i = 0; i < batchSize; i++) {
+            sendFutures.add(producer.newMessage().value(("message-" + i).getBytes()).sendAsync());
+        }
+        for (CompletableFuture<MessageId> future : sendFutures) {
+            future.get();
+        }
+        producer.close();
+
+        // Batch indices 1 and 2 are deliberately left to time out for the first `maxRedeliveryCount`
+        // rounds, then explicitly acked on the final round (redeliveryCount == maxRedeliveryCount) --
+        // the app's last chance to prevent them from being routed to the DLQ. The other 3 messages in
+        // the batch are acked immediately on the first delivery.
+        // Expected deliveries: (batchSize - 2) once each, plus indices 1 and 2 redelivered on every
+        // round from 0 through maxRedeliveryCount inclusive.
+        final int expectedDeliveries = (batchSize - 2) + 2 * (maxRedeliveryCount + 1);
+        int received = 0;
+        while (received < expectedDeliveries) {
+            Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
+            assertNotNull(message, "consumer should keep receiving messages until the batch settles");
+            received++;
+            MessageIdAdv messageId = (MessageIdAdv) message.getMessageId();
+            int batchIndex = messageId.getBatchIndex();
+            int redeliveryCount = message.getRedeliveryCount();
+            if ((batchIndex == 1 || batchIndex == 2) && redeliveryCount < maxRedeliveryCount) {
+                // Let it time out instead of acking.
+                continue;
+            }
+            consumer.acknowledge(message);
+        }
+
+        // No message should ever be routed to the DLQ, since every message was explicitly acked at or
+        // before its final allowed redelivery round.
+        Message<byte[]> deadLetterMessage = deadLetterConsumer.receive(5, TimeUnit.SECONDS);
+        assertNull(deadLetterMessage, "no message should have been routed to the DLQ, "
+                + "but received: " + deadLetterMessage);
+
+        deadLetterConsumer.close();
+        consumer.close();
+    }
+
+    /**
+     * {@link org.apache.pulsar.client.impl.ConsumerImpl#processPossibleToDLQ} looks the entry up with the batch
+     * index discarded, because {@code possibleSendToDeadLetterTopicMessages} is always keyed by the entry-level
+     * message id. It must delete it with the same key: a message id that still carries its batch index -- the
+     * shape {@link MultiTopicsConsumerImpl} passes down from its unacked-message tracker, which keeps the batch
+     * index -- otherwise the entry survives the delivery to the DLQ, the map grows without bound and the whole
+     * batch is written to the DLQ again on the next redelivery of that entry.
+     */
+    @Test
+    public void testPossibleToDeadLetterEntryIsRemovedWhenRedeliveringABatchMessageId() throws Exception {
+        final String topic = newTopicName();
+        final String subscriptionName = "my-subscription";
+        final int batchSize = 5;
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
+                .topic(topic)
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(1).build())
+                .subscribe();
+
+        @Cleanup
+        Consumer<byte[]> deadLetterConsumer = pulsarClient.newConsumer(Schema.BYTES)
+                .topic(topic + "-" + subscriptionName + "-DLQ")
+                .subscriptionName(subscriptionName)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
+                .topic(topic)
+                .enableBatching(true)
+                .batchingMaxMessages(batchSize)
+                .batchingMaxPublishDelay(1, TimeUnit.SECONDS)
+                .create();
+        List<CompletableFuture<MessageId>> sendFutures = new ArrayList<>();
+        for (int i = 0; i < batchSize; i++) {
+            sendFutures.add(producer.newMessage().value(("message-" + i).getBytes()).sendAsync());
+        }
+        FutureUtil.waitForAll(sendFutures).get();
+
+        // First delivery: redeliveryCount is 0, below maxRedeliverCount, so nothing is registered yet
+        for (int i = 0; i < batchSize; i++) {
+            assertNotNull(consumer.receive(5, TimeUnit.SECONDS));
+        }
+        consumer.redeliverUnacknowledgedMessages();
+
+        // Second delivery: redeliveryCount reaches maxRedeliverCount, so the whole batch is registered as a
+        // DLQ candidate under its entry-level message id
+        List<Message<byte[]>> messages = new ArrayList<>();
+        for (int i = 0; i < batchSize; i++) {
+            messages.add(consumer.receive(5, TimeUnit.SECONDS));
+        }
+        ConsumerImpl<byte[]> consumerImpl = (ConsumerImpl<byte[]>) consumer;
+        assertThat(consumerImpl.getPossibleSendToDeadLetterTopicMessages()).hasSize(1);
+
+        // Redeliver a single message id that still carries its batch index
+        MessageId batchMessageId = messages.get(0).getMessageId();
+        assertThat(((MessageIdAdv) batchMessageId).getBatchIndex()).isNotNegative();
+        consumerImpl.redeliverUnacknowledgedMessages(Collections.singleton(batchMessageId));
+
+        // The batch really was routed to the DLQ, so the bookkeeping below is not vacuously satisfied
+        for (int i = 0; i < batchSize; i++) {
+            assertNotNull(deadLetterConsumer.receive(10, TimeUnit.SECONDS),
+                    "every message of the batch should be routed to the DLQ");
+        }
+
+        Awaitility.await().untilAsserted(() -> assertThat(consumerImpl.getPossibleSendToDeadLetterTopicMessages())
+                .as("the entry must be dropped once its batch reached the DLQ")
+                .isEmpty());
+    }
 }

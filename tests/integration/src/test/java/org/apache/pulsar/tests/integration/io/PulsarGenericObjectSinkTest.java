@@ -27,9 +27,9 @@ import java.util.List;
 import java.util.stream.Collectors;
 import lombok.Builder;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import lombok.Data;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.MessageId;
@@ -49,7 +49,7 @@ import org.testng.annotations.Test;
 /**
  * Test behaviour of simple sinks.
  */
-@Slf4j
+@CustomLog
 public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
 
     @Getter
@@ -138,11 +138,11 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
         // wait that sink processed all records without errors
 
         try {
-            log.info("waiting for sink {}", sinkName);
+            log.info().attr("sink", sinkName).log("waiting for sink");
 
             for (int i = 0; i < 120; i++) {
                 SinkStatus status = admin.sinks().getSinkStatus("public", "default", sinkName);
-                log.info("sink {} status {}", sinkName, status);
+                log.info().attr("sink", sinkName).attr("status", status).log("sink status");
                 assertEquals(status.getInstances().size(), 1);
                 SinkStatus.SinkInstanceStatus instance = status.getInstances().get(0);
                 if (instance.getStatus().numWrittenToSink >= numRecordsPerTopic * specs.size()
@@ -155,12 +155,12 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
             }
 
             SinkStatus status = admin.sinks().getSinkStatus("public", "default", sinkName);
-            log.info("sink {} status {}", sinkName, status);
+            log.info().attr("sink", sinkName).attr("status", status).log("sink status");
             assertEquals(status.getInstances().size(), 1);
             assertTrue(status.getInstances().get(0).getStatus().numWrittenToSink >= numRecordsPerTopic * specs.size());
             assertTrue(status.getInstances().get(0).getStatus().numSinkExceptions == 0);
             assertTrue(status.getInstances().get(0).getStatus().numSystemExceptions == 0);
-            log.info("sink {} is okay", sinkName);
+            log.info().attr("sink", sinkName).log("sink is okay");
         } finally {
             dumpFunctionLogs(sinkName);
         }
@@ -180,8 +180,11 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
                     .property("expectedType", spec.schema.getSchemaInfo().getType().toString())
                     .property("recordNumber", i + "")
                     .send();
-            log.info("sent message {} {}  with ID {}", spec.testValue,
-                    spec.schema.getSchemaInfo().getType().toString(), messageId);
+            log.info()
+                    .attr("message", spec.testValue)
+                    .attr("schemaType", spec.schema.getSchemaInfo().getType().toString())
+                    .attr("iD", messageId)
+                    .log("sent message with ID");
         }
     }
 
@@ -231,11 +234,11 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
         // wait that sink processed all records without errors
 
         try {
-            log.info("waiting for sink {}", sinkName);
+            log.info().attr("sink", sinkName).log("waiting for sink");
 
             for (int i = 0; i < 120; i++) {
                 SinkStatus status = admin.sinks().getSinkStatus("public", "default", sinkName);
-                log.info("sink {} status {}", sinkName, status);
+                log.info().attr("sink", sinkName).attr("status", status).log("sink status");
                 assertEquals(status.getInstances().size(), 1);
                 SinkStatus.SinkInstanceStatus instance = status.getInstances().get(0);
                 if (instance.getStatus().numWrittenToSink >= numRecords
@@ -248,12 +251,12 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
             }
 
             SinkStatus status = admin.sinks().getSinkStatus("public", "default", sinkName);
-            log.info("sink {} status {}", sinkName, status);
+            log.info().attr("sink", sinkName).attr("status", status).log("sink status");
             assertEquals(status.getInstances().size(), 1);
             assertTrue(status.getInstances().get(0).getStatus().numWrittenToSink >= numRecords);
             assertTrue(status.getInstances().get(0).getStatus().numSinkExceptions == 0);
             assertTrue(status.getInstances().get(0).getStatus().numSystemExceptions == 0);
-            log.info("sink {} is okay", sinkName);
+            log.info().attr("sink", sinkName).log("sink is okay");
         } finally {
             dumpFunctionLogs(sinkName);
         }
@@ -274,7 +277,7 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
                 "--archive", archive,
                 "--classname", className
         };
-        log.info("Run command : {}", StringUtils.join(commands, ' '));
+        log.info().attr("command", StringUtils.join(commands, ' ')).log("Run command");
         ContainerExecResult result = container.execCmd(commands);
         assertTrue(
                 result.getStdout().contains("Created successfully"),

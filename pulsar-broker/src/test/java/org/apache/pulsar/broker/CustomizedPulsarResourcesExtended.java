@@ -26,7 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -34,7 +34,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.jspecify.annotations.Nullable;
 
-@Slf4j
+@CustomLog
 public class CustomizedPulsarResourcesExtended extends DefaultPulsarResourcesExtended {
 
     private boolean enabledTopicWatcher;
@@ -57,8 +57,9 @@ public class CustomizedPulsarResourcesExtended extends DefaultPulsarResourcesExt
 
         List<String> list = queryTopicListByProperties(namespaceName.toString(), properties);
 
-        log.info("Customized topic listing in namespace: {}, mode: {}, properties: {}, result: {}",
-                namespaceName, mode, properties, list);
+        log.info().attr("namespace", namespaceName).attr("mode", mode)
+                .attr("properties", properties).attr("result", list)
+                .log("Customized topic listing in namespace");
         return CompletableFuture.completedFuture(list);
     }
 

@@ -30,6 +30,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
@@ -42,14 +43,12 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.assertj.core.data.Offset;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
+@CustomLog
 public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrottlingTest {
-    private static final Logger log = LoggerFactory.getLogger(MessageDispatchThrottlingTest.class);
 
     /**
      * verifies: message-rate change gets reflected immediately into topic at runtime.
@@ -60,7 +59,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
     @Test
     public void testMessageRateDynamicallyChange() throws Exception {
 
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
 
         final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
         final String topicName = "persistent://" + namespace + "/throttlingBlock";
@@ -174,7 +173,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
     @Test(dataProvider = "subscriptionAndDispatchRateType", timeOut = 5000)
     public void testMessageRateLimitingNotReceiveAllMessages(SubscriptionType subscription,
             DispatchRateType dispatchRateType) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
 
         final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
         final String topicName = "persistent://" + namespace + "/throttlingBlock";
@@ -216,7 +215,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
                 .subscriptionType(subscription).messageListener((c1, msg) -> {
                     Assert.assertNotNull(msg, "Message cannot be null");
                     String receivedMessage = new String(msg.getData());
-                    log.debug("Received message [{}] in the listener", receivedMessage);
+                    log.debug().attr("receivedMessage", receivedMessage).log("Received message [] in the listener");
                     totalReceived.incrementAndGet();
                 }).subscribe();
         // deactive cursors
@@ -232,7 +231,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
 
         consumer.close();
         producer.close();
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
     }
 
     /**
@@ -242,7 +241,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
      */
     @Test
     public void testClusterMsgByteRateLimitingClusterConfig() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
 
         final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
         final String topicName = "persistent://" + namespace + "/throttlingBlock";
@@ -275,7 +274,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
                 .subscriptionType(SubscriptionType.Shared).messageListener((c1, msg) -> {
                     Assert.assertNotNull(msg, "Message cannot be null");
                     String receivedMessage = new String(msg.getData());
-                    log.debug("Received message [{}] in the listener", receivedMessage);
+                    log.debug().attr("receivedMessage", receivedMessage).log("Received message [] in the listener");
                     totalReceived.incrementAndGet();
                 }).subscribe();
 
@@ -299,7 +298,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
         admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInMsg",
                 Integer.toString(initValue));
         admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInByte", Long.toString(initBytes));
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
     }
 
     /**
@@ -317,7 +316,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
     @Test(dataProvider = "subscriptions", timeOut = 5000)
     public void testMessageRateLimitingReceiveAllMessagesAfterThrottling(SubscriptionType subscription)
             throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
 
         final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
         final String topicName = "persistent://" + namespace + "/throttlingAll";
@@ -349,7 +348,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
                 .subscriptionType(subscription).messageListener((c1, msg) -> {
                     Assert.assertNotNull(msg, "Message cannot be null");
                     String receivedMessage = new String(msg.getData());
-                    log.debug("Received message [{}] in the listener", receivedMessage);
+                    log.debug().attr("receivedMessage", receivedMessage).log("Received message [] in the listener");
                     totalReceived.incrementAndGet();
                     latch.countDown();
                 }).subscribe();
@@ -367,7 +366,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
 
         consumer.close();
         producer.close();
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
     }
 
     /**
@@ -385,7 +384,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
     @Test(dataProvider = "subscriptions", timeOut = 5000)
     public void testBytesRateLimitingReceiveAllMessagesAfterThrottling(SubscriptionType subscription) throws Exception {
         conf.setDispatchThrottlingOnNonBacklogConsumerEnabled(true);
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
 
         final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
         final String topicName = "persistent://" + namespace + "/throttlingAll";
@@ -419,7 +418,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
                 .subscriptionType(subscription).messageListener((c1, msg) -> {
                     Assert.assertNotNull(msg, "Message cannot be null");
                     String receivedMessage = new String(msg.getData());
-                    log.debug("Received message [{}] in the listener", receivedMessage);
+                    log.debug().attr("receivedMessage", receivedMessage).log("Received message [] in the listener");
                     totalReceived.incrementAndGet();
                 }).subscribe();
 
@@ -428,7 +427,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
 
         consumer.close();
         producer.close();
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
     }
 
     /**
@@ -438,7 +437,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
      */
     @Test(timeOut = 10000)
     public void testRateLimitingMultipleConsumers() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
 
         final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
         final String topicName = "persistent://" + namespace + "/throttlingMultipleConsumers";
@@ -473,7 +472,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
                 .messageListener((c1, msg) -> {
                     Assert.assertNotNull(msg, "Message cannot be null");
                     String receivedMessage = new String(msg.getData());
-                    log.debug("Received message [{}] in the listener", receivedMessage);
+                    log.debug().attr("receivedMessage", receivedMessage).log("Received message [] in the listener");
                     totalReceived.incrementAndGet();
                     try {
                         c1.acknowledge(msg);
@@ -507,13 +506,13 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
         // rate limiter should have limited messages with at least 10% accuracy (or 2 messages if messageRate is low)
         assertThat(totalReceived.get()).isCloseTo(messageRate, Offset.offset(Math.max(messageRate / 10, 2)));
 
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
         conf.setDispatchThrottlingOnNonBacklogConsumerEnabled(false);
     }
 
     @Test
     public void testRateLimitingWithBatchMsgEnabled() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
 
         conf.setDispatchThrottlingOnBatchMessageEnabled(true);
 
@@ -547,7 +546,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
                 .messageListener((c1, msg) -> {
                     Assert.assertNotNull(msg, "Message cannot be null");
                     String receivedMessage = new String(msg.getData());
-                    log.debug("Received message [{}] in the listener", receivedMessage);
+                    log.debug().attr("receivedMessage", receivedMessage).log("Received message [] in the listener");
                     totalReceived.incrementAndGet();
                 });
         @Cleanup
@@ -578,12 +577,12 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
         // consumer should not have received all published message due to message-rate throttling
         Assert.assertEquals(totalReceived.get(), numProducedMessages);
 
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
     }
 
     @Test(dataProvider = "subscriptions", timeOut = 5000)
     public void testClusterRateLimitingConfiguration(SubscriptionType subscription) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
 
         final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
         final String topicName = "persistent://" + namespace + "/throttlingBlock";
@@ -615,7 +614,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
                 .subscriptionType(subscription).messageListener((c1, msg) -> {
                     Assert.assertNotNull(msg, "Message cannot be null");
                     String receivedMessage = new String(msg.getData());
-                    log.debug("Received message [{}] in the listener", receivedMessage);
+                    log.debug().attr("receivedMessage", receivedMessage).log("Received message [] in the listener");
                     totalReceived.incrementAndGet();
                 }).subscribe();
         // deactive cursors
@@ -635,7 +634,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
 
         admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInMsg",
                 Integer.toString(initValue));
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
     }
 
     /**
@@ -646,7 +645,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
      */
     @Test(dataProvider = "subscriptions", timeOut = 5000)
     public void testMessageByteRateThrottlingCombined(SubscriptionType subscription) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
 
         final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
         final String topicName = "persistent://" + namespace + "/throttlingAll";
@@ -679,7 +678,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
                 .subscriptionName("my-subscriber-name").subscriptionType(subscription).messageListener((c1, msg) -> {
                     Assert.assertNotNull(msg, "Message cannot be null");
                     String receivedMessage = new String(msg.getData());
-                    log.debug("Received message [{}] in the listener", receivedMessage);
+                    log.debug().attr("receivedMessage", receivedMessage).log("Received message [] in the listener");
                     totalReceived.incrementAndGet();
                 });
         Consumer<byte[]> consumer = consumerBuilder.subscribe();
@@ -700,7 +699,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
 
         consumer.close();
         producer.close();
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
     }
 
     /**
@@ -716,7 +715,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
      */
     @Test
     public void testGlobalNamespaceThrottling() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
 
         final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
         final String topicName = "persistent://" + namespace + "/throttlingBlock";
@@ -752,7 +751,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
                 .subscriptionType(SubscriptionType.Shared).messageListener((c1, msg) -> {
                     Assert.assertNotNull(msg, "Message cannot be null");
                     String receivedMessage = new String(msg.getData());
-                    log.debug("Received message [{}] in the listener", receivedMessage);
+                    log.debug().attr("receivedMessage", receivedMessage).log("Received message [] in the listener");
                     totalReceived.incrementAndGet();
                 }).subscribe();
         // deactive cursors
@@ -771,7 +770,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
 
         consumer.close();
         producer.close();
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
     }
 
     /**
@@ -782,7 +781,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
      */
     @Test(dataProvider = "subscriptions", timeOut = 5000)
     public void testNonBacklogConsumerWithThrottlingEnabled(SubscriptionType subscription) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
 
         final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
         final String topicName = "persistent://" + namespace + "/throttlingBlock";
@@ -827,7 +826,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
                 .subscriptionType(subscription).messageListener((c1, msg) -> {
                     Assert.assertNotNull(msg, "Message cannot be null");
                     String receivedMessage = new String(msg.getData());
-                    log.debug("Received message [{}] in the listener", receivedMessage);
+                    log.debug().attr("receivedMessage", receivedMessage).log("Received message [] in the listener");
                     totalReceived.incrementAndGet();
                 }).subscribe();
 
@@ -843,7 +842,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
         producer.close();
         // revert default value
         this.conf.setDispatchThrottlingOnNonBacklogConsumerEnabled(false);
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
     }
 
     /**
@@ -861,7 +860,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
      */
     @Test
     public void testClusterPolicyOverrideConfiguration() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
 
         final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
         final String topicName1 = "persistent://" + namespace + "/throttlingOverride1";
@@ -926,12 +925,12 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
         producer2.close();
         admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInMsg",
                 Integer.toString(initValue));
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
     }
 
     @Test(dataProvider = "subscriptions", timeOut = 10000)
     public void testClosingRateLimiter(SubscriptionType subscription) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
 
         final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
         final String topicName = "persistent://" + namespace + "/closingRateLimiter" + subscription.name();
@@ -975,7 +974,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
         Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnMsg(), -1);
         Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnByte(), -1);
 
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
     }
 
     @SuppressWarnings("deprecation")
@@ -1035,7 +1034,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
      */
     @Test(dataProvider = "subscriptions")
     public void testRelativeMessageRateLimitingThrottling(SubscriptionType subscription) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
 
         final String namespace = BrokerTestUtil.newUniqueName("my-property/relative_throttling_ns");
         final String topicName = "persistent://" + namespace + "/relative-throttle" + subscription;
@@ -1096,11 +1095,13 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
             assertNotNull(msg);
             long elapsedNanos = System.nanoTime() - startNanos;
             if (elapsedNanos > maxTimeNanos) { // fail fast
-                log.info("Test has only received {} messages in {}ms, {} expected",
-                         totalReceived, TimeUnit.NANOSECONDS.toMillis(elapsedNanos), numProducedMessages);
+                log.info().attr("onlyReceived", totalReceived)
+                        .attr("messagesIn", TimeUnit.NANOSECONDS.toMillis(elapsedNanos))
+                        .attr("numProducedMessages", numProducedMessages)
+                        .log("Test has only received messages inms, expected");
                 Assert.fail("Messages not received in time");
             }
-            log.info("Received {}-{}", msg.getMessageId(), new String(msg.getData()));
+            log.info().attr("received", msg.getMessageId()).attr("value", new String(msg.getData())).log("Received");
         }
         Assert.assertEquals(totalReceived, numProducedMessages);
         long elapsedNanos = System.nanoTime() - startNanos;
@@ -1108,6 +1109,6 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
 
         consumer.close();
         producer.close();
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
     }
 }

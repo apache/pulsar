@@ -32,7 +32,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidServiceURL;
 import org.apache.pulsar.common.net.ServiceURI;
 import org.apache.pulsar.common.util.Backoff;
@@ -40,7 +40,7 @@ import org.apache.pulsar.common.util.Backoff;
 /**
  * The default implementation of {@link ServiceNameResolver}.
  */
-@Slf4j
+@CustomLog
 public class PulsarServiceNameResolver implements ServiceNameResolver {
 
     private volatile ServiceURI serviceUri;
@@ -77,7 +77,7 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
             // if no available address, use the original address list
             list = allAddressList;
             if (availableAddressList != null) {
-                log.warn("No available hosts found for service url: {}", serviceUrl);
+                log.warn().attr("url", serviceUrl).log("No available hosts found for service url");
             }
         }
         checkState(
@@ -115,7 +115,10 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
         try {
             uri = ServiceURI.create(serviceUrl);
         } catch (IllegalArgumentException iae) {
-            log.error("Invalid service-url {} provided {}", serviceUrl, iae.getMessage(), iae);
+            log.error().attr("serviceUrl", serviceUrl)
+                    .exceptionMessage(iae)
+                    .exception(iae)
+                    .log("Invalid service-url provided");
             throw new InvalidServiceURL(iae);
         }
 
@@ -127,7 +130,7 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
                 URI hostUri = new URI(hostUrl);
                 addresses.add(InetSocketAddress.createUnresolved(hostUri.getHost(), hostUri.getPort()));
             } catch (URISyntaxException e) {
-                log.error("Invalid host provided {}", hostUrl, e);
+                log.error().attr("provided", hostUrl).exception(e).log("Invalid host provided");
                 throw new InvalidServiceURL(e);
             }
         }
@@ -168,7 +171,8 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
 
         if (!allAddressSet.contains(address)) {
             // If the address is not part of the original service URL, we ignore it.
-            log.debug("Address {} is not part of the original service URL, ignoring availability update", address);
+            log.debug().attr("address", address)
+                    .log("Address is not part of the original service URL, ignoring availability update");
             return;
         }
 
@@ -201,8 +205,8 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
                     .filter(entry -> entry.getValue().isAvailable() && allAddressSet.contains(entry.getKey()))
                     .map(Map.Entry::getKey)
                     .collect(Collectors.toList());
-            log.info("service name resolver available hosts changed, current available hosts: {}",
-                    availableAddressList);
+            log.info().attr("hosts", availableAddressList)
+                    .log("service name resolver available hosts changed, current available hosts");
         }
     }
 
@@ -255,8 +259,9 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
                 long elapsedTimeMsSinceLast = System.currentTimeMillis() - status.getLastUpdateTimeStampMs();
                 boolean needTryRecover = elapsedTimeMsSinceLast >= status.getNextDelayMsToRecover();
                 if (needTryRecover) {
-                    log.info("service name resolver try to recover host {} after {}", status.getSocketAddress(),
-                            Duration.ofMillis(elapsedTimeMsSinceLast));
+                    log.info().attr("host", status.getSocketAddress())
+                            .attr("afterMs", Duration.ofMillis(elapsedTimeMsSinceLast))
+                            .log("service name resolver try to recover host after");
                     status.setAvailable(true);
                     status.setLastUpdateTimeStampMs(System.currentTimeMillis());
                     status.setNextDelayMsToRecover(status.getQuarantineBackoff().next().toMillis());

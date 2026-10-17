@@ -21,30 +21,30 @@ package org.apache.pulsar.metadata.impl.batching;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.Collections;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataEventSynchronizer;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.Option;
 import org.apache.pulsar.metadata.api.Stat;
-import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
 import org.apache.pulsar.metadata.impl.stats.BatchMetadataStoreStats;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MpscUnboundedArrayQueue;
 import org.jspecify.annotations.Nullable;
 
-@Slf4j
+@CustomLog
 public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore {
 
     private final ScheduledFuture<?> scheduledTask;
@@ -127,30 +127,30 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
     }
 
     @Override
-    public final CompletableFuture<Optional<GetResult>> storeGet(String path) {
-        OpGet op = new OpGet(path);
+    public final CompletableFuture<Optional<GetResult>> storeGet(String path, Set<Option> opts) {
+        OpGet op = new OpGet(path, opts);
         enqueue(readOps, op);
         return op.getFuture();
     }
 
     @Override
-    public final CompletableFuture<List<String>> getChildrenFromStore(String path) {
-        OpGetChildren op = new OpGetChildren(path);
+    public final CompletableFuture<List<String>> getChildrenFromStore(String path, Set<Option> opts) {
+        OpGetChildren op = new OpGetChildren(path, opts);
         enqueue(readOps, op);
         return op.getFuture();
     }
 
     @Override
-    protected final CompletableFuture<Void> storeDelete(String path, Optional<Long> expectedVersion) {
-        OpDelete op = new OpDelete(path, expectedVersion);
+    protected final CompletableFuture<Void> storeDelete(String path, Optional<Long> expectedVersion, Set<Option> opts) {
+        OpDelete op = new OpDelete(path, expectedVersion, opts);
         enqueue(writeOps, op);
         return op.getFuture();
     }
 
     @Override
     protected CompletableFuture<Stat> storePut(String path, byte[] data, Optional<Long> optExpectedVersion,
-                                               EnumSet<CreateOption> options) {
-        OpPut op = new OpPut(path, data, optExpectedVersion, options);
+                                               Set<Option> opts) {
+        OpPut op = new OpPut(path, data, optExpectedVersion, opts);
         enqueue(writeOps, op);
         return op.getFuture();
     }

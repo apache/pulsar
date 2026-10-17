@@ -24,12 +24,12 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 
 /**
  * Helper methods wrt Classloading.
  */
-@Slf4j
+@CustomLog
 public class ClassLoaderUtils {
     /**
      * Load a jar.
@@ -83,7 +83,7 @@ public class ClassLoaderUtils {
             try {
                 ((Closeable) classLoader).close();
             } catch (IOException e) {
-                log.error("Error closing classloader {}", classLoader, e);
+                log.error().attr("classLoader", classLoader).exception(e).log("Error closing classloader");
             }
         }
     }

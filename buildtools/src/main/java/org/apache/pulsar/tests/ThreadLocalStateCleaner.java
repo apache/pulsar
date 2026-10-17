@@ -23,17 +23,16 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Objects;
 import java.util.function.BiConsumer;
+import lombok.CustomLog;
 import org.apache.commons.lang3.ThreadUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.reflect.MethodUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Cleans up thread local state for all threads for a given thread local instance.
  */
+@CustomLog
 public final class ThreadLocalStateCleaner {
-    private static final Logger LOG = LoggerFactory.getLogger(ThreadLocalStateCleaner.class);
     public static final ThreadLocalStateCleaner INSTANCE = new ThreadLocalStateCleaner();
     private static final Method GET_THREADLOCAL_MAP_METHOD = MethodUtils
             .getMatchingMethod(ThreadLocal.class, "getMap", Thread.class);
@@ -70,7 +69,7 @@ public final class ThreadLocalStateCleaner {
                 removeThreadlocalMethod.invoke(threadLocalMap, threadLocal);
             }
         } catch (IllegalAccessException | InvocationTargetException e) {
-            LOG.warn("Cannot cleanup thread local", e);
+            log.warn().exception(e).log("Cannot cleanup thread local");
         }
     }
 

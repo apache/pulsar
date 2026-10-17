@@ -29,16 +29,16 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import lombok.CustomLog;
 import org.eclipse.jetty.websocket.api.Callback;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketClose;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketMessage;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketOpen;
 import org.eclipse.jetty.websocket.api.annotations.WebSocket;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @WebSocket
+@CustomLog
 public class SimpleConsumerSocket {
     private static final String X_PULSAR_MESSAGE_ID = "messageId";
     private final CountDownLatch closeLatch;
@@ -65,16 +65,16 @@ public class SimpleConsumerSocket {
 
     @OnWebSocketClose
     public void onClose(int statusCode, String reason) {
-        log.info("Connection closed: {} - {}", statusCode, reason);
+        log.info().attr("statusCode", statusCode).attr("reason", reason).log("Connection closed");
         this.session = null;
         this.closeLatch.countDown();
     }
 
     @OnWebSocketOpen
     public void onConnect(Session session) throws InterruptedException {
-        log.info("Got connect: {}", session);
+        log.info().attr("session", session).log("Got connect");
         this.session = session;
-        log.debug("Got connected: {}", session);
+        log.debug().attr("session", session).log("Got connected");
     }
 
     @OnWebSocketMessage
@@ -128,8 +128,6 @@ public class SimpleConsumerSocket {
     public int getReceivedMessagesCount() {
         return receivedMessages.get();
     }
-
-    private static final Logger log = LoggerFactory.getLogger(SimpleConsumerSocket.class);
 
     public List<JsonObject> getMessages() {
         return messages;

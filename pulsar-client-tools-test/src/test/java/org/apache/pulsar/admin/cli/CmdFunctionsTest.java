@@ -32,7 +32,7 @@ import static org.testng.Assert.assertTrue;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.admin.cli.CmdFunctions.CreateFunction;
 import org.apache.pulsar.admin.cli.CmdFunctions.DeleteFunction;
 import org.apache.pulsar.admin.cli.CmdFunctions.GetFunction;
@@ -56,7 +56,7 @@ import picocli.CommandLine;
 /**
  * Unit test of {@link CmdFunctions}.
  */
-@Slf4j
+@CustomLog
 public class CmdFunctionsTest {
 
     private static final String TEST_NAME = "test_name";
@@ -498,6 +498,25 @@ public class CmdFunctionsTest {
 
         verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
 
+    }
+
+    @Test
+    public void testCreateFunctionWithClientApi() throws Exception {
+        cmd.run(new String[] {
+            "create",
+            "--name", FN_NAME,
+            "--inputs", "persistent://sample/ns1/in",
+            "--output", "persistent://sample/ns1/out",
+            "--client-api", "V5",
+            "--jar", JAR_NAME,
+            "--tenant", "sample",
+            "--namespace", "ns1",
+            "--className", DummyFunction.class.getName(),
+        });
+
+        CreateFunction creater = cmd.getCreater();
+        assertEquals(FunctionConfig.ClientApi.V5, creater.getFunctionConfig().getClientApi());
+        verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
     }
 
     @Test

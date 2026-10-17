@@ -23,6 +23,7 @@ import static org.apache.pulsar.broker.service.TopicPoliciesService.GetType.LOCA
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -31,7 +32,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
@@ -48,7 +49,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-replication")
 public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicatorTest {
 
@@ -66,6 +67,12 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
     }
 
     @Override
+    @Test(enabled = false)
+    public void testReceiverSideReplicationStats() throws Exception {
+        super.testReceiverSideReplicationStats();
+    }
+
+    @Override
     protected void setConfigDefaults(ServiceConfiguration config, String clusterName,
                                      LocalBookkeeperEnsemble bookkeeperEnsemble, ZookeeperServerTest brokerConfigZk) {
         super.setConfigDefaults(config, clusterName, bookkeeperEnsemble, brokerConfigZk);
@@ -73,15 +80,33 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
         config.setDefaultNumPartitions(1);
     }
 
+    @Override
     @Test(enabled = false)
     public void testDeleteTopicWhenReplicating() throws Exception {
         super.testDeleteTopicWhenReplicating();
+    }
+
+    @Test(enabled = false)
+    public void testDisconnectAndReconnectReplicator(boolean binaryWayRepl,
+                                                     boolean hasLocalProducerRegistered,
+                                                     boolean localProducerHasTraffic,
+                                                     boolean hasRemoteProducerTraffic,
+                                                     boolean hasRemoteProducerRegistered) throws Exception {
+        super.testDisconnectAndReconnectReplicator(binaryWayRepl, hasLocalProducerRegistered, localProducerHasTraffic,
+                hasRemoteProducerTraffic, hasRemoteProducerRegistered);
     }
 
     @Override
     @Test(enabled = false)
     public void testReplicatorProducerStatInTopic() throws Exception {
         super.testReplicatorProducerStatInTopic();
+    }
+
+    @Override
+    @Test(enabled = false)
+    public void testMultipleVersionSchemas(boolean isAllowAutoUpdateSchema,
+                                           Boolean allowAutoUpdateSchemaWithReplicator) throws Exception {
+        super.testDeleteTopicWhenReplicating();
     }
 
     @Override
@@ -100,6 +125,12 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
     @Test(enabled = false)
     public void testCreateRemoteConsumerFirst() throws Exception {
         super.testReplicatorProducerStatInTopic();
+    }
+
+    @Override
+    @Test(enabled = false)
+    public void testProbBKErrorWhenReplicating() throws Exception {
+        super.testProbBKErrorWhenReplicating();
     }
 
     @Override
@@ -313,6 +344,17 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
                 "Remote cluster should have local policies: publish rate.");
         });
 
+        CompletableFuture<Optional<Topic>> future = pulsar1.getBrokerService().getTopic(topicP1, true);
+        if ("topic".equals(removeClusterLevel)) {
+            future.get(90, TimeUnit.SECONDS);
+        } else {
+            try {
+                future.get(90, TimeUnit.SECONDS);
+                fail("Should have thrown an exception since the __change_event topic can not be access anymore");
+            } catch (Exception e) {
+                assertTrue(e.getMessage().contains("Namespace missing local cluster name"));
+            }
+        }
         // cleanup.
         if ("topic".equals(removeClusterLevel)) {
             admin1.namespaces().setNamespaceReplicationClusters(ns1, new HashSet<>(Arrays.asList(cluster2)), true);

@@ -32,8 +32,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataCacheConfig;
@@ -46,7 +46,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
  * @param <T>
  *            type of configuration-resources.
  */
-@Slf4j
+@CustomLog
 public class BaseResources<T> {
 
     protected static final String BASE_POLICIES_PATH = "/admin/policies";
@@ -210,17 +210,17 @@ public class BaseResources<T> {
     }
 
     protected CompletableFuture<Void> deleteIfExistsAsync(String path) {
-        log.info("Deleting path: {}", path);
+        log.info().attr("path", path).log("Deleting path");
         CompletableFuture<Void> future = new CompletableFuture<>();
         cache.delete(path).whenComplete((ignore, ex) -> {
             if (ex != null && ex.getCause() instanceof MetadataStoreException.NotFoundException) {
-                log.info("Path {} did not exist in metadata store", path);
+                log.info().attr("path", path).log("Path did not exist in metadata store");
                 future.complete(null);
             } else if (ex != null) {
-                log.info("Failed to delete path from metadata store: {}", path, ex);
+                log.info().attr("path", path).exception(ex).log("Failed to delete path from metadata store");
                 future.completeExceptionally(ex);
             } else {
-                log.info("Deleted path from metadata store: {}", path);
+                log.info().attr("path", path).log("Deleted path from metadata store");
                 future.complete(null);
             }
         });

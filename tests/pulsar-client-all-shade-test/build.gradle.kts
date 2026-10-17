@@ -17,6 +17,8 @@
  * under the License.
  */
 
+import org.gradle.api.attributes.Bundling
+
 plugins {
     id("pulsar.java-conventions")
 }
@@ -24,14 +26,18 @@ plugins {
 // Use the shadow JAR from pulsar-client-all which contains relocated netty/jackson/etc classes.
 
 dependencies {
-    testImplementation(project(":pulsar-client-all"))
+    implementation(libs.slog)
+    testImplementation(project(":pulsar-client-all")) {
+        attributes {
+            attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling.SHADOWED))
+        }
+    }
     // API modules are not bundled in the shaded JAR
     testImplementation(project(":pulsar-client-api"))
     testImplementation(project(":pulsar-client-admin-api"))
-    testImplementation(project(":pulsar-client-messagecrypto-bc"))
-    testImplementation(project(":bouncy-castle:bouncy-castle-bc"))
     testImplementation(project(":buildtools"))
     testImplementation(libs.bcprov.jdk18on)
+    testImplementation(libs.bcpkix.jdk18on)
     testImplementation(libs.testcontainers)
     // Runtime deps needed by the client that are not bundled in the shaded JARs
     testRuntimeOnly(libs.opentelemetry.api)
@@ -39,6 +45,8 @@ dependencies {
 }
 
 tasks.named<Test>("test") {
+    // Each worker executes the full XML suite, so do not split it into class batches.
+    forkEvery = 0
     useTestNG {
         suiteXmlFiles = listOf(file("src/test/resources/pulsar.xml"))
     }

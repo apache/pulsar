@@ -23,7 +23,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.fail;
 import java.util.HashMap;
 import java.util.Set;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Schema;
@@ -40,7 +40,7 @@ import org.testng.annotations.Test;
  * Tests that the broker correctly accepts/rejects schema definitions based on
  * the schemaJsonAllowLegacyJacksonFormat configuration.
  */
-@Slf4j
+@CustomLog
 @Test(groups = "broker-admin")
 public class AdminApiSchemaJsonValidationTest extends MockedPulsarServiceBaseTest {
 
@@ -107,7 +107,7 @@ public class AdminApiSchemaJsonValidationTest extends MockedPulsarServiceBaseTes
             admin.schemas().createSchema(topicName, payload);
             fail("Should reject JSON Schema Draft format when schemaJsonAllowLegacyJacksonFormat=false");
         } catch (PulsarAdminException e) {
-            log.info("Expected rejection: {}", e.getMessage());
+            log.info().exceptionMessage(e).log("Expected rejection");
         }
     }
 
@@ -123,7 +123,7 @@ public class AdminApiSchemaJsonValidationTest extends MockedPulsarServiceBaseTes
             admin.schemas().createSchema(topicName, payload);
             fail("Should reject Jackson JsonSchema format when schemaJsonAllowLegacyJacksonFormat=false");
         } catch (PulsarAdminException e) {
-            log.info("Expected rejection: {}", e.getMessage());
+            log.info().exceptionMessage(e).log("Expected rejection");
         }
     }
 
@@ -199,7 +199,8 @@ public class AdminApiSchemaJsonValidationTest extends MockedPulsarServiceBaseTes
             admin.schemas().createSchema(topicName, payload2);
             fail("Should reject JSON Schema Draft as incompatible with existing Avro schema");
         } catch (PulsarAdminException e) {
-            log.info("Expected rejection on compatibility check: {}", e.getMessage());
+            log.info().attr("error", e.getMessage())
+                    .log("Expected rejection on compatibility check");
         }
     }
 

@@ -35,6 +35,7 @@ import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 import javax.naming.AuthenticationException;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
@@ -62,17 +63,15 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
+@CustomLog
 public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
     private static final long testTimeout = 90000; // 1.5 min
-    private static final Logger log = LoggerFactory.getLogger(PatternTopicsConsumerImplAuthTest.class);
     private static final String clientRole = "pluggableRole";
     private static final String superUserRole = "superUser";
     private static final Set<String> clientAuthProviderSupportedRoles = Sets.newHashSet(clientRole);
@@ -212,14 +211,14 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
         assertEquals(consumers.size(), 6);
         assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 2);
 
-        topics.forEach(topic -> log.debug("topic: {}", topic));
-        consumers.forEach(c -> log.debug("consumer: {}", c.getTopic()));
+        topics.forEach(topic -> log.debug().attr("topic", topic).log("topic"));
+        consumers.forEach(c -> log.debug().attr("topic", c.getTopic()).log("consumer"));
 
         IntStream.range(0, topics.size()).forEach(index ->
                 assertEquals(consumers.get(index).getTopic(), topics.get(index)));
 
         ((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics()
-                .forEach(topic -> log.debug("getTopics topic: {}", topic));
+                .forEach(topic -> log.debug().attr("topic", topic).log("getTopics topic"));
 
         // 5. produce data
         for (int i = 0; i < totalMessages / 3; i++) {

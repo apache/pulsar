@@ -18,31 +18,30 @@
  */
 package org.apache.pulsar.broker.web;
 
+import jakarta.servlet.AsyncEvent;
+import jakarta.servlet.AsyncListener;
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.FilterConfig;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response.Status;
 import java.io.IOException;
 import java.util.Locale;
 import java.util.Objects;
-import javax.servlet.AsyncEvent;
-import javax.servlet.AsyncListener;
-import javax.servlet.Filter;
-import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response.Status;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Servlet filter that hooks up to handle outgoing response.
  */
+@CustomLog
 public class ResponseHandlerFilter implements Filter {
-    private static final Logger LOG = LoggerFactory.getLogger(ResponseHandlerFilter.class);
     private static final String BROKER_ADDRESS_HEADER_NAME = "broker-address";
 
     private final String brokerAddress;
@@ -60,8 +59,10 @@ public class ResponseHandlerFilter implements Filter {
         if (!response.isCommitted()) {
             ((HttpServletResponse) response).addHeader(BROKER_ADDRESS_HEADER_NAME, brokerAddress);
         } else {
-            LOG.warn("Cannot add header {} to request {} since it's already committed.", BROKER_ADDRESS_HEADER_NAME,
-                    request);
+            log.warn()
+                    .attr("header", BROKER_ADDRESS_HEADER_NAME)
+                    .attr("request", request)
+                    .log("Cannot add header to request since it's already committed.");
         }
         chain.doFilter(request, response);
         if (((HttpServletResponse) response).getStatus() == Status.INTERNAL_SERVER_ERROR.getStatusCode()) {
@@ -82,13 +83,16 @@ public class ResponseHandlerFilter implements Filter {
 
                 @Override
                 public void onTimeout(AsyncEvent asyncEvent) {
-                    LOG.warn("Http request {} async context timeout.", request);
+                    log.warn().attr("request", request).log("Http request async context timeout.");
                     handleInterceptor(request, response);
                 }
 
                 @Override
                 public void onError(AsyncEvent asyncEvent) {
-                    LOG.warn("Http request {} async context error.", request, asyncEvent.getThrowable());
+                    log.warn()
+                            .attr("request", request)
+                            .exceptionMessage(asyncEvent.getThrowable())
+                            .log("Http request async context error.");
                     handleInterceptor(request, response);
                 }
 
@@ -112,7 +116,7 @@ public class ResponseHandlerFilter implements Filter {
             try {
                 interceptor.onWebserviceResponse(request, response);
             } catch (Exception e) {
-                LOG.error("Failed to handle interceptor on web service response.", e);
+                log.error().exception(e).log("Failed to handle interceptor on web service response.");
             }
         }
     }

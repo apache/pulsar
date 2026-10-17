@@ -22,7 +22,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.EncryptionKeyInfo;
@@ -30,7 +30,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 
-@Slf4j
+@CustomLog
 public class SampleCryptoConsumer {
     public static void main(String[] args) throws PulsarClientException, InterruptedException {
 
@@ -52,7 +52,7 @@ public class SampleCryptoConsumer {
                 try {
                     keyInfo.setKey(Files.readAllBytes(Paths.get(publicKeyFile)));
                 } catch (IOException e) {
-                    log.error("Failed to read public key from file {}", publicKeyFile, e);
+                    log.error().attr("file", publicKeyFile).exception(e).log("Failed to read public key from file");
                 }
                 return keyInfo;
             }
@@ -65,7 +65,7 @@ public class SampleCryptoConsumer {
                 try {
                     keyInfo.setKey(Files.readAllBytes(Paths.get(privateKeyFile)));
                 } catch (IOException e) {
-                    log.error("Failed to read private key from file {}", privateKeyFile, e);
+                    log.error().attr("file", privateKeyFile).exception(e).log("Failed to read private key from file");
                 }
                 return keyInfo;
             }
@@ -82,7 +82,7 @@ public class SampleCryptoConsumer {
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive();
             // process the messsage
-            log.info("Received: {}", new String(msg.getData()));
+            log.info().attr("message", new String(msg.getData())).log("Received");
         }
 
         // Acknowledge the consumption of all messages at once

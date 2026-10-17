@@ -39,7 +39,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -55,12 +55,13 @@ import org.apache.pulsar.functions.proto.FunctionMetaData;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
 import org.apache.pulsar.functions.utils.FunctionCommon;
+import org.awaitility.Awaitility;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class FunctionAssignmentTailerTest {
 
     private static final String CLUSTER_NAME = "test-cluster";
@@ -279,36 +280,20 @@ public class FunctionAssignmentTailerTest {
         FunctionAssignmentTailer functionAssignmentTailer =
                 spy(new FunctionAssignmentTailer(functionRuntimeManager, readerBuilder, workerConfig, errorNotifier));
 
-        functionAssignmentTailer.start();
+        try (functionAssignmentTailer) {
+            functionAssignmentTailer.start();
 
-        messageList.add(message1);
-        for (int i = 0; i < 10; i++) {
-            try {
-                verify(functionRuntimeManager, times(1)).processAssignmentMessage(eq(message1));
-                break;
-            } catch (org.mockito.exceptions.verification.WantedButNotInvoked e) {
-                if (i == 9) {
-                    throw e;
-                }
-            }
-            Thread.sleep(200);
+            messageList.add(message1);
+            Awaitility.await().untilAsserted(() ->
+                    verify(functionRuntimeManager, times(1)).processAssignmentMessage(eq(message1)));
+
+            messageList.add(message2);
+            Awaitility.await().untilAsserted(() ->
+                    verify(functionRuntimeManager, times(1)).processAssignmentMessage(eq(message2)));
         }
 
-        messageList.add(message2);
-        for (int i = 0; i < 10; i++) {
-            try {
-                verify(functionRuntimeManager, times(1)).processAssignmentMessage(eq(message2));
-                break;
-            } catch (org.mockito.exceptions.verification.WantedButNotInvoked e) {
-                if (i == 9) {
-                    throw e;
-                }
-            }
-            Thread.sleep(200);
-        }
-
+        // Verification observes method entry; close joins the tailer after it updates the last message id.
         Assert.assertEquals(functionAssignmentTailer.getLastMessageId(), message2.getMessageId());
-        functionAssignmentTailer.close();
     }
 
     @Test(timeOut = 10000)

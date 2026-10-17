@@ -27,7 +27,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
 import lombok.Builder;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConnectionPool;
@@ -93,7 +93,7 @@ public class InjectedClientCnxClientBuilder {
         ClientCnx generate(ClientConfigurationData conf, EventLoopGroup eventLoopGroup);
     }
 
-    @Slf4j
+    @CustomLog
     private static class InjectedClientCnxPulsarClientImpl extends PulsarClientImpl {
         private final boolean eventLoopGroupProvided;
 
@@ -110,13 +110,13 @@ public class InjectedClientCnxClientBuilder {
                 try {
                     getCnxPool().close();
                 } catch (Exception e) {
-                    log.warn("Failed to close cnx pool", e);
+                    log.warn().exception(e).log("Failed to close cnx pool");
                 }
                 if (!eventLoopGroupProvided) {
                     try {
                         eventLoopGroup.shutdownGracefully().get(10, TimeUnit.SECONDS);
                     } catch (Exception e) {
-                        log.warn("Failed to shutdown event loop group", e);
+                        log.warn().exception(e).log("Failed to shutdown event loop group");
                     }
                 }
                 return null;

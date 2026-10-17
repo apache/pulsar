@@ -22,7 +22,7 @@ import static org.apache.pulsar.proxy.server.ProxyServiceStarter.addWebServerHan
 import static org.mockito.Mockito.doReturn;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.MultiBrokerBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -34,7 +34,7 @@ import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.websocket.WebSocketService;
 
-@Slf4j
+@CustomLog
 public abstract class ProxyMultiBrokerBaseTest extends MultiBrokerBaseTest {
     private Authentication proxyClientAuthentication;
     private ProxyService proxyService;

@@ -136,6 +136,7 @@ public class AbstractReplicatorTest {
         });
     }
 
+    @SuppressWarnings("unchecked")
     @Test
     public void testCloseProducerAsyncNoWarnWhenAlreadyTerminated() throws Exception {
         final String localCluster = "localCluster";
@@ -172,7 +173,7 @@ public class AbstractReplicatorTest {
 
         ProducerImpl producer = mock(ProducerImpl.class);
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
-        when(producer.closeAsync()).thenReturn(closeFuture);
+        when(producer.closeAsync()).thenReturn(closeFuture, CompletableFuture.completedFuture(null));
         replicator.producer = producer;
         AbstractReplicator.STATE_UPDATER.set(replicator, AbstractReplicator.State.Started);
 
@@ -182,22 +183,64 @@ public class AbstractReplicatorTest {
         CompletableFuture<Void> closing = replicator.closeProducerAsync(false);
         Assert.assertEquals(replicator.getState(), AbstractReplicator.State.Disconnecting);
 
-        // Simulate another thread terminating the replicator while the producer is closing.
-        AbstractReplicator.STATE_UPDATER.set(replicator, AbstractReplicator.State.Terminated);
+        // Terminate the replicator while the original producer close is still in progress.
+        replicator.terminate().get(10, TimeUnit.SECONDS);
+        Assert.assertEquals(replicator.getState(), AbstractReplicator.State.Terminated);
         closeFuture.complete(null);
-        closing.join();
+        closing.get(10, TimeUnit.SECONDS);
+        Assert.assertEquals(replicator.getState(), AbstractReplicator.State.Terminated);
 
         boolean hasUnexpectedWarnLog = appender.getEvents().stream()
                 .anyMatch(event -> event.getLevel() == Level.WARN
                         && event.getMessage().getFormattedMessage()
-                        .contains("Other task has change the state to terminated"));
+                        .contains("Other task has changed the state to terminated"));
         Assert.assertFalse(hasUnexpectedWarnLog);
 
         boolean hasExpectedInfoLog = appender.getEvents().stream()
                 .anyMatch(event -> event.getLevel() == Level.INFO
                         && event.getMessage().getFormattedMessage()
-                        .contains("Skip setting state to terminated because it was terminated"));
+                        .contains("Skip setting state to terminated because it was already terminated"));
         Assert.assertTrue(hasExpectedInfoLog);
+    }
+
+    /**
+     * {@link AbstractReplicator#getRemoteCluster(String, String)} must be the exact inverse of
+     * {@link AbstractReplicator#getReplicatorName(String, String)} for every legal cluster name. Cluster names
+     * may contain dots ({@code NamedEntity#NAMED_ENTITY_PATTERN} allows {@code -=:.} plus word characters), so
+     * taking the segment after the last dot resolved {@code us-east.prod} to {@code prod}.
+     */
+    @Test
+    public void testGetRemoteClusterRoundTripsClusterNamesContainingDots() {
+        for (String replicatorPrefix : new String[]{"pulsar.repl", "repl", "my.custom.repl"}) {
+            for (String cluster : new String[]{"us-west", "us-east.prod", "a.b.c", "cluster:1", "r3"}) {
+                String cursorName = AbstractReplicator.getReplicatorName(replicatorPrefix, cluster);
+                Assert.assertEquals(AbstractReplicator.getRemoteCluster(replicatorPrefix, cursorName),
+                        Optional.of(cluster),
+                        "remote cluster not recovered from cursor name " + cursorName);
+            }
+        }
+    }
+
+    /**
+     * An empty result is what tells a caller that the name is an ordinary subscription rather than a
+     * replicator's, so a name must match the prefix <b>and</b> the {@code '.'} separator to be accepted. A
+     * name that merely starts with the prefix characters, such as {@code pulsar.replication-state} against
+     * the prefix {@code pulsar.repl}, belongs to a subscription and must not be mistaken for a replicator.
+     */
+    @Test
+    public void testGetRemoteClusterIsEmptyForNamesThatAreNotReplicators() {
+        final String replicatorPrefix = "pulsar.repl";
+        for (String notAReplicator : new String[]{
+                "my-subscription",              // an ordinary subscription
+                "other.prefix.us-east",         // a different prefix entirely
+                "pulsar.replication-state",     // starts with the prefix, but the separator does not follow
+                "pulsar.repl",                  // the bare prefix, with no separator and no cluster
+                "pulsar.rep",                   // shorter than the prefix
+                ""}) {
+            Assert.assertEquals(AbstractReplicator.getRemoteCluster(replicatorPrefix, notAReplicator),
+                    Optional.empty(),
+                    "name wrongly resolved to a replicator: " + notAReplicator);
+        }
     }
 
     private static class ReplicatorInTest extends AbstractReplicator {

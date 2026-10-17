@@ -24,7 +24,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.BytesAndMessagesCount;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.ResourceGroupMonitoringClass;
@@ -53,7 +53,7 @@ import org.testng.annotations.Test;
 // The tenants and namespaces in those topics are associated with a set of resource-groups (RGs).
 // After sending/receiving all the messages, traffic usage statistics, and Prometheus-metrics
 // are verified on the RGs.
-@Slf4j
+@CustomLog
 @Test(groups = "flaky")
 public class RGUsageMTAggrWaitForAllMsgsTest extends SharedPulsarBaseTest {
     @org.testng.annotations.BeforeClass(alwaysRun = true)
@@ -144,8 +144,8 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends SharedPulsarBaseTest {
                         .create();
             } catch (PulsarClientException p) {
                 numExceptions++;
-                log.info("Producer={} got exception while building producer: ex={}",
-                        producerId, p.getMessage());
+                log.info().attr("producerId", producerId).exceptionMessage(p)
+                        .log("Producer got exception while building producer");
             }
 
             for (int ix = 0; ix < numMesgsToProduce; ix++) {
@@ -155,11 +155,12 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends SharedPulsarBaseTest {
                     MessageId msgId = producer.send(mesg);
                     sentNumBytes += mesg.length;
                     sentNumMsgs++;
-                    log.debug("Producer={}, sent msg-ix={}, msgId={}", producerId, ix, msgId);
+                    log.debug().attr("producerId", producerId).attr("msgIx", ix)
+                            .attr("msgId", msgId).log("Producer sent message");
                 } catch (PulsarClientException e) {
                     numExceptions++;
-                    log.error("Producer={} got exception while sending {}-th time: ex={}",
-                            producerId, ix, e.getMessage());
+                    log.error().attr("producerId", producerId).attr("msgIx", ix)
+                            .exceptionMessage(e).log("Producer got exception while sending");
                 }
             }
             try {
@@ -167,11 +168,12 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends SharedPulsarBaseTest {
                 producer.close();
             } catch (PulsarClientException e) {
                 numExceptions++;
-                log.error("Producer={} got exception while closing producer: ex={}",
-                        producerId, e.getMessage());
+                log.error().attr("producerId", producerId).exceptionMessage(e)
+                        .log("Producer got exception while closing producer");
             }
 
-            log.info("Producer={} done with topic={}; got {} exceptions", producerId, myProduceTopic, numExceptions);
+            log.info().attr("producerId", producerId).attr("topic", myProduceTopic)
+                    .attr("numExceptions", numExceptions).log("Producer done");
         }
     }
 
@@ -233,8 +235,8 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends SharedPulsarBaseTest {
                 consumer.close();
             } catch (PulsarClientException p) {
                 numExceptions++;
-                log.error("Consumer={} got exception while closing consumer: ex={}",
-                        consumerId, p.getMessage());
+                log.error().attr("consumerId", consumerId).exceptionMessage(p)
+                        .log("Consumer got exception while closing consumer");
             }
         }
 
@@ -272,14 +274,15 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends SharedPulsarBaseTest {
                         .subscribe();
             } catch (PulsarClientException p) {
                 numExceptions++;
-                log.error("Consumer={} got exception while building consumer: ex={}",
-                        consumerId, p.getMessage());
+                log.error().attr("consumerId", consumerId).exceptionMessage(p)
+                        .log("Consumer got exception while building consumer");
             }
 
             Message<byte[]> message;
             consumerIsReady = true;
             while (consumerIsReady && !allMessagesReceived) {
-                log.debug("Consumer={} waiting for mesgnum={}", consumerId, recvdNumMsgs);
+                log.debug().attr("consumerId", consumerId).attr("mesgNum", recvdNumMsgs)
+                        .log("Consumer waiting for message");
                 try {
                     message = consumer.receive(recvTimeoutMilliSecs, TimeUnit.MILLISECONDS);
                     if (message != null) {
@@ -292,12 +295,13 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends SharedPulsarBaseTest {
                     }
                 } catch (PulsarClientException p) {
                     numExceptions++;
-                    log.error("Consumer={} got exception in while receiving {}-th mesg at consumer: ex={}",
-                            consumerId, recvdNumMsgs, p.getMessage());
+                    log.error().attr("consumerId", consumerId).attr("mesgNum", recvdNumMsgs)
+                            .exceptionMessage(p).log("Consumer got exception while receiving message");
                 }
             }
 
-            log.debug("Consumer={} done; got {} exceptions", consumerId, numExceptions);
+            log.debug().attr("consumerId", consumerId).attr("numExceptions", numExceptions)
+                    .log("Consumer done");
         }
     }
 
@@ -426,7 +430,8 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends SharedPulsarBaseTest {
                     numReadyConsumers++;
                 }
             }
-            log.debug("{} consumers are not yet ready", NUM_CONSUMERS - numReadyConsumers);
+            log.debug().attr("notReady", NUM_CONSUMERS - numReadyConsumers)
+                    .log("consumers are not yet ready");
         } while (numReadyConsumers < NUM_CONSUMERS);
 
         // Fork some producers to send the messages.
@@ -447,7 +452,8 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends SharedPulsarBaseTest {
             sentMsgs = prodThr[ix].producer.getNumMessagesSent();
             numProducerExceptions += prodThr[ix].producer.getNumExceptions();
 
-            log.debug("Producer={} sent {} mesgs and {} bytes", ix, sentMsgs, sentBytes);
+            log.debug().attr("producerId", ix).attr("sentMsgs", sentMsgs)
+                    .attr("sentBytes", sentBytes).log("Producer sent");
             sentNumBytes += sentBytes;
             sentNumMsgs += sentMsgs;
         }
@@ -465,15 +471,16 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends SharedPulsarBaseTest {
             for (int ix = 0; ix < NUM_CONSUMERS; ix++) {
                 consNumMesgsRecvd = consThr[ix].consumer.getNumMessagesRecvd();
                 recvdNumMsgs += consNumMesgsRecvd;
-                log.debug("consumer={} received {} messages (current total {}, expected {})",
-                        ix, consNumMesgsRecvd, recvdNumMsgs, totalExpectedMessagesToReceive);
+                log.debug().attr("consumerId", ix).attr("received", consNumMesgsRecvd)
+                        .attr("total", recvdNumMsgs).attr("expected", totalExpectedMessagesToReceive)
+                        .log("consumer received messages");
             }
         } while (recvdNumMsgs < totalExpectedMessagesToReceive);
 
         // Tell the consumers that all expected messages have been received (but don't close them yet).
         for (int ix = 0; ix < NUM_CONSUMERS; ix++) {
             consThr[ix].consumer.setAllMessagesReceived();
-            log.debug("consumer={} told to stop", ix);
+            log.debug().attr("consumerId", ix).log("consumer told to stop");
         }
 
         boolean[] joinedConsumers = new boolean[NUM_CONSUMERS];
@@ -487,12 +494,13 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends SharedPulsarBaseTest {
                 if (!joinedConsumers[ix]) {
                     consThr[ix].thread.join();
                     joinedConsumers[ix] = true;
-                    log.debug("Joined consumer={}", ix);
+                    log.debug().attr("consumerId", ix).log("Joined consumer");
 
                     recvdBytes = consThr[ix].consumer.getNumBytesRecvd();
                     recvdMsgs = consThr[ix].consumer.getNumMessagesRecvd();
                     numConsumerExceptions += consThr[ix].consumer.getNumExceptions();
-                    log.debug("Consumer={} received {} mesgs and {} bytes", ix, recvdMsgs, recvdBytes);
+                    log.debug().attr("consumerId", ix).attr("recvdMsgs", recvdMsgs)
+                            .attr("recvdBytes", recvdBytes).log("Consumer received");
 
                     recvdNumBytes += recvdBytes;
                     recvdNumMsgs += recvdMsgs;
@@ -541,7 +549,8 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends SharedPulsarBaseTest {
         BrokerService bs = SharedPulsarCluster.get().getPulsarService().getBrokerService();
         Map<String, TopicStatsImpl> topicStatsMap = bs.getTopicStats();
 
-        log.debug("verifyProdConsStats: topicStatsMap has {} entries", topicStatsMap.size());
+        log.debug().attr("entries", topicStatsMap.size())
+                .log("verifyProdConsStats: topicStatsMap size");
 
         // Pulsar runtime adds some additional bytes in the exchanges: a 42-byte per-message
         // metadata of some kind, plus more as the number of messages increases.
@@ -578,7 +587,8 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends SharedPulsarBaseTest {
                 // Assuming that broker-service stats-gathering is doing its job,
                 // we should see some produced mesgs on every topic.
                 if (totalInMessages == 0) {
-                    log.warn("verifyProdConsStats: found no produced mesgs (msgInCounter) on topic {}", mapTopicName);
+                    log.warn().attr("topic", mapTopicName)
+                            .log("verifyProdConsStats: found no produced mesgs (msgInCounter) on topic");
                 }
 
                 if (sentNumMsgs > 0 || recvdNumMsgs > 0) {
@@ -687,9 +697,11 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends SharedPulsarBaseTest {
             totalNamespaceUnRegisters += ResourceGroupService.getRgNamespaceUnRegistersCount(rgName);
             totalUpdates += ResourceGroupService.getRgUpdatesCount(rgName);
         }
-        log.info("totalTenantRegisters={}, totalTenantUnRegisters={}, "
-                        + "totalNamespaceRegisters={}, totalNamespaceUnRegisters={}",
-                totalTenantRegisters, totalTenantUnRegisters, totalNamespaceRegisters, totalNamespaceUnRegisters);
+        log.info().attr("totalTenantRegisters", totalTenantRegisters)
+                .attr("totalTenantUnRegisters", totalTenantUnRegisters)
+                .attr("totalNamespaceRegisters", totalNamespaceRegisters)
+                .attr("totalNamespaceUnRegisters", totalNamespaceUnRegisters)
+                .log("RG registration counts");
 
         // On each run, there will be 'NumRGs' registrations
         Assert.assertEquals(totalTenantRegisters - residualTenantRegs, NUM_RESOURCE_GROUPS);
@@ -706,11 +718,12 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends SharedPulsarBaseTest {
 
         for (ResourceGroupMonitoringClass mc : ResourceGroupMonitoringClass.values()) {
             int mcIdx = mc.ordinal();
-            log.info("mc={}: totalQuotaBytes={}, totalQuotaMessages={}, "
-                            + " totalUsedBytes={}, totalUsedMessages={}"
-                            + " totalUsageReports={}",
-                    mc.name(), totalQuotaBytes[mcIdx], totalQuotaMessages[mcIdx],
-                    totalUsedBytes[mcIdx], totalUsedMessages[mcIdx], totalUsageReportCounts[mcIdx]);
+            log.info().attr("mc", mc.name()).attr("totalQuotaBytes", totalQuotaBytes[mcIdx])
+                    .attr("totalQuotaMessages", totalQuotaMessages[mcIdx])
+                    .attr("totalUsedBytes", totalUsedBytes[mcIdx])
+                    .attr("totalUsedMessages", totalUsedMessages[mcIdx])
+                    .attr("totalUsageReports", totalUsageReportCounts[mcIdx])
+                    .log("RG monitoring class stats");
             // On each run, the bytes/messages are monotone incremented in Prometheus metrics.
             // So, we take the residuals into account when comparing against the expected.
             if (checkProduce && mc == ResourceGroupMonitoringClass.Publish) {

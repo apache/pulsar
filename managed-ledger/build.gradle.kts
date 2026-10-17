@@ -18,7 +18,7 @@
  */
 
 plugins {
-    id("pulsar.java-conventions")
+    id("pulsar.public-java-library-conventions")
     alias(libs.plugins.lightproto)
 }
 
@@ -26,13 +26,14 @@ dependencies {
     api(project(":pulsar-common"))
     api(project(":pulsar-metadata"))
     implementation(project(":pulsar-opentelemetry"))
-    implementation(libs.bookkeeper.server)
-    implementation(libs.guava)
+    api(libs.bookkeeper.server)
+    api(libs.guava)
+    implementation(libs.fastutil)
     implementation(libs.roaringbitmap)
-    implementation(libs.jctools.core)
-    implementation(libs.slf4j.api)
-    implementation(libs.simpleclient)
-    implementation(libs.commons.lang3)
+    implementation(libs.jctools.core.jdk11)
+    api(libs.slog)
+    api(libs.simpleclient)
+    api(libs.commons.lang3)
 
     testImplementation(project(":testmocks"))
     testImplementation(libs.dropwizardmetrics.core)

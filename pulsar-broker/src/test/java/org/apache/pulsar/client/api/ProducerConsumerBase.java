@@ -30,6 +30,7 @@ import java.util.Set;
 import java.util.function.BiFunction;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.testng.Assert;
@@ -71,7 +72,7 @@ public abstract class ProducerConsumerBase extends MockedPulsarServiceBaseTest {
     private static final Random random = new Random();
 
     protected String newTopicName() {
-        return "my-property/my-ns/topic-" + Long.toHexString(random.nextLong());
+        return TopicName.get("my-property/my-ns/topic-" + Long.toHexString(random.nextLong())).toString();
     }
 
     @SuppressWarnings("unchecked")

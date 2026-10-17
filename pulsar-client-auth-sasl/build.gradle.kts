@@ -18,15 +18,18 @@
  */
 
 plugins {
-    id("pulsar.java-conventions")
+    id("pulsar.public-java-library-conventions")
 }
 
 dependencies {
+    implementation(libs.slog)
     compileOnly(project(":pulsar-client-original"))
     implementation(project(":pulsar-common"))
-    implementation(libs.slf4j.api)
     implementation(libs.guava)
     implementation(libs.commons.lang3)
     implementation(libs.jakarta.ws.rs.api)
     implementation(libs.jersey.client)
+    // PIP-478 stage 3d: the SASL-over-HTTP conversation test drives the real SaslAuthenticationV5 body
+    // through the framework HttpAuthenticationDriver (both live in pulsar-client-original).
+    testImplementation(project(":pulsar-client-original"))
 }

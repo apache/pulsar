@@ -25,8 +25,8 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import lombok.CustomLog;
 import lombok.experimental.UtilityClass;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
@@ -36,7 +36,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
  * Util class to search and load {@link BrokerInterceptor}s.
  */
 @UtilityClass
-@Slf4j
+@CustomLog
 public class BrokerInterceptorUtils {
 
     static final String BROKER_INTERCEPTOR_DEFINITION_FILE = "broker_interceptor.yml";
@@ -76,7 +76,7 @@ public class BrokerInterceptorUtils {
     public BrokerInterceptorDefinitions searchForInterceptors(String interceptorsDirectory,
                                                               String narExtractionDirectory) throws IOException {
         Path path = Paths.get(interceptorsDirectory).toAbsolutePath().normalize();
-        log.info("Searching for broker interceptors in {}", path);
+        log.info().attr("path", path).log("Searching for broker interceptors");
 
         BrokerInterceptorDefinitions interceptors = new BrokerInterceptorDefinitions();
         if (!path.toFile().exists()) {
@@ -90,7 +90,7 @@ public class BrokerInterceptorUtils {
                     BrokerInterceptorDefinition def =
                             BrokerInterceptorUtils.getBrokerInterceptorDefinition(archive.toString(),
                                     narExtractionDirectory);
-                    log.info("Found broker interceptors from {} : {}", archive, def);
+                    log.info().attr("archive", archive).attr("def", def).log("Found broker interceptors");
 
                     checkArgument(StringUtils.isNotBlank(def.getName()));
                     checkArgument(StringUtils.isNotBlank(def.getInterceptorClass()));
@@ -101,10 +101,10 @@ public class BrokerInterceptorUtils {
 
                     interceptors.interceptors().put(def.getName(), metadata);
                 } catch (Throwable t) {
-                    log.warn("Failed to load broker interceptor from {}."
-                            + " It is OK however if you want to use this broker interceptor,"
-                            + " please make sure you put the correct broker interceptor NAR"
-                            + " package in the broker interceptors directory.", archive, t);
+                    log.warn()
+                            .attr("archive", archive)
+                            .exception(t)
+                            .log("Failed to load broker interceptor");
                 }
             }
         }

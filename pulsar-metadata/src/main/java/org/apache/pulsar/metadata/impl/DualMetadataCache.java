@@ -19,9 +19,9 @@
 package org.apache.pulsar.metadata.impl;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -30,7 +30,7 @@ import org.apache.pulsar.metadata.api.CacheGetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataCacheConfig;
 import org.apache.pulsar.metadata.api.MetadataSerde;
-import org.apache.pulsar.metadata.api.extended.CreateOption;
+import org.apache.pulsar.metadata.api.Option;
 
 public class DualMetadataCache<T> implements MetadataCache<T> {
     private final DualMetadataStore dualMetadataStore;
@@ -106,8 +106,8 @@ public class DualMetadataCache<T> implements MetadataCache<T> {
     }
 
     @Override
-    public CompletableFuture<Void> put(String path, T value, EnumSet<CreateOption> options) {
-        return metadataCache.get().put(path, value, options);
+    public CompletableFuture<Void> put(String path, T value, Set<Option> opts) {
+        return metadataCache.get().put(path, value, opts);
     }
 
     @Override

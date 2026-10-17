@@ -20,7 +20,7 @@ package org.apache.pulsar.broker.systopic;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.service.SystemTopicTxnBufferSnapshotService;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -31,7 +31,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 
-@Slf4j
+@CustomLog
 public class  TransactionBufferSnapshotBaseSystemTopicClient<T> extends SystemTopicClientBase<T> {
 
     protected final SystemTopicTxnBufferSnapshotService<T> systemTopicTxnBufferSnapshotService;
@@ -191,10 +191,11 @@ public class  TransactionBufferSnapshotBaseSystemTopicClient<T> extends SystemTo
                 .topic(topicName.toString())
                 .enableBatching(false)
                 .createAsync().thenApply(producer -> {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] A new {} writer is created", topicName, schemaType.getName());
-                    }
-                    return  new TransactionBufferSnapshotWriter<>(producer, this);
+                        log.debug()
+                                .attr("topic", topicName)
+                                .attr("newSchemaType", schemaType.getName())
+                                .log("A new writer is created");
+                                        return  new TransactionBufferSnapshotWriter<>(producer, this);
                 });
     }
 
@@ -208,10 +209,11 @@ public class  TransactionBufferSnapshotBaseSystemTopicClient<T> extends SystemTo
                 .poolMessages(true)
                 .createAsync()
                 .thenApply(reader -> {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] A new {} reader is created", topicName, schemaType.getName());
-                    }
-                    return new TransactionBufferSnapshotReader<>(reader, this);
+                        log.debug()
+                                .attr("topic", topicName)
+                                .attr("newSchemaType", schemaType.getName())
+                                .log("A new reader is created");
+                                        return new TransactionBufferSnapshotReader<>(reader, this);
                 });
     }
 

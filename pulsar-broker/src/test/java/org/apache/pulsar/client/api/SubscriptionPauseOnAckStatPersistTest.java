@@ -24,7 +24,7 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ActiveManagedCursorContainer;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
@@ -51,7 +51,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-api")
 public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase {
 

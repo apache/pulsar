@@ -25,7 +25,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
@@ -43,7 +43,7 @@ import org.testng.annotations.Test;
 /**
  * Test for {@link MessagePayloadProcessor}.
  */
-@Slf4j
+@CustomLog
 @Test(groups = "broker-impl")
 public class MessagePayloadProcessorTest extends SharedPulsarBaseTest {
 
@@ -97,9 +97,9 @@ public class MessagePayloadProcessorTest extends SharedPulsarBaseTest {
             final String value = messagePrefix + i;
             producer.sendAsync(value).whenComplete((id, e) -> {
                 if (e == null) {
-                    log.info("Send {} to {} {}", value, topic, id);
+                    log.info().attr("send", value).attr("topic", topic).attr("id", id).log("Send to");
                 } else {
-                    log.error("Failed to send {}: {}", value, e.getMessage());
+                    log.error().attr("value", value).exceptionMessage(e).log("Failed to send");
                 }
             });
         }

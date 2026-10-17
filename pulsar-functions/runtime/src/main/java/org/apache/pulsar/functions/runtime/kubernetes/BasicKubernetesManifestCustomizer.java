@@ -34,10 +34,10 @@ import java.util.List;
 import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.proto.FunctionDetails;
@@ -51,7 +51,7 @@ import org.apache.pulsar.functions.proto.FunctionDetails;
  * modify (for example, a service account must have permissions in the specified jobNamespace)
  *
  */
-@Slf4j
+@CustomLog
 public class BasicKubernetesManifestCustomizer implements KubernetesManifestCustomizer {
 
     private static final String RESOURCE_CPU = "cpu";
@@ -217,7 +217,8 @@ public class BasicKubernetesManifestCustomizer implements KubernetesManifestCust
         if (newOpts.getExtraLabels() != null && !newOpts.getExtraLabels().isEmpty()) {
             newOpts.getExtraLabels().forEach((key, labelsItem) -> {
                 if (!mergedOpts.getExtraLabels().containsKey(key)) {
-                    log.debug("extra label {} has been changed to {}", key, labelsItem);
+                    log.debug().attr("key", key).attr("value", labelsItem)
+                            .log("Extra label has been changed");
                 }
                 mergedOpts.getExtraLabels().put(key, labelsItem);
             });
@@ -225,7 +226,8 @@ public class BasicKubernetesManifestCustomizer implements KubernetesManifestCust
         if (newOpts.getExtraAnnotations() != null && !newOpts.getExtraAnnotations().isEmpty()) {
             newOpts.getExtraAnnotations().forEach((key, annotationsItem) -> {
                 if (!mergedOpts.getExtraAnnotations().containsKey(key)) {
-                    log.debug("extra annotation {} has been changed to {}", key, annotationsItem);
+                    log.debug().attr("key", key).attr("value", annotationsItem)
+                            .log("Extra annotation has been changed");
                 }
                 mergedOpts.getExtraAnnotations().put(key, annotationsItem);
             });
@@ -233,7 +235,8 @@ public class BasicKubernetesManifestCustomizer implements KubernetesManifestCust
         if (newOpts.getNodeSelectorLabels() != null && !newOpts.getNodeSelectorLabels().isEmpty()) {
             newOpts.getNodeSelectorLabels().forEach((key, nodeSelectorItem) -> {
                 if (!mergedOpts.getNodeSelectorLabels().containsKey(key)) {
-                    log.debug("node selector label {} has been changed to {}", key, nodeSelectorItem);
+                    log.debug().attr("key", key).attr("value", nodeSelectorItem)
+                            .log("Node selector label has been changed");
                 }
                 mergedOpts.getNodeSelectorLabels().put(key, nodeSelectorItem);
             });

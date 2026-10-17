@@ -43,7 +43,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import javax.management.MalformedObjectNameException;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.JavaVersion;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
@@ -59,7 +59,7 @@ import org.apache.pulsar.functions.utils.FunctionCommon;
 /**
  * Util class for common runtime functionality.
  */
-@Slf4j
+@CustomLog
 public class RuntimeUtils {
 
     private static final String FUNCTIONS_EXTRA_DEPS_PROPERTY = "pulsar.functions.extra.dependencies.dir";
@@ -352,13 +352,16 @@ public class RuntimeUtils {
                 // the functions instance dependencies separately from user code dependencies
                 String systemFunctionInstanceClasspath = System.getProperty(FUNCTIONS_INSTANCE_CLASSPATH);
                 if (systemFunctionInstanceClasspath == null) {
-                    log.warn("Property {} is not set.  Falling back to using classpath of current JVM",
-                            FUNCTIONS_INSTANCE_CLASSPATH);
+                    log.warn().attr("property", FUNCTIONS_INSTANCE_CLASSPATH)
+                            .log("Property is not set. Falling back to using classpath of current JVM");
                     systemFunctionInstanceClasspath = System.getProperty("java.class.path");
                 }
                 args.add(String.format("-D%s=%s", FUNCTIONS_INSTANCE_CLASSPATH, systemFunctionInstanceClasspath));
             }
             args.add("-Dlog4j.configurationFile=" + logConfigFile);
+            // Bridge java.util.logging (JUL) to Log4j2 so that JUL logs from third-party libraries
+            // (Jersey, gRPC, Guava, etc.) are bridged into the Log4j2 configuration
+            args.add("-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager");
             // Use a single LoggerContext for the function process. The default
             // ClassLoaderContextSelector creates separate contexts per classloader,
             // which causes the LogAppender (added from the instance classloader) to

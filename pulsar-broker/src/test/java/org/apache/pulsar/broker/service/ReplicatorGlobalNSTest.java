@@ -27,7 +27,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
@@ -49,7 +49,7 @@ import org.testng.annotations.Test;
  * The tests in this class should be denied in a production pulsar cluster. they are very dangerous, which leads to
  * a lot of topic deletion and makes namespace policies being incorrect.
  */
-@Slf4j
+@CustomLog
 @Test(groups = "broker-replication")
 public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
 
@@ -144,11 +144,11 @@ public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
 
                     @Cleanup
                     MessageProducer producer = new MessageProducer(url1, dest);
-                    log.info("--- Starting producer --- " + url1);
+                    log.info().attr("url1", url1).log("--- Starting producer ---");
 
                     @Cleanup
                     MessageConsumer consumer = new MessageConsumer(url1, dest);
-                    log.info("--- Starting Consumer --- " + url1);
+                    log.info().attr("url1", url1).log("--- Starting Consumer ---");
 
                     producer.produce(2);
                     consumer.receive(2);
@@ -161,7 +161,7 @@ public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
             try {
                 result.get();
             } catch (Exception e) {
-                log.error("exception in getting future result ", e);
+                log.error().exception(e).log("exception in getting future result ");
                 fail(String.format("replication test failed with %s exception", e.getMessage()));
             }
         }

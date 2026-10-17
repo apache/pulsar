@@ -20,10 +20,10 @@ package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class OffsetsCacheTest {
 
     @Test

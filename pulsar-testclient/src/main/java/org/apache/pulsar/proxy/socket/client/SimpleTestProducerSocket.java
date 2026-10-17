@@ -29,6 +29,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import org.HdrHistogram.Recorder;
 import org.eclipse.jetty.websocket.api.Callback;
 import org.eclipse.jetty.websocket.api.Session;
@@ -36,19 +37,25 @@ import org.eclipse.jetty.websocket.api.annotations.OnWebSocketClose;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketMessage;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketOpen;
 import org.eclipse.jetty.websocket.api.annotations.WebSocket;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @WebSocket
+@CustomLog
 public class SimpleTestProducerSocket {
-    public static Recorder recorder = new Recorder(TimeUnit.SECONDS.toMillis(120000), 5);
+    // Latencies are recorded in microseconds; values above this ceiling are clamped rather than
+    // rejected, since HdrHistogram throws on an out-of-range value. Package-private so that
+    // PerformanceClient, which owns the shared Recorder, can size it consistently.
+    static final long MAX_LATENCY_MICROS = TimeUnit.HOURS.toMicros(1);
+
+    // Shared by every socket of one PerformanceClient run so that latencies aggregate.
+    private final Recorder recorder;
 
     private final CountDownLatch closeLatch;
     private volatile Session session;
     private ConcurrentHashMap<String, Long> startTimeMap = new ConcurrentHashMap<>();
     private static final String CONTEXT = "context";
 
-    public SimpleTestProducerSocket() {
+    public SimpleTestProducerSocket(Recorder recorder) {
+        this.recorder = recorder;
         this.closeLatch = new CountDownLatch(2);
     }
 
@@ -58,7 +65,7 @@ public class SimpleTestProducerSocket {
 
     @OnWebSocketClose
     public void onClose(int statusCode, String reason) {
-        log.info("Connection closed: {} - {}", statusCode, reason);
+        log.info().attr("closed", statusCode).attr("reason", reason).log("Connection closed");
         this.session.close();
         this.closeLatch.countDown();
     }
@@ -78,7 +85,7 @@ public class SimpleTestProducerSocket {
             startTime = startTimeMap.get(json.get(CONTEXT).getAsString());
         }
         long latencyNs = endTimeNs - startTime;
-        recorder.recordValue(NANOSECONDS.toMicros(latencyNs));
+        recorder.recordValue(Math.min(NANOSECONDS.toMicros(latencyNs), MAX_LATENCY_MICROS));
     }
 
     public Session getSession() {
@@ -100,7 +107,5 @@ public class SimpleTestProducerSocket {
             log.error("Session is already closed");
         }
     }
-
-    private static final Logger log = LoggerFactory.getLogger(SimpleTestProducerSocket.class);
 
 }

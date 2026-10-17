@@ -42,6 +42,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -64,9 +65,8 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class TopicListService {
     public static class TopicListWatcher implements TopicListener {
         // upper bound for buffered topic list updates
@@ -151,8 +151,10 @@ public class TopicListService {
                 // if sendTopicListSuccess hasn't completed, add to a queue to be executed after it completes
                 if (!sendTopicListUpdateTasks.offer(task)) {
                     if (prepareUpdateTopics(null)) {
-                        log.warn("Update queue was full for watcher id {} matching {}. Performing full refresh.", id,
-                                topicsPattern.inputPattern());
+                        log.warn()
+                                .attr("watcherId", id)
+                                .attr("inputPattern", topicsPattern.inputPattern())
+                                .log("Update queue was full for watcher. Performing full refresh.");
                         executor.execute(() -> topicListService.updateTopicListWatcher(this));
                     }
                 }
@@ -222,7 +224,10 @@ public class TopicListService {
                 try {
                     callback.run();
                 } catch (Exception e) {
-                    log.warn("Error executing topic list update callback: {}", callback, e);
+                    log.warn()
+                            .attr("callback", callback)
+                            .exception(e)
+                            .log("Error executing topic list update callback");
                 }
             }
             updateCallbacks.clear();
@@ -286,10 +291,6 @@ public class TopicListService {
             }
         }
     }
-
-
-    private static final Logger log = LoggerFactory.getLogger(TopicListService.class);
-
     private final NamespaceService namespaceService;
     private final TopicResources topicResources;
     private final PulsarService pulsar;
@@ -350,7 +351,11 @@ public class TopicListService {
             } else {
                 msg += "Pattern longer than maximum: " + maxSubscriptionPatternLength;
             }
-            log.warn("[{}] {} on namespace {}", connection.toString(), msg, namespaceName);
+            log.warn()
+                    .attr("connection", connection)
+                    .attr("maxSubscriptionPatternLength", maxSubscriptionPatternLength)
+                    .attr("namespace", namespaceName)
+                    .log(msg);
             connection.getCommandSender().sendErrorResponse(requestId, ServerError.NotAllowedError, msg);
             lookupSemaphore.release();
             return;
@@ -360,8 +365,11 @@ public class TopicListService {
         try {
             topicsPattern = TopicsPatternFactory.create(topicsPatternString, topicsPatternRegexImplementation);
         } catch (Exception e) {
-            log.warn("[{}] Unable to create topic list watcher: Invalid pattern: {} on namespace {}",
-                    connection.toString(), topicsPatternString, namespaceName);
+            log.warn()
+                    .attr("connection", connection)
+                    .attr("topicsPatternString", topicsPatternString)
+                    .attr("namespace", namespaceName)
+                    .log("Unable to create topic list watcher: Invalid pattern");
             connection.getCommandSender().sendErrorResponse(requestId, ServerError.InvalidTopicName,
                     "Invalid topics pattern: " + e.getMessage());
             lookupSemaphore.release();
@@ -372,10 +380,10 @@ public class TopicListService {
         CompletableFuture<TopicListWatcher> existingWatcherFuture = watchers.putIfAbsent(watcherId, watcherFuture);
 
         if (existingWatcherFuture != null) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Watcher with the same watcherId={} is already created. Refreshing.", connection,
-                        watcherId);
-            }
+            log.debug()
+                    .attr("connection", connection)
+                    .attr("watcherId", watcherId)
+                    .log("Watcher with the same watcherId is already created. Refreshing.");
             // use the existing watcher if it's already created
             watcherFuture = existingWatcherFuture.thenCompose(watcher -> {
                 CompletableFuture<TopicListWatcher> future = new CompletableFuture<>();
@@ -404,18 +412,22 @@ public class TopicListService {
                     if (hash.equals(topicsHash)) {
                         topicList = Collections.emptyList();
                     }
-                    if (log.isDebugEnabled()) {
-                        log.debug(
-                                "[{}] Received WatchTopicList for namespace [//{}] by {}",
-                                connection.toString(), namespaceName, requestId);
-                    }
+                    log.debug()
+                            .attr("connection", connection)
+                            .attr("namespace", namespaceName)
+                            .attr("requestId", requestId)
+                            .log("Received WatchTopicList");
                     sendTopicListSuccessWithPermitAcquiringRetries(watcherId, requestId, topicList, hash,
                             watcher::sendingCompleted, watcher::close);
                     lookupSemaphore.release();
                 })
                 .exceptionally(ex -> {
-                    log.warn("[{}] Error WatchTopicList for namespace [//{}] by {}: {}",
-                            connection.toString(), namespaceName, requestId, ex.getMessage());
+                    log.warn()
+                            .attr("connection", connection)
+                            .attr("namespace", namespaceName)
+                            .attr("requestId", requestId)
+                            .exceptionMessage(ex)
+                            .log("Error WatchTopicList");
                     connection.getCommandSender().sendErrorResponse(requestId,
                             BrokerServiceException.getClientErrorCode(
                                     new BrokerServiceException.ServerMetadataException(ex)), ex.getMessage());
@@ -436,8 +448,11 @@ public class TopicListService {
                         .whenComplete((__, t) -> {
                             if (t != null) {
                                 // this is an unexpected case
-                                log.warn("[{}] Failed to send topic list success for watcherId={}. "
-                                        + "Watcher is not active.", connection, watcherId, t);
+                                log.warn()
+                                        .attr("connection", connection)
+                                        .attr("watcherId", watcherId)
+                                        .exception(t)
+                                        .log("Failed to send topic list success. Watcher is not active.");
                                 failedCompletionCallback.run();
                             } else {
                                 // completed successfully, run the callback
@@ -472,21 +487,31 @@ public class TopicListService {
                         || unwrappedException instanceof AsyncSemaphore.PermitAcquireQueueFullException)) {
                     // retry with backoff if permit acquisition fails due to timeout or queue full
                     long retryAfterMillis = this.retryBackoff.next().toMillis();
-                    log.info("[{}] {} when initializing topic list watcher watcherId={} for namespace {}. "
-                                    + "Retrying in {} " + "ms.", connection, unwrappedException.getMessage(), watcherId,
-                            namespace, retryAfterMillis);
+                    log.info()
+                            .attr("connection", connection)
+                            .exceptionMessage(unwrappedException)
+                            .attr("watcherId", watcherId)
+                            .attr("namespace", namespace)
+                            .attr("retryAfterMillis", retryAfterMillis)
+                            .log("when initializing topic list watcher for namespace. Retrying");
                     connection.ctx().executor().schedule(
                             () -> initializeTopicsListWatcher(watcherFuture, namespace, watcherId, topicsPattern),
                             retryAfterMillis, TimeUnit.MILLISECONDS);
                 } else {
-                    log.warn("[{}] Failed to initialize topic list watcher watcherId={} for namespace {}.", connection,
-                            watcherId, namespace, unwrappedException);
+                    log.warn()
+                            .attr("connection", connection)
+                            .attr("watcherId", watcherId)
+                            .attr("namespace", namespace)
+                            .exception(unwrappedException)
+                            .log("Failed to initialize topic list watcher");
                     watcherFuture.completeExceptionally(unwrappedException);
                 }
             } else {
                 if (!watcherFuture.complete(w)) {
-                    log.warn("[{}] Watcher future was already completed. Deregistering " + "watcherId={}.", connection,
-                            watcherId);
+                    log.warn()
+                            .attr("connection", connection)
+                            .attr("watcherId", watcherId)
+                            .log("Watcher future was already completed. Deregistering");
                     w.close();
                     topicResources.deregisterPersistentTopicListener(w);
                     watchers.remove(watcherId, watcherFuture);
@@ -569,15 +594,23 @@ public class TopicListService {
                         || unwrappedException instanceof AsyncSemaphore.PermitAcquireQueueFullException)) {
                     // retry with backoff if permit acquisition fails due to timeout or queue full
                     long retryAfterMillis = this.retryBackoff.next().toMillis();
-                    log.info("[{}] {} when updating topic list watcher watcherId={} for namespace {}. Retrying in {} "
-                                    + "ms.", connection, unwrappedException.getMessage(), watcherId, namespace,
-                            retryAfterMillis);
+                    log.info()
+                            .attr("connection", connection)
+                            .exceptionMessage(unwrappedException)
+                            .attr("watcherId", watcherId)
+                            .attr("namespace", namespace)
+                            .attr("retryAfterMillis", retryAfterMillis)
+                            .log("when updating topic list watcher for namespace. Retrying");
                     connection.ctx().executor()
                             .schedule(() -> internalUpdateTopicListWatcher(watcher, future),
                                     retryAfterMillis, TimeUnit.MILLISECONDS);
                 } else {
-                    log.warn("[{}] Failed to update topic list watcher watcherId={} for namespace {}.", connection,
-                            watcherId, namespace, unwrappedException);
+                    log.warn()
+                            .attr("connection", connection)
+                            .attr("watcherId", watcherId)
+                            .attr("namespace", namespace)
+                            .exception(unwrappedException)
+                            .log("Failed to update topic list watcher");
                     future.completeExceptionally(unwrappedException);
                 }
             } else {
@@ -597,8 +630,10 @@ public class TopicListService {
     public void deleteTopicListWatcher(Long watcherId) {
         CompletableFuture<TopicListWatcher> watcherFuture = watchers.remove(watcherId);
         if (watcherFuture == null) {
-            log.info("[{}] TopicListWatcher was not registered on the connection: {}",
-                    watcherId, connection.toString());
+            log.info()
+                    .attr("watcherId", watcherId)
+                    .attr("value", connection.toString())
+                    .log("TopicListWatcher was not registered on the connection");
             return;
         }
 
@@ -607,8 +642,10 @@ public class TopicListService {
             // We have received a request to close the watcher before it was actually completed, we have marked the
             // watcher future as failed and we can tell the client the close operation was successful. When the actual
             // create operation will complete, the new watcher will be discarded.
-            log.info("[{}] Closed watcher before its creation was completed. watcherId={}",
-                    connection.toString(), watcherId);
+            log.info()
+                    .attr("value", connection.toString())
+                    .attr("watcherId", watcherId)
+                    .log("Closed watcher before its creation was completed. watcherId");
             return;
         }
 
@@ -617,10 +654,15 @@ public class TopicListService {
             if (watcher != null) {
                 topicResources.deregisterPersistentTopicListener(watcher);
                 watcher.close();
-                log.info("[{}] Closed watcher, watcherId={}", connection.toString(), watcherId);
+                log.info()
+                        .attr("value", connection.toString())
+                        .attr("watcherId", watcherId)
+                        .log("Closed watcher, watcherId");
             } else if (t != null) {
-                log.info("[{}] Closed watcher that failed to be created. watcherId={}",
-                        connection.toString(), watcherId);
+                log.info()
+                        .attr("value", connection.toString())
+                        .attr("watcherId", watcherId)
+                        .log("Closed watcher that failed to be created. watcherId");
             }
         });
     }
@@ -638,8 +680,12 @@ public class TopicListService {
                         .whenComplete((__, t) -> {
                             if (t != null) {
                                 // this is an unexpected case
-                                log.warn("[{}] Failed to send topic list update for watcherId={}. Watcher will be in "
-                                        + "inconsistent state.", connection, watcherId, t);
+                                log.warn()
+                                        .attr("connection", connection)
+                                        .attr("watcherId", watcherId)
+                                        .exception(t)
+                                        .log("Failed to send topic list update for watcherId=. Watcher will be in "
+                                                + "inconsistent state.");
                             }
                             completionCallback.run();
                         }));
@@ -689,8 +735,13 @@ public class TopicListService {
             }
             long retryDelay = retryBackoff.next().toMillis();
             retryCount.incrementAndGet();
-            log.info("[{}] Cannot acquire direct memory tokens for sending {}. Retry {} in {} ms. {}", connection,
-                    operationName, retryCount.get(), retryDelay, t.getMessage());
+            log.info()
+                    .attr("connection", connection)
+                    .attr("operationName", operationName)
+                    .attr("get", retryCount.get())
+                    .attr("retryDelay", retryDelay)
+                    .exceptionMessage(t)
+                    .log("Cannot acquire direct memory tokens for sending. Retry in ms.");
             CompletableFuture<Void> future = new CompletableFuture<>();
             scheduledExecutor.schedule(() -> FutureUtil.completeAfter(future, operationRef.get()), retryDelay,
                     TimeUnit.MILLISECONDS);

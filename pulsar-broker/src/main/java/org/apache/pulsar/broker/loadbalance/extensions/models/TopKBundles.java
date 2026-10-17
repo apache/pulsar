@@ -23,10 +23,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import lombok.CustomLog;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.extensions.data.TopBundlesLoadData;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
@@ -43,7 +43,7 @@ import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 @Getter
 @ToString
 @EqualsAndHashCode
-@Slf4j
+@CustomLog
 public class TopKBundles {
 
     // temp array for sorting
@@ -162,7 +162,7 @@ public class TopKBundles {
                 return true;
             }
         } catch (MetadataStoreException e) {
-            log.error("Failed to get localPolicies for bundle:{}.", bundle, e);
+            log.error().attr("bundle", bundle).exception(e).log("Failed to get localPolicies for bundle");
             throw new RuntimeException(e);
         }
         return false;

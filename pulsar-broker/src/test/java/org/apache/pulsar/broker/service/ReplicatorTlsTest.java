@@ -22,15 +22,15 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import java.util.List;
 import java.util.Optional;
+import lombok.CustomLog;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-replication")
+@CustomLog
 public class ReplicatorTlsTest extends ReplicatorTestBase {
 
     @Override
@@ -67,7 +67,5 @@ public class ReplicatorTlsTest extends ReplicatorTestBase {
             });
         }
     }
-
-    private static final Logger log = LoggerFactory.getLogger(ReplicatorTlsTest.class);
 
 }

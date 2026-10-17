@@ -20,15 +20,15 @@ package org.apache.pulsar.broker.intercept;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
 import java.io.IOException;
 import java.util.Map;
-import javax.servlet.FilterChain;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
+import lombok.CustomLog;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Consumer;
@@ -45,7 +45,7 @@ import org.apache.pulsar.common.nar.NarClassLoader;
 /**
  * A broker interceptor with it's classloader.
  */
-@Slf4j
+@CustomLog
 @Data
 @RequiredArgsConstructor
 public class BrokerInterceptorWithClassLoader implements BrokerInterceptor {
@@ -148,7 +148,6 @@ public class BrokerInterceptorWithClassLoader implements BrokerInterceptor {
             Thread.currentThread().setContextClassLoader(previousContext);
         }
     }
-
 
     @Override
     public void messageProduced(ServerCnx cnx, Producer producer, long startTimeNs, long ledgerId,
@@ -300,7 +299,7 @@ public class BrokerInterceptorWithClassLoader implements BrokerInterceptor {
         try {
             narClassLoader.close();
         } catch (IOException e) {
-            log.warn("Failed to close the broker interceptor class loader", e);
+            log.warn().exception(e).log("Failed to close the broker interceptor class loader");
         }
     }
 

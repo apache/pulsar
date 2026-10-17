@@ -18,16 +18,15 @@
  */
 package org.apache.pulsar.broker.service.plugin;
 
-
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.common.api.proto.KeyValue;
 
-@Slf4j
+@CustomLog
 public class EntryFilterTest implements EntryFilter {
     @Override
     public FilterResult filterEntry(Entry entry, FilterContext context) {
@@ -36,7 +35,7 @@ public class EntryFilterTest implements EntryFilter {
         }
         Consumer consumer = context.getConsumer();
         Map<String, String> metadata = consumer != null ? consumer.getMetadata() : Collections.emptyMap();
-        log.info("filterEntry for {}", metadata);
+        log.info().attr("filterentryFor", metadata).log("filterEntry for");
         String matchValueAccept = metadata.getOrDefault("matchValueAccept", "ACCEPT");
         String matchValueReject = metadata.getOrDefault("matchValueReject", "REJECT");
         String matchValueReschedule = metadata.getOrDefault("matchValueReschedule", "RESCHEDULE");
@@ -47,16 +46,20 @@ public class EntryFilterTest implements EntryFilter {
         // filter by string
         for (KeyValue keyValue : list) {
             if (matchValueAccept.equalsIgnoreCase(keyValue.getKey())) {
-                log.info("metadata {} key {} debug '{}' outcome ACCEPT", metadata, keyValue.getKey(), debug);
+                log.info().attr("metadata", metadata).attr("key", keyValue.getKey()).attr("debug", debug)
+                        .log("metadata key debug '' outcome ACCEPT");
                 return FilterResult.ACCEPT;
             } else if (matchValueReject.equalsIgnoreCase(keyValue.getKey())){
-                log.info("metadata {} key {} debug '{}' outcome REJECT", metadata, keyValue.getKey(), debug);
+                log.info().attr("metadata", metadata).attr("key", keyValue.getKey()).attr("debug", debug)
+                        .log("metadata key debug '' outcome REJECT");
                 return FilterResult.REJECT;
             } else if (matchValueReschedule.equalsIgnoreCase(keyValue.getKey())){
-                log.info("metadata {} key {} debug '{}' outcome RESCHEDULE", metadata, keyValue.getKey(), debug);
+                log.info().attr("metadata", metadata).attr("key", keyValue.getKey()).attr("debug", debug)
+                        .log("metadata key debug '' outcome RESCHEDULE");
                 return FilterResult.RESCHEDULE;
             } else {
-                log.info("metadata {} key {} debug '{}' outcome ??", metadata, keyValue.getKey(), debug);
+                log.info().attr("metadata", metadata).attr("key", keyValue.getKey()).attr("debug", debug)
+                        .log("metadata key debug '' outcome ??");
             }
         }
         return null;

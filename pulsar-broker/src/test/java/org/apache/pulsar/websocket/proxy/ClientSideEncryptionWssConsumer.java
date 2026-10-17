@@ -26,7 +26,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -42,7 +42,7 @@ import org.eclipse.jetty.websocket.api.annotations.WebSocket;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
 
-@Slf4j
+@CustomLog
 @WebSocket
 public class ClientSideEncryptionWssConsumer implements Closeable {
 
@@ -98,19 +98,19 @@ public class ClientSideEncryptionWssConsumer implements Closeable {
 
     @OnWebSocketClose
     public void onWebSocketClose(int statusCode, String reason) {
-        log.info("Connection closed: {} - {}", statusCode, reason);
+        log.info().attr("statusCode", statusCode).attr("reason", reason).log("Connection closed");
         this.session = null;
     }
 
     @OnWebSocketOpen
     public void onWebSocketConnect(Session session) {
-        log.info("Got connect: {}", session);
+        log.info().attr("connect", session).log("Got connect");
         this.session = session;
     }
 
     @OnWebSocketError
     public void onWebSocketError(Throwable cause) {
-        log.error("Received an error", cause);
+        log.error().exception(cause).log("Received an error");
     }
 
     @OnWebSocketMessage
@@ -120,8 +120,11 @@ public class ClientSideEncryptionWssConsumer implements Closeable {
             ConsumerMessage msg =
                     ObjectMapperFactory.getMapper().reader().readValue(text, ConsumerMessage.class);
             if (msg.messageId == null) {
-                log.error("Consumer[{}-{}] Could not extract the response payload: {}", topicName, subscriptionName,
-                        text);
+                log.error()
+                        .attr("consumer", topicName)
+                        .attr("subscriptionName", subscriptionName)
+                        .attr("payload", text)
+                        .log("Consumer[ - ] Could not extract the response payload");
                 return;
             }
             // Decrypt.
@@ -142,7 +145,11 @@ public class ClientSideEncryptionWssConsumer implements Closeable {
                 incomingMessages.add(msg);
             }
         } catch (Exception ex) {
-            log.error("Consumer[{}-{}] Could not extract the response payload: {}", topicName, subscriptionName, text);
+            log.error()
+                    .attr("consumer", topicName)
+                    .attr("subscriptionName", subscriptionName)
+                    .attr("payload", text)
+                    .log("Consumer[ - ] Could not extract the response payload");
         }
     }
 

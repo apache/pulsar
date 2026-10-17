@@ -28,10 +28,11 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Semaphore;
 import java.util.function.Consumer;
 import lombok.AccessLevel;
+import lombok.CustomLog;
 import lombok.Data;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.PulsarExecutors;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
 
@@ -40,7 +41,7 @@ import org.apache.pulsar.functions.api.Record;
  * program if invoking via a process based invocation or using JavaInstance using a thread
  * based invocation.
  */
-@Slf4j
+@CustomLog
 public class JavaInstance implements AutoCloseable {
 
     @Data
@@ -70,7 +71,7 @@ public class JavaInstance implements AutoCloseable {
 
         this.context = contextImpl;
         this.instanceConfig = instanceConfig;
-        this.executor = Executors.newSingleThreadExecutor();
+        this.executor = PulsarExecutors.newSingleThreadExecutor(Executors.defaultThreadFactory(), false);
 
         asyncPreserveInputOrderForOutputMessages =
                 resolveAsyncPreserveInputOrderForOutputMessages(instanceConfig);
@@ -168,14 +169,12 @@ public class JavaInstance implements AutoCloseable {
                 }, executor);
                 return null;
             } catch (InterruptedException ie) {
-                log.warn("Exception while put Async requests", ie);
+                log.warn().exception(ie).log("Exception while put Async requests");
                 executionResult.setUserException(ie);
                 return executionResult;
             }
         } else {
-            if (log.isDebugEnabled()) {
-                log.debug("Got result: object: {}", output);
-            }
+            log.debug().attr("result", output).log("Got result");
             executionResult.setResult(output);
             return executionResult;
         }
@@ -216,7 +215,7 @@ public class JavaInstance implements AutoCloseable {
             try {
                 function.close();
             } catch (Exception e) {
-                log.error("function closeResource occurred exception", e);
+                log.error().exception(e).log("Function closeResource occurred exception");
             }
         }
 

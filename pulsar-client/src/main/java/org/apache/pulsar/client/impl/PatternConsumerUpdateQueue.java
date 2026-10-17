@@ -20,11 +20,11 @@ package org.apache.pulsar.client.impl;
 
 import com.google.common.annotations.VisibleForTesting;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import io.github.merlimat.slog.Logger;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 
@@ -45,9 +45,10 @@ import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
  * When you are using this client connect to the broker whose version < 2.11, there is only one scenario: [3] and all
  *   the event will run in the same thread.
  */
-@Slf4j
 @SuppressFBWarnings("EI_EXPOSE_REP2")
 public class PatternConsumerUpdateQueue {
+    private static final Logger LOG = Logger.get(PatternConsumerUpdateQueue.class);
+    private final Logger log;
     private final LinkedBlockingQueue<UpdateTask> pendingTasks;
 
     private final PatternMultiTopicsConsumerImpl<?> patternConsumer;
@@ -149,6 +150,9 @@ public class PatternConsumerUpdateQueue {
         this.patternConsumer = patternConsumer;
         this.topicsChangeListener = topicsChangeListener;
         this.pendingTasks = new LinkedBlockingQueue<>();
+        this.log = LOG.with()
+                .attr("subscription", () -> patternConsumer.getSubscription())
+                .build();
         // To avoid subscribing and topics changed events execute concurrently, let the change events starts after the
         // subscribing task.
         doAppend(InitTask.INSTANCE);
@@ -169,9 +173,8 @@ public class PatternConsumerUpdateQueue {
     }
 
     synchronized void doAppend(UpdateTask task) {
-        if (log.isDebugEnabled()) {
-            log.debug("Pattern consumer [{}] try to append task. {}", patternConsumer.getSubscription(), task);
-        }
+            log.debug().attr("task", task)
+                    .log("Pattern consumer try to append task");
         // Once there is a recheck task in queue, it means other tasks can be skipped.
         if (recheckTaskInQueue) {
             return;
@@ -222,8 +225,8 @@ public class PatternConsumerUpdateQueue {
                     synchronized (PatternConsumerUpdateQueue.this) {
                         this.closed = true;
                         patternConsumer.closeAsync().exceptionally(ex2 -> {
-                            log.error("Pattern consumer failed to close, this error may left orphan consumers."
-                                    + " Subscription: {}", patternConsumer.getSubscription());
+                            log.error()
+                                    .log("Pattern consumer failed to close, this error may leave orphan consumers");
                             return null;
                         });
                     }
@@ -251,9 +254,10 @@ public class PatternConsumerUpdateQueue {
                             String localHash = patternConsumer.getLocalStateTopicsHash();
                             String brokerHash = topicsAddedOrRemovedTask.topicsHash;
                             if (brokerHash != null && brokerHash.length() > 0 && !brokerHash.equals(localHash)) {
-                                log.info("[{}][{}] Hash mismatch detected (local: {}, broker: {}). Triggering "
-                                                + "reconciliation.", patternConsumer.getPattern().inputPattern(),
-                                        patternConsumer.getSubscription(), localHash, brokerHash);
+                                log.info().attr("pattern", patternConsumer.getPattern().inputPattern())
+                                        .attr("local", localHash)
+                                        .attr("broker", brokerHash)
+                                        .log("Hash mismatch detected, triggering reconciliation");
                                 appendRecheckOp();
                             }
                         });
@@ -275,15 +279,13 @@ public class PatternConsumerUpdateQueue {
                 throw new RuntimeException("Un-support UpdateSubscriptionType");
             }
         }
-        if (log.isDebugEnabled()) {
-            log.debug("Pattern consumer [{}] starting task. {}", patternConsumer.getSubscription(), task);
-        }
+            log.debug().attr("task", task)
+                    .log("Pattern consumer starting task");
         // Trigger next pending task.
         taskInProgress = Pair.of(task.type, newTaskFuture);
         newTaskFuture.thenAccept(ignore -> {
-            if (log.isDebugEnabled()) {
-                log.debug("Pattern consumer [{}] task finished. {}", patternConsumer.getSubscription(), task);
-            }
+                log.debug().attr("finished", task)
+                        .log("Pattern consumer task finished");
             triggerNextTask();
         }).exceptionally(ex -> {
             /**
@@ -291,8 +293,9 @@ public class PatternConsumerUpdateQueue {
              * - Skip if there is already a recheck task in queue.
              * - Skip if the last recheck task has been executed after the current time.
              */
-            log.error("Pattern consumer [{}] task finished. {}. But it failed", patternConsumer.getSubscription(),
-                    task, ex);
+            log.error().attr("task", task)
+                    .exception(ex)
+                    .log("Pattern consumer task failed");
             // Skip if there is already a recheck task in queue.
             synchronized (PatternConsumerUpdateQueue.this) {
                 if (recheckTaskInQueue || PatternConsumerUpdateQueue.this.closed) {

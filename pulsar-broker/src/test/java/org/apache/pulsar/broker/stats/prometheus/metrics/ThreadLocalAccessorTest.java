@@ -19,9 +19,9 @@
 package org.apache.pulsar.broker.stats.prometheus.metrics;
 
 import static org.testng.Assert.assertEquals;
-import com.yahoo.sketches.quantiles.DoublesUnion;
 import io.netty.util.concurrent.FastThreadLocalThread;
 import java.util.concurrent.Phaser;
+import org.apache.datasketches.kll.KllDoublesSketch;
 import org.jspecify.annotations.Nullable;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -33,19 +33,19 @@ public class ThreadLocalAccessorTest {
         return new Object[][] {
                 // 1st element: whether the thread is a FastThreadLocalThread
                 // 2nd element: the 2nd argument passed to the `ThreadLocalAccessor#record` method
-                { true, DoublesUnion.builder().build() },
+                { true, KllDoublesSketch.newHeapInstance() },
                 { true, null },
-                { false, DoublesUnion.builder().build() },
+                { false, KllDoublesSketch.newHeapInstance() },
                 { false, null },
         };
     }
 
     @Test(dataProvider = "provider")
     public void testShouldRemoveLocalDataWhenOwnerThreadIsNotAlive(
-            boolean fastThreadLocalThread, @Nullable DoublesUnion aggregateFail) throws Exception {
+            boolean fastThreadLocalThread, @Nullable KllDoublesSketch aggregateFail) throws Exception {
         // given a ThreadLocalAccessor instance
         final var threadLocalAccessor = new ThreadLocalAccessor();
-        DoublesUnion aggregateSuccess = DoublesUnion.builder().build();
+        KllDoublesSketch aggregateSuccess = KllDoublesSketch.newHeapInstance();
         // using phaser to synchronize threads
         Phaser phaser = new Phaser(2);
         Thread thread = getThread(fastThreadLocalThread, () -> {
@@ -75,13 +75,13 @@ public class ThreadLocalAccessorTest {
     }
 
     @Test(dataProvider = "provider")
-    public void testThreadGc(boolean fastThreadLocalThread, @Nullable DoublesUnion aggregateFail) throws Exception {
+    public void testThreadGc(boolean fastThreadLocalThread, @Nullable KllDoublesSketch aggregateFail) throws Exception {
         final var accessor = new ThreadLocalAccessor();
         getThread(fastThreadLocalThread, accessor::getLocalData).join();
         System.gc();
         // FastThreadLocalThread removes the LocalData from the map when the thread finishes
         assertEquals(accessor.getLocalDataCount(), fastThreadLocalThread ? 0 : 1);
-        accessor.record(DoublesUnion.builder().build(), aggregateFail);
+        accessor.record(KllDoublesSketch.newHeapInstance(), aggregateFail);
         assertEquals(accessor.getLocalDataCount(), 0);
     }
 

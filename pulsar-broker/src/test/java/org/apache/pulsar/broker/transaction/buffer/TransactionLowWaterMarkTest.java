@@ -30,7 +30,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.pulsar.broker.service.Topic;
@@ -66,7 +66,7 @@ import org.testng.annotations.Test;
 /**
  * Pulsar client transaction test.
  */
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class TransactionLowWaterMarkTest extends TransactionTestBase {
 
@@ -471,6 +471,5 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
         return ongoingTxns.containsKey(txnID);
 
     }
-
 
 }

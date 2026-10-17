@@ -24,7 +24,7 @@ import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
 import java.util.HashSet;
 import java.util.Set;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
@@ -38,7 +38,7 @@ import org.testng.annotations.Test;
  * These tests verify that partition compatibility and auto-topic creation policy
  * compatibility are properly validated when enabling namespace-level replication.
  */
-@Slf4j
+@CustomLog
 @Test(groups = "broker-admin")
 public class SetReplicationClustersValidationTest extends OneWayReplicatorTestBase {
 
@@ -245,7 +245,7 @@ public class SetReplicationClustersValidationTest extends OneWayReplicatorTestBa
             admin1.namespaces().setAutoTopicCreation(namespace, policy1);
             fail("Expected behaviour: Pulsar does not allow setting non-partitioned and a certain partition counts");
         } catch (Exception ex) {
-            assertTrue(ex.getMessage().contains("is not allowed to be set when the type is non-partition"));
+            assertTrue(ex.getMessage().contains("must be null, 0 or 1 when the type is non-partitioned"));
         }
     }
 

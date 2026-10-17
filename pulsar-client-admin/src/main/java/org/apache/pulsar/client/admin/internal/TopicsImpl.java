@@ -22,6 +22,14 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.gson.Gson;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.client.InvocationCallback;
+import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.GenericType;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.MultivaluedMap;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response.Status;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -40,14 +48,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.InvocationCallback;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.GenericType;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.MultivaluedMap;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.GetStatsOptions;
 import org.apache.pulsar.client.admin.ListTopicsOptions;
@@ -55,6 +56,7 @@ import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
+import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.Message;
@@ -99,10 +101,10 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.stats.AnalyzeSubscriptionBacklogResult;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.pulsar.common.util.FutureUtil;
 
 @SuppressWarnings("deprecation")
+@CustomLog
 public class TopicsImpl extends BaseResource implements Topics {
     private final WebTarget adminV2Topics;
     // CHECKSTYLE.OFF: MemberName
@@ -138,6 +140,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     private static final String ENCRYPTION_KEYS = "X-Pulsar-Base64-encryption-keys";
     public static final String TXN_ABORTED = "X-Pulsar-txn-aborted";
     public static final String TXN_UNCOMMITTED = "X-Pulsar-txn-uncommitted";
+    public static final String TXN_CONSUMABLE = "X-Pulsar-txn-consumable";
     // CHECKSTYLE.ON: MemberName
 
     public static final String PROPERTY_SHADOW_SOURCE_KEY = "PULSAR.SHADOW_SOURCE";
@@ -329,6 +332,12 @@ public class TopicsImpl extends BaseResource implements Topics {
     @Override
     public CompletableFuture<Void> createNonPartitionedTopicAsync(String topic, Map<String, String> properties){
         TopicName tn = validateTopic(topic);
+        try {
+            TopicName.validateTopicNameForCreation(tn);
+        } catch (IllegalArgumentException e) {
+            return FutureUtil.failedFuture(
+                    new PreconditionFailedException(e, e.getMessage(), Status.PRECONDITION_FAILED.getStatusCode()));
+        }
         WebTarget path = topicPath(tn);
         properties = properties == null ? new HashMap<>() : properties;
         return asyncPutRequest(path, Entity.entity(properties, MediaType.APPLICATION_JSON));
@@ -345,6 +354,12 @@ public class TopicsImpl extends BaseResource implements Topics {
             String topic, int numPartitions, boolean createLocalTopicOnly, Map<String, String> properties) {
         checkArgument(numPartitions > 0, "Number of partitions should be more than 0");
         TopicName tn = validateTopic(topic);
+        try {
+            TopicName.validateTopicNameForCreation(tn);
+        } catch (IllegalArgumentException e) {
+            return FutureUtil.failedFuture(
+                    new PreconditionFailedException(e, e.getMessage(), Status.PRECONDITION_FAILED.getStatusCode()));
+        }
         WebTarget path = topicPath(tn, "partitions")
                 .queryParam("createLocalTopicOnly", Boolean.toString(createLocalTopicOnly));
         Entity entity;
@@ -539,8 +554,9 @@ public class TopicsImpl extends BaseResource implements Topics {
 
                         @Override
                         public void failed(Throwable throwable) {
-                            log.warn("[{}] Failed to perform http post request: {}", path.getUri(),
-                                    throwable.getMessage());
+                            log.warn().attr("uri", path.getUri())
+                                    .exceptionMessage(throwable)
+                                    .log("Failed to perform http post request");
                             future.completeExceptionally(getApiException(throwable.getCause()));
                         }
                     });
@@ -578,8 +594,9 @@ public class TopicsImpl extends BaseResource implements Topics {
 
                         @Override
                         public void failed(Throwable throwable) {
-                            log.warn("[{}] Failed to perform http post request: {}", path.getUri(),
-                                    throwable.getMessage());
+                            log.warn().attr("uri", path.getUri())
+                                    .exceptionMessage(throwable)
+                                    .log("Failed to perform http post request");
                             future.completeExceptionally(getApiException(throwable.getCause()));
                         }
                     });
@@ -943,7 +960,8 @@ public class TopicsImpl extends BaseResource implements Topics {
                 // if we get a not found exception, it means that the position for the message we are trying to get
                 // does not exist. At this point, we can return the already found messages.
                 if (ex instanceof NotFoundException) {
-                    log.warn("Exception '{}' occurred while trying to peek Messages.", ex.getMessage());
+                    log.warn().exceptionMessage(ex)
+                            .log("Exception occurred while trying to peek Messages");
                     future.complete(messages);
                 } else {
                     future.completeExceptionally(ex);
@@ -1339,6 +1357,15 @@ public class TopicsImpl extends BaseResource implements Topics {
                 }
             }
 
+            tmp = headers.getFirst(TXN_CONSUMABLE);
+            if (tmp != null) {
+                properties.put(TXN_CONSUMABLE, tmp.toString());
+                if (!Boolean.parseBoolean(tmp.toString())
+                        && transactionIsolationLevel == TransactionIsolationLevel.READ_COMMITTED) {
+                    return new ArrayList<>();
+                }
+            }
+
             tmp = headers.getFirst(PUBLISH_TIME);
             if (tmp != null) {
                 messageMetadata.setPublishTime(DateFormatter.parse(tmp.toString()));
@@ -1516,7 +1543,8 @@ public class TopicsImpl extends BaseResource implements Topics {
                 }
                 ret.add(message);
             } catch (Exception ex) {
-                log.error("Exception occurred while trying to get BatchMsgId: {}", batchMsgId, ex);
+                log.error().exception(ex).attr("batchMsgId", batchMsgId)
+                        .log("Exception occurred while trying to get BatchMsgId");
             }
         }
         buf.release();
@@ -1657,9 +1685,11 @@ public class TopicsImpl extends BaseResource implements Topics {
                 // In analyze-backlog, we treat 0 entries or null lastMessageId as scan completed for mere safety.
                 // 0 entries or a null lastMessageId indicates no entries were scanned.
                 if (currentResult.getEntries() <= 0 || StringUtils.isBlank(currentResult.getLastMessageId())) {
-                    log.info("[{}][{}] complete scan due total entry <= 0 or last message id is blank, "
-                            + "start position is: {}, current result: {}", topic, subscriptionName,
-                            startPositionRef.get(), currentResult);
+                    log.info().attr("topic", topic)
+                            .attr("subscription", subscriptionName)
+                            .attr("startPosition", startPositionRef.get())
+                            .attr("currentResult", currentResult)
+                            .log("Complete scan due total entry <= 0 or last message id is blank");
                     future.complete(mergedResult);
                     return;
                 }
@@ -2031,7 +2061,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     public CompletableFuture<Void> setOffloadPoliciesAsync(String topic, OffloadPolicies offloadPolicies) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "offloadPolicies");
-        return asyncPostRequest(path, Entity.entity((OffloadPoliciesImpl) offloadPolicies, MediaType.APPLICATION_JSON));
+        return asyncPostRequest(path, Entity.entity(offloadPolicies, MediaType.APPLICATION_JSON));
     }
 
     @Override
@@ -2977,5 +3007,4 @@ public class TopicsImpl extends BaseResource implements Topics {
             .collect(Collectors.joining(","));
     }
 
-    private static final Logger log = LoggerFactory.getLogger(TopicsImpl.class);
 }

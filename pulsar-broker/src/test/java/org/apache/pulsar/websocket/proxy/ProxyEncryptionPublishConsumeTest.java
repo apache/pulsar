@@ -32,6 +32,7 @@ import java.nio.file.Paths;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Future;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.EncryptionKeyInfo;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
@@ -45,14 +46,13 @@ import org.awaitility.Awaitility;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "websocket")
+@CustomLog
 public class ProxyEncryptionPublishConsumeTest extends ProducerConsumerBase {
     protected String methodName;
 
@@ -122,12 +122,12 @@ public class ProxyEncryptionPublishConsumeTest extends ProducerConsumerBase {
             ClientUpgradeRequest consumeRequest2 = new ClientUpgradeRequest(consumeUri);
             Future<Session> consumerFuture1 = consumeClient1.connect(consumeSocket1, consumeRequest1);
             Future<Session> consumerFuture2 = consumeClient2.connect(consumeSocket2, consumeRequest2);
-            log.info("Connecting to : {}", consumeUri);
+            log.info().attr("uri", consumeUri).log("Connecting to");
 
             readClient.start();
             ClientUpgradeRequest readRequest = new ClientUpgradeRequest(readUri);
             Future<Session> readerFuture = readClient.connect(readSocket, readRequest);
-            log.info("Connecting to : {}", readUri);
+            log.info().attr("uri", readUri).log("Connecting to");
 
             // let it connect
             assertTrue(consumerFuture1.get().isOpen());
@@ -219,11 +219,9 @@ public class ProxyEncryptionPublishConsumeTest extends ProducerConsumerBase {
             try {
                 client.stop();
             } catch (Exception e) {
-                log.error(e.getMessage());
+                log.error().exception(e).log("Failed to stop client");
             }
         }
         log.info("proxy clients are stopped successfully");
     }
-
-    private static final Logger log = LoggerFactory.getLogger(ProxyEncryptionPublishConsumeTest.class);
 }

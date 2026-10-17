@@ -23,9 +23,9 @@ import static org.mockito.Mockito.spy;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
@@ -33,7 +33,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.policies.data.TopicType;
 
-@Slf4j
+@CustomLog
 public abstract class OwnerShipForCurrentServerTestBase {
 
     public static final String CLUSTER_NAME = "test";
@@ -123,7 +123,7 @@ public abstract class OwnerShipForCurrentServerTestBase {
             }
 
         } catch (Exception e) {
-            log.warn("Failed to clean up mocked pulsar service:", e);
+            log.warn().exception(e).log("Failed to clean up mocked pulsar service");
         }
     }
 }

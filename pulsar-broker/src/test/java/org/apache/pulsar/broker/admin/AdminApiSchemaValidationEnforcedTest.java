@@ -25,7 +25,7 @@ import static org.testng.Assert.fail;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
@@ -40,7 +40,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-admin")
 public class AdminApiSchemaValidationEnforcedTest extends MockedPulsarServiceBaseTest {
 
@@ -67,6 +67,29 @@ public class AdminApiSchemaValidationEnforcedTest extends MockedPulsarServiceBas
         this.conf.setSchemaValidationEnforced(true);
         assertTrue(admin.namespaces().getSchemaValidationEnforced(namespace, true));
         assertFalse(admin.namespaces().getSchemaValidationEnforced(namespace, false));
+    }
+
+    @Test
+    public void testGetTopicSchemaValidationEnforcedAppliedWhenBrokerEnabled() throws Exception {
+        String namespace = "schema-validation-enforced/topicApplied";
+        String topicName = "persistent://" + namespace + "/test";
+        admin.namespaces().createNamespace(namespace);
+        admin.topics().createNonPartitionedTopic(topicName);
+        admin.topics().setSchemaValidationEnforced(topicName, false);
+
+        boolean previousValue = conf.isSchemaValidationEnforced();
+        try {
+            conf.setSchemaValidationEnforced(false);
+            admin.namespaces().setSchemaValidationEnforced(namespace, true);
+            assertFalse(admin.topics().getSchemaValidationEnforced(topicName, false));
+            assertFalse(admin.topics().getSchemaValidationEnforced(topicName, true));
+
+            conf.setSchemaValidationEnforced(true);
+            assertFalse(admin.topics().getSchemaValidationEnforced(topicName, false));
+            assertTrue(admin.topics().getSchemaValidationEnforced(topicName, true));
+        } finally {
+            conf.setSchemaValidationEnforced(previousValue);
+        }
     }
 
     @Test

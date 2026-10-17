@@ -21,7 +21,7 @@ package org.apache.pulsar.tests.integration.offload;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeperAdmin;
@@ -36,7 +36,7 @@ import org.apache.pulsar.tests.integration.suites.PulsarTieredStorageTestSuite;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 
-@Slf4j
+@CustomLog
 public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
     protected int getEntrySize() {
         return 1024;
@@ -80,7 +80,7 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
             for (; i < getNumEntriesPerLedger() * 1.5; i++) {
                 producer.sendAsync(buildEntry("offload-message" + i))
                         .exceptionally(e -> {
-                            log.error("failed to send a message", e);
+                            log.error().exception(e).log("failed to send a message");
                             success.set(false);
                             return null;
                         });
@@ -163,7 +163,7 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
             for (int i = 0; i < getNumEntriesPerLedger() * 2.5; i++) {
                 producer.sendAsync(buildEntry("offload-message" + i))
                         .exceptionally(e -> {
-                            log.error("failed to send a message", e);
+                            log.error().exception(e).log("failed to send a message");
                             success.set(false);
                             return null;
                         });
@@ -250,7 +250,7 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
                  i++) {
                 producer.sendAsync(buildEntry("offload-message" + i))
                         .exceptionally(e -> {
-                            log.error("failed to send a message", e);
+                            log.error().exception(e).log("failed to send a message");
                             success.set(false);
                             return null;
                         });

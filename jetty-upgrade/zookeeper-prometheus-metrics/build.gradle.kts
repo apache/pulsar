@@ -18,10 +18,11 @@
  */
 
 plugins {
-    id("pulsar.java-conventions")
+    id("pulsar.public-java-library-conventions")
 }
 
 dependencies {
+    implementation(libs.slog)
     implementation(libs.zookeeper)
     implementation(libs.simpleclient)
     implementation(libs.simpleclient.hotspot)

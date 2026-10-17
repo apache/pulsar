@@ -25,15 +25,15 @@ import io.prometheus.client.Gauge;
 import io.prometheus.client.Summary;
 import java.util.Arrays;
 import java.util.concurrent.ScheduledExecutorService;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.proto.FunctionStatus;
 
 /**
  * Function stats.
  */
-@Slf4j
+@CustomLog
 @Getter
 @Setter
 public class FunctionStatsManager extends ComponentStatsManager {

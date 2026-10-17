@@ -24,7 +24,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import java.util.concurrent.CompletableFuture;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
@@ -35,7 +35,7 @@ import org.testng.annotations.Test;
 /**
  * Unit testing AbstractGenericSchema for non-avroBasedGenericSchema.
  */
-@Slf4j
+@CustomLog
 public class AbstractGenericSchemaTest {
 
     @Test
@@ -76,7 +76,7 @@ public class AbstractGenericSchemaTest {
             org.apache.pulsar.client.schema.proto.Test.TestMessage testMessage = newTestMessage(i);
             byte[] data = encodeSchema.encode(testMessage);
 
-            log.info("Decoding : {}", new String(data, UTF_8));
+            log.info().attr("data", new String(data, UTF_8)).log("Decoding");
 
             GenericRecord record;
             if (decodeSchema instanceof AutoConsumeSchema) {

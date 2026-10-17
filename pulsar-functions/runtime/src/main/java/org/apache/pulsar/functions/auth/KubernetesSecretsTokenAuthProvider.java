@@ -39,7 +39,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.naming.AuthenticationException;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
@@ -48,7 +48,7 @@ import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.apache.pulsar.functions.utils.Actions;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 
-@Slf4j
+@CustomLog
 public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAuthProvider {
 
     private static final int NUM_RETRIES = 5;
@@ -139,8 +139,9 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                 id = createSecret(token, funcDetails);
             }
         } catch (Exception e) {
-            log.warn("Failed to get token for function {}",
-                    FunctionCommon.getFullyQualifiedName(tenant, namespace, name), e);
+            log.warn().attr("function",
+                    FunctionCommon.getFullyQualifiedName(tenant, namespace, name))
+                    .exception(e).log("Failed to get token for function");
             // ignore exception and continue since anonymous user might to used
         }
 
@@ -163,7 +164,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
         String secretId = new String(functionAuthData.get().getData());
         // Make sure secretName is empty.  Defensive programming
         if (isBlank(secretId)) {
-            log.warn("Secret name for function {} is empty.", fqfn);
+            log.warn().attr("function", fqfn).log("Secret name for function is empty");
             return;
         }
 
@@ -186,7 +187,8 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                     } catch (ApiException e) {
                         // if already deleted
                         if (e.getCode() == HTTP_NOT_FOUND) {
-                            log.warn("Secrets for function {} does not exist", fqfn);
+                            log.warn().attr("function", fqfn)
+                                    .log("Secrets for function does not exist");
                             return Actions.ActionResult.builder().success(true).build();
                         }
 

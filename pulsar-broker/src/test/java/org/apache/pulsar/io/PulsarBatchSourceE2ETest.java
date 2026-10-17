@@ -38,6 +38,7 @@ import org.apache.pulsar.functions.worker.TestPulsarFunctionUtils;
 import org.apache.pulsar.io.batchdiscovery.ImmediateTriggerer;
 import org.testng.annotations.Test;
 
+@lombok.CustomLog
 @Test(groups = "broker-io")
 public class PulsarBatchSourceE2ETest extends AbstractPulsarE2ETest {
 
@@ -103,7 +104,7 @@ public class PulsarBatchSourceE2ETest extends AbstractPulsarE2ETest {
 
         String prometheusMetrics =
                 TestPulsarFunctionUtils.getPrometheusMetrics(pulsar.getListenPortHTTP().get());
-        LOG.info("prometheusMetrics: {}", prometheusMetrics);
+        log.info().attr("prometheusMetrics", prometheusMetrics).log("prometheus metrics");
 
         Map<String, TestPulsarFunctionUtils.Metric> metrics = TestPulsarFunctionUtils.parseMetrics(prometheusMetrics);
         TestPulsarFunctionUtils.Metric m = metrics.get("pulsar_source_received_total");

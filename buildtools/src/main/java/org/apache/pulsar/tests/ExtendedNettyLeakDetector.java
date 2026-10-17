@@ -27,17 +27,16 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import lombok.CustomLog;
 import org.apache.logging.log4j.LogManager;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A custom Netty leak detector used in Pulsar tests that dumps the detected leaks to a file in a directory that is
  * configured with the NETTY_LEAK_DUMP_DIR environment variable. This directory defaults to java.io.tmpdir.
  * The files will be named netty_leak_YYYYMMDD-HHMMSS.SSS.txt.
  */
+@CustomLog
 public class ExtendedNettyLeakDetector<T> extends ResourceLeakDetector<T> {
-    private static final Logger LOG = LoggerFactory.getLogger(ExtendedNettyLeakDetector.class);
     public static final String NETTY_CUSTOM_LEAK_DETECTOR_SYSTEM_PROPERTY_NAME = "io.netty.customResourceLeakDetector";
 
     private static final File DUMP_DIR =
@@ -163,8 +162,8 @@ public class ExtendedNettyLeakDetector<T> extends ResourceLeakDetector<T> {
         }
         if (exitJvmOnLeak) {
             new Thread(() -> {
-                LOG.error("Exiting JVM due to Netty resource leak. Check logs for more details. Dumped to {}",
-                        DUMP_DIR.getAbsolutePath());
+                log.error().attr("dumpDir", DUMP_DIR.getAbsolutePath())
+                        .log("Exiting JVM due to Netty resource leak");
                 System.err.println("Exiting JVM due to Netty resource leak. Check logs for more details. Dumped to "
                         + DUMP_DIR.getAbsolutePath());
                 triggerLeakDetectionBeforeJVMExit();
@@ -203,7 +202,7 @@ public class ExtendedNettyLeakDetector<T> extends ResourceLeakDetector<T> {
                 out.flush();
             }
         } catch (IOException e) {
-            LOG.error("Cannot write thread leak dump", e);
+            log.error().exception(e).log("Cannot write thread leak dump");
         }
     }
 

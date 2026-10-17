@@ -19,10 +19,12 @@
 
 // Convention plugin for NAR (Nifi Archive) modules.
 // Configures platform module exclusions from runtimeClasspath, forces JAR artifacts
-// for bundled-dependencies, and handles archive name qualification.
+// for bundled-dependencies, handles archive name qualification, and publishes the
+// NAR artifact with an empty POM (no dependencies — everything is bundled).
 
 plugins {
     id("io.github.merlimat.nar")
+    id("pulsar.publish-conventions")
 }
 
 // NAR modules should not bundle Pulsar platform dependencies — they are provided
@@ -31,12 +33,15 @@ plugins {
 // bundled in each NAR that uses it (e.g., IOConfigUtils).
 val pulsarPlatformModules = setOf(
     "pulsar-client-api",
+    "pulsar-client-api-v5",
+    "pulsar-client-v5",
+    "pulsar-tls-factory-api",
+    "pulsar-http-client-api",
     "pulsar-client-admin-api",
     "pulsar-client-original",
     "pulsar-client",
     "pulsar-common",
     "pulsar-config-validation",
-    "bouncy-castle-bc",
     "pulsar-functions-api",
     "pulsar-functions-instance",
     "pulsar-functions-proto",
@@ -49,13 +54,14 @@ val pulsarPlatformModules = setOf(
     "pulsar-package-core",
 )
 
+val pulsarGroup = project.group.toString()
 configurations.named("runtimeClasspath") {
     exclude(group = "org.apache.bookkeeper")
     // Protobuf is in java-instance.jar (runtime-all), so NARs must not bundle it.
     // Bundling a different version causes GeneratedMessage.getUnknownFields() conflicts.
     exclude(group = "com.google.protobuf")
     pulsarPlatformModules.forEach { module ->
-        exclude(group = "org.apache.pulsar", module = module)
+        exclude(group = pulsarGroup, module = module)
     }
 }
 
@@ -90,4 +96,27 @@ if (parentProject != null && parentProject != rootProject && parentProject.paren
     @Suppress("UNCHECKED_CAST")
     val narIdProp = narExt.javaClass.getMethod("getNarId").invoke(narExt) as org.gradle.api.provider.Property<String>
     narIdProp.set(qualifiedName)
+}
+
+// --- NAR publishing: publish only the .nar artifact with an empty POM ---
+// NAR modules bundle all dependencies, so the POM should have no <dependencies> section.
+publishing {
+    publications {
+        withType<MavenPublication>().configureEach {
+            // Replace component-based artifacts with just the NAR file
+            artifacts.clear()
+            artifact(tasks.named("nar"))
+            pom {
+                packaging = "nar"
+                // Remove all dependencies — NAR bundles everything
+                withXml {
+                    val root = asNode()
+                    root.children().removeAll { node ->
+                        val name = (node as groovy.util.Node).name()
+                        name.toString().contains("dependencies")
+                    }
+                }
+            }
+        }
+    }
 }

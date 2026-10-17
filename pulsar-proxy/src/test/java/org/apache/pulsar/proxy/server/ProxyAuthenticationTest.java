@@ -38,6 +38,7 @@ import java.util.concurrent.TimeUnit;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
@@ -57,15 +58,13 @@ import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@CustomLog
 public class ProxyAuthenticationTest extends ProducerConsumerBase {
-    private static final Logger log = LoggerFactory.getLogger(ProxyAuthenticationTest.class);
     private static final String CLUSTER_NAME = "test";
 
     public static class BasicAuthenticationData implements AuthenticationDataProvider {
@@ -266,7 +265,9 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 
     @Test
     void testAuthentication() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info()
+                .attr("methodName", methodName)
+                .log("-- Starting test --");
 
         // Step 1: Create Admin Client
         updateAdminClient();
@@ -345,7 +346,9 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 
     @Test
     void testClientDisconnectWhenCredentialsExpireWithoutForwardAuth() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info()
+                .attr("methodName", methodName)
+                .log("-- Starting test --");
 
         String namespaceName = "my-property/my-ns";
         String topicName = "persistent://my-property/my-ns/my-topic1";

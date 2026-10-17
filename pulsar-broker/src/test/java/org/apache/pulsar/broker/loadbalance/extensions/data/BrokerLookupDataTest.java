@@ -39,6 +39,7 @@ public class BrokerLookupDataTest {
 
     @Test
     public void testConstructors() throws PulsarServerException, URISyntaxException {
+        String brokerId = "localhost:8080";
         String webServiceUrl = "http://localhost:8080";
         String webServiceUrlTls = "https://localhoss:8081";
         String pulsarServiceUrl = "pulsar://localhost:6650";
@@ -55,7 +56,7 @@ public class BrokerLookupDataTest {
         Map<String, String> protocols = new HashMap<>(){{
             put("kafka", "9092");
         }};
-        BrokerLookupData lookupData = new BrokerLookupData(
+        BrokerLookupData lookupData = new BrokerLookupData(brokerId,
                 webServiceUrl, webServiceUrlTls, pulsarServiceUrl,
                 pulsarServiceUrlTls, advertisedListeners, protocols, true, true,
                 ExtensibleLoadManagerImpl.class.getName(), System.currentTimeMillis(), "3.0",

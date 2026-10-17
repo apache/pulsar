@@ -25,7 +25,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.CompletableFuture;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.LedgerOffloaderFactory;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -36,7 +36,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 /**
  * Utils to load offloaders.
  */
-@Slf4j
+@CustomLog
 public class OffloaderUtils {
 
     private static final String PULSAR_OFFLOADER_SERVICE_NAME = "pulsar-offloader.yaml";
@@ -126,7 +126,7 @@ public class OffloaderUtils {
     public static Offloaders searchForOffloaders(String offloadersPath, String narExtractionDirectory)
             throws IOException {
         Path path = Paths.get(offloadersPath).toAbsolutePath().normalize();
-        log.info("Searching for offloaders in {}", path);
+        log.info().attr("path", path).log("Searching for offloaders");
 
         Offloaders offloaders = new Offloaders();
 
@@ -139,7 +139,7 @@ public class OffloaderUtils {
             stream.forEach(archive -> {
                 try {
                     OffloaderDefinition definition = getOffloaderDefinition(archive.toString(), narExtractionDirectory);
-                    log.info("Found offloader {} from {}", definition, archive);
+                    log.info().attr("definition", definition).attr("archive", archive).log("Found offloader");
 
                     if (!StringUtils.isEmpty(definition.getOffloaderFactoryClass())) {
                         // Validate offloader factory class to be present and of the right type
@@ -150,11 +150,11 @@ public class OffloaderUtils {
                         }
                     }
                 } catch (Throwable t) {
-                    log.warn("Failed to load offloader from {}", archive, t);
+                    log.warn().attr("archive", archive).exception(t).log("Failed to load offloader");
                 }
             });
         }
-        log.info("Found and loaded {} offloaders", offloaders.getOffloaders().size());
+        log.info().attr("count", offloaders.getOffloaders().size()).log("Found and loaded offloaders");
         return offloaders;
     }
 

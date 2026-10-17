@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -41,12 +42,10 @@ import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @Getter
+@CustomLog
 public class NamespaceResources extends BaseResources<Policies> {
-    private static final Logger log = LoggerFactory.getLogger(NamespaceResources.class);
 
     private final IsolationPolicyResources isolationPolicies;
     private final PartitionedTopicResources partitionedTopicResources;
@@ -328,14 +327,19 @@ public class NamespaceResources extends BaseResources<Policies> {
 
         public CompletableFuture<Void> clearPartitionedTopicMetadataAsync(NamespaceName namespaceName) {
             final String globalPartitionedPath = joinPath(PARTITIONED_TOPIC_PATH, namespaceName.toString());
-            log.info("Clearing partitioned topic metadata for namespace {}, path is {}",
-                    namespaceName, globalPartitionedPath);
+            log.info()
+                    .attr("namespace", namespaceName)
+                    .attr("path", globalPartitionedPath)
+                    .log("Clearing partitioned topic metadata");
             return getStore().deleteRecursive(globalPartitionedPath);
         }
 
         public CompletableFuture<Void> clearPartitionedTopicTenantAsync(String tenant) {
             final String partitionedTopicPath = joinPath(PARTITIONED_TOPIC_PATH, tenant);
-            log.info("Clearing partitioned topic metadata for tenant {}, path is {}", tenant, partitionedTopicPath);
+            log.info()
+                    .attr("tenant", tenant)
+                    .attr("path", partitionedTopicPath)
+                    .log("Clearing partitioned topic metadata");
             return deleteIfExistsAsync(partitionedTopicPath);
         }
 
@@ -343,9 +347,7 @@ public class NamespaceResources extends BaseResources<Policies> {
             if (tn.isPartitioned()) {
                 return CompletableFuture.completedFuture(null);
             }
-            if (log.isDebugEnabled()) {
-                log.debug("markPartitionedTopicDeletedAsync {}", tn);
-            }
+            log.debug().attr("markPartitionedTopicDeletedAsync", tn).log("markPartitionedTopicDeletedAsync");
             return updatePartitionedTopicAsync(tn, md -> {
                 md.deleted = true;
                 return md;
@@ -356,9 +358,7 @@ public class NamespaceResources extends BaseResources<Policies> {
             if (tn.isPartitioned()) {
                 return CompletableFuture.completedFuture(null);
             }
-            if (log.isDebugEnabled()) {
-                log.debug("unmarkPartitionedTopicDeletedAsync {}", tn);
-            }
+            log.debug().attr("unmarkPartitionedTopicDeletedAsync", tn).log("unmarkPartitionedTopicDeletedAsync");
             return updatePartitionedTopicAsync(tn, md -> {
                 md.deleted = false;
                 return md;
@@ -384,7 +384,7 @@ public class NamespaceResources extends BaseResources<Policies> {
                     if (markExc.getCause() instanceof MetadataStoreException.NotFoundException) {
                         mdFound = false;
                     } else {
-                        log.error("Failed to mark the topic {} as deleted", topic, markExc);
+                        log.error().attr("topic", topic).exception(markExc).log("Failed to mark the topic as deleted");
                         future.completeExceptionally(markExc);
                         return;
                     }
@@ -397,7 +397,10 @@ public class NamespaceResources extends BaseResources<Policies> {
                         unmarkPartitionedTopicDeletedAsync(topic)
                                 .thenRun(() -> future.completeExceptionally(deleteExc))
                                 .exceptionally(ex -> {
-                                    log.warn("Failed to unmark the topic {} as deleted", topic, ex);
+                                    log.warn()
+                                            .attr("topic", topic)
+                                            .exception(ex)
+                                            .log("Failed to unmark the topic as deleted");
                                     future.completeExceptionally(deleteExc);
                                     return null;
                                 });

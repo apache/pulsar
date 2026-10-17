@@ -25,8 +25,8 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import lombok.CustomLog;
 import lombok.experimental.UtilityClass;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
@@ -36,7 +36,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
  * Util class to search and load {@link ProxyExtension}s.
  */
 @UtilityClass
-@Slf4j
+@CustomLog
 class ProxyExtensionsUtils {
 
     static final String PROXY_EXTENSION_DEFINITION_FILE = "pulsar-proxy-extension.yml";
@@ -76,7 +76,7 @@ class ProxyExtensionsUtils {
     public static ExtensionsDefinitions searchForExtensions(String extensionsDirectory,
                                                             String narExtractionDirectory) throws IOException {
         Path path = Paths.get(extensionsDirectory).toAbsolutePath().normalize();
-        log.info("Searching for extensions in {}", path);
+        log.info().attr("path", path).log("Searching for extensions");
 
         ExtensionsDefinitions extensions = new ExtensionsDefinitions();
         if (!path.toFile().exists()) {
@@ -89,7 +89,8 @@ class ProxyExtensionsUtils {
                 try {
                     ProxyExtensionDefinition phDef =
                         ProxyExtensionsUtils.getProxyExtensionDefinition(archive.toString(), narExtractionDirectory);
-                    log.info("Found extension from {} : {}", archive, phDef);
+                    log.info().attr("archive", archive).attr("definition", phDef)
+                            .log("Found extension");
 
                     checkArgument(StringUtils.isNotBlank(phDef.getName()));
                     checkArgument(StringUtils.isNotBlank(phDef.getExtensionClass()));
@@ -100,10 +101,12 @@ class ProxyExtensionsUtils {
 
                     extensions.extensions().put(phDef.getName(), metadata);
                 } catch (Throwable t) {
-                    log.warn("Failed to load connector from {}."
-                        + " It is OK however if you want to use this extension,"
-                        + " please make sure you put the correct extension NAR"
-                        + " package in the extensions directory.", archive, t);
+                    log.warn().attr("archive", archive).exception(t)
+                            .log("Failed to load connector."
+                                    + " It is OK however if you want to use"
+                                    + " this extension, please make sure you"
+                                    + " put the correct extension NAR package"
+                                    + " in the extensions directory.");
                 }
             }
         }

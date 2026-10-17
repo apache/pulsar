@@ -18,10 +18,11 @@
  */
 
 plugins {
-    id("pulsar.java-conventions")
+    id("pulsar.public-java-library-conventions")
 }
 
 dependencies {
+    implementation(libs.slog)
     api(project(":pulsar-io:pulsar-io-core"))
     implementation(libs.jackson.databind)
 }

@@ -25,13 +25,13 @@ import static org.testng.Assert.assertNull;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class ReplicatedSubscriptionSnapshotCacheTest {
 
@@ -117,7 +117,6 @@ public class ReplicatedSubscriptionSnapshotCacheTest {
         assertEquals(snapshot.position(), PositionFactory.create(4, 4));
     }
 
-
     @Test(timeOut = 15_000)
     public void testSnapshotCachePruningByKeepingEqualDistance() {
         int maxSnapshotToCache = 10_000;
@@ -161,10 +160,12 @@ public class ReplicatedSubscriptionSnapshotCacheTest {
             Position position = snapshots.get(i).position();
             Position nextPosition = snapshots.get(i + 1).position();
             long distanceToNext = nextPosition.getEntryId() - position.getEntryId();
-            if (log.isDebugEnabled()) {
-                log.debug(i + ": " + position + " -> " + nextPosition + " distance to next: " + distanceToNext
-                        + " to previous: " + snapshots.get(i).distanceToPrevious());
-            }
+            log.debug().attr("index", i).attr("position", position)
+                    .attr("nextPosition", nextPosition)
+                    .attr("distanceToNext", distanceToNext)
+                    .attr("distanceToPrevious",
+                            snapshots.get(i).distanceToPrevious())
+                    .log("snapshot distance");
             maxDistance = Math.max(maxDistance, distanceToNext);
             minDistance = Math.min(minDistance, distanceToNext);
 
@@ -175,9 +176,9 @@ public class ReplicatedSubscriptionSnapshotCacheTest {
                     .isLessThanOrEqualTo(expectedAverageDistance * 2);
         }
 
-        log.info("Average distance, expected: {}", expectedAverageDistance);
-        log.info("Min distance: {}", minDistance);
-        log.info("Max distance: {}", maxDistance);
+        log.info().attr("expected", expectedAverageDistance).log("Average distance, expected");
+        log.info().attr("minDistance", minDistance).log("Min distance");
+        log.info().attr("maxDistance", maxDistance).log("Max distance");
 
         // check that picking a random markDeletePosition within the range of the second snapshot will result in a
         // snapshot that is within 2 * expectedAverageDistance from the markDeletePosition
@@ -244,7 +245,6 @@ public class ReplicatedSubscriptionSnapshotCacheTest {
         assertThat(cache.getSnapshots()).hasSize(5)
                 .allSatisfy(snapshotEntry -> assertThat(snapshotEntry.position()).isNotEqualTo(
                         PositionFactory.create(1, 110)));
-
 
         ReplicatedSubscriptionsSnapshot s9 = new ReplicatedSubscriptionsSnapshot();
         s9.setLocalMessageId().setLedgerId(1).setEntryId(113);

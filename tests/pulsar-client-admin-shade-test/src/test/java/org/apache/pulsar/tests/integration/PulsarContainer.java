@@ -37,7 +37,7 @@ public class PulsarContainer extends GenericContainer<PulsarContainer> {
     public PulsarContainer(final String pulsarVersion) {
         super(pulsarVersion);
         withExposedPorts(BROKER_HTTP_PORT, PULSAR_PORT);
-        withCommand("/pulsar/bin/pulsar standalone --advertised-address localhost");
+        withCommand("/pulsar/bin/pulsar standalone");
         waitingFor(new HttpWaitStrategy()
                 .forPort(BROKER_HTTP_PORT)
                 .forStatusCode(200)

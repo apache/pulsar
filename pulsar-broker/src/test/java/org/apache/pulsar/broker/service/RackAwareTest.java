@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
@@ -44,13 +45,12 @@ import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "quarantine")
+@CustomLog
 public class RackAwareTest extends BkEnsemblesTestBase {
 
     private static final int NUM_BOOKIES = 6;
@@ -118,7 +118,7 @@ public class RackAwareTest extends BkEnsemblesTestBase {
                     .rack("rack-" + rackId)
                     .hostname("bookie-" + (i + 1))
                     .build();
-            log.info("setting rack for bookie at {} -- {}", bookie, bi);
+            log.info().attr("bookieAt", bookie).attr("bi", bi).log("setting rack for bookie at");
             admin.bookies().updateBookieRackInfo(bookie, group, bi);
         }
 
@@ -142,7 +142,8 @@ public class RackAwareTest extends BkEnsemblesTestBase {
         BookieId firstBookie = servers.get(0).getServer().getBookieId();
         for (int i = 0; i < 100; i++) {
             LedgerHandle lh = bkc.createLedger(2, 2, DigestType.DUMMY, new byte[0]);
-            log.info("Ledger: {} -- Ensemble: {}", i, lh.getLedgerMetadata().getEnsembleAt(0));
+            log.info().attr("ledger", i).attr("ensemble", lh.getLedgerMetadata().getEnsembleAt(0))
+                    .log("Ledger: -- Ensemble");
             assertTrue(lh.getLedgerMetadata().getEnsembleAt(0).contains(firstBookie),
                     "first bookie in rack 0 not included in ensemble");
             lh.close();
@@ -166,7 +167,7 @@ public class RackAwareTest extends BkEnsemblesTestBase {
                     .rack("rack-" + 1)
                     .hostname("bookie-" + (i + 1))
                     .build();
-            log.info("setting rack for bookie at {} -- {}", bookie, bi);
+            log.info().attr("bookieAt", bookie).attr("bi", bi).log("setting rack for bookie at");
             admin.bookies().updateBookieRackInfo(bookie, group, bi);
         }
 
@@ -198,7 +199,8 @@ public class RackAwareTest extends BkEnsemblesTestBase {
         } else {
             for (int i = 0; i < 10; i++) {
                 LedgerHandle lh = bkc.createLedger(2, 2, DigestType.DUMMY, new byte[0]);
-                log.info("Ledger: {} -- Ensemble: {}", i, lh.getLedgerMetadata().getEnsembleAt(0));
+                log.info().attr("ledger", i).attr("ensemble", lh.getLedgerMetadata().getEnsembleAt(0))
+                        .log("Ledger: -- Ensemble");
                 lh.close();
             }
         }
@@ -225,7 +227,7 @@ public class RackAwareTest extends BkEnsemblesTestBase {
                     .rack("rack-0")
                     .hostname("bookie-" + (i + 1))
                     .build();
-            log.info("setting rack for bookie at {} -- {}", bookie, bi);
+            log.info().attr("bookieAt", bookie).attr("bi", bi).log("setting rack for bookie at");
             admin.bookies().updateBookieRackInfo(bookie, group, bi);
         }
 
@@ -271,7 +273,7 @@ public class RackAwareTest extends BkEnsemblesTestBase {
                     .rack("rack-1")
                     .hostname("bookie-" + (i + 1))
                     .build();
-            log.info("setting rack for bookie at {} -- {}", bookie, bi);
+            log.info().attr("bookieAt", bookie).attr("bi", bi).log("setting rack for bookie at");
             admin.bookies().updateBookieRackInfo(bookie, group, bi);
         }
 
@@ -297,7 +299,8 @@ public class RackAwareTest extends BkEnsemblesTestBase {
         // 5. create ledger required for 2 racks
         for (int i = 0; i < 2; i++) {
             LedgerHandle lh = bkc.createLedger(2, 2, DigestType.DUMMY, new byte[0]);
-            log.info("Ledger: {} -- Ensemble: {}", i, lh.getLedgerMetadata().getEnsembleAt(0));
+            log.info().attr("ledger", i).attr("ensemble", lh.getLedgerMetadata().getEnsembleAt(0))
+                    .log("Ledger: -- Ensemble");
             lh.close();
         }
 
@@ -332,5 +335,4 @@ public class RackAwareTest extends BkEnsemblesTestBase {
 
     }
 
-    private static final Logger log = LoggerFactory.getLogger(RackAwareTest.class);
 }

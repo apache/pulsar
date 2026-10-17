@@ -18,22 +18,22 @@
  */
 package org.apache.pulsar.broker.web;
 
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.FilterConfig;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.ws.rs.core.MediaType;
 import java.io.IOException;
 import java.util.Locale;
 import java.util.Objects;
-import javax.servlet.Filter;
-import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletRequest;
-import javax.ws.rs.core.MediaType;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.common.intercept.InterceptException;
 
-@Slf4j
+@CustomLog
 public class PreInterceptFilter implements Filter {
 
     private final BrokerInterceptor interceptor;
@@ -53,11 +53,10 @@ public class PreInterceptFilter implements Filter {
     @Override
     public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse,
                          FilterChain filterChain) throws IOException, ServletException {
-        if (log.isDebugEnabled()) {
-            log.debug("PreInterceptFilter: path {}, type {}",
-                    servletRequest.getServletContext().getContextPath(),
-                    servletRequest.getContentType());
-        }
+        log.debug()
+                .attr("path", () -> servletRequest.getServletContext().getContextPath())
+                .attr("type", servletRequest::getContentType)
+                .log("PreInterceptFilter");
         String contentType = servletRequest.getContentType();
         if (contentType != null && (contentType.toLowerCase(Locale.ROOT).contains(
                 MediaType.MULTIPART_FORM_DATA.toLowerCase(Locale.ROOT))

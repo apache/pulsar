@@ -35,13 +35,12 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -54,8 +53,8 @@ import org.testng.annotations.Test;
  *    broker: org.apache.pulsar.broker.authentication.AuthenticationProviderToken.
  */
 @Test(groups = "broker-api")
+@CustomLog
 public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase {
-    private static final Logger log = LoggerFactory.getLogger(TokenAuthenticatedProducerConsumerTest.class);
 
     private static final String ADMIN_ROLE = "admin";
     private final String adminToken;
@@ -154,7 +153,7 @@ public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("message", receivedMessage).log("Received message");
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
@@ -165,7 +164,7 @@ public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase
 
     @Test
     public void testTokenProducerAndConsumer() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
         clientSetup();
 
         // test rest by admin
@@ -177,7 +176,7 @@ public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase
         // test protocol by producer/consumer
         testSyncProducerAndConsumer();
 
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("method", methodName).log("Exiting test");
     }
 
     @DataProvider
@@ -207,7 +206,11 @@ public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase
             Assert.fail();
         } catch (PulsarClientException e) {
             final var elapsedMs = System.currentTimeMillis() - start;
-            log.info("Failed to create producer after {} ms: {} {}", elapsedMs, e.getClass().getName(), e.getMessage());
+            log.info()
+                    .attr("elapsedMs", elapsedMs)
+                    .attr("exceptionType", e.getClass().getName())
+                    .exceptionMessage(e)
+                    .log("Failed to create producer");
             Assert.assertTrue(elapsedMs < operationTimeoutMs);
             if (useTcpServiceUrl) {
                 Assert.assertTrue(e instanceof PulsarClientException.TopicDoesNotExistException);
@@ -220,7 +223,11 @@ public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase
             client.newConsumer().topic(topic).subscriptionName("sub").subscribe();
         } catch (PulsarClientException e) {
             final var elapsedMs = System.currentTimeMillis() - start;
-            log.info("Failed to subscribe after {} ms: {} {}", elapsedMs, e.getClass().getName(), e.getMessage());
+            log.info()
+                    .attr("elapsedMs", elapsedMs)
+                    .attr("exceptionType", e.getClass().getName())
+                    .exceptionMessage(e)
+                    .log("Failed to subscribe");
             Assert.assertTrue(elapsedMs < operationTimeoutMs);
             if (useTcpServiceUrl) {
                 Assert.assertTrue(e instanceof PulsarClientException.TopicDoesNotExistException);

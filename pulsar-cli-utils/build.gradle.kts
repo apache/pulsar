@@ -18,10 +18,10 @@
  */
 
 plugins {
-    id("pulsar.java-conventions")
+    id("pulsar.public-java-library-conventions")
 }
 
 dependencies {
-    implementation(libs.picocli)
+    api(libs.picocli)
     implementation(libs.commons.lang3)
 }

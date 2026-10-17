@@ -25,7 +25,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertSame;
 import java.util.Map;
 import java.util.TreeMap;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
@@ -38,7 +38,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class KeyValueSchemaTest {
 
     @Test

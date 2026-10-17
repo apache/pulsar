@@ -18,19 +18,24 @@
  */
 
 plugins {
-    id("pulsar.java-conventions")
+    id("pulsar.public-java-library-conventions")
     id("pulsar.test-certs-conventions")
 }
 
 dependencies {
-    implementation(project(":pulsar-broker-common"))
+    implementation(libs.slog)
+    api(project(":pulsar-broker-common"))
     implementation(libs.auth0.java.jwt)
     implementation(libs.auth0.jwks.rsa)
     implementation(libs.caffeine)
     implementation(libs.asynchttpclient)
     implementation(libs.jackson.databind)
-    implementation(libs.jackson.annotations)
-    implementation(libs.kubernetes.client.java)
+    api(libs.jackson.annotations)
+    implementation(libs.kubernetes.client.java) {
+        exclude(group = "software.amazon.awssdk")
+        // Swagger 1.x annotations on the generated k8s models are inert metadata; nothing reads them at runtime
+        exclude(group = "io.swagger", module = "swagger-annotations")
+    }
     implementation(libs.okhttp3)
     implementation(libs.commons.lang3)
     implementation(libs.opentelemetry.api)
