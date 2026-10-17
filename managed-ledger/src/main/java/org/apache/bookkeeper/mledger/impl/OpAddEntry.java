@@ -367,13 +367,10 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
         // ledger creation fails (persistent bk failure, another instance owning the ML, ...), then the writes will
         // be marked as failed.
 
-        // Defensive check: this OpAddEntry may have been recycled (ml set to null) between the time it was
-        // peeked from the pending queue (e.g. by checkAddTimeout) and when handleAddFailure is invoked, because
-        // another thread could have already completed and recycled it. In that case, there is nothing to do.
+        // The race where an entry was recycled between checkAddTimeout's peek() and handleAddFailure() no longer
+        // exists: checkAddTimeout now runs on the per-managed-ledger executor, which serializes it with OpAddEntry
+        // completion/recycling paths. So this.ml is guaranteed non-null here.
         ManagedLedgerImpl finalMl = this.ml;
-        if (finalMl == null) {
-            return;
-        }
         finalMl.mbean.recordAddEntryError();
 
         final LedgerHandle finalLh = lh;
