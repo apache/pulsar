@@ -278,6 +278,13 @@ public class BookKeeperClientFactoryImplTest {
                         .getMetadataServiceUri(), expectedUri);
 
             }
+            {
+                String uri = "metadata-store:oxia://oxia-server:6648/bookkeeper"
+                        + "?batchingMaxDelayMillis=10&batchingMaxSizeKb=256&numSerDesThreads=4";
+                conf.setBookkeeperMetadataServiceUri(uri);
+                assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                        .getMetadataServiceUri(), uri);
+            }
         } catch (ConfigurationException e) {
             e.printStackTrace();
             fail("Get metadata service uri should be successful", e);
@@ -312,11 +319,11 @@ public class BookKeeperClientFactoryImplTest {
         EventLoopGroup eventLoopGroup = mock(EventLoopGroup.class);
         BookKeeper.Builder builder = factory.getBookKeeperBuilder(conf, eventLoopGroup,
                 mock(StatsLogger.class), mock(ClientConfiguration.class));
-        assertEquals(FieldUtils.readField(builder, "eventLoopGroup", true), eventLoopGroup);
-        conf.setBookkeeperClientSeparatedIoThreadsEnabled(true);
+        assertNull(FieldUtils.readField(builder, "eventLoopGroup", true));
+        conf.setBookkeeperClientSeparatedIoThreadsEnabled(false);
         builder = factory.getBookKeeperBuilder(conf, eventLoopGroup,
                 mock(StatsLogger.class), mock(ClientConfiguration.class));
-        assertNull(FieldUtils.readField(builder, "eventLoopGroup", true));
+        assertEquals(FieldUtils.readField(builder, "eventLoopGroup", true), eventLoopGroup);
     }
 
     @Test

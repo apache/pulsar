@@ -179,6 +179,8 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
         isTcpLookup = true;
         conf.setAdvertisedAddress(localHostname);
         conf.setAuthenticationEnabled(true);
+        // The client SASL handshake terminates at the proxy, which forwards the original principal.
+        conf.setAuthenticateOriginalAuthData(false);
         conf.setSaslJaasClientAllowedIds(".*" + localHostname + ".*");
         conf.setSaslJaasServerSectionName("PulsarBroker");
         brokerSecretKeyFile = File.createTempFile("saslRoleTokenSignerSecret", ".key");

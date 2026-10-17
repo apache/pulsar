@@ -28,11 +28,13 @@ tasks.withType<JavaCompile>().configureEach {
 }
 
 dependencies {
-    implementation(libs.netty.buffer)
-    implementation(libs.grpc.all) {
-        exclude(group = "io.netty")
-    }
-    runtimeOnly(libs.perfmark.api)
+    // LightProto-generated message types expose io.netty.buffer.ByteBuf in their public API
+    // (e.g. parseFrom/writeTo), so netty-buffer is an api dependency for consumers of this module.
+    api(libs.netty.buffer)
+    // The lightproto-generated gRPC stub only needs grpc-stub (+ grpc-api transitively); it uses its
+    // own LightProto marshaller, so grpc-protobuf is not required. The Netty transport is pulled in by
+    // the modules that actually open channels/servers (instance, runtime, localrun).
+    api(libs.grpc.stub)
 }
 
 lightproto {

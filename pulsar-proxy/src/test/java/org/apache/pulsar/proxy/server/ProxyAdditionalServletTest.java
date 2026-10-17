@@ -21,6 +21,12 @@ package org.apache.pulsar.proxy.server;
 import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
 import com.google.common.collect.Sets;
+import jakarta.servlet.Servlet;
+import jakarta.servlet.ServletConfig;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletOutputStream;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Path;
@@ -29,12 +35,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
-import javax.servlet.Servlet;
-import javax.servlet.ServletConfig;
-import javax.servlet.ServletException;
-import javax.servlet.ServletOutputStream;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
 import lombok.CustomLog;
 import okhttp3.OkHttpClient;
 import okhttp3.Response;
@@ -44,12 +44,12 @@ import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlet;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithClassLoader;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlets;
+import org.apache.pulsar.broker.web.plugin.servlet.LegacyJavaxAdditionalServlet;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
-import org.eclipse.jetty.ee8.nested.Request;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -60,6 +60,7 @@ import org.testng.annotations.Test;
 public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
 
     private static final String BASE_PATH = "/metrics/broker";
+    private static final String JAVAX_BASE_PATH = "/metrics/javax";
     private static final String QUERY_PARAM = "param";
 
     private ProxyService proxyService;
@@ -159,7 +160,7 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
             public void service(ServletRequest servletRequest, ServletResponse servletResponse)
                     throws ServletException, IOException {
                 log.info()
-                        .attr("path", ((Request) servletRequest).getOriginalURI())
+                        .attr("path", ((jakarta.servlet.http.HttpServletRequest) servletRequest).getRequestURI())
                         .log("service]");
                 String value = servletRequest.getParameterMap().get(QUERY_PARAM)[0];
                 ServletOutputStream servletOutputStream = servletResponse.getOutputStream();
@@ -184,11 +185,13 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
         Mockito.when(proxyAdditionalServlet.getBasePath()).thenReturn(BASE_PATH);
         Mockito.when(proxyAdditionalServlet.getServletInstance()).thenReturn(servlet);
         Mockito.when(proxyAdditionalServlet.getServletType()).thenReturn(
-                AdditionalServlet.AdditionalServletType.JAVAX_SERVLET);
+                AdditionalServlet.AdditionalServletType.JAKARTA_SERVLET);
 
         AdditionalServlets proxyAdditionalServlets = Mockito.mock(AdditionalServlets.class);
         Map<String, AdditionalServletWithClassLoader> map = new HashMap<>();
         map.put("prometheus-proxy-servlet", new AdditionalServletWithClassLoader(proxyAdditionalServlet, null));
+        map.put("javax-proxy-servlet", new AdditionalServletWithClassLoader(
+                new LegacyJavaxAdditionalServlet(JAVAX_BASE_PATH), null));
         Mockito.when(proxyAdditionalServlets.getServlets()).thenReturn(map);
 
         Mockito.when(proxyService.getProxyAdditionalServlets()).thenReturn(proxyAdditionalServlets);
@@ -220,6 +223,16 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(response, paramValue);
         String headerKey = "header1";
         Assert.assertEquals(headers.get(headerKey), responseHeaders.get(headerKey));
+
+        // A servlet written against the legacy javax.servlet API is adapted to jakarta.servlet and serves
+        // requests through the same Jetty environment, and therefore the same filters, as the jakarta ones
+        String javaxParamValue = "value - " + RandomUtils.nextInt();
+        final Map<String, String> javaxHeaders = new HashMap<>();
+        String javaxResponse = httpGet("http://localhost:" + httpPort + JAVAX_BASE_PATH
+                + "?" + QUERY_PARAM + "=" + javaxParamValue, javaxHeaders);
+        Assert.assertEquals(javaxResponse.trim(),
+                LegacyJavaxAdditionalServlet.expectedResponse(JAVAX_BASE_PATH, javaxParamValue));
+        Assert.assertEquals(javaxHeaders.get(headerKey), responseHeaders.get(headerKey));
     }
 
     String httpGet(String url, Map<String, String> headers) throws IOException {

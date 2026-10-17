@@ -18,10 +18,8 @@
  */
 package org.apache.pulsar.broker.stats;
 
-import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
-import static org.mockito.Mockito.mock;
 import com.google.common.collect.Multimap;
 import java.io.ByteArrayOutputStream;
 import java.lang.reflect.Field;
@@ -39,14 +37,12 @@ import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.broker.service.SharedPulsarCluster;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
 import org.apache.pulsar.broker.service.plugin.EntryFilterTest;
-import org.apache.pulsar.broker.service.plugin.EntryFilterWithClassLoader;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
@@ -227,11 +223,8 @@ public class SubscriptionStatsTest extends SharedPulsarBaseTest {
             field.setAccessible(true);
             Field hasFilterField = EntryFilterSupport.class.getDeclaredField("hasFilter");
             hasFilterField.setAccessible(true);
-            NarClassLoader narClassLoader = mock(NarClassLoader.class);
             EntryFilter filter1 = new EntryFilterTest();
-            EntryFilterWithClassLoader loader1 =
-                    spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter1, narClassLoader, false);
-            field.set(dispatcher, List.of(loader1));
+            field.set(dispatcher, List.of(filter1));
             hasFilterField.set(dispatcher, true);
         }
 

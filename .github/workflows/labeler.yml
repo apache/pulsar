@@ -17,10 +17,13 @@
 
 name: "Pull Request Labeler"
 on:
-  - pull_request_target
+  pull_request_target:
+    # only run when a file in a path defined in .github/labeler.yml is changed
+    paths:
+      - 'pip/**'
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-${{ github.event.number }}
   cancel-in-progress: true
 
 jobs:

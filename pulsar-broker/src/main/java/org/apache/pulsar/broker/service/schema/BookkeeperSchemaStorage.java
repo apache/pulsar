@@ -463,10 +463,17 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         SchemaEntry schemaEntry = newSchemaEntry(index, data);
         return createLedger(schemaId).thenCompose(ledgerHandle -> {
             final long ledgerId = ledgerHandle.getId();
-            return addEntry(ledgerHandle, schemaEntry)
-                    .thenApply(entryId -> {
-                        ledgerHandle.closeAsync();
-                        return Functions.newPositionInfo(ledgerId, entryId);
+            return FutureUtil.supplySafely(() -> addEntry(ledgerHandle, schemaEntry))
+                    .exceptionallyCompose(ex -> FutureUtil.supplySafely(ledgerHandle::closeAsync)
+                            // Closing the failed writer must not replace the original write error.
+                            .handle((__, closeException) -> null)
+                            .thenCompose(__ -> FutureUtil.failedFuture(ex)))
+                    .thenCompose(entryId -> FutureUtil.supplySafely(ledgerHandle::closeAsync)
+                            .thenApply(__ -> Functions.newPositionInfo(ledgerId, entryId)))
+                    .exceptionallyCompose(ex -> {
+                        Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                        return deleteLedgerAsync(schemaId, ledgerId, "schema ledger write or close failed")
+                                .thenCompose(__ -> FutureUtil.failedFuture(cause));
                     });
         });
     }
@@ -575,13 +582,27 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     ) {
         log.debug().attr("position", position).log("Reading schema entry from");
 
-        return openLedger(position.getLedgerId())
-            .thenCompose((ledger) ->
-                Functions.getLedgerEntry(ledger, position.getEntryId(), config.isSchemaLedgerForceRecovery())
-                    .thenCompose(entry -> closeLedger(ledger)
-                        .thenApply(ignore -> entry)
-                    )
-            ).thenCompose(Functions::parseSchemaEntry);
+        return openLedger(position.getLedgerId()).thenCompose(ledger ->
+                FutureUtil.supplySafely(() -> Functions.getLedgerEntry(ledger, position.getEntryId(),
+                                config.isSchemaLedgerForceRecovery()).thenCompose(Functions::parseSchemaEntry))
+                        .handle((entry, readError) -> FutureUtil.supplySafely(() -> closeLedger(ledger))
+                                .handle((ignored, closeError) -> {
+                                    if (readError != null) {
+                                        Throwable cause = FutureUtil.unwrapCompletionException(readError);
+                                        if (closeError != null) {
+                                            Throwable closeCause = FutureUtil.unwrapCompletionException(closeError);
+                                            if (closeCause != cause) {
+                                                cause.addSuppressed(closeCause);
+                                            }
+                                        }
+                                        throw FutureUtil.wrapToCompletionException(cause);
+                                    }
+                                    if (closeError != null) {
+                                        throw FutureUtil.wrapToCompletionException(closeError);
+                                    }
+                                    return entry;
+                                }))
+                        .thenCompose(Function.identity()));
     }
 
     @NonNull
@@ -645,20 +666,24 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         Map<String, byte[]> metadata = LedgerMetadataUtils.buildMetadataForSchema(schemaId);
         final CompletableFuture<LedgerHandle> future = new CompletableFuture<>();
         try {
-            bookKeeper.asyncCreateLedger(
-                    config.getManagedLedgerDefaultEnsembleSize(),
-                    config.getManagedLedgerDefaultWriteQuorum(),
-                    config.getManagedLedgerDefaultAckQuorum(),
-                    BookKeeper.DigestType.fromApiDigestType(config.getManagedLedgerDigestType()),
-                    LedgerPassword,
-                    (rc, handle, ctx) -> {
-                        if (rc != BKException.Code.OK) {
-                            future.completeExceptionally(bkException("Failed to create ledger", rc, -1, -1,
+            bookKeeper.newCreateLedgerOp()
+                    .withEnsembleSize(config.getManagedLedgerDefaultEnsembleSize())
+                    .withWriteQuorumSize(config.getManagedLedgerDefaultWriteQuorum())
+                    .withAckQuorumSize(config.getManagedLedgerDefaultAckQuorum())
+                    .withDigestType(config.getManagedLedgerDigestType())
+                    .withPassword(LedgerPassword)
+                    .withCustomMetadata(metadata)
+                    .withLoggerContext(log.with().attr("schemaId", schemaId).build())
+                    .execute()
+                    .whenComplete((writeHandle, ex) -> {
+                        if (ex != null) {
+                            future.completeExceptionally(bkException("Failed to create ledger",
+                                    BKException.getExceptionCode(ex), -1, -1,
                                     config.isSchemaLedgerForceRecovery()));
                         } else {
-                            future.complete(handle);
+                            future.complete((LedgerHandle) writeHandle);
                         }
-                    }, null, metadata);
+                    });
         } catch (Throwable t) {
             log.error()
                     .attr("schemaId", schemaId)

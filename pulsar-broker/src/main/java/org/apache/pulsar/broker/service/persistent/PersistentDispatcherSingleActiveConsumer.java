@@ -74,6 +74,11 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     private Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
 
     protected volatile boolean havePendingRead = false;
+    // Monotonic identity of the read that havePendingRead currently refers to. Bumped under this monitor
+    // whenever readMoreEntries issues a read; a completion mutates dispatcher state only when its captured
+    // epoch still matches, so a completion whose read was disowned by a redeliver-driven rewind + re-arm
+    // is ignored instead of clearing havePendingRead for the newer outstanding read. Guarded by "this".
+    private long readOpEpoch = 0L;
 
     protected volatile int readBatchSize;
     protected final Backoff readFailureBackoff;
@@ -159,7 +164,22 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         }
     }
 
-    private synchronized void readEntriesComplete(List<Entry> entries, Consumer readConsumer, long epoch) {
+    private synchronized void readEntriesComplete(List<Entry> entries, Consumer readConsumer, long epoch,
+                                                  long readOpEpoch) {
+        if (readOpEpoch != this.readOpEpoch) {
+            // Stale completion: this read was disowned by a redeliver-driven cursor rewind + re-arm
+            // (internalRedeliverUnacknowledgedMessages) that already issued a newer read. Clearing
+            // havePendingRead or dispatching here would strand the newer armed read and double-deliver;
+            // release the entries (the newer read re-delivers from the rewound position) and do nothing else.
+            log.debug()
+                    .attr("readConsumer", readConsumer)
+                    .attr("size", entries.size())
+                    .attr("staleReadOpEpoch", readOpEpoch)
+                    .attr("currentReadOpEpoch", this.readOpEpoch)
+                    .log("Discarding stale read completion");
+            entries.forEach(Entry::release);
+            return;
+        }
         log.debug()
                 .attr("readConsumer", readConsumer)
                 .attr("size", entries.size())
@@ -226,14 +246,16 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     protected void dispatchEntriesToConsumer(Consumer currentConsumer, List<Entry> entries,
                                              EntryBatchSizes batchSizes, EntryBatchIndexesAcks batchIndexesAcks,
                                              SendMessageInfo sendMessageInfo, long epoch) {
+        // sendMessageInfo is a thread-local instance that the next dispatch on this thread can overwrite before
+        // the write listener below runs on the connection's event loop, so capture the counts here.
+        final int totalMessages = sendMessageInfo.getTotalMessages();
+        final long totalBytes = sendMessageInfo.getTotalBytes();
         currentConsumer
-            .sendMessages(entries, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
-                    sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
-                    redeliveryTracker, epoch)
+            .sendMessages(entries, batchSizes, batchIndexesAcks, totalMessages, totalBytes,
+                    sendMessageInfo.getTotalChunkedMessages(), redeliveryTracker, epoch)
             .addListener(future -> {
                 if (future.isSuccess()) {
-                    acquirePermitsForDeliveredMessages(topic, cursor, entries.size(),
-                            sendMessageInfo.getTotalMessages(), sendMessageInfo.getTotalBytes());
+                    acquirePermitsForDeliveredMessages(topic, cursor, entries.size(), totalMessages, totalBytes);
 
                     // Schedule a new read batch operation only after the previous batch has been written to the socket.
                     executor.execute(() -> readMoreEntries(getActiveConsumer()));
@@ -363,6 +385,9 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                         .attr("messagesToRead", messagesToRead)
                         .log("Schedule read of messages");
                 havePendingRead = true;
+                // Tag this read so a completion that has since been superseded by a redeliver-driven re-arm
+                // can be detected as stale (see readEntriesComplete / readEntriesFailed).
+                final long readOpEpoch = ++this.readOpEpoch;
                 // TODO: should we pass the consumer epoch for compacted read path? See
                 //   https://github.com/apache/pulsar/issues/13690
                 final var epoch = consumer.readCompacted() ? DEFAULT_CONSUMER_EPOCH : consumer.getConsumerEpoch();
@@ -374,14 +399,16 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                     entriesFuture = CompactedTopicUtils.asyncReadCompactedEntries(topic.getTopicCompactionService(),
                             cursor, messagesToRead, bytesToRead, topic.getMaxReadPosition(), readFromEarliest, true);
                 } else {
+                    // The continuation below dispatches to our executor. With inline read completion enabled,
+                    // cache hits skip the managed-ledger executor handoff and its unrelated publishing work.
                     entriesFuture = readEntriesWithSkipOrWait(cursor, messagesToRead, bytesToRead,
                             topic.getMaxReadPosition(), null);
                 }
                 entriesFuture.whenCompleteAsync((entries, e) -> {
                     if (e == null) {
-                        readEntriesComplete(entries, consumer, epoch);
+                        readEntriesComplete(entries, consumer, epoch, readOpEpoch);
                     } else {
-                        readEntriesFailed(e, consumer);
+                        readEntriesFailed(e, consumer, readOpEpoch);
                     }
                 }, executor);
             }
@@ -421,12 +448,13 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             availablePermits = 1;
         }
 
-        int messagesToRead = Math.min(availablePermits, readBatchSize);
+        int maxReadBatchSize = Math.min(readBatchSize, serviceConfig.getDispatcherMaxReadBatchSize());
+        int messagesToRead = Math.min(availablePermits, maxReadBatchSize);
         long bytesToRead = serviceConfig.getDispatcherMaxReadSizeBytes();
         // if turn of precise dispatcher flow control, adjust the records to read
         if (consumer.isPreciseDispatcherFlowControl()) {
             int avgMessagesPerEntry = Math.max(1, consumer.getAvgMessagesPerEntry());
-            messagesToRead = Math.min((int) Math.ceil(availablePermits * 1.0 / avgMessagesPerEntry), readBatchSize);
+            messagesToRead = Math.min((int) Math.ceil(availablePermits * 1.0 / avgMessagesPerEntry), maxReadBatchSize);
         }
 
         // throttle only if: (1) cursor is not active (or flag for throttle-nonBacklogConsumer is enabled) bcz
@@ -452,7 +480,17 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     }
 
     @VisibleForTesting
-    public synchronized void readEntriesFailed(Throwable throwable, Consumer consumer) {
+    public synchronized void readEntriesFailed(Throwable throwable, Consumer consumer, long readOpEpoch) {
+        if (readOpEpoch != this.readOpEpoch) {
+            // Stale failure for a read already disowned by a redeliver-driven re-arm; clearing havePendingRead
+            // or rescheduling here would disturb the newer outstanding read. Ignore it.
+            log.debug()
+                    .attr("consumer", consumer)
+                    .attr("staleReadOpEpoch", readOpEpoch)
+                    .attr("currentReadOpEpoch", this.readOpEpoch)
+                    .log("Ignoring stale read failure");
+            return;
+        }
         havePendingRead = false;
         final var exception = FutureUtil.unwrapCompletionException(throwable);
 
@@ -471,7 +509,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         long waitTimeMillis = readFailureBackoff.next().toMillis();
 
         if (exception instanceof NoMoreEntriesToReadException) {
-            if (cursor.getNumberOfEntriesInBacklog(false) == 0) {
+            if (!cursor.hasBacklog(false)) {
                 // Topic has been terminated and there are no more entries to read
                 // Notify the consumer only if all the messages were already acknowledged
                 checkAndApplyReachedEndOfTopicOrTopicMigration(consumers);
@@ -567,7 +605,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         }
         boolean isConsumerAvailable = !consumer.isBlocked() && consumer.getAvailablePermits() > 0;
         // consider dispatch is stuck if : dispatcher has backlog, available-permits and there is no pending read
-        if (isConsumerAvailable && !havePendingRead && cursor.getNumberOfEntriesInBacklog(false) > 0) {
+        if (isConsumerAvailable && !havePendingRead && cursor.hasBacklog(false)) {
             log.warn("Dispatcher is stuck and unblocking by issuing reads");
             readMoreEntries(consumer);
             return true;

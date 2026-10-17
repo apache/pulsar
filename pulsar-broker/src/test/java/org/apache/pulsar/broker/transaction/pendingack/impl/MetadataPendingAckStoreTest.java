@@ -19,9 +19,12 @@
 package org.apache.pulsar.broker.transaction.pendingack.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import java.time.Duration;
@@ -45,6 +48,7 @@ import org.apache.pulsar.broker.transaction.metadata.TxnState;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.api.Stat;
 import org.awaitility.Awaitility;
@@ -130,6 +134,50 @@ public class MetadataPendingAckStoreTest {
     }
 
     @Test
+    public void closeAsync_waitsForTheAcksBeingAppended() throws Exception {
+        TxnMetadataStore slowStore = spy(txnStore);
+        CompletableFuture<Stat> appending = new CompletableFuture<>();
+        doReturn(appending).when(slowStore).appendOp(any(), any());
+        MetadataPendingAckStore ackStore = new MetadataPendingAckStore(subscription, slowStore);
+        ackStore.replayAsync(handle, null);
+        ackStore.recoveryFuture().get(5, TimeUnit.SECONDS);
+
+        CompletableFuture<Void> ack = ackStore.appendIndividualAck(new TxnID(1, 1), Collections.singletonList(
+                MutablePair.of(PositionFactory.create(3, 5), 1)));
+        CompletableFuture<Void> closed = ackStore.closeAsync();
+
+        // The ack records of a deleted subscription are deleted once it is closed: none must land after that.
+        assertThat(closed).as("close while an ack is being appended").isNotDone();
+        assertThatThrownBy(() -> ackStore.appendIndividualAck(new TxnID(1, 2), Collections.singletonList(
+                MutablePair.of(PositionFactory.create(3, 6), 1))).get())
+                .as("ack after the close")
+                .hasCauseInstanceOf(IllegalStateException.class);
+
+        appending.complete(null);
+        closed.get(5, TimeUnit.SECONDS);
+        ack.get(5, TimeUnit.SECONDS);
+    }
+
+    @Test
+    public void closeAsync_completesWhenAnAckBeingAppendedFails() throws Exception {
+        TxnMetadataStore slowStore = spy(txnStore);
+        CompletableFuture<Stat> appending = new CompletableFuture<>();
+        doReturn(appending).when(slowStore).appendOp(any(), any());
+        MetadataPendingAckStore ackStore = new MetadataPendingAckStore(subscription, slowStore);
+        ackStore.replayAsync(handle, null);
+        ackStore.recoveryFuture().get(5, TimeUnit.SECONDS);
+
+        CompletableFuture<Void> ack = ackStore.appendIndividualAck(new TxnID(1, 1), Collections.singletonList(
+                MutablePair.of(PositionFactory.create(3, 5), 1)));
+        CompletableFuture<Void> closed = ackStore.closeAsync();
+        appending.completeExceptionally(new MetadataStoreException("append failed"));
+
+        closed.get(5, TimeUnit.SECONDS);
+        assertThatThrownBy(() -> ack.get(5, TimeUnit.SECONDS))
+                .hasCauseInstanceOf(MetadataStoreException.class);
+    }
+
+    @Test
     public void appendCommitMarkAndAbortMark_areNoOps() throws Exception {
         MetadataPendingAckStore ackStore = new MetadataPendingAckStore(subscription, txnStore);
         ackStore.replayAsync(handle, null);
@@ -210,7 +258,7 @@ public class MetadataPendingAckStoreTest {
 
         txnStore.createHeader(TxnIds.toKey(committedTxn),
                 new TxnHeader(TxnState.COMMITTED, Duration.ofMillis(5000),
-                        Instant.ofEpochMilli(1000), Instant.ofEpochMilli(2000))).get();
+                        Instant.ofEpochMilli(1000), Instant.ofEpochMilli(2000), null)).get();
         txnStore.appendOp(TxnIds.toKey(committedTxn),
                 new TxnOp(TxnOpKind.ACK, SEGMENT, SUB, 7L, 3L, false)).get();
 
@@ -253,7 +301,7 @@ public class MetadataPendingAckStoreTest {
     private void createOpenHeader(TxnID txnId) throws Exception {
         txnStore.createHeader(TxnIds.toKey(txnId),
                 new TxnHeader(TxnState.OPEN, Duration.ofMillis(60_000),
-                        Instant.ofEpochMilli(1000), null)).get();
+                        Instant.ofEpochMilli(1000), null, null)).get();
     }
 
     private void commitHeader(TxnID txnId) throws Exception {
@@ -261,7 +309,7 @@ public class MetadataPendingAckStoreTest {
         var v = txnStore.getHeader(TxnIds.toKey(txnId)).get().orElseThrow();
         var h = v.value();
         created = txnStore.updateHeader(TxnIds.toKey(txnId),
-                new TxnHeader(TxnState.COMMITTED, h.getTimeout(), h.getCreatedAt(), Instant.now()),
+                new TxnHeader(TxnState.COMMITTED, h.getTimeout(), h.getCreatedAt(), Instant.now(), null),
                 v.version()).get();
         assertThat(created.getVersion()).isPositive();
     }
@@ -270,7 +318,7 @@ public class MetadataPendingAckStoreTest {
         var v = txnStore.getHeader(TxnIds.toKey(txnId)).get().orElseThrow();
         var h = v.value();
         txnStore.updateHeader(TxnIds.toKey(txnId),
-                new TxnHeader(TxnState.ABORTED, h.getTimeout(), h.getCreatedAt(), Instant.now()),
+                new TxnHeader(TxnState.ABORTED, h.getTimeout(), h.getCreatedAt(), Instant.now(), null),
                 v.version()).get();
     }
 }

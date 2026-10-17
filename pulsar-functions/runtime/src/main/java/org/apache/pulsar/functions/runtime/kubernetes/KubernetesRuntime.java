@@ -150,11 +150,13 @@ public class KubernetesRuntime implements Runtime {
     private final Optional<KubernetesManifestCustomizer> manifestCustomizer;
     private String functionInstanceClassPath;
     private String downloadDirectory;
+    private final String kubernetesServiceDomainSuffix;
 
     KubernetesRuntime(AppsV1Api appsClient,
                       CoreV1Api coreClient,
                       String jobNamespace,
                       String jobName,
+                      String kubernetesServiceDomainSuffix,
                       Map<String, String> customLabels,
                       Boolean installUserCodeDependencies,
                       String pythonDependencyRepository,
@@ -193,6 +195,7 @@ public class KubernetesRuntime implements Runtime {
         this.instanceConfig = instanceConfig;
         this.jobNamespace = jobNamespace;
         this.jobName = jobName;
+        this.kubernetesServiceDomainSuffix = kubernetesServiceDomainSuffix;
         this.customLabels = customLabels;
         this.functionDockerImages = functionDockerImages;
         this.pulsarDockerImageName = pulsarDockerImageName;
@@ -315,9 +318,7 @@ public class KubernetesRuntime implements Runtime {
     private synchronized void setupGrpcChannelIfNeeded() {
         if (channel == null || stub == null) {
             channel = new ManagedChannel[instanceConfig.getFunctionDetails().getParallelism()];
-            stub = new InstanceControlGrpc.InstanceControlStub[instanceConfig.getFunctionDetails()
-                    .getParallelism()];
-
+            stub = new InstanceControlGrpc.InstanceControlStub[instanceConfig.getFunctionDetails().getParallelism()];
             String jobName = createJobName(instanceConfig.getFunctionDetails(), this.jobName);
             for (int i = 0; i < instanceConfig.getFunctionDetails().getParallelism(); ++i) {
                 String address = getServiceUrl(jobName, jobNamespace, i);
@@ -1152,11 +1153,11 @@ public class KubernetesRuntime implements Runtime {
         final String shortHash = DigestUtils.sha1Hex(jobNameBase).toLowerCase().substring(0, 8);
         return convertedJobName + "-" + shortHash;
     }
-
-    private static String getServiceUrl(String jobName, String jobNamespace, int instanceId) {
-        return String.format("%s-%d.%s.%s.svc.cluster.local", jobName, instanceId, jobName, jobNamespace);
+    @VisibleForTesting
+    String getServiceUrl(String jobName, String jobNamespace, int instanceId) {
+        String suffix = isNotBlank(kubernetesServiceDomainSuffix) ? kubernetesServiceDomainSuffix : "svc.cluster.local";
+        return String.format("%s-%d.%s.%s.%s", jobName, instanceId, jobName, jobNamespace, suffix);
     }
-
     public static void doChecks(FunctionDetails functionDetails, String overridenJobName) {
         final String jobName = createJobName(functionDetails, overridenJobName);
         if (!jobName.equals(jobName.toLowerCase())) {

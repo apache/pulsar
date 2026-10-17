@@ -202,6 +202,7 @@ public final class SchemaUtils {
      */
     public static String jsonifySchemaInfo(SchemaInfo schemaInfo, boolean prettyPrinting) {
         GsonBuilder gsonBuilder = new GsonBuilder()
+            .serializeNulls()
             .registerTypeHierarchyAdapter(byte[].class, new ByteArrayToStringAdapter(schemaInfo))
             .registerTypeHierarchyAdapter(Map.class, SCHEMA_PROPERTIES_SERIALIZER);
         if (prettyPrinting) {
@@ -218,6 +219,7 @@ public final class SchemaUtils {
      */
     public static String jsonifySchemaInfoWithVersion(SchemaInfoWithVersion schemaInfoWithVersion) {
         GsonBuilder gsonBuilder = new GsonBuilder()
+                .serializeNulls()
                 .setPrettyPrinting()
                 .registerTypeHierarchyAdapter(SchemaInfo.class, SCHEMAINFO_ADAPTER)
                 .registerTypeHierarchyAdapter(Map.class, SCHEMA_PROPERTIES_SERIALIZER);
@@ -327,6 +329,7 @@ public final class SchemaUtils {
      */
     public static String jsonifyKeyValueSchemaInfo(KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo) {
         GsonBuilder gsonBuilder = new GsonBuilder()
+            .serializeNulls()
             .registerTypeHierarchyAdapter(SchemaInfo.class, SCHEMAINFO_ADAPTER)
             .registerTypeHierarchyAdapter(Map.class, SCHEMA_PROPERTIES_SERIALIZER);
         return gsonBuilder.create().toJson(kvSchemaInfo);

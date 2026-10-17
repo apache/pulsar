@@ -47,28 +47,30 @@ public class FileUtils {
     public static final long MILLIS_BETWEEN_ATTEMPTS = 50L;
 
     /**
-     * Calculates an md5 sum of the specified file.
+     * Calculates a SHA-256 checksum of the specified file. The checksum is used for
+     * change detection, not as a security control; SHA-256 is chosen over MD5/SHA-1 so
+     * that the call also works on JVMs whose security provider rejects weak digests
+     * (e.g. in FIPS deployments).
      *
      * @param file
-     *            to calculate the md5sum of
-     * @return the md5sum bytes
+     *            to calculate the checksum of
+     * @return the checksum bytes
      * @throws IOException
      *             if cannot read file
      */
-    public static byte[] calculateMd5sum(final File file) throws IOException {
+    public static byte[] calculateSha256sum(final File file) throws IOException {
         try (final FileInputStream inputStream = new FileInputStream(file)) {
-            // codeql[java/weak-cryptographic-algorithm] - md5 is sufficient for this use case
-            final MessageDigest md5 = MessageDigest.getInstance("md5");
+            final MessageDigest digest = MessageDigest.getInstance("SHA-256");
 
-            final byte[] buffer = new byte[1024];
+            final byte[] buffer = new byte[8192];
             int read = inputStream.read(buffer);
 
             while (read > -1) {
-                md5.update(buffer, 0, read);
+                digest.update(buffer, 0, read);
                 read = inputStream.read(buffer);
             }
 
-            return md5.digest();
+            return digest.digest();
         } catch (NoSuchAlgorithmException nsae) {
             throw new IllegalArgumentException(nsae);
         }

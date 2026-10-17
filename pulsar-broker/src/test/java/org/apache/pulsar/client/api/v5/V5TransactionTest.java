@@ -22,11 +22,13 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.v5.config.TransactionPolicy;
@@ -69,6 +71,47 @@ public class V5TransactionTest extends V5ClientBaseTest {
         }
         txn.abort();
         assertEquals(txn.state(), Transaction.State.ABORTED);
+    }
+
+    @Test
+    public void testCommitOfAbortedTransactionFailsWithTransactionConflict() throws Exception {
+        // A transaction that is no longer open cannot be committed: the commit fails with a
+        // typed TransactionConflict, blocking and async alike.
+        PulsarClient client = newTxnClient();
+        Transaction txn = client.newTransaction();
+        txn.abort();
+
+        expectThrows(PulsarClientException.TransactionConflictException.class, txn::commit);
+        ExecutionException e = expectThrows(ExecutionException.class, () -> txn.async().commit().get());
+        assertTrue(e.getCause() instanceof PulsarClientException.TransactionConflictException, e.toString());
+    }
+
+    @Test
+    public void testSendInAbortedTransactionFailsWithTransactionConflict() throws Exception {
+        // A send in a transaction that is no longer open fails with a typed TransactionConflict,
+        // blocking and async alike.
+        PulsarClient client = newTxnClient();
+        String topic = newScalableTopic(1);
+
+        @Cleanup
+        Producer<String> producer = client.newProducer(Schema.string())
+                .topic(topic)
+                .create();
+
+        Transaction txn = client.newTransaction();
+        txn.abort();
+
+        expectThrows(PulsarClientException.TransactionConflictException.class,
+                () -> producer.newMessage().transaction(txn).value("blocking").send());
+        ExecutionException e = expectThrows(ExecutionException.class,
+                () -> producer.async().newMessage().transaction(txn).value("async").send().get());
+        assertTrue(e.getCause() instanceof PulsarClientException.TransactionConflictException, e.toString());
+    }
+
+    @Test
+    public void testNewTransactionWithoutTransactionPolicyFailsWithInvalidConfiguration() {
+        // The shared client has no transaction policy, so it has transactions disabled.
+        expectThrows(PulsarClientException.InvalidConfigurationException.class, v5Client::newTransaction);
     }
 
     @Test
@@ -191,13 +234,7 @@ public class V5TransactionTest extends V5ClientBaseTest {
         assertEquals(mb.value(), "b-1");
     }
 
-    // Disabled: documents a real broker gap in the per-segment TransactionBuffer model.
-    // After split, the parent segment is sealed; the txn coordinator's COMMIT END-TXN to
-    // the sealed parent never returns and the commit RPC times out (~30s). The fix
-    // requires moving transaction tracking up to the scalable-topic level (so layout
-    // changes don't strand in-flight transactions on now-sealed segments) — that's
-    // beyond the scope of this commit.
-    @Test(enabled = false)
+    @Test
     public void testCommitSpansSplit() throws Exception {
         // A single transaction whose lifetime spans a layout-changing split must commit
         // atomically: pre-split writes (on the now-sealed parent) and post-split writes
@@ -270,10 +307,7 @@ public class V5TransactionTest extends V5ClientBaseTest {
         assertEquals(received, sent, "all txn messages across the split must be delivered after commit");
     }
 
-    // Disabled: same broker gap as testCommitSpansSplit. After merge, both source
-    // segments are sealed and the COMMIT marker can't be delivered, so the END-TXN
-    // request times out.
-    @Test(enabled = false)
+    @Test
     public void testCommitSpansMerge() throws Exception {
         // A single transaction whose lifetime spans a layout-changing merge must commit
         // atomically: writes to the two pre-merge segments and writes to the post-merge

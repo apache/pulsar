@@ -537,7 +537,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             }
             consumerToMessageIds.forEach((consumer, messageIds) -> {
                 resultFutures.add(consumer.doAcknowledgeWithTxn(messageIds, ackType, properties, txn)
-                        .thenAccept((res) -> messageIdList.forEach(unAckedMessageTracker::remove)));
+                        .thenAccept((res) -> messageIds.forEach(unAckedMessageTracker::remove)));
             });
         }
         return CompletableFuture.allOf(resultFutures.toArray(new CompletableFuture[0]));
@@ -709,7 +709,16 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     private ConsumerConfigurationData<T> getInternalConsumerConfig() {
-        ConsumerConfigurationData<T> internalConsumerConfig = conf.clone();
+        return initInternalConsumerConfig(conf.clone());
+    }
+
+    /** The internal consumers' configuration for one (partitioned) topic, without the names of the other topics. */
+    private ConsumerConfigurationData<T> getInternalConsumerConfig(String topicName) {
+        return initInternalConsumerConfig(conf.cloneForTopic(topicName));
+    }
+
+    private ConsumerConfigurationData<T> initInternalConsumerConfig(
+            ConsumerConfigurationData<T> internalConsumerConfig) {
         internalConsumerConfig.setSubscriptionName(subscription);
         internalConsumerConfig.setConsumerName(consumerName);
         internalConsumerConfig.setMessageListener(null);
@@ -982,6 +991,14 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
     }
 
+    protected void removeTopicMessagesFromUnackedTracker(String topicName) {
+        if (unAckedMessageTracker instanceof UnAckedTopicMessageTracker tracker) {
+            tracker.removeTopicMessages(topicName);
+        } else if (unAckedMessageTracker instanceof UnAckedTopicMessageRedeliveryTracker tracker) {
+            tracker.removeTopicMessages(topicName);
+        }
+    }
+
     /***
      * Subscribe one more given topic.
      * @param topicName topic name without the partition suffix.
@@ -1124,7 +1141,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
             int receiverQueueSize = Math.min(conf.getReceiverQueueSize(),
                 conf.getMaxTotalReceiverQueueSizeAcrossPartitions() / numPartitions);
-            ConsumerConfigurationData<T> configurationData = getInternalConsumerConfig();
+            ConsumerConfigurationData<T> configurationData = getInternalConsumerConfig(topicName);
             configurationData.setReceiverQueueSize(receiverQueueSize);
 
             CompletableFuture<List<Integer>> partitionsFuture;
@@ -1210,7 +1227,9 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 .build();
         configurationData.setBatchReceivePolicy(internalBatchReceivePolicy);
         configurationData.setStartPaused(paused);
-        configurationData = configurationData.clone();
+        // only the consumer's own topic: a copy of every topic's name for each consumer would take memory and time
+        // in the square of the number of topics
+        configurationData = configurationData.cloneForTopic(partitionName);
         return ConsumerImpl.newConsumerImpl(client, partitionName,
                 configurationData, client.externalExecutorProvider(),
                 partitionIndex, true, listener != null, subFuture,
@@ -1300,9 +1319,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     });
 
                     removeTopic(topicName);
-                    if (unAckedMessageTracker instanceof UnAckedTopicMessageTracker) {
-                        ((UnAckedTopicMessageTracker) unAckedMessageTracker).removeTopicMessages(topicName);
-                    }
+                    removeTopicMessagesFromUnackedTracker(topicName);
 
                     unsubscribeFuture.complete(null);
                     log.info().attr("topic", topicName)
@@ -1429,7 +1446,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     }
                 }
 
-                return FutureUtil.waitForAll(futures);
+                return FutureUtil.waitForAll(futures)
+                        .thenRun(() -> removeTopicMessagesFromUnackedTracker(topicName));
             } else if (oldPartitionNumber < currentPartitionNumber) {
                 allTopicPartitionsNumber.addAndGet(currentPartitionNumber - oldPartitionNumber);
                 partitionedTopics.put(topicName, currentPartitionNumber);
@@ -1440,7 +1458,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     .map(partitionName -> {
                         int partitionIndex = TopicName.getPartitionIndex(partitionName);
                         return addNewConsumerIfNotExists(partitionName,
-                                () -> createInternalConsumer(getInternalConsumerConfig(), partitionName,
+                                () -> createInternalConsumer(getInternalConsumerConfig(topicName), partitionName,
                                         partitionIndex, new CompletableFuture<>(), true, schema));
                     })
                     .collect(Collectors.toList());

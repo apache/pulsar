@@ -23,6 +23,8 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
 import static org.apache.pulsar.functions.utils.FunctionCommon.isFunctionCodeBuiltin;
 import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.Response;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -33,8 +35,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.Response;
 import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationParameters;
@@ -101,6 +101,8 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
         }
 
         throwRestExceptionIfUnauthorizedForNamespace(tenant, namespace, sinkName, "register", authParams);
+        checkPackageSourcePermission(sinkPkgUrl, authParams);
+        checkPackageSourcePermission(sinkConfig.getTransformFunction(), authParams);
 
         try {
             // Check tenant exists
@@ -290,6 +292,8 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
         }
 
         throwRestExceptionIfUnauthorizedForNamespace(tenant, namespace, sinkName, "update", authParams);
+        checkPackageSourcePermission(sinkPkgUrl, authParams);
+        checkPackageSourcePermission(sinkConfig.getTransformFunction(), authParams);
 
         FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
 

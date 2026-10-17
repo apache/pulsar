@@ -24,6 +24,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
 import org.apache.pulsar.common.scalable.SegmentInfo;
 
 /**
@@ -51,4 +52,18 @@ public class ScalableTopicMetadata {
     /** User-defined topic properties. */
     @Builder.Default
     private Map<String, String> properties = Map.of();
+
+    /**
+     * Per-topic auto split/merge policy override (PIP-483). {@code null} means no override:
+     * the namespace policy and then the broker configuration apply.
+     */
+    private AutoScalePolicyOverride autoScalePolicy;
+
+    /**
+     * Set while the topic is being deleted, like {@code PartitionedTopicMetadata.deleted}. No
+     * controller elects itself for a topic marked deleted, so the delete can remove the
+     * controller lock along with the rest of the topic's metadata. A delete that fails after
+     * marking the topic leaves it marked, until a retried delete removes it.
+     */
+    private boolean deleted;
 }
