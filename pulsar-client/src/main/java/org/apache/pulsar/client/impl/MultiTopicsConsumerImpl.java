@@ -308,7 +308,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             } else {
                 // Call receiveAsync() if the incoming queue is not full. Because this block is run with
                 // thenAcceptAsync, there is no chance for recursion that would lead to stack overflow.
-                receiveMessageFromConsumer(consumer, messages.size() > 0);
+                // A batch receive takes the consumer's queued messages; when there are none, it would wait for its
+                // timeout with a timer task and a hand-off to this executor for each received message, so a
+                // receiveAsync() waits for the next message instead.
+                receiveMessageFromConsumer(consumer, messages.size() > 0 && consumer.numMessagesInQueue() > 0);
             }
         }, internalPinnedExecutor).exceptionally(ex -> {
             if (ex instanceof PulsarClientException.AlreadyClosedException
