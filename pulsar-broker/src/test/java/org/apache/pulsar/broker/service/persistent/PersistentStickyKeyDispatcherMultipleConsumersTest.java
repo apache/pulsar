@@ -27,6 +27,7 @@ import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.anyList;
 import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.anySet;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -75,6 +76,8 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.delayed.DelayedDeliveryTracker;
+import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.ConsistentHashingStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Consumer;
@@ -625,6 +628,58 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         } finally {
             entries.forEach(Entry::release);
         }
+    }
+
+    @Test(timeOut = 10000)
+    public void testGetMessagesToReplayNowSkipsSizeCapWithNothingToReplay() {
+        persistentDispatcher.addConsumer(consumerMock).join();
+        clearInvocations(cursorMock);
+        // nothing to replay: the size cap isn't estimated, the normal read estimates it
+        assertThat(persistentDispatcher.getMessagesToReplayNow(10, 1000)).isEmpty();
+        verify(cursorMock, never()).applyMaxSizeCap(anyInt(), anyLong());
+
+        String key = generateKeyForConsumer(persistentDispatcher.getSelector(), consumerMock);
+        EntryImpl entry = createEntry(1, 1, "message1", 1, key);
+        try {
+            entry.retain();
+            persistentDispatcher.addEntryToReplay(entry);
+            assertThat(persistentDispatcher.getMessagesToReplayNow(10, 1000)).containsExactly(entry.getPosition());
+            verify(cursorMock).applyMaxSizeCap(10, 1000);
+        } finally {
+            entry.release();
+        }
+    }
+
+    @Test(timeOut = 10000)
+    public void testGetMessagesToReplayNowChecksDelayedTrackerOnce() {
+        DelayedDeliveryTracker trackerMock = mock(DelayedDeliveryTracker.class);
+        DelayedDeliveryTrackerFactory trackerFactoryMock = mock(DelayedDeliveryTrackerFactory.class);
+        doReturn(trackerMock).when(trackerFactoryMock).newTracker(any());
+        doReturn(trackerFactoryMock).when(brokerMock).getDelayedDeliveryTrackerFactory();
+        doReturn(true).when(topicMock).isDelayedDeliveryEnabled();
+        doReturn(true).when(trackerMock).addMessage(anyLong(), anyLong(), anyLong());
+        persistentDispatcher.addConsumer(consumerMock).join();
+        assertTrue(persistentDispatcher.trackDelayedDelivery(1, 1,
+                new MessageMetadata().setDeliverAtTime(System.currentTimeMillis() + 60_000)));
+        clearInvocations(cursorMock);
+
+        // no delayed messages available: availability is checked once, the timer is kept, and the size cap isn't
+        // estimated
+        doReturn(false).when(trackerMock).hasMessageAvailable();
+        assertThat(persistentDispatcher.getMessagesToReplayNow(10, 1000)).isEmpty();
+        verify(trackerMock, times(1)).hasMessageAvailable();
+        verify(trackerMock, never()).getScheduledMessages(anyInt());
+        verify(cursorMock, never()).applyMaxSizeCap(anyInt(), anyLong());
+
+        // a delayed message is available: the size cap is estimated and bounds the scheduled messages
+        clearInvocations(trackerMock);
+        Position position = PositionFactory.create(1, 1);
+        doReturn(true).when(trackerMock).hasMessageAvailable();
+        doReturn(new TreeSet<>(List.of(position))).when(trackerMock).getScheduledMessages(anyInt());
+        assertThat(persistentDispatcher.getMessagesToReplayNow(10, 1000)).containsExactly(position);
+        verify(trackerMock, times(1)).hasMessageAvailable();
+        verify(cursorMock).applyMaxSizeCap(10, 1000);
+        verify(trackerMock).getScheduledMessages(10);
     }
 
     @Test(dataProvider = "allowOutOfOrderDelivery", timeOut = 10000)
