@@ -248,7 +248,8 @@ public class PulsarLedgerManager implements LedgerManager {
                         cache.invalidate(getLedgerPath(ledgerId));
                         promise.completeExceptionally(new BKException.BKMetadataVersionException());
                     } else {
-                        log.warn().exceptionMessage(ex).log("Conditional update ledger metadata failed");
+                        log.warn().attr("ledgerId", ledgerId).exceptionMessage(cause)
+                                .log("Conditional update ledger metadata failed");
                         promise.completeExceptionally(new BKException.ZKException(cause));
                     }
                     return null;

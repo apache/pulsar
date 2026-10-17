@@ -48,7 +48,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-public class PulsarLedgerManagerTest {
+public class PulsarLedgerManagerCacheTest {
     private static final long LEDGER_ID = 1L;
     private static final List<BookieId> UPDATED_ENSEMBLE = List.of(BookieId.parse("bookie-2:3181"));
 
@@ -144,7 +144,7 @@ public class PulsarLedgerManagerTest {
 
     private void setBackendMetadata(LedgerMetadata value, long version) throws Exception {
         GetResult result = new GetResult(new LedgerMetadataSerDe().serialize(value),
-                new Stat(ledgerPath, version, 0L, 0L, false, version == 0));
+                new Stat(ledgerPath, version, 0L, 0L, false, false));
         doReturn(CompletableFuture.completedFuture(Optional.of(result))).when(store).get(ledgerPath);
     }
 }
