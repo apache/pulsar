@@ -620,7 +620,8 @@ public interface ManagedLedger {
     void readyToCreateNewLedger();
 
     /**
-     * Returns managed-ledger's properties.
+     * Returns a snapshot of the managed-ledger's properties.
+     * Changes made to the returned map are not applied to the managed ledger; use the property update methods instead.
      *
      * @return key-values of properties
      */
