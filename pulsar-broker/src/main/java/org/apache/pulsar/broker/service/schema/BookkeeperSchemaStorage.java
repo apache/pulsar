@@ -81,13 +81,31 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
 
     // Each schema version is written once to its own immutable BookKeeper ledger entry, so the
     // (ledgerId, entryId) position permanently identifies the entry contents. A position-keyed cache
-    // can therefore never serve stale data for an existing storage; entries are dropped when the
-    // schema storage is deleted. Only the schema payload bytes are cached: a stored entry also
-    // embeds an index snapshot of every older version, which grows linearly with the number of
-    // versions and is only needed by the legacy backward lookup in findSchemaEntryByVersion.
-    private final AsyncCache<SchemaEntryKey, byte[]> schemaEntryCache;
+    // can therefore never serve stale data for a recreated storage. Entries referenced by the
+    // cache mappings already created for the current locator are invalidated when the schema storage
+    // is deleted. Only the schema payload
+    // bytes are cached: a stored entry also embeds an index snapshot of every older version. That
+    // snapshot grows linearly with the number of versions and is only needed by the legacy backward
+    // lookup in findSchemaPositionByVersion.
+    private final AsyncCache<SchemaEntryKey, CachedSchemaData> schemaEntryCache;
 
     private record SchemaEntryKey(long ledgerId, long entryId) {
+    }
+
+    private static final class CachedSchemaData {
+        private final byte[] data;
+
+        private CachedSchemaData(byte[] data) {
+            this.data = data;
+        }
+
+        private int size() {
+            return data.length;
+        }
+
+        private byte[] copyData() {
+            return data.clone();
+        }
     }
 
     @VisibleForTesting
@@ -112,11 +130,12 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         this.schemaEntryCache = buildSchemaEntryCache();
     }
 
-    private AsyncCache<SchemaEntryKey, byte[]> buildSchemaEntryCache() {
-        Caffeine<SchemaEntryKey, byte[]> builder = Caffeine.newBuilder()
+    private AsyncCache<SchemaEntryKey, CachedSchemaData> buildSchemaEntryCache() {
+        Caffeine<SchemaEntryKey, CachedSchemaData> builder = Caffeine.newBuilder()
                 .maximumWeight(SchemaEntryCacheMaxWeightBytes)
-                .weigher((SchemaEntryKey key, byte[] data) ->
-                        (data == null ? 0 : data.length) + SchemaEntryCacheOverheadBytes)
+                .weigher((SchemaEntryKey key, CachedSchemaData schemaData) ->
+                        (int) Math.min(Integer.MAX_VALUE,
+                                (long) schemaData.size() + SchemaEntryCacheOverheadBytes))
                 .expireAfterAccess(SchemaEntryCacheExpireAfterAccessSeconds, TimeUnit.SECONDS);
         return builder.buildAsync();
     }
@@ -204,8 +223,8 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
             for (int i = 0; i < schemaLocator.getIndexsCount(); i++) {
                 IndexEntry indexEntry = schemaLocator.getIndexAt(i);
                 list.add(readSchemaData(indexEntry.getPosition())
-                        .thenApply(data -> new StoredSchema(
-                                data,
+                        .thenApply(schemaData -> new StoredSchema(
+                                schemaData.copyData(),
                                 new LongSchemaVersion(indexEntry.getVersion())
                         ))
                 );
@@ -273,7 +292,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
             SchemaLocator schemaLocator = locator.get().locator;
 
             return readSchemaData(schemaLocator.getInfo().getPosition())
-                    .thenApply(data -> new StoredSchema(data,
+                    .thenApply(schemaData -> new StoredSchema(schemaData.copyData(),
                             new LongSchemaVersion(schemaLocator.getInfo().getVersion())));
         });
     }
@@ -321,13 +340,13 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
             for (int i = 0; i < schemaLocator.getIndexsCount(); i++) {
                 indexList.add(schemaLocator.getIndexAt(i));
             }
-            return findSchemaEntryByVersion(indexList, version)
-                .thenApply(data ->
-                        new StoredSchema(
-                            data,
-                            new LongSchemaVersion(version)
-                        )
-                );
+            return findSchemaPositionByVersion(indexList, version).thenCompose(position -> {
+                if (position == null) {
+                    return completedFuture(null);
+                }
+                return readSchemaData(position).thenApply(schemaData ->
+                        new StoredSchema(schemaData.copyData(), new LongSchemaVersion(version)));
+            });
         });
     }
 
@@ -576,7 +595,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     }
 
     @NonNull
-    private CompletableFuture<byte[]> findSchemaEntryByVersion(
+    private CompletableFuture<PositionInfo> findSchemaPositionByVersion(
         List<IndexEntry> index,
         long version
     ) {
@@ -596,13 +615,13 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                         for (int i = 0; i < entry.getIndexsCount(); i++) {
                             entryIndex.add(entry.getIndexAt(i));
                         }
-                        return findSchemaEntryByVersion(entryIndex, version);
+                        return findSchemaPositionByVersion(entryIndex, version);
                     });
         }
 
         for (IndexEntry entry : index) {
             if (entry.getVersion() == version) {
-                return readSchemaData(entry.getPosition());
+                return completedFuture(entry.getPosition());
             } else if (entry.getVersion() > version) {
                 break;
             }
@@ -612,22 +631,15 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     }
 
     @NonNull
-    private CompletableFuture<byte[]> readSchemaData(PositionInfo position) {
+    private CompletableFuture<CachedSchemaData> readSchemaData(PositionInfo position) {
         log.debug().attr("position", position).log("Reading schema entry from");
 
         long ledgerId = position.getLedgerId();
         long entryId = position.getEntryId();
         SchemaEntryKey key = new SchemaEntryKey(ledgerId, entryId);
-        return schemaEntryCache.get(key,
-                (k, executor) -> readSchemaEntryFromBookKeeper(ledgerId, entryId)
-                        .thenApply(SchemaEntry::getSchemaData)
-                        .whenComplete((data, error) -> {
-                            if (error != null) {
-                                // Do not retain failed reads, so that the next read retries against
-                                // BookKeeper
-                                schemaEntryCache.synchronous().invalidate(key);
-                            }
-                        }));
+        return schemaEntryCache.get(key, (ignored, executor) ->
+                FutureUtil.supplySafely(() -> readSchemaEntryFromBookKeeper(ledgerId, entryId))
+                        .thenApply(entry -> new CachedSchemaData(entry.getSchemaData())));
     }
 
     @NonNull
