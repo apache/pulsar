@@ -762,8 +762,11 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
         return pulsar.getNamespaceService().getSplitBoundary(namespaceBundle, boundaries, splitAlgorithm)
                 .thenCompose(splitBoundaries -> {
                     if (splitBoundaries == null || splitBoundaries.isEmpty()) {
-                        log.info("[{}] No valid boundary found in {} to split bundle {}",
-                                namespaceBundle.getNamespaceObject(), boundaries, namespaceBundle.getBundleRange());
+                        log.info()
+                                .attr("namespaceObject", namespaceBundle.getNamespaceObject().toString())
+                                .attr("boundaries", boundaries)
+                                .attr("bundle", namespaceBundle.getBundleRange())
+                                .log("No valid boundary found to split bundle");
                         return CompletableFuture.completedFuture(null);
                     }
                     return pulsar.getNamespaceService().getNamespaceBundleFactory()
