@@ -23,6 +23,8 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage.Functions.newSchemaEntry;
 import static org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
 import static org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
+import com.github.benmanes.caffeine.cache.AsyncCache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -35,8 +37,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
@@ -74,8 +75,20 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     private final ServiceConfiguration config;
     private BookKeeper bookKeeper;
 
-    private final ConcurrentMap<String, CompletableFuture<StoredSchema>> readSchemaOperations =
-            new ConcurrentHashMap<>();
+    private static final int SchemaEntryCacheOverheadBytes = 128;
+    private static final long SchemaEntryCacheMaxWeightBytes = 32L * 1024 * 1024;
+    private static final long SchemaEntryCacheExpireAfterAccessSeconds = 3600;
+
+    // Each schema version is written once to its own immutable BookKeeper ledger entry, so the
+    // (ledgerId, entryId) position permanently identifies the entry contents. A position-keyed cache
+    // can therefore never serve stale data for an existing storage; entries are dropped when the
+    // schema storage is deleted. Only the schema payload bytes are cached: a stored entry also
+    // embeds an index snapshot of every older version, which grows linearly with the number of
+    // versions and is only needed by the legacy backward lookup in findSchemaEntryByVersion.
+    private final AsyncCache<SchemaEntryKey, byte[]> schemaEntryCache;
+
+    private record SchemaEntryKey(long ledgerId, long entryId) {
+    }
 
     @VisibleForTesting
     BookkeeperSchemaStorage(PulsarService pulsar) {
@@ -96,6 +109,16 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                 return loc;
             }
         });
+        this.schemaEntryCache = buildSchemaEntryCache();
+    }
+
+    private AsyncCache<SchemaEntryKey, byte[]> buildSchemaEntryCache() {
+        Caffeine<SchemaEntryKey, byte[]> builder = Caffeine.newBuilder()
+                .maximumWeight(SchemaEntryCacheMaxWeightBytes)
+                .weigher((SchemaEntryKey key, byte[] data) ->
+                        (data == null ? 0 : data.length) + SchemaEntryCacheOverheadBytes)
+                .expireAfterAccess(SchemaEntryCacheExpireAfterAccessSeconds, TimeUnit.SECONDS);
+        return builder.buildAsync();
     }
 
     @Override
@@ -180,9 +203,9 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
             List<CompletableFuture<StoredSchema>> list = new ArrayList<>();
             for (int i = 0; i < schemaLocator.getIndexsCount(); i++) {
                 IndexEntry indexEntry = schemaLocator.getIndexAt(i);
-                list.add(readSchemaEntry(indexEntry.getPosition())
-                        .thenApply(entry -> new StoredSchema(
-                                entry.getSchemaData(),
+                list.add(readSchemaData(indexEntry.getPosition())
+                        .thenApply(data -> new StoredSchema(
+                                data,
                                 new LongSchemaVersion(indexEntry.getVersion())
                         ))
                 );
@@ -239,28 +262,19 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
 
     @NonNull
     private CompletableFuture<StoredSchema> getSchema(String schemaId) {
-        // There's already a schema read operation in progress. Just piggyback on that
-        return readSchemaOperations.computeIfAbsent(schemaId, key -> {
-            log.debug().attr("schemaId", schemaId).log("Fetching schema from store");
-            return getSchemaLocator(getSchemaPath(schemaId)).thenCompose(locator -> {
-                log.debug().attr("schemaId", schemaId).attr("locator", locator).log("Got schema locator");
-                if (!locator.isPresent()) {
-                    return completedFuture(null);
-                }
+        // Concurrent reads of the same schema coalesce on both the locator read (metadata cache) and
+        // the schema entry read (schema entry cache), so only one BookKeeper read is in flight.
+        return getSchemaLocator(getSchemaPath(schemaId)).thenCompose(locator -> {
+            log.debug().attr("schemaId", schemaId).attr("locator", locator).log("Got schema locator");
+            if (!locator.isPresent()) {
+                return completedFuture(null);
+            }
 
-                SchemaLocator schemaLocator = locator.get().locator;
+            SchemaLocator schemaLocator = locator.get().locator;
 
-                return readSchemaEntry(schemaLocator.getInfo().getPosition())
-                        .thenApply(entry -> new StoredSchema(entry.getSchemaData(),
-                                new LongSchemaVersion(schemaLocator.getInfo().getVersion())));
-            });
-        }).whenComplete((res, ex) -> {
-            log.debug()
-                    .attr("schemaId", schemaId)
-                    .attr("result", res)
-                    .exceptionMessage(ex)
-                    .log("Get operation completed");
-            readSchemaOperations.remove(schemaId);
+            return readSchemaData(schemaLocator.getInfo().getPosition())
+                    .thenApply(data -> new StoredSchema(data,
+                            new LongSchemaVersion(schemaLocator.getInfo().getVersion())));
         });
     }
 
@@ -308,9 +322,9 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                 indexList.add(schemaLocator.getIndexAt(i));
             }
             return findSchemaEntryByVersion(indexList, version)
-                .thenApply(entry ->
+                .thenApply(data ->
                         new StoredSchema(
-                            entry.getSchemaData(),
+                            data,
                             new LongSchemaVersion(version)
                         )
                 );
@@ -336,8 +350,8 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
             for (int i = 0; i < locator.getIndexsCount(); i++) {
                 indexList.add(locator.getIndexAt(i));
             }
-            return readSchemaEntry(indexList.get(0).getPosition())
-                    .thenCompose(schemaEntry -> addNewSchemaEntryToStore(schemaId,
+            return readSchemaData(indexList.get(0).getPosition())
+                    .thenCompose(ignored -> addNewSchemaEntryToStore(schemaId,
                             indexList, data).thenCompose(
                             position -> updateSchemaLocator(schemaId, optLocatorEntry.get(), position, hash))
                     );
@@ -406,9 +420,12 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                         }
                         SchemaLocator schemaLocator = locator.get().locator;
                         List<CompletableFuture<Void>> deleteFutures = new ArrayList<>(schemaLocator.getIndexsCount());
+                        List<SchemaEntryKey> deletedEntryKeys = new ArrayList<>(schemaLocator.getIndexsCount());
                         for (int i = 0; i < schemaLocator.getIndexsCount(); i++) {
                             IndexEntry indexEntry = schemaLocator.getIndexAt(i);
                             final long ledgerId = indexEntry.getPosition().getLedgerId();
+                            deletedEntryKeys.add(new SchemaEntryKey(ledgerId,
+                                    indexEntry.getPosition().getEntryId()));
                             CompletableFuture<Void> deleteFuture = new CompletableFuture<>();
                             deleteFutures.add(deleteFuture);
                             bookKeeper.asyncDeleteLedger(ledgerId, (int rc, Object cnx) -> {
@@ -427,6 +444,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                             final String path = getSchemaPath(schemaId);
                             store.delete(path, Optional.empty())
                                     .thenRun(() -> {
+                                        invalidateSchemaEntryCache(deletedEntryKeys);
                                         future.complete(version);
                                     }).exceptionally(zkException -> {
                                         if (zkException.getCause()
@@ -452,6 +470,20 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     @NonNull
     private static String getSchemaPath(String schemaId) {
         return SchemaPath + "/" + schemaId;
+    }
+
+    private void invalidateSchemaEntryCache(List<SchemaEntryKey> keys) {
+        if (!keys.isEmpty()) {
+            schemaEntryCache.synchronous().invalidateAll(keys);
+        }
+    }
+
+    @VisibleForTesting
+    long cachedSchemaEntryCount() {
+        // estimatedSize() does not include entries whose future completed but whose pending cache
+        // maintenance has not run yet, so force a maintenance cycle first
+        schemaEntryCache.synchronous().cleanUp();
+        return schemaEntryCache.synchronous().estimatedSize();
     }
 
     @NonNull
@@ -544,7 +576,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     }
 
     @NonNull
-    private CompletableFuture<SchemaEntry> findSchemaEntryByVersion(
+    private CompletableFuture<byte[]> findSchemaEntryByVersion(
         List<IndexEntry> index,
         long version
     ) {
@@ -555,7 +587,10 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
 
         IndexEntry lowest = index.get(0);
         if (version < lowest.getVersion()) {
-            return readSchemaEntry(lowest.getPosition())
+            // A stored entry embeds the index snapshot of all older versions, so read the full
+            // entry (uncached) and continue the lookup in that snapshot
+            return readSchemaEntryFromBookKeeper(lowest.getPosition().getLedgerId(),
+                            lowest.getPosition().getEntryId())
                     .thenCompose(entry -> {
                         List<IndexEntry> entryIndex = new ArrayList<>(entry.getIndexsCount());
                         for (int i = 0; i < entry.getIndexsCount(); i++) {
@@ -567,7 +602,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
 
         for (IndexEntry entry : index) {
             if (entry.getVersion() == version) {
-                return readSchemaEntry(entry.getPosition());
+                return readSchemaData(entry.getPosition());
             } else if (entry.getVersion() > version) {
                 break;
             }
@@ -577,13 +612,28 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     }
 
     @NonNull
-    private CompletableFuture<SchemaEntry> readSchemaEntry(
-        PositionInfo position
-    ) {
+    private CompletableFuture<byte[]> readSchemaData(PositionInfo position) {
         log.debug().attr("position", position).log("Reading schema entry from");
 
-        return openLedger(position.getLedgerId()).thenCompose(ledger ->
-                FutureUtil.supplySafely(() -> Functions.getLedgerEntry(ledger, position.getEntryId(),
+        long ledgerId = position.getLedgerId();
+        long entryId = position.getEntryId();
+        SchemaEntryKey key = new SchemaEntryKey(ledgerId, entryId);
+        return schemaEntryCache.get(key,
+                (k, executor) -> readSchemaEntryFromBookKeeper(ledgerId, entryId)
+                        .thenApply(SchemaEntry::getSchemaData)
+                        .whenComplete((data, error) -> {
+                            if (error != null) {
+                                // Do not retain failed reads, so that the next read retries against
+                                // BookKeeper
+                                schemaEntryCache.synchronous().invalidate(key);
+                            }
+                        }));
+    }
+
+    @NonNull
+    private CompletableFuture<SchemaEntry> readSchemaEntryFromBookKeeper(long ledgerId, long entryId) {
+        return openLedger(ledgerId).thenCompose(ledger ->
+                FutureUtil.supplySafely(() -> Functions.getLedgerEntry(ledger, entryId,
                                 config.isSchemaLedgerForceRecovery()).thenCompose(Functions::parseSchemaEntry))
                         .handle((entry, readError) -> FutureUtil.supplySafely(() -> closeLedger(ledger))
                                 .handle((ignored, closeError) -> {
