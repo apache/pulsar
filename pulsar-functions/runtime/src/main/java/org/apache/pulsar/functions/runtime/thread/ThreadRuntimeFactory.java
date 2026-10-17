@@ -101,8 +101,8 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
                                 ClassLoader rootClassLoader, boolean exposePulsarAdminClientEnabled,
                                 String pulsarWebServiceUrl, FunctionCacheManager fnCache,
                                 Optional<MemoryLimit> memoryLimit) throws Exception {
-        initialize(threadGroupName, memoryLimit, pulsarServiceUrl
-                , authConfig, stateStorageImplClass, storageServiceUrl, null, secretsProvider, collectorRegistry,
+        initialize(threadGroupName, memoryLimit, pulsarServiceUrl, authConfig,
+                stateStorageImplClass, storageServiceUrl, null, secretsProvider, collectorRegistry,
                 narExtractionDirectory,
                 rootClassLoader, exposePulsarAdminClientEnabled, pulsarWebServiceUrl, Optional.empty(),
                 Optional.empty(), fnCache);
@@ -175,6 +175,17 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
         return Optional.empty();
     }
 
+    private static Optional<MemoryLimit> getPulsarClientMemoryLimit(ThreadRuntimeFactoryConfig factoryConfig,
+                                                                    WorkerConfig workerConfig) {
+        ThreadRuntimeFactoryConfig.MemoryLimit memoryLimit = factoryConfig.getPulsarClientMemoryLimit();
+        if (memoryLimit == null) {
+            return Optional.ofNullable(workerConfig.getPulsarClientMemoryLimit());
+        }
+        return Optional.of(new MemoryLimit()
+                .setLimitInBytes(memoryLimit.getAbsoluteValue())
+                .setPercentOfMaxDirectMemory(memoryLimit.getPercentOfMaxDirectMemory()));
+    }
+
 
     @Override
     public void initialize(WorkerConfig workerConfig, AuthenticationConfig authenticationConfig,
@@ -186,7 +197,7 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
         ThreadRuntimeFactoryConfig factoryConfig = RuntimeUtils.getRuntimeFunctionConfig(
                 workerConfig.getFunctionRuntimeFactoryConfigs(), ThreadRuntimeFactoryConfig.class);
 
-        initialize(factoryConfig.getThreadGroupName(), Optional.ofNullable(factoryConfig.getPulsarClientMemoryLimit()),
+        initialize(factoryConfig.getThreadGroupName(), getPulsarClientMemoryLimit(factoryConfig, workerConfig),
                 workerConfig.getPulsarServiceUrl(), authenticationConfig,
                 workerConfig.getStateStorageProviderImplementation(),
                 workerConfig.getStateStorageServiceUrl(), secretsProviderConfigurator, null,

@@ -381,11 +381,6 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private String downloadDirectory;
     @FieldContext(
-            category = CATEGORY_FUNC_RUNTIME_MNG,
-            doc = "Default memory limit set for the pulsar client used instances"
-    )
-    protected MemoryLimit pulsarClientMemoryLimit;
-    @FieldContext(
         category = CATEGORY_STATE,
         doc = "The service URL of state storage"
     )
@@ -881,6 +876,15 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
                   + "Only used in AsyncFunction. Default: 1000"
     )
     private int maxPendingAsyncRequests = 1000;
+
+    @FieldContext(
+            category = CATEGORY_FUNC_RUNTIME_MNG,
+            doc = "Default memory limit of the Pulsar client used by each Java function instance, for functions"
+                    + " that don't set their own. If both `limitInBytes` and `percentOfMaxDirectMemory` are set,"
+                    + " the smaller of the two limits is used. The thread runtime uses it when"
+                    + " `functionRuntimeFactoryConfigs.pulsarClientMemoryLimit` is not set."
+    )
+    private MemoryLimit pulsarClientMemoryLimit;
 
     @FieldContext(
         doc = "Whether to forward the source message properties to the output message"

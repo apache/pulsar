@@ -163,10 +163,15 @@ public class JavaInstanceStarter implements AutoCloseable {
             required = false)
     public Boolean ignoreUnknownConfigFields = false;
 
-    @Option(names = "--memory_limit",
-            description = "The memory limit set for the pulsar client used by all instances",
+    @Option(names = "--pulsar_client_memory_limit_bytes",
+            description = "The max memory in bytes the Pulsar client can use",
             required = false)
-    public MemoryLimit memoryLimit;
+    public Long pulsarClientMemoryLimitBytes;
+
+    @Option(names = "--pulsar_client_memory_limit_percent",
+            description = "The max memory the Pulsar client can use, as a percentage of the JVM max direct memory",
+            required = false)
+    public Double pulsarClientMemoryLimitPercent;
 
     private Server server;
     private RuntimeSpawner runtimeSpawner;
@@ -195,7 +200,11 @@ public class JavaInstanceStarter implements AutoCloseable {
         instanceConfig.setMaxPendingAsyncRequests(maxPendingAsyncRequests);
         instanceConfig.setExposePulsarAdminClientEnabled(exposePulsarAdminClientEnabled);
         instanceConfig.setIgnoreUnknownConfigFields(ignoreUnknownConfigFields);
-        instanceConfig.setPulsarClientMemoryLimit(memoryLimit);
+        if (pulsarClientMemoryLimitBytes != null || pulsarClientMemoryLimitPercent != null) {
+            instanceConfig.setPulsarClientMemoryLimit(new MemoryLimit()
+                    .setLimitInBytes(pulsarClientMemoryLimitBytes)
+                    .setPercentOfMaxDirectMemory(pulsarClientMemoryLimitPercent));
+        }
         if (functionDetailsJsonString.charAt(0) == '\'') {
             functionDetailsJsonString = functionDetailsJsonString.substring(1);
         }
@@ -241,7 +250,7 @@ public class JavaInstanceStarter implements AutoCloseable {
         // Collector Registry for prometheus metrics
         FunctionCollectorRegistry collectorRegistry = FunctionCollectorRegistry.getDefaultImplementation();
         RuntimeUtils.registerDefaultCollectors(collectorRegistry);
-        Optional<MemoryLimit> memoryLimit = Optional.ofNullable(instanceConfig.getPulsarClientMemoryLimit());
+
         containerFactory = new ThreadRuntimeFactory("LocalRunnerThreadGroup", pulsarServiceUrl,
                 stateStorageImplClass,
                 stateStorageServiceUrl,
@@ -251,7 +260,8 @@ public class JavaInstanceStarter implements AutoCloseable {
                         .tlsHostnameVerificationEnable(isTrue(tlsHostNameVerificationEnabled))
                         .tlsTrustCertsFilePath(tlsTrustCertFilePath).build(),
                 secretsProvider, collectorRegistry, narExtractionDirectory, rootClassLoader,
-                exposePulsarAdminClientEnabled, webServiceUrl, fnCache, memoryLimit);
+                exposePulsarAdminClientEnabled, webServiceUrl, fnCache,
+                Optional.ofNullable(instanceConfig.getPulsarClientMemoryLimit()));
         runtimeSpawner = new RuntimeSpawner(
                 instanceConfig,
                 jarFile,

@@ -22,13 +22,15 @@ import lombok.Data;
 import lombok.experimental.Accessors;
 
 /**
- * Memory limit set for the pulsar client used by all instances.
- * If {@code limitInBytes} and {@code percentOfMaxDirectMemory} are both set,
- * the minimum of the two will be used.
+ * Memory limit of the Pulsar client used by a function instance.
+ * If both {@code limitInBytes} and {@code percentOfMaxDirectMemory} are set,
+ * the smaller of the two limits is used.
  */
 @Data
 @Accessors(chain = true)
 public class MemoryLimit {
-    Long limitInBytes;
-    Double percentOfMaxDirectMemory;
+    // The max memory in bytes the Pulsar client can use
+    private Long limitInBytes;
+    // The max memory the Pulsar client can use, as a percentage (0, 100] of the JVM max direct memory
+    private Double percentOfMaxDirectMemory;
 }

@@ -379,10 +379,15 @@ public class FunctionConfigUtils {
             String builtin = functionConfig.getJar().replaceFirst("^builtin://", "");
             functionDetails.setBuiltin(builtin);
         }
-        if (functionConfig.getMemoryLimit() != null) {
-            org.apache.pulsar.functions.proto.MemoryLimit memoryLimit = functionDetails.setMemoryLimit();
-            memoryLimit.setLimitInBytes(functionConfig.getMemoryLimit().getLimitInBytes());
-            memoryLimit.setPercentOfMaxDirectMemory(functionConfig.getMemoryLimit().getPercentOfMaxDirectMemory());
+        MemoryLimit clientMemoryLimit = functionConfig.getPulsarClientMemoryLimit();
+        if (clientMemoryLimit != null) {
+            org.apache.pulsar.functions.proto.MemoryLimit memoryLimit = functionDetails.setPulsarClientMemoryLimit();
+            if (clientMemoryLimit.getLimitInBytes() != null) {
+                memoryLimit.setLimitInBytes(clientMemoryLimit.getLimitInBytes());
+            }
+            if (clientMemoryLimit.getPercentOfMaxDirectMemory() != null) {
+                memoryLimit.setPercentOfMaxDirectMemory(clientMemoryLimit.getPercentOfMaxDirectMemory());
+            }
         }
 
         functionDetails.setClientApi(FunctionCommon.convertClientApi(functionConfig.getClientApi()));
@@ -405,6 +410,21 @@ public class FunctionConfigUtils {
                     + " If you want not to automatically ack, please configure the processing guarantees as MANUAL.");
         }
         return functionDetails;
+    }
+
+    /**
+     * Convert the proto memory limit, where a 0 value means unset, to the config one.
+     */
+    public static MemoryLimit convertPulsarClientMemoryLimit(
+            org.apache.pulsar.functions.proto.MemoryLimit memoryLimit) {
+        MemoryLimit result = new MemoryLimit();
+        if (memoryLimit.getLimitInBytes() != 0) {
+            result.setLimitInBytes(memoryLimit.getLimitInBytes());
+        }
+        if (memoryLimit.getPercentOfMaxDirectMemory() != 0) {
+            result.setPercentOfMaxDirectMemory(memoryLimit.getPercentOfMaxDirectMemory());
+        }
+        return result;
     }
 
     @SuppressWarnings("deprecation")
@@ -534,11 +554,11 @@ public class FunctionConfigUtils {
         if (!isEmpty(functionDetails.getCustomRuntimeOptions())) {
             functionConfig.setCustomRuntimeOptions(functionDetails.getCustomRuntimeOptions());
         }
-        if (functionDetails.getMemoryLimit() != null) {
-            MemoryLimit memoryLimit = new MemoryLimit();
-            memoryLimit.setLimitInBytes(functionDetails.getMemoryLimit().getLimitInBytes());
-            memoryLimit.setPercentOfMaxDirectMemory(functionDetails.getMemoryLimit().getPercentOfMaxDirectMemory());
+        if (functionDetails.hasPulsarClientMemoryLimit()) {
+            functionConfig.setPulsarClientMemoryLimit(
+                    convertPulsarClientMemoryLimit(functionDetails.getPulsarClientMemoryLimit()));
         }
+
         return functionConfig;
     }
 
@@ -877,6 +897,18 @@ public class FunctionConfigUtils {
             ResourceConfigUtils.validate(functionConfig.getResources());
         }
 
+        MemoryLimit clientMemoryLimit = functionConfig.getPulsarClientMemoryLimit();
+        if (clientMemoryLimit != null) {
+            if (clientMemoryLimit.getLimitInBytes() != null && clientMemoryLimit.getLimitInBytes() <= 0) {
+                throw new IllegalArgumentException("Pulsar client memory limit in bytes must be a positive number");
+            }
+            Double percent = clientMemoryLimit.getPercentOfMaxDirectMemory();
+            if (percent != null && (percent <= 0 || percent > 100)) {
+                throw new IllegalArgumentException(
+                        "Pulsar client memory limit percent of max direct memory must be in (0, 100]");
+            }
+        }
+
         if (functionConfig.getTimeoutMs() != null && functionConfig.getTimeoutMs() <= 0) {
             throw new IllegalArgumentException("Function timeout must be a positive number");
         }
@@ -1150,6 +1182,9 @@ public class FunctionConfigUtils {
         }
         if (newConfig.getProducerConfig() != null) {
             mergedConfig.setProducerConfig(newConfig.getProducerConfig());
+        }
+        if (newConfig.getPulsarClientMemoryLimit() != null) {
+            mergedConfig.setPulsarClientMemoryLimit(newConfig.getPulsarClientMemoryLimit());
         }
         return mergedConfig;
     }

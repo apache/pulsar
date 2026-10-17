@@ -583,6 +583,7 @@ public class LocalRunner implements AutoCloseable {
                     instanceConfig
                             .setExposePulsarAdminClientEnabled(functionConfig.getExposePulsarAdminClientEnabled());
                 }
+                instanceConfig.setPulsarClientMemoryLimit(functionConfig.getPulsarClientMemoryLimit());
             }
 
             RuntimeSpawner runtimeSpawner = new RuntimeSpawner(
@@ -663,10 +664,9 @@ public class LocalRunner implements AutoCloseable {
             if (userCodeClassLoader != null && userCodeClassLoader.getClassLoader() != null) {
                 Thread.currentThread().setContextClassLoader(userCodeClassLoader.getClassLoader());
             }
-            Optional<MemoryLimit> pulsarClientMemoryLimit = Optional.empty();
-            if (functionConfig != null && functionConfig.getMemoryLimit() != null) {
-                pulsarClientMemoryLimit = Optional.ofNullable(functionConfig.getMemoryLimit());
-            }
+            Optional<MemoryLimit> pulsarClientMemoryLimit = functionConfig != null
+                    ? Optional.ofNullable(functionConfig.getPulsarClientMemoryLimit())
+                    : Optional.empty();
             runtimeFactory = new ThreadRuntimeFactory("LocalRunnerThreadGroup",
                     serviceUrl,
                     stateStorageImplClass,
@@ -698,6 +698,7 @@ public class LocalRunner implements AutoCloseable {
                     instanceConfig
                             .setExposePulsarAdminClientEnabled(functionConfig.getExposePulsarAdminClientEnabled());
                 }
+                instanceConfig.setPulsarClientMemoryLimit(functionConfig.getPulsarClientMemoryLimit());
             }
 
             RuntimeSpawner runtimeSpawner = new RuntimeSpawner(
