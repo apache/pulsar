@@ -136,7 +136,8 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
     Optional<CompletableFuture<Void>> triggerEvictionWhenNeeded() {
         long currentSize = this.currentSize.get();
 
-        // Trigger a single eviction in background. While the eviction is running we stop inserting entries in the cache
+        // Trigger a single eviction in background. While it is running, a new trigger returns the running eviction's
+        // future instead of starting another one. Inserting entries in the cache doesn't wait for it.
         if (currentSize > evictionTriggerThreshold) {
             CompletableFuture<Void> evictionCompletionFuture = null;
             while (evictionCompletionFuture == null) {
