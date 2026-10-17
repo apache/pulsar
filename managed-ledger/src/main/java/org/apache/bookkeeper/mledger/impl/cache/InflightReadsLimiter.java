@@ -30,6 +30,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import lombok.CustomLog;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.pulsar.opentelemetry.Constants;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes.InflightReadLimiterUtilization;
 import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
@@ -181,14 +182,38 @@ public class InflightReadsLimiter implements AutoCloseable {
         return internalAcquire(permits, callback);
     }
 
-    private synchronized Optional<Handle> internalAcquire(long permits, Consumer<Handle> callback) {
+    /**
+     * Non-queueing acquire for reads that must not wait for permits (batched skip-read range reads:
+     * the permits they would wait for can be held by the same batch's buffered entries). Returns a
+     * successful handle when the permits are immediately available (or when the request exceeds the
+     * limiter size while it is completely idle, matching {@link #acquire}), and {@link Optional#empty()}
+     * when the acquire would queue — the caller is expected to fail the read with
+     * {@link org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException}.
+     */
+    public Optional<Handle> tryAcquire(long permits) {
+        if (isDisabled()) {
+            return DISABLED_OPTIONAL;
+        }
+        return internalTryAcquire(permits);
+    }
+
+    private synchronized Optional<Handle> internalTryAcquire(long permits) {
+        return tryImmediateAcquire(permits, "Acquired permits without queueing");
+    }
+
+    /**
+     * Grants the permits when they are immediately available, or - when the request exceeds the limiter
+     * size while the limiter is completely idle - grants the whole limiter size. Returns
+     * {@link Optional#empty()} when neither applies, leaving the limiter state untouched.
+     */
+    private synchronized Optional<Handle> tryImmediateAcquire(long permits, String acquiredLogMessage) {
         Handle handle = new Handle(permits, System.currentTimeMillis(), true);
         if (remainingBytes >= permits) {
             remainingBytes -= permits;
             inflightReadsAcquireCountCounter.add(1);
             log.debug().attr("permits", permits)
                     .attr("creationTime", handle.creationTime)
-                    .attr("remainingBytes", remainingBytes).log("Acquired permits");
+                    .attr("remainingBytes", remainingBytes).log(acquiredLogMessage);
             updateMetrics();
             return Optional.of(handle);
         } else if (permits > maxReadsInFlightSize && remainingBytes == maxReadsInFlightSize) {
@@ -202,22 +227,44 @@ public class InflightReadsLimiter implements AutoCloseable {
                             + " Allowing request with permits set to maxReadsInFlightSize.");
             updateMetrics();
             return Optional.of(new Handle(maxReadsInFlightSize, handle.creationTime, true));
-        } else {
-            if (queuedHandles.size() >= maxReadsInFlightAcquireQueueSize) {
-                log.warn().attr("permits", permits)
-                        .attr("creationTime", handle.creationTime)
-                        .attr("remainingBytes", remainingBytes)
-                        .attr("maxReadsInFlightAcquireQueueSize",
-                                maxReadsInFlightAcquireQueueSize)
-                        .attr("pendingQueueSize", queuedHandles.size())
-                        .log("Failed to queue handle for acquiring permits");
-                return Optional.of(new Handle(0, handle.creationTime, false));
-            } else {
-                queuedHandles.offer(new QueuedHandle(handle, callback));
-                scheduleTimeOutCheck(acquireTimeoutMillis);
-                return Optional.empty();
-            }
         }
+        return Optional.empty();
+    }
+
+    private synchronized Optional<Handle> internalAcquire(long permits, Consumer<Handle> callback) {
+        Optional<Handle> immediate = tryImmediateAcquire(permits, "Acquired permits");
+        if (immediate.isPresent()) {
+            return immediate;
+        }
+        Handle handle = new Handle(permits, System.currentTimeMillis(), true);
+        if (queuedHandles.size() >= maxReadsInFlightAcquireQueueSize) {
+            log.warn().attr("permits", permits)
+                    .attr("creationTime", handle.creationTime)
+                    .attr("remainingBytes", remainingBytes)
+                    .attr("maxReadsInFlightAcquireQueueSize",
+                            maxReadsInFlightAcquireQueueSize)
+                    .attr("pendingQueueSize", queuedHandles.size())
+                    .log("Failed to queue handle for acquiring permits");
+            return Optional.of(new Handle(0, handle.creationTime, false));
+        } else {
+            queuedHandles.offer(new QueuedHandle(handle, callback));
+            scheduleTimeOutCheck(acquireTimeoutMillis);
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * The exception the cache read paths fail a read with when this limiter's permits were not
+     * acquired; built in one place so the wording and the configuration hint cannot drift between
+     * the queue-timeout and fail-fast call sites.
+     */
+    static ManagedLedgerException.TooManyRequestsException permitsNotAcquiredException(long ledgerId,
+            String cacheName, long estimatedReadSize, int numberOfEntries) {
+        return new ManagedLedgerException.TooManyRequestsException(
+                "Couldn't acquire permits on the max reads in flight limiter to read from ledger "
+                        + ledgerId + ", " + cacheName + ", estimated read size " + estimatedReadSize
+                        + " bytes for " + numberOfEntries
+                        + " entries (check managedLedgerMaxReadsInFlightSizeInMB)");
     }
 
     private synchronized void scheduleTimeOutCheck(long delayMillis) {

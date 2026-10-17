@@ -30,6 +30,8 @@ import com.google.common.collect.Range;
 import io.github.merlimat.slog.Logger;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import it.unimi.dsi.fastutil.longs.LongLongImmutablePair;
+import it.unimi.dsi.fastutil.longs.LongLongPair;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -163,6 +165,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     protected static final int AsyncOperationTimeoutSeconds = 30;
 
     private static final Logger slog = Logger.get(ManagedLedgerImpl.class);
+
+    /**
+     * Upper bound of parallel range reads issued for one batched skip-read scan window. Entries beyond
+     * the cap are read by the operation's continuation read; the cap bounds the concurrent BK reads, the
+     * per-read byte-budget multiplication, and the inflight-reads-limiter permits of a single window.
+     */
+    @VisibleForTesting
+    static final int MAX_BATCHED_READ_RANGES = 4;
 
     protected final BookKeeper bookKeeper;
     /** Whether the BookKeeper client can batch read: the v2 wire protocol with batch reads enabled. */
@@ -2740,83 +2750,423 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         long lastEntry = min(firstEntry + opReadEntry.getNumberOfEntriesToRead() - 1, lastEntryInLedger);
 
-        // Filer out and skip unnecessary read entry
-        if (opReadEntry.skipCondition != null) {
-            long firstValidEntry = -1L;
-            long lastValidEntry = -1L;
-            long entryId = firstEntry;
-            for (; entryId <= lastEntry; entryId++) {
-                if (opReadEntry.skipCondition.test(PositionFactory.create(ledger.getId(), entryId))) {
-                    if (firstValidEntry != -1L) {
-                        break;
-                    }
-                } else {
-                    if (firstValidEntry == -1L) {
-                        firstValidEntry = entryId;
-                    }
-
-                    lastValidEntry = entryId;
-                }
-            }
-
-            // If all positions in [firstEntry...lastEntry] are filtered out, advance the read position
-            // without issuing a ledger read.
-            if (firstValidEntry == -1L) {
-                final Position lastScannedPosition = PositionFactory.create(ledger.getId(), lastEntry);
-                // The whole scan window was skipped. If the last scanned position is individually deleted,
-                // hop over its deleted range instead of advancing one window at a time.
-                final Position nextReadPosition = opReadEntry.cursor.getNextAvailablePosition(lastScannedPosition);
-                opReadEntry.updateReadPosition(nextReadPosition);
-                opReadEntry.checkReadCompletion();
-                return;
-            }
-
-            firstEntry = firstValidEntry;
-            lastEntry = lastValidEntry;
+        opReadEntry.readUpToLastConfirmedEntry =
+                ledger.getId() == lastPosition.getLedgerId() && lastEntry == lastPosition.getEntryId();
+        Predicate<Position> skipCondition = opReadEntry.skipCondition;
+        if (skipCondition == null) {
+            readSequentially(ledger, firstEntry, lastEntry, opReadEntry);
+            return;
         }
 
+        // Scan entries and build contiguous read ranges, skipping entries that match the predicate.
+        // The scan stops once MAX_BATCHED_READ_RANGES ranges were built; the entries beyond the cap are
+        // read by this operation's continuation read (checkReadCompletion), so no entry is skipped.
+        List<LongLongPair> ranges = new ArrayList<>();
+        boolean windowCapped =
+                buildRanges(firstEntry, lastEntry, ledger.getId(), skipCondition, MAX_BATCHED_READ_RANGES, ranges)
+                        != -1;
+
+        if (ranges.isEmpty()) {
+            // The whole scan window was skipped. If the last scanned position is individually deleted,
+            // hop over its deleted range instead of advancing one window at a time.
+            final Position nextReadPosition = opReadEntry.cursor
+                    .getNextAvailablePosition(PositionFactory.create(ledger.getId(), lastEntry));
+            opReadEntry.updateReadPosition(nextReadPosition);
+            opReadEntry.checkReadCompletion();
+            return;
+        }
+
+        if (ranges.size() == 1 && ranges.get(0).leftLong() == firstEntry && ranges.get(0).rightLong() == lastEntry) {
+            // A single contiguous range covering the whole scan window: nothing was skipped, read it
+            // directly so that the read behaves exactly like a regular sequential read.
+            readSequentially(ledger, firstEntry, lastEntry, opReadEntry);
+            return;
+        }
+
+        // When the whole window is delivered, the cursor read position advances past this position.
+        Position lastReadPosition = PositionFactory.create(ledger.getId(),
+                windowCapped ? ranges.get(ranges.size() - 1).rightLong() : lastEntry);
+        if (windowCapped) {
+            // The truncated window no longer reaches the last confirmed entry, so the operation's
+            // continuation read fetches the remaining ranges and the delivery content of the read is
+            // unchanged (preserves the public ManagedCursor.readEntries(n) count guarantee).
+            opReadEntry.readUpToLastConfirmedEntry = false;
+        }
+
+        long expectedCount = 0;
+        for (LongLongPair range : ranges) {
+            expectedCount += range.rightLong() - range.leftLong() + 1;
+        }
+        log.debug().attr("ledgerId", ledger.getId())
+                .attr("firstEntry", firstEntry)
+                .attr("lastEntry", lastEntry)
+                .attr("rangeCount", ranges.size())
+                .attr("entryCount", expectedCount)
+                .log("Reading entries from ledger in ranges");
+        // Capture everything that the range submissions need before submitting the first range. Once a
+        // submitted range read completes with a failure, opReadEntry may get recycled concurrently with
+        // its fields nulled out, so dereferencing it while submitting further ranges could race.
+        final IntSupplier expectedReadCount = opReadEntry.cursor::getNumberOfCursorsAtSamePositionOrBefore;
+        final long maxSizeBytes = opReadEntry.maxSizeBytes;
+        final Object readCtx = opReadEntry.ctx;
+        BatchReadEntriesCallback callback =
+                new BatchReadEntriesCallback(ranges, expectedCount, opReadEntry, lastReadPosition, readCtx);
+        for (LongLongPair range : ranges) {
+            if (callback.shouldStopSubmission()) {
+                break;
+            }
+            callback.onRangeSubmitted();
+            asyncReadEntry(ledger, range.leftLong(), range.rightLong(), maxSizeBytes, expectedReadCount,
+                    callback, readCtx);
+        }
+        callback.submissionFinished();
+    }
+
+    /**
+     * Reads the window [firstEntry, lastEntry] in a single sequential read, exactly the way a read
+     * without a skip condition does; also used for a scan window that a skip condition left contiguous.
+     */
+    private void readSequentially(ReadHandle ledger, long firstEntry, long lastEntry,
+                                  OpReadEntry opReadEntry) {
         log.debug().attr("ledgerId", ledger.getId())
                 .attr("firstEntry", firstEntry)
                 .attr("lastEntry", lastEntry)
                 .log("Reading entries from ledger");
-        opReadEntry.readUpToLastConfirmedEntry =
-                ledger.getId() == lastPosition.getLedgerId() && lastEntry == lastPosition.getEntryId();
         asyncReadEntry(ledger, firstEntry, lastEntry, opReadEntry, opReadEntry.ctx);
+    }
+
+    /**
+     * Scan entry range [firstEntry, lastEntry], skipping entries where skipCondition returns true,
+     * and build contiguous read ranges directly.
+     *
+     * @param firstEntry first entry id to scan (inclusive)
+     * @param lastEntry last entry id to scan (inclusive)
+     * @param ledgerId the ledger id for building positions
+     * @param skipCondition predicate to determine which entries to skip
+     * @return list of contiguous [start, end] ranges in ascending order
+     */
+    @VisibleForTesting
+    public static List<LongLongPair> buildRanges(long firstEntry, long lastEntry, long ledgerId,
+                                                 Predicate<Position> skipCondition) {
+        List<LongLongPair> ranges = new ArrayList<>();
+        buildRanges(firstEntry, lastEntry, ledgerId, skipCondition, Integer.MAX_VALUE, ranges);
+        return ranges;
+    }
+
+    /**
+     * Scan entry range [firstEntry, lastEntry], skipping entries where skipCondition returns true, and
+     * add the contiguous read ranges in ascending order to {@code ranges} until {@code maxRanges}
+     * ranges were built.
+     *
+     * @return the entry id where the scan stopped, or -1 when the whole window was scanned; the caller
+     *         reads the entries beyond that point with its continuation read
+     */
+    static long buildRanges(long firstEntry, long lastEntry, long ledgerId, Predicate<Position> skipCondition,
+                            int maxRanges, List<LongLongPair> ranges) {
+        MutablePositionImpl position = new MutablePositionImpl();
+        long rangeStart = -1;
+        long rangeEnd = -1;
+        for (long entryId = firstEntry; entryId <= lastEntry; entryId++) {
+            if (rangeStart == -1 && ranges.size() == maxRanges) {
+                // The cap was reached and no range is open: everything from here on belongs to the
+                // continuation read, so the scan can stop without evaluating the predicate.
+                return entryId;
+            }
+            position.changePositionTo(ledgerId, entryId);
+            if (skipCondition.test(position)) {
+                if (rangeStart != -1) {
+                    ranges.add(LongLongImmutablePair.of(rangeStart, rangeEnd));
+                    rangeStart = -1;
+                }
+                continue;
+            }
+            if (rangeStart == -1) {
+                rangeStart = entryId;
+            }
+            rangeEnd = entryId;
+        }
+        if (rangeStart != -1) {
+            ranges.add(LongLongImmutablePair.of(rangeStart, rangeEnd));
+        }
+        return -1;
+    }
+
+    @VisibleForTesting
+    public static class BatchReadEntriesCallback implements ReadEntriesCallback {
+        private final List<LongLongPair> ranges;
+        private final long expectedCount;
+        private final List<Entry> entries;
+        private final OpReadEntry callback;
+        private volatile boolean completed = false;
+        private final Position lastReadPosition;
+        private final Object readCtx;
+        private volatile boolean submissionHalted = false;
+        // Guarded by this object's monitor. The monitor is only held while mutating this state;
+        // OpReadEntry callbacks are always invoked without holding it.
+        private int pendingRanges;
+        private boolean submissionFinished;
+        private ManagedLedgerException firstFailure;
+
+        @VisibleForTesting
+        public BatchReadEntriesCallback(List<LongLongPair> ranges, long expectedCount, OpReadEntry callback,
+                                        Position lastReadPosition, Object readCtx) {
+            this.ranges = ranges;
+            this.expectedCount = expectedCount;
+            this.entries = new ArrayList<>();
+            this.callback = callback;
+            this.lastReadPosition = lastReadPosition;
+            this.readCtx = readCtx;
+        }
+
+        /**
+         * Whether the submission loop should stop submitting further ranges: either the batched read
+         * already completed, or a range read was throttled and the already submitted ranges deliver
+         * their contiguous prefix instead.
+         */
+        boolean shouldStopSubmission() {
+            return completed || submissionHalted;
+        }
+
+        void onRangeSubmitted() {
+            synchronized (this) {
+                pendingRanges++;
+            }
+        }
+
+        void submissionFinished() {
+            final FinalizeAction action;
+            final ManagedLedgerException failure;
+            synchronized (this) {
+                submissionFinished = true;
+                action = finalizeIfDoneLocked();
+                failure = firstFailure;
+            }
+            runFinalizeAction(action, failure);
+        }
+
+        @Override
+        public void readEntriesComplete(List<Entry> entries0, Object ctx) {
+            final FinalizeAction action;
+            final ManagedLedgerException failure;
+            synchronized (this) {
+                if (completed) {
+                    for (Entry entry : entries0) {
+                        entry.release();
+                    }
+                    return;
+                }
+                entries.addAll(entries0);
+                pendingRanges--;
+                // If read empty batch from Bookie, we have to complete the call.
+                // Otherwise, it maybe blocks forever, see: PR 24515.
+                boolean allRangesReported = submissionFinished && pendingRanges == 0;
+                if (!entries0.isEmpty() && entries.size() < expectedCount && !allRangesReported) {
+                    return;
+                }
+                action = completeLocked(null);
+                failure = firstFailure;
+            }
+            runFinalizeAction(action, failure);
+        }
+
+        @Override
+        public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+            final FinalizeAction action;
+            final ManagedLedgerException failure;
+            synchronized (this) {
+                if (completed) {
+                    return;
+                }
+                pendingRanges--;
+                if (exception instanceof TooManyRequestsException && (pendingRanges > 0 || !submissionFinished)) {
+                    // A range read was rejected by the inflight read limiter while other range reads are
+                    // still in flight or not all ranges have been submitted yet. Failing the batched
+                    // read now would discard the pending results, and every retry of the same window
+                    // could fail again without advancing the cursor. Stop submitting further ranges and
+                    // wait for the in-flight ones instead, so that their contiguous prefix can still be
+                    // delivered.
+                    submissionHalted = true;
+                    if (firstFailure == null) {
+                        firstFailure = exception;
+                    }
+                    action = finalizeIfDoneLocked();
+                    failure = firstFailure;
+                } else {
+                    action = completeLocked(exception);
+                    failure = exception;
+                }
+            }
+            runFinalizeAction(action, failure);
+        }
+
+        /**
+         * Finalize once the submission loop has finished and every submitted range has reported.
+         * Called with the monitor held.
+         */
+        private FinalizeAction finalizeIfDoneLocked() {
+            if (completed || !submissionFinished || pendingRanges > 0) {
+                return FinalizeAction.NONE;
+            }
+            return completeLocked(null);
+        }
+
+        /**
+         * Mark the batched read completed and decide how to finalize it. Called with the monitor held;
+         * sorts the entries so that async range reads completing out of submission order are delivered
+         * in order.
+         *
+         * @param overridingFailure the failure to finalize with, or null to finalize with
+         *                          {@link #firstFailure} (a throttled earlier range) when present
+         */
+        private FinalizeAction completeLocked(ManagedLedgerException overridingFailure) {
+            completed = true;
+            entries.sort(ManagedCursorImpl.ENTRY_COMPARATOR);
+            if (overridingFailure != null || firstFailure != null) {
+                return FinalizeAction.FAIL_WITH_PREFIX;
+            }
+            if (entries.size() < expectedCount) {
+                // A range read returned an empty batch before all ranges completed, or all ranges
+                // completed with fewer entries than expected. Only deliver the contiguous prefix of
+                // the collected entries and let the remaining entries be re-read, otherwise the
+                // entries of the incomplete ranges would be skipped silently.
+                return FinalizeAction.COMPLETE_PREFIX;
+            }
+            return FinalizeAction.COMPLETE_ALL;
+        }
+
+        /**
+         * Invoke the OpReadEntry callbacks with the read context the batched read was started with.
+         * This must always run without holding the monitor of this callback: the callbacks reach
+         * dispatcher code that synchronizes on the dispatcher monitor, while the thread submitting the
+         * range reads may hold the dispatcher monitor and call into this callback synchronously on
+         * cache hits. Holding this monitor across the callback could therefore deadlock the two
+         * threads.
+         */
+        private void runFinalizeAction(FinalizeAction action, ManagedLedgerException failure) {
+            switch (action) {
+                case NONE:
+                    return;
+                case COMPLETE_ALL:
+                    // If we want to read [1, 2, 3, 4, 5], but we only read [1, 2, 3], [4,5] are filtered,
+                    // so we need to pass the `lastReadPosition([5])` to make sure the cursor read position
+                    // is correct.
+                    callback.readEntriesCompleteGuarded(entries, lastReadPosition, readCtx);
+                    return;
+                case COMPLETE_PREFIX:
+                    callback.readEntriesCompleteGuarded(filterEntries(), null, readCtx);
+                    return;
+                case FAIL_WITH_PREFIX:
+                    // If there are entries been read success, try to let the read operation success as
+                    // possible: the guarded call advances the read position past the contiguous prefix.
+                    callback.readEntriesFailedGuarded(filterEntries(), failure, readCtx);
+                    return;
+                default:
+                    throw new IllegalStateException("Unexpected action: " + action);
+            }
+        }
+
+        private enum FinalizeAction {
+            NONE,
+            COMPLETE_ALL,
+            COMPLETE_PREFIX,
+            FAIL_WITH_PREFIX
+        }
+
+        /**
+         * Filter the entries that have been read success. The entries must be sorted by position first.
+         * <p>
+         * If we want to read [1, 2, 3, 4, 5], but only read [1, 2, 4, 5] successfully, [3] is read failed,
+         * only return [1,2] to the caller, to make sure the read operation success as possible
+         * and keep the ordering guarantee.
+         *
+         * @return filtered entries
+         */
+        private List<Entry> filterEntries() {
+            if (entries.isEmpty()) {
+                return Collections.emptyList();
+            }
+            List<Entry> entries0 = new ArrayList<>();
+            int rangeIdx = 0;
+            long expectedEntryId = ranges.get(rangeIdx).leftLong();
+            long rangeEnd = ranges.get(rangeIdx).rightLong();
+            int entryIdx = 0;
+            while (entryIdx < entries.size()) {
+                Entry entry = entries.get(entryIdx);
+                if (entry.getEntryId() != expectedEntryId) {
+                    break;
+                }
+                entries0.add(entry);
+                entryIdx++;
+                if (expectedEntryId == rangeEnd) {
+                    rangeIdx++;
+                    if (rangeIdx >= ranges.size()) {
+                        break;
+                    }
+                    expectedEntryId = ranges.get(rangeIdx).leftLong();
+                    rangeEnd = ranges.get(rangeIdx).rightLong();
+                } else {
+                    expectedEntryId++;
+                }
+            }
+            // Release the entries that are not in the result.
+            for (int i = entryIdx; i < entries.size(); i++) {
+                entries.get(i).release();
+            }
+            return entries0;
+        }
     }
 
     protected void asyncReadEntry(ReadHandle ledger, Position position, ReadEntryCallback callback, Object ctx) {
         mbean.addEntriesRead(1);
-        if (config.getReadEntryTimeoutSeconds() > 0) {
-            ReadEntryCallbackWrapper readCallback = ReadEntryCallbackWrapper.create(this, position.getLedgerId(),
-                    position.getEntryId(), callback, ctx, timeoutAtNanos(config.getReadEntryTimeoutSeconds()));
-            entryCache.asyncReadEntry(ledger, position, readCallback, ctx);
-            if (readCallback.registerTimeout()) {
-                factory.getReadEntryTimeoutTracker().add(readCallback);
-            }
-        } else {
-            entryCache.asyncReadEntry(ledger, position, callback, ctx);
-        }
+        ReadEntryCallbackWrapper readCallback = config.getReadEntryTimeoutSeconds() > 0
+                ? ReadEntryCallbackWrapper.create(this, position.getLedgerId(), position.getEntryId(), callback,
+                        ctx, timeoutAtNanos(config.getReadEntryTimeoutSeconds()))
+                : null;
+        readEntryWithTimeout(readCallback, () -> entryCache.asyncReadEntry(ledger, position,
+                readCallback != null ? readCallback : callback, ctx));
     }
 
     protected void asyncReadEntry(ReadHandle ledger, long firstEntry, long lastEntry, OpReadEntry opReadEntry,
             Object ctx) {
         IntSupplier expectedReadCount = opReadEntry.cursor::getNumberOfCursorsAtSamePositionOrBefore;
-        if (config.getReadEntryTimeoutSeconds() > 0) {
-            ReadEntryCallbackWrapper readCallback = ReadEntryCallbackWrapper.create(this, ledger.getId(), firstEntry,
-                    opReadEntry, ctx, timeoutAtNanos(config.getReadEntryTimeoutSeconds()));
-            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, opReadEntry.maxSizeBytes, expectedReadCount,
-                    readCallback, ctx);
-            if (readCallback.registerTimeout()) {
-                factory.getReadEntryTimeoutTracker().add(readCallback);
-            }
-        } else {
-            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, opReadEntry.maxSizeBytes, expectedReadCount,
-                    opReadEntry, ctx);
-        }
+        ReadEntryCallbackWrapper readCallback = config.getReadEntryTimeoutSeconds() > 0
+                ? ReadEntryCallbackWrapper.create(this, ledger.getId(), firstEntry, opReadEntry, ctx,
+                        timeoutAtNanos(config.getReadEntryTimeoutSeconds()))
+                : null;
+        readEntryWithTimeout(readCallback, () -> entryCache.asyncReadEntry(ledger, firstEntry, lastEntry,
+                opReadEntry.maxSizeBytes, expectedReadCount,
+                readCallback != null ? readCallback : opReadEntry, ctx));
     }
 
     private static long timeoutAtNanos(long timeoutSec) {
         return System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSec);
+    }
+
+    /**
+     * Read a single range of a batched skip-read. Takes the read budget and expected read count as
+     * parameters instead of reading them from an OpReadEntry, since the OpReadEntry may get recycled
+     * concurrently once a previously submitted range read fails.
+     */
+    protected void asyncReadEntry(ReadHandle ledger, long firstEntry, long lastEntry, long maxSizeBytes,
+                                  IntSupplier expectedReadCount, ReadEntriesCallback callback, Object ctx) {
+        ReadEntryCallbackWrapper readCallback = config.getReadEntryTimeoutSeconds() > 0
+                ? ReadEntryCallbackWrapper.create(this, ledger.getId(), firstEntry, callback, ctx,
+                        timeoutAtNanos(config.getReadEntryTimeoutSeconds()))
+                : null;
+        readEntryWithTimeout(readCallback, () -> entryCache.asyncReadEntry(ledger, firstEntry, lastEntry,
+                maxSizeBytes, expectedReadCount, readCallback != null ? readCallback : callback, ctx, true));
+    }
+
+    /**
+     * Executes the cache read and registers the timeout callback afterwards: the registration must
+     * happen after the read was issued, since the wrapper's completion-state CAS treats a synchronous
+     * cache-hit completion as already completed.
+     */
+    private void readEntryWithTimeout(ReadEntryCallbackWrapper readCallback, Runnable readExecution) {
+        readExecution.run();
+        if (readCallback != null && readCallback.registerTimeout()) {
+            factory.getReadEntryTimeoutTracker().add(readCallback);
+        }
     }
 
     static final class ReadEntryCallbackWrapper implements ReadEntryCallback, ReadEntriesCallback {

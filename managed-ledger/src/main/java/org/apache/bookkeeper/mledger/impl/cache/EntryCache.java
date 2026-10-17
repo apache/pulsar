@@ -93,6 +93,22 @@ public interface EntryCache {
             IntSupplier expectedReadCount, ReadEntriesCallback callback, Object ctx);
 
     /**
+     * Range-read variant that never queue-waits for inflight-reads-limiter permits: when the permits
+     * are not immediately available, the callback fails synchronously with
+     * {@link org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException}. Used by
+     * batched skip-read range reads, whose batch may itself hold the permits a queued acquire would
+     * wait for. The default implementation falls back to queueing behavior.
+     *
+     * @param failFastWhenThrottled
+     *            whether to fail the read fast when the permits are not immediately available
+     */
+    default void asyncReadEntry(ReadHandle lh, long firstEntry, long lastEntry, long maxSizeBytes,
+            IntSupplier expectedReadCount, ReadEntriesCallback callback, Object ctx,
+            boolean failFastWhenThrottled) {
+        asyncReadEntry(lh, firstEntry, lastEntry, maxSizeBytes, expectedReadCount, callback, ctx);
+    }
+
+    /**
      * Read entry at given position from the cache or from bookkeeper.
      *
      * <p/>Get the entry data either from cache or bookkeeper and mixes up the results in a single list.
