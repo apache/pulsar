@@ -852,7 +852,7 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
             log.debug().attr("segmentId", segmentId).attr("attempt", send.attempts)
                     .log("Target segment gone, re-sending async send in order after layout update");
         } else {
-            finish(send, null, V5ExceptionMappings.toV5Exception(ex));
+            finish(send, null, ex);
         }
         if (startedRetiring) {
             // The segment failed before the layout dropped it: wait for the new layout.
@@ -1173,11 +1173,15 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
      * that beat the callback registration, is on the dispatch thread. Those complete on
      * {@link #completionExecutor}, unless this producer or the client is closing: then they complete
      * in place, as nothing may be left queued on an executor the client is about to shut down.
+     *
+     * <p>A failure is delivered as the V5 exception of its error category, whichever path failed
+     * the send.
      */
-    private void finish(PendingSend<T> send, MessageId messageId, Throwable failure) {
+    private void finish(PendingSend<T> send, MessageId messageId, Throwable sendFailure) {
         if (!send.finished.compareAndSet(false, true)) {
             return;
         }
+        Throwable failure = sendFailure != null ? V5ExceptionMappings.toV5Exception(sendFailure) : null;
         untrack(send);
         releaseAll(send);
         if (send.userFuture.isDone()) {
