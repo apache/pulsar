@@ -266,8 +266,12 @@ include("tests:performance:common")
 project(":tests:performance:common").projectDir = file("tests/performance/common")
 include("tests:performance:tools")
 project(":tests:performance:tools").projectDir = file("tests/performance/tools")
+include("tests:performance:report-tool")
+project(":tests:performance:report-tool").projectDir = file("tests/performance/report-tool")
 include("tests:performance:launcher")
 project(":tests:performance:launcher").projectDir = file("tests/performance/launcher")
+include("tests:performance:metrics")
+project(":tests:performance:metrics").projectDir = file("tests/performance/metrics")
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Shade test modules
@@ -284,3 +288,6 @@ include("tests:pulsar-client-all-shade-test")
 project(":tests:pulsar-client-all-shade-test").projectDir = file("tests/pulsar-client-all-shade-test")
 include("tests:pulsar-client-native-image")
 project(":tests:pulsar-client-native-image").projectDir = file("tests/pulsar-client-native-image")
+
+// Compile and run consumer/API compatibility checks on the minimum supported client JDK.
+include("tests:pulsar-client-java-compatibility")

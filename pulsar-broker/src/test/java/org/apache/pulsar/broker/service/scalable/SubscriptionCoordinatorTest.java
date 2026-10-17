@@ -19,8 +19,13 @@
 package org.apache.pulsar.broker.service.scalable;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -36,6 +41,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.TransportCnx;
@@ -198,6 +204,74 @@ public class SubscriptionCoordinatorTest {
                 assertFalse(nowAssigned.contains(0L),
                         "the drained parent must retire from the assignment");
             });
+        } finally {
+            orderedCoordinator.close();
+        }
+    }
+
+    /**
+     * A sealed segment is held back like an active one: after 0 splits into 4 and 5 and 5
+     * splits again into 6 and 7, a subscription still behind on 0 must not read 5, which
+     * holds newer messages of the same keys.
+     */
+    @Test
+    public void testSealedChildBlockedUntilParentDrained() throws Exception {
+        SubscriptionCoordinator orderedCoordinator = coordinatorDrainedOnlyByTest();
+        try {
+            orderedCoordinator.registerConsumer("consumer-1", 1L, mock(TransportCnx.class)).get();
+            orderedCoordinator.onLayoutChange(initialLayout.splitSegment(0, 0L).splitSegment(5, 0L)).get();
+            assertEquals(assignedTo(orderedCoordinator, "consumer-1"), Set.of(0L, 1L, 2L, 3L),
+                    "only the root of the split lineage may be read");
+
+            orderedCoordinator.markSegmentsDrained(Set.of(0L));
+            assertEquals(assignedTo(orderedCoordinator, "consumer-1"), Set.of(1L, 2L, 3L, 4L, 5L),
+                    "0's children are read once 0 is drained, 5's children still wait");
+
+            orderedCoordinator.markSegmentsDrained(Set.of(5L));
+            assertEquals(assignedTo(orderedCoordinator, "consumer-1"), Set.of(1L, 2L, 3L, 4L, 6L, 7L));
+        } finally {
+            orderedCoordinator.close();
+        }
+    }
+
+    /**
+     * A segment that received nothing before it was split is drained as soon as it is sealed,
+     * while its own parent can still have backlog: its children must keep waiting for that
+     * parent, not just for the empty segment.
+     */
+    @Test
+    public void testGrandchildrenBlockedUntilRootDrained() throws Exception {
+        SubscriptionCoordinator orderedCoordinator = coordinatorDrainedOnlyByTest();
+        try {
+            orderedCoordinator.registerConsumer("consumer-1", 1L, mock(TransportCnx.class)).get();
+            orderedCoordinator.onLayoutChange(initialLayout.splitSegment(0, 0L).splitSegment(5, 0L)).get();
+
+            orderedCoordinator.markSegmentsDrained(Set.of(5L));
+            assertEquals(assignedTo(orderedCoordinator, "consumer-1"), Set.of(0L, 1L, 2L, 3L),
+                    "5's children must wait for 0, not just for 5");
+
+            orderedCoordinator.markSegmentsDrained(Set.of(0L));
+            assertEquals(assignedTo(orderedCoordinator, "consumer-1"), Set.of(1L, 2L, 3L, 4L, 6L, 7L));
+        } finally {
+            orderedCoordinator.close();
+        }
+    }
+
+    /** A merged segment waits for the ancestors of both segments it merges. */
+    @Test
+    public void testMergedChildBlockedUntilGrandparentDrained() throws Exception {
+        SubscriptionCoordinator orderedCoordinator = coordinatorDrainedOnlyByTest();
+        try {
+            orderedCoordinator.registerConsumer("consumer-1", 1L, mock(TransportCnx.class)).get();
+            // 0 splits into 4 and 5, which merge back into 6.
+            orderedCoordinator.onLayoutChange(initialLayout.splitSegment(0, 0L).mergeSegments(4, 5, 0L)).get();
+
+            orderedCoordinator.markSegmentsDrained(Set.of(4L, 5L));
+            assertEquals(assignedTo(orderedCoordinator, "consumer-1"), Set.of(0L, 1L, 2L, 3L),
+                    "6 must wait for 0, not just for 4 and 5");
+
+            orderedCoordinator.markSegmentsDrained(Set.of(0L));
+            assertEquals(assignedTo(orderedCoordinator, "consumer-1"), Set.of(1L, 2L, 3L, 6L));
         } finally {
             orderedCoordinator.close();
         }
@@ -405,6 +479,42 @@ public class SubscriptionCoordinatorTest {
     }
 
     @Test
+    public void testClosedCoordinatorNeitherRegistersNorPushes() {
+        TransportCnx cnx1 = mock(TransportCnx.class);
+        coordinator.registerConsumer("consumer-1", 1L, cnx1).join();
+        CompletableFuture<Void> persisted = new CompletableFuture<>();
+        when(resources.registerConsumerAsync(any(), anyString(), eq("consumer-2"))).thenReturn(persisted);
+        TransportCnx cnx2 = mock(TransportCnx.class);
+        CompletableFuture<Map<ConsumerSession, ConsumerAssignment>> inFlight =
+                coordinator.registerConsumer("consumer-2", 2L, cnx2);
+
+        // The controller stops serving as the leader while consumer-2 registers.
+        coordinator.close();
+        clearInvocations(cnx1);
+        persisted.complete(null);
+        coordinator.onLayoutChange(initialLayout.splitSegment(0, System.currentTimeMillis()));
+
+        assertTrue(inFlight.isCompletedExceptionally(), "the registration completing after close must fail");
+        assertTrue(coordinator.registerConsumer("consumer-3", 3L, mock(TransportCnx.class))
+                .isCompletedExceptionally(), "a registration after close must fail");
+        verify(cnx1, never()).sendScalableConsumerAssignment(anyLong(), any());
+        verify(cnx2, never()).sendScalableConsumerAssignment(anyLong(), any());
+    }
+
+    @Test
+    public void testClosedCoordinatorDoesNotEvictExpiredSession() {
+        coordinator.registerConsumer("consumer-1", 1L, mock(TransportCnx.class)).join();
+        coordinator.onConsumerDisconnect("consumer-1");
+
+        // The controller stops serving as the leader: the session is the next leader's to restore.
+        coordinator.close();
+
+        // Past the 200ms grace period, the persisted registration must still be there.
+        Awaitility.await().during(1, TimeUnit.SECONDS).atMost(2, TimeUnit.SECONDS).untilAsserted(() ->
+                verify(resources, never()).unregisterConsumerAsync(topicName, "test-sub", "consumer-1"));
+    }
+
+    @Test
     public void testRestoreConsumersInstallsDisconnectedSessions() {
         Map<ConsumerSession, ConsumerAssignment> assignments =
                 coordinator.restoreConsumers(List.of("consumer-1", "consumer-2"));
@@ -511,6 +621,75 @@ public class SubscriptionCoordinatorTest {
         assertEquals(sharers, 4);
     }
 
+    @Test
+    public void testCheckpointGroupNeverSharesSegment() throws Exception {
+        // One segment with N=4 entry-buckets and three members of a CHECKPOINT group. A member reads
+        // the segment through its own Reader, so instead of fanning out by entry-bucket the segment
+        // goes whole to one member and the surplus members stay idle.
+        SubscriptionCoordinator c = bucketedCoordinator();
+        c.markCheckpointGroup();
+        c.registerConsumer("consumer-1", 1L, mock(TransportCnx.class)).get();
+        c.registerConsumer("consumer-2", 2L, mock(TransportCnx.class)).get();
+        Map<ConsumerSession, ConsumerAssignment> result =
+                c.registerConsumer("consumer-3", 3L, mock(TransportCnx.class)).get();
+
+        assertEquals(result.size(), 3);
+        ConsumerAssignment owner = findByName(result, "consumer-1");
+        assertEquals(owner.assignedSegments().size(), 1);
+        assertTrue(owner.assignedSegments().get(0).bucketRanges().isEmpty());
+        assertTrue(findByName(result, "consumer-2").assignedSegments().isEmpty());
+        assertTrue(findByName(result, "consumer-3").assignedSegments().isEmpty());
+    }
+
+    @Test
+    public void testRestoredCheckpointGroupNeverSharesSegmentOnReconnect() throws Exception {
+        // Controller failover: the restored coordinator doesn't know its consumer type. The
+        // controller marks the CHECKPOINT group before the first member's reconnect computes the
+        // assignment it sends.
+        SubscriptionCoordinator c = bucketedCoordinator();
+        c.restoreConsumers(List.of("consumer-1", "consumer-2", "consumer-3"));
+        c.markCheckpointGroup();
+        Map<ConsumerSession, ConsumerAssignment> result =
+                c.registerConsumer("consumer-2", 2L, mock(TransportCnx.class)).get();
+
+        assertEquals(findByName(result, "consumer-1").assignedSegments().size(), 1);
+        assertTrue(findByName(result, "consumer-1").assignedSegments().get(0).bucketRanges().isEmpty());
+        assertTrue(findByName(result, "consumer-2").assignedSegments().isEmpty());
+        assertTrue(findByName(result, "consumer-3").assignedSegments().isEmpty());
+    }
+
+    @Test
+    public void testOnlyAStreamSubscriptionCanShareSegmentsByEntryBucket() {
+        // No drain checker: the consumer type is unknown (e.g. restored on failover), and the
+        // subscription may be a checkpoint group.
+        assertFalse(coordinator.canShareSegmentsByEntryBucket());
+        // A STREAM register installs the drain checker.
+        coordinator.installDrainChecker((segment, sub) -> CompletableFuture.completedFuture(true));
+        assertTrue(coordinator.canShareSegmentsByEntryBucket());
+        // Once marked as a checkpoint group, the subscription gets whole segments only.
+        coordinator.markCheckpointGroup();
+        assertFalse(coordinator.canShareSegmentsByEntryBucket());
+    }
+
+    @Test
+    public void testLegacySegmentIsAssignedTheTopicItWraps() throws Exception {
+        // A regular-to-scalable migration (PIP-475) keeps the old topic as a sealed legacy parent, which
+        // has no segment:// topic of its own.
+        SubscriptionCoordinator c = new SubscriptionCoordinator("test-sub", topicName,
+                SegmentLayout.fromMetadata(ScalableTopicController.createMigratedMetadata(
+                        TopicName.get("persistent://tenant/ns/my-topic"), 0, 1)),
+                resources, scheduler, Duration.ofMillis(200));
+
+        ConsumerAssignment assignment = findByName(
+                c.registerConsumer("consumer-1", 1L, mock(TransportCnx.class)).get(), "consumer-1");
+
+        assertEquals(assignment.assignedSegments().stream().collect(Collectors.toMap(
+                        ConsumerAssignment.AssignedSegment::segmentId,
+                        ConsumerAssignment.AssignedSegment::underlyingTopicName)),
+                Map.of(0L, "persistent://tenant/ns/my-topic",
+                        1L, "segment://tenant/ns/my-topic/0000-ffff-1"));
+    }
+
     private SubscriptionCoordinator bucketedCoordinator() {
         // One segment carrying the whole default budget: N = 4 entry-buckets.
         return new SubscriptionCoordinator("test-sub", topicName,
@@ -604,6 +783,17 @@ public class SubscriptionCoordinatorTest {
         // A leave with the live id removes it.
         coordinator.unregisterConsumer("c1", 2L).get();
         assertEquals(coordinator.getConsumers().size(), 0);
+    }
+
+    /** A coordinator with parent-drain ordering, whose segments only drain through markSegmentsDrained. */
+    private SubscriptionCoordinator coordinatorDrainedOnlyByTest() {
+        return new SubscriptionCoordinator("test-sub", topicName, initialLayout, resources, scheduler,
+                Duration.ofMillis(200), (segment, sub) -> CompletableFuture.completedFuture(false),
+                Duration.ofMillis(50), Duration.ofSeconds(5));
+    }
+
+    private static Set<Long> assignedTo(SubscriptionCoordinator c, String consumerName) {
+        return new HashSet<>(segmentIds(findByName(c.currentAssignment(), consumerName)));
     }
 
     private static ConsumerAssignment findByName(Map<ConsumerSession, ConsumerAssignment> m, String name) {

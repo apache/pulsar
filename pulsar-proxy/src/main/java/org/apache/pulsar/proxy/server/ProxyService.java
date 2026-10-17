@@ -21,6 +21,7 @@ package org.apache.pulsar.proxy.server;
 
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.AdaptiveRecvByteBufAllocator;
@@ -197,6 +198,15 @@ public class ProxyService implements Closeable {
     public ProxyService(ProxyConfiguration proxyConfig,
                         AuthenticationService authenticationService,
                         Authentication proxyClientAuthentication) throws Exception {
+        this(proxyConfig, authenticationService, proxyClientAuthentication, 60, TimeUnit.SECONDS);
+    }
+
+    @VisibleForTesting
+    ProxyService(ProxyConfiguration proxyConfig,
+                 AuthenticationService authenticationService,
+                 Authentication proxyClientAuthentication,
+                 long statsUpdateInterval,
+                 TimeUnit statsUpdateIntervalUnit) throws Exception {
         requireNonNull(proxyConfig);
         this.proxyConfig = proxyConfig;
         this.clientCnxs = Sets.newConcurrentHashSet();
@@ -234,7 +244,7 @@ public class ProxyService implements Closeable {
 
         statsExecutor = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("proxy-stats-executor"));
-        statsExecutor.schedule(() -> {
+        statsExecutor.scheduleAtFixedRate(() -> {
             this.clientCnxs.forEach(cnx -> {
                 if (cnx.getDirectProxyHandler() != null
                         && cnx.getDirectProxyHandler().getInboundChannelRequestsRate() != null) {
@@ -244,7 +254,7 @@ public class ProxyService implements Closeable {
             this.topicStats.forEach((topic, stats) -> {
                 stats.calculate();
             });
-        }, 60, TimeUnit.SECONDS);
+        }, statsUpdateInterval, statsUpdateInterval, statsUpdateIntervalUnit);
         this.proxyAdditionalServlets = AdditionalServlets.load(proxyConfig);
         this.proxyClientAuthentication = proxyClientAuthentication;
         this.connectionController = new ConnectionController.DefaultConnectionController(
