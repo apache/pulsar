@@ -259,11 +259,15 @@ public class PulsarLedgerManager implements LedgerManager {
                 .thenAccept(stat -> {
                     promise.complete(new Versioned<>(metadata, new LongVersion(stat.getVersion())));
                 }).exceptionally(ex -> {
-                    if (ex.getCause() instanceof MetadataStoreException.BadVersionException) {
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                    if (cause instanceof MetadataStoreException.BadVersionException) {
+                        // Invalidate before completing the promise: its callbacks can immediately retry the read.
+                        cache.invalidate(getLedgerPath(ledgerId));
                         promise.completeExceptionally(new BKException.BKMetadataVersionException());
                     } else {
-                        log.warn("Conditional update ledger metadata failed: {}", ex.getMessage());
-                        promise.completeExceptionally(new BKException.ZKException(ex.getCause()));
+                        log.warn("Conditional update ledger metadata failed for ledger {}: {}", ledgerId,
+                                cause.getMessage());
+                        promise.completeExceptionally(new BKException.ZKException(cause));
                     }
                     return null;
                 });
