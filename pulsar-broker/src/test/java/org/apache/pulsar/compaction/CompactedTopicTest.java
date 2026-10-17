@@ -730,8 +730,18 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
                 .startMessageId(MessageId.earliest)
                 .readCompacted(true)
                 .create();
-        for (int i = numMessages / 2; i < numMessages; ++i) {
-            reader.readNext();
+        for (int i = 0; i < numMessages / 2; ++i) {
+            Message<byte[]> message = reader.readNext();
+            Assert.assertEquals(message.getKey(), String.valueOf(i));
+            Assert.assertEquals(new String(message.getData()), String.format("msg [%d]", i));
+        }
+        // After the compacted snapshot, remaining entries within the compaction horizon are
+        // read from the original ledger (pre-delete values and tombstones for compacted-out keys).
+        Message<byte[]> message;
+        while ((message = reader.readNext(1, TimeUnit.SECONDS)) != null) {
+            int key = Integer.parseInt(message.getKey());
+            Assert.assertTrue(key >= numMessages / 2 && key < numMessages,
+                    "Unexpected key after compacted snapshot: " + message.getKey());
         }
         Assert.assertFalse(reader.hasMessageAvailable());
         Assert.assertNull(reader.readNext(3, TimeUnit.SECONDS));
