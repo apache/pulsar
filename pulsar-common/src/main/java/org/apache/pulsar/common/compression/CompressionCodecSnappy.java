@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.compression;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.airlift.compress.snappy.SnappyCompressor;
 import io.airlift.compress.snappy.SnappyDecompressor;
 import io.airlift.compress.snappy.SnappyRawCompressor;
@@ -88,7 +89,7 @@ public class CompressionCodecSnappy implements CompressionCodec {
 
     @Override
     public ByteBuf decode(ByteBuf encoded, int uncompressedLength) throws IOException {
-        ByteBuf uncompressed = PulsarByteBufAllocator.DEFAULT.buffer(uncompressedLength, uncompressedLength);
+        ByteBuf uncompressed = newUncompressedBuffer(uncompressedLength);
 
         try {
             if (encoded.hasMemoryAddress() && uncompressed.hasMemoryAddress()) {
@@ -112,5 +113,14 @@ public class CompressionCodecSnappy implements CompressionCodec {
 
         uncompressed.writerIndex(uncompressedLength);
         return uncompressed;
+    }
+
+    /**
+     * Allocates the buffer that {@link #decode} writes into and, on failure, releases. Package-private so tests can
+     * check that release.
+     */
+    @VisibleForTesting
+    ByteBuf newUncompressedBuffer(int uncompressedLength) {
+        return PulsarByteBufAllocator.DEFAULT.buffer(uncompressedLength, uncompressedLength);
     }
 }

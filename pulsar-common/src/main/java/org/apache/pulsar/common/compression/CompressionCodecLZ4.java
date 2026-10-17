@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.compression;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.airlift.compress.lz4.Lz4Compressor;
 import io.airlift.compress.lz4.Lz4Decompressor;
 import io.airlift.compress.lz4.Lz4RawCompressor;
@@ -85,7 +86,7 @@ public class CompressionCodecLZ4 implements CompressionCodec {
 
     @Override
     public ByteBuf decode(ByteBuf encoded, int uncompressedLength) throws IOException {
-        ByteBuf uncompressed = PulsarByteBufAllocator.DEFAULT.buffer(uncompressedLength, uncompressedLength);
+        ByteBuf uncompressed = newUncompressedBuffer(uncompressedLength);
 
         try {
             if (encoded.hasMemoryAddress() && uncompressed.hasMemoryAddress()) {
@@ -107,4 +108,12 @@ public class CompressionCodecLZ4 implements CompressionCodec {
         return uncompressed;
     }
 
+    /**
+     * Allocates the buffer that {@link #decode} writes into and, on failure, releases. Package-private so tests can
+     * check that release.
+     */
+    @VisibleForTesting
+    ByteBuf newUncompressedBuffer(int uncompressedLength) {
+        return PulsarByteBufAllocator.DEFAULT.buffer(uncompressedLength, uncompressedLength);
+    }
 }
