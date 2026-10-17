@@ -135,6 +135,8 @@ public class PersistentSubscription extends AbstractSubscription {
     private final PendingAckHandle pendingAckHandle;
     private volatile CompletableFuture<Void> fenceFuture;
     private volatile CompletableFuture<Void> inProgressResetCursorFuture;
+    // Guarded by this; unlike the reset fence, retirement must never reopen this subscription.
+    private boolean nonDurableCursorCleanupStarted;
     private volatile Boolean replicatedControlled;
     private final ServiceConfiguration config;
     /** Held by tests between the cursor delete and the delete of the txn ack records, see {@link #unsubscribe}. */
@@ -260,6 +262,9 @@ public class PersistentSubscription extends AbstractSubscription {
     private CompletableFuture<Void> addConsumerInternal(Consumer consumer) {
         return pendingAckHandle.pendingAckHandleFuture().thenCompose(future -> {
             synchronized (PersistentSubscription.this) {
+                if (nonDurableCursorCleanupStarted) {
+                    return FutureUtil.failedFuture(new SubscriptionFencedException("Subscription is fenced"));
+                }
                 cursor.updateLastActive();
                 if (!cursor.isActive()
                         && (topic.getManagedLedger().getConfig().isCacheEvictionByExpectedReadCount()
@@ -396,47 +401,45 @@ public class PersistentSubscription extends AbstractSubscription {
             // remove waiting cursor from the managed ledger, this applies to both durable and non-durable cursors.
             topic.getManagedLedger().removeWaitingCursor(cursor);
 
-            if (!cursor.isDurable()) {
-                // If cursor is not durable, we need to clean up the subscription as well. No need to check for active
-                // consumers since we already validated that there are no consumers on this dispatcher.
-                this.closeCursor(false).thenRun(() -> {
-                    synchronized (this) {
-                        if (dispatcher != null) {
-                            dispatcher.close().thenRun(() -> {
-                                log.info()
-                                        .log("Successfully closed dispatcher for reader");
-                            }).exceptionally(ex -> {
-                                log.error()
-                                        .exception(ex)
-                                        .log("Failed to close dispatcher for reader");
-                                return null;
-                            });
-                        }
-                    }
-                }).exceptionally(exception -> {
-                    log.error()
-                            .exception(exception)
-                            .log("Failed to close subscription for reader");
-                    return null;
-                });
-
-                // when topic closes: it iterates through concurrent-subscription map to close each subscription. so,
-                // topic.remove again try to access same map which creates deadlock. so, execute it in different thread.
-                topic.getBrokerService().pulsar().getExecutor().execute(() -> {
-                    topic.removeSubscription(subName).thenRunAsync(() -> {
-                        // Also need remove the cursor here, otherwise the data deletion will not work well.
-                        // Because data deletion depends on the mark delete position of all cursors.
-                        if (!isResetCursor) {
-                            try {
-                                topic.getManagedLedger().deleteCursor(cursor.getName());
-                            } catch (InterruptedException | ManagedLedgerException e) {
-                                log.warn()
-                                        .exception(e)
-                                        .log("Failed to remove non durable cursor");
+            if (!cursor.isDurable() && !nonDurableCursorCleanupStarted) {
+                // A reset also retires this subscription; consumers must look up its replacement.
+                nonDurableCursorCleanupStarted = true;
+                CompletableFuture<Void> resetFuture = inProgressResetCursorFuture;
+                CompletableFuture<Void> resetComplete = resetFuture == null
+                        ? CompletableFuture.completedFuture(null)
+                        : resetFuture.handle((ignored, error) -> null);
+                // Finish an admitted reset before retiring its cursor. Never wait while holding this monitor.
+                resetComplete.thenRunAsync(() -> {
+                    this.closeCursor(false).thenRun(() -> {
+                        synchronized (this) {
+                            if (dispatcher != null) {
+                                dispatcher.close().thenRun(() -> {
+                                    log.info()
+                                            .log("Successfully closed dispatcher for reader");
+                                }).exceptionally(ex -> {
+                                    log.error()
+                                            .exception(ex)
+                                            .log("Failed to close dispatcher for reader");
+                                    return null;
+                                });
                             }
                         }
-                    }, topic.getBrokerService().pulsar().getExecutor());
-                });
+                    }).exceptionally(exception -> {
+                        log.error()
+                                .exception(exception)
+                                .log("Failed to close subscription for reader");
+                        return null;
+                    });
+
+                    // Topic close can be iterating the map; retire the subscription on the existing executor.
+                    CompletableFuture<Void> cleanup = isResetCursor
+                            ? topic.removeSubscription(subName, this)
+                            : topic.removeNonDurableSubscription(subName, this);
+                    cleanup.exceptionally(error -> {
+                        log.warn().exception(error).log("Failed to remove non durable cursor");
+                        return null;
+                    });
+                }, topic.getBrokerService().pulsar().getExecutor());
             }
         }
 
@@ -905,12 +908,14 @@ public class PersistentSubscription extends AbstractSubscription {
 
     @Override
     public CompletableFuture<Void> resetCursor(long timestamp) {
-        if (!IS_FENCED_UPDATER.compareAndSet(PersistentSubscription.this, FALSE, TRUE)) {
-            return CompletableFuture.failedFuture(new SubscriptionBusyException("Failed to fence subscription"));
-        }
-
         final CompletableFuture<Void> future = new CompletableFuture<>();
-        inProgressResetCursorFuture = future;
+        synchronized (this) {
+            if (nonDurableCursorCleanupStarted
+                    || !IS_FENCED_UPDATER.compareAndSet(PersistentSubscription.this, FALSE, TRUE)) {
+                return CompletableFuture.failedFuture(new SubscriptionBusyException("Failed to fence subscription"));
+            }
+            inProgressResetCursorFuture = future;
+        }
         PersistentMessageFinder persistentMessageFinder = new PersistentMessageFinder(topicName, cursor,
                 config.getManagedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis(),
                 topic.getBrokerService().getPulsar().getOpenTelemetryMessageFinderStats(), FindReason.SEEK);
@@ -975,16 +980,16 @@ public class PersistentSubscription extends AbstractSubscription {
 
     private CompletableFuture<Void> resetCursorInternal(Position finalPosition, CompletableFuture<Void> future,
                                                         boolean alreadyFenced) {
-        if (!alreadyFenced
-                && !IS_FENCED_UPDATER.compareAndSet(PersistentSubscription.this, FALSE, TRUE)) {
-            return CompletableFuture.failedFuture(new SubscriptionBusyException("Failed to fence subscription"));
-        }
-
-        inProgressResetCursorFuture = future;
         final CompletableFuture<Void> disconnectFuture;
 
-        // Lock the Subscription object before locking the Dispatcher object to avoid deadlocks
+        // Lock the Subscription object before locking the Dispatcher object to avoid deadlocks.
+        // Publish reset admission atomically with the terminal non-durable cleanup check.
         synchronized (this) {
+            if (!alreadyFenced && (nonDurableCursorCleanupStarted
+                    || !IS_FENCED_UPDATER.compareAndSet(PersistentSubscription.this, FALSE, TRUE))) {
+                return CompletableFuture.failedFuture(new SubscriptionBusyException("Failed to fence subscription"));
+            }
+            inProgressResetCursorFuture = future;
             if (dispatcher != null && dispatcher.isConsumerConnected()) {
                 disconnectFuture = dispatcher.disconnectActiveConsumers(true);
             } else {
