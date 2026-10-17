@@ -60,4 +60,9 @@ public class ReadOnlyManagedLedgerImplWrapper implements ReadOnlyManagedLedger {
     public Map<String, String> getProperties() {
         return readOnlyManagedLedger.getProperties();
     }
+
+    @Override
+    public void close() throws InterruptedException, ManagedLedgerException {
+        readOnlyManagedLedger.close();
+    }
 }

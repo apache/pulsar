@@ -271,40 +271,44 @@ public class SnapshotSegmentAbortedTxnProcessorImpl extends AbstractSnapshotAbor
             return;
         }
         final var managedLedger = openReadOnlyManagedLedger(topicName);
-        boolean hasInvalidIndex = false;
-        for (var index : indexes.getIndexList()) {
-            if (isClosed()) {
-                return;
-            }
-            final var position = PositionFactory.create(index.getSegmentLedgerID(), index.getSegmentEntryID());
-            final var abortedPosition = PositionFactory.create(index.abortedMarkLedgerID, index.abortedMarkEntryID);
-            try {
-                final var entry = readEntry(managedLedger, position);
+        try {
+            boolean hasInvalidIndex = false;
+            for (var index : indexes.getIndexList()) {
+                if (isClosed()) {
+                    return;
+                }
+                final var position = PositionFactory.create(index.getSegmentLedgerID(), index.getSegmentEntryID());
+                final var abortedPosition = PositionFactory.create(index.abortedMarkLedgerID, index.abortedMarkEntryID);
                 try {
-                    handleSnapshotSegmentEntry(entry);
-                    this.indexes.put(abortedPosition, index);
-                } finally {
-                    entry.release();
-                }
-            } catch (Throwable throwable) {
-                if (topic.getManagedLedger().getLedgersInfo()
-                        .containsKey(index.getAbortedMarkLedgerID())) {
-                    log.error()
-                            .attr("segmentLedgerId", index.segmentLedgerID)
-                            .attr("segmentEntryID", index.segmentEntryID)
-                            .exception(throwable)
-                            .log("Failed to read snapshot segment");
-                    throw throwable;
-                } else {
-                    hasInvalidIndex = true;
+                    final var entry = readEntry(managedLedger, position);
+                    try {
+                        handleSnapshotSegmentEntry(entry);
+                        this.indexes.put(abortedPosition, index);
+                    } finally {
+                        entry.release();
+                    }
+                } catch (Throwable throwable) {
+                    if (topic.getManagedLedger().getLedgersInfo()
+                            .containsKey(index.getAbortedMarkLedgerID())) {
+                        log.error()
+                                .attr("segmentLedgerId", index.segmentLedgerID)
+                                .attr("segmentEntryID", index.segmentEntryID)
+                                .exception(throwable)
+                                .log("Failed to read snapshot segment");
+                        throw throwable;
+                    } else {
+                        hasInvalidIndex = true;
+                    }
                 }
             }
-        }
-        if (hasInvalidIndex && !isClosed()) {
-            // Update the snapshot segment index if there exist invalid indexes.
-            recoveryIndexUpdatesFuture = CompletableFuture.allOf(recoveryIndexUpdatesFuture,
-                    persistentWorker.appendTask(PersistentWorker.OperationType.UpdateIndex,
-                            () -> persistentWorker.updateSnapshotIndex(indexes.getSnapshot())));
+            if (hasInvalidIndex && !isClosed()) {
+                // Update the snapshot segment index if there exist invalid indexes.
+                recoveryIndexUpdatesFuture = CompletableFuture.allOf(recoveryIndexUpdatesFuture,
+                        persistentWorker.appendTask(PersistentWorker.OperationType.UpdateIndex,
+                                () -> persistentWorker.updateSnapshotIndex(indexes.getSnapshot())));
+            }
+        } finally {
+            managedLedger.close();
         }
     }
 

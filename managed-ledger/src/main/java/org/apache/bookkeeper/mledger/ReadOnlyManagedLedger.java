@@ -20,7 +20,7 @@ package org.apache.bookkeeper.mledger;
 
 import java.util.Map;
 
-public interface ReadOnlyManagedLedger {
+public interface ReadOnlyManagedLedger extends AutoCloseable {
 
     void asyncReadEntry(Position position, AsyncCallbacks.ReadEntryCallback callback, Object ctx);
 
@@ -29,5 +29,12 @@ public interface ReadOnlyManagedLedger {
     ReadOnlyCursor createReadOnlyCursor(Position position);
 
     Map<String, String> getProperties();
+
+    /**
+     * Close this read-only managed ledger, releasing cached read handles and
+     * other BookKeeper resources. Safe to call once; subsequent calls are no-ops.
+     */
+    @Override
+    void close() throws InterruptedException, ManagedLedgerException;
 
 }
