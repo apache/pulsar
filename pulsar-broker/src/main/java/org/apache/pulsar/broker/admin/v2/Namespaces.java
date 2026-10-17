@@ -1945,6 +1945,19 @@ public class Namespaces extends NamespacesBase {
     }
 
     @POST
+    @Path("/{tenant}/{namespace}/{bundle}/clearSubscriptionBacklog/{subscription}")
+    @Operation(hidden = true)
+    public void clearNamespaceBundleSubscriptionBacklog(@Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+            @PathParam("subscription") String subscription, @PathParam("bundle") String bundleRange,
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        // Keep the old query parameter for existing senders, but use a distinct route for new internal requests.
+        // An owner without this route returns 404 instead of silently dropping the subscription-only restriction.
+        clearNamespaceBundleBacklogForSubscription(asyncResponse, tenant, namespace, subscription, bundleRange,
+                authoritative, true);
+    }
+
+    @POST
     @Path("/{tenant}/{namespace}/unsubscribe/{subscription}")
     @Operation(summary = "Unsubscribes the given subscription on all topics on a namespace.")
     @ApiResponses(value = {
