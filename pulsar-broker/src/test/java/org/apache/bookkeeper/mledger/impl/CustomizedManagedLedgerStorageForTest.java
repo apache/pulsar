@@ -717,6 +717,11 @@ public class CustomizedManagedLedgerStorageForTest extends ManagedLedgerClientFa
         }
 
         @Override
+        public void markIdle() {
+            delegate.markIdle();
+        }
+
+        @Override
         public Map<String, Long> getProperties() {
             return delegate.getProperties();
         }
