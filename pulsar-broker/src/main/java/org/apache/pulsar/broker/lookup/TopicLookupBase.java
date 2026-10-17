@@ -145,10 +145,24 @@ public class TopicLookupBase extends PulsarWebResource {
                 }).handle((lookupData, throwable) -> {
                     lookupRequestSemaphore.release();
                     if (throwable != null) {
+                        Throwable sessionLost = getMetadataSessionLostException(throwable);
+                        if (sessionLost != null) {
+                            // the client looks the topic up again, as after a ServiceNotReady of the binary lookup
+                            throw FutureUtil.wrapToCompletionException(new RestException(
+                                    Response.Status.SERVICE_UNAVAILABLE, sessionLost.getMessage()));
+                        }
                         throw FutureUtil.wrapToCompletionException(throwable);
                     }
                     return lookupData;
                 });
+    }
+
+    private static Throwable getMetadataSessionLostException(Throwable throwable) {
+        Throwable unwrapped = FutureUtil.unwrapCompletionException(throwable);
+        if (unwrapped instanceof PulsarServerException) {
+            unwrapped = FutureUtil.unwrapCompletionException(unwrapped.getCause());
+        }
+        return unwrapped instanceof MetadataSessionLostException ? unwrapped : null;
     }
 
     protected String internalGetNamespaceBundle(TopicName topicName) {

@@ -569,6 +569,9 @@ public class OwnershipCache {
      *     topics' closing has started, or the report was ignored
      */
     CompletableFuture<Void> handleOwnershipTakenOver(TopicName topicName) {
+        // Read before the session state: a session loss counts before it shows as lost, so a loss that came after the
+        // one seen below makes the report change nothing
+        long sessionLoss = pulsar.getMetadataSessionLossCount();
         // Find the bundle among the owned ones, which needs no metadata, rather than in the namespace's bundles,
         // which can have been invalidated in the cache.
         OwnedBundle reported = null;
@@ -585,7 +588,6 @@ public class OwnershipCache {
         // The report applies to this ownership generation and this loss of the session only: a report that runs
         // after the bundle was reacquired, or after the session came back and was lost again, changes nothing
         OwnedBundle reportedBundle = reported;
-        long sessionLoss = pulsar.getMetadataSessionLossCount();
         NamespaceBundle takenOverBundle = reported.getNamespaceBundle();
         // On the broker's executor, not on the thread that reported the takeover, and the bundle's next operation
         // waits until the closing of its topics has started, so that the closing can't reach a newer generation's
@@ -617,6 +619,9 @@ public class OwnershipCache {
             return;
         }
         ownedBundle.setActive(false);
+        // The lock stays with the lock manager only, for its revalidation: no later release of the bundle's
+        // ownership by bundle, such as a split's, may delete the lock that another broker holds now
+        locallyAcquiredLocks.remove(bundle, ownedBundle.getResourceLock());
         log.warn().attr("bundle", bundle).attr("topic", topicName)
                 .log("Another broker took the bundle over after the metadata session was lost; stopped serving it"
                         + " and closing its topics");

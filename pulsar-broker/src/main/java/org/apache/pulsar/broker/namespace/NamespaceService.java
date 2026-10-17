@@ -748,10 +748,18 @@ public class NamespaceService implements AutoCloseable {
                         resolveBrokerServiceLookupResult(options, ownerInfo, lookupFuture);
                     }
                 }).exceptionally(exception -> {
-                    log.warn()
-                            .attr("bundle", bundle)
-                            .exceptionMessage(exception)
-                            .log("Failed to acquire ownership for namespace bundle");
+                    if (FutureUtil.unwrapCompletionException(exception) instanceof MetadataSessionLostException) {
+                        // the client retries the lookup
+                        log.debug()
+                                .attr("bundle", bundle)
+                                .exceptionMessage(exception)
+                                .log("Failed to acquire ownership for namespace bundle");
+                    } else {
+                        log.warn()
+                                .attr("bundle", bundle)
+                                .exceptionMessage(exception)
+                                .log("Failed to acquire ownership for namespace bundle");
+                    }
                     lookupFuture.completeExceptionally(new PulsarServerException(
                             "Failed to acquire ownership for namespace bundle " + bundle, exception));
                     return null;

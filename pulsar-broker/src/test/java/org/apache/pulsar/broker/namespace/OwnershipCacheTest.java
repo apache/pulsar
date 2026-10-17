@@ -415,8 +415,9 @@ public class OwnershipCacheTest {
             verify(nsService).onNamespaceBundleUnload(bundle);
         });
         // The lock isn't released, since releasing it needs the metadata store: its revalidation after the session
-        // is reestablished expires it.
-        assertSame(cache.getLocallyAcquiredLocks().get(bundle), lock);
+        // is reestablished expires it. Only the lock manager keeps it, so that no release by bundle can delete it.
+        assertNull(cache.getLocallyAcquiredLocks().get(bundle));
+        assertFalse(lock.getLockExpiredFuture().isDone());
         assertTrue(store.exists(ServiceUnitUtils.path(bundle)).join());
 
         // another topic of the bundle reporting the takeover changes nothing
@@ -426,7 +427,7 @@ public class OwnershipCacheTest {
 
         // While the session is lost, a lookup that finds this broker's own lock value doesn't reacquire the bundle,
         // which would wait for the metadata store: it fails, and the client looks the topic up elsewhere.
-        assertThatFailsWithServiceUnitNotReady(cache.getOwnerAsync(bundle));
+        assertThatFailsWithMetadataSessionLost(cache.getOwnerAsync(bundle));
         assertNull(cache.getOwnedBundle(bundle));
 
         // When the session is back and no other broker took the lock after all, the lookup reacquires the bundle.
@@ -454,7 +455,7 @@ public class OwnershipCacheTest {
         assertTrue(cache.checkOwnershipAsync(owned).get());
         // another bundle is looked up as before, but not acquired
         assertFalse(cache.getOwnerAsync(notOwned).get().isPresent());
-        assertThatFailsWithServiceUnitNotReady(cache.tryAcquiringOwnership(notOwned));
+        assertThatFailsWithMetadataSessionLost(cache.tryAcquiringOwnership(notOwned));
         assertNull(cache.getOwnedBundle(notOwned));
 
         metadataSessionLost.set(false);
@@ -475,7 +476,7 @@ public class OwnershipCacheTest {
         metadataSessionLost.set(true);
         preceding.complete(null);
 
-        assertThatFailsWithServiceUnitNotReady(acquisition);
+        assertThatFailsWithMetadataSessionLost(acquisition);
         assertNull(cache.getOwnedBundle(bundle));
         assertFalse(store.exists(ServiceUnitUtils.path(bundle)).join());
     }
@@ -509,13 +510,13 @@ public class OwnershipCacheTest {
                 any());
     }
 
-    private static void assertThatFailsWithServiceUnitNotReady(CompletableFuture<?> future) {
+    private static void assertThatFailsWithMetadataSessionLost(CompletableFuture<?> future) {
         try {
             future.get(5, TimeUnit.SECONDS);
             fail("the future should have failed");
         } catch (Exception e) {
             assertTrue(e instanceof ExecutionException
-                    && e.getCause() instanceof BrokerServiceException.ServiceUnitNotReadyException, e.toString());
+                    && e.getCause() instanceof BrokerServiceException.MetadataSessionLostException, e.toString());
         }
     }
 

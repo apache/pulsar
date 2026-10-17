@@ -695,6 +695,23 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void fencedLedgerAfterTheMetadataSessionIsLostKeepsAClosedManagedLedgerClosed() throws Exception {
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory = spy(new ManagedLedgerFactoryImpl(metadataStore, bkc));
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "fencedLedgerAfterTheMetadataSessionIsLostKeepsAClosedManagedLedgerClosed", defaultConfig());
+        ledger.addEntry("entry-1".getBytes());
+        LedgerHandle fencedLedger = ledger.currentLedger;
+        ledger.close();
+
+        // the failure of an add that was in flight while the managed ledger closed arrives after the session loss
+        when(factory.isMetadataSessionLost()).thenReturn(true);
+        ledger.addEntryFailedDueToConcurrentlyModified(fencedLedger, BKException.Code.LedgerFencedException);
+
+        assertEquals(ledger.getState(), ManagedLedgerImpl.State.Closed);
+    }
+
+    @Test
     public void pendingRecheckOfAFencedLedgerFencesTheManagedLedgerWhenTheMetadataSessionIsLost() throws Exception {
         // A real factory, not a spy: it learns of the session from the metadata store's events
         @Cleanup("shutdown")

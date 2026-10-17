@@ -2128,14 +2128,20 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         ledgerRecheckInProgress = new ImmutablePair<>(currentLedger.getId(),
                 CompletableFuture.completedFuture(errorCode));
         ledgerRecheckHandle = null;
-        log.warn().attr("ledgerId", currentLedger.getId())
-                .attr("lastAddConfirmed", currentLedger.getLastAddConfirmed())
-                .attr("rc", errorCode)
-                .log("Fencing the managed ledger: another client fenced the current ledger after the metadata"
-                        + " session was lost");
-        setFenced(new ManagedLedgerFencedByAnotherWriterException("ManagedLedger " + name + " is fenced: another"
-                + " client fenced its current ledger " + currentLedger.getId() + " after the metadata session was"
-                + " lost"));
+        State state = STATE_UPDATER.get(this);
+        if (state == State.Closed || state == State.Terminated || state == State.FencedForDeletion) {
+            // Closed, terminated or being deleted meanwhile: keep that state and fail the pending adds as for it
+            ledgerClosed(currentLedger);
+        } else {
+            log.warn().attr("ledgerId", currentLedger.getId())
+                    .attr("lastAddConfirmed", currentLedger.getLastAddConfirmed())
+                    .attr("rc", errorCode)
+                    .log("Fencing the managed ledger: another client fenced the current ledger after the metadata"
+                            + " session was lost");
+            setFenced(new ManagedLedgerFencedByAnotherWriterException("ManagedLedger " + name + " is fenced: another"
+                    + " client fenced its current ledger " + currentLedger.getId() + " after the metadata session"
+                    + " was lost"));
+        }
         closeConcurrentlyModifiedLedger(currentLedger);
     }
 
@@ -2169,7 +2175,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
         if (ledgerRecheckInProgress.getRight() != recheck) {
             // The managed ledger was fenced meanwhile, after the metadata session was lost
-            log.info().attr("ledgerId", currentLedger.getId()).attr("rc", rc)
+            log.debug().attr("ledgerId", currentLedger.getId()).attr("rc", rc)
                     .log("Ignoring the recheck of a ledger that another client fenced after the metadata session"
                             + " was lost");
             return;

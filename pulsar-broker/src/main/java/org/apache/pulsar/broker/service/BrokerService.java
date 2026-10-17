@@ -2423,7 +2423,7 @@ public class BrokerService implements Closeable {
                             }
                         }, () -> isTopicNsOwnedByBrokerAsync(topicName), null);
             }).exceptionally(ex -> {
-                failTopicFuture(topic, topicFuture, FutureUtil.unwrapCompletionException(ex));
+                failTopicFuture(topic, topicFuture, ex);
                 return null;
             });
             return null;

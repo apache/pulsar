@@ -45,6 +45,7 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -300,13 +301,20 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         metadataServiceAvailable = e.isConnected();
         if (e == SessionEvent.SessionLost) {
             metadataSessionLost = true;
-            // Off the store's event thread and this lock: a managed ledger's recheck of a fenced ledger may be
-            // waiting for the metadata service
-            scheduledExecutor.execute(() -> ledgers.values().forEach(future -> {
+            // On each managed ledger's executor, off the store's event thread: a managed ledger's recheck of a fenced
+            // ledger may be waiting for the metadata service
+            ledgers.values().forEach(future -> {
                 if (future.isDone() && !future.isCompletedExceptionally()) {
-                    future.join().metadataSessionLost();
+                    ManagedLedgerImpl ledger = future.join();
+                    try {
+                        ledger.getExecutor().execute(ledger::metadataSessionLost);
+                    } catch (RejectedExecutionException ex) {
+                        // the factory is shutting down
+                        log.debug().attr("ledger", ledger.getName()).exceptionMessage(ex)
+                                .log("Failed to tell a managed ledger that the metadata session was lost");
+                    }
                 }
-            }));
+            });
         } else if (e == SessionEvent.SessionReestablished) {
             metadataSessionLost = false;
         }
