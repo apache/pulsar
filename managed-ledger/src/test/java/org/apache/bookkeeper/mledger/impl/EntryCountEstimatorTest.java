@@ -29,12 +29,12 @@ import java.util.Set;
 import java.util.TreeMap;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class EntryCountEstimatorTest {
-    private NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgersInfo;
+    private NavigableMap<Long, ManagedLedgerInfo.LedgerInfo> ledgersInfo;
     private Position readPosition;
     private Long lastLedgerId;
     private long lastLedgerTotalEntries;
@@ -66,14 +66,13 @@ public class EntryCountEstimatorTest {
         readPosition = PositionFactory.create(1L, 0);
     }
 
-    private MLDataFormats.ManagedLedgerInfo.LedgerInfo createLedgerInfo(
+    private ManagedLedgerInfo.LedgerInfo createLedgerInfo(
             long ledgerId, long entries, long size) {
-        return MLDataFormats.ManagedLedgerInfo.LedgerInfo.newBuilder()
+        return new ManagedLedgerInfo.LedgerInfo()
                 .setLedgerId(ledgerId)
                 .setEntries(entries)
                 .setSize(size)
-                .setTimestamp(0)
-                .build();
+                .setTimestamp(0);
     }
 
     private int estimateEntryCountByBytesSize(long maxSizeBytes) {
@@ -235,9 +234,10 @@ public class EntryCountEstimatorTest {
     public void testWithMultipleEmptyLedgers() {
         readPosition = PositionFactory.LATEST;
         long secondLastLedgerId = ledgersInfo.lowerKey(lastLedgerId);
-        MLDataFormats.ManagedLedgerInfo.LedgerInfo secondLastLedgerInfo = ledgersInfo.get(secondLastLedgerId);
+        ManagedLedgerInfo.LedgerInfo secondLastLedgerInfo = ledgersInfo.get(secondLastLedgerId);
         // make the second last ledger empty
-        ledgersInfo.put(secondLastLedgerId, secondLastLedgerInfo.toBuilder().setEntries(0).setSize(0).build());
+        ledgersInfo.put(secondLastLedgerId,
+                new ManagedLedgerInfo.LedgerInfo().copyFrom(secondLastLedgerInfo).setEntries(0).setSize(0));
         lastLedgerTotalEntries = 0;
         lastLedgerTotalSize = 0;
         long expectedEntries = 50;
@@ -307,7 +307,9 @@ public class EntryCountEstimatorTest {
     public void testNoLedgersRaceFirstKey() {
         readPosition = PositionFactory.EARLIEST;
         // remove all ledgers from ledgersInfo
-        ledgersInfo = mock(NavigableMap.class);
+        @SuppressWarnings("unchecked")
+        NavigableMap<Long, ManagedLedgerInfo.LedgerInfo> mockedMap = mock(NavigableMap.class);
+        ledgersInfo = mockedMap;
         when(ledgersInfo.isEmpty()).thenReturn(false);
         when(ledgersInfo.firstKey()).thenThrow(NoSuchElementException.class);
         when(ledgersInfo.lastKey()).thenReturn(1L);
@@ -320,7 +322,9 @@ public class EntryCountEstimatorTest {
     public void testNoLedgersRaceLastKey() {
         readPosition = PositionFactory.EARLIEST;
         // remove all ledgers from ledgersInfo
-        ledgersInfo = mock(NavigableMap.class);
+        @SuppressWarnings("unchecked")
+        NavigableMap<Long, ManagedLedgerInfo.LedgerInfo> mockedMap = mock(NavigableMap.class);
+        ledgersInfo = mockedMap;
         lastLedgerId = null;
         when(ledgersInfo.isEmpty()).thenReturn(false);
         when(ledgersInfo.firstKey()).thenReturn(1L);

@@ -56,4 +56,8 @@ public enum TopicOperation {
     SET_REPLICATED_SUBSCRIPTION_STATUS,
     GET_REPLICATED_SUBSCRIPTION_STATUS,
     TRIM_TOPIC,
+
+    // PIP-475: migrate a regular topic to a scalable topic. Maps to PRODUCE in the default
+    // authorization provider; a custom provider may restrict it independently.
+    MIGRATE_TO_SCALABLE,
 }

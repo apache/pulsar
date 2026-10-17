@@ -19,16 +19,16 @@
 package org.apache.pulsar.broker.web.plugin.servlet;
 
 import java.io.IOException;
+import lombok.CustomLog;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
 import org.apache.pulsar.common.nar.NarClassLoader;
 
 /**
  * An additional servlet with it's classloader.
  */
-@Slf4j
+@CustomLog
 @Data
 @RequiredArgsConstructor
 public class AdditionalServletWithClassLoader implements AdditionalServlet {
@@ -92,7 +92,7 @@ public class AdditionalServletWithClassLoader implements AdditionalServlet {
         try {
             classLoader.close();
         } catch (IOException e) {
-            log.warn("Failed to close the broker additional servlet class loader", e);
+            log.warn().exception(e).log("Failed to close the broker additional servlet class loader");
         }
     }
 }

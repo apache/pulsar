@@ -22,13 +22,13 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.EncryptionKeyInfo;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 
-@Slf4j
+@CustomLog
 public class SampleCryptoProducer {
 
     public static void main(String[] args) throws InterruptedException, IOException {
@@ -51,7 +51,7 @@ public class SampleCryptoProducer {
                     // Read the public key from the file
                     keyInfo.setKey(Files.readAllBytes(Paths.get(publicKeyFile)));
                 } catch (IOException e) {
-                    log.error("Failed to read public key from file {}", publicKeyFile, e);
+                    log.error().attr("file", publicKeyFile).exception(e).log("Failed to read public key from file");
                 }
                 return keyInfo;
             }
@@ -64,7 +64,7 @@ public class SampleCryptoProducer {
                     // Read the private key from the file
                     keyInfo.setKey(Files.readAllBytes(Paths.get(privateKeyFile)));
                 } catch (IOException e) {
-                    log.error("Failed to read private key from file {}", privateKeyFile, e);
+                    log.error().attr("file", privateKeyFile).exception(e).log("Failed to read private key from file");
                 }
                 return keyInfo;
             }

@@ -19,21 +19,25 @@
 package org.apache.pulsar.functions.utils;
 
 import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE;
+import static org.apache.pulsar.common.functions.FunctionConfig.Runtime.GO;
 import static org.apache.pulsar.common.functions.FunctionConfig.Runtime.PYTHON;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
+import com.google.common.primitives.Bytes;
 import com.google.gson.Gson;
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.util.JsonFormat;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
+import java.util.concurrent.atomic.AtomicReference;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
@@ -42,6 +46,7 @@ import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.CryptoConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.MemoryLimit;
 import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.functions.WindowConfig;
@@ -50,17 +55,21 @@ import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.WindowContext;
 import org.apache.pulsar.functions.api.WindowFunction;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
-import org.json.JSONException;
-import org.skyscreamer.jsonassert.JSONAssert;
-import org.skyscreamer.jsonassert.JSONCompareMode;
+import org.apache.pulsar.functions.proto.CryptoSpec;
+import org.apache.pulsar.functions.proto.FunctionDetails;
+import org.apache.pulsar.functions.proto.ProcessingGuarantees;
+import org.apache.pulsar.functions.proto.ProducerSpec;
+import org.apache.pulsar.functions.proto.RetryDetails;
+import org.apache.pulsar.functions.proto.SinkSpec;
+import org.apache.pulsar.functions.proto.SourceSpec;
+import org.apache.pulsar.functions.proto.SubscriptionType;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
  * Unit test of {@link Reflections}.
  */
-@Slf4j
+@CustomLog
 public class FunctionConfigUtilsTest {
     public static class WordCountWindowFunction implements WindowFunction<String, Void> {
         @Override
@@ -73,6 +82,7 @@ public class FunctionConfigUtilsTest {
     }
 
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testAutoAckConvertFailed() {
 
@@ -85,8 +95,9 @@ public class FunctionConfigUtilsTest {
         });
     }
 
+    @SuppressWarnings("deprecation")
     @Test
-    public void testConvertBackFidelity() throws JSONException {
+    public void testConvertBackFidelity() {
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant("test-tenant");
         functionConfig.setNamespace("test-namespace");
@@ -117,20 +128,79 @@ public class FunctionConfigUtilsTest {
         producerConfig.setBatchBuilder("DEFAULT");
         producerConfig.setCompressionType(CompressionType.ZLIB);
         functionConfig.setProducerConfig(producerConfig);
-        Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig);
+        FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig);
         FunctionConfig convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
 
         // add default resources
         functionConfig.setResources(Resources.getDefaultResources());
         // set default cleanupSubscription config
         functionConfig.setCleanupSubscription(true);
-        JSONAssert.assertEquals(
+        assertEquals(
                 new Gson().toJson(functionConfig),
-                new Gson().toJson(convertedConfig),
-                JSONCompareMode.STRICT
+                new Gson().toJson(convertedConfig)
         );
     }
 
+    @DataProvider(name = "pulsarClientMemoryLimit")
+    public Object[][] pulsarClientMemoryLimit() {
+        return new Object[][] {
+                {new MemoryLimit().setLimitInBytes(1024L)},
+                {new MemoryLimit().setPercentOfMaxDirectMemory(25.0)},
+                {new MemoryLimit().setLimitInBytes(1024L).setPercentOfMaxDirectMemory(25.0)},
+        };
+    }
+
+    @Test(dataProvider = "pulsarClientMemoryLimit")
+    public void testConvertPulsarClientMemoryLimit(MemoryLimit memoryLimit) {
+        FunctionConfig functionConfig = createFunctionConfig();
+        functionConfig.setPulsarClientMemoryLimit(memoryLimit);
+
+        FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig);
+        assertEquals(FunctionConfigUtils.convertFromDetails(functionDetails).getPulsarClientMemoryLimit(),
+                memoryLimit);
+    }
+
+    @Test
+    public void testConvertWithoutPulsarClientMemoryLimit() {
+        FunctionDetails functionDetails = FunctionConfigUtils.convert(createFunctionConfig());
+        assertFalse(functionDetails.hasPulsarClientMemoryLimit());
+        assertNull(FunctionConfigUtils.convertFromDetails(functionDetails).getPulsarClientMemoryLimit());
+    }
+
+    @DataProvider(name = "invalidPulsarClientMemoryLimit")
+    public Object[][] invalidPulsarClientMemoryLimit() {
+        return new Object[][] {
+                {new MemoryLimit().setLimitInBytes(0L)},
+                {new MemoryLimit().setLimitInBytes(-1L)},
+                {new MemoryLimit().setPercentOfMaxDirectMemory(0.0)},
+                {new MemoryLimit().setPercentOfMaxDirectMemory(100.1)},
+        };
+    }
+
+    @Test(dataProvider = "invalidPulsarClientMemoryLimit", expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "Pulsar client memory limit .*")
+    public void testValidateInvalidPulsarClientMemoryLimit(MemoryLimit memoryLimit) {
+        FunctionConfig functionConfig = createFunctionConfig();
+        functionConfig.setPulsarClientMemoryLimit(memoryLimit);
+        FunctionConfigUtils.doCommonChecks(functionConfig);
+    }
+
+    @Test
+    public void testMergePulsarClientMemoryLimit() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        functionConfig.setPulsarClientMemoryLimit(new MemoryLimit().setLimitInBytes(1024L));
+
+        // an update without a limit keeps the existing one
+        FunctionConfig mergedConfig = FunctionConfigUtils.validateUpdate(functionConfig, createFunctionConfig());
+        assertEquals(mergedConfig.getPulsarClientMemoryLimit(), new MemoryLimit().setLimitInBytes(1024L));
+
+        FunctionConfig newFunctionConfig = createFunctionConfig();
+        newFunctionConfig.setPulsarClientMemoryLimit(new MemoryLimit().setPercentOfMaxDirectMemory(25.0));
+        mergedConfig = FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
+        assertEquals(mergedConfig.getPulsarClientMemoryLimit(), new MemoryLimit().setPercentOfMaxDirectMemory(25.0));
+    }
+
+    @SuppressWarnings("deprecation")
     @Test
     public void testConvertWindow() {
         FunctionConfig functionConfig = new FunctionConfig();
@@ -161,7 +231,7 @@ public class FunctionConfigUtilsTest {
         producerConfig.setBatchBuilder("KEY_BASED");
         producerConfig.setCompressionType(CompressionType.SNAPPY);
         functionConfig.setProducerConfig(producerConfig);
-        Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig);
+        FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig);
         FunctionConfig convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
 
         // WindowsFunction guarantees convert to FunctionGuarantees.
@@ -183,7 +253,7 @@ public class FunctionConfigUtilsTest {
         FunctionConfig functionConfig = createFunctionConfig();
         functionConfig.setBatchBuilder("KEY_BASED");
 
-        Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig);
+        FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig);
         assertEquals(functionDetails.getSink().getProducerSpec().getBatchBuilder(), "KEY_BASED");
 
         FunctionConfig convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
@@ -528,6 +598,65 @@ public class FunctionConfigUtilsTest {
         );
     }
 
+    @Test
+    public void testPythonFunctionAcceptsMessageRetriesAndDeadLetterTopic() {
+        FunctionConfig functionConfig = createPythonFunctionConfig();
+        functionConfig.setMaxMessageRetries(3);
+        functionConfig.setDeadLetterTopic("test-dlq");
+        FunctionConfigUtils.validateNonJavaFunction(functionConfig);
+    }
+
+    @Test
+    public void testPythonFunctionAcceptsMessageRetriesWithoutADeadLetterTopic() {
+        // The client defaults the topic to "<topic>-<subscription>-DLQ" when it is left empty.
+        FunctionConfig functionConfig = createPythonFunctionConfig();
+        functionConfig.setMaxMessageRetries(1);
+        FunctionConfigUtils.validateNonJavaFunction(functionConfig);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "maxMessageRetries must be at least 1 in python.*")
+    public void testPythonFunctionRejectsZeroMessageRetries() {
+        // Zero asks for no redelivery before the dead letter topic, which the Python client cannot
+        // express, so the dead letter topic would never receive anything.
+        FunctionConfig functionConfig = createPythonFunctionConfig();
+        functionConfig.setMaxMessageRetries(0);
+        functionConfig.setDeadLetterTopic("test-dlq");
+        FunctionConfigUtils.validateNonJavaFunction(functionConfig);
+    }
+
+    @Test
+    public void testPythonFunctionTreatsNegativeMessageRetriesAsUnset() {
+        // doPythonChecks refuses exactly 0; a negative count means "unset", as it does on the Java path,
+        // and convert() emits retryDetails only for a count >= 0. Pinned so tightening that guard to <= 0
+        // cannot pass silently.
+        FunctionConfig functionConfig = createPythonFunctionConfig();
+        functionConfig.setMaxMessageRetries(-1);
+
+        FunctionConfigUtils.validateNonJavaFunction(functionConfig);
+
+        assertFalse(FunctionConfigUtils.convert(functionConfig).hasRetryDetails());
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "Dead Letter Topic specified, however max retries is set to infinity")
+    public void testPythonFunctionRejectsDeadLetterTopicWithoutMessageRetries() {
+        // doCommonChecks refuses a dead letter topic nothing can route to: with maxMessageRetries unset the
+        // redelivery count is infinite, so the topic would never receive anything. Same shape as the zero
+        // case above, reached from the other side.
+        FunctionConfig functionConfig = createPythonFunctionConfig();
+        functionConfig.setDeadLetterTopic("test-dlq");
+
+        FunctionConfigUtils.validateNonJavaFunction(functionConfig);
+    }
+
+    private FunctionConfig createPythonFunctionConfig() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        functionConfig.setRuntime(FunctionConfig.Runtime.PYTHON);
+        return functionConfig;
+    }
+
+    @SuppressWarnings("deprecation")
     private FunctionConfig createFunctionConfig() {
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant("test-tenant");
@@ -571,7 +700,7 @@ public class FunctionConfigUtilsTest {
     }
 
     @Test
-    public void testDisableForwardSourceMessageProperty() throws InvalidProtocolBufferException {
+    public void testDisableForwardSourceMessageProperty() {
         FunctionConfig config = new FunctionConfig();
         config.setTenant("test-tenant");
         config.setNamespace("test-namespace");
@@ -587,12 +716,10 @@ public class FunctionConfigUtilsTest {
         FunctionConfigUtils.inferMissingArguments(config, false);
         assertNull(config.getForwardSourceMessageProperty());
         FunctionDetails details = FunctionConfigUtils.convert(config);
-        assertFalse(details.getSink().getForwardSourceMessageProperty());
-        String detailsJson = "'" + JsonFormat.printer().omittingInsignificantWhitespace().print(details) + "'";
-        log.info("Function details : {}", detailsJson);
-        assertFalse(detailsJson.contains("forwardSourceMessageProperty"));
+        assertFalse(details.getSink().isForwardSourceMessageProperty());
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testFunctionConfigConvertFromDetails() {
         String name = "test1";
@@ -602,29 +729,25 @@ public class FunctionConfigUtilsTest {
         int parallelism = 3;
         Map<String, String> userConfig = new HashMap<>();
         userConfig.put("key1", "val1");
-        Function.ProcessingGuarantees processingGuarantees = Function.ProcessingGuarantees.EFFECTIVELY_ONCE;
-        Function.FunctionDetails.Runtime runtime = Function.FunctionDetails.Runtime.JAVA;
-        Function.SinkSpec sinkSpec = Function.SinkSpec.newBuilder().setTopic("sinkTopic1").build();
-        Map<String, Function.ConsumerSpec> consumerSpecMap = new HashMap<>();
-        consumerSpecMap.put("sourceTopic1", Function.ConsumerSpec.newBuilder()
-                .setSchemaType(JSONSchema.class.getName()).build());
-        Function.SourceSpec sourceSpec = Function.SourceSpec.newBuilder()
-                .putAllInputSpecs(consumerSpecMap)
-                .setSubscriptionType(Function.SubscriptionType.FAILOVER)
-                .setCleanupSubscription(true)
-                .build();
+        ProcessingGuarantees processingGuarantees = ProcessingGuarantees.EFFECTIVELY_ONCE;
+        FunctionDetails.Runtime runtime = FunctionDetails.Runtime.JAVA;
+        SinkSpec sinkSpec = new SinkSpec().setTopic("sinkTopic1");
+        SourceSpec sourceSpec = new SourceSpec()
+                .setSubscriptionType(SubscriptionType.FAILOVER)
+                .setCleanupSubscription(true);
+        sourceSpec.putInputSpecs("sourceTopic1")
+                .setSchemaType(JSONSchema.class.getName());
         boolean autoAck = true;
         String logTopic = "log-topic1";
-        Function.Resources resources =
-                Function.Resources.newBuilder().setCpu(1.5).setDisk(1024 * 20).setRam(1024 * 10).build();
+        org.apache.pulsar.functions.proto.Resources resources =
+                new org.apache.pulsar.functions.proto.Resources().setCpu(1.5).setDisk(1024 * 20).setRam(1024 * 10);
         String packageUrl = "http://package.url";
         Map<String, String> secretsMap = new HashMap<>();
         secretsMap.put("secretConfigKey1", "secretConfigVal1");
-        Function.RetryDetails retryDetails =
-                Function.RetryDetails.newBuilder().setDeadLetterTopic("dead-letter-1").build();
+        RetryDetails retryDetails =
+                new RetryDetails().setDeadLetterTopic("dead-letter-1");
 
-        Function.FunctionDetails functionDetails = Function.FunctionDetails
-                .newBuilder()
+        FunctionDetails functionDetails = new FunctionDetails()
                 .setNamespace(namespace)
                 .setTenant(tenant)
                 .setName(name)
@@ -633,15 +756,14 @@ public class FunctionConfigUtilsTest {
                 .setUserConfig(new Gson().toJson(userConfig))
                 .setProcessingGuarantees(processingGuarantees)
                 .setRuntime(runtime)
-                .setSink(sinkSpec)
-                .setSource(sourceSpec)
                 .setAutoAck(autoAck)
                 .setLogTopic(logTopic)
-                .setResources(resources)
                 .setPackageUrl(packageUrl)
-                .setSecretsMap(new Gson().toJson(secretsMap))
-                .setRetryDetails(retryDetails)
-                .build();
+                .setSecretsMap(new Gson().toJson(secretsMap));
+        functionDetails.setSink().copyFrom(sinkSpec);
+        functionDetails.setSource().copyFrom(sourceSpec);
+        functionDetails.setResources().copyFrom(resources);
+        functionDetails.setRetryDetails().copyFrom(retryDetails);
 
         FunctionConfig functionConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
 
@@ -654,8 +776,11 @@ public class FunctionConfigUtilsTest {
         assertEquals(functionConfig.getResources().getDisk().longValue(), resources.getDisk());
         assertEquals(functionConfig.getResources().getRam().longValue(), resources.getRam());
         assertEquals(functionConfig.getOutput(), sinkSpec.getTopic());
-        assertEquals(functionConfig.getInputSpecs().keySet(), sourceSpec.getInputSpecsMap().keySet());
-        assertEquals(functionConfig.getCleanupSubscription().booleanValue(), sourceSpec.getCleanupSubscription());
+        // Collect sourceSpec input keys for comparison
+        AtomicReference<String> sourceSpecKey = new AtomicReference<>();
+        sourceSpec.forEachInputSpecs((key, value) -> sourceSpecKey.set(key));
+        assertTrue(functionConfig.getInputSpecs().containsKey(sourceSpecKey.get()));
+        assertEquals(functionConfig.getCleanupSubscription().booleanValue(), sourceSpec.isCleanupSubscription());
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class,
@@ -678,8 +803,8 @@ public class FunctionConfigUtilsTest {
     @Test
     public void testPoolMessages() {
         FunctionConfig functionConfig = createFunctionConfig();
-        Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig);
-        assertFalse(functionDetails.getSource().getInputSpecsMap().get("test-input").getPoolMessages());
+        FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig);
+        assertFalse(functionDetails.getSource().getInputSpecs("test-input").isPoolMessages());
         FunctionConfig convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
         assertFalse(convertedConfig.getInputSpecs().get("test-input").isPoolMessages());
 
@@ -689,27 +814,48 @@ public class FunctionConfigUtilsTest {
         functionConfig.setInputSpecs(inputSpecs);
 
         functionDetails = FunctionConfigUtils.convert(functionConfig);
-        assertTrue(functionDetails.getSource().getInputSpecsMap().get("test-input").getPoolMessages());
+        assertTrue(functionDetails.getSource().getInputSpecs("test-input").isPoolMessages());
 
         convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
         assertTrue(convertedConfig.getInputSpecs().get("test-input").isPoolMessages());
     }
 
     @Test
+    public void testConsumerProperties() {
+        FunctionConfig functionConfig = createFunctionConfig();
+
+        Map<String, String> consumerProperties = new HashMap<>();
+        consumerProperties.put("consumerName", "window-consumer");
+        Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
+        inputSpecs.put("test-input", ConsumerConfig.builder()
+                .consumerProperties(consumerProperties)
+                .build());
+        functionConfig.setInputSpecs(inputSpecs);
+
+        FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig);
+        Map<String, String> detailsConsumerProperties = new HashMap<>();
+        functionDetails.getSource().getInputSpecs("test-input")
+                .forEachConsumerProperties(detailsConsumerProperties::put);
+        assertEquals(detailsConsumerProperties, consumerProperties);
+
+        FunctionConfig convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
+        assertEquals(convertedConfig.getInputSpecs().get("test-input").getConsumerProperties(),
+                consumerProperties);
+    }
+
+    @Test
     public void testConvertProducerSpecToProducerConfigAndBackToProducerSpec() {
         // given
-        Function.ProducerSpec producerSpec = Function.ProducerSpec.newBuilder()
+        ProducerSpec producerSpec = new ProducerSpec()
                 .setBatchBuilder("KEY_BASED")
-                .setCompressionType(Function.CompressionType.ZSTD)
-                .setCryptoSpec(Function.CryptoSpec.newBuilder()
-                        .addProducerEncryptionKeyName("key1")
-                        .addProducerEncryptionKeyName("key2")
-                        .setConsumerCryptoFailureAction(Function.CryptoSpec.FailureAction.DISCARD)
-                        .setProducerCryptoFailureAction(Function.CryptoSpec.FailureAction.SEND)
-                        .setCryptoKeyReaderClassName("ReaderClassName")
-                        .setCryptoKeyReaderConfig("{\"key\":\"value\"}")
-                        .build())
-                .build();
+                .setCompressionType(org.apache.pulsar.functions.proto.CompressionType.ZSTD);
+        CryptoSpec cryptoSpec = producerSpec.setCryptoSpec();
+        cryptoSpec.addProducerEncryptionKeyName("key1");
+        cryptoSpec.addProducerEncryptionKeyName("key2");
+        cryptoSpec.setConsumerCryptoFailureAction(CryptoSpec.FailureAction.DISCARD);
+        cryptoSpec.setProducerCryptoFailureAction(CryptoSpec.FailureAction.SEND);
+        cryptoSpec.setCryptoKeyReaderClassName("ReaderClassName");
+        cryptoSpec.setCryptoKeyReaderConfig("{\"key\":\"value\"}");
         // when
         ProducerConfig producerConfig = FunctionConfigUtils.convertProducerSpecToProducerConfig(producerSpec);
         // then
@@ -722,8 +868,146 @@ public class FunctionConfigUtilsTest {
         assertEquals(cryptoConfig.getCryptoKeyReaderClassName(), "ReaderClassName");
         // and when
         // converted back to producer spec
-        Function.ProducerSpec producerSpec2 = FunctionConfigUtils.convertProducerConfigToProducerSpec(producerConfig);
+        ProducerSpec producerSpec2 = FunctionConfigUtils.convertProducerConfigToProducerSpec(producerConfig);
         // then
-        assertEquals(producerSpec2, producerSpec);
+        assertEquals(producerSpec2.getBatchBuilder(), producerSpec.getBatchBuilder());
+        assertEquals(producerSpec2.getCompressionType(), producerSpec.getCompressionType());
+        assertEquals(producerSpec2.getCryptoSpec().getCryptoKeyReaderClassName(),
+                producerSpec.getCryptoSpec().getCryptoKeyReaderClassName());
+        assertEquals(producerSpec2.getCryptoSpec().getCryptoKeyReaderConfig(),
+                producerSpec.getCryptoSpec().getCryptoKeyReaderConfig());
+        assertEquals(producerSpec2.getCryptoSpec().getProducerCryptoFailureAction(),
+                producerSpec.getCryptoSpec().getProducerCryptoFailureAction());
+        assertEquals(producerSpec2.getCryptoSpec().getConsumerCryptoFailureAction(),
+                producerSpec.getCryptoSpec().getConsumerCryptoFailureAction());
+        assertEquals(producerSpec2.getCryptoSpec().getProducerEncryptionKeyNamesCount(),
+                producerSpec.getCryptoSpec().getProducerEncryptionKeyNamesCount());
+        for (int i = 0; i < producerSpec.getCryptoSpec().getProducerEncryptionKeyNamesCount(); i++) {
+            assertEquals(producerSpec2.getCryptoSpec().getProducerEncryptionKeyNameAt(i),
+                    producerSpec.getCryptoSpec().getProducerEncryptionKeyNameAt(i));
+        }
+    }
+
+    private static FunctionConfig minimalGoFunctionConfig() {
+        FunctionConfig functionConfig = new FunctionConfig();
+        functionConfig.setTenant("test-tenant");
+        functionConfig.setNamespace("test-namespace");
+        functionConfig.setName("test-function");
+        functionConfig.setInputs(Collections.singletonList("persistent://public/default/input"));
+        functionConfig.setRuntime(GO);
+        functionConfig.setGo("/path/to/function");
+        return functionConfig;
+    }
+
+    @Test
+    public void testGoFunctionAcceptsRetainKeyOrdering() {
+        FunctionConfig functionConfig = minimalGoFunctionConfig();
+        functionConfig.setRetainKeyOrdering(true);
+
+        FunctionConfigUtils.validateNonJavaFunction(functionConfig);
+
+        // The KeyShared subscription the Go runtime selects has to survive conversion, otherwise the
+        // instance never sees it.
+        assertEquals(FunctionConfigUtils.convert(functionConfig).getSource().getSubscriptionType(),
+                SubscriptionType.KEY_SHARED);
+    }
+
+    @Test
+    public void testGoFunctionAcceptsRetainOrdering() {
+        FunctionConfig functionConfig = minimalGoFunctionConfig();
+        functionConfig.setRetainOrdering(true);
+
+        FunctionConfigUtils.validateNonJavaFunction(functionConfig);
+
+        assertEquals(FunctionConfigUtils.convert(functionConfig).getSource().getSubscriptionType(),
+                SubscriptionType.FAILOVER);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "Only one of retain ordering or retain key ordering can be set")
+    public void testGoFunctionRejectsBothOrderingModes() {
+        FunctionConfig functionConfig = minimalGoFunctionConfig();
+        functionConfig.setRetainOrdering(true);
+        functionConfig.setRetainKeyOrdering(true);
+
+        FunctionConfigUtils.validateNonJavaFunction(functionConfig);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp =
+                    "When effectively once processing guarantee is specified, retain Key ordering cannot be set")
+    public void testGoFunctionRejectsRetainKeyOrderingWithEffectivelyOnce() {
+        FunctionConfig functionConfig = minimalGoFunctionConfig();
+        functionConfig.setRetainKeyOrdering(true);
+        functionConfig.setProcessingGuarantees(EFFECTIVELY_ONCE);
+
+        FunctionConfigUtils.validateNonJavaFunction(functionConfig);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "Message retries not yet supported in Go function")
+    public void testGoFunctionStillRejectsMessageRetries() {
+        // The Go runtime does not honour retryDetails yet, so its guard stays until it does.
+        FunctionConfig functionConfig = minimalGoFunctionConfig();
+        functionConfig.setMaxMessageRetries(3);
+
+        FunctionConfigUtils.validateNonJavaFunction(functionConfig);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "Message retries not yet supported in Go function")
+    public void testGoFunctionRejectsZeroMessageRetries() {
+        // doGolangChecks refuses every count >= 0, not only a positive one -- unlike Python, which refuses
+        // only 0. Pinned so the two guards cannot be quietly aligned.
+        FunctionConfig functionConfig = minimalGoFunctionConfig();
+        functionConfig.setMaxMessageRetries(0);
+
+        FunctionConfigUtils.validateNonJavaFunction(functionConfig);
+    }
+
+    @Test
+    public void testConvertClientApi() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        functionConfig.setInputSpecs(new HashMap<>());
+        functionConfig.setInputs(Collections.singletonList("topic://public/default/in"));
+        functionConfig.setOutput("topic://public/default/out");
+        FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig);
+        assertThat(functionDetails.getClientApi()).isEqualTo(FunctionDetails.ClientApi.AUTO);
+        assertThat(FunctionConfigUtils.convertFromDetails(functionDetails).getClientApi()).isNull();
+
+        functionConfig.setClientApi(FunctionConfig.ClientApi.V5);
+        functionDetails = FunctionConfigUtils.convert(functionConfig);
+        assertThat(functionDetails.getClientApi()).isEqualTo(FunctionDetails.ClientApi.V5);
+        assertThat(FunctionConfigUtils.convertFromDetails(functionDetails).getClientApi())
+                .isEqualTo(FunctionConfig.ClientApi.V5);
+
+        functionConfig.setClientApi(FunctionConfig.ClientApi.V4);
+        assertThatThrownBy(() -> FunctionConfigUtils.convert(functionConfig))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("clientApi V4 cannot be used with topic 'topic://public/default/in'");
+    }
+
+    @Test
+    public void testConvertFromDetailsWithUnknownClientApi() {
+        byte[] details = FunctionConfigUtils.convert(createFunctionConfig()).toByteArray();
+        // clientApi (field 24, varint) set to 9, a number that no ClientApi value has
+        byte[] unknownClientApi = {(byte) 0xC0, 0x01, 0x09};
+        FunctionDetails functionDetails = new FunctionDetails();
+        functionDetails.parseFrom(Bytes.concat(details, unknownClientApi));
+
+        assertThat(functionDetails.getClientApi()).isEqualTo(FunctionDetails.ClientApi.UNRECOGNIZED);
+        assertThat(FunctionConfigUtils.convertFromDetails(functionDetails).getClientApi()).isNull();
+    }
+
+    @Test
+    public void testMergeClientApi() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        FunctionConfig mergedConfig = FunctionConfigUtils.validateUpdate(functionConfig,
+                createUpdatedFunctionConfig("clientApi", FunctionConfig.ClientApi.V5));
+        assertThat(mergedConfig.getClientApi()).isEqualTo(FunctionConfig.ClientApi.V5);
+
+        functionConfig.setClientApi(FunctionConfig.ClientApi.V5);
+        mergedConfig = FunctionConfigUtils.validateUpdate(functionConfig, createFunctionConfig());
+        assertThat(mergedConfig.getClientApi()).isEqualTo(FunctionConfig.ClientApi.V5);
     }
 }

@@ -19,14 +19,16 @@
 package org.apache.pulsar.broker.admin;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
@@ -41,7 +43,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-admin")
 public class AdminApiMaxUnackedMessagesTest extends MockedPulsarServiceBaseTest {
 
@@ -79,9 +81,10 @@ public class AdminApiMaxUnackedMessagesTest extends MockedPulsarServiceBaseTest 
         admin.namespaces().setMaxUnackedMessagesPerConsumer(namespace, 1);
         PersistentTopic persistentTopic =
                 (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
+        org.apache.pulsar.broker.service.Consumer serverConsumer =
+                persistentTopic.getSubscription("sub").getConsumers().get(0);
         Awaitility.await().untilAsserted(() ->
-                assertEquals(persistentTopic.getSubscription("sub")
-                        .getConsumers().get(0).getMaxUnackedMessages(), 1));
+                assertEquals(serverConsumer.getMaxUnackedMessages(), 1));
         //consumer-throttling should take effect
         for (int i = 0; i < 20; i++) {
             producer.send("msg".getBytes());
@@ -90,15 +93,18 @@ public class AdminApiMaxUnackedMessagesTest extends MockedPulsarServiceBaseTest 
         assertNotNull(message);
         Message<byte[]> nullMsg = consumer.receive(500, TimeUnit.MILLISECONDS);
         assertNull(nullMsg);
+        Awaitility.await().untilAsserted(() -> assertTrue(serverConsumer.isBlocked()));
 
         //disable limit check
         admin.namespaces().setMaxUnackedMessagesPerConsumer(namespace, 0);
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(persistentTopic.getSubscription("sub")
-                        .getConsumers().get(0).getMaxUnackedMessages(), 0));
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(serverConsumer.getMaxUnackedMessages(), 0);
+            assertFalse(serverConsumer.isBlocked());
+        });
+        Message<byte[]> nextMessage = consumer.receive(5, TimeUnit.SECONDS);
+        assertNotNull(nextMessage);
         consumer.acknowledge(message);
-        message = consumer.receive(500, TimeUnit.MILLISECONDS);
-        assertNotNull(message);
+        consumer.acknowledge(nextMessage);
     }
 
     @Test
@@ -125,6 +131,7 @@ public class AdminApiMaxUnackedMessagesTest extends MockedPulsarServiceBaseTest 
                 -> assertNull(admin.namespaces().getMaxUnackedMessagesPerSubscription(namespace)));
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testMaxUnackedMessagesPerConsumerPriority() throws Exception {
         int brokerLevelPolicy = 3;
@@ -162,7 +169,7 @@ public class AdminApiMaxUnackedMessagesTest extends MockedPulsarServiceBaseTest 
         org.apache.pulsar.broker.service.Consumer serverConsumer =
                 persistentTopic.getSubscription("sub").getConsumers().get(0);
         assertEquals(serverConsumer.getMaxUnackedMessages(), topicLevelPolicy);
-        List<Message> msgs = consumeMsg(consumer, 3);
+        List<Message<?>> msgs = consumeMsg(consumer, 3);
         assertEquals(msgs.size(), 1);
         //disable topic-level limiter
         admin.topics().setMaxUnackedMessagesOnConsumer(topic, 0);
@@ -196,10 +203,10 @@ public class AdminApiMaxUnackedMessagesTest extends MockedPulsarServiceBaseTest 
 
     }
 
-    private List<Message> consumeMsg(Consumer<?> consumer, int msgNum) throws Exception {
-        List<Message> list = new ArrayList<>();
+    private List<Message<?>> consumeMsg(Consumer<?> consumer, int msgNum) throws Exception {
+        List<Message<?>> list = new ArrayList<>();
         for (int i = 0; i < msgNum; i++) {
-            Message message = consumer.receive(1500, TimeUnit.MILLISECONDS);
+            Message<?> message = consumer.receive(1500, TimeUnit.MILLISECONDS);
             if (message == null) {
                 break;
             }
@@ -208,8 +215,8 @@ public class AdminApiMaxUnackedMessagesTest extends MockedPulsarServiceBaseTest 
         return list;
     }
 
-    private void ackMsgs(Consumer<?> consumer, List<Message> msgs) throws Exception {
-        for (Message msg : msgs) {
+    private void ackMsgs(Consumer<?> consumer, List<Message<?>> msgs) throws Exception {
+        for (Message<?> msg : msgs) {
             consumer.acknowledge(msg);
         }
     }

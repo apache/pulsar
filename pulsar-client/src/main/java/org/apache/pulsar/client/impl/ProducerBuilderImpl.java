@@ -93,8 +93,10 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     @Override
     public CompletableFuture<Producer<T>> createAsync() {
         // config validation
-        checkArgument(!(conf.isBatchingEnabled() && conf.isChunkingEnabled()),
-                "Batching and chunking of messages can't be enabled together");
+        if (conf.isBatchingEnabled() && conf.isChunkingEnabled()) {
+            return FutureUtil.failedFuture(
+                    new IllegalArgumentException("Batching and chunking of messages can't be enabled together"));
+        }
         if (conf.getTopicName() == null) {
             return FutureUtil
                     .failedFuture(new IllegalArgumentException("Topic name must be set on the producer builder"));
@@ -114,18 +116,32 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
             } else {
                 effectiveInterceptors = new ArrayList<>(effectiveInterceptors);
             }
-            effectiveInterceptors.add(new org.apache.pulsar.client.impl.tracing.OpenTelemetryProducerInterceptor());
+            effectiveInterceptors.add(new org.apache.pulsar.client.impl.tracing.OpenTelemetryProducerInterceptor(
+                    client.instrumentProvider()));
         }
 
+        ProducerConfigurationData producerConf = client.applyNoMemoryLimitProducerDefaults(conf);
+
         return effectiveInterceptors == null || effectiveInterceptors.size() == 0
-                ? client.createProducerAsync(conf, schema, null)
-                : client.createProducerAsync(conf, schema, new ProducerInterceptors(effectiveInterceptors));
+                ? client.createProducerAsync(producerConf, schema, null)
+                : client.createProducerAsync(producerConf, schema, new ProducerInterceptors(effectiveInterceptors));
     }
 
     @Override
     public ProducerBuilder<T> loadConf(Map<String, Object> config) {
+        // A limit present in the map was configured by the application, even when its value is the
+        // same as the unset one. loadData builds a new configuration instance by replaying every
+        // property through its setters, so the markers have to be carried over rather than read off
+        // the result.
+        boolean maxPendingMessagesConfigured =
+                conf.isMaxPendingMessagesConfigured() || config.containsKey("maxPendingMessages");
+        boolean maxPendingMessagesAcrossPartitionsConfigured =
+                conf.isMaxPendingMessagesAcrossPartitionsConfigured()
+                        || config.containsKey("maxPendingMessagesAcrossPartitions");
         conf = ConfigurationDataUtils.loadData(
             config, conf, ProducerConfigurationData.class);
+        conf.setMaxPendingMessagesConfigured(maxPendingMessagesConfigured);
+        conf.setMaxPendingMessagesAcrossPartitionsConfigured(maxPendingMessagesAcrossPartitionsConfigured);
         return this;
     }
 
@@ -240,7 +256,7 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     }
 
     @Override
-    public ProducerBuilder<T> messageCrypto(MessageCrypto messageCrypto) {
+    public ProducerBuilder<T> messageCrypto(MessageCrypto<?, ?> messageCrypto) {
         conf.setMessageCrypto(messageCrypto);
         return this;
     }
@@ -323,7 +339,8 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
     @Override
     @Deprecated
-    public ProducerBuilder<T> intercept(org.apache.pulsar.client.api.ProducerInterceptor<T>... interceptors) {
+    @SafeVarargs
+    public final ProducerBuilder<T> intercept(org.apache.pulsar.client.api.ProducerInterceptor<T>... interceptors) {
         if (interceptorList == null) {
             interceptorList = new ArrayList<>();
         }

@@ -29,6 +29,10 @@ import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.ws.rs.container.AsyncResponse;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.UriInfo;
 import java.io.ByteArrayOutputStream;
 import java.net.URI;
 import java.util.Arrays;
@@ -38,9 +42,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import javax.ws.rs.container.AsyncResponse;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.UriInfo;
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
 import lombok.Data;
@@ -114,9 +115,13 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         super.internalSetup();
         topics = spy(new Topics());
         topics.setPulsar(pulsar);
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        doReturn("http").when(request).getScheme();
+        topics.setHttpRequest(request);
         doReturn(TopicDomain.persistent.value()).when(topics).domain();
         doReturn("test-app").when(topics).clientAppId();
         doReturn(mock(AuthenticationDataHttps.class)).when(topics).clientAuthData();
+        doReturn(null).when(topics).getWebServiceListenerName();
         admin.clusters().createCluster(testLocalCluster, new ClusterDataImpl());
         admin.tenants().createTenant(testTenant, new TenantInfoImpl(Set.of("role1", "role2"),
                 Set.of(testLocalCluster)));
@@ -376,6 +381,7 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testLookUpWithException() throws Exception {
         String topicName = "persistent://" + testTenant + "/" + testNamespace + "/" + testTopicName;
         admin.topics().createNonPartitionedTopic(topicName);
@@ -404,6 +410,7 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testLookUpTopicNotExist() throws Exception {
         String topicName = "persistent://" + testTenant + "/" + testNamespace + "/" + testTopicName;
         NamespaceService nameSpaceService = mock(NamespaceService.class);
@@ -430,6 +437,7 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testProduceWithLongSchema() throws Exception {
         String topicName = "persistent://" + testTenant + "/" + testNamespace + "/" + testTopicName;
         admin.topics().createNonPartitionedTopic(topicName);
@@ -480,6 +488,7 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
 
     // Default schema is String schema
     @Test
+    @SuppressWarnings("unchecked")
     public void testProduceNoSchema() throws Exception {
         String topicName = "persistent://" + testTenant + "/" + testNamespace + "/" + testTopicName;
         admin.topics().createNonPartitionedTopic(topicName);
@@ -551,6 +560,7 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testProduceWithJsonSchema() throws Exception {
         String topicName = "persistent://" + testTenant + "/" + testNamespace + "/" + testTopicName;
         admin.topics().createNonPartitionedTopic(topicName);
@@ -614,6 +624,7 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testProduceWithAvroSchema() throws Exception {
         String topicName = "persistent://" + testTenant + "/" + testNamespace + "/" + testTopicName;
         admin.topics().createNonPartitionedTopic(topicName);
@@ -693,6 +704,7 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testProduceWithRestAndClientThenConsumeWithClient() throws Exception {
         String topicName = "persistent://" + testTenant + "/" + testNamespace + "/" + testTopicName;
         admin.topics().createNonPartitionedTopic(topicName);
@@ -753,6 +765,7 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testProduceWithRestThenConsumeWithClient() throws Exception {
         String topicName = "persistent://" + testTenant + "/" + testNamespace + "/" + testTopicName;
         admin.topics().createNonPartitionedTopic(topicName);
@@ -833,6 +846,7 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testProduceWithInCompatibleSchema() throws Exception {
         String topicName = "persistent://" + testTenant + "/" + testNamespace + "/" + testTopicName;
         admin.topics().createNonPartitionedTopic(topicName);
@@ -871,6 +885,7 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testProduceWithAutoConsumeSchema() throws Exception {
         String topicName = "persistent://" + testTenant + "/" + testNamespace + "/" + testTopicName;
         admin.topics().createNonPartitionedTopic(topicName);

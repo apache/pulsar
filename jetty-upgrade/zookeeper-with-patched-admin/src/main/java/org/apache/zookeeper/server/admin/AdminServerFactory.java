@@ -19,16 +19,13 @@
 package org.apache.zookeeper.server.admin;
 
 import java.lang.reflect.InvocationTargetException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.CustomLog;
 
 /**
  * Factory class for creating an AdminServer.
  */
+@CustomLog
 public class AdminServerFactory {
-
-    private static final Logger LOG = LoggerFactory.getLogger(AdminServerFactory.class);
-
     /**
      * This method encapsulates the logic for whether we should use a
      * JettyAdminServer (i.e., the AdminServer is enabled) or a DummyAdminServer
@@ -45,17 +42,17 @@ public class AdminServerFactory {
                 return (AdminServer) adminServer;
 
             } catch (ClassNotFoundException e) {
-                LOG.warn("Unable to start JettyAdminServer", e);
+                log.warn().exception(e).log("Unable to start JettyAdminServer");
             } catch (InstantiationException e) {
-                LOG.warn("Unable to start JettyAdminServer", e);
+                log.warn().exception(e).log("Unable to start JettyAdminServer");
             } catch (IllegalAccessException e) {
-                LOG.warn("Unable to start JettyAdminServer", e);
+                log.warn().exception(e).log("Unable to start JettyAdminServer");
             } catch (InvocationTargetException e) {
-                LOG.warn("Unable to start JettyAdminServer", e);
+                log.warn().exception(e).log("Unable to start JettyAdminServer");
             } catch (NoSuchMethodException e) {
-                LOG.warn("Unable to start JettyAdminServer", e);
+                log.warn().exception(e).log("Unable to start JettyAdminServer");
             } catch (NoClassDefFoundError e) {
-                LOG.warn("Unable to load jetty, not starting JettyAdminServer", e);
+                log.warn().exception(e).log("Unable to load jetty, not starting JettyAdminServer");
             }
         }
         return new DummyAdminServer();

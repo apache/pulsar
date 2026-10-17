@@ -58,6 +58,7 @@ public class AuthenticatedConsumerStatsTest extends ConsumerStatsTest{
         tokenPublicKey = "data:;base64," + Base64.getEncoder().encodeToString(encodedPublicKey);
         adminToken = generateToken(kp, "admin");
     }
+    @SuppressWarnings("deprecation")
 
 
     private String generateToken(KeyPair kp, String subject) {

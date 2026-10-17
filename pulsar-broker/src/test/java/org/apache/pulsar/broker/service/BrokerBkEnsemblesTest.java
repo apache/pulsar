@@ -26,6 +26,7 @@ import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.Closeable;
@@ -40,7 +41,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
@@ -49,9 +50,10 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.util.StringUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -61,6 +63,7 @@ import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
@@ -71,7 +74,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
-@Slf4j
+@CustomLog
 public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
 
     public BrokerBkEnsemblesTest() {
@@ -96,6 +99,7 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testCrashBrokerWithoutCursorLedgerLeak() throws Exception {
 
@@ -106,7 +110,7 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
                 .statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
-        final String ns1 = "prop/usc/crash-broker";
+        final String ns1 = "prop/crash-broker";
 
         admin.namespaces().createNamespace(ns1);
 
@@ -193,6 +197,7 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testSkipCorruptDataLedger() throws Exception {
         // Ensure intended state for autoSkipNonRecoverableData
@@ -204,7 +209,7 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
                 .statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
-        final String ns1 = "prop/usc/crash-broker";
+        final String ns1 = "prop/crash-broker";
         final int totalMessages = 99;
         final int totalDataLedgers = 5;
         final int entriesPerLedger = 20;
@@ -256,7 +261,7 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
                 try {
                     bookKeeper.deleteLedger(entry.getKey());
                 } catch (Exception e) {
-                    log.warn("failed to delete ledger {}", entry.getKey(), e);
+                    log.warn().attr("ledger", entry.getKey()).exception(e).log("Failed to delete ledger");
                 }
             }
         });
@@ -298,6 +303,7 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
         consumer.close();
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testTruncateCorruptDataLedger() throws Exception {
         // Ensure intended state for autoSkipNonRecoverableData
@@ -369,7 +375,7 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
                 try {
                     bookKeeper.deleteLedger(entry.getKey());
                 } catch (Exception e) {
-                    log.warn("failed to delete ledger {}", entry.getKey(), e);
+                    log.warn().attr("ledger", entry.getKey()).exception(e).log("Failed to delete ledger");
                 }
             }
         });
@@ -384,7 +390,7 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
         admin.topics().truncate(topic1);
 
         ledgerInfo.entrySet().forEach(entry -> {
-            log.warn("found ledger: {}", entry.getKey());
+            log.warn().attr("ledger", entry.getKey()).log("Found ledger");
             assertNotEquals(firstLedgerToDelete, entry.getKey());
         });
 
@@ -435,6 +441,7 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
         factory.delete("test");
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 20000)
     public void testTopicWithWildCardChar() throws Exception {
         @Cleanup
@@ -443,14 +450,14 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
                 .statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
-        final String ns1 = "prop/usc/topicWithSpecialChar";
+        final String ns1 = "prop/topicWithSpecialChar";
         try {
             admin.namespaces().createNamespace(ns1);
         } catch (Exception e) {
 
         }
 
-        final String topic1 = "persistent://" + ns1 + "/`~!@#$%^&*()-_+=[]://{}|\\;:'\"<>,./?-30e04524";
+        final String topic1 = "persistent://" + ns1 + "/`~!@#$%^&*()-_+=[]{}|\\;:'\"<>,.?-30e04524";
         final String subName1 = "c1";
         final byte[] content = "test".getBytes();
 
@@ -465,9 +472,10 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
     }
 
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testDeleteTopicWithMissingData() throws Exception {
-        String namespace = BrokerTestUtil.newUniqueName("prop/usc");
+        String namespace = BrokerTestUtil.newUniqueName("prop/ns");
         admin.namespaces().createNamespace(namespace);
 
         String topic = BrokerTestUtil.newUniqueName(namespace + "/my-topic");
@@ -510,9 +518,10 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
         assertThrows(PulsarAdminException.ServerSideErrorException.class, () -> admin.topics().delete(topic));
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testDeleteTopicWithoutTopicLoaded() throws Exception {
-        String namespace = BrokerTestUtil.newUniqueName("prop/usc");
+        String namespace = BrokerTestUtil.newUniqueName("prop/ns");
         admin.namespaces().createNamespace(namespace);
 
         String topic = BrokerTestUtil.newUniqueName(namespace + "/my-topic");
@@ -543,6 +552,7 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
         };
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 60_000, dataProvider = "doReloadTopicAfterLedgerFenced")
     public void testConcurrentlyModifyCurrentLedger(boolean doReloadTopicAfterLedgerFenced) throws Exception {
         EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(config.getNumIOThreads(),
@@ -553,7 +563,7 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
                 Optional.empty(),
                 null).get();
 
-        final String namespace = BrokerTestUtil.newUniqueName("prop/usc");
+        final String namespace = BrokerTestUtil.newUniqueName("prop/ns");
         final String topic = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/tp");
         final String subscription = "s1";
         admin.namespaces().createNamespace(namespace);
@@ -645,6 +655,57 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
         admin.topics().unload(topic);
         admin.topics().delete(topic);
         bkClient2.close();
+    }
+
+    /**
+     * Terminating a topic closes the current ledger under the publishes that are still in flight. The topic must not
+     * stay fenced afterwards: a terminated topic still has to be drained, so consumers must be able to subscribe to it.
+     */
+    @Test
+    public void testConsumerCanSubscribeAfterTerminateWithInFlightPublish() throws Exception {
+        final String namespace = BrokerTestUtil.newUniqueName("prop/ns");
+        final String topic = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/tp");
+        admin.namespaces().createNamespace(namespace);
+        admin.topics().createNonPartitionedTopic(topic);
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .build();
+        Producer<String> producer = client.newProducer(Schema.STRING)
+                .enableBatching(false)
+                .topic(topic)
+                .create();
+        producer.send("1");
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
+                .getTopic(topic, false).join().get();
+
+        // Delay the bookie responses, so that the next publish is still in flight when the topic gets terminated.
+        Closeable cancellation = injectBKServerDelayForCurrentLedger(topic, 10, TimeUnit.SECONDS, 0);
+        producer.sendAsync("2");
+        Awaitility.await().untilAsserted(() -> assertEquals(persistentTopic.getPendingWriteOps().get(), 1));
+
+        CompletableFuture<MessageId> terminated = persistentTopic.terminate();
+        // Under load, more publishes reach the terminated topic before its producers get disconnected.
+        CompletableFuture<Exception> latePublish = new CompletableFuture<>();
+        persistentTopic.publishMessage(Unpooled.wrappedBuffer("3".getBytes()),
+                (e, ledgerId, entryId) -> latePublish.complete(e));
+        terminated.get(10, TimeUnit.SECONDS);
+        assertTrue(latePublish.get(10, TimeUnit.SECONDS) instanceof TopicTerminatedException);
+        cancellation.close();
+
+        // The publish that was in flight is failed, rather than being left pending forever.
+        Awaitility.await().untilAsserted(() -> assertEquals(persistentTopic.getPendingWriteOps().get(), 0));
+
+        Consumer<String> consumer = client.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("s1")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+        Message<String> msg = consumer.receive(10, TimeUnit.SECONDS);
+        assertNotNull(msg);
+        assertEquals(msg.getValue(), "1");
     }
 
 }

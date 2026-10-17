@@ -43,8 +43,7 @@ import org.apache.pulsar.functions.auth.FunctionAuthProvider;
 import org.apache.pulsar.functions.auth.KubernetesFunctionAuthProvider;
 import org.apache.pulsar.functions.auth.KubernetesSecretsTokenAuthProvider;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.apache.pulsar.functions.runtime.RuntimeCustomizer;
 import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
 import org.apache.pulsar.functions.secretsproviderconfigurator.DefaultSecretsProviderConfigurator;
@@ -124,6 +123,7 @@ public class KubernetesRuntimeFactoryTest {
     }
 
     @AfterMethod(alwaysRun = true)
+    @SuppressWarnings("unchecked")
     public void tearDown() {
         if (null != this.factory) {
             this.factory.close();
@@ -138,6 +138,7 @@ public class KubernetesRuntimeFactoryTest {
                 resourceChangeInLockStep, Optional.empty(), Optional.empty());
     }
 
+    @SuppressWarnings("unchecked")
     KubernetesRuntimeFactory createKubernetesRuntimeFactory(String extraDepsDir,
                                                             Resources minResources,
                                                             Resources maxResources,
@@ -192,13 +193,13 @@ public class KubernetesRuntimeFactoryTest {
     }
 
     FunctionDetails createFunctionDetails() {
-        FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
-        functionDetailsBuilder.setRuntime(FunctionDetails.Runtime.JAVA);
-        functionDetailsBuilder.setTenant("public");
-        functionDetailsBuilder.setNamespace("default");
-        functionDetailsBuilder.setName("function");
-        functionDetailsBuilder.setSecretsMap("SomeMap");
-        return functionDetailsBuilder.build();
+        FunctionDetails functionDetails = new FunctionDetails();
+        functionDetails.setRuntime(FunctionDetails.Runtime.JAVA);
+        functionDetails.setTenant("public");
+        functionDetails.setNamespace("default");
+        functionDetails.setName("function");
+        functionDetails.setSecretsMap("SomeMap");
+        return functionDetails;
     }
 
     @Test
@@ -229,7 +230,8 @@ public class KubernetesRuntimeFactoryTest {
         testMinResource(0.05, 512L, true,
                 "Per instance CPU requested, 0.05, for function is less than the minimum required, 0.1");
         testMinResource(null, null, true,
-                "Per instance CPU requested, 0.0, for function is less than the minimum required, 0.1");
+                "Per instance CPU requested is not specified. Must specify CPU requested for function"
+                        + " to be at least 0.1");
         testMinResource(0.2, null, true,
                 "Per instance RAM requested, 0, for function is less than the minimum required, 1024");
 
@@ -287,7 +289,8 @@ public class KubernetesRuntimeFactoryTest {
                 "Per instance RAM requested, 512, for function is less than the minimum required, 1024");
 
         testMinMaxResource(null, null, true,
-                "Per instance CPU requested, 0.0, for function is less than the minimum required, 0.1");
+                "Per instance CPU requested is not specified. Must specify CPU requested for function"
+                        + " to be at least 0.1");
         testMinMaxResource(0.2, null, true,
                 "Per instance RAM requested, 0, for function is less than the minimum required, 1024");
     }
@@ -382,20 +385,20 @@ public class KubernetesRuntimeFactoryTest {
             }
 
             @Override
-            public Optional<FunctionAuthData> cacheAuthData(Function.FunctionDetails funcDetails,
+            public Optional<FunctionAuthData> cacheAuthData(FunctionDetails funcDetails,
                                                  AuthenticationDataSource authenticationDataSource) throws Exception {
                 return Optional.empty();
             }
 
             @Override
-            public Optional<FunctionAuthData> updateAuthData(Function.FunctionDetails funcDetails,
+            public Optional<FunctionAuthData> updateAuthData(FunctionDetails funcDetails,
                                                  Optional<FunctionAuthData> existingFunctionAuthData,
                                                  AuthenticationDataSource authenticationDataSource) throws Exception {
                 return Optional.empty();
             }
 
             @Override
-            public void cleanUpAuthData(Function.FunctionDetails funcDetails,
+            public void cleanUpAuthData(FunctionDetails funcDetails,
                                         Optional<FunctionAuthData> functionAuthData) throws Exception {
 
             }
@@ -418,20 +421,20 @@ public class KubernetesRuntimeFactoryTest {
             }
 
             @Override
-            public Optional<FunctionAuthData> cacheAuthData(Function.FunctionDetails funcDetails,
+            public Optional<FunctionAuthData> cacheAuthData(FunctionDetails funcDetails,
                                                  AuthenticationDataSource authenticationDataSource) throws Exception {
                 return Optional.empty();
             }
 
             @Override
-            public Optional<FunctionAuthData> updateAuthData(Function.FunctionDetails funcDetails,
+            public Optional<FunctionAuthData> updateAuthData(FunctionDetails funcDetails,
                                                  Optional<FunctionAuthData> existingFunctionAuthData,
                                                  AuthenticationDataSource authenticationDataSource) throws Exception {
                 return Optional.empty();
             }
 
             @Override
-            public void cleanUpAuthData(Function.FunctionDetails funcDetails,
+            public void cleanUpAuthData(FunctionDetails funcDetails,
                                         Optional<FunctionAuthData> functionAuthData) throws Exception {
 
             }
@@ -476,7 +479,7 @@ public class KubernetesRuntimeFactoryTest {
         factory = createKubernetesRuntimeFactory(null, minResources, maxResources, granularities, changeInLockStep);
         FunctionDetails functionDetailsBase = createFunctionDetails();
 
-        Function.Resources.Builder resources = Function.Resources.newBuilder();
+        org.apache.pulsar.functions.proto.Resources resources = new org.apache.pulsar.functions.proto.Resources();
         if (cpu != null) {
             resources.setCpu(cpu);
         }
@@ -485,9 +488,10 @@ public class KubernetesRuntimeFactoryTest {
         }
         FunctionDetails functionDetails;
         if (ram != null || cpu != null) {
-            functionDetails = FunctionDetails.newBuilder(functionDetailsBase).setResources(resources).build();
+            functionDetails = new FunctionDetails().copyFrom(functionDetailsBase);
+            functionDetails.setResources().copyFrom(resources);
         } else {
-            functionDetails = FunctionDetails.newBuilder(functionDetailsBase).build();
+            functionDetails = new FunctionDetails().copyFrom(functionDetailsBase);
         }
 
         try {
@@ -537,6 +541,7 @@ public class KubernetesRuntimeFactoryTest {
        assertEquals(kubernetesRuntimeFactory.getImagePullPolicy(), "test_imagePullPolicy2");
     }
 
+    @SuppressWarnings("unchecked")
     private KubernetesRuntimeFactory getKuberentesRuntimeFactory() {
         KubernetesRuntimeFactory kubernetesRuntimeFactory = new KubernetesRuntimeFactory();
         WorkerConfig workerConfig = new WorkerConfig();

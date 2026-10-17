@@ -18,16 +18,12 @@
  */
 package org.apache.pulsar.client.api;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -39,7 +35,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -47,9 +44,9 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.logging.log4j.Level;
-import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.ConsumerImpl;
@@ -57,67 +54,51 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.util.ScheduledExecutorProvider;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.utils.TestLogAppender;
 import org.awaitility.Awaitility;
-import org.mockito.AdditionalAnswers;
-import org.mockito.Mockito;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
-public class MultiTopicsConsumerTest extends ProducerConsumerBase {
-    private ScheduledExecutorService internalExecutorServiceDelegate;
+public class MultiTopicsConsumerTest extends SharedPulsarBaseTest {
+    protected String methodName;
 
-    @BeforeClass(alwaysRun = true)
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
-
-    @Override
-    protected void customizeNewPulsarClientBuilder(ClientBuilder clientBuilder) {
-       clientBuilder.ioThreads(4).connectionsPerBroker(4);
+    @BeforeMethod(alwaysRun = true)
+    public void setTestMethodName(Method m) {
+        methodName = m.getName();
     }
 
     // test that reproduces the issue https://github.com/apache/pulsar/issues/12024
     // where closing the consumer leads to an endless receive loop
     @Test
     public void testMultiTopicsConsumerCloses() throws Exception {
-        String topicNameBase = "persistent://my-property/my-ns/my-topic-consumer-closes-";
+        String topicNameBase = newTopicName() + "-closes-";
 
-        ClientConfigurationData conf = ((ClientBuilderImpl) PulsarClient.builder().serviceUrl(lookupUrl.toString()))
+        ClientConfigurationData conf = ((ClientBuilderImpl) PulsarClient.builder().serviceUrl(getBrokerServiceUrl()))
                 .getClientConfigurationData();
 
-        @Cleanup
-        PulsarClientImpl client = new PulsarClientImpl(conf) {
-            {
-                ScheduledExecutorService internalExecutorService =
-                        (ScheduledExecutorService) super.getScheduledExecutorProvider().getExecutor();
-                internalExecutorServiceDelegate = mock(ScheduledExecutorService.class,
-                        // a spy isn't used since that doesn't work for private classes, instead
-                        // the mock delegatesTo an existing instance. A delegate is sufficient for verifying
-                        // method calls on the interface.
-                        Mockito.withSettings().defaultAnswer(AdditionalAnswers.delegatesTo(internalExecutorService)));
-            }
-
+        AtomicInteger schedulingOperations = new AtomicInteger();
+        @Cleanup("shutdownNow")
+        ScheduledExecutorProvider scheduledExecutors = new ScheduledExecutorProvider(1, "multi-topics-test") {
             @Override
-            public ExecutorService getInternalExecutorService() {
-                return internalExecutorServiceDelegate;
+            protected ExecutorService createExecutor(ExtendedThreadFactory threadFactory) {
+                return new ScheduledThreadPoolExecutor(1, threadFactory) {
+                    @Override
+                    public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
+                        schedulingOperations.incrementAndGet();
+                        return super.schedule(command, delay, unit);
+                    }
+                };
             }
         };
+        @Cleanup
+        PulsarClientImpl client = new PulsarClientImpl(conf, null, null, null, null, null, scheduledExecutors);
         @Cleanup
         Producer<byte[]> producer1 = client.newProducer()
                 .topic(topicNameBase + "1")
@@ -151,9 +132,9 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
         Thread.sleep(1000L);
 
         // then verify that no scheduling operation has happened
-        verify(internalExecutorServiceDelegate, times(0))
-                .schedule(any(Runnable.class), anyLong(), any());
+        assertEquals(schedulingOperations.get(), 0);
     }
+    @SuppressWarnings({"deprecation", "unchecked"})
 
     // test that reproduces the issue that PR https://github.com/apache/pulsar/pull/12456 fixes
     // where MultiTopicsConsumerImpl has a data race that causes out-of-order delivery of messages
@@ -369,7 +350,7 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
     }
 
     @Test(invocationCount = 10, timeOut = 30000)
-    public void testMultipleIOThreads() throws PulsarAdminException, PulsarClientException {
+    public void testMultipleIOThreads() throws Exception {
         final var topic = TopicName.get(newTopicName()).toString();
         final var numPartitions = 100;
         admin.topics().createPartitionedTopic(topic, numPartitions);
@@ -377,7 +358,13 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
             admin.topics().createNonPartitionedTopic(topic + "-" + i);
         }
         @Cleanup
-        final var consumer = pulsarClient.newConsumer(Schema.INT32).topicsPattern(topic + ".*")
+        PulsarClient customClient = PulsarClient.builder()
+                .serviceUrl(getBrokerServiceUrl())
+                .ioThreads(4)
+                .connectionsPerBroker(4)
+                .build();
+        @Cleanup
+        final var consumer = customClient.newConsumer(Schema.INT32).topicsPattern(topic + ".*")
                 .subscriptionName("sub").subscribe();
         assertTrue(consumer instanceof MultiTopicsConsumerImpl);
         assertTrue(consumer.isConnected());
@@ -385,8 +372,8 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
 
     @Test
     public void testSameTopics() throws Exception {
-        final String topic1 = BrokerTestUtil.newUniqueName("public/default/tp");
-        final String topic2 = "persistent://" + topic1;
+        final String topic2 = newTopicName();
+        final String topic1 = topic2.replace("persistent://", "");
         admin.topics().createNonPartitionedTopic(topic2);
         // Create consumer with two same topics.
         try {
@@ -402,8 +389,6 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
             assertTrue(e.getMessage().contains("Subscription topics include duplicate items"
                     + " or invalid names"));
         }
-        // cleanup.
-        admin.topics().delete(topic2);
     }
 
     @Test(timeOut = 30000)
@@ -411,7 +396,9 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
         final var topic1 = newTopicName();
         final var topic2 = newTopicName();
 
-        pulsar.getConfiguration().setAllowAutoSubscriptionCreation(false);
+        admin.namespaces().setAutoSubscriptionCreation(getNamespace(),
+                org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride.builder()
+                        .allowAutoSubscriptionCreation(false).build());
 
         try {
             final var singleTopicConsumer = pulsarClient.newConsumer()
@@ -436,8 +423,6 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
         } catch (Throwable t) {
             fail("Should throw PulsarClientException.SubscriptionNotFoundException instead");
         }
-
-        pulsar.getConfiguration().setAllowAutoSubscriptionCreation(true);
     }
 
     @Test(timeOut = 30000)

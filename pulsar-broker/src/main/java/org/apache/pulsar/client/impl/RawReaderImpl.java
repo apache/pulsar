@@ -26,6 +26,7 @@ import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -41,10 +42,10 @@ import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class RawReaderImpl implements RawReader {
 
     static final int DEFAULT_RECEIVER_QUEUE_SIZE = 1000;
@@ -74,7 +75,6 @@ public class RawReaderImpl implements RawReader {
         consumer = new RawConsumerImpl(client, consumerConfiguration, consumerFuture, createTopicIfDoesNotExist,
                 retryOnRecoverableErrors);
     }
-
 
     @Override
     public String getTopic() {
@@ -108,6 +108,7 @@ public class RawReaderImpl implements RawReader {
     }
 
     @Override
+    @SuppressWarnings("deprecation")
     public CompletableFuture<MessageId> getLastMessageIdAsync() {
         return consumer.getLastMessageIdAsync();
     }
@@ -158,6 +159,25 @@ public class RawReaderImpl implements RawReader {
                 return true;
             }
             return super.isUnrecoverableError(t);
+        }
+
+        @Override
+        public boolean connectionFailed(PulsarClientException exception) {
+            // A compaction reader is created with retryOnRecoverableErrors=false. When the topic is fenced or
+            // deleted, a reconnect can fail at the lookup/connection stage with a retriable error such as
+            // ServiceNotReadyException. The base ConsumerImpl.connectionFailed only consults isUnrecoverableError
+            // for non-retriable errors (or after the lookup deadline has passed), so for such a retriable error it
+            // would keep reconnecting and never fail the in-flight read, leaving the compaction future pending.
+            // Honor isUnrecoverableError here too so the reader is closed promptly and pending reads are failed,
+            // mirroring the subscribe-stage handling in ConsumerImpl.connectionOpened(). This matters for
+            // compaction: a never-failing read keeps the compaction future pending, which blocks forced
+            // topic/namespace deletion (issue #24148).
+            Throwable actError = FutureUtil.unwrapCompletionException(exception);
+            if (isUnrecoverableError(actError)) {
+                closeWhenReceivedUnrecoverableError(actError, null);
+                return false;
+            }
+            return super.connectionFailed(exception);
         }
 
         void tryCompletePending() {
@@ -230,6 +250,17 @@ public class RawReaderImpl implements RawReader {
             CompletableFuture<RawMessage> result = new CompletableFuture<>();
             pendingRawReceives.add(result);
             tryCompletePending();
+            // Once the consumer has reached a terminal state (for example it was closed after an
+            // unrecoverable error such as the topic or namespace being deleted), no further message
+            // will arrive and no close callback will run for receives enqueued from now on, so the
+            // future would never complete. Re-checking the state after enqueueing closes the race
+            // with a concurrent close() draining the queue, since close() drains only after moving to
+            // a terminal state. This matters for compaction: a never-completing read leaves the
+            // compaction future pending, which in turn blocks forced topic/namespace deletion.
+            State state = getState();
+            if (state == State.Closing || state == State.Closed || state == State.Failed) {
+                failPendingRawReceives();
+            }
             return result;
         }
 
@@ -278,10 +309,7 @@ public class RawReaderImpl implements RawReader {
                 return;
             }
             MessageIdData messageId = commandMessage.getMessageId();
-            if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] Received raw message: {}/{}/{}", topic, subscription,
-                        messageId.getEntryId(), messageId.getLedgerId(), messageId.getPartition());
-            }
+            log.debug().attr("messageId", messageId).log("Received raw message");
 
             incomingRawMessages.add(
                 new RawMessageAndCnx(new RawMessageImpl(messageId, headersAndPayload), cnx));
@@ -298,6 +326,4 @@ public class RawReaderImpl implements RawReader {
             this.cnx = cnx;
         }
     }
-
-    private static final Logger log = LoggerFactory.getLogger(RawReaderImpl.class);
 }

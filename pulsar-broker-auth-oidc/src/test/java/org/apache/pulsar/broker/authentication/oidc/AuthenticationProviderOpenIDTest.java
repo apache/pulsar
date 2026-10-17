@@ -62,6 +62,7 @@ import org.testng.annotations.Test;
 public class AuthenticationProviderOpenIDTest {
 
     // https://www.rfc-editor.org/rfc/rfc7518#section-3.1
+    @SuppressWarnings("deprecation")
     private static final Set<SignatureAlgorithm> SUPPORTED_ALGORITHMS = Set.of(
             SignatureAlgorithm.RS256,
             SignatureAlgorithm.RS384,
@@ -76,6 +77,7 @@ public class AuthenticationProviderOpenIDTest {
         return buildDataProvider(SUPPORTED_ALGORITHMS);
     }
 
+    @SuppressWarnings("deprecation")
     @DataProvider(name = "unsupportedAlgorithms")
     public static Object[][] unsupportedAlgorithms() {
         var unsupportedAlgorithms = Set.of(SignatureAlgorithm.values())
@@ -109,6 +111,7 @@ public class AuthenticationProviderOpenIDTest {
         basicProvider.close();
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testNullToken() throws IOException {
         @Cleanup
@@ -124,6 +127,7 @@ public class AuthenticationProviderOpenIDTest {
                 .hasMessage("PublicKey algorithm cannot be null");
     }
 
+    @SuppressWarnings("deprecation")
     @Test(dataProvider = "unsupportedAlgorithms")
     public void testThatUnsupportedAlgsThrowExceptions(SignatureAlgorithm unsupportedAlg) {
         var algorithm = unsupportedAlg.getValue();
@@ -133,6 +137,7 @@ public class AuthenticationProviderOpenIDTest {
                 .hasMessage("Unsupported algorithm: " + algorithm);
     }
 
+    @SuppressWarnings("deprecation")
     @Test(dataProvider = "supportedAlgorithms")
     public void testThatSupportedAlgsWork(SignatureAlgorithm alg) throws AuthenticationException {
         KeyPair keyPair = Keys.keyPairFor(alg);
@@ -146,6 +151,7 @@ public class AuthenticationProviderOpenIDTest {
         Assert.assertEquals(expectedValue, actualValue);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testThatSupportedAlgWithMismatchedPublicKeyFromDifferentAlgFamilyFails() throws IOException {
         KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.RS256);
@@ -159,6 +165,7 @@ public class AuthenticationProviderOpenIDTest {
                 .hasMessage("Expected PublicKey alg [ES512] does match actual alg.");
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testThatSupportedAlgWithMismatchedPublicKeyFromSameAlgFamilyFails() {
         KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.RS256);
@@ -172,6 +179,7 @@ public class AuthenticationProviderOpenIDTest {
                 .hasMessageStartingWith("JWT algorithm does not match Public Key algorithm");
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void ensureExpiredTokenFails() {
         KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.RS256);
@@ -184,6 +192,7 @@ public class AuthenticationProviderOpenIDTest {
                 () -> basicProvider.verifyJWT(keyPair.getPublic(), SignatureAlgorithm.RS256.getValue(), jwt));
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void ensureFutureNBFFails() throws Exception {
         KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.RS256);
@@ -197,6 +206,7 @@ public class AuthenticationProviderOpenIDTest {
                 () -> basicProvider.verifyJWT(keyPair.getPublic(), SignatureAlgorithm.RS256.getValue(), jwt));
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void ensureWithoutNBFSucceeds() throws Exception {
         KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.RS256);
@@ -211,6 +221,7 @@ public class AuthenticationProviderOpenIDTest {
         basicProvider.verifyJWT(keyPair.getPublic(), SignatureAlgorithm.RS256.getValue(), jwt);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void ensureFutureIATFails() throws Exception {
         KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.RS256);
@@ -224,6 +235,7 @@ public class AuthenticationProviderOpenIDTest {
                 () -> basicProvider.verifyJWT(keyPair.getPublic(), SignatureAlgorithm.RS256.getValue(), jwt));
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void ensureRecentlyExpiredTokenWithinConfiguredLeewaySucceeds() throws Exception {
         KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.RS256);
@@ -374,7 +386,7 @@ public class AuthenticationProviderOpenIDTest {
 
         // Build an empty JWT
         DefaultJwtBuilder defaultJwtBuilder = new DefaultJwtBuilder();
-        HashMap<String, List<String>> claims = new HashMap();
+        HashMap<String, List<String>> claims = new HashMap<>();
         claims.put("roles", Collections.singletonList("my-role"));
         defaultJwtBuilder.setClaims(claims);
         defaultJwtBuilder.setAudience(basicProviderAudience);

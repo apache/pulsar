@@ -94,7 +94,7 @@ public class ManagedLedgerMetricsTest extends BrokerTestBase {
         List<Metrics> list1 = metrics.generate();
         Assert.assertTrue(list1.isEmpty());
 
-        var topicName = "persistent://my-property/use/my-ns/my-topic1";
+        var topicName = "persistent://my-property/my-ns/my-topic1";
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 

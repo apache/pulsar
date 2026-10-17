@@ -30,7 +30,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import javax.crypto.SecretKey;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
@@ -52,9 +52,10 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class ProxyRefreshAuthTest extends ProducerConsumerBase {
     private static final String CLUSTER_NAME = "proxy-authorization";
+    @SuppressWarnings("deprecation")
     private static final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
 
     private ProxyService proxyService;
@@ -160,9 +161,12 @@ public class ProxyRefreshAuthTest extends ProducerConsumerBase {
         return new Object[]{true, false};
     }
 
+    @SuppressWarnings("deprecation")
     @Test(dataProvider = "forwardAuthDataProvider")
     public void testAuthDataRefresh(boolean forwardAuthData) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info()
+                .attr("methodName", methodName)
+                .log("-- Starting test --");
 
         startProxy(forwardAuthData);
 

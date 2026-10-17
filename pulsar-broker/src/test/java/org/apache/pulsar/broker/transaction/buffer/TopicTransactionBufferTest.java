@@ -45,6 +45,7 @@ import org.apache.commons.lang3.RandomUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.PulsarStats;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicLoadingContext;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
@@ -180,7 +181,7 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
                         Mockito.eq(PersistentTopic.class));
 
         brokerService.createPersistentTopic0(new TopicLoadingContext(TopicName.get(topic), true,
-                new CompletableFuture<>()));
+                new CompletableFuture<>(), Mockito.mock(PulsarStats.class)));
 
         Awaitility.waitAtMost(1, TimeUnit.MINUTES).until(() -> reference.get() != null);
         PersistentTopic persistentTopic = reference.get();
@@ -489,6 +490,7 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
      * Send some messages before transaction buffer ready and then send some messages after transaction buffer ready,
      * these messages should be received in order.
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testMessagePublishInOrder() throws Exception {
         // 1. Prepare test environment.

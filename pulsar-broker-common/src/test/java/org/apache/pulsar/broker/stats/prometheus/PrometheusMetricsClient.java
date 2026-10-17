@@ -143,6 +143,7 @@ public class PrometheusMetricsClient {
         }
 
         @SafeVarargs
+        @SuppressWarnings("varargs")
         public final Metric findSingleMetricByNameAndLabels(String metricName, Pair<String, String>... nameValuePairs) {
             List<Metric> metricByNameAndLabels = findByNameAndLabels(metricName, nameValuePairs);
             if (metricByNameAndLabels.size() != 1) {

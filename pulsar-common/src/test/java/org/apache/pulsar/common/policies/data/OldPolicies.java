@@ -53,4 +53,9 @@ public class OldPolicies {
         return false;
     }
 
+    @Override
+    public int hashCode() {
+        return Objects.hash(authPolicies, replicationClusters, backlogQuotaMap, persistence, latencyStatsSampleRate);
+    }
+
 }

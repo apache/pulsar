@@ -79,6 +79,8 @@ public interface AsyncSemaphore {
      * Abstract base class for all exceptions thrown by acquire or update.
      */
     abstract class PermitAcquireException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+
         public PermitAcquireException(String message) {
             super(message);
         }
@@ -88,6 +90,8 @@ public interface AsyncSemaphore {
      * Exception thrown when permit acquisition times out.
      */
     class PermitAcquireTimeoutException extends PermitAcquireException {
+        private static final long serialVersionUID = 1L;
+
         public PermitAcquireTimeoutException(String message) {
             super(message);
         }
@@ -97,6 +101,8 @@ public interface AsyncSemaphore {
      * Exception thrown when permit acquisition queue is full.
      */
     class PermitAcquireQueueFullException extends PermitAcquireException {
+        private static final long serialVersionUID = 1L;
+
         public PermitAcquireQueueFullException(String message) {
             super(message);
         }
@@ -106,6 +112,8 @@ public interface AsyncSemaphore {
      * Exception thrown when permit acquisition is attempted on a closed semaphore.
      */
     class PermitAcquireAlreadyClosedException extends PermitAcquireException {
+        private static final long serialVersionUID = 1L;
+
         public PermitAcquireAlreadyClosedException(String message) {
             super(message);
         }
@@ -115,6 +123,8 @@ public interface AsyncSemaphore {
      * Exception thrown when permit acquisition is cancelled.
      */
     class PermitAcquireCancelledException extends PermitAcquireException {
+        private static final long serialVersionUID = 1L;
+
         public PermitAcquireCancelledException(String message) {
             super(message);
         }

@@ -24,17 +24,18 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import com.google.common.collect.Sets;
+import jakarta.ws.rs.client.Client;
+import jakarta.ws.rs.client.ClientBuilder;
+import jakarta.ws.rs.client.Invocation;
+import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import java.net.URI;
 import java.util.Optional;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.Invocation;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.websocket.WebSocketService;
@@ -45,14 +46,13 @@ import org.awaitility.Awaitility;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "websocket")
+@CustomLog
 public class ProxyAuthenticationTest extends ProducerConsumerBase {
 
     private ProxyServer proxyServer;
@@ -99,7 +99,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
             produceClient.stop();
             log.info("proxy clients are stopped successfully");
         } catch (Exception e) {
-            log.error(e.getMessage());
+            log.error().exception(e).log("Failed to stop proxy clients");
         }
 
         super.internalCleanup();
@@ -129,7 +129,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
         consumeClient.start();
         ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest(consumeUri);
         Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeRequest);
-        log.info("Connecting to : {}", consumeUri);
+        log.info().attr("uri", consumeUri).log("Connecting to");
 
         ClientUpgradeRequest produceRequest = new ClientUpgradeRequest(produceUri);
         produceClient.start();
@@ -217,6 +217,4 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
         Response response = invocationBuilder.get();
         Assert.assertEquals(response.getStatus(), 200);
     }
-
-    private static final Logger log = LoggerFactory.getLogger(ProxyAuthenticationTest.class);
 }
