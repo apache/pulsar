@@ -25,10 +25,10 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.fail;
+import jakarta.ws.rs.core.Response;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
-import javax.ws.rs.core.Response;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -37,7 +37,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-admin")
 public class AdminApiDynamicConfigurationsTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
@@ -53,24 +53,25 @@ public class AdminApiDynamicConfigurationsTest extends MockedPulsarServiceBaseTe
     }
 
     @Test
-    public void TestGetAllDynamicConfigurations() throws Exception {
-        Map<String,String> configs = admin.brokers().getAllDynamicConfigurations();
+    public void testGetAllDynamicConfigurations() throws Exception {
+        Map<String, String> configs = admin.brokers().getAllDynamicConfigurations();
         assertNotNull(configs);
     }
 
     @Test
-    public void TestDeleteDynamicConfiguration() throws Exception {
+    public void testDeleteDynamicConfiguration() throws Exception {
         admin.brokers().deleteDynamicConfiguration("dispatcherMinReadBatchSize");
     }
 
     @Test
-    public void TestDeleteInvalidDynamicConfiguration() {
+    public void testDeleteInvalidDynamicConfiguration() {
         try {
             admin.brokers().deleteDynamicConfiguration("errorName");
             fail("exception should be thrown");
         } catch (Exception e) {
             if (e instanceof PulsarAdminException) {
-                assertEquals(((PulsarAdminException) e).getStatusCode(), Response.Status.PRECONDITION_FAILED.getStatusCode());
+                assertEquals(((PulsarAdminException) e).getStatusCode(),
+                        Response.Status.PRECONDITION_FAILED.getStatusCode());
             } else {
                 fail("PulsarAdminException should be thrown");
             }
@@ -144,6 +145,23 @@ public class AdminApiDynamicConfigurationsTest extends MockedPulsarServiceBaseTe
         admin.brokers().deleteDynamicConfiguration("maxConcurrentTopicLoadRequest");
         Awaitility.await().untilAsserted(() -> {
             assertEquals(pulsar.getConfig().getMaxConcurrentTopicLoadRequest(), defaultValue);
+        });
+    }
+
+    @Test
+    public void testUpdateTopicLoadTimeoutSeconds() throws PulsarAdminException {
+        // Record the default value;
+        long defaultValue = pulsar.getConfig().getTopicLoadTimeoutSeconds();
+        // Set dynamic config.
+        long newValue = defaultValue + 1000;
+        admin.brokers().updateDynamicConfiguration("topicLoadTimeoutSeconds", newValue + "");
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(pulsar.getConfig().getTopicLoadTimeoutSeconds(), newValue);
+        });
+        // Verify: it has been reverted to the default value.
+        admin.brokers().deleteDynamicConfiguration("topicLoadTimeoutSeconds");
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(pulsar.getConfig().getTopicLoadTimeoutSeconds(), defaultValue);
         });
     }
 

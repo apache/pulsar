@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.admin.cli;
 
-import static org.apache.commons.lang.StringUtils.isBlank;
-import static org.apache.commons.lang.StringUtils.isNotBlank;
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import com.google.common.annotations.VisibleForTesting;
@@ -36,11 +36,12 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.WordUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
+import org.apache.pulsar.cli.ClientApi;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -57,10 +58,14 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
-@Slf4j
+@CustomLog
 @Command(description = "Interface for managing Pulsar Functions "
         + "(lightweight, Lambda-style compute processes that work with Pulsar)")
 public class CmdFunctions extends CmdBase {
+    static final String CLIENT_API_DESCRIPTION = "Pulsar client API that the Java runtime uses for the "
+            + "component's topics: ${COMPLETION-CANDIDATES}. Defaults to V5 when the topics are topic:// (scalable) "
+            + "topics and to V4 otherwise. Use V5 to drive persistent:// topics with the V5 client #Java";
+
     private final LocalRunner localRunner;
     private final CreateFunction creater;
     private final DeleteFunction deleter;
@@ -105,6 +110,16 @@ public class CmdFunctions extends CmdBase {
 
         @Option(names = "--namespace", description = "The namespace of a Pulsar Function")
         protected String namespace;
+
+        @Override
+        public void processArguments() {
+            if (tenant == null) {
+                tenant = PUBLIC_TENANT;
+            }
+            if (namespace == null) {
+                namespace = DEFAULT_NAMESPACE;
+            }
+        }
     }
 
     /**
@@ -287,10 +302,11 @@ public class CmdFunctions extends CmdBase {
         @Option(names = "--retainOrdering",
                 description = "Function consumes and processes messages in order", hidden = true)
         protected Boolean deprecatedRetainOrdering;
-        @Option(names = "--retain-ordering", description = "Function consumes and processes messages in order #Java")
+        @Option(names = "--retain-ordering",
+                description = "Function consumes and processes messages in order #Java, Python, Go")
         protected Boolean retainOrdering;
         @Option(names = "--retain-key-ordering",
-                description = "Function consumes and processes messages in key order #Java")
+                description = "Function consumes and processes messages in key order #Java, Python, Go")
         protected Boolean retainKeyOrdering;
         @Option(names = "--batch-builder", description = "BatcherBuilder provides two types of "
                 + "batch construction methods, DEFAULT and KEY_BASED. The default value is: DEFAULT")
@@ -307,6 +323,8 @@ public class CmdFunctions extends CmdBase {
         @Option(names = "--skip-to-latest", description = "Whether or not the consumer skip to latest message "
             + "upon function instance restart", arity = "1")
         protected Boolean skipToLatest;
+        @Option(names = ClientApi.OPTION_NAME, description = CmdFunctions.CLIENT_API_DESCRIPTION)
+        protected FunctionConfig.ClientApi clientApi;
         @Option(names = "--parallelism", description = "The parallelism factor of a Pulsar Function "
                 + "(i.e. the number of function instances to run) #Java")
         protected Integer parallelism;
@@ -360,7 +378,7 @@ public class CmdFunctions extends CmdBase {
         @Option(names = "--timeout-ms", description = "The message timeout in milliseconds #Java, Python")
         protected Long timeoutMs;
         @Option(names = "--max-message-retries",
-                description = "How many times should we try to process a message before giving up #Java")
+                description = "How many times should we try to process a message before giving up #Java, Python")
         protected Integer maxMessageRetries;
         @Option(names = "--custom-runtime-options", description = "A string that encodes options to "
                 + "customize the runtime, see docs for configured runtime for details #Java")
@@ -369,7 +387,7 @@ public class CmdFunctions extends CmdBase {
                 + "how the secret is fetched by the underlying secrets provider #Java, Python")
         protected String secretsString;
         @Option(names = "--dead-letter-topic",
-                description = "The topic where messages that are not processed successfully are sent to #Java")
+                description = "The topic where messages that are not processed successfully are sent to #Java, Python")
         protected String deadLetterTopic;
         @Option(names = "--runtime-flags", description = "Any flags that you want to pass to a runtime"
                 + " (for process & Kubernetes runtime only).")
@@ -426,6 +444,7 @@ public class CmdFunctions extends CmdBase {
             }
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         void processArguments() throws Exception {
             // merge deprecated args with new args
@@ -546,6 +565,10 @@ public class CmdFunctions extends CmdBase {
 
             if (null != skipToLatest) {
                 functionConfig.setSkipToLatest(skipToLatest);
+            }
+
+            if (null != clientApi) {
+                functionConfig.setClientApi(clientApi);
             }
 
             if (null != userConfigString) {

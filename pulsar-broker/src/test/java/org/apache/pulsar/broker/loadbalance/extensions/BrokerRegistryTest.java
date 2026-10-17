@@ -19,7 +19,10 @@
 package org.apache.pulsar.broker.loadbalance.extensions;
 
 import static org.apache.pulsar.broker.loadbalance.LoadManager.LOADBALANCE_BROKERS_ROOT;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -36,9 +39,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
+import lombok.CustomLog;
 import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -48,6 +52,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
@@ -63,7 +68,7 @@ import org.testng.annotations.Test;
 /**
  * Unit test for {@link BrokerRegistry}.
  */
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class BrokerRegistryTest {
 
@@ -164,7 +169,7 @@ public class BrokerRegistryTest {
         executor = new ThreadPoolExecutor(5, 20, 30, TimeUnit.SECONDS,
                 new LinkedBlockingQueue<>());
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble.start();
     }
 
@@ -291,7 +296,7 @@ public class BrokerRegistryTest {
     }
 
     @Test
-    public void testRegisterFailWithSameBrokerId() throws Exception {
+    public void testRegisterWithSameBrokerId() throws Exception {
         PulsarService pulsar1 = createPulsarService();
         PulsarService pulsar2 = createPulsarService();
         pulsar1.start();
@@ -301,14 +306,10 @@ public class BrokerRegistryTest {
         BrokerRegistryImpl brokerRegistry1 = createBrokerRegistryImpl(pulsar1);
         BrokerRegistryImpl brokerRegistry2 = createBrokerRegistryImpl(pulsar2);
         brokerRegistry1.start();
-        try {
-            brokerRegistry2.start();
-            fail();
-        } catch (Exception ex) {
-            log.info("Broker registry start failed.", ex);
-            assertTrue(ex instanceof PulsarServerException);
-            assertTrue(ex.getMessage().contains("LockBusyException"));
-        }
+        brokerRegistry2.start();
+
+        pulsar1.close();
+        pulsar2.close();
     }
 
     @Test
@@ -336,7 +337,7 @@ public class BrokerRegistryTest {
         assertEquals(getState(brokerRegistry), BrokerRegistryImpl.State.Started);
 
         // Check state after re-register.
-        brokerRegistry.register();
+        brokerRegistry.registerAsync().get();
         assertEquals(getState(brokerRegistry), BrokerRegistryImpl.State.Registered);
 
         // Check state after close.
@@ -350,7 +351,7 @@ public class BrokerRegistryTest {
             brokerRegistry.getAvailableBrokersAsync().get();
             fail();
         } catch (Exception ex) {
-            log.info("Failed to getAvailableBrokersAsync.", ex);
+            log.info().exception(ex).log("Failed to getAvailableBrokersAsync.");
             assertTrue(FutureUtil.unwrapCompletionException(ex) instanceof IllegalStateException);
         }
 
@@ -358,7 +359,7 @@ public class BrokerRegistryTest {
             brokerRegistry.getAvailableBrokerLookupDataAsync().get();
             fail();
         } catch (Exception ex) {
-            log.info("Failed to getAvailableBrokerLookupDataAsync.", ex);
+            log.info().exception(ex).log("Failed to getAvailableBrokerLookupDataAsync.");
             assertTrue(FutureUtil.unwrapCompletionException(ex) instanceof IllegalStateException);
         }
 
@@ -366,7 +367,7 @@ public class BrokerRegistryTest {
             brokerRegistry.lookupAsync("test").get();
             fail();
         } catch (Exception ex) {
-            log.info("Failed to lookupAsync.", ex);
+            log.info().exception(ex).log("Failed to lookupAsync.");
             assertTrue(FutureUtil.unwrapCompletionException(ex) instanceof IllegalStateException);
         }
 
@@ -376,7 +377,7 @@ public class BrokerRegistryTest {
             });
             fail();
         } catch (Exception ex) {
-            log.info("Failed to lookupAsync.", ex);
+            log.info().exception(ex).log("Failed to lookupAsync.");
             assertTrue(FutureUtil.unwrapCompletionException(ex) instanceof IllegalStateException);
         }
     }
@@ -400,8 +401,37 @@ public class BrokerRegistryTest {
         assertEquals(keyPath, LOADBALANCE_BROKERS_ROOT + "/brokerId");
     }
 
-    public BrokerRegistryImpl.State getState(BrokerRegistryImpl brokerRegistry) {
-        return WhiteboxImpl.getInternalState(brokerRegistry, BrokerRegistryImpl.State.class);
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testRegisterAsyncTimeout() throws Exception {
+        var pulsar1 = createPulsarService();
+        pulsar1.start();
+        pulsar1.getConfiguration().setMetadataStoreOperationTimeoutSeconds(1);
+        var metadataCache = mock(MetadataCache.class);
+        var brokerRegistry = new BrokerRegistryImpl(pulsar1, metadataCache);
+
+        // happy case
+        doReturn(CompletableFuture.completedFuture(null)).when(metadataCache).put(any(), any(), any());
+        brokerRegistry.start();
+
+        // unhappy case (timeout)
+        doAnswer(invocationOnMock -> {
+            return CompletableFuture.supplyAsync(() -> null, CompletableFuture.delayedExecutor(5, TimeUnit.SECONDS));
+        }).when(metadataCache).put(any(), any(), any());
+        try {
+            brokerRegistry.registerAsync().join();
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof TimeoutException);
+        }
+
+        // happy case again
+        doReturn(CompletableFuture.completedFuture(null)).when(metadataCache).put(any(), any(), any());
+        brokerRegistry.registerAsync().join();
+    }
+
+
+    private static BrokerRegistryImpl.State getState(BrokerRegistryImpl brokerRegistry) {
+        return brokerRegistry.state.get();
     }
 }
 

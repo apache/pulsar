@@ -58,10 +58,14 @@ public class CmdNamespaceIsolationPolicy extends CmdBase {
                 + "a secondary regex to select desired brokers. If no broker matches the specified regex, you cannot "
                 + "create a topic. If there are not enough primary brokers, topics are assigned to secondary brokers. "
                 + "If there are not enough secondary brokers, topics are assigned to other brokers which do not have "
-                + "any isolation policies.", required = true, split = ",")
+                + "any isolation policies. A regex is matched against the broker host name. A regex that contains "
+                + "':' is also matched against host:port, as brokers are listed by `pulsar-admin brokers list` "
+                + "(e.g. broker1:8080). For an IPv6 broker, put the address in escaped brackets "
+                + "(e.g. \\[2001:db8::1\\]:8080).", required = true, split = ",")
         private List<String> primary;
 
-        @Option(names = "--secondary", description = "comma separated secondary-broker-regex list",
+        @Option(names = "--secondary", description = "comma separated secondary-broker-regex list. "
+                + "Regexes are matched in the same way as for --primary.",
                 required = false, split = ",")
         private List<String> secondary = new ArrayList<String>(); // optional
 
@@ -75,12 +79,12 @@ public class CmdNamespaceIsolationPolicy extends CmdBase {
         private Map<String, String> autoFailoverPolicyParams;
 
         @Option(names = "--unload-scope", description = "configure the type of unload to do -"
-                + " ['all_matching', 'none', 'changed'] namespaces. By default, all namespaces matching the namespaces"
-                + " regex will be unloaded and placed again. You can choose to not unload any namespace while setting"
-                + " this new policy by choosing `none` or choose to unload only the namespaces whose placement will"
-                + " actually change. If you chose 'none', you will need to manually unload the namespaces for them to"
-                + " be placed correctly, or wait till some namespaces get load balanced automatically based on load"
-                + " shedding configurations.")
+                + " ['all_matching', 'none', 'changed'] namespaces. By default, only namespaces whose placement will"
+                + " actually change would be unloaded and placed again. You can choose to not unload any namespace"
+                + " while setting this new policy by choosing `none` or choose to unload all namespaces matching"
+                + " old (if any) and new namespace regex. If you chose 'none', you will need to manually unload the"
+                + " namespaces for them to be placed correctly, or wait till some namespaces get load balanced"
+                + " automatically based on load shedding configurations.")
         private NamespaceIsolationPolicyUnloadScope unloadScope;
 
         void run() throws PulsarAdminException {

@@ -31,7 +31,7 @@ public class ClientCnxIdleState {
     private final long createTime;
 
     /** The time when marks the connection is idle. **/
-    private long idleMarkTime;
+    private volatile long idleMarkTime;
 
     public ClientCnxIdleState(ClientCnx clientCnx){
         this.clientCnx = clientCnx;
@@ -171,6 +171,11 @@ public class ClientCnxIdleState {
             return;
         }
         if (isIdle()) {
+            // check if the connection is still idle, if not, mark it as using
+            if (!clientCnx.idleCheck() && compareAndSetIdleStat(State.IDLE, State.USING)) {
+                idleMarkTime = 0;
+                return;
+            }
             if (maxIdleSeconds * 1000 + idleMarkTime < System.currentTimeMillis()) {
                 tryMarkReleasing();
             }

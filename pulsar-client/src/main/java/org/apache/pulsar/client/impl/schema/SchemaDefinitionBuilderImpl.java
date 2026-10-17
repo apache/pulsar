@@ -99,9 +99,10 @@ public class SchemaDefinitionBuilderImpl<T> implements SchemaDefinitionBuilder<T
         return this;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
-    public SchemaDefinitionBuilder<T> withPojo(Class clazz) {
-        this.clazz = clazz;
+    public SchemaDefinitionBuilder<T> withPojo(Class<?> clazz) {
+        this.clazz = (Class<T>) clazz;
         return this;
     }
 
@@ -148,6 +149,7 @@ public class SchemaDefinitionBuilderImpl<T> implements SchemaDefinitionBuilder<T
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public  SchemaDefinition<T> build() {
         checkArgument(StringUtils.isNotBlank(jsonDef) || clazz != null,
                 "Must specify one of the pojo or jsonDef for the schema definition.");

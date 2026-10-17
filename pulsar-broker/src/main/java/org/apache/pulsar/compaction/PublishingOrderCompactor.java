@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.commons.lang3.tuple.ImmutableTriple;
 import org.apache.commons.lang3.tuple.Pair;
@@ -31,14 +32,9 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.impl.RawBatchConverter;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-
+@CustomLog
 public class PublishingOrderCompactor extends AbstractTwoPhaseCompactor<MessageId> {
-
-    private static final Logger log = LoggerFactory.getLogger(PublishingOrderCompactor.class);
-
     public PublishingOrderCompactor(ServiceConfiguration conf,
         PulsarClient pulsar,
         BookKeeper bk,
@@ -53,10 +49,10 @@ public class PublishingOrderCompactor extends AbstractTwoPhaseCompactor<MessageI
 
     @Override
     protected boolean compactMessage(String topic, Map<String, MessageId> latestForKey,
-        RawMessage m, MessageId id) {
+        RawMessage m, MessageMetadata metadata, MessageId id) {
         boolean deletedMessage = false;
         boolean replaceMessage = false;
-        Pair<String, Integer> keyAndSize = extractKeyAndSize(m);
+        Pair<String, Integer> keyAndSize = extractKeyAndSize(m, metadata);
         if (keyAndSize != null) {
             if (keyAndSize.getRight() > 0) {
                 MessageId old = latestForKey.put(keyAndSize.getLeft(), id);
@@ -84,7 +80,7 @@ public class PublishingOrderCompactor extends AbstractTwoPhaseCompactor<MessageI
             int numMessagesInBatch = metadata.getNumMessagesInBatch();
             int deleteCnt = 0;
             for (ImmutableTriple<MessageId, String, Integer> e : extractIdsAndKeysAndSizeFromBatch(
-                m)) {
+                m, metadata)) {
                 if (e != null) {
                     if (e.getMiddle() == null) {
                         if (!topicCompactionRetainNullKey) {
@@ -110,18 +106,19 @@ public class PublishingOrderCompactor extends AbstractTwoPhaseCompactor<MessageI
                 deletedMessage = true;
             }
         } catch (IOException ioe) {
-            log.info(
-                "Error decoding batch for message {}. Whole batch will be included in output",
-                id, ioe);
+            log.info()
+                    .attr("message", id)
+                    .exception(ioe)
+                    .log("Error decoding batch for message . Whole batch will be included in output");
         }
 
         return deletedMessage;
     }
 
     protected List<ImmutableTriple<MessageId, String, Integer>> extractIdsAndKeysAndSizeFromBatch(
-        RawMessage msg)
+        RawMessage msg, MessageMetadata metadata)
         throws IOException {
-        return RawBatchConverter.extractIdsAndKeysAndSize(msg);
+        return RawBatchConverter.extractIdsAndKeysAndSize(msg, metadata);
     }
 
 }

@@ -44,7 +44,7 @@ import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.utils.StatsOutputStream;
 
@@ -127,6 +127,10 @@ public interface Topic {
         default void setEntryTimestamp(long entryTimestamp) {
 
         }
+
+        default boolean supportsReplDedupByLidAndEid() {
+            return false;
+        }
     }
 
     CompletableFuture<Void> initialize();
@@ -183,7 +187,7 @@ public interface Topic {
 
     CompletableFuture<Void> unsubscribe(String subName);
 
-    ConcurrentOpenHashMap<String, ? extends Subscription> getSubscriptions();
+    Map<String, ? extends Subscription> getSubscriptions();
 
     CompletableFuture<Void> delete();
 
@@ -265,9 +269,9 @@ public interface Topic {
 
     Subscription getSubscription(String subscription);
 
-    ConcurrentOpenHashMap<String, ? extends Replicator> getReplicators();
+    Map<String, ? extends Replicator> getReplicators();
 
-    ConcurrentOpenHashMap<String, ? extends Replicator> getShadowReplicators();
+    Map<String, ? extends Replicator> getShadowReplicators();
 
     TopicStatsImpl getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize,
                             boolean getEarliestTimeInBacklog);
@@ -288,7 +292,8 @@ public interface Topic {
      * Get the last message position that can be dispatch.
      */
     default CompletableFuture<Position> getLastDispatchablePosition() {
-        throw new UnsupportedOperationException("getLastDispatchablePosition is not supported by default");
+        return FutureUtil.failedFuture(
+                new UnsupportedOperationException("getLastDispatchablePosition is not supported by default"));
     }
 
     CompletableFuture<MessageId> getLastMessageId();
@@ -303,6 +308,14 @@ public interface Topic {
      * schema.
      */
     CompletableFuture<SchemaVersion> addSchema(SchemaData schema);
+
+    /**
+     * Add a schema to the topic, with an optional override for replication schema auto-update.
+     * The default implementation preserves existing behavior.
+     */
+    default CompletableFuture<SchemaVersion> addSchema(SchemaData schema, boolean isReplicatorProducer) {
+        return addSchema(schema);
+    }
 
     /**
      * Delete the schema if this topic has a schema defined for it.

@@ -26,7 +26,7 @@ import java.net.URL;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -47,7 +47,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-admin")
-@Slf4j
+@CustomLog
 public class GetPartitionMetadataMultiBrokerTest extends GetPartitionMetadataTest {
 
     private PulsarService pulsar2;
@@ -135,7 +135,7 @@ public class GetPartitionMetadataMultiBrokerTest extends GetPartitionMetadataTes
         } catch (Exception ex) {
             // If the namespace bundle has not been loaded yet, it means no non-persistent topic was created. So
             //   this behavior is also correct.
-            // This error is not expected, a seperated PR is needed to fix this issue.
+            // This error is not expected, a separate PR is needed to fix this issue.
             assertTrue(ex.getMessage().contains("Failed to find ownership for"));
         }
     }
@@ -148,7 +148,7 @@ public class GetPartitionMetadataMultiBrokerTest extends GetPartitionMetadataTes
         } catch (Exception ex) {
             // If the namespace bundle has not been loaded yet, it means no non-persistent topic was created. So
             //   this behavior is also correct.
-            // This error is not expected, a seperated PR is needed to fix this issue.
+            // This error is not expected, a separate PR is needed to fix this issue.
             assertTrue(ex.getMessage().contains("Failed to find ownership for"));
         }
     }
@@ -253,11 +253,15 @@ public class GetPartitionMetadataMultiBrokerTest extends GetPartitionMetadataTes
                                                   boolean isUsingHttpLookup) throws Exception {
         modifyTopicAutoCreation(configAllowAutoTopicCreation, TopicType.PARTITIONED, 3);
 
+        // Verify: the method "getPartitionsForTopic(topic, false, true)" will fallback
+        //   to "getPartitionsForTopic(topic, true)" behavior.
+        int lookupPermitsBefore = getLookupRequestPermits();
+
         // Initialize the connections of internal Pulsar Client.
         PulsarClientImpl client1 = (PulsarClientImpl) pulsar1.getClient();
         PulsarClientImpl client2 = (PulsarClientImpl) pulsar2.getClient();
-        client1.getLookup(pulsar2.getBrokerServiceUrl()).getBroker(TopicName.get(DEFAULT_NS + "/tp1"));
-        client2.getLookup(pulsar1.getBrokerServiceUrl()).getBroker(TopicName.get(DEFAULT_NS + "/tp1"));
+        client1.getLookup(pulsar2.getBrokerServiceUrl()).getBroker(TopicName.get(DEFAULT_NS + "/tp1")).join();
+        client2.getLookup(pulsar1.getBrokerServiceUrl()).getBroker(TopicName.get(DEFAULT_NS + "/tp1")).join();
 
         // Inject a not support flag into the connections initialized.
         Field field = ClientCnx.class.getDeclaredField("supportsGetPartitionedMetadataWithoutAutoCreation");
@@ -270,9 +274,6 @@ public class GetPartitionMetadataMultiBrokerTest extends GetPartitionMetadataTes
                 field.set(clientCnx, false);
             }
         }
-        // Verify: the method "getPartitionsForTopic(topic, false, true)" will fallback
-        //   to "getPartitionsForTopic(topic, true)" behavior.
-        int lookupPermitsBefore = getLookupRequestPermits();
 
         // Verify: we will not get an un-support error.
         PulsarClientImpl[] clientArray = getClientsToTest(isUsingHttpLookup);
@@ -282,7 +283,7 @@ public class GetPartitionMetadataMultiBrokerTest extends GetPartitionMetadataTes
                 PartitionedTopicMetadata topicMetadata = client
                         .getPartitionedTopicMetadata(topicNameStr, paramMetadataAutoCreationEnabled, false)
                         .join();
-                log.info("Get topic metadata: {}", topicMetadata.partitions);
+                log.info().attr("partitions", topicMetadata.partitions).log("Get topic metadata");
             } catch (Exception ex) {
                 Throwable unwrapEx = FutureUtil.unwrapCompletionException(ex);
                 assertTrue(unwrapEx instanceof PulsarClientException.TopicDoesNotExistException

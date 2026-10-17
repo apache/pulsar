@@ -26,6 +26,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import com.google.common.collect.Lists;
+import jakarta.ws.rs.core.Response;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -35,7 +36,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
-import javax.ws.rs.core.Response;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
@@ -47,9 +47,9 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
-import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
-import org.apache.pulsar.functions.proto.Function.SubscriptionType;
+import org.apache.pulsar.functions.proto.FunctionDetails;
+import org.apache.pulsar.functions.proto.FunctionMetaData;
+import org.apache.pulsar.functions.proto.SubscriptionType;
 import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.worker.WorkerConfig;
@@ -72,15 +72,13 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
         mockInstanceUtils();
         final List<String> functions = Lists.newArrayList("test-1", "test-2");
         final List<FunctionMetaData> metaDataList = new LinkedList<>();
-        FunctionMetaData functionMetaData1 = FunctionMetaData.newBuilder().setFunctionDetails(
-                FunctionDetails.newBuilder().setName("test-1").build()
-        ).build();
-        FunctionMetaData functionMetaData2 = FunctionMetaData.newBuilder().setFunctionDetails(
-                FunctionDetails.newBuilder().setName("test-2").build()
-        ).build();
+        FunctionMetaData functionMetaData1 = new FunctionMetaData();
+        functionMetaData1.setFunctionDetails().setName("test-1");
+        FunctionMetaData functionMetaData2 = new FunctionMetaData();
+        functionMetaData2.setFunctionDetails().setName("test-2");
         metaDataList.add(functionMetaData1);
         metaDataList.add(functionMetaData2);
-        when(mockedManager.listFunctions(eq(tenant), eq(namespace))).thenReturn(metaDataList);
+        when(mockedManager.listFunctions(eq(TENANT), eq(NAMESPACE))).thenReturn(metaDataList);
 
         List<String> functionList = listDefaultFunctions();
         assertEquals(functions, functionList);
@@ -90,25 +88,19 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
     public void testOnlyGetSources() {
         List<String> functions = Lists.newArrayList("test-2");
         List<FunctionMetaData> functionMetaDataList = new LinkedList<>();
-        FunctionMetaData f1 = FunctionMetaData.newBuilder().setFunctionDetails(
-                FunctionDetails.newBuilder()
-                        .setName("test-1")
-                        .setComponentType(FunctionDetails.ComponentType.SOURCE)
-                        .build()).build();
+        FunctionMetaData f1 = new FunctionMetaData();
+        f1.setFunctionDetails().setName("test-1")
+                .setComponentType(FunctionDetails.ComponentType.SOURCE);
         functionMetaDataList.add(f1);
-        FunctionMetaData f2 = FunctionMetaData.newBuilder().setFunctionDetails(
-                FunctionDetails.newBuilder()
-                        .setName("test-2")
-                        .setComponentType(FunctionDetails.ComponentType.FUNCTION)
-                        .build()).build();
+        FunctionMetaData f2 = new FunctionMetaData();
+        f2.setFunctionDetails().setName("test-2")
+                .setComponentType(FunctionDetails.ComponentType.FUNCTION);
         functionMetaDataList.add(f2);
-        FunctionMetaData f3 = FunctionMetaData.newBuilder().setFunctionDetails(
-                FunctionDetails.newBuilder()
-                        .setName("test-3")
-                        .setComponentType(FunctionDetails.ComponentType.SINK)
-                        .build()).build();
+        FunctionMetaData f3 = new FunctionMetaData();
+        f3.setFunctionDetails().setName("test-3")
+                .setComponentType(FunctionDetails.ComponentType.SINK);
         functionMetaDataList.add(f3);
-        when(mockedManager.listFunctions(eq(tenant), eq(namespace))).thenReturn(functionMetaDataList);
+        when(mockedManager.listFunctions(eq(TENANT), eq(NAMESPACE))).thenReturn(functionMetaDataList);
 
         List<String> functionList = listDefaultFunctions();
         assertEquals(functions, functionList);
@@ -129,18 +121,18 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
         }
     }
 
-    protected static final String function = "test-function";
-    protected static final String outputTopic = "test-output-topic";
-    protected static final String outputSerdeClassName = TopicSchema.DEFAULT_SERDE;
-    protected static final String className = TestFunction.class.getName();
+    protected static final String FUNCTION = "test-function";
+    protected static final String OUTPUT_TOPIC = "test-output-topic";
+    protected static final String OUTPUT_SERDE_CLASS_NAME = TopicSchema.DEFAULT_SERDE;
+    protected static final String CLASS_NAME = TestFunction.class.getName();
     protected SubscriptionType subscriptionType = SubscriptionType.FAILOVER;
     protected FunctionMetaData mockedFunctionMetadata;
 
 
     @Override
     protected void doSetup() {
-        this.mockedFunctionMetadata =
-                FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
+        this.mockedFunctionMetadata = new FunctionMetaData();
+        this.mockedFunctionMetadata.setFunctionDetails().copyFrom(createDefaultFunctionDetails());
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetadata);
     }
 
@@ -150,10 +142,10 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
     }
 
 
-    abstract protected void registerFunction(String tenant, String namespace, String function, InputStream inputStream,
-                                    FormDataContentDisposition details, String functionPkgUrl, FunctionConfig functionConfig)
+    protected abstract void registerFunction(String tenant, String namespace, String function, InputStream inputStream,
+                              FormDataContentDisposition details, String functionPkgUrl, FunctionConfig functionConfig)
             throws IOException;
-    abstract protected void updateFunction(String tenant,
+    protected abstract void updateFunction(String tenant,
                                   String namespace,
                                   String functionName,
                                   InputStream uploadedInputStream,
@@ -163,29 +155,29 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
                                   AuthenticationParameters authParams,
                                   UpdateOptionsImpl updateOptions) throws IOException;
 
-    abstract protected File downloadFunction(final String path, final AuthenticationParameters authParams)
+    protected abstract File downloadFunction(String path, AuthenticationParameters authParams)
             throws IOException;
 
-    abstract protected void testDeregisterFunctionMissingArguments(
+    protected abstract void testDeregisterFunctionMissingArguments(
             String tenant,
             String namespace,
             String function
     );
 
-    abstract protected void deregisterDefaultFunction();
+    protected abstract void deregisterDefaultFunction();
 
-    abstract protected void testGetFunctionMissingArguments(
+    protected abstract void testGetFunctionMissingArguments(
             String tenant,
             String namespace,
             String function
     ) throws IOException;
 
-    abstract protected void testListFunctionsMissingArguments(
+    protected abstract void testListFunctionsMissingArguments(
             String tenant,
             String namespace
     );
 
-    abstract protected List<String> listDefaultFunctions();
+    protected abstract List<String> listDefaultFunctions();
 
     //
     // Register Functions
@@ -196,15 +188,15 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
         try {
             testRegisterFunctionMissingArguments(
                     null,
-                    namespace,
-                    function,
+                    NAMESPACE,
+                    FUNCTION,
                     mockedInputStream,
-                    topicsToSerDeClassName,
+                    TOPICS_TO_SER_DE_CLASS_NAME,
                     mockedFormData,
-                    outputTopic,
-                    outputSerdeClassName,
-                    className,
-                    parallelism,
+                    OUTPUT_TOPIC,
+                    OUTPUT_SERDE_CLASS_NAME,
+                    CLASS_NAME,
+                    PARALLELISM,
                     null);
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
@@ -216,16 +208,16 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
     public void testRegisterFunctionMissingNamespace() throws IOException {
         try {
             testRegisterFunctionMissingArguments(
-                    tenant,
+                    TENANT,
                     null,
-                    function,
+                    FUNCTION,
                     mockedInputStream,
-                    topicsToSerDeClassName,
+                    TOPICS_TO_SER_DE_CLASS_NAME,
                     mockedFormData,
-                    outputTopic,
-                    outputSerdeClassName,
-                    className,
-                    parallelism,
+                    OUTPUT_TOPIC,
+                    OUTPUT_SERDE_CLASS_NAME,
+                    CLASS_NAME,
+                    PARALLELISM,
                     null);
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
@@ -237,16 +229,16 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
     public void testRegisterFunctionMissingFunctionName() throws IOException {
         try {
             testRegisterFunctionMissingArguments(
-                    tenant,
-                    namespace,
+                    TENANT,
+                    NAMESPACE,
                     null,
                     mockedInputStream,
-                    topicsToSerDeClassName,
+                    TOPICS_TO_SER_DE_CLASS_NAME,
                     mockedFormData,
-                    outputTopic,
-                    outputSerdeClassName,
-                    className,
-                    parallelism,
+                    OUTPUT_TOPIC,
+                    OUTPUT_SERDE_CLASS_NAME,
+                    CLASS_NAME,
+                    PARALLELISM,
                     null);
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
@@ -259,16 +251,16 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
     public void testRegisterFunctionMissingPackage() throws IOException {
         try {
             testRegisterFunctionMissingArguments(
-                    tenant,
-                    namespace,
-                    function,
+                    TENANT,
+                    NAMESPACE,
+                    FUNCTION,
                     null,
-                    topicsToSerDeClassName,
+                    TOPICS_TO_SER_DE_CLASS_NAME,
                     mockedFormData,
-                    outputTopic,
-                    outputSerdeClassName,
-                    className,
-                    parallelism,
+                    OUTPUT_TOPIC,
+                    OUTPUT_SERDE_CLASS_NAME,
+                    CLASS_NAME,
+                    PARALLELISM,
                     null);
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
@@ -281,16 +273,16 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
     public void testRegisterFunctionMissingInputTopics() throws IOException {
         try {
             testRegisterFunctionMissingArguments(
-                    tenant,
-                    namespace,
-                    function,
+                    TENANT,
+                    NAMESPACE,
+                    FUNCTION,
                     mockedInputStream,
                     null,
                     mockedFormData,
-                    outputTopic,
-                    outputSerdeClassName,
-                    className,
-                    parallelism,
+                    OUTPUT_TOPIC,
+                    OUTPUT_SERDE_CLASS_NAME,
+                    CLASS_NAME,
+                    PARALLELISM,
                     null);
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
@@ -303,16 +295,16 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
     public void testRegisterFunctionMissingPackageDetails() throws IOException {
         try {
             testRegisterFunctionMissingArguments(
-                    tenant,
-                    namespace,
-                    function,
+                    TENANT,
+                    NAMESPACE,
+                    FUNCTION,
                     mockedInputStream,
-                    topicsToSerDeClassName,
+                    TOPICS_TO_SER_DE_CLASS_NAME,
                     null,
-                    outputTopic,
-                    outputSerdeClassName,
-                    className,
-                    parallelism,
+                    OUTPUT_TOPIC,
+                    OUTPUT_SERDE_CLASS_NAME,
+                    CLASS_NAME,
+                    PARALLELISM,
                     null);
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
@@ -325,16 +317,16 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
     public void testRegisterFunctionMissingClassName() throws IOException {
         try {
             testRegisterFunctionMissingArguments(
-                    tenant,
-                    namespace,
-                    function,
+                    TENANT,
+                    NAMESPACE,
+                    FUNCTION,
                     mockedInputStream,
-                    topicsToSerDeClassName,
+                    TOPICS_TO_SER_DE_CLASS_NAME,
                     mockedFormData,
-                    outputTopic,
-                    outputSerdeClassName,
+                    OUTPUT_TOPIC,
+                    OUTPUT_SERDE_CLASS_NAME,
                     null,
-                    parallelism,
+                    PARALLELISM,
                     null);
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
@@ -347,16 +339,16 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
     public void testRegisterFunctionWrongClassName() throws IOException {
         try {
             testRegisterFunctionMissingArguments(
-                    tenant,
-                    namespace,
-                    function,
+                    TENANT,
+                    NAMESPACE,
+                    FUNCTION,
                     mockedInputStream,
-                    topicsToSerDeClassName,
+                    TOPICS_TO_SER_DE_CLASS_NAME,
                     mockedFormData,
-                    outputTopic,
-                    outputSerdeClassName,
+                    OUTPUT_TOPIC,
+                    OUTPUT_SERDE_CLASS_NAME,
                     "UnknownClass",
-                    parallelism,
+                    PARALLELISM,
                     null);
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
@@ -369,15 +361,15 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
     public void testRegisterFunctionWrongParallelism() throws IOException {
         try {
             testRegisterFunctionMissingArguments(
-                    tenant,
-                    namespace,
-                    function,
+                    TENANT,
+                    NAMESPACE,
+                    FUNCTION,
                     mockedInputStream,
-                    topicsToSerDeClassName,
+                    TOPICS_TO_SER_DE_CLASS_NAME,
                     mockedFormData,
-                    outputTopic,
-                    outputSerdeClassName,
-                    className,
+                    OUTPUT_TOPIC,
+                    OUTPUT_SERDE_CLASS_NAME,
+                    CLASS_NAME,
                     -2,
                     null);
         } catch (RestException re) {
@@ -392,16 +384,16 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
     public void testRegisterFunctionSameInputOutput() throws IOException {
         try {
             testRegisterFunctionMissingArguments(
-                    tenant,
-                    namespace,
-                    function,
+                    TENANT,
+                    NAMESPACE,
+                    FUNCTION,
                     mockedInputStream,
-                    topicsToSerDeClassName,
+                    TOPICS_TO_SER_DE_CLASS_NAME,
                     mockedFormData,
-                    topicsToSerDeClassName.keySet().iterator().next(),
-                    outputSerdeClassName,
-                    className,
-                    parallelism,
+                    TOPICS_TO_SER_DE_CLASS_NAME.keySet().iterator().next(),
+                    OUTPUT_SERDE_CLASS_NAME,
+                    CLASS_NAME,
+                    PARALLELISM,
                     null);
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
@@ -409,21 +401,21 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Output topic " + function
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Output topic " + FUNCTION
             + "-output-topic/test:" + " is invalid")
     public void testRegisterFunctionWrongOutputTopic() throws IOException {
         try {
             testRegisterFunctionMissingArguments(
-                    tenant,
-                    namespace,
-                    function,
+                    TENANT,
+                    NAMESPACE,
+                    FUNCTION,
                     mockedInputStream,
-                    topicsToSerDeClassName,
+                    TOPICS_TO_SER_DE_CLASS_NAME,
                     mockedFormData,
-                    function + "-output-topic/test:",
-                    outputSerdeClassName,
-                    className,
-                    parallelism,
+                    FUNCTION + "-output-topic/test:",
+                    OUTPUT_SERDE_CLASS_NAME,
+                    CLASS_NAME,
+                    PARALLELISM,
                     null);
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
@@ -436,16 +428,16 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
     public void testRegisterFunctionHttpUrl() throws IOException {
         try {
             testRegisterFunctionMissingArguments(
-                    tenant,
-                    namespace,
-                    function,
+                    TENANT,
+                    NAMESPACE,
+                    FUNCTION,
                     null,
-                    topicsToSerDeClassName,
+                    TOPICS_TO_SER_DE_CLASS_NAME,
                     null,
-                    outputTopic,
-                    outputSerdeClassName,
-                    className,
-                    parallelism,
+                    OUTPUT_TOPIC,
+                    OUTPUT_SERDE_CLASS_NAME,
+                    CLASS_NAME,
+                    PARALLELISM,
                     "http://localhost:1234/test");
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
@@ -458,16 +450,16 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
     public void testRegisterFunctionImplementWrongInterface() throws IOException {
         try {
             testRegisterFunctionMissingArguments(
-                    tenant,
-                    namespace,
-                    function,
+                    TENANT,
+                    NAMESPACE,
+                    FUNCTION,
                     mockedInputStream,
-                    topicsToSerDeClassName,
+                    TOPICS_TO_SER_DE_CLASS_NAME,
                     mockedFormData,
-                    outputTopic,
-                    outputSerdeClassName,
+                    OUTPUT_TOPIC,
+                    OUTPUT_SERDE_CLASS_NAME,
                     WrongFunction.class.getName(),
-                    parallelism,
+                    PARALLELISM,
                     null);
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
@@ -520,12 +512,12 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
 
     @Test(expectedExceptions = Exception.class, expectedExceptionsMessageRegExp = "Function config is not provided")
     public void testUpdateMissingFunctionConfig() throws IOException {
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+        when(mockedManager.containsFunction(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(true);
 
         updateFunction(
-                tenant,
-                namespace,
-                function,
+                TENANT,
+                NAMESPACE,
+                FUNCTION,
                 mockedInputStream,
                 mockedFormData,
                 null,
@@ -540,7 +532,7 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
 
     private void registerDefaultFunctionWithPackageUrl(String packageUrl) throws IOException {
         FunctionConfig functionConfig = createDefaultFunctionConfig();
-        registerFunction(tenant, namespace, function, mockedInputStream, mockedFormData, packageUrl, functionConfig);
+        registerFunction(TENANT, NAMESPACE, FUNCTION, mockedInputStream, mockedFormData, packageUrl, functionConfig);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function test-function already"
@@ -548,7 +540,7 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
     public void testRegisterExistedFunction() throws IOException {
         try {
             Configurator.setRootLevel(Level.DEBUG);
-            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+            when(mockedManager.containsFunction(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(true);
             registerDefaultFunction();
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
@@ -570,7 +562,7 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
                 ).thenThrow(new IOException("upload failure"));
             });
 
-            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+            when(mockedManager.containsFunction(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(false);
 
             registerDefaultFunction();
         } catch (RestException re) {
@@ -584,7 +576,7 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
         try {
             mockWorkerUtils();
 
-            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+            when(mockedManager.containsFunction(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(false);
 
             registerDefaultFunction();
         } catch (RestException re) {
@@ -637,7 +629,7 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
         try {
             mockWorkerUtils();
 
-            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+            when(mockedManager.containsFunction(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(false);
 
             doThrow(new IllegalArgumentException("function failed to register"))
                     .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), Mockito.anyBoolean());
@@ -655,7 +647,7 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
         try {
             mockWorkerUtils();
 
-            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+            when(mockedManager.containsFunction(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(false);
 
             doThrow(new IllegalStateException("Function registration interrupted"))
                     .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), Mockito.anyBoolean());
@@ -676,15 +668,15 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
         try {
             testUpdateFunctionMissingArguments(
                     null,
-                    namespace,
-                    function,
+                    NAMESPACE,
+                    FUNCTION,
                     mockedInputStream,
-                    topicsToSerDeClassName,
+                    TOPICS_TO_SER_DE_CLASS_NAME,
                     mockedFormData,
-                    outputTopic,
-                    outputSerdeClassName,
-                    className,
-                    parallelism,
+                    OUTPUT_TOPIC,
+                    OUTPUT_SERDE_CLASS_NAME,
+                    CLASS_NAME,
+                    PARALLELISM,
                     "Tenant is not provided");
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
@@ -696,16 +688,16 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
     public void testUpdateFunctionMissingNamespace() throws Exception {
         try {
             testUpdateFunctionMissingArguments(
-                    tenant,
+                    TENANT,
                     null,
-                    function,
+                    FUNCTION,
                     mockedInputStream,
-                    topicsToSerDeClassName,
+                    TOPICS_TO_SER_DE_CLASS_NAME,
                     mockedFormData,
-                    outputTopic,
-                    outputSerdeClassName,
-                    className,
-                    parallelism,
+                    OUTPUT_TOPIC,
+                    OUTPUT_SERDE_CLASS_NAME,
+                    CLASS_NAME,
+                    PARALLELISM,
                     "Namespace is not provided");
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
@@ -717,16 +709,16 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
     public void testUpdateFunctionMissingFunctionName() throws Exception {
         try {
             testUpdateFunctionMissingArguments(
-                    tenant,
-                    namespace,
+                    TENANT,
+                    NAMESPACE,
                     null,
                     mockedInputStream,
-                    topicsToSerDeClassName,
+                    TOPICS_TO_SER_DE_CLASS_NAME,
                     mockedFormData,
-                    outputTopic,
-                    outputSerdeClassName,
-                    className,
-                    parallelism,
+                    OUTPUT_TOPIC,
+                    OUTPUT_SERDE_CLASS_NAME,
+                    CLASS_NAME,
+                    PARALLELISM,
                     "Function name is not provided");
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
@@ -739,16 +731,16 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
         try {
             mockWorkerUtils();
             testUpdateFunctionMissingArguments(
-                    tenant,
-                    namespace,
-                    function,
+                    TENANT,
+                    NAMESPACE,
+                    FUNCTION,
                     null,
-                    topicsToSerDeClassName,
+                    TOPICS_TO_SER_DE_CLASS_NAME,
                     mockedFormData,
-                    outputTopic,
-                    outputSerdeClassName,
-                    className,
-                    parallelism,
+                    OUTPUT_TOPIC,
+                    OUTPUT_SERDE_CLASS_NAME,
+                    CLASS_NAME,
+                    PARALLELISM,
                     "Update contains no change");
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
@@ -762,16 +754,16 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
             mockWorkerUtils();
 
             testUpdateFunctionMissingArguments(
-                    tenant,
-                    namespace,
-                    function,
+                    TENANT,
+                    NAMESPACE,
+                    FUNCTION,
                     null,
                     null,
                     mockedFormData,
-                    outputTopic,
-                    outputSerdeClassName,
-                    className,
-                    parallelism,
+                    OUTPUT_TOPIC,
+                    OUTPUT_SERDE_CLASS_NAME,
+                    CLASS_NAME,
+                    PARALLELISM,
                     "Update contains no change");
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
@@ -785,16 +777,16 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
             mockWorkerUtils();
 
             testUpdateFunctionMissingArguments(
-                    tenant,
-                    namespace,
-                    function,
+                    TENANT,
+                    NAMESPACE,
+                    FUNCTION,
                     null,
-                    topicsToSerDeClassName,
+                    TOPICS_TO_SER_DE_CLASS_NAME,
                     mockedFormData,
-                    outputTopic,
-                    outputSerdeClassName,
+                    OUTPUT_TOPIC,
+                    OUTPUT_SERDE_CLASS_NAME,
                     null,
-                    parallelism,
+                    PARALLELISM,
                     "Update contains no change");
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
@@ -808,16 +800,16 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
             mockWorkerUtils();
 
             testUpdateFunctionMissingArguments(
-                    tenant,
-                    namespace,
-                    function,
+                    TENANT,
+                    NAMESPACE,
+                    FUNCTION,
                     null,
-                    topicsToSerDeClassName,
+                    TOPICS_TO_SER_DE_CLASS_NAME,
                     mockedFormData,
-                    outputTopic,
-                    outputSerdeClassName,
+                    OUTPUT_TOPIC,
+                    OUTPUT_SERDE_CLASS_NAME,
                     null,
-                    parallelism + 1,
+                    PARALLELISM + 1,
                     null);
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
@@ -830,16 +822,16 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
         mockWorkerUtils();
 
         testUpdateFunctionMissingArguments(
-                tenant,
-                namespace,
-                function,
+                TENANT,
+                NAMESPACE,
+                FUNCTION,
                 null,
-                topicsToSerDeClassName,
+                TOPICS_TO_SER_DE_CLASS_NAME,
                 mockedFormData,
                 "DifferentOutput",
-                outputSerdeClassName,
+                OUTPUT_SERDE_CLASS_NAME,
                 null,
-                parallelism,
+                PARALLELISM,
                 null);
     }
 
@@ -851,16 +843,16 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
             Map<String, String> someOtherInput = new HashMap<>();
             someOtherInput.put("DifferentTopic", TopicSchema.DEFAULT_SERDE);
             testUpdateFunctionMissingArguments(
-                    tenant,
-                    namespace,
-                    function,
+                    TENANT,
+                    NAMESPACE,
+                    FUNCTION,
                     null,
                     someOtherInput,
                     mockedFormData,
-                    outputTopic,
-                    outputSerdeClassName,
+                    OUTPUT_TOPIC,
+                    OUTPUT_SERDE_CLASS_NAME,
                     null,
-                    parallelism,
+                    PARALLELISM,
                     "Input Topics cannot be altered");
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
@@ -932,20 +924,20 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
 
     private void updateDefaultFunctionWithPackageUrl(String packageUrl) throws IOException {
         FunctionConfig functionConfig = new FunctionConfig();
-        functionConfig.setTenant(tenant);
-        functionConfig.setNamespace(namespace);
-        functionConfig.setName(function);
-        functionConfig.setClassName(className);
-        functionConfig.setParallelism(parallelism);
+        functionConfig.setTenant(TENANT);
+        functionConfig.setNamespace(NAMESPACE);
+        functionConfig.setName(FUNCTION);
+        functionConfig.setClassName(CLASS_NAME);
+        functionConfig.setParallelism(PARALLELISM);
         functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
-        functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
-        functionConfig.setOutput(outputTopic);
-        functionConfig.setOutputSerdeClassName(outputSerdeClassName);
+        functionConfig.setCustomSerdeInputs(TOPICS_TO_SER_DE_CLASS_NAME);
+        functionConfig.setOutput(OUTPUT_TOPIC);
+        functionConfig.setOutputSerdeClassName(OUTPUT_SERDE_CLASS_NAME);
 
         updateFunction(
-                tenant,
-                namespace,
-                function,
+                TENANT,
+                NAMESPACE,
+                FUNCTION,
                 mockedInputStream,
                 mockedFormData,
                 packageUrl,
@@ -957,7 +949,7 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
             + " exist")
     public void testUpdateNotExistedFunction() throws IOException {
         try {
-            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+            when(mockedManager.containsFunction(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(false);
             updateDefaultFunction();
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
@@ -978,7 +970,7 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
                 }).thenThrow(new IOException("upload failure"));
             });
 
-            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+            when(mockedManager.containsFunction(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(true);
 
             updateDefaultFunction();
         } catch (RestException re) {
@@ -991,7 +983,7 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
     public void testUpdateFunctionSuccess() throws Exception {
         mockWorkerUtils();
 
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+        when(mockedManager.containsFunction(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(true);
 
         updateDefaultFunction();
     }
@@ -1004,22 +996,22 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
         String filePackageUrl = "file://" + fileLocation;
 
         FunctionConfig functionConfig = new FunctionConfig();
-        functionConfig.setOutput(outputTopic);
-        functionConfig.setOutputSerdeClassName(outputSerdeClassName);
-        functionConfig.setTenant(tenant);
-        functionConfig.setNamespace(namespace);
-        functionConfig.setName(function);
-        functionConfig.setClassName(className);
-        functionConfig.setParallelism(parallelism);
+        functionConfig.setOutput(OUTPUT_TOPIC);
+        functionConfig.setOutputSerdeClassName(OUTPUT_SERDE_CLASS_NAME);
+        functionConfig.setTenant(TENANT);
+        functionConfig.setNamespace(NAMESPACE);
+        functionConfig.setName(FUNCTION);
+        functionConfig.setClassName(CLASS_NAME);
+        functionConfig.setParallelism(PARALLELISM);
         functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
-        functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
+        functionConfig.setCustomSerdeInputs(TOPICS_TO_SER_DE_CLASS_NAME);
 
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+        when(mockedManager.containsFunction(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(true);
 
         updateFunction(
-                tenant,
-                namespace,
-                function,
+                TENANT,
+                NAMESPACE,
+                FUNCTION,
                 null,
                 null,
                 filePackageUrl,
@@ -1028,12 +1020,48 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
 
     }
 
+    @Test
+    public void testUpdateFunctionWithExistingFileUrl() throws IOException {
+
+        String fileLocation = FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath();
+        String filePackageUrl = "file://" + fileLocation;
+
+        FunctionConfig functionConfig = new FunctionConfig();
+        functionConfig.setOutput(OUTPUT_TOPIC);
+        functionConfig.setOutputSerdeClassName(OUTPUT_SERDE_CLASS_NAME);
+        functionConfig.setTenant(TENANT);
+        functionConfig.setNamespace(NAMESPACE);
+        functionConfig.setName(FUNCTION);
+        functionConfig.setClassName(CLASS_NAME);
+        // increment parallelism to avoid 'Update contains no change' exception
+        functionConfig.setParallelism(PARALLELISM + 1);
+        functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
+        functionConfig.setCustomSerdeInputs(TOPICS_TO_SER_DE_CLASS_NAME);
+
+        FunctionMetaData existingMetaData = new FunctionMetaData();
+        existingMetaData.setFunctionDetails().copyFrom(createDefaultFunctionDetails());
+        existingMetaData.setPackageLocation().setPackagePath(filePackageUrl);
+
+        when(mockedManager.containsFunction(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(true);
+        when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(existingMetaData);
+
+        updateFunction(
+                TENANT,
+                NAMESPACE,
+                FUNCTION,
+                null,
+                null,
+                null,
+                functionConfig,
+                null, null);
+    }
+
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "function failed to register")
     public void testUpdateFunctionFailure() throws Exception {
         try {
             mockWorkerUtils();
 
-            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+            when(mockedManager.containsFunction(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(true);
 
             doThrow(new IllegalArgumentException("function failed to register"))
                     .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), Mockito.anyBoolean());
@@ -1051,7 +1079,7 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
         try {
             mockWorkerUtils();
 
-            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+            when(mockedManager.containsFunction(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(true);
 
             doThrow(new IllegalStateException("Function registeration interrupted"))
                     .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), Mockito.anyBoolean());
@@ -1066,13 +1094,13 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
 
     @Test(timeOut = 20000)
     public void testUpdateFunctionSuccessWithPackageName() throws IOException {
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+        when(mockedManager.containsFunction(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(true);
         updateDefaultFunctionWithPackageUrl("function://public/default/test@v1");
     }
 
     @Test(timeOut = 20000)
     public void testUpdateFunctionFailedWithWrongPackageName() throws PulsarAdminException, IOException {
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+        when(mockedManager.containsFunction(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(true);
         try {
             doThrow(new PulsarAdminException("package name is invalid"))
                     .when(mockedPackages).download(anyString(), anyString());
@@ -1093,8 +1121,8 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
 
             testDeregisterFunctionMissingArguments(
                     null,
-                    namespace,
-                    function
+                    NAMESPACE,
+                    FUNCTION
             );
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
@@ -1106,9 +1134,9 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
     public void testDeregisterFunctionMissingNamespace() {
         try {
             testDeregisterFunctionMissingArguments(
-                    tenant,
+                    TENANT,
                     null,
-                    function
+                    FUNCTION
             );
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
@@ -1120,8 +1148,8 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
     public void testDeregisterFunctionMissingFunctionName() {
         try {
             testDeregisterFunctionMissingArguments(
-                    tenant,
-                    namespace,
+                    TENANT,
+                    NAMESPACE,
                     null
             );
         } catch (RestException re) {
@@ -1134,7 +1162,7 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
             + " exist")
     public void testDeregisterNotExistedFunction() {
         try {
-            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+            when(mockedManager.containsFunction(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(false);
             deregisterDefaultFunction();
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.NOT_FOUND);
@@ -1144,7 +1172,7 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
 
     @Test
     public void testDeregisterFunctionSuccess() {
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+        when(mockedManager.containsFunction(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(true);
 
         deregisterDefaultFunction();
     }
@@ -1152,7 +1180,7 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "function failed to deregister")
     public void testDeregisterFunctionFailure() throws Exception {
         try {
-            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+            when(mockedManager.containsFunction(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(true);
 
             doThrow(new IllegalArgumentException("function failed to deregister"))
                     .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), Mockito.anyBoolean());
@@ -1168,7 +1196,7 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
             + "interrupted")
     public void testDeregisterFunctionInterrupted() throws Exception {
         try {
-            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+            when(mockedManager.containsFunction(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(true);
 
             doThrow(new IllegalStateException("Function deregisteration interrupted"))
                     .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), Mockito.anyBoolean());
@@ -1189,8 +1217,8 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
         try {
             testGetFunctionMissingArguments(
                     null,
-                    namespace,
-                    function
+                    NAMESPACE,
+                    FUNCTION
             );
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
@@ -1202,9 +1230,9 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
     public void testGetFunctionMissingNamespace() throws IOException {
         try {
             testGetFunctionMissingArguments(
-                    tenant,
+                    TENANT,
                     null,
-                    function
+                    FUNCTION
             );
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
@@ -1216,8 +1244,8 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
     public void testGetFunctionMissingFunctionName() throws IOException {
         try {
             testGetFunctionMissingArguments(
-                    tenant,
-                    namespace,
+                    TENANT,
+                    NAMESPACE,
                     null
             );
         } catch (RestException re) {
@@ -1235,7 +1263,7 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
         try {
             testListFunctionsMissingArguments(
                     null,
-                    namespace
+                    NAMESPACE
             );
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
@@ -1247,7 +1275,7 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
     public void testListFunctionsMissingNamespace() {
         try {
             testListFunctionsMissingArguments(
-                    tenant,
+                    TENANT,
                     null
             );
         } catch (RestException re) {
@@ -1281,9 +1309,9 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
                 .setUploadBuiltinSinksSources(false);
         when(mockedWorkerService.getWorkerConfig()).thenReturn(config);
 
-        registerBuiltinConnector("cassandra", file);
+        registerBuiltinConnector("data-generator", file);
 
-        File pkgFile = downloadFunction("builtin://cassandra", null);
+        File pkgFile = downloadFunction("builtin://data-generator", null);
         Assert.assertTrue(pkgFile.exists());
         Assert.assertEquals(file.length(), pkgFile.length());
         pkgFile.delete();
@@ -1311,19 +1339,19 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
 
         File file = getPulsarApiExamplesNar();
         String filePackageUrl = file.toURI().toString();
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+        when(mockedManager.containsFunction(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(false);
 
         FunctionConfig functionConfig = new FunctionConfig();
-        functionConfig.setTenant(tenant);
-        functionConfig.setNamespace(namespace);
-        functionConfig.setName(function);
-        functionConfig.setClassName(className);
-        functionConfig.setParallelism(parallelism);
+        functionConfig.setTenant(TENANT);
+        functionConfig.setNamespace(NAMESPACE);
+        functionConfig.setName(FUNCTION);
+        functionConfig.setClassName(CLASS_NAME);
+        functionConfig.setParallelism(PARALLELISM);
         functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
-        functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
-        functionConfig.setOutput(outputTopic);
-        functionConfig.setOutputSerdeClassName(outputSerdeClassName);
-        registerFunction(tenant, namespace, function, null, null, filePackageUrl, functionConfig);
+        functionConfig.setCustomSerdeInputs(TOPICS_TO_SER_DE_CLASS_NAME);
+        functionConfig.setOutput(OUTPUT_TOPIC);
+        functionConfig.setOutputSerdeClassName(OUTPUT_SERDE_CLASS_NAME);
+        registerFunction(TENANT, NAMESPACE, FUNCTION, null, null, filePackageUrl, functionConfig);
 
     }
 
@@ -1337,32 +1365,32 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
 
         File file = getPulsarApiExamplesNar();
         String filePackageUrl = file.toURI().toString();
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+        when(mockedManager.containsFunction(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(true);
         when(mockedManager.containsFunction(eq(actualTenant), eq(actualNamespace), eq(actualName))).thenReturn(false);
 
         FunctionConfig functionConfig = new FunctionConfig();
-        functionConfig.setTenant(tenant);
-        functionConfig.setNamespace(namespace);
-        functionConfig.setName(function);
-        functionConfig.setClassName(className);
-        functionConfig.setParallelism(parallelism);
+        functionConfig.setTenant(TENANT);
+        functionConfig.setNamespace(NAMESPACE);
+        functionConfig.setName(FUNCTION);
+        functionConfig.setClassName(CLASS_NAME);
+        functionConfig.setParallelism(PARALLELISM);
         functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
-        functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
-        functionConfig.setOutput(outputTopic);
-        functionConfig.setOutputSerdeClassName(outputSerdeClassName);
+        functionConfig.setCustomSerdeInputs(TOPICS_TO_SER_DE_CLASS_NAME);
+        functionConfig.setOutput(OUTPUT_TOPIC);
+        functionConfig.setOutputSerdeClassName(OUTPUT_SERDE_CLASS_NAME);
         registerFunction(actualTenant, actualNamespace, actualName, null, null, filePackageUrl, functionConfig);
     }
 
     public static FunctionConfig createDefaultFunctionConfig() {
         FunctionConfig functionConfig = new FunctionConfig();
-        functionConfig.setTenant(tenant);
-        functionConfig.setNamespace(namespace);
-        functionConfig.setName(function);
-        functionConfig.setClassName(className);
-        functionConfig.setParallelism(parallelism);
-        functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
-        functionConfig.setOutput(outputTopic);
-        functionConfig.setOutputSerdeClassName(outputSerdeClassName);
+        functionConfig.setTenant(TENANT);
+        functionConfig.setNamespace(NAMESPACE);
+        functionConfig.setName(FUNCTION);
+        functionConfig.setClassName(CLASS_NAME);
+        functionConfig.setParallelism(PARALLELISM);
+        functionConfig.setCustomSerdeInputs(TOPICS_TO_SER_DE_CLASS_NAME);
+        functionConfig.setOutput(OUTPUT_TOPIC);
+        functionConfig.setOutputSerdeClassName(OUTPUT_SERDE_CLASS_NAME);
         functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
         return functionConfig;
     }

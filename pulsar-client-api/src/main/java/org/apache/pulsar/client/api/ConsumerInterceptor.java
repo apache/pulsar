@@ -42,6 +42,44 @@ public interface ConsumerInterceptor<T> extends AutoCloseable {
     void close();
 
     /**
+     * This method is called when a message arrives in the consumer.
+     *
+     * <p>This method provides visibility into the messages that have been received
+     * by the consumer but have not yet been processed. This can be useful for
+     * monitoring the state of the consumer's receiver queue and understanding
+     * the consumer's processing rate.
+     *
+     * <p>The method is allowed to modify the message, in which case the modified
+     * message will be returned.
+     *
+     * <p>Any exception thrown by this method will be caught by the caller, logged,
+     * but not propagated to the client.
+     *
+     * <p>Since the consumer may run multiple interceptors, a particular
+     * interceptor's <tt>onArrival</tt> callback will be called in the order
+     * specified by {@link ConsumerBuilder#intercept(ConsumerInterceptor[])}. The
+     * first interceptor in the list gets the consumed message, the following
+     * interceptor will be passed the message returned by the previous interceptor,
+     * and so on. Since interceptors are allowed to modify the message, interceptors
+     * may potentially get the messages already modified by other interceptors.
+     * However, building a pipeline of mutable interceptors that depend on the output
+     * of the previous interceptor is discouraged, because of potential side-effects
+     * caused by interceptors potentially failing to modify the message and throwing
+     * an exception. If one of the interceptors in the list throws an exception from
+     * <tt>onArrival</tt>, the exception is caught, logged, and the next interceptor
+     * is called with the message returned by the last successful interceptor in the
+     * list, or otherwise the original consumed message.
+     *
+     * @param consumer the consumer which contains the interceptor
+     * @param message the message that has arrived in the receiver queue
+     * @return the message that is either modified by the interceptor or the same
+     *         message passed into the method
+     */
+    default Message<T> onArrival(Consumer<T> consumer, Message<T> message) {
+        return message;
+    }
+
+    /**
      * This is called just before the message is returned by
      * {@link Consumer#receive()}, {@link MessageListener#received(Consumer,
      * Message)} or the {@link java.util.concurrent.CompletableFuture} returned by

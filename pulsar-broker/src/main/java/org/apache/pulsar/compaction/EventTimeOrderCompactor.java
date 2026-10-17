@@ -18,13 +18,13 @@
  */
 package org.apache.pulsar.compaction;
 
-import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -34,14 +34,9 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.impl.RawBatchConverter;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
-import org.apache.pulsar.common.protocol.Commands;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class EventTimeOrderCompactor extends AbstractTwoPhaseCompactor<Pair<MessageId, Long>> {
-
-  private static final Logger log = LoggerFactory.getLogger(EventTimeOrderCompactor.class);
-
   public EventTimeOrderCompactor(ServiceConfiguration conf,
       PulsarClient pulsar,
       BookKeeper bk,
@@ -61,10 +56,10 @@ public class EventTimeOrderCompactor extends AbstractTwoPhaseCompactor<Pair<Mess
 
   @Override
   protected boolean compactMessage(String topic, Map<String, Pair<MessageId, Long>> latestForKey,
-      RawMessage m, MessageId id) {
+      RawMessage m, MessageMetadata metadata, MessageId id) {
     boolean deletedMessage = false;
     boolean replaceMessage = false;
-    MessageCompactionData mcd = extractMessageCompactionData(m);
+    MessageCompactionData mcd = extractMessageCompactionData(m, metadata);
 
     if (mcd != null) {
       boolean newer = Optional.ofNullable(latestForKey.get(mcd.key()))
@@ -100,7 +95,7 @@ public class EventTimeOrderCompactor extends AbstractTwoPhaseCompactor<Pair<Mess
       int numMessagesInBatch = metadata.getNumMessagesInBatch();
       int deleteCnt = 0;
 
-      for (MessageCompactionData mcd : extractMessageCompactionDataFromBatch(m)) {
+      for (MessageCompactionData mcd : extractMessageCompactionDataFromBatch(m, metadata)) {
         if (mcd.key() == null) {
           if (!topicCompactionRetainNullKey) {
             // record delete null-key message event
@@ -133,29 +128,25 @@ public class EventTimeOrderCompactor extends AbstractTwoPhaseCompactor<Pair<Mess
         deletedMessage = true;
       }
     } catch (IOException ioe) {
-      log.info("Error decoding batch for message {}. Whole batch will be included in output",
-          id, ioe);
+      log.info()
+              .attr("message", id)
+              .exception(ioe)
+              .log("Error decoding batch for message . Whole batch will be included in output");
     }
     return deletedMessage;
   }
 
-  protected MessageCompactionData extractMessageCompactionData(RawMessage m) {
-    ByteBuf headersAndPayload = m.getHeadersAndPayload();
-    MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
-    if (msgMetadata.hasPartitionKey()) {
-      int size = headersAndPayload.readableBytes();
-      if (msgMetadata.hasUncompressedSize()) {
-        size = msgMetadata.getUncompressedSize();
-      }
-      return new MessageCompactionData(m.getMessageId(), msgMetadata.getPartitionKey(),
-          size, msgMetadata.getEventTime());
-    } else {
+  protected MessageCompactionData extractMessageCompactionData(RawMessage m, MessageMetadata metadata) {
+    Pair<String, Integer> keyAndSize = extractKeyAndSize(m, metadata);
+    if (keyAndSize == null) {
       return null;
     }
+    return new MessageCompactionData(m.getMessageId(), keyAndSize.getLeft(),
+        keyAndSize.getRight(), metadata.getEventTime());
   }
 
-  private List<MessageCompactionData> extractMessageCompactionDataFromBatch(RawMessage msg)
+  private List<MessageCompactionData> extractMessageCompactionDataFromBatch(RawMessage msg, MessageMetadata metadata)
       throws IOException {
-    return RawBatchConverter.extractMessageCompactionData(msg);
+    return RawBatchConverter.extractMessageCompactionData(msg, metadata);
   }
 }

@@ -32,8 +32,8 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
@@ -70,13 +70,14 @@ public class TransactionMarkerDeleteTest extends TransactionTestBase {
     @Test
     public void testMarkerDeleteTimes() throws Exception {
         ManagedLedgerImpl managedLedger =
-                spy((ManagedLedgerImpl) getPulsarServiceList().get(0).getManagedLedgerFactory().open("test"));
+                spy((ManagedLedgerImpl) getPulsarServiceList().get(0).getDefaultManagedLedgerFactory().open("test"));
         PersistentTopic topic = mock(PersistentTopic.class);
         BrokerService brokerService = mock(BrokerService.class);
         PulsarService pulsarService = mock(PulsarService.class);
         ServiceConfiguration configuration = mock(ServiceConfiguration.class);
         doReturn(brokerService).when(topic).getBrokerService();
         doReturn(pulsarService).when(brokerService).getPulsar();
+        doReturn(pulsarService).when(brokerService).pulsar();
         doReturn(configuration).when(pulsarService).getConfig();
         doReturn(false).when(configuration).isTransactionCoordinatorEnabled();
         doReturn(managedLedger).when(topic).getManagedLedger();
@@ -84,8 +85,8 @@ public class TransactionMarkerDeleteTest extends TransactionTestBase {
         PersistentSubscription persistentSubscription =
                 spyWithClassAndConstructorArgs(PersistentSubscription.class, topic, "test", cursor, false);
         Position position = managedLedger.addEntry("test".getBytes());
-        persistentSubscription.acknowledgeMessage(Collections.singletonList(position),
-                AckType.Individual, Collections.emptyMap());
+        persistentSubscription.acknowledgeMessageAsync(Collections.singletonList(position),
+                AckType.Individual, Collections.emptyMap()).join();
         verify(managedLedger, times(0)).asyncReadEntry(any(), any(), any());
     }
 

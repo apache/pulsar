@@ -21,7 +21,7 @@ package org.apache.pulsar.client.metrics;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.fail;
-import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
@@ -32,30 +32,28 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.assertj.core.api.Assertions;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
-public class ClientMetricsTest extends ProducerConsumerBase {
+public class ClientMetricsTest extends SharedPulsarBaseTest {
 
     InMemoryMetricReader reader;
-    OpenTelemetry otel;
+    OpenTelemetrySdk otel;
 
-    @BeforeMethod
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-
+    @BeforeMethod(alwaysRun = true)
+    public void setupOtel() throws Exception {
         this.reader = InMemoryMetricReader.create();
         SdkMeterProvider sdkMeterProvider = SdkMeterProvider.builder()
                 .registerMetricReader(reader)
@@ -64,9 +62,15 @@ public class ClientMetricsTest extends ProducerConsumerBase {
     }
 
     @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
+    public void cleanupOtel() throws Exception {
+        if (otel != null) {
+            otel.close();
+            otel = null;
+        }
+        if (reader != null) {
+            reader.close();
+            reader = null;
+        }
     }
 
     private Map<String, MetricData> collectMetrics() {
@@ -88,8 +92,9 @@ public class ClientMetricsTest extends ProducerConsumerBase {
         assertNotNull(md, "metric not found: " + name);
         assertEquals(md.getType(), MetricDataType.LONG_SUM);
 
+        Map<AttributeKey<?>, Object> expectedAttributesMap = expectedAttributes.asMap();
         for (var ex : md.getLongSumData().getPoints()) {
-            if (ex.getAttributes().equals(expectedAttributes)) {
+            if (ex.getAttributes().asMap().equals(expectedAttributesMap)) {
                 return ex.getValue();
             }
         }
@@ -109,8 +114,9 @@ public class ClientMetricsTest extends ProducerConsumerBase {
         assertNotNull(md, "metric not found: " + name);
         assertEquals(md.getType(), MetricDataType.HISTOGRAM);
 
+        Map<AttributeKey<?>, Object> expectedAttributesMap = expectedAttributes.asMap();
         for (var ex : md.getHistogramData().getPoints()) {
-            if (ex.getAttributes().equals(expectedAttributes)) {
+            if (ex.getAttributes().asMap().equals(expectedAttributesMap)) {
                 return ex.getCount();
             }
         }
@@ -124,7 +130,7 @@ public class ClientMetricsTest extends ProducerConsumerBase {
         String topic = newTopicName();
 
         PulsarClient client = PulsarClient.builder()
-                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .serviceUrl(getBrokerServiceUrl())
                 .openTelemetry(otel)
                 .build();
 
@@ -136,9 +142,10 @@ public class ClientMetricsTest extends ProducerConsumerBase {
             producer.send("Hello");
         }
 
+        String tenant = getNamespace().split("/")[0];
         Attributes nsAttrs = Attributes.builder()
-                .put("pulsar.tenant", "my-property")
-                .put("pulsar.namespace", "my-property/my-ns")
+                .put("pulsar.tenant", tenant)
+                .put("pulsar.namespace", getNamespace())
                 .build();
         Attributes nsAttrsSuccess = nsAttrs.toBuilder()
                 .put("pulsar.response.status", "success")
@@ -210,7 +217,7 @@ public class ClientMetricsTest extends ProducerConsumerBase {
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()
-                .serviceUrl(admin.getServiceUrl())
+                .serviceUrl(getWebServiceUrl())
                 .operationTimeout(3, TimeUnit.SECONDS)
                 .openTelemetry(otel)
                 .build();
@@ -234,16 +241,17 @@ public class ClientMetricsTest extends ProducerConsumerBase {
 
         var metrics = collectMetrics();
 
-        Attributes nsAttrs = Attributes.builder()
-                .put("pulsar.tenant", "my-property")
-                .put("pulsar.namespace", "my-property/my-ns")
+        String tenant = getNamespace().split("/")[0];
+        Attributes nsAttrsF = Attributes.builder()
+                .put("pulsar.tenant", tenant)
+                .put("pulsar.namespace", getNamespace())
                 .build();
-        Attributes nsAttrsFailure = nsAttrs.toBuilder()
+        Attributes nsAttrsFailure = nsAttrsF.toBuilder()
                 .put("pulsar.response.status", "failed")
                 .build();
 
-        assertCounterValue(metrics, "pulsar.client.producer.message.pending.count", 0, nsAttrs);
-        assertCounterValue(metrics, "pulsar.client.producer.message.pending.size", 0, nsAttrs);
+        assertCounterValue(metrics, "pulsar.client.producer.message.pending.count", 0, nsAttrsF);
+        assertCounterValue(metrics, "pulsar.client.producer.message.pending.size", 0, nsAttrsF);
         assertHistoCountValue(metrics, "pulsar.client.producer.message.send.duration", 1, nsAttrsFailure);
         assertHistoCountValue(metrics, "pulsar.client.producer.rpc.send.duration", 1, nsAttrsFailure);
     }
@@ -253,7 +261,7 @@ public class ClientMetricsTest extends ProducerConsumerBase {
         String topic = newTopicName();
 
         PulsarClient client = PulsarClient.builder()
-                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .serviceUrl(getBrokerServiceUrl())
                 .openTelemetry(otel)
                 .build();
 
@@ -275,9 +283,10 @@ public class ClientMetricsTest extends ProducerConsumerBase {
 
         Thread.sleep(1000);
 
+        String tenant = getNamespace().split("/")[0];
         Attributes nsAttrs = Attributes.builder()
-                .put("pulsar.tenant", "my-property")
-                .put("pulsar.namespace", "my-property/my-ns")
+                .put("pulsar.tenant", tenant)
+                .put("pulsar.namespace", getNamespace())
                 .put("pulsar.subscription", "my-sub")
                 .build();
         var metrics = collectMetrics();
@@ -332,5 +341,85 @@ public class ClientMetricsTest extends ProducerConsumerBase {
         metrics = collectMetrics();
         assertCounterValue(metrics, "pulsar.client.consumer.closed", 1, nsAttrs);
         assertCounterValue(metrics, "pulsar.client.connection.closed", 1, Attributes.empty());
+    }
+
+    @Test
+    public void testMemoryBufferMetrics() throws Exception {
+        String topic = newTopicName();
+        long memoryLimit = 1024 * 1024; // 1MB
+
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(getBrokerServiceUrl())
+                .openTelemetry(otel)
+                .memoryLimit(memoryLimit, org.apache.pulsar.client.api.SizeUnit.BYTES)
+                .build();
+
+        Producer<byte[]> producer = client.newProducer()
+                .topic(topic)
+                .batchingMaxPublishDelay(1, TimeUnit.DAYS)
+                .batchingMaxBytes(1024 * 1024)
+                .create();
+
+        var metrics = collectMetrics();
+
+        // Verify memory buffer limit is reported correctly
+        assertCounterValue(metrics, "pulsar.client.memory.buffer.limit", memoryLimit, Attributes.empty());
+
+        // Initially, memory usage should be 0 or very low
+        long initialUsage = getCounterValue(metrics, "pulsar.client.memory.buffer.usage", Attributes.empty());
+        Assertions.assertThat(initialUsage).isGreaterThanOrEqualTo(0).isLessThan(memoryLimit / 4);
+
+        producer.sendAsync(new byte[512 * 1024]);
+
+        metrics = collectMetrics();
+
+        // Verify memory usage increased
+        long usageAfterSend = getCounterValue(metrics, "pulsar.client.memory.buffer.usage", Attributes.empty());
+        Assertions.assertThat(usageAfterSend).isGreaterThan(initialUsage);
+
+        // Verify limit is still correct
+        assertCounterValue(metrics, "pulsar.client.memory.buffer.limit", memoryLimit, Attributes.empty());
+
+        // Flush all pending messages
+        producer.flush();
+
+        Awaitility.await().untilAsserted(() -> {
+            var newMetrics = collectMetrics();
+            // Memory usage should be lower after flushing
+            long usageAfterFlush = getCounterValue(newMetrics, "pulsar.client.memory.buffer.usage", Attributes.empty());
+            Assertions.assertThat(usageAfterFlush).isLessThanOrEqualTo(usageAfterSend);
+        });
+
+        producer.close();
+        client.close();
+    }
+
+    @Test
+    public void testMemoryBufferMetricsWithNoLimit() throws Exception {
+        // Create client without memory limit
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(getBrokerServiceUrl())
+                .openTelemetry(otel)
+                .memoryLimit(0L, SizeUnit.BYTES)
+                .build();
+
+        String topic = newTopicName();
+        Producer<String> producer = client.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        producer.send("test message");
+
+        var metrics = collectMetrics();
+
+        // When memory limiting is disabled, buffer metrics should not be present at all
+        boolean hasUsageMetric = metrics.containsKey("pulsar.client.memory.buffer.usage");
+        boolean hasLimitMetric = metrics.containsKey("pulsar.client.memory.buffer.limit");
+
+        // Since memory limiting is disabled, these metrics should not exist
+        Assertions.assertThat(hasUsageMetric).isFalse();
+        Assertions.assertThat(hasLimitMetric).isFalse();
+        producer.close();
+        client.close();
     }
 }
