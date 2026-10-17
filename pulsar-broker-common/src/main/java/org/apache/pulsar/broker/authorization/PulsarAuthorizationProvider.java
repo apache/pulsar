@@ -52,6 +52,7 @@ import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
+import org.apache.pulsar.common.scalable.SegmentTopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
@@ -538,6 +539,10 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     }
 
     public CompletableFuture<Boolean> checkPermission(TopicName topicName, String role, AuthAction action) {
+        // A segment of a scalable topic has no permissions of its own: it is authorized with the
+        // topic-level permissions granted on its parent topic://.
+        TopicName permissionsTopicName =
+                topicName.isSegment() ? SegmentTopicName.getParentTopicName(topicName) : topicName;
         return pulsarResources.getNamespaceResources().getPoliciesAsync(topicName.getNamespaceObject())
                 .thenApply(policies -> {
                     if (!policies.isPresent()) {
@@ -552,7 +557,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                         }
 
                         Map<String, Set<AuthAction>> topicRoles = policies.get().auth_policies.getTopicAuthentication()
-                                .get(topicName.toString());
+                                .get(permissionsTopicName.toString());
                         if (topicRoles != null && role != null) {
                             // Topic has custom policy
                             Set<AuthAction> topicActions = topicRoles.get(role);
@@ -579,9 +584,10 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                         // the new sub partitions may not inherit the policy of the partition topic.
                         // We can also check the permission of partitioned topic.
                         // For https://github.com/apache/pulsar/issues/10300
-                        if (topicName.isPartitioned()) {
+                        // A scalable topic has no partitions: a "-partition-N" suffix is part of its name.
+                        if (permissionsTopicName.isPartitioned() && !permissionsTopicName.isScalable()) {
                             topicRoles = policies.get().auth_policies
-                                    .getTopicAuthentication().get(topicName.getPartitionedTopicName());
+                                    .getTopicAuthentication().get(permissionsTopicName.getPartitionedTopicName());
                             if (topicRoles != null) {
                                 // Topic has custom policy
                                 Set<AuthAction> topicActions = topicRoles.get(role);
