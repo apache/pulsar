@@ -122,9 +122,12 @@ public class V5ProducerBackpressureTest extends V5ClientBaseTest {
         List<CompletableFuture<MessageId>> futures = new ArrayList<>(NUM_MESSAGES);
         int maxOutstanding = 0;
         for (int i = 0; i < NUM_MESSAGES; i++) {
-            CompletableFuture<MessageId> future = async.newMessage().value(payload).send();
-            future.whenComplete((__, ___) -> completed.incrementAndGet());
-            futures.add(future);
+            // Keep the stage that counts the completion, so that waiting for the futures below
+            // also waits for the count. A future runs its dependents in LIFO order, so the
+            // allOf relay would otherwise run before the counter and could let the main thread
+            // read the count too early.
+            futures.add(async.newMessage().value(payload).send()
+                    .whenComplete((__, ___) -> completed.incrementAndGet()));
             // The first sends go out before the segment producer even exists. Without admission on
             // the caller's thread they would all queue up here, unbounded.
             maxOutstanding = Math.max(maxOutstanding, i + 1 - completed.get());

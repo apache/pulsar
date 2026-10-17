@@ -64,6 +64,8 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BooleanSupplier;
 import java.util.stream.Collectors;
 import javax.naming.AuthenticationException;
@@ -101,8 +103,10 @@ import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionNotFo
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicNotFoundException;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.scalable.ConsumerAssignment;
 import org.apache.pulsar.broker.service.scalable.ConsumerSession;
 import org.apache.pulsar.broker.service.scalable.DagWatchSession;
+import org.apache.pulsar.broker.service.scalable.ScalableTopicService;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicsWatcherSession;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
@@ -164,6 +168,7 @@ import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ProducerAccessMode;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
+import org.apache.pulsar.common.api.proto.ScalableConsumerAssignment;
 import org.apache.pulsar.common.api.proto.ScalableConsumerType;
 import org.apache.pulsar.common.api.proto.Schema;
 import org.apache.pulsar.common.api.proto.ServerError;
@@ -1153,11 +1158,21 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private final java.util.concurrent.ConcurrentHashMap<Long, ScalableConsumerRegistrationRef>
             scalableConsumerRegistrations = new java.util.concurrent.ConcurrentHashMap<>();
 
+    /** Set once the connection is closed to make its scalable consumers subscribe again. */
+    private final AtomicBoolean closedForScalableConsumers = new AtomicBoolean();
+
+    /**
+     * A scalable-topic consumer registration made on this connection. {@code answered} records
+     * whether the response to its subscribe, {@code requestId}, was written; see
+     * {@link #sendScalableConsumerAssignment}.
+     */
     private record ScalableConsumerRegistrationRef(
             TopicName topicName,
             String subscription,
             String consumerName,
-            CompletableFuture<?> registration) {}
+            CompletableFuture<?> registration,
+            long requestId,
+            AtomicBoolean answered) {}
 
     @Override
     protected void handleCommandScalableTopicSubscribe(
@@ -1212,31 +1227,45 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 ServerError.AuthorizationError, msg);
                         return;
                     }
-                    // Record the registration BEFORE it resolves, carrying its future: an
+                    // Record the registration BEFORE starting it, carrying its future: an
                     // unsubscribe (or the channelInactive sweep) arriving mid-registration
                     // chains behind it instead of silently missing it. The client's subscribe
                     // can time out while the broker-side registration is still in flight, so
-                    // this ordering must not depend on how long the client was able to wait.
-                    var registration = scalableTopicService.registerConsumer(topicName,
-                            subscription, consumerName, consumerId, consumerType, this);
-                    var ref = new ScalableConsumerRegistrationRef(
-                            topicName, subscription, consumerName, registration);
+                    // this ordering must not depend on how long the client was able to wait;
+                    // and the subscribe can be answered before registerScalableConsumer even
+                    // returns (see sendScalableConsumerAssignment).
+                    var registration = new CompletableFuture<ConsumerAssignment>();
+                    var ref = new ScalableConsumerRegistrationRef(topicName, subscription,
+                            consumerName, registration, requestId, new AtomicBoolean());
                     scalableConsumerRegistrations.put(consumerId, ref);
+                    FutureUtil.completeAfter(registration, FutureUtil.supplySafely(() ->
+                            registerScalableConsumer(scalableTopicService, topicName, subscription,
+                                    consumerName, consumerId, consumerType)));
                     registration.whenCompleteAsync((assignment, ex) -> {
+                        // Normally answered already, by the push of the consumer's assignment
+                        // the coordinator makes while registering it.
+                        boolean unanswered = ref.answered().compareAndSet(false, true);
                         if (ex != null) {
                             Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
                             log.warn().attr("topic", topicName).attr("subscription", subscription)
-                                    .attr("consumerName", consumerName).exception(cause)
-                                    .log("ScalableTopicSubscribe failed");
-                            // Nothing was registered: drop the ref so unsubscribes and the
-                            // disconnect sweep have nothing to report for it.
-                            scalableConsumerRegistrations.remove(consumerId, ref);
-                            getCommandSender().sendScalableTopicSubscribeError(requestId,
-                                    ServerError.UnknownError, cause.getMessage());
+                                    .attr("consumerName", consumerName).attr("answered", !unanswered)
+                                    .exception(cause).log("ScalableTopicSubscribe failed");
+                            if (unanswered) {
+                                // Nothing was registered: drop the ref so unsubscribes and the
+                                // disconnect sweep have nothing to report for it.
+                                scalableConsumerRegistrations.remove(consumerId, ref);
+                                getCommandSender().sendScalableTopicSubscribeError(requestId,
+                                        ServerError.UnknownError, cause.getMessage());
+                            }
+                            // Otherwise the coordinator registered the consumer and answered the
+                            // subscribe before the failure: keep the ref, so the consumer's
+                            // unsubscribe and the disconnect sweep still reach the coordinator.
                             return;
                         }
-                        getCommandSender().sendScalableTopicSubscribeResponse(requestId,
-                                ConsumerSession.toProto(assignment));
+                        if (unanswered) {
+                            getCommandSender().sendScalableTopicSubscribeResponse(requestId,
+                                    ConsumerSession.toProto(assignment));
+                        }
                     }, ctx.executor());
                 })
                 .exceptionally(ex -> {
@@ -1247,6 +1276,56 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             "Exception occurred while trying to authorize ScalableTopicSubscribe");
                     return null;
                 });
+    }
+
+    /**
+     * Register a scalable-topic consumer with the controller leader. Tests override it to hold
+     * the registration, as this connection sees it, while other members of the subscription
+     * register.
+     */
+    @VisibleForTesting
+    protected CompletableFuture<ConsumerAssignment> registerScalableConsumer(
+            ScalableTopicService scalableTopicService, TopicName topicName, String subscription,
+            String consumerName, long consumerId, ScalableConsumerType consumerType) {
+        return scalableTopicService.registerConsumer(topicName, subscription, consumerName,
+                consumerId, consumerType, this);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>The coordinator pushes a registering consumer its assignment while holding its monitor,
+     * as part of the registration (of a new session and of a reconnect), so answering the
+     * subscribe with that push orders the response with every later push. Answering only when the
+     * registration future completes would let a rebalance pushed in between, by another member
+     * registering, reach the client first: both carry the same layout epoch, so the client would
+     * apply the older response last and keep it until the next rebalance.
+     */
+    @Override
+    public void sendScalableConsumerAssignment(long consumerId, ScalableConsumerAssignment assignment) {
+        ScalableConsumerRegistrationRef ref = scalableConsumerRegistrations.get(consumerId);
+        if (ref != null && ref.answered().compareAndSet(false, true)) {
+            getCommandSender().sendScalableTopicSubscribeResponse(ref.requestId(), assignment);
+        } else {
+            getCommandSender().sendScalableTopicAssignmentUpdate(consumerId, assignment);
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>The protocol has no command to close a single scalable consumer session, so this closes the
+     * connection: the client subscribes all its scalable consumer sessions again, with the controller
+     * leader it looks up, and reconnects its producers and consumers. Once for all the sessions of
+     * the connection: the channel stays active until the close runs on its event loop.
+     */
+    @Override
+    public void closeScalableConsumerSession(long consumerId) {
+        if (ctx.channel().isActive() && closedForScalableConsumers.compareAndSet(false, true)) {
+            log.info().attr("consumerId", consumerId)
+                    .log("Closing the connection of a scalable consumer to make it subscribe again");
+            ctx.close();
+        }
     }
 
     @Override
@@ -4121,8 +4200,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                         .attr("txnAction", TxnAction.valueOf(txnAction))
                                         .exception(throwable)
                                         .log("handleEndTxnOnPartition fail");
+                                ServerError serverError = BrokerServiceException.getClientErrorCode(throwable);
+                                if (serverError == ServerError.UnknownError && throwable instanceof TimeoutException) {
+                                    serverError = ServerError.ServiceNotReady;
+                                }
                                 writeAndFlush(Commands.newEndTxnOnPartitionResponse(
-                                        requestId, BrokerServiceException.getClientErrorCode(throwable),
+                                        requestId, serverError,
                                         throwable.getMessage(),
                                         txnID.getLeastSigBits(), txnID.getMostSigBits()));
                                 return;
@@ -4731,6 +4814,30 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         BaseCommand command = Commands.newMessageCommand(consumerId, ledgerId, entryId, partition, redeliveryCount,
                 ackSet, epoch);
         ByteBufPair res = Commands.serializeCommandMessageWithSize(command, metadataAndPayload);
+        interceptMessage(command, consumerId, ledgerId, entryId, metadataAndPayload);
+        return res;
+    }
+
+    /**
+     * As {@link #newMessageAndIntercept}, but writes the message command and a copy of the metadata and payload into
+     * {@code out}, which leaves the reference count of {@code metadataAndPayload} unchanged.
+     */
+    public void writeMessageAndIntercept(ByteBuf out, long consumerId, long ledgerId, long entryId, int partition,
+            int redeliveryCount, ByteBuf metadataAndPayload, long[] ackSet, long epoch) {
+        BaseCommand command = Commands.newMessageCommand(consumerId, ledgerId, entryId, partition, redeliveryCount,
+                ackSet, epoch);
+        int payloadSize = metadataAndPayload.readableBytes();
+        // serialize the command before the interceptors, as newMessageAndIntercept does: the command is a thread-local
+        // one, which an interceptor can reuse, for example by sending a message with a producer
+        Commands.serializeCommandMessageHeaderWithSize(command, payloadSize, out);
+        // copy the metadata and payload after them, so that the copy has what an interceptor changed in them, as the
+        // buffer written by reference has
+        interceptMessage(command, consumerId, ledgerId, entryId, metadataAndPayload);
+        Commands.copyMetadataAndPayload(metadataAndPayload, payloadSize, out);
+    }
+
+    private void interceptMessage(BaseCommand command, long consumerId, long ledgerId, long entryId,
+                                  ByteBuf metadataAndPayload) {
         if (brokerInterceptor != null) {
             try {
                 brokerInterceptor.onPulsarCommand(command, this);
@@ -4743,7 +4850,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 log.error().exception(e).log("Exception occur when intercept messages.");
             }
         }
-        return res;
     }
     /**
      * Helper method for testability.

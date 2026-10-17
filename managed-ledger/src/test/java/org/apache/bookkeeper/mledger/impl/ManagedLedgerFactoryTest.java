@@ -29,16 +29,24 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
+import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import org.apache.bookkeeper.client.AsyncCallback.DeleteCallback;
 import org.apache.bookkeeper.client.BKException;
+import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo.CursorInfo;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo.MessageRangeInfo;
@@ -213,6 +221,107 @@ public class ManagedLedgerFactoryTest extends MockedBookKeeperTestCase {
 
         // cleanup.
         managedLedger2.close();
+    }
+
+    @Test(timeOut = 30000)
+    public void testShutdownWaitsForManagedLedgersToClose() throws Exception {
+        CompletableFuture<Void> closeRequested = new CompletableFuture<>();
+        CompletableFuture<Void> closeGate = new CompletableFuture<>();
+        replaceFactoryWithGatedClose("ml", closeRequested, closeGate);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("ml");
+
+        CompletableFuture<Void> shutdown = factory.shutdownAsync();
+        closeRequested.get(5, TimeUnit.SECONDS);
+        Awaitility.await().during(Duration.ofMillis(500)).atMost(Duration.ofSeconds(5))
+                .until(() -> !shutdown.isDone());
+
+        closeGate.complete(null);
+        shutdown.get(5, TimeUnit.SECONDS);
+        assertEquals(ledger.getState(), ManagedLedgerImpl.State.Closed);
+    }
+
+    @Test(timeOut = 30000)
+    public void testShutdownDoesNotWaitForeverForStuckManagedLedgerClose() throws Exception {
+        CompletableFuture<Void> closeRequested = new CompletableFuture<>();
+        replaceFactoryWithGatedClose("ml", closeRequested, new CompletableFuture<>());
+        factory.setShutdownLedgerCloseTimeoutMillis(100);
+        factory.open("ml");
+
+        // The close never completes, so the shutdown completes once it times out
+        factory.shutdownAsync().get(5, TimeUnit.SECONDS);
+        assertTrue(closeRequested.isDone());
+    }
+
+    @Test(timeOut = 30000)
+    public void testShutdownFailsOpenThatNeverStartedInitializing() throws Exception {
+        factory.shutdownAsync().get(5, TimeUnit.SECONDS);
+        // The BookKeeper client never becomes available, so the open never starts initializing the ledger
+        factory = new ManagedLedgerFactoryImpl(metadataStore, policyConfig -> new CompletableFuture<>(),
+                new ManagedLedgerFactoryConfig());
+        factory.setShutdownLedgerCloseTimeoutMillis(100);
+        CompletableFuture<ManagedLedger> open = new CompletableFuture<>();
+        factory.asyncOpen("ml", new OpenLedgerCallback() {
+            @Override
+            public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
+                open.complete(ledger);
+            }
+
+            @Override
+            public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                open.completeExceptionally(exception);
+            }
+        }, null);
+
+        factory.shutdownAsync().get(5, TimeUnit.SECONDS);
+        assertThatThrownBy(() -> open.get(5, TimeUnit.SECONDS))
+                .hasCauseInstanceOf(ManagedLedgerException.ManagedLedgerFactoryClosedException.class);
+    }
+
+    @Test(timeOut = 30000)
+    public void testShutdownClosesManagedLedgersAddedDuringShutdown() throws Exception {
+        CompletableFuture<Void> closeRequested = new CompletableFuture<>();
+        CompletableFuture<Void> closeGate = new CompletableFuture<>();
+        replaceFactoryWithGatedClose("ml", closeRequested, closeGate);
+        factory.open("ml");
+        ManagedLedgerImpl lateLedger = (ManagedLedgerImpl) factory.open("late-ml");
+        // Simulate an open that passed the closed check before the shutdown started, but added its ledger only
+        // after the shutdown had listed the ledgers to close
+        CompletableFuture<ManagedLedgerImpl> lateLedgerFuture = factory.ledgers.remove("late-ml");
+
+        CompletableFuture<Void> shutdown = factory.shutdownAsync();
+        closeRequested.get(5, TimeUnit.SECONDS);
+        factory.ledgers.put("late-ml", lateLedgerFuture);
+        closeGate.complete(null);
+
+        shutdown.get(5, TimeUnit.SECONDS);
+        assertEquals(lateLedger.getState(), ManagedLedgerImpl.State.Closed);
+        assertThat(factory.ledgers).isEmpty();
+    }
+
+    /**
+     * Replaces the factory with one whose managed ledger {@code gatedName} only closes once {@code closeGate}
+     * completes; {@code closeRequested} completes when its close is requested.
+     */
+    private void replaceFactoryWithGatedClose(String gatedName, CompletableFuture<Void> closeRequested,
+                                              CompletableFuture<Void> closeGate) throws Exception {
+        factory.shutdownAsync().get(5, TimeUnit.SECONDS);
+        factory = new ManagedLedgerFactoryImpl(metadataStore, bkc) {
+            @Override
+            protected ManagedLedgerImpl createManagedLedger(BookKeeper bk, MetaStore store, String name,
+                                                            ManagedLedgerConfig config,
+                                                            Supplier<CompletableFuture<Boolean>> mlOwnershipChecker) {
+                if (!name.equals(gatedName)) {
+                    return super.createManagedLedger(bk, store, name, config, mlOwnershipChecker);
+                }
+                return new ManagedLedgerImpl(this, bk, store, config, scheduledExecutor, name, mlOwnershipChecker) {
+                    @Override
+                    public synchronized void asyncClose(CloseCallback callback, Object ctx) {
+                        closeRequested.complete(null);
+                        closeGate.thenRun(() -> super.asyncClose(callback, ctx));
+                    }
+                };
+            }
+        };
     }
 
     private void waitManagedLedgerStateEquals(ManagedLedgerImpl managedLedger, ManagedLedgerImpl.State expectedStat){

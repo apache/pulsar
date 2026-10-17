@@ -169,6 +169,15 @@ functionRuntimeFactoryConfigs:
 #   This arguments will be added to the command line execution of 'java'
 #additionalJavaRuntimeArguments: ['-XX:+ExitOnOutOfMemoryError']
 
+#### Pulsar client memory limit of Java function instances ####
+#   Default for functions that don't set their own limit. If both values are set, the smaller limit is used.
+#   The thread runtime uses it when functionRuntimeFactoryConfigs.pulsarClientMemoryLimit is not set.
+#pulsarClientMemoryLimit:
+#  # the max memory in bytes the pulsar client can use
+#  limitInBytes:
+#  # the max memory the pulsar client can use as a percentage of max direct memory set for JVM
+#  percentOfMaxDirectMemory:
+
 #### Thread Runtime ####
 # Pulsar function instances are run as threads
 

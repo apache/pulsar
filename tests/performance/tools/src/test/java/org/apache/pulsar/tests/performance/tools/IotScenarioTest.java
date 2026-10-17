@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.tests.performance.common.YamlScenarioLoader;
 import org.testng.annotations.Test;
 import picocli.CommandLine;
@@ -137,6 +138,102 @@ public class IotScenarioTest {
     }
 
     @Test
+    public void preparesTheJoinOfApplicationsThatSkipMessages() {
+        IotScenario scenario = unbatched(new IotScenario.Applications(3, 2, "app-", new IotScenario.Client(2, 2), null,
+                List.of(0, 30, 20), null, List.of(0L, 100L, 0L), true));
+        assertThat(scenario.skipMessages(1)).isEqualTo(100);
+        assertThat(scenario.skipMessages(2)).isZero();
+        // 100 of each of the 2 topics
+        assertThat(scenario.expectedMessageCount(1)).isEqualTo(800);
+        assertThat(scenario.expectedMessageCount(2)).isEqualTo(1_000);
+        assertThat(scenario.preparesJoin()).isTrue();
+        assertThat(scenario.earliestLateJoinSeconds()).isEqualTo(20);
+        IotScenario withoutPreparation = scenario(new IotScenario.Applications(3, 2, "app-",
+                new IotScenario.Client(2, 2), null, List.of(0, 30, 20), null));
+        assertThat(withoutPreparation.skipMessages(1)).isZero();
+        assertThat(withoutPreparation.expectedMessageCount(1)).isEqualTo(1_000);
+        assertThat(withoutPreparation.preparesJoin()).isFalse();
+    }
+
+    @Test
+    public void rejectsInvalidJoinPreparations() {
+        assertThatThrownBy(() -> unbatched(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, List.of(0, 20), null, List.of(10L), false)))
+                .hasMessageContaining("skipMessages must have a value for each of the 2 applications");
+        assertThatThrownBy(() -> unbatched(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, List.of(0, 20), null, List.of(0L, -1L), false))).hasMessageContaining("must be at least 0");
+        // an application that receives from the start can't skip
+        assertThatThrownBy(() -> unbatched(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, List.of(0, 20), null, List.of(10L, 10L), false)))
+                .hasMessageContaining("only an application that joins later");
+        assertThatThrownBy(() -> unbatched(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, null, null, List.of(0L, 10L), false))).hasMessageContaining("only an application that joins");
+        // 500 of each of the 2 topics are all of the 1,000 messages
+        assertThatThrownBy(() -> unbatched(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, List.of(0, 20), null, List.of(0L, 500L), false))).hasMessageContaining("must leave messages");
+        // the launcher skips entries, which are messages only without batching
+        assertThatThrownBy(() -> scenario(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, List.of(0, 20), null, List.of(0L, 10L), false)))
+                .hasMessageContaining("needs gateways.producer.batchingEnabled: false");
+        assertThatThrownBy(() -> scenario(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, List.of(0, 0), null, null, true))).hasMessageContaining("unloadBeforeJoin needs an application");
+    }
+
+    @Test
+    public void resetsTheSubscriptionsOfLateApplications() {
+        IotScenario scenario = unbatched(new IotScenario.Applications(3, 2, "app-", new IotScenario.Client(2, 2), null,
+                List.of(0, 30, 30), null, null, false, List.of(-1L, 5_000L, -1L)));
+        assertThat(scenario.resetToMillis(0)).isEqualTo(-1);
+        assertThat(scenario.resetToMillis(1)).isEqualTo(5_000);
+        assertThat(scenario.resetsSubscriptions()).isTrue();
+        assertThat(scenario.preparesJoin()).isTrue();
+        assertThat(scenario.startsAtFirstSequence(1)).isTrue();
+        assertThat(scenario.startsAtFirstSequence(2)).isFalse();
+        // only a late application resets, unbatched, and doesn't also skip
+        assertThatThrownBy(() -> unbatched(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, List.of(0, 30), null, null, false, List.of(5_000L, -1L))))
+                .hasMessageContaining("only an application that joins later");
+        assertThatThrownBy(() -> unbatched(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, List.of(0, 30), null, List.of(0L, 10L), false, List.of(-1L, 5_000L))))
+                .hasMessageContaining("can't also skip messages");
+        assertThatThrownBy(() -> scenario(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, List.of(0, 30), null, null, false, List.of(-1L, 5_000L))))
+                .hasMessageContaining("resetToMillis needs gateways.producer.batchingEnabled: false");
+        assertThatThrownBy(() -> unbatched(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, List.of(0, 30), null, null, false, List.of(-2L, 5_000L))))
+                .hasMessageContaining("-1 for none, or at least 0");
+    }
+
+    @Test
+    public void choosesTheSubscriptionType() {
+        IotScenario keyShared = scenario(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null));
+        assertThat(keyShared.subscriptionType()).isEqualTo(SubscriptionType.Key_Shared);
+        assertThat(keyShared.keepsDeviceOrder()).isTrue();
+        IotScenario shared = scenario(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2), null,
+                null, null, null, false, null, "Shared"));
+        assertThat(shared.subscriptionType()).isEqualTo(SubscriptionType.Shared);
+        assertThat(shared.keepsDeviceOrder()).isFalse();
+        assertThat(scenario(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2), null, null,
+                null, null, false, null, "Failover")).keepsDeviceOrder()).isTrue();
+        assertThatThrownBy(() -> scenario(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, null, null, null, false, null, "Exclusive")))
+                .hasMessageContaining("applications.subscriptionType must be one of [Key_Shared, Shared, Failover]");
+        // skipping and resetting expect each device's messages from the first one received, in order
+        assertThatThrownBy(() -> unbatched(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, List.of(0, 30), null, List.of(0L, 10L), false, null, "Shared")))
+                .hasMessageContaining("need a subscription type that keeps each device's order");
+        assertThatThrownBy(() -> unbatched(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, List.of(0, 30), null, null, false, List.of(-1L, 5_000L), "Shared")))
+                .hasMessageContaining("need a subscription type that keeps each device's order");
+        // a scenario file without the setting keeps Key_Shared
+        IotScenario.Applications fromYaml = new YamlScenarioLoader().mapper().convertValue(Map.of("count", 2,
+                "podsPerApplication", 2, "subscriptionPrefix", "app-", "client",
+                Map.of("ioThreads", 2, "listenerThreads", 2)), IotScenario.Applications.class);
+        assertThat(scenario(fromYaml).subscriptionType()).isEqualTo(SubscriptionType.Key_Shared);
+    }
+
+    @Test
     public void rejectsInvalidJoinSettings() {
         assertThatThrownBy(() -> scenario(new IotScenario.Applications(3, 2, "app-", new IotScenario.Client(2, 2),
                 null, List.of(0, 20), null))).hasMessageContaining("a value for each of the 3 applications");
@@ -181,6 +278,17 @@ public class IotScenarioTest {
     }
 
     @Test
+    public void rejectsABatchingDelayBelowOneMillisecond() {
+        assertThatThrownBy(() -> new IotScenario("pulsar://localhost:6650", new IotScenario.Warmup(0, 0, 1, 0),
+                new IotScenario.Measurement(120, 1_000), 0, new IotScenario.Payload(64), new IotScenario.Devices(1_000),
+                new IotScenario.Gateways(10, new IotScenario.Producer(2, 2, 100, true, true, null, 0), null),
+                new IotScenario.Topics(2, "persistent://public/default/iot-"),
+                new IotScenario.Applications(1, 2, "app-", new IotScenario.Client(2, 2), null), null, 300))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("gateways.producer.batchingMaxPublishDelayMillis must be at least 1");
+    }
+
+    @Test
     public void rejectsTwoWarmupLimits() {
         assertThatThrownBy(() -> scenario(20, 1_000, 1000, 0))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -208,6 +316,14 @@ public class IotScenarioTest {
 
     private static IotScenario scenario(IotScenario.Applications applications) {
         return scenario(applications, new IotScenario.Warmup(0, 0, 1, 0));
+    }
+
+    // The gateways without batching, as skipping messages needs
+    private static IotScenario unbatched(IotScenario.Applications applications) {
+        return new IotScenario("pulsar://localhost:6650", new IotScenario.Warmup(0, 0, 1, 0),
+                new IotScenario.Measurement(120, 1_000), 0, new IotScenario.Payload(64), new IotScenario.Devices(1_000),
+                new IotScenario.Gateways(10, new IotScenario.Producer(2, 2, 100, false, true, null), null),
+                new IotScenario.Topics(2, "persistent://public/default/iot-"), applications, null, 300);
     }
 
     private static IotScenario scenario(IotScenario.Applications applications, IotScenario.Warmup warmup) {

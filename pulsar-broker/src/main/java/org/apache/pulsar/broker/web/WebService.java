@@ -256,6 +256,8 @@ public class WebService implements AutoCloseable {
             config.register(JsonMapperProvider.class);
         }
         config.register(MultiPartFeature.class);
+        // Write the responses of async endpoints on the web service executor instead of the thread that resumes them
+        config.register(new WebExecutorAsyncResponseFeature(webServiceExecutor));
         ServletHolder servletHolder = new ServletHolder(new ServletContainer(config));
         servletHolder.setAsyncSupported(true);
         addServlet(basePath, servletHolder, requiresAuthentication, attributeMap);

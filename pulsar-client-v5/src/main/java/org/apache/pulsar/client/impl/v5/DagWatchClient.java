@@ -218,7 +218,9 @@ final class DagWatchClient implements DagWatchSession, AutoCloseable {
                 notifiedLayout = layout;
                 try {
                     l.onLayoutChange(layout, previous);
-                } catch (Exception e) {
+                } catch (Throwable e) {
+                    // Not just Exception: whatever escapes this loop leaves pendingNotifications above zero,
+                    // and nothing would be delivered after it.
                     log.error().exception(e).log("Error in layout change listener");
                 }
             }
@@ -234,7 +236,7 @@ final class DagWatchClient implements DagWatchSession, AutoCloseable {
             initialLayoutFuture.completeExceptionally(
                     error == ServerError.TopicNotFound
                             ? new PulsarClientException.NotFoundException(detail)
-                            : new PulsarClientException(detail));
+                            : ClientCnx.getPulsarClientException(error, detail));
         }
         // After the initial layout has arrived, broker-side errors on this session
         // (e.g., metadata unavailable) are transient — a reconnect typically clears
