@@ -276,6 +276,7 @@ public class BinaryProtoLookupService implements LookupService {
                                     + " is enabled.");
                     finalAutoCreationEnabled = true;
                 } else {
+                    client.getCnxPool().releaseConnection(clientCnx);
                     partitionFuture.completeExceptionally(
                             new PulsarClientException.FeatureNotSupportedException("The feature of "
                                     + "getting partitions without auto-creation is not supported by the broker. "

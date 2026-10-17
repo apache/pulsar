@@ -18,21 +18,29 @@
  */
 package org.apache.pulsar.broker.authorization;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
 import jakarta.ws.rs.core.Response;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import org.apache.logging.log4j.Level;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.TenantResources;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.RestException;
@@ -43,6 +51,7 @@ public class PulsarAuthorizationProviderTest {
 
     private static final String MISSING_TENANT = "non-existent-tenant";
     private static final String ROLE = "some-role";
+    private static final TopicName SEGMENT = TopicName.get("segment://tenant/ns/orders/0000-7fff-1");
 
     private static PulsarAuthorizationProvider providerReturning(
             CompletableFuture<Optional<TenantInfo>> tenantLookup) throws Exception {
@@ -121,5 +130,83 @@ public class PulsarAuthorizationProviderTest {
             assertFalse(logs.messagesAt(Level.ERROR).isEmpty(),
                     "A metadata store failure must still be logged at ERROR");
         }
+    }
+
+    private static PulsarAuthorizationProvider providerWithPolicies(Policies policies, ServiceConfiguration conf)
+            throws Exception {
+        NamespaceResources namespaceResources = mock(NamespaceResources.class);
+        when(namespaceResources.getPoliciesAsync(any()))
+                .thenReturn(CompletableFuture.completedFuture(Optional.of(policies)));
+        PulsarResources pulsarResources = mock(PulsarResources.class);
+        when(pulsarResources.getNamespaceResources()).thenReturn(namespaceResources);
+
+        PulsarAuthorizationProvider provider = new PulsarAuthorizationProvider();
+        provider.initialize(conf, pulsarResources);
+        return provider;
+    }
+
+    private static Policies policiesGrantingOnTopic(String topic, String role, AuthAction action) {
+        Policies policies = new Policies();
+        policies.auth_policies.getTopicAuthentication()
+                .computeIfAbsent(topic, __ -> new HashMap<>())
+                .put(role, Set.of(action));
+        return policies;
+    }
+
+    /** A segment of a scalable topic is authorized with the permissions granted on its parent topic://. */
+    @Test
+    public void testSegmentIsAuthorizedWithParentTopicPermissions() throws Exception {
+        PulsarAuthorizationProvider provider = providerWithPolicies(
+                policiesGrantingOnTopic("topic://tenant/ns/orders", ROLE, AuthAction.produce),
+                new ServiceConfiguration());
+
+        assertTrue(provider.canProduceAsync(SEGMENT, ROLE, null).get());
+        assertTrue(provider.canLookupAsync(SEGMENT, ROLE, null).get());
+        assertFalse(provider.canConsumeAsync(SEGMENT, ROLE, null, null).get(),
+                "Only produce was granted on the parent topic");
+        assertFalse(provider.canProduceAsync(SEGMENT, "other-role", null).get());
+        assertFalse(provider.canProduceAsync(
+                TopicName.get("segment://tenant/ns/payments/0000-7fff-1"), ROLE, null).get(),
+                "A segment of another scalable topic must not get the permissions of this one");
+    }
+
+    @Test
+    public void testSegmentIsAuthorizedWithNamespacePermissions() throws Exception {
+        Policies policies = new Policies();
+        policies.auth_policies.getNamespaceAuthentication().put(ROLE, Set.of(AuthAction.consume));
+        PulsarAuthorizationProvider provider = providerWithPolicies(policies, new ServiceConfiguration());
+
+        assertTrue(provider.canConsumeAsync(SEGMENT, ROLE, null, null).get());
+        assertFalse(provider.canProduceAsync(SEGMENT, ROLE, null).get());
+    }
+
+    @Test
+    public void testSegmentIsAuthorizedWithParentTopicWildcardPermissions() throws Exception {
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setAuthorizationAllowWildcardsMatching(true);
+        PulsarAuthorizationProvider provider = providerWithPolicies(
+                policiesGrantingOnTopic("topic://tenant/ns/orders", "app-*", AuthAction.produce), conf);
+
+        assertTrue(provider.canProduceAsync(SEGMENT, "app-1", null).get());
+        assertFalse(provider.canProduceAsync(SEGMENT, "other-role", null).get());
+    }
+
+    /**
+     * A scalable topic has no partitions: unlike a partition of a partitioned topic, a scalable topic whose name
+     * ends with "-partition-N" is a topic of its own, and the permissions of the name without the suffix don't
+     * apply to it or to its segments.
+     */
+    @Test
+    public void testScalableTopicNameWithPartitionSuffixIsNotAPartition() throws Exception {
+        Policies policies = policiesGrantingOnTopic("topic://tenant/ns/orders", ROLE, AuthAction.produce);
+        policies.auth_policies.getTopicAuthentication()
+                .put("persistent://tenant/ns/orders", Map.of(ROLE, Set.of(AuthAction.produce)));
+        PulsarAuthorizationProvider provider = providerWithPolicies(policies, new ServiceConfiguration());
+
+        assertFalse(provider.canProduceAsync(TopicName.get("topic://tenant/ns/orders-partition-1"), ROLE, null).get());
+        assertFalse(provider.canProduceAsync(
+                TopicName.get("segment://tenant/ns/orders-partition-1/0000-ffff-0"), ROLE, null).get());
+        assertTrue(provider.canProduceAsync(TopicName.get("persistent://tenant/ns/orders-partition-1"), ROLE, null)
+                .get(), "A partition of a partitioned topic still gets the permissions of the partitioned topic");
     }
 }

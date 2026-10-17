@@ -21,7 +21,8 @@
 
 # Pulsar tests
 
-This directory contains the integration tests, the performance tests and the tests of the packaged Pulsar clients.
+This directory contains the integration tests, the Pulsar Performance Testing Framework and the tests of the packaged
+Pulsar clients.
 [The microbenchmarks](../microbench/README.md) for single classes and methods are in the `microbench` module.
 
 ## Integration tests
@@ -54,10 +55,10 @@ To run the whole suite, use
 ### Profiling an integration test
 
 > [!NOTE]
-> For performance optimizations, use [the performance tests](performance/README.md) rather than a profiled
-> integration test. They run repeatable scenarios with a report for every run, compare two revisions, and profile
-> where threads wait as well as where they use CPU. Profiling an integration test shows what the cluster of that
-> particular test does.
+> For performance optimizations, use [the Pulsar Performance Testing Framework](performance/README.md) rather than a
+> profiled integration test. It runs repeatable scenarios with a report for every run, compares two revisions, and
+> profiles where threads wait as well as where they use CPU. Profiling an integration test shows what the cluster of
+> that particular test does.
 
 `profilingIntegrationTest` runs an integration test with
 [async-profiler](https://github.com/async-profiler/async-profiler) attached to the cluster's components inside their
@@ -88,18 +89,19 @@ be profiled without changing it; name it and the components to profile:
 - `-Pdocker.wolfi` builds the images from Wolfi instead of Alpine, which makes the `GLIBC_TUNABLES` that a test sets
   take effect.
 
-Without `--tests`, the task runs `PulsarProfilingTest`, a `pulsar-perf` workload of the legacy TestNG profiling
-runner. [The performance testing guide](performance/README.md) leads to rendering flame graphs from the recordings
+Without `--tests`, the task runs `PulsarProfilingTest`, a `pulsar-perf` workload of the legacy TestNG profiling runner.
+[The Pulsar Performance Testing Framework](performance/README.md) leads to rendering flame graphs from the recordings
 and analyzing them, and to the legacy runner.
 
-## Performance tests
+## Pulsar Performance Testing Framework
 
-The performance tests are for running performance test experiments. They run a Pulsar cluster and its workloads in
-Docker containers on one host, as a scenario describes them, and write a report for every run: throughput, latency,
-delivery and ordering checks, and the host's CPU state. Runs can be profiled with async-profiler, JDK Flight Recorder
-and jonoffcpu's off-CPU recording at the same time, and two revisions can be compared. The experiments run from the
-command line and write their results to files, so they can be automated, including tuning by AI agents.
-[The performance testing guide](performance/README.md) is a tutorial for getting started.
+The Pulsar Performance Testing Framework is for running performance experiments. It runs a Pulsar cluster and its
+workloads in Docker containers on one host, as a scenario describes them, and writes a report for every run:
+throughput, latency, delivery and ordering checks, and the host's CPU state. Runs can be profiled with async-profiler,
+JDK Flight Recorder and jonoffcpu's off-CPU recording at the same time, and two revisions can be compared, with A/B
+charts of their throughput, backlog and latency. The experiments run from the command line and write their results to
+files, so they can be automated, including tuning by AI agents. [Its guide](performance/README.md) is a tutorial for
+getting started.
 
 ## Directories
 
@@ -114,8 +116,8 @@ command line and write their results to files, so they can be automated, includi
 - [`certificate-authority`](certificate-authority/README.md): the test certificate authority and the TLS certificates
   that the tests use.
 - [`scripts`](scripts): scripts to run before and after the integration tests.
-- [`performance`](performance/README.md): the performance test scenarios, their launcher, the configuration of a
-  host for consistent results and the guidance for repeatable profiling runs.
+- [`performance`](performance/README.md): the Pulsar Performance Testing Framework: its scenarios, their launcher, the
+  configuration of a host for consistent results and the guidance for repeatable profiling runs.
 - [`compose`](compose/README.md): Docker Compose files that start a Pulsar cluster.
 - Tests of the packaged clients: [`pulsar-client-shade-test`](pulsar-client-shade-test),
   [`pulsar-client-admin-shade-test`](pulsar-client-admin-shade-test),

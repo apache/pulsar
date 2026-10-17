@@ -22,11 +22,13 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.v5.config.TransactionPolicy;
@@ -69,6 +71,47 @@ public class V5TransactionTest extends V5ClientBaseTest {
         }
         txn.abort();
         assertEquals(txn.state(), Transaction.State.ABORTED);
+    }
+
+    @Test
+    public void testCommitOfAbortedTransactionFailsWithTransactionConflict() throws Exception {
+        // A transaction that is no longer open cannot be committed: the commit fails with a
+        // typed TransactionConflict, blocking and async alike.
+        PulsarClient client = newTxnClient();
+        Transaction txn = client.newTransaction();
+        txn.abort();
+
+        expectThrows(PulsarClientException.TransactionConflictException.class, txn::commit);
+        ExecutionException e = expectThrows(ExecutionException.class, () -> txn.async().commit().get());
+        assertTrue(e.getCause() instanceof PulsarClientException.TransactionConflictException, e.toString());
+    }
+
+    @Test
+    public void testSendInAbortedTransactionFailsWithTransactionConflict() throws Exception {
+        // A send in a transaction that is no longer open fails with a typed TransactionConflict,
+        // blocking and async alike.
+        PulsarClient client = newTxnClient();
+        String topic = newScalableTopic(1);
+
+        @Cleanup
+        Producer<String> producer = client.newProducer(Schema.string())
+                .topic(topic)
+                .create();
+
+        Transaction txn = client.newTransaction();
+        txn.abort();
+
+        expectThrows(PulsarClientException.TransactionConflictException.class,
+                () -> producer.newMessage().transaction(txn).value("blocking").send());
+        ExecutionException e = expectThrows(ExecutionException.class,
+                () -> producer.async().newMessage().transaction(txn).value("async").send().get());
+        assertTrue(e.getCause() instanceof PulsarClientException.TransactionConflictException, e.toString());
+    }
+
+    @Test
+    public void testNewTransactionWithoutTransactionPolicyFailsWithInvalidConfiguration() {
+        // The shared client has no transaction policy, so it has transactions disabled.
+        expectThrows(PulsarClientException.InvalidConfigurationException.class, v5Client::newTransaction);
     }
 
     @Test

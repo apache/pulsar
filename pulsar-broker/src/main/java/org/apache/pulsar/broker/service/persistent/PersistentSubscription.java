@@ -74,6 +74,7 @@ import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
 import org.apache.pulsar.broker.stats.OpenTelemetryMessageFinderStats.FindReason;
+import org.apache.pulsar.broker.transaction.metadata.TxnMetadataStore;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleDisabled;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
@@ -136,6 +137,8 @@ public class PersistentSubscription extends AbstractSubscription {
     private volatile CompletableFuture<Void> inProgressResetCursorFuture;
     private volatile Boolean replicatedControlled;
     private final ServiceConfiguration config;
+    /** Held by tests between the cursor delete and the delete of the txn ack records, see {@link #unsubscribe}. */
+    private volatile CompletableFuture<Void> txnAckRecordsDeleteGate = CompletableFuture.completedFuture(null);
 
     static Map<String, Long> getBaseCursorProperties(Boolean isReplicated) {
         return isReplicated != null && isReplicated ? REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES :
@@ -377,6 +380,10 @@ public class PersistentSubscription extends AbstractSubscription {
         msgOutFromRemovedConsumer.add(stats.msgOutCounter);
 
         if (dispatcher != null && dispatcher.getConsumers().isEmpty()) {
+            // The consumers that a fenced subscription disconnects, when it is closed or reset, are expected back
+            if (IS_FENCED_UPDATER.get(this) == FALSE) {
+                cursor.markIdle();
+            }
             deactivateCursor();
             // Remove the cursor from the waiting cursors list.
             // For durable cursors, we should *not* cancel the pending read with cursor.cancelPendingReadRequest.
@@ -1291,7 +1298,7 @@ public class PersistentSubscription extends AbstractSubscription {
         }
 
         // cursor close handles pending delete (ack) operations
-        closeSubscriptionFuture.thenCompose(v -> topic.unsubscribe(subName)).thenAccept(v -> {
+        closeSubscriptionFuture.thenCompose(v -> unsubscribe()).thenAccept(v -> {
             synchronized (this) {
                 (dispatcher != null ? dispatcher.close() : CompletableFuture.completedFuture(null)).thenRun(() -> {
                     log.info()
@@ -1319,6 +1326,40 @@ public class PersistentSubscription extends AbstractSubscription {
         });
 
         return deleteFuture;
+    }
+
+    /**
+     * Delete the cursor of the subscription, once closed, and with it the ack records that the pending-ack store of
+     * a segment's subscription keeps in the metadata store for the transactions still open: the store deletes a
+     * transaction's records as it applies its outcome, which it never does once the subscription is gone. The records
+     * are collected first, while the subscription is fenced and its store closed: a subscription re-created with the
+     * same name once the cursor is deleted writes records of its own. They are deleted once the cursor is, so that a
+     * subscription whose delete fails keeps them. Best effort: a failure is logged, not returned.
+     */
+    private CompletableFuture<Void> unsubscribe() {
+        if (!config.isTransactionCoordinatorEnabled() || !TopicName.get(topicName).isSegment()) {
+            return topic.unsubscribe(subName);
+        }
+        TxnMetadataStore txnStore = new TxnMetadataStore(topic.getBrokerService().getPulsar().getLocalMetadataStore());
+        return txnStore.collectAckOpsForSegmentSubscription(topicName, subName)
+                .exceptionally(ex -> {
+                    log.warn().exceptionMessage(ex)
+                            .log("Failed to collect the transaction ack records of the subscription to delete");
+                    return List.of();
+                })
+                .thenCompose(ackOps -> topic.unsubscribe(subName)
+                        .thenCompose(__ -> txnAckRecordsDeleteGate)
+                        .thenCompose(__ -> txnStore.deleteOps(ackOps)
+                                .exceptionally(ex -> {
+                                    log.warn().exceptionMessage(ex)
+                                            .log("Failed to delete the transaction ack records of the subscription");
+                                    return null;
+                                })));
+    }
+
+    @VisibleForTesting
+    void setTxnAckRecordsDeleteGate(CompletableFuture<Void> gate) {
+        this.txnAckRecordsDeleteGate = gate;
     }
 
     /**
@@ -1433,7 +1474,9 @@ public class PersistentSubscription extends AbstractSubscription {
 
         Dispatcher dispatcher = this.dispatcher;
         if (dispatcher != null) {
-            Map<Consumer, List<Range>> consumerKeyHashRanges = getType() == SubType.Key_Shared
+            // Only the consumers' stats show the key hash ranges, which take a pass over the selector's hash ring
+            Map<Consumer, List<Range>> consumerKeyHashRanges =
+                    getType() == SubType.Key_Shared && !getStatsOptions.isExcludeConsumers()
                     ? ((StickyKeyDispatcher) dispatcher).getConsumerKeyHashRanges() : null;
             dispatcher.getConsumers().forEach(consumer -> {
                 ConsumerStatsImpl consumerStats = consumer.getStats();

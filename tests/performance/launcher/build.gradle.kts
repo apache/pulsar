@@ -66,20 +66,38 @@ tasks.named<Test>("test") {
     inputs.dir(layout.projectDirectory.dir("../scenarios"))
         .withPropertyName("scenarios")
         .withPathSensitivity(PathSensitivity.RELATIVE)
+    // It needs a Docker engine that runs privileged containers; networkCheck runs it
+    exclude("**/NetworkImpairmentsCheck*")
 }
 
-// Profiled containers use the glibc-based Wolfi image: on musl every native frame reads as the unsymbolized
-// /lib/ld-musl-x86_64.so.1, which hides what the JVM's own threads were waiting in. -Pinttest.testImageVariant=alpine
-// profiles on the same Alpine image as every other run instead.
+// Checks the network impairments on small containers, with ping and iperf3, see docs/network-conditions.md
+val networkCheck by tasks.registering(Test::class) {
+    description = "Checks that the network impairments do what their settings ask, on small Docker containers"
+    group = "verification"
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    useTestNG()
+    include("**/NetworkImpairmentsCheck*")
+    outputs.upToDateWhen { false }
+    testLogging {
+        events("passed", "failed", "skipped")
+        showStandardStreams = true
+    }
+}
+
+// Profiled containers use the same Alpine image as every other run, which is also Pulsar's default image, since a
+// profile of another image, such as its libc's memory allocation, doesn't carry over to it. The test image installs
+// musl's debug symbols, so that native frames in musl are named. -Pinttest.testImageVariant=wolfi profiles on the
+// glibc-based Wolfi image instead.
 val wolfiTestImage = providers.gradleProperty("inttest.testImageVariant").map {
     when (it) {
         "wolfi" -> true
         "alpine" -> false
         else -> throw GradleException("inttest.testImageVariant must be alpine or wolfi, not '$it'")
     }
-}.getOrElse(true)
+}.getOrElse(false)
 
-fun JavaExec.configurePerformanceLauncher(profiler: Boolean) {
+fun JavaExec.configurePerformanceLauncher(profiler: Boolean, clusterPulsarImage: Boolean = true) {
     workingDir(rootProject.projectDir)
     dependsOn(":tests:performance:tools:installDist")
     val imageSuffix = if (profiler && wolfiTestImage) "-wolfi" else ""
@@ -110,6 +128,11 @@ fun JavaExec.configurePerformanceLauncher(profiler: Boolean) {
     listOf("metrics", "metrics.bindAddress", "metrics.grafanaUrl").forEach { name ->
         providers.gradleProperty("performance.$name").orNull?.let { systemProperty("performance.$name", it) }
     }
+    // Count the containers' CPU events with perf stat in a privileged sidecar, the default; -Pperformance.perfStat=false
+    // counts none. See tests/performance/docs/run-reports.md
+    providers.gradleProperty("performance.perfStat").orNull?.let {
+        systemProperty("performance.perfStat", (it.isEmpty() || it.toBoolean()).toString())
+    }
     // The URL of the reports that :tests:performance:report-tool:serveReports serves, which the launcher prints beside
     // the reports: -Pperformance.reportsServer.baseUrl, else the server's bind address and port
     listOf("baseUrl", "bindAddress", "port").forEach { name ->
@@ -131,7 +154,8 @@ fun JavaExec.configurePerformanceLauncher(profiler: Boolean) {
     // The cluster runs a released Pulsar, -Pperformance.clusterPulsarImage=<image> such as apachepulsar/pulsar:4.0.13,
     // in a test image that :tests:java-test-image:dockerBuildCluster builds on it, with the same tag: ZooKeeper, the
     // bookies and the brokers. The workloads keep this repository's test image, and with it its Pulsar client.
-    providers.gradleProperty("performance.clusterPulsarImage").orNull?.let {
+    // A comparison sets each side's cluster image itself, so it doesn't build this one.
+    providers.gradleProperty("performance.clusterPulsarImage").orNull?.takeIf { clusterPulsarImage }?.let {
         dependsOn(":tests:java-test-image:dockerBuildCluster")
         systemProperty("performance.cluster.pulsarImage", it)
         systemProperty("performance.cluster.image",
@@ -143,6 +167,60 @@ fun JavaExec.configurePerformanceLauncher(profiler: Boolean) {
 tasks.named<JavaExec>("run") {
     configurePerformanceLauncher(profiler = false)
     dependsOn(":tests:java-test-image:dockerBuild")
+}
+
+// Compares two Pulsar clusters on a scenario, see tests/performance/docs/comparing-revisions.md: the runs alternate
+// between the sides, -Pperformance.compare.repetitions times each (3 by default), and the comparison charts each side's
+// median run by -Pperformance.compare.medianBy (throughput by default). The gateways and the applications run this
+// checkout's test image, and with it its Pulsar client.
+fun JavaExec.configureImageComparison(candidateIsCheckout: Boolean) {
+    group = "verification"
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("org.apache.pulsar.tests.performance.launcher.ImageComparison")
+    configurePerformanceLauncher(profiler = false, clusterPulsarImage = false)
+    dependsOn(":tests:java-test-image:dockerBuild")
+    if (candidateIsCheckout && providers.gradleProperty("performance.compare.candidateImage").isPresent) {
+        doFirst {
+            throw GradleException("compareImageWithCheckout compares with this checkout; use compareImages to compare" +
+                " with -Pperformance.compare.candidateImage")
+        }
+    }
+    val organization = providers.gradleProperty("docker.organization").getOrElse("apachepulsar")
+    fun clusterImage(image: String) =
+        "$organization/java-test-image:cluster-" + image.replace(Regex("[^A-Za-z0-9_.-]"), "-").takeLast(120)
+    val sides = if (candidateIsCheckout) listOf("Baseline") else listOf("Baseline", "Candidate")
+    sides.forEach { side ->
+        val property = "performance.compare.${side.lowercase()}Image"
+        val image = providers.gradleProperty(property).orNull
+        if (image == null) {
+            // Checked when the task runs, so that configuring other tasks doesn't need the property
+            doFirst {
+                throw GradleException("Set -P$property, such as apachepulsar/pulsar:4.0.14")
+            }
+        } else {
+            dependsOn(":tests:java-test-image:dockerBuildCompare$side")
+            systemProperty("performance.compare.${side.lowercase()}.pulsarImage", image)
+            systemProperty("performance.compare.${side.lowercase()}.image", clusterImage(image))
+        }
+    }
+    listOf("repetitions", "medianBy").forEach { name ->
+        providers.gradleProperty("performance.compare.$name").orNull?.let {
+            systemProperty("performance.compare.$name", it)
+        }
+    }
+    outputs.upToDateWhen { false }
+}
+
+tasks.register<JavaExec>("compareImages") {
+    description = "Compare two released Pulsar images on a scenario, -Pperformance.compare.baselineImage and " +
+        "-Pperformance.compare.candidateImage"
+    configureImageComparison(candidateIsCheckout = false)
+}
+
+tasks.register<JavaExec>("compareImageWithCheckout") {
+    description = "Compare a released Pulsar image, -Pperformance.compare.baselineImage, with this checkout on a " +
+        "scenario"
+    configureImageComparison(candidateIsCheckout = true)
 }
 
 tasks.register<JavaExec>("profile") {

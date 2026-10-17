@@ -26,3 +26,7 @@ cluster:
   bookies:
     env:
       PULSAR_MEM: -Xms1g -Xmx1g -XX:MaxDirectMemorySize=1g -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch
+      # The test image's run-bookie.sh sets both DbLedgerStorage caches to 16 MB unless they are set, which throttles
+      # adds of large entries during its flushes; use BookKeeper's defaults, a quarter of the direct memory each.
+      dbStorage_writeCacheMaxSizeMb: "256"
+      dbStorage_readAheadCacheMaxSizeMb: "256"

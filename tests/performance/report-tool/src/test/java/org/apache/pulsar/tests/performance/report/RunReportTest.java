@@ -21,6 +21,7 @@ package org.apache.pulsar.tests.performance.report;
 import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Files;
@@ -28,6 +29,7 @@ import java.nio.file.Path;
 import java.time.ZonedDateTime;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 import org.HdrHistogram.Histogram;
 import org.HdrHistogram.HistogramLogWriter;
@@ -60,6 +62,226 @@ public class RunReportTest {
                 Files.delete(path);
             }
         }
+    }
+
+    @Test
+    public void describesTheGatewaysBatching() throws Exception {
+        assertThat(RunReport.batching(mapper.readTree("{\"batchingEnabled\": false}"))).isEqualTo("off");
+        assertThat(RunReport.batching(mapper.readTree("{\"batchingEnabled\": true}"))).isEqualTo("on");
+        assertThat(RunReport.batching(mapper.readTree(
+                "{\"batchingEnabled\": true, \"batchingMaxPublishDelayMillis\": 10}")))
+                .isEqualTo("on, 10 ms delay");
+    }
+
+    @Test
+    public void reportsTheCatchUpOfTheApplicationsThatJoinedLater() throws Exception {
+        JsonNode workload = mapper.readTree("{\"applications\": {\"subscriptionPrefix\": \"app-\"}}");
+        long start = 1_000_000;
+        long end = start + 120_000;
+        List<JsonNode> consumers = List.of(
+                mapper.readTree("{\"applicationIndex\": 0, \"joinEpochMs\": 0}"),
+                // caught up while the gateways published
+                late(1, start + 20_000, start + 30_000, 1_500_000, start + 120_000),
+                // caught up with the gateways' last messages, within the threshold after they finished
+                late(2, start + 40_000, start + 120_400, 4_000_000, start + 140_000),
+                // never caught up, with no sample before it joined
+                late(3, start + 500, 0, 4_600_000, start + 150_000),
+                // joined but never received a measured message
+                late(4, start + 60_000, 0, 0, 0),
+                // caught up in the millisecond that it joined
+                late(5, start + 70_000, start + 70_000, 10, start + 80_000));
+        long[] epochs = {start + 1_000, start + 19_000, start + 39_000};
+        RunReport.Samples samples = new RunReport.Samples(epochs, new double[3], Map.of(),
+                Map.of("app-1", new double[] {0, 570_000, 0}, "app-2", new double[] {0, 0, 1_170_000},
+                        "app-3", new double[] {0, 0, 0}));
+        StringBuilder report = new StringBuilder();
+        RunReport.appendCatchUp(report, workload, consumers, samples, start, end);
+
+        assertThat(report.toString())
+                .contains("## Catch-up")
+                // the threshold that the application wrote
+                .contains("within 500 ms of its publishing")
+                .contains("| `app-1` | 20.0 s | 570,000 | 10.0 s | 150,000 msg/s | 100.0 s |")
+                .contains("| `app-2` | 40.0 s | 1,170,000 | 80.4 s, after the gateways finished | 49,751 msg/s"
+                        + " | 100.0 s |")
+                .contains("| `app-3` | 0.5 s | – | not caught up | 30,769 msg/s until its last message | 149.5 s |")
+                .contains("| `app-4` | 60.0 s | – | not caught up | – | – |")
+                .contains("| `app-5` | 70.0 s | – | 0.0 s | – | 10.0 s |")
+                .doesNotContain("`app-0`");
+        // without topic stats
+        StringBuilder withoutSamples = new StringBuilder();
+        RunReport.appendCatchUp(withoutSamples, workload, consumers.subList(0, 2), null, start, end);
+        assertThat(withoutSamples.toString()).contains("| `app-1` | 20.0 s | – | 10.0 s |");
+        // without late applications, there's no section
+        StringBuilder none = new StringBuilder();
+        RunReport.appendCatchUp(none, workload, consumers.subList(0, 1), samples, start, end);
+        assertThat(none.toString()).isEmpty();
+    }
+
+    @Test
+    public void showsTheMessagesThatLateApplicationsSkipped() throws Exception {
+        JsonNode workload = mapper.readTree("{\"applications\": {\"subscriptionPrefix\": \"app-\"}}");
+        long start = 1_000_000;
+        ObjectNode skipped = (ObjectNode) late(1, start + 60_000, start + 70_000, 900_000, start + 120_000);
+        skipped.put("skippedMessages", 10_240);
+        StringBuilder report = new StringBuilder();
+        RunReport.appendCatchUp(report, workload, List.of(late(0, start + 60_000, start + 65_000, 900_000,
+                start + 120_000), skipped), null, start, start + 120_000);
+
+        assertThat(report.toString())
+                .contains("| Application | Joined | Backlog when it joined | Skipped | Caught up after |")
+                .contains("| `app-0` | 60.0 s | – | 0 | 5.0 s |")
+                .contains("| `app-1` | 60.0 s | – | 10,240 | 10.0 s |");
+    }
+
+    @Test
+    public void sumsTheOffloadStatusOfEachPhase() throws Exception {
+        Path status = Files.createTempFile("offload-status", ".csv");
+        try {
+            Files.writeString(status, RunReport.OFFLOAD_STATUS_HEADER + "\n"
+                    + "1000,join,persistent://public/default/t-0,14,12,629145600,700000\n"
+                    + "1000,join,persistent://public/default/t-1,2,1,1048576,20000\n"
+                    + "2000,end,persistent://public/default/t-0,26,25,1310720000,1300000\n");
+            StringBuilder report = new StringBuilder();
+            RunReport.appendOffloadStatus(report, status, null);
+
+            assertThat(report.toString())
+                    .contains("## Offloading")
+                    .contains("| The late applications joined | 2 | 16 | 13 | 601.0 MB | 720,000 |")
+                    .contains("| The run's end | 1 | 26 | 25 | 1,250.0 MB | 1,300,000 |");
+            StringBuilder none = new StringBuilder();
+            RunReport.appendOffloadStatus(none, status.resolveSibling("missing-offload-status.csv"), null);
+            assertThat(none.toString()).isEmpty();
+        } finally {
+            Files.delete(status);
+        }
+    }
+
+    @Test
+    public void reportsTheJoinPreparationAndTheStoragesReadsDuringTheResets() throws Exception {
+        Path directory = Files.createTempDirectory("join-preparation");
+        try {
+            // 2026-10-13T11:00:00Z
+            long start = 1_791_889_200_000L;
+            Path preparation = directory.resolve(RunReport.JOIN_PREPARATION_FILE);
+            Files.writeString(preparation, RunReport.JOIN_PREPARATION_HEADER + "\n"
+                    + start + "," + (start + 1_500) + ",reset,app-0,persistent://public/default/t-0,5123,1500\n"
+                    + (start + 1_600) + "," + (start + 2_000)
+                    + ",reset,app-1,persistent://public/default/t-0,21777,400\n"
+                    + (start + 2_100) + "," + (start + 2_150) + ",unload,,persistent://public/default/t-0,0,50\n");
+            Path log = directory.resolve(RunReport.OFFLOAD_STORAGE_LOG_FILE);
+            Files.writeString(log, String.join("\n",
+                    // before the resets: a whole object, the index
+                    "I1013 10:59:59.900123 stats.go:42 \"performance\" GET \"/pulsar/x-ledger-2-index\" 200 3.1ms",
+                    // during the resets: two ranged reads of 1 MiB
+                    "I1013 11:00:00.400000 s3api_object_handlers.go:981 streamFromVolumeServers: entry has 7 chunks,"
+                            + " totalSize=27483616, isRange=true, offset=0, size=1048576",
+                    "I1013 11:00:00.410000 stats.go:42 \"performance\" GET \"/pulsar/x-ledger-2\" 206 10ms",
+                    "I1013 11:00:01.900000 s3api_object_handlers.go:981 streamFromVolumeServers: entry has 7 chunks,"
+                            + " totalSize=27483616, isRange=true, offset=1048576, size=1048576",
+                    "I1013 11:00:01.910000 stats.go:42 \"performance\" GET \"/pulsar/x-ledger-2\" 206 10ms",
+                    // not a read of an object
+                    "I1013 11:00:01.950000 stats.go:42 \"performance\" GET \"/pulsar\" 200 1ms",
+                    // after the resets
+                    "I1013 11:00:05.000000 stats.go:42 \"performance\" PUT \"/pulsar/y\" 200 1ms", ""));
+            RunReport.StorageRequests requests = RunReport.StorageRequests.read(log, start);
+            assertThat(requests.reads()).hasSize(3);
+
+            StringBuilder report = new StringBuilder();
+            RunReport.appendJoinPreparation(report, preparation, requests);
+            assertThat(report.toString())
+                    .contains("## Join preparation")
+                    .contains("| reset | `app-0` | `persistent://public/default/t-0` | 5,123 | 1,500 ms |")
+                    .contains("| unload | – | `persistent://public/default/t-0` | – | 50 ms |")
+                    .contains("During the resets, the storage served 2 reads of objects, 2.0 MB in ranged reads.");
+            StringBuilder none = new StringBuilder();
+            RunReport.appendJoinPreparation(none, directory.resolve("missing.csv"), requests);
+            assertThat(none.toString()).isEmpty();
+        } finally {
+            try (Stream<Path> paths = Files.walk(directory)) {
+                for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
+                    Files.delete(path);
+                }
+            }
+        }
+    }
+
+    @Test
+    public void reportsTheSeeksLatenciesAndTheStoragesReadsDuringThem() throws Exception {
+        Path directory = Files.createTempDirectory("seeks");
+        try {
+            // 2026-10-13T11:00:00Z
+            long start = 1_791_889_200_000L;
+            StringBuilder csv = new StringBuilder(RunReport.SEEKS_HEADER).append('\n');
+            // 100 seeks of 1 to 100 ms each, and a read of 2 ms
+            for (int i = 0; i < 100; i++) {
+                csv.append(i).append(',').append(start + i * 10L).append(',').append(start + i * 10L + 5)
+                        .append(",persistent://public/default/t-0,").append(1_000_000 + i).append(',')
+                        .append((i + 1) * 1000L).append(",2000,12:").append(i).append(":-1\n");
+            }
+            Path seeks = directory.resolve(RunReport.SEEKS_FILE);
+            Files.writeString(seeks, csv);
+            Path log = directory.resolve(RunReport.OFFLOAD_STORAGE_LOG_FILE);
+            Files.writeString(log, String.join("\n",
+                    "I1013 11:00:00.400000 s3api_object_handlers.go:981 streamFromVolumeServers: entry has 7 chunks,"
+                            + " totalSize=27483616, isRange=true, offset=0, size=1048576",
+                    "I1013 11:00:00.410000 stats.go:42 \"performance\" GET \"/pulsar/x-ledger-2\" 206 10ms",
+                    "I1013 11:00:09.000000 stats.go:42 \"performance\" GET \"/pulsar/x-ledger-2\" 206 10ms", ""));
+            StringBuilder report = new StringBuilder();
+            RunReport.appendSeeks(report, seeks, RunReport.StorageRequests.read(log, start));
+            assertThat(report.toString())
+                    .contains("## Seeks")
+                    .contains("The launcher's 100 seeks to random publish times after the workloads, in 1.0 s")
+                    .contains("| Reset by timestamp | 100 | 50.0 ms | 90.0 ms | 99.0 ms | 100.0 ms | 50.5 ms |")
+                    .contains("| Read of the message | 100 | 2.0 ms |")
+                    .contains("During the seeks, the storage served 1 reads of objects, 0.01 per seek, 1.0 MB");
+        } finally {
+            try (Stream<Path> paths = Files.walk(directory)) {
+                for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
+                    Files.delete(path);
+                }
+            }
+        }
+    }
+
+    @Test
+    public void countsTheStoragesInterleavedRequestsAndRequestsAcrossANewYear() throws Exception {
+        Path log = Files.createTempFile("offload-storage", ".log");
+        try {
+            // two ranged reads whose lines interleave, and a read of a whole object between them
+            Files.writeString(log, String.join("\n",
+                    "I1231 23:59:59.100000 s3api_object_handlers.go:981 streamFromVolumeServers: isRange=true,"
+                            + " offset=0, size=100",
+                    "I1231 23:59:59.200000 s3api_object_handlers.go:981 streamFromVolumeServers: isRange=true,"
+                            + " offset=100, size=200",
+                    "I1231 23:59:59.300000 stats.go:42 \"performance\" GET \"/pulsar/x-index\" 200 1ms",
+                    "I1231 23:59:59.400000 stats.go:42 \"performance\" GET \"/pulsar/x\" 206 10ms",
+                    // after the new year
+                    "I0101 00:00:00.500000 stats.go:42 \"performance\" GET \"/pulsar/x\" 206 10ms", ""));
+            // 2026-12-31T23:59:59Z, the run's reference
+            long reference = 1_798_761_599_000L;
+            RunReport.StorageRequests requests = RunReport.StorageRequests.read(log, reference);
+            assertThat(requests.reads()).hasSize(3);
+            assertThat(requests.rangeBytes(Long.MIN_VALUE, Long.MAX_VALUE)).isEqualTo(300);
+            // the request after midnight is in the next year, just after the reference
+            assertThat(requests.reads(reference, reference + 2_000)).isEqualTo(3);
+
+            // February 29 of a leap year, near a reference in the year before it
+            Files.writeString(log, "I0229 12:00:00.000000 stats.go:42 \"performance\" GET \"/pulsar/x\" 206 1ms\n");
+            // 2027-12-31T00:00:00Z
+            RunReport.StorageRequests leapDay = RunReport.StorageRequests.read(log, 1_830_211_200_000L);
+            // 2028-02-29T12:00:00Z
+            assertThat(leapDay.reads()).containsExactly(1_835_438_400_000L);
+        } finally {
+            Files.delete(log);
+        }
+    }
+
+    private JsonNode late(int index, long joined, long caughtUp, long messages, long lastReceived) throws Exception {
+        return mapper.readTree("{\"applicationIndex\": " + index + ", \"joinEpochMs\": " + joined
+                + ", \"caughtUpLatencyMillis\": 500, \"caughtUpEpochMs\": " + caughtUp
+                + ", \"messagesWhenCaughtUp\": " + messages + ", \"uniqueMessages\": 4600000"
+                + ", \"lastMeasurementMessageReceivedEpochMs\": " + lastReceived + "}");
     }
 
     @Test
@@ -593,5 +815,31 @@ public class RunReportTest {
             writer.outputLegend();
             writer.outputIntervalHistogram(histogram);
         }
+    }
+
+    @Test
+    public void reportsTheRemoteApplicationsApartFromTheFirstClusters() throws IOException {
+        Path run = Files.createTempDirectory("run-report-remote");
+        Path remote = run.resolve(RunReport.REMOTE_APPLICATIONS_DIRECTORY).resolve("iot-application-0");
+        Files.createDirectories(remote);
+        Files.writeString(remote.resolve("application-summary.json"), "{\"applicationIndex\": 0,"
+                + " \"uniqueMessages\": 130466, \"duplicates\": 0, \"orderingViolations\": 4253}");
+        Files.writeString(run.resolve("replication-stats.csv"), "epochMs,topic\n");
+        JsonNode workload = mapper.readTree("{\"applications\": {\"subscriptionPrefix\": \"iot-application-\"}}");
+
+        StringBuilder report = new StringBuilder();
+        RunReport.appendRemoteApplications(report, run, workload, mapper);
+
+        assertThat(report.toString()).contains("## Remote applications", "| iot-application-0 | 130,466 | 0 | 4,253 |",
+                "**Duplicates, ordering violations or invalid messages were received.**", "replication-stats.csv");
+    }
+
+    @Test
+    public void hasNoRemoteApplicationsWithoutARemoteCluster() throws IOException {
+        StringBuilder report = new StringBuilder();
+        RunReport.appendRemoteApplications(report, Files.createTempDirectory("run-report-local"),
+                mapper.readTree("{\"applications\": {\"subscriptionPrefix\": \"iot-application-\"}}"), mapper);
+
+        assertThat(report.toString()).isEmpty();
     }
 }

@@ -89,17 +89,72 @@ public class ScenarioFilesTest {
         }
     }
 
-    // The workload's settings as the launcher checks them before it starts a cluster, with the service URL it sets
+    // The workload's settings as the launcher checks them before it starts a cluster, with the service URL it sets,
+    // and the sections that offloading, its seeks among them, and the network read
     private void checkWorkload(ObjectNode resolved) {
         ObjectNode workload = (ObjectNode) loader.select(resolved, "workloads.iotTelemetry").deepCopy();
         workload.put("serviceUrl", "pulsar://broker:6650");
         PerformanceLauncher.checkWorkload(loader.mapper(), workload);
+        OffloadSettings offload = OffloadSettings.read(resolved.path("offload"));
+        if (offload != null) {
+            offload.checkTopics(workload.path("topics").path("prefix").textValue());
+        }
+        ClusterSettings cluster = ClusterSettings.read(loader.mapper(), resolved.path("cluster"));
+        NetworkSettings.read(resolved.path("network"), cluster.topology().withOffloadStorage(offload != null),
+                PerformanceLauncher.measurementSeconds(workload));
     }
 
     // A ledger replication setting of the brokers, or the default in Pulsar's conf/broker.conf, 2, when unset
     private static int ledgerSetting(ClusterSettings cluster, String name) {
         String value = cluster.brokers().env().get(name);
         return value != null ? Integer.parseInt(value) : 2;
+    }
+
+    @Test
+    public void theCatchUpScenarioJoinsApplicationsAfterTheMeasurementStarts() {
+        ObjectNode applications = (ObjectNode) resolve(SCENARIOS.resolve("iot-telemetry-catch-up.yaml"), List.of())
+                .path("workloads").path("iotTelemetry").path("applications");
+        assertThat(applications.path("joinSeconds").toString()).isEqualTo("[0,20,22,24,60]");
+        assertThat(applications.path("count").asInt()).isEqualTo(5);
+    }
+
+    @Test
+    public void theOffloadScenariosOffloadEachLedgerOnceItRollsOverBehindAStorageLatency() {
+        for (String scenario : List.of("iot-telemetry-offload.yaml", "iot-telemetry-offload-seek.yaml",
+                "iot-telemetry-offload-random-seeks.yaml")) {
+            ObjectNode resolved = resolve(SCENARIOS.resolve(scenario), List.of());
+            OffloadSettings offload = OffloadSettings.read(resolved.path("offload"));
+            assertThat(offload).as(scenario).isNotNull();
+            assertThat(offload.namespace()).as(scenario).isEqualTo("public/default");
+            assertThat(offload.thresholdBytes()).as(scenario).isZero();
+            assertThat(offload.deletionLagMillis()).as(scenario).isZero();
+            // The seek scenarios count the storage's reads
+            assertThat(offload.logRequests()).as(scenario).isEqualTo(!scenario.equals("iot-telemetry-offload.yaml"));
+            ClusterSettings cluster = ClusterSettings.read(loader.mapper(), resolved.path("cluster"));
+            // Ledgers roll over by their entries, without the base configuration's 60-minute minimum
+            assertThat(cluster.brokers().env()).as(scenario)
+                    .containsEntry("managedLedgerMaxEntriesPerLedger", "25000")
+                    .containsEntry("managedLedgerMinLedgerRolloverTimeMinutes", "0");
+            NetworkSettings network = NetworkSettings.read(resolved.path("network"),
+                    cluster.topology().withOffloadStorage(true),
+                    PerformanceLauncher.measurementSeconds(loader.select(resolved, "workloads.iotTelemetry")));
+            assertThat(network.impairments()).as(scenario).singleElement().satisfies(impairment -> {
+                assertThat(impairment.name()).isEqualTo("offload-storage-latency");
+                assertThat(impairment.to()).containsExactly("offload-storage");
+            });
+        }
+        ObjectNode randomSeeks = resolve(SCENARIOS.resolve("iot-telemetry-offload-random-seeks.yaml"), List.of());
+        assertThat(randomSeeks.has("seeks")).as("a top-level seeks").isFalse();
+        SeekSettings seeks = OffloadSettings.read(randomSeeks.path("offload")).seeks();
+        assertThat(seeks).isNotNull();
+        assertThat(seeks.count()).isEqualTo(500);
+        // the only scenario that seeks
+        assertThat(OffloadSettings.read(resolve(SCENARIOS.resolve("iot-telemetry-offload.yaml"), List.of())
+                .path("offload")).seeks()).isNull();
+        // --set reaches the nested section
+        ObjectNode moreSeeks = resolve(SCENARIOS.resolve("iot-telemetry-offload-random-seeks.yaml"), List.of());
+        loader.set(moreSeeks, "offload.seeks.count=2000");
+        assertThat(OffloadSettings.read(moreSeeks.path("offload")).seeks().count()).isEqualTo(2000);
     }
 
     @Test
@@ -127,6 +182,35 @@ public class ScenarioFilesTest {
                 default -> profiling.applications();
             };
             assertThat(profiled.profiled()).as(component).isTrue();
+        }
+    }
+
+    @DataProvider
+    public static Object[][] networkOverlays() throws IOException {
+        try (Stream<Path> files = Files.list(SCENARIOS.resolve("network"))) {
+            return files.filter(file -> file.getFileName().toString().endsWith(".yaml")).sorted()
+                    .map(file -> new Object[] {file.getFileName().toString()}).toArray(Object[][]::new);
+        }
+    }
+
+    @Test(dataProvider = "networkOverlays")
+    public void appliesEveryNetworkOverlayToTheScenarios(String overlay) {
+        for (String scenario : List.of("iot-telemetry-small.yaml", "iot-telemetry-high-rate.yaml")) {
+            ObjectNode resolved = resolve(SCENARIOS.resolve(scenario),
+                    List.of(SCENARIOS.resolve("network").resolve(overlay)));
+            ClusterSettings cluster = ClusterSettings.read(loader.mapper(), resolved.path("cluster"));
+            NetworkSettings network = NetworkSettings.read(resolved.path("network"), cluster.topology(),
+                    PerformanceLauncher.measurementSeconds(loader.select(resolved, "workloads.iotTelemetry")));
+            // Every overlay but the clusters that the fault overlays extend impairs something
+            assertThat(network.any()).as(overlay + " on " + scenario)
+                    .isEqualTo(!List.of("failover-cluster.yaml", "geo-replication.yaml").contains(overlay));
+            // The geo overlays add the remote cluster
+            assertThat(cluster.remote() != null).as(overlay + " on " + scenario)
+                    .isEqualTo(overlay.startsWith("geo-"));
+            assertThat(ledgerSetting(cluster, "managedLedgerDefaultEnsembleSize"))
+                    .as("the ensemble size of %d bookie(s)", cluster.bookies().replicas())
+                    .isBetween(1, cluster.bookies().replicas());
+            checkWorkload(resolved);
         }
     }
 

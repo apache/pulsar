@@ -36,6 +36,7 @@ import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.instance.JavaInstanceRunnable;
 import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
+import org.apache.pulsar.functions.instance.v5.LazyPulsarClientV5;
 import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.apache.pulsar.functions.proto.FunctionStatus;
 import org.apache.pulsar.functions.proto.MetricsData;
@@ -66,6 +67,7 @@ public class ThreadRuntime implements Runtime {
     private final String transformFunctionFile;
     private final ClientBuilder clientBuilder;
     private final PulsarClient pulsarClient;
+    private final LazyPulsarClientV5 pulsarClientV5;
     private final PulsarAdmin pulsarAdmin;
     private final String stateStorageImplClass;
     private final String stateStorageServiceUrl;
@@ -81,6 +83,7 @@ public class ThreadRuntime implements Runtime {
                   String jarFile,
                   String transformFunctionFile,
                   PulsarClient client,
+                  LazyPulsarClientV5 clientV5,
                   ClientBuilder clientBuilder,
                   PulsarAdmin pulsarAdmin,
                   String stateStorageImplClass,
@@ -101,6 +104,7 @@ public class ThreadRuntime implements Runtime {
         this.transformFunctionFile = transformFunctionFile;
         this.clientBuilder = clientBuilder;
         this.pulsarClient = client;
+        this.pulsarClientV5 = clientV5;
         this.pulsarAdmin = pulsarAdmin;
         this.stateStorageImplClass = stateStorageImplClass;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
@@ -211,6 +215,7 @@ public class ThreadRuntime implements Runtime {
                 instanceConfig,
                 clientBuilder,
                 pulsarClient,
+                pulsarClientV5,
                 pulsarAdmin,
                 stateStorageImplClass,
                 stateStorageServiceUrl,
