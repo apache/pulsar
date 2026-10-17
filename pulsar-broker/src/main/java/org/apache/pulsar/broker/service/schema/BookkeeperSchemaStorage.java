@@ -304,12 +304,6 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
 
     @NonNull
     private CompletableFuture<StoredSchema> getSchema(String schemaId) {
-        return getSchema(schemaId, this::readSchemaData);
-    }
-
-    @NonNull
-    private CompletableFuture<StoredSchema> getSchema(
-            String schemaId, Function<PositionInfo, CompletableFuture<CachedSchemaData>> schemaReader) {
         // Concurrent reads of the same schema coalesce on both the locator read (metadata cache) and
         // the schema entry read (schema entry cache), so only one BookKeeper read is in flight.
         return getSchemaLocator(getSchemaPath(schemaId)).thenCompose(locator -> {
@@ -320,7 +314,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
 
             SchemaLocator schemaLocator = locator.get().locator;
 
-            return schemaReader.apply(schemaLocator.getInfo().getPosition())
+            return readSchemaData(schemaLocator.getInfo().getPosition())
                     .thenApply(schemaData -> new StoredSchema(schemaData.copyData(),
                             new LongSchemaVersion(schemaLocator.getInfo().getVersion())));
         });

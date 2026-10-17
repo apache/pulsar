@@ -123,7 +123,6 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
     private static final SchemaData schemaData3 = getSchemaData(schemaJson3);
 
     private SchemaRegistryServiceImpl schemaRegistryService;
-    private BookkeeperSchemaStorage schemaStorage;
 
     @BeforeMethod
     @Override
@@ -131,13 +130,13 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         conf.setSchemaRegistryStorageClassName(
                 "org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorageFactory");
         super.internalSetup();
-        schemaStorage = Mockito.spy(new BookkeeperSchemaStorage(pulsar));
-        schemaStorage.start();
+        BookkeeperSchemaStorage storage = new BookkeeperSchemaStorage(pulsar);
+        storage.start();
         Map<SchemaType, SchemaCompatibilityCheck> checkMap = new HashMap<>();
         checkMap.put(SchemaType.AVRO, new AvroSchemaCompatibilityCheck());
         checkMap.put(SchemaType.PROTOBUF_NATIVE, new ProtobufNativeSchemaAdvancedCompatibilityCheck());
         checkMap.put(SchemaType.KEY_VALUE, new KeyValueSchemaCompatibilityCheck(checkMap));
-        schemaRegistryService = new SchemaRegistryServiceImpl(schemaStorage, checkMap, MockClock, pulsar);
+        schemaRegistryService = new SchemaRegistryServiceImpl(storage, checkMap, MockClock, pulsar);
 
         var schemaRegistryStats =
                 Mockito.spy((SchemaRegistryStats) FieldUtils.readField(schemaRegistryService, "stats", true));
@@ -241,20 +240,6 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         deleteSchema(schemaId1, version(1));
 
         assertNull(schemaRegistryService.getSchema(schemaId1).get());
-    }
-
-    @Test
-    public void testNonTransitiveRegistrationUsesLatestFromFreshHistory() throws Exception {
-        String schemaId = "public/default/" + UUID.randomUUID();
-        putSchema(schemaId, schemaData1, version(0), BACKWARD);
-        putSchema(schemaId, schemaData2, version(1), BACKWARD);
-        Mockito.clearInvocations(schemaStorage);
-
-        // schemaData3 is backward-compatible with the latest schemaData2, but not with
-        // the full history that also contains schemaData1.
-        putSchema(schemaId, schemaData3, version(2), BACKWARD);
-
-        Mockito.verify(schemaStorage, Mockito.never()).get(schemaId, SchemaVersion.Latest);
     }
 
     @DataProvider

@@ -207,8 +207,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                                 checkCompatibilityFuture =
                                         checkCompatibilityWithAll(schemaId, schema, strategy, schemaAndMetadataList);
                             } else {
-                                checkCompatibilityFuture = checkCompatibilityWithLatest(schemaId, schema, strategy,
-                                        schemaAndMetadataList.get(schemaAndMetadataList.size() - 1));
+                                checkCompatibilityFuture = checkCompatibilityWithLatest(schemaId, schema, strategy);
                             }
                         } else {
                             checkCompatibilityFuture.complete(null);
@@ -467,36 +466,30 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
         if (SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE == strategy) {
             return CompletableFuture.completedFuture(null);
         }
-        return getSchema(schemaId).thenCompose(existingSchema ->
-                checkCompatibilityWithLatest(schemaId, schema, strategy, existingSchema));
-    }
+        return getSchema(schemaId).thenCompose(existingSchema -> {
+            if (existingSchema != null && !existingSchema.schema.isDeleted()) {
+                CompletableFuture<Void> result = new CompletableFuture<>();
+                result.whenComplete((__, t) -> {
+                    if (t != null) {
+                        log.warn().attr("schemaId", schemaId).log("Schema is incompatible");
+                        this.stats.recordSchemaIncompatible(schemaId);
+                    } else {
+                        log.debug().attr("schemaId", schemaId).log("Schema is compatible");
+                        this.stats.recordSchemaCompatible(schemaId);
+                    }
+                });
 
-    private CompletableFuture<Void> checkCompatibilityWithLatest(String schemaId, SchemaData schema,
-                                                                 SchemaCompatibilityStrategy strategy,
-                                                                 SchemaAndMetadata existingSchema) {
-        if (SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE == strategy
-                || existingSchema == null || existingSchema.schema.isDeleted()) {
-            return CompletableFuture.completedFuture(null);
-        }
-
-        CompletableFuture<Void> result = new CompletableFuture<>();
-        result.whenComplete((__, t) -> {
-            if (t != null) {
-                log.warn().attr("schemaId", schemaId).log("Schema is incompatible");
-                this.stats.recordSchemaIncompatible(schemaId);
+                try {
+                    checkCompatible(existingSchema, schema, strategy);
+                    result.complete(null);
+                } catch (IncompatibleSchemaException e) {
+                    result.completeExceptionally(e);
+                }
+                return result;
             } else {
-                log.debug().attr("schemaId", schemaId).log("Schema is compatible");
-                this.stats.recordSchemaCompatible(schemaId);
+                return CompletableFuture.completedFuture(null);
             }
         });
-
-        try {
-            checkCompatible(existingSchema, schema, strategy);
-            result.complete(null);
-        } catch (IncompatibleSchemaException e) {
-            result.completeExceptionally(e);
-        }
-        return result;
     }
 
     private CompletableFuture<Void> checkCompatibilityWithAll(String schemaId, SchemaData schema,
