@@ -143,6 +143,21 @@ public class SchemaRegistryServiceWithSchemaDataValidatorTest {
     }
 
     @Test
+    public void testFindSchemaVersionForSchemaRegistrationDelegates() {
+        String schemaId = "test-schema-id";
+        SchemaData schemaData = SchemaData.builder()
+                .type(SchemaType.BOOLEAN)
+                .data(new byte[0])
+                .build();
+        CompletableFuture<SchemaVersion> future = new CompletableFuture<>();
+        when(underlyingService.findSchemaVersionForSchemaRegistration(schemaId, schemaData))
+                .thenReturn(future);
+
+        assertSame(future, service.findSchemaVersionForSchemaRegistration(schemaId, schemaData));
+        verify(underlyingService).findSchemaVersionForSchemaRegistration(schemaId, schemaData);
+    }
+
+    @Test
     public void testPutSchemaIfAbsentWithBadSchemaData() {
         String schemaId = "test-schema-id";
         SchemaCompatibilityStrategy strategy = SchemaCompatibilityStrategy.FULL;

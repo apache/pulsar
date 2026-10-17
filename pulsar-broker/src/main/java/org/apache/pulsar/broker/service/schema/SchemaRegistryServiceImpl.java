@@ -35,6 +35,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.CustomLog;
 import org.apache.avro.Schema;
@@ -148,9 +149,15 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
 
     @Override
     public CompletableFuture<List<CompletableFuture<SchemaAndMetadata>>> getAllSchemas(String schemaId) {
+        return getAllSchemas(schemaId, schemaStorage::getAll);
+    }
+
+    private CompletableFuture<List<CompletableFuture<SchemaAndMetadata>>> getAllSchemas(
+            String schemaId,
+            Function<String, CompletableFuture<List<CompletableFuture<StoredSchema>>>> schemaReader) {
         long start = this.clock.millis();
 
-        return schemaStorage.getAll(schemaId)
+        return schemaReader.apply(schemaId)
                 .thenCompose(schemas -> convertToSchemaAndMetadata(schemaId, schemas))
                 .whenComplete((v, t) -> {
                     var latencyMs = this.clock.millis() - start;
@@ -374,6 +381,15 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                     }
                     return completedFuture(NO_SCHEMA_VERSION);
                 });
+    }
+
+    @Override
+    public CompletableFuture<SchemaVersion> findSchemaVersionForSchemaRegistration(
+            String schemaId, SchemaData schemaData) {
+        CompletableFuture<List<CompletableFuture<SchemaAndMetadata>>> schemaFutureList =
+                getAllSchemas(schemaId, schemaStorage::getAllForSchemaRegistration);
+        return trimDeletedSchemaAndGetList(schemaId, schemaFutureList)
+                .thenCompose(schemas -> getSchemaVersionBySchemaData(schemas, schemaData));
     }
 
     @Override
