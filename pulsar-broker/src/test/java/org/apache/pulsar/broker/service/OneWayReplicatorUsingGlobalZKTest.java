@@ -986,7 +986,8 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         final String subTopic = TopicName.get(topicName).getPartition(0).toString();
         admin1.namespaces().createNamespace(ns1);
         admin1.namespaces().setNamespaceAllowedClusters(ns1, new HashSet<>(Arrays.asList(cluster1, cluster2)));
-        admin1.namespaces().setNamespaceReplicationClusters(ns1, new HashSet<>(Arrays.asList(cluster1, cluster2)));
+        admin1.namespaces().setNamespaceReplicationClusters(ns1,
+                new HashSet<>(Arrays.asList(cluster1, cluster2)), true);
         admin1.topics().createPartitionedTopic(topicName, 1);
         admin1.topicPolicies(true).setReplicationClusters(topicName, Arrays.asList(cluster1));
         Awaitility.await().untilAsserted(() -> {
