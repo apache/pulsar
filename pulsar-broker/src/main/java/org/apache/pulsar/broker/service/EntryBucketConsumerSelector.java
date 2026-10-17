@@ -106,6 +106,12 @@ public class EntryBucketConsumerSelector implements StickyKeyConsumerSelector {
     }
 
     @Override
+    public int makeStickyKeyHash(String stickyKey) {
+        return canonicalHashOf(
+                StickyKeyConsumerSelectorUtils.makeStickyKeyHash(stickyKey, getKeyHashRange()));
+    }
+
+    @Override
     public synchronized CompletableFuture<Optional<ImpactedConsumersResult>> addConsumer(Consumer consumer) {
         consumers.add(consumer);
         consumers.sort(Comparator.comparing(Consumer::consumerName)

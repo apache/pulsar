@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
+import java.util.function.IntSupplier;
 import java.util.function.ToIntFunction;
 import lombok.Getter;
 import org.apache.bookkeeper.mledger.Entry;
@@ -129,6 +130,32 @@ public class EntryAndMetadata implements Entry {
     public int getOrUpdateCachedStickyKeyHash(ToIntFunction<byte[]> makeStickyKeyHash) {
         if (stickyKeyHash == STICKY_KEY_HASH_NOT_INITIALIZED) {
             stickyKeyHash = makeStickyKeyHash.applyAsInt(getStickyKey());
+        }
+        return stickyKeyHash;
+    }
+
+    /**
+     * Get the cached sticky key hash or calculate it with the given function, which doesn't need the sticky key.
+     */
+    public int getOrUpdateCachedStickyKeyHash(IntSupplier makeStickyKeyHash) {
+        if (stickyKeyHash == STICKY_KEY_HASH_NOT_INITIALIZED) {
+            stickyKeyHash = makeStickyKeyHash.getAsInt();
+        }
+        return stickyKeyHash;
+    }
+
+    /**
+     * Get the cached sticky-key hash or calculate it without materializing a UTF-8 byte array for a plain string key.
+     */
+    public int getOrUpdateCachedStickyKeyHash(StickyKeyConsumerSelector selector) {
+        if (stickyKeyHash == STICKY_KEY_HASH_NOT_INITIALIZED) {
+            // the plain partition key that Commands.resolveStickyKey would encode
+            if (metadata != null && metadata.hasPartitionKey() && !metadata.isPartitionKeyB64Encoded()
+                    && !metadata.hasOrderingKey()) {
+                stickyKeyHash = selector.makeStickyKeyHash(metadata.getPartitionKey());
+            } else {
+                stickyKeyHash = selector.makeStickyKeyHash(getStickyKey());
+            }
         }
         return stickyKeyHash;
     }

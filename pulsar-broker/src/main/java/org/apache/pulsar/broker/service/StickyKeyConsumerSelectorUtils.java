@@ -41,6 +41,18 @@ class StickyKeyConsumerSelectorUtils {
      */
     static int makeStickyKeyHash(byte[] stickyKey, Range fullHashRange) {
         int hashValue = HASH_INSTANCE.makeHash(stickyKey) % fullHashRange.size() + fullHashRange.getStart();
+        return avoidReservedHash(hashValue);
+    }
+
+    /**
+     * The same as {@link #makeStickyKeyHash(byte[], Range)} for the UTF-8 bytes of a string key, without encoding them.
+     */
+    static int makeStickyKeyHash(String stickyKey, Range fullHashRange) {
+        int hashValue = Murmur3_32Hash.makeHashUtf8(stickyKey) % fullHashRange.size() + fullHashRange.getStart();
+        return avoidReservedHash(hashValue);
+    }
+
+    private static int avoidReservedHash(int hashValue) {
         // Avoid using STICKY_KEY_HASH_NOT_SET as hash value
         if (hashValue == STICKY_KEY_HASH_NOT_SET) {
             // use next value as hash value

@@ -24,9 +24,14 @@
  */
 package org.apache.pulsar.common.util;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.primitives.UnsignedBytes;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Implementation of the MurmurHash3 non-cryptographic hash function.
@@ -38,10 +43,31 @@ public class Murmur3_32Hash implements Hash {
     private static final int CHUNK_SIZE = 4;
     private static final int C1 = 0xcc9e2d51;
     private static final int C2 = 0x1b873593;
+    private static final VarHandle INT_LE = MethodHandles.byteArrayViewVarHandle(int[].class, ByteOrder.LITTLE_ENDIAN);
+    @VisibleForTesting
+    static final int NOT_ASCII = -1;
+    // Reads a String's internal byte[] where java.lang is open to this class's module, as bin/pulsar opens it with
+    // --add-opens java.base/java.lang=ALL-UNNAMED; null elsewhere, such as in most clients. HotSpot inlines invokeExact
+    // on a static final MethodHandle into a plain field load.
+    private static final MethodHandle STRING_VALUE_GETTER = findStringValueGetter();
+
     private final int seed;
 
     private Murmur3_32Hash() {
         seed = 0;
+    }
+
+    private static MethodHandle findStringValueGetter() {
+        try {
+            MethodHandle getter = MethodHandles.privateLookupIn(String.class, MethodHandles.lookup())
+                    .findGetter(String.class, "value", byte[].class);
+            // the JDK's compact strings keep an ASCII string's bytes as they are
+            byte[] value = (byte[]) getter.invoke("a");
+            return value.length == 1 && value[0] == 'a' ? getter : null;
+        } catch (Throwable ignore) {
+            // java.lang isn't open to this module, or String has no byte[] value
+            return null;
+        }
     }
 
     public static Hash getInstance() {
@@ -62,6 +88,68 @@ public class Murmur3_32Hash implements Hash {
      */
     public static int makeRawHash(byte[] b) {
         return instance.makeHash0(b);
+    }
+
+    /**
+     * The same as {@code makeHash(value.getBytes(StandardCharsets.UTF_8))}. An ASCII string is hashed from its
+     * internal bytes, which are its UTF-8 bytes, without encoding it into a new array.
+     */
+    public static int makeHashUtf8(String value) {
+        byte[] latin1 = latin1Value(value);
+        if (latin1 != null) {
+            int hash = makeAsciiHash(latin1);
+            if (hash != NOT_ASCII) {
+                return hash;
+            }
+        }
+        return instance.makeHash(value.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * The internal byte[] of a compact string with the LATIN1 coder, or null.
+     */
+    @VisibleForTesting
+    static byte[] latin1Value(String value) {
+        if (STRING_VALUE_GETTER == null) {
+            return null;
+        }
+        byte[] bytes;
+        try {
+            bytes = (byte[]) STRING_VALUE_GETTER.invokeExact(value);
+        } catch (NullPointerException e) {
+            throw e;
+        } catch (Throwable ignore) {
+            return null;
+        }
+        // a UTF16 string's array has two bytes for each char
+        return bytes.length == value.length() ? bytes : null;
+    }
+
+    /**
+     * {@link #makeHash(byte[])} of the bytes if they are all ASCII, else {@link #NOT_ASCII}.
+     */
+    @VisibleForTesting
+    static int makeAsciiHash(byte[] bytes) {
+        int len = bytes.length;
+        int h1 = instance.seed;
+        int i = 0;
+        for (; i + CHUNK_SIZE <= len; i += CHUNK_SIZE) {
+            int k1 = (int) INT_LE.get(bytes, i);
+            if ((k1 & 0x80808080) != 0) {
+                return NOT_ASCII;
+            }
+            h1 = instance.mixH1(h1, instance.mixK1(k1));
+        }
+        int k1 = 0;
+        for (int shift = 0; i < len; i++, shift += 8) {
+            k1 |= (bytes[i] & 0xff) << shift;
+        }
+        if ((k1 & 0x80808080) != 0) {
+            return NOT_ASCII;
+        }
+        h1 ^= instance.mixK1(k1);
+        h1 ^= len;
+        return instance.fmix(h1) & Integer.MAX_VALUE;
     }
 
     private int makeHash0(byte[] bytes) {

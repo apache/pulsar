@@ -133,17 +133,16 @@ public class PersistentEntryBucketDispatcherMultipleConsumers
     protected int getStickyKeyHash(Entry entry) {
         if (entry instanceof EntryAndMetadata entryAndMetadata) {
             // Cached so pending acks, redelivery and draining all see the same canonical value.
-            return entryAndMetadata.getOrUpdateCachedStickyKeyHash(stickyKey -> {
-                var metadata = entryAndMetadata.getMetadata();
-                if (metadata != null && metadata.hasEntryHashMin()) {
-                    // The producer stamped the entry's effective bucket range: route the whole
-                    // entry by its bucket.
-                    return bucketSelector.canonicalHashOf(metadata.getEntryHashMin());
-                }
-                // Unstamped (non-batched) entry: the key's low-16 Murmur hash is the same value
-                // the producer would have stamped, normalized to the same bucket.
-                return bucketSelector.makeStickyKeyHash(stickyKey);
-            });
+            var metadata = entryAndMetadata.getMetadata();
+            if (metadata != null && metadata.hasEntryHashMin()) {
+                // The producer stamped the entry's effective bucket range: route the whole
+                // entry by its bucket.
+                return entryAndMetadata.getOrUpdateCachedStickyKeyHash(
+                        () -> bucketSelector.canonicalHashOf(metadata.getEntryHashMin()));
+            }
+            // Unstamped (non-batched) entry: the key's low-16 Murmur hash is the same value
+            // the producer would have stamped, normalized to the same bucket.
+            return entryAndMetadata.getOrUpdateCachedStickyKeyHash(bucketSelector);
         }
         return bucketSelector.makeStickyKeyHash(peekStickyKey(entry));
     }
