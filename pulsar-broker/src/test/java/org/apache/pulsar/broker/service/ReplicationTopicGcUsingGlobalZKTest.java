@@ -18,13 +18,13 @@
  */
 package org.apache.pulsar.broker.service;
 
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-replication")
 public class ReplicationTopicGcUsingGlobalZKTest extends ReplicationTopicGcTest {
 

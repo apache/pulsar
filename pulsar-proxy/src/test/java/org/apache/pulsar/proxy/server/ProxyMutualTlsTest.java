@@ -56,12 +56,18 @@ public class ProxyMutualTlsTest extends MockedPulsarServiceBaseTest {
     @BeforeClass
     protected void setup() throws Exception {
         internalSetup();
+        setupDefaultTenantAndNamespace();
 
         proxyConfig.setServicePort(Optional.of(0));
         proxyConfig.setBrokerProxyAllowedTargetPorts("*");
         proxyConfig.setServicePortTls(Optional.of(0));
         proxyConfig.setWebServicePort(Optional.of(0));
         proxyConfig.setWebServicePortTls(Optional.of(0));
+        // Advertise over loopback so the proxy service URL host (localhost) matches the server
+        // certificate's SubjectAltName (DNS:localhost, IP:127.0.0.1). TLS hostname verification is on by
+        // default (PIP-478), and the default advertised address resolves to the machine's
+        // canonical hostname/IP, which is not in the cert SAN. This keeps hostname verification enabled.
+        proxyConfig.setAdvertisedAddress("localhost");
         proxyConfig.setTlsCertificateFilePath(TLS_PROXY_CERT_FILE_PATH);
         proxyConfig.setTlsKeyFilePath(TLS_PROXY_KEY_FILE_PATH);
         proxyConfig.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
@@ -109,7 +115,7 @@ public class ProxyMutualTlsTest extends MockedPulsarServiceBaseTest {
                 .build();
         @Cleanup
         Producer<byte[]> producer =
-                client.newProducer(Schema.BYTES).topic("persistent://sample/test/local/" + UUID.randomUUID()).create();
+                client.newProducer(Schema.BYTES).topic("persistent://public/default/" + UUID.randomUUID()).create();
 
         for (int i = 0; i < 10; i++) {
             producer.send("test".getBytes());
@@ -128,7 +134,7 @@ public class ProxyMutualTlsTest extends MockedPulsarServiceBaseTest {
                 .build();
         @Cleanup
         Producer<byte[]> producer =
-                client.newProducer(Schema.BYTES).topic("persistent://sample/test/local/" + UUID.randomUUID()).create();
+                client.newProducer(Schema.BYTES).topic("persistent://public/default/" + UUID.randomUUID()).create();
 
         for (int i = 0; i < 10; i++) {
             producer.send("test".getBytes());
@@ -147,6 +153,6 @@ public class ProxyMutualTlsTest extends MockedPulsarServiceBaseTest {
 
         assertThrows(PulsarClientException.class,
                 () -> client.newProducer(Schema.BYTES)
-                        .topic("persistent://sample/test/local/" + UUID.randomUUID()).create());
+                        .topic("persistent://public/default/" + UUID.randomUUID()).create());
     }
 }

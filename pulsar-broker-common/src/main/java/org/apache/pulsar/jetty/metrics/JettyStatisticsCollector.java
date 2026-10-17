@@ -41,6 +41,7 @@ public class JettyStatisticsCollector extends Collector {
     }
 
     @Override
+    @SuppressWarnings("deprecation")
     public List<MetricFamilySamples> collect() {
         return Arrays.asList(
                 buildCounter("jetty_requests_total", "Number of requests", statisticsHandler.getRequests()),

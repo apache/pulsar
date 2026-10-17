@@ -19,6 +19,9 @@
 package org.apache.pulsar.common.configuration;
 
 import static org.testng.Assert.assertEquals;
+import jakarta.servlet.ServletContext;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.Response;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
@@ -28,18 +31,15 @@ import java.util.concurrent.Phaser;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
-import javax.servlet.ServletContext;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.Response;
+import lombok.CustomLog;
 import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
 import org.assertj.core.util.Files;
 import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class VipStatusTest {
 
     public static final String ATTRIBUTE_STATUS_FILE_PATH = "statusFilePath";

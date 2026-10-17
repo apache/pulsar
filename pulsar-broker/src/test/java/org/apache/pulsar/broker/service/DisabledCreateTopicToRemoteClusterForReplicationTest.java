@@ -26,7 +26,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -43,7 +43,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-replication")
 public class DisabledCreateTopicToRemoteClusterForReplicationTest extends OneWayReplicatorTestBase {
 
@@ -84,7 +84,8 @@ public class DisabledCreateTopicToRemoteClusterForReplicationTest extends OneWay
         final String tp = BrokerTestUtil.newUniqueName("persistent://" + ns + "/tp_");
         final String part1 = TopicName.get(tp).getPartition(0).toString();
         admin1.topics().createPartitionedTopic(tp, 1);
-        admin1.namespaces().setNamespaceReplicationClusters(ns, new HashSet<>(Arrays.asList(cluster1, cluster2)));
+        admin1.namespaces().setNamespaceReplicationClusters(ns,
+                new HashSet<>(Arrays.asList(cluster1, cluster2)), false);
 
         // Trigger and wait for replicator starts.
         String msgValue = "msg-1";
@@ -112,7 +113,7 @@ public class DisabledCreateTopicToRemoteClusterForReplicationTest extends OneWay
         consumer2.close();
 
         // cleanup.
-        admin1.namespaces().setNamespaceReplicationClusters(ns, new HashSet<>(Arrays.asList(cluster1)));
+        admin1.namespaces().setNamespaceReplicationClusters(ns, new HashSet<>(Arrays.asList(cluster1)), false);
         Awaitility.await().untilAsserted(() -> {
             PersistentTopic topicPart1 = (PersistentTopic) broker1.getTopic(part1, false).join().get();
             assertTrue(topicPart1.getReplicators().isEmpty());

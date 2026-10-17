@@ -19,36 +19,21 @@
 package org.apache.pulsar.client.impl;
 
 import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
-public class DispatchAccordingPermitsTest extends ProducerConsumerBase {
-
-    @Override
-    @BeforeMethod
-    public void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @Override
-    @AfterMethod(alwaysRun = true)
-    public void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+public class DispatchAccordingPermitsTest extends SharedPulsarBaseTest {
 
     /**
      * The test case is to simulate dispatch batches with different batch size to the consumer.
@@ -59,7 +44,7 @@ public class DispatchAccordingPermitsTest extends ProducerConsumerBase {
      */
     @Test
     public void testFlowPermitsWithMultiBatchesDispatch() throws PulsarAdminException, PulsarClientException {
-        final String topic = "persistent://public/default/testFlowPermitsWithMultiBatchesDispatch";
+        final String topic = newTopicName();
         final String subName = "test";
         admin.topics().createSubscription(topic, "test", MessageId.earliest);
 

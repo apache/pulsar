@@ -19,8 +19,8 @@
 package org.apache.pulsar.common.util.netty;
 
 import io.netty.util.concurrent.Future;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.common.util.FutureUtil;
 
 /**
  * Contains utility methods for working with Netty Futures.
@@ -34,7 +34,9 @@ public class NettyFutureUtil {
      * @return converted future instance
      */
     public static <V> CompletableFuture<V> toCompletableFuture(Future<V> future) {
-        Objects.requireNonNull(future, "future cannot be null");
+        if (future == null) {
+            return FutureUtil.failedFuture(new NullPointerException("future cannot be null"));
+        }
 
         CompletableFuture<V> adapter = new CompletableFuture<>();
         if (future.isDone()) {
@@ -62,7 +64,9 @@ public class NettyFutureUtil {
      * @return converted future instance
      */
     public static CompletableFuture<Void> toCompletableFutureVoid(Future<?> future) {
-        Objects.requireNonNull(future, "future cannot be null");
+        if (future == null) {
+            return FutureUtil.failedFuture(new NullPointerException("future cannot be null"));
+        }
 
         CompletableFuture<Void> adapter = new CompletableFuture<>();
         if (future.isDone()) {

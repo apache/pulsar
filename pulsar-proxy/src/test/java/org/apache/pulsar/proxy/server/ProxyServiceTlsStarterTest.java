@@ -58,6 +58,7 @@ public class ProxyServiceTlsStarterTest extends MockedPulsarServiceBaseTest {
     @BeforeClass
     protected void setup() throws Exception {
         internalSetup();
+        setupDefaultTenantAndNamespace();
         serviceStarter = new ProxyServiceStarter(getArgs(), null, true);
         serviceStarter.getConfig().setBrokerServiceURL(pulsar.getBrokerServiceUrl());
         serviceStarter.getConfig().setBrokerServiceURLTLS(pulsar.getBrokerServiceUrlTls());
@@ -75,6 +76,11 @@ public class ProxyServiceTlsStarterTest extends MockedPulsarServiceBaseTest {
         serviceStarter.getConfig().setTlsKeyFilePath(PROXY_KEY_FILE_PATH);
         serviceStarter.getConfig().setBrokerProxyAllowedTargetPorts("*");
         serviceStarter.getConfig().setClusterName(configClusterName);
+        // Advertise over loopback so the proxy service URL host (localhost) matches the proxy server
+        // certificate's SubjectAltName (proxy.cert.pem carries DNS:localhost, IP:127.0.0.1). TLS hostname
+        // verification is on by default (PIP-478), and the default advertised address (loaded from
+        // conf/proxy.conf) resolves to the machine's canonical hostname/IP, which is not in the cert SAN.
+        serviceStarter.getConfig().setAdvertisedAddress("localhost");
         serviceStarter.start();
         serviceUrl = serviceStarter.getProxyService().getServiceUrlTls();
         webPort = serviceStarter.getServer().getListenPortHTTP().get();
@@ -104,7 +110,7 @@ public class ProxyServiceTlsStarterTest extends MockedPulsarServiceBaseTest {
 
         @Cleanup
         Producer<byte[]> producer = client.newProducer()
-                .topic("persistent://sample/test/local/websocket-topic")
+                .topic("persistent://public/default/websocket-topic")
                 .create();
 
         for (int i = 0; i < 10; i++) {
@@ -120,7 +126,7 @@ public class ProxyServiceTlsStarterTest extends MockedPulsarServiceBaseTest {
         WebSocketClient producerWebSocketClient = new WebSocketClient(producerClient);
         producerWebSocketClient.start();
         MyWebSocket producerSocket = new MyWebSocket();
-        String produceUri = "ws://localhost:" + webPort + "/ws/producer/persistent/sample/test/local/websocket-topic";
+        String produceUri = "ws://localhost:" + webPort + "/ws/v2/producer/persistent/public/default/websocket-topic";
         CompletableFuture<org.eclipse.jetty.websocket.api.Session>
                 producerSession = producerWebSocketClient.connect(producerSocket, URI.create(produceUri));
 
@@ -135,7 +141,7 @@ public class ProxyServiceTlsStarterTest extends MockedPulsarServiceBaseTest {
         consumerWebSocketClient.start();
         MyWebSocket consumerSocket = new MyWebSocket();
         String consumeUri = "ws://localhost:" + webPort
-                + "/ws/consumer/persistent/sample/test/local/websocket-topic/my-sub";
+                + "/ws/v2/consumer/persistent/public/default/websocket-topic/my-sub";
         CompletableFuture<org.eclipse.jetty.websocket.api.Session>
                 consumerSession = consumerWebSocketClient.connect(consumerSocket, URI.create(consumeUri));
         consumerSession.get().sendPing(ByteBuffer.wrap("ping".getBytes()), Callback.NOOP);

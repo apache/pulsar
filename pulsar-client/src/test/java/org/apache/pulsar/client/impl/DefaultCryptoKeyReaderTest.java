@@ -32,6 +32,7 @@ import org.testng.annotations.Test;
 public class DefaultCryptoKeyReaderTest {
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testBuild() throws Exception {
         Map<String, String> publicKeys = new HashMap<>();
         publicKeys.put("key1", "file:///path/to/public1.key");

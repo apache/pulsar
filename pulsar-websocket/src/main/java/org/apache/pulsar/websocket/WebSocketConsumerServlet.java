@@ -19,14 +19,13 @@
 package org.apache.pulsar.websocket;
 
 import java.time.Duration;
-import org.eclipse.jetty.ee8.websocket.server.JettyWebSocketServlet;
-import org.eclipse.jetty.ee8.websocket.server.JettyWebSocketServletFactory;
+import org.eclipse.jetty.ee10.websocket.server.JettyWebSocketServlet;
+import org.eclipse.jetty.ee10.websocket.server.JettyWebSocketServletFactory;
 
 public class WebSocketConsumerServlet extends JettyWebSocketServlet {
     private static final long serialVersionUID = 1L;
 
-    public static final String SERVLET_PATH = "/ws/consumer";
-    public static final String SERVLET_PATH_V2 = "/ws/v2/consumer";
+    public static final String SERVLET_PATH = "/ws/v2/consumer";
 
     private final transient WebSocketService service;
 

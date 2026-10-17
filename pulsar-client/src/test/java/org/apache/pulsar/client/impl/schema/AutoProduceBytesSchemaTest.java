@@ -31,6 +31,7 @@ import org.testng.annotations.Test;
 
 public class AutoProduceBytesSchemaTest {
     @Test
+    @SuppressWarnings("unchecked")
     public void testClone() {
         // test user provided schema
         Schema<String> stringSchema = Schema.STRING;

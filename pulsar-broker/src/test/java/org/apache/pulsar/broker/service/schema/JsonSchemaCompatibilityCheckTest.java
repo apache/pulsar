@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchema;
@@ -46,18 +47,103 @@ public class JsonSchemaCompatibilityCheckTest extends BaseAvroSchemaCompatibilit
     }
 
     @Test
-    public void testJsonSchemaBackwardsCompatibility() throws JsonProcessingException {
+    public void testJsonSchemaBackwardsCompatibilityWithLegacyEnabled() throws JsonProcessingException {
+        // When legacy format is enabled, backward compatibility between old and new formats should work
+        JsonSchemaCompatibilityCheck check = new JsonSchemaCompatibilityCheck();
+        check.setAllowLegacyJacksonFormat(true);
 
         SchemaData from = SchemaData.builder().data(OldJSONSchema.of(Foo.class).getSchemaInfo().getSchema()).build();
         SchemaData to = SchemaData.builder().data(JSONSchema.of(SchemaDefinition.builder()
                 .withPojo(Foo.class).build()).getSchemaInfo().getSchema()).build();
-        JsonSchemaCompatibilityCheck jsonSchemaCompatibilityCheck = new JsonSchemaCompatibilityCheck();
-        Assert.assertTrue(jsonSchemaCompatibilityCheck.isCompatible(from, to, SchemaCompatibilityStrategy.FULL));
+        Assert.assertTrue(check.isCompatible(from, to, SchemaCompatibilityStrategy.FULL));
 
         from = SchemaData.builder().data(JSONSchema.of(SchemaDefinition.<Foo>builder()
                 .withPojo(Foo.class).build()).getSchemaInfo().getSchema()).build();
         to = SchemaData.builder().data(OldJSONSchema.of(Foo.class).getSchemaInfo().getSchema()).build();
-        Assert.assertTrue(jsonSchemaCompatibilityCheck.isCompatible(from, to, SchemaCompatibilityStrategy.FULL));
+        Assert.assertTrue(check.isCompatible(from, to, SchemaCompatibilityStrategy.FULL));
+    }
+
+    @Test
+    public void testJsonSchemaBackwardsCompatibilityRejectedByDefault() throws JsonProcessingException {
+        // When legacy format is disabled (default), mixed old/new format should be rejected
+        JsonSchemaCompatibilityCheck check = new JsonSchemaCompatibilityCheck();
+        // allowLegacyJacksonFormat defaults to false
+
+        // Old format (Jackson) -> New format (Avro): should be rejected because 'from' is not valid Avro
+        SchemaData from = SchemaData.builder().data(OldJSONSchema.of(Foo.class).getSchemaInfo().getSchema()).build();
+        SchemaData to = SchemaData.builder().data(JSONSchema.of(SchemaDefinition.builder()
+                .withPojo(Foo.class).build()).getSchemaInfo().getSchema()).build();
+        Assert.assertFalse(check.isCompatible(from, to, SchemaCompatibilityStrategy.FULL));
+
+        // New format (Avro) -> Old format (Jackson): should be rejected because 'to' is not valid Avro
+        from = SchemaData.builder().data(JSONSchema.of(SchemaDefinition.<Foo>builder()
+                .withPojo(Foo.class).build()).getSchemaInfo().getSchema()).build();
+        to = SchemaData.builder().data(OldJSONSchema.of(Foo.class).getSchemaInfo().getSchema()).build();
+        Assert.assertFalse(check.isCompatible(from, to, SchemaCompatibilityStrategy.FULL));
+    }
+
+    @Test
+    public void testAvroToAvroCompatibilityUnaffectedByConfig() throws JsonProcessingException {
+        // Both Avro schemas: should work the same regardless of legacy flag
+        JsonSchemaCompatibilityCheck strictCheck = new JsonSchemaCompatibilityCheck();
+        JsonSchemaCompatibilityCheck legacyCheck = new JsonSchemaCompatibilityCheck();
+        legacyCheck.setAllowLegacyJacksonFormat(true);
+
+        SchemaData from = SchemaData.builder().data(JSONSchema.of(SchemaDefinition.<Foo>builder()
+                .withPojo(Foo.class).build()).getSchemaInfo().getSchema()).build();
+        SchemaData to = SchemaData.builder().data(JSONSchema.of(SchemaDefinition.<Foo>builder()
+                .withPojo(Foo.class).build()).getSchemaInfo().getSchema()).build();
+
+        Assert.assertTrue(strictCheck.isCompatible(from, to, SchemaCompatibilityStrategy.FULL));
+        Assert.assertTrue(legacyCheck.isCompatible(from, to, SchemaCompatibilityStrategy.FULL));
+    }
+
+    @Test
+    public void testJsonSchemaDraftRejectedByDefault() {
+        // JSON Schema Draft 2020-12 format should be rejected when legacy is disabled
+        JsonSchemaCompatibilityCheck check = new JsonSchemaCompatibilityCheck();
+
+        String avroSchema = "{\"type\":\"record\",\"name\":\"Foo\",\"namespace\":\"org.example\","
+                + "\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}]}";
+        String jsonSchemaDraft = "{\"$schema\":\"https://json-schema.org/draft/2020-12/schema\","
+                + "\"type\":\"object\",\"properties\":{\"field1\":{\"type\":\"string\"}}}";
+
+        // Avro -> JSON Schema Draft: should be rejected
+        SchemaData from = SchemaData.builder().data(avroSchema.getBytes(UTF_8)).build();
+        SchemaData to = SchemaData.builder().data(jsonSchemaDraft.getBytes(UTF_8)).build();
+        Assert.assertFalse(check.isCompatible(from, to, SchemaCompatibilityStrategy.FULL));
+
+        // JSON Schema Draft -> Avro: should be rejected (existing schema not valid Avro)
+        from = SchemaData.builder().data(jsonSchemaDraft.getBytes(UTF_8)).build();
+        to = SchemaData.builder().data(avroSchema.getBytes(UTF_8)).build();
+        Assert.assertFalse(check.isCompatible(from, to, SchemaCompatibilityStrategy.FULL));
+    }
+
+    @Test
+    public void testSchemaWithDollarSignInRecordNameRejectsIncompatibleChange() {
+        // Schema v1: has field1 (string)
+        String schemaV1 =
+                "{\"type\":\"record\",\"name\":\"Outer$Inner\",\"namespace\":\"org.example\","
+                        + "\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}]}";
+        // Schema v2: removed field1, added field2 without default — NOT backward compatible
+        String schemaV2 =
+                "{\"type\":\"record\",\"name\":\"Outer$Inner\",\"namespace\":\"org.example\","
+                        + "\"fields\":[{\"name\":\"field2\",\"type\":\"string\"}]}";
+        SchemaData from = SchemaData.builder()
+                .data(schemaV1.getBytes(UTF_8))
+                .type(SchemaType.JSON)
+                .build();
+        SchemaData to = SchemaData.builder()
+                .data(schemaV2.getBytes(UTF_8))
+                .type(SchemaType.JSON)
+                .build();
+        JsonSchemaCompatibilityCheck check = new JsonSchemaCompatibilityCheck();
+        // Without the fix, isAvroSchema() rejects '$' and the compatibility check is
+        // skipped entirely (falls through to "corrupted, allow overwrite"), so this
+        // would incorrectly return true.
+        // With the fix, isAvroSchema() recognizes these as valid Avro schemas and the
+        // Avro compatibility check correctly detects the incompatibility.
+        Assert.assertFalse(check.isCompatible(from, to, SchemaCompatibilityStrategy.BACKWARD));
     }
 
     @Data

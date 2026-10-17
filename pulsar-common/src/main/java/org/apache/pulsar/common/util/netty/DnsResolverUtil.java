@@ -34,10 +34,10 @@ import java.net.InetSocketAddress;
 import java.security.Security;
 import java.util.List;
 import java.util.Optional;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.reflect.FieldUtils;
 
-@Slf4j
+@CustomLog
 public class DnsResolverUtil {
 
     private static final String CACHE_POLICY_PROP = "networkaddress.cache.ttl";
@@ -74,26 +74,14 @@ public class DnsResolverUtil {
             ttl = Optional.ofNullable(ttlStr)
                     .map(Integer::decode)
                     .filter(i -> i > 0)
-                    .orElseGet(() -> {
-                        try {
-                            if (System.getSecurityManager() == null) {
-                                return JDK_DEFAULT_TTL;
-                            }
-                        } catch (Throwable t) {
-                            log.warn("Cannot use current logic to resolve JDK default DNS TTL settings. Use "
-                                            + "sun.net.inetaddr.ttl and sun.net.inetaddr.negative.ttl system "
-                                            + "properties for setting default values for DNS TTL settings. {}",
-                                    t.getMessage());
-                        }
-                        return DEFAULT_TTL;
-                    });
+                    .orElse(JDK_DEFAULT_TTL);
 
             negativeTtl = Optional.ofNullable(negativeTtlStr)
                     .map(Integer::decode)
                     .filter(i -> i >= 0)
                     .orElse(DEFAULT_NEGATIVE_TTL);
         } catch (NumberFormatException e) {
-            log.warn("Cannot get DNS TTL settings", e);
+            log.warn().exception(e).log("Cannot get DNS TTL settings");
         }
         TTL = ttl;
         NEGATIVE_TTL = negativeTtl;
@@ -150,7 +138,8 @@ public class DnsResolverUtil {
                     log.warn("Could not find nameResolver Field in InetSocketAddressResolver instance.");
                 }
             } catch (Throwable t) {
-                log.warn("Failed to extract NameResolver from InetSocketAddressResolver instance. {}", t.getMessage());
+                log.warn().exceptionMessage(t)
+                        .log("Failed to extract NameResolver from InetSocketAddressResolver instance.");
             }
         }
         // fallback to use an adapter if reflection fails

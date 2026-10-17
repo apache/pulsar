@@ -79,6 +79,9 @@ public interface EntryCache {
      *            the first entry to read (inclusive)
      * @param lastEntry
      *            the last entry to read (inclusive)
+     * @param maxSizeBytes
+     *            the size limit in bytes of the read that triggered this call, used to bound each storage read
+     *            request; a non-positive value means no limit
      * @param expectedReadCount resolves the expected read count for the given entry. When the expected read count is
      *                         >0, the entry can be cached and reused later.
      * @param callback
@@ -86,8 +89,8 @@ public interface EntryCache {
      * @param ctx
      *            the context object
      */
-    void asyncReadEntry(ReadHandle lh, long firstEntry, long lastEntry, IntSupplier expectedReadCount,
-            ReadEntriesCallback callback, Object ctx);
+    void asyncReadEntry(ReadHandle lh, long firstEntry, long lastEntry, long maxSizeBytes,
+            IntSupplier expectedReadCount, ReadEntriesCallback callback, Object ctx);
 
     /**
      * Read entry at given position from the cache or from bookkeeper.

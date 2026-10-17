@@ -273,6 +273,7 @@ public class BookieRackAffinityMappingTest {
         Class<?> clazz1 = Class.forName("org.apache.bookkeeper.client.TopologyAwareEnsemblePlacementPolicy");
         Field field1 = clazz1.getDeclaredField("knownBookies");
         field1.setAccessible(true);
+        @SuppressWarnings("unchecked")
         Map<BookieId, BookieNode> knownBookies = (Map<BookieId, BookieNode>) field1.get(repp);
         repp.initialize(bkClientConf, Optional.of(mapping), timer,
                 DISABLE_ALL, NullStatsLogger.INSTANCE, defaultBookieAddressResolver);
@@ -464,6 +465,7 @@ public class BookieRackAffinityMappingTest {
         racks.updateBookie("group1", bookie1.toString(), bi);
 
         // Create a mock cache for racks /bookies
+        @SuppressWarnings("unchecked")
         MetadataCache<BookiesRackConfiguration> mockCache = mock(MetadataCache.class);
         Field f = BookieRackAffinityMapping.class.getDeclaredField("bookieMappingCache");
         f.setAccessible(true);
@@ -509,6 +511,7 @@ public class BookieRackAffinityMappingTest {
         Class<?> clazz1 = Class.forName("org.apache.bookkeeper.client.TopologyAwareEnsemblePlacementPolicy");
         Field field1 = clazz1.getDeclaredField("knownBookies");
         field1.setAccessible(true);
+        @SuppressWarnings("unchecked")
         Map<BookieId, BookieNode> knownBookies = (Map<BookieId, BookieNode>) field1.get(repp);
         BookieNode bn = knownBookies.get(bookie1.toBookieId());
         // Rack info update is delayed but because of new callback the rack info on ensemble policy should be updated.

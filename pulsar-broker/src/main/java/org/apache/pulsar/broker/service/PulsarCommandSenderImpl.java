@@ -29,7 +29,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -44,8 +44,15 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter;
 import org.apache.pulsar.common.util.netty.NettyChannelUtil;
 
-@Slf4j
+@CustomLog
 public class PulsarCommandSenderImpl implements PulsarCommandSender {
+    // A dispatched message whose metadata and payload are at most this size is copied into a buffer with the
+    // messages around it, instead of being written with a reference to the entry's buffer
+    static final int MAX_COPIED_MESSAGE_BYTES = 2048;
+    // The size at which a buffer of copied messages is written, and a new one started
+    static final int MAX_COALESCED_BYTES = 64 * 1024;
+    // More than the bytes of a message command without an ack set, to size a buffer of copied messages
+    private static final int MESSAGE_COMMAND_BYTES_ESTIMATE = 64;
 
     private final BrokerInterceptor interceptor;
     private final ServerCnx cnx;
@@ -174,9 +181,10 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
     }
 
     @Override
-    public void sendConnectedResponse(int clientProtocolVersion, int maxMessageSize, boolean supportsTopicWatchers) {
+    public void sendConnectedResponse(int clientProtocolVersion, int maxMessageSize, boolean supportsTopicWatchers,
+                                      boolean supportsScalableTopics) {
         BaseCommand command = Commands.newConnectedCommand(
-                clientProtocolVersion, maxMessageSize, supportsTopicWatchers);
+                clientProtocolVersion, maxMessageSize, supportsTopicWatchers, supportsScalableTopics);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
         writeAndFlush(outBuf);
@@ -214,7 +222,7 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
     public void sendReachedEndOfTopic(long consumerId) {
         // Only send notification if the client understand the command
         if (cnx.getRemoteEndpointProtocolVersion() >= ProtocolVersion.v9.getValue()) {
-            log.info("[{}] Notifying consumer that end of topic has been reached", this);
+            log.info().attr("this", this).log("Notifying consumer that end of topic has been reached");
             writeAndFlush(Commands.newReachedEndOfTopic(consumerId));
         }
     }
@@ -223,7 +231,7 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
     public boolean sendTopicMigrated(ResourceType type, long resourceId, String brokerUrl, String brokerUrlTls) {
         // Only send notification if the client understand the command
         if (cnx.getRemoteEndpointProtocolVersion() >= ProtocolVersion.v20.getValue()) {
-            log.info("[{}] Notifying {} that topic is migrated", type.name(), resourceId);
+            log.info().attr("name", type.name()).attr("resourceId", resourceId).log("Notifying that topic is migrated");
             writeAndFlush(Commands.newTopicMigrated(type, resourceId, brokerUrl, brokerUrlTls));
             return true;
         }
@@ -242,55 +250,117 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
             // and in the completion of the writePromise
             // it is safe to use a simple ArrayList
             List<Entry> entriesToRelease = new ArrayList<>(entries.size());
-            for (int i = 0; i < entries.size(); i++) {
-                Entry entry = entries.get(i);
-                if (entry == null) {
-                    // Entry was filtered out
-                    continue;
+            // Small messages are copied into one buffer, written as one: a message of its own would cost a
+            // ByteBufPair, two writes and two entries of the channel's outbound buffer, and a retain and a release of
+            // the entry's buffer, which every subscription that dispatches the cached entry shares
+            ByteBuf coalesced = null;
+            // what the remaining small messages are expected to take, to size the buffer for them
+            int copiedBytesRemaining = estimateCopiedBytes(entries);
+            // the entries before this index have been handed to the channel or released
+            int i = 0;
+            try {
+                for (; i < entries.size(); i++) {
+                    Entry entry = entries.get(i);
+                    if (entry == null) {
+                        // Entry was filtered out
+                        continue;
+                    }
+
+                    int batchSize = batchSizes.getBatchSize(i);
+
+                    if (batchSize > 1 && !cnx.isBatchMessageCompatibleVersion()) {
+                        log.warn()
+                                .attr("topic", topicName)
+                                .attr("subscription", subscription)
+                                .attr("consumerId", consumerId)
+                                .attr("ledgerId", entry.getLedgerId())
+                                .attr("entryId", entry.getEntryId())
+                                .log("- Consumer doesn't support batch messages - consumerId, msg id");
+                        ctx.close();
+                        entry.release();
+                        continue;
+                    }
+
+                    ByteBuf metadataAndPayload = entry.getDataBuffer();
+                    // skip broker entry metadata if consumer-client doesn't support broker entry metadata or the
+                    // features is not enabled
+                    if (cnx.getRemoteEndpointProtocolVersion() < ProtocolVersion.v18.getValue()
+                            || !cnx.supportBrokerMetadata()
+                            || !cnx.getBrokerService().getPulsar().getConfig()
+                            .isExposingBrokerEntryMetadataToClientEnabled()) {
+                        Commands.skipBrokerEntryMetadataIfExist(metadataAndPayload);
+                    }
+                    // skip checksum by incrementing reader-index if consumer-client doesn't support checksum
+                    // verification
+                    if (cnx.getRemoteEndpointProtocolVersion() < ProtocolVersion.v11.getValue()) {
+                        Commands.skipChecksumIfPresent(metadataAndPayload);
+                    }
+
+                    log.debug()
+                            .attr("topic", topicName)
+                            .attr("subscription", subscription)
+                            .attr("consumerId", consumerId)
+                            .attr("ledgerId", entry.getLedgerId())
+                            .attr("entryId", entry.getEntryId())
+                            .attr("batchSize", batchSize)
+                            .log("- Sending message to consumerId, msg id- with batchSize");
+
+                    int redeliveryCount = redeliveryTracker
+                            .getRedeliveryCount(entry.getLedgerId(), entry.getEntryId());
+
+                    long[] ackSet = batchIndexesAcks == null ? null : batchIndexesAcks.getAckSet(i);
+                    if (metadataAndPayload.readableBytes() <= MAX_COPIED_MESSAGE_BYTES) {
+                        int frameBytes = estimateFrameBytes(metadataAndPayload.readableBytes(), ackSet);
+                        if (coalesced != null && coalesced.readableBytes() + frameBytes > MAX_COALESCED_BYTES) {
+                            // write the buffer before it would have to grow beyond the limit
+                            ctx.write(coalesced, ctx.voidPromise());
+                            coalesced = null;
+                        }
+                        if (coalesced == null) {
+                            coalesced = ctx.alloc().buffer(
+                                    Math.max(frameBytes, Math.min(copiedBytesRemaining, MAX_COALESCED_BYTES)));
+                        }
+                        cnx.writeMessageAndIntercept(coalesced, consumerId, entry.getLedgerId(), entry.getEntryId(),
+                                partitionIdx, redeliveryCount, metadataAndPayload, ackSet, epoch);
+                        copiedBytesRemaining -= frameBytes;
+                    } else {
+                        // keep the order of the messages
+                        if (coalesced != null) {
+                            ctx.write(coalesced, ctx.voidPromise());
+                            coalesced = null;
+                        }
+                        // increment ref-count of data and release at the end of process:
+                        // so, we can get chance to call entry.release
+                        metadataAndPayload.retain();
+                        ctx.write(
+                                cnx.newMessageAndIntercept(consumerId, entry.getLedgerId(), entry.getEntryId(),
+                                        partitionIdx, redeliveryCount, metadataAndPayload, ackSet, topicName, epoch),
+                                ctx.voidPromise());
+                    }
+                    entriesToRelease.add(entry);
                 }
-
-                int batchSize = batchSizes.getBatchSize(i);
-
-                if (batchSize > 1 && !cnx.isBatchMessageCompatibleVersion()) {
-                    log.warn("[{}-{}] Consumer doesn't support batch messages -  consumerId {}, msg id {}-{}",
-                            topicName, subscription,
-                            consumerId, entry.getLedgerId(), entry.getEntryId());
-                    ctx.close();
-                    entry.release();
-                    continue;
+                if (coalesced != null) {
+                    ctx.write(coalesced, ctx.voidPromise());
+                    coalesced = null;
                 }
-
-                ByteBuf metadataAndPayload = entry.getDataBuffer();
-                // increment ref-count of data and release at the end of process:
-                // so, we can get chance to call entry.release
-                metadataAndPayload.retain();
-                // skip broker entry metadata if consumer-client doesn't support broker entry metadata or the
-                // features is not enabled
-                if (cnx.getRemoteEndpointProtocolVersion() < ProtocolVersion.v18.getValue()
-                        || !cnx.supportBrokerMetadata()
-                        || !cnx.getBrokerService().getPulsar().getConfig()
-                        .isExposingBrokerEntryMetadataToClientEnabled()) {
-                    Commands.skipBrokerEntryMetadataIfExist(metadataAndPayload);
+            } catch (Throwable t) {
+                log.error()
+                        .attr("topic", topicName)
+                        .attr("subscription", subscription)
+                        .attr("consumerId", consumerId)
+                        .exception(t)
+                        .log("Failed to send messages to the consumer, closing the connection");
+                if (coalesced != null) {
+                    coalesced.release();
                 }
-                // skip checksum by incrementing reader-index if consumer-client doesn't support checksum verification
-                if (cnx.getRemoteEndpointProtocolVersion() < ProtocolVersion.v11.getValue()) {
-                    Commands.skipChecksumIfPresent(metadataAndPayload);
+                // the consumer gets the messages again after it reconnects; the entries that weren't handed to the
+                // channel are released with the others once the write below fails on the closed channel
+                for (; i < entries.size(); i++) {
+                    if (entries.get(i) != null) {
+                        entriesToRelease.add(entries.get(i));
+                    }
                 }
-
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}-{}] Sending message to consumerId {}, msg id {}-{} with batchSize {}",
-                            topicName, subscription,  consumerId, entry.getLedgerId(), entry.getEntryId(), batchSize);
-                }
-
-                int redeliveryCount = redeliveryTracker
-                        .getRedeliveryCount(entry.getLedgerId(), entry.getEntryId());
-
-                ctx.write(
-                        cnx.newMessageAndIntercept(consumerId, entry.getLedgerId(), entry.getEntryId(), partitionIdx,
-                                redeliveryCount, metadataAndPayload,
-                                batchIndexesAcks == null ? null : batchIndexesAcks.getAckSet(i), topicName, epoch),
-                        ctx.voidPromise());
-                entriesToRelease.add(entry);
+                ctx.close();
             }
 
             // Use an empty write here so that we can just tie the flush with the write promise for last entry
@@ -311,6 +381,26 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
         });
 
         return writePromise;
+    }
+
+    private static int estimateCopiedBytes(List<? extends Entry> entries) {
+        int bytes = 0;
+        for (int i = 0; i < entries.size(); i++) {
+            Entry entry = entries.get(i);
+            if (entry != null && entry.getLength() <= MAX_COPIED_MESSAGE_BYTES) {
+                bytes += estimateFrameBytes(entry.getLength(), null);
+                if (bytes >= MAX_COALESCED_BYTES) {
+                    return bytes;
+                }
+            }
+        }
+        return bytes;
+    }
+
+    /** The bytes that a copied message takes: the frame's sizes, its command, its metadata and payload. */
+    private static int estimateFrameBytes(int metadataAndPayloadBytes, long[] ackSet) {
+        return 4 + 4 + MESSAGE_COMMAND_BYTES_ESTIMATE + (ackSet != null ? ackSet.length * 10 : 0)
+                + metadataAndPayloadBytes;
     }
 
     @Override
@@ -397,6 +487,23 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
                 command, permitAcquireErrorHandler);
     }
 
+    @Override
+    public void sendScalableTopicSubscribeResponse(long requestId,
+            org.apache.pulsar.common.api.proto.ScalableConsumerAssignment assignment) {
+        writeAndFlush(Commands.newScalableTopicSubscribeResponse(requestId, assignment));
+    }
+
+    @Override
+    public void sendScalableTopicSubscribeError(long requestId, ServerError error, String message) {
+        writeAndFlush(Commands.newScalableTopicSubscribeError(requestId, error, message));
+    }
+
+    @Override
+    public void sendScalableTopicAssignmentUpdate(long consumerId,
+            org.apache.pulsar.common.api.proto.ScalableConsumerAssignment assignment) {
+        writeAndFlush(Commands.newScalableTopicAssignmentUpdate(consumerId, assignment));
+    }
+
     private void writeAndFlush(ByteBuf outBuf) {
         NettyChannelUtil.writeAndFlushWithVoidPromise(cnx.ctx(), outBuf);
     }
@@ -406,7 +513,10 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
             try {
                 this.interceptor.onPulsarCommand(command, cnx);
             } catch (Exception e) {
-                log.error("Failed to execute command {} on broker interceptor.", command.getType(), e);
+                log.error()
+                        .attr("type", command.getType())
+                        .exception(e)
+                        .log("Failed to execute command on broker interceptor.");
             }
         }
     }

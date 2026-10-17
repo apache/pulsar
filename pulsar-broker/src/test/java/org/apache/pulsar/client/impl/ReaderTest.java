@@ -42,7 +42,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
@@ -81,7 +81,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-impl")
 public class ReaderTest extends MockedPulsarServiceBaseTest {
 
@@ -464,7 +464,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
                     .create();
             fail("should failed with unexpected key hash range");
         } catch (IllegalArgumentException e) {
-            log.error("Create key hash range failed", e);
+            log.error().exception(e).log("Create key hash range failed");
         }
 
         try {
@@ -475,7 +475,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
                     .create();
             fail("should failed with unexpected key hash range");
         } catch (IllegalArgumentException e) {
-            log.error("Create key hash range failed", e);
+            log.error().exception(e).log("Create key hash range failed");
         }
 
         try {
@@ -486,7 +486,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
                     .create();
             fail("should failed with unexpected key hash range");
         } catch (IllegalArgumentException e) {
-            log.error("Create key hash range failed", e);
+            log.error().exception(e).log("Create key hash range failed");
         }
 
         @Cleanup
@@ -513,7 +513,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
                     .key(key)
                     .value(key)
                     .send();
-            log.info("Publish message to slot {}", slot);
+            log.info().attr("slot", slot).log("Publish message to slot");
         }
 
         List<String> receivedMessages = new ArrayList<>();
@@ -529,7 +529,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         assertTrue(expectedMessages > 0);
         assertEquals(receivedMessages.size(), expectedMessages);
         for (String receivedMessage : receivedMessages) {
-            log.info("Receive message {}", receivedMessage);
+            log.info().attr("message", receivedMessage).log("Receive message");
             assertTrue(Integer.parseInt(receivedMessage) <= StickyKeyConsumerSelector.DEFAULT_RANGE_SIZE / 2);
         }
 
@@ -1098,7 +1098,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
                         keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
                         return keyInfo;
                     } catch (IOException e) {
-                        log.error("Failed to read certificate from {}", certFilePath);
+                        log.error().attr("certificate", certFilePath).log("Failed to read certificate from");
                     }
                 }
                 return null;
@@ -1112,7 +1112,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
                         keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
                         return keyInfo;
                     } catch (IOException e) {
-                        log.error("Failed to read certificate from {}", certFilePath);
+                        log.error().attr("certificate", certFilePath).log("Failed to read certificate from");
                     }
                 }
                 return null;

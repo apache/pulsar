@@ -351,6 +351,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 20000)
     public void testEnableAndDisableTopicDelayedDelivery() throws Exception {
         String topicName = "persistent://public/default/topic-" + UUID.randomUUID();
@@ -387,6 +388,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         assertNull(admin.topics().getDelayedDeliveryPolicy(topicName));
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 20000)
     public void testEnableTopicDelayedDelivery() throws Exception {
         final String topicName = "persistent://public/default/test" + UUID.randomUUID().toString();
@@ -650,6 +652,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
             assertTrue(receivedMsgs.contains("msg-" + i));
         }
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testDelayedDeliveryExceedsMaxDelay() throws Exception {

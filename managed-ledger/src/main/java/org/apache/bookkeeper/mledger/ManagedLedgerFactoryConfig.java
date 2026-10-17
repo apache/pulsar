@@ -21,7 +21,7 @@ package org.apache.bookkeeper.mledger;
 import lombok.Data;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.mledger.proto.CompressionType;
 
 /**
  * Configuration for a {@link ManagedLedgerFactory}.
@@ -56,14 +56,6 @@ public class ManagedLedgerFactoryConfig {
      * accessed since the last expiration check.
      */
     private long cacheEvictionTimeThresholdMillis = 1000;
-
-    /**
-     * This setting configures the duration of continuing to cache added entries while there are no
-     * active cursors, when the last active cursor has left or immediately after initialization when
-     * the persistent topic and the managed ledger gets loaded.
-     * This setting is ignored unless cacheEvictionByExpectedReadCount is enabled.
-     */
-    private long continueCachingAddedEntriesAfterLastActiveCursorLeavesMillis;
 
     /**
      * Maximum number of times the cache can extend the TTL of an entry that has remaining expected reads.
@@ -134,7 +126,7 @@ public class ManagedLedgerFactoryConfig {
     /**
      * ManagedLedgerInfo compression type. If the compression type is null or invalid, don't compress data.
      */
-    private String managedLedgerInfoCompressionType = MLDataFormats.CompressionType.NONE.name();
+    private String managedLedgerInfoCompressionType = CompressionType.NONE.name();
 
     /**
      * ManagedLedgerInfo compression threshold. If the origin metadata size below configuration.
@@ -145,7 +137,7 @@ public class ManagedLedgerFactoryConfig {
     /**
      * ManagedCursorInfo compression type. If the compression type is null or invalid, don't compress data.
      */
-    private String managedCursorInfoCompressionType = MLDataFormats.CompressionType.NONE.name();
+    private String managedCursorInfoCompressionType = CompressionType.NONE.name();
 
     /**
      * ManagedCursorInfo compression threshold. If the origin metadata size below configuration.

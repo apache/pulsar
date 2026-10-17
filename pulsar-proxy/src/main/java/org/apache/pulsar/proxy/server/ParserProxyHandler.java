@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.pulsar.common.api.proto.BaseCommand;
@@ -39,10 +40,9 @@ import org.apache.pulsar.common.api.raw.RawMessage;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.StringInterner;
 import org.apache.pulsar.proxy.stats.TopicStats;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 
+@CustomLog
 public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
 
 
@@ -104,12 +104,20 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
         // log conn format is like from source to target
         switch (this.connType) {
             case ParserProxyHandler.FRONTEND_CONN:
-                log.info(ParserProxyHandler.FRONTEND_CONN + ":{} cmd:{} msg:{}", "[" + conn.remoteAddress()
-                        + conn.localAddress() + "]", cmdtype, info);
+                log.info()
+                        .attr("localAddress", conn.localAddress())
+                        .attr("remoteAddress", conn.remoteAddress())
+                        .attr("cmd", cmdtype)
+                        .attr("msg", info)
+                        .log(ParserProxyHandler.FRONTEND_CONN);
                 break;
             case ParserProxyHandler.BACKEND_CONN:
-                log.info(ParserProxyHandler.BACKEND_CONN + ":{} cmd:{} msg:{}", "[" + conn.localAddress()
-                        + conn.remoteAddress() + "]", cmdtype, info);
+                log.info()
+                        .attr("localAddress", conn.localAddress())
+                        .attr("remoteAddress", conn.remoteAddress())
+                        .attr("cmd", cmdtype)
+                        .attr("msg", info)
+                        .log(ParserProxyHandler.BACKEND_CONN);
                 break;
         }
     }
@@ -218,7 +226,7 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
                     break;
             }
         } catch (Exception e){
-            log.error("channelRead error ", e);
+            log.error().exception(e).log("channelRead error ");
         } finally {
             buffer.resetReaderIndex();
             buffer.resetWriterIndex();
@@ -236,6 +244,4 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
             ctx.fireChannelRead(compBuf);
         }
     }
-
-    private static final Logger log = LoggerFactory.getLogger(ParserProxyHandler.class);
 }

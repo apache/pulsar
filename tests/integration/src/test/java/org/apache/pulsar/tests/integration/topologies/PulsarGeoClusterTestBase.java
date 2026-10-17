@@ -20,10 +20,10 @@ package org.apache.pulsar.tests.integration.topologies;
 
 import static java.util.stream.Collectors.joining;
 import java.util.stream.Stream;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
+@CustomLog
 public class PulsarGeoClusterTestBase extends PulsarTestBase {
 
     @Override
@@ -67,7 +67,7 @@ public class PulsarGeoClusterTestBase extends PulsarTestBase {
 
     protected void setupCluster0(PulsarClusterSpec... specs) throws Exception {
         incrementSetupNumber();
-        log.info("Setting up geo cluster with {} local clusters}", specs.length);
+        log.info().attr("with", specs.length).log("Setting up geo cluster with local clusters}");
 
         this.geoCluster = PulsarGeoCluster.forSpec(specs);
 

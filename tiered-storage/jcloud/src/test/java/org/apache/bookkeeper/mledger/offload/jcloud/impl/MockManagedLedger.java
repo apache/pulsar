@@ -25,7 +25,7 @@ import java.util.NavigableMap;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -36,11 +36,11 @@ import org.apache.bookkeeper.mledger.ManagedLedgerMXBean;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionBound;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 
-@Slf4j
+@CustomLog
 public class MockManagedLedger implements ManagedLedger {
     @Override
     public String getName() {
@@ -342,6 +342,7 @@ public class MockManagedLedger implements ManagedLedger {
 
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public void rollCurrentLedgerIfFull() {
 
@@ -359,13 +360,13 @@ public class MockManagedLedger implements ManagedLedger {
 
     @Override
     public CompletableFuture<LedgerInfo> getLedgerInfo(long ledgerId) {
-        final LedgerInfo build = LedgerInfo.newBuilder().setLedgerId(ledgerId).setSize(100).setEntries(20).build();
+        final LedgerInfo build = new LedgerInfo().setLedgerId(ledgerId).setSize(100).setEntries(20);
         return CompletableFuture.completedFuture(build);
     }
 
     @Override
     public Optional<LedgerInfo> getOptionalLedgerInfo(long ledgerId) {
-        final LedgerInfo build = LedgerInfo.newBuilder().setLedgerId(ledgerId).setSize(100).setEntries(20).build();
+        final LedgerInfo build = new LedgerInfo().setLedgerId(ledgerId).setSize(100).setEntries(20);
         return Optional.of(build);
     }
 

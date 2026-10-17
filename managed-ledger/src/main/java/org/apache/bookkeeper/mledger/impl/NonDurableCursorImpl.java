@@ -29,8 +29,6 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class NonDurableCursorImpl extends ManagedCursorImpl {
 
@@ -65,8 +63,10 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
             recoverCursor(startCursorPosition);
         }
         STATE_UPDATER.set(this, State.Open);
-        log.info("[{}] Created non-durable cursor read-position={} mark-delete-position={}", ledger.getName(),
-                readPosition, markDeletePosition);
+        log.info()
+                .attr("readPosition", readPosition)
+                .attr("markDeletePosition", markDeletePosition)
+                .log("Created non-durable cursor");
     }
 
     private void recoverCursor(Position mdPosition) {
@@ -82,8 +82,10 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
                 ? ledger.getNumberOfEntries(Range.closed(readPosition, lastEntryAndCounter.getLeft())) : 0;
             messagesConsumedCounter = lastEntryAndCounter.getRight() - initialBacklog;
         } else {
-            log.warn("Recovered a non-durable cursor from position {} but didn't find a valid read position {}",
-                mdPosition, readPosition);
+            log.warn()
+                    .attr("mdPosition", mdPosition)
+                    .attr("readPosition", readPosition)
+                    .log("Recovered a non-durable cursor but didn't find a valid read position");
         }
     }
 
@@ -161,5 +163,4 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
                 .toString();
     }
 
-    private static final Logger log = LoggerFactory.getLogger(NonDurableCursorImpl.class);
 }

@@ -31,14 +31,15 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.JavaInstance.AsyncFuncRequest;
+import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class JavaInstanceTest {
 
     /**
@@ -94,7 +95,7 @@ public class JavaInstanceTest {
         ExecutorService executor = Executors.newCachedThreadPool();
 
         Function<String, CompletableFuture<String>> function = (input, context) -> {
-            log.info("input string: {}", input);
+            log.info().attr("input", input).log("Input string");
             CompletableFuture<String> result  = new CompletableFuture<>();
             executor.submit(() -> {
                 try {
@@ -130,7 +131,7 @@ public class JavaInstanceTest {
         ExecutorService executor = Executors.newCachedThreadPool();
 
         Function<String, CompletableFuture<String>> function = (input, context) -> {
-            log.info("input string: {}", input);
+            log.info().attr("input", input).log("Input string");
             CompletableFuture<String> result  = new CompletableFuture<>();
             executor.submit(() -> {
                 try {
@@ -165,7 +166,7 @@ public class JavaInstanceTest {
         ExecutorService executor = Executors.newCachedThreadPool();
 
         Function<String, CompletableFuture<String>> function = (input, context) -> {
-            log.info("input string: {}", input);
+            log.info().attr("input", input).log("Input string");
             CompletableFuture<String> result  = new CompletableFuture<>();
             executor.submit(() -> {
                 result.completeExceptionally(userException);
@@ -197,7 +198,7 @@ public class JavaInstanceTest {
         ExecutorService executor = Executors.newCachedThreadPool();
 
         Function<String, CompletableFuture<String>> function = (input, context) -> {
-            log.info("input string: {}", input);
+            log.info().attr("input", input).log("Input string");
             CompletableFuture<String> result  = new CompletableFuture<>();
             executor.submit(() -> {
                 try {
@@ -239,7 +240,11 @@ public class JavaInstanceTest {
 
         long endTime = System.currentTimeMillis();
 
-        log.info("start:{} end:{} during:{}", startTime, endTime, endTime - startTime);
+        log.info()
+                .attr("startTime", startTime)
+                .attr("endTime", endTime)
+                .attr("duration", endTime - startTime)
+                .log("Test duration");
         instance.close();
     }
 
@@ -253,11 +258,9 @@ public class JavaInstanceTest {
     public void testAsyncFunctionMaxPendingVoidResult() throws Exception {
         CountDownLatch count = new CountDownLatch(1);
         InstanceConfig instanceConfig = new InstanceConfig();
-        instanceConfig.setFunctionDetails(org.apache.pulsar.functions.proto.Function.FunctionDetails.newBuilder()
-                .setSink(org.apache.pulsar.functions.proto.Function.SinkSpec.newBuilder()
-                        .setTypeClassName(Void.class.getName())
-                        .build())
-                .build());
+        FunctionDetails fd = new FunctionDetails();
+        fd.setSink().setTypeClassName(Void.class.getName());
+        instanceConfig.setFunctionDetails(fd);
         int pendingQueueSize = 3;
         instanceConfig.setMaxPendingAsyncRequests(pendingQueueSize);
         @Cleanup("shutdownNow")
@@ -306,7 +309,11 @@ public class JavaInstanceTest {
 
         long endTime = System.currentTimeMillis();
 
-        log.info("start:{} end:{} during:{}", startTime, endTime, endTime - startTime);
+        log.info()
+                .attr("startTime", startTime)
+                .attr("endTime", endTime)
+                .attr("duration", endTime - startTime)
+                .log("Test duration");
         instance.close();
     }
 }

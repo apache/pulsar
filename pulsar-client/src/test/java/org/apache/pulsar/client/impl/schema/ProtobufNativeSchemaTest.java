@@ -23,9 +23,11 @@ import static org.testng.Assert.assertNotNull;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.protobuf.Any;
 import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.StringValue;
 import com.google.protobuf.util.JsonFormat;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -33,7 +35,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -42,7 +44,7 @@ import org.skyscreamer.jsonassert.JSONCompareMode;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class ProtobufNativeSchemaTest {
 
 
@@ -94,6 +96,19 @@ public class ProtobufNativeSchemaTest {
     }
 
     @Test
+    public void testSchemaApiSupportsMessageBound() {
+        Any any = Any.pack(StringValue.newBuilder().setValue("native-message").build());
+        org.apache.pulsar.client.api.Schema<Any> protobufSchema =
+                org.apache.pulsar.client.api.Schema.PROTOBUF_NATIVE(Any.class);
+
+        byte[] bytes = protobufSchema.encode(any);
+        Any message = protobufSchema.decode(bytes);
+
+        assertEquals(protobufSchema.getSchemaInfo().getType(), SchemaType.PROTOBUF_NATIVE);
+        assertEquals(message, any);
+    }
+
+    @Test
     public void testSchema() throws Exception {
         ProtobufNativeSchema<org.apache.pulsar.client.schema.proto.Test.TestMessage> protobufSchema =
                 ProtobufNativeSchema.of(org.apache.pulsar.client.schema.proto.Test.TestMessage.class);
@@ -140,6 +155,7 @@ public class ProtobufNativeSchemaTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testGenericOf() {
         try {
             ProtobufNativeSchema<org.apache.pulsar.client.schema.proto.Test.TestMessage> protobufNativeSchema =

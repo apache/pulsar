@@ -97,6 +97,52 @@ public class OffloadPoliciesTest {
     }
 
     @Test
+    public void testAliyunOssConfiguration() {
+        final String driver = "aliyun-oss";
+        final String region = "test-region";
+        final String bucket = "test-bucket";
+        final String role = "test-role";
+        final String roleSessionName = "test-role-session-name";
+        final String credentialId = "test-credential-id";
+        final String credentialSecret = "test-credential-secret";
+        final String endPoint = "test-endpoint";
+        final Integer maxBlockSizeInBytes = 5 * M;
+        final Integer readBufferSizeInBytes = 2 * M;
+        final Long offloadThresholdInBytes = 10L * M;
+        final Long offloadThresholdInSeconds = 1000L;
+        final Long offloadDeletionLagInMillis = 5L * MIN;
+
+        OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create(
+                driver,
+                region,
+                bucket,
+                endPoint,
+                role,
+                roleSessionName,
+                credentialId,
+                credentialSecret,
+                maxBlockSizeInBytes,
+                readBufferSizeInBytes,
+                offloadThresholdInBytes,
+                offloadThresholdInSeconds,
+                offloadDeletionLagInMillis,
+                OffloadedReadPriority.TIERED_STORAGE_FIRST
+        );
+
+        Assert.assertTrue(offloadPolicies.isS3Driver());
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDriver(), driver);
+        Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadRegion(), region);
+        Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadBucket(), bucket);
+        Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadServiceEndpoint(), endPoint);
+        // The CLI create() path must carry the credentials under the s3-prefixed keys the
+        // S3-compatible aliyun-oss offloader reads, not silently drop them.
+        Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadCredentialId(), credentialId);
+        Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadCredentialSecret(), credentialSecret);
+        Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadMaxBlockSizeInBytes(), maxBlockSizeInBytes);
+        Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadReadBufferSizeInBytes(), readBufferSizeInBytes);
+    }
+
+    @Test
     public void testGcsConfiguration() {
         final String driver = "google-cloud-storage";
         final String region = "test-region";
@@ -333,6 +379,75 @@ public class OffloadPoliciesTest {
         Assert.assertNull(offloadPolicies.getS3ManagedLedgerOffloadRegion());
     }
 
+    @Test
+    public void brokerExtraConfigMergeTest() {
+        final String bucketPrefix = "o-123/c-456";
+        Properties brokerProperties = new Properties();
+        brokerProperties.setProperty("managedLedgerOffloadDriver", "aws-s3");
+        brokerProperties.setProperty(EXTRA_CONFIG_PREFIX + "tieredStorageBucketPrefix", bucketPrefix);
+
+        OffloadPoliciesImpl offloadPolicies =
+                OffloadPoliciesImpl.mergeConfiguration(null, null, brokerProperties);
+
+        Assert.assertNotNull(offloadPolicies);
+        assertEquals(offloadPolicies.getManagedLedgerExtraConfigurations(),
+                Map.of("tieredStorageBucketPrefix", bucketPrefix));
+    }
+
+    @Test
+    public void higherLevelExtraConfigOverridesBrokerExtraConfigMergeTest() {
+        Properties brokerProperties = new Properties();
+        brokerProperties.setProperty("managedLedgerOffloadDriver", "aws-s3");
+        brokerProperties.setProperty(EXTRA_CONFIG_PREFIX + "tieredStorageBucketPrefix", "broker-prefix");
+        brokerProperties.setProperty(EXTRA_CONFIG_PREFIX + "brokerOnly", "broker-value");
+
+        OffloadPoliciesImpl topicLevelPolicies = new OffloadPoliciesImpl();
+        topicLevelPolicies.getManagedLedgerExtraConfigurations().put("tieredStorageBucketPrefix", "topic-prefix");
+        topicLevelPolicies.getManagedLedgerExtraConfigurations().put("topicOnly", "topic-value");
+
+        OffloadPoliciesImpl offloadPolicies =
+                OffloadPoliciesImpl.mergeConfiguration(topicLevelPolicies, null, brokerProperties);
+
+        Assert.assertNotNull(offloadPolicies);
+        assertEquals(offloadPolicies.getManagedLedgerExtraConfigurations(),
+                Map.of("tieredStorageBucketPrefix", "topic-prefix",
+                        "brokerOnly", "broker-value",
+                        "topicOnly", "topic-value"));
+    }
+
+    @Test
+    public void emptyHigherLevelExtraConfigInheritsBrokerExtraConfigMergeTest() {
+        Properties brokerProperties = new Properties();
+        brokerProperties.setProperty("managedLedgerOffloadDriver", "aws-s3");
+        brokerProperties.setProperty(EXTRA_CONFIG_PREFIX + "tieredStorageBucketPrefix", "broker-prefix");
+
+        OffloadPoliciesImpl nsLevelPolicies = new OffloadPoliciesImpl();
+
+        OffloadPoliciesImpl offloadPolicies =
+                OffloadPoliciesImpl.mergeConfiguration(null, nsLevelPolicies, brokerProperties);
+
+        Assert.assertNotNull(offloadPolicies);
+        assertEquals(offloadPolicies.getManagedLedgerExtraConfigurations(),
+                Map.of("tieredStorageBucketPrefix", "broker-prefix"));
+    }
+
+    @Test
+    public void emptyHigherLevelExtraConfigOverridesBrokerExtraConfigMergeTest() {
+        Properties brokerProperties = new Properties();
+        brokerProperties.setProperty("managedLedgerOffloadDriver", "aws-s3");
+        brokerProperties.setProperty(EXTRA_CONFIG_PREFIX + "tieredStorageBucketPrefix", "broker-prefix");
+
+        OffloadPoliciesImpl topicLevelPolicies = new OffloadPoliciesImpl();
+        topicLevelPolicies.getManagedLedgerExtraConfigurations().put("tieredStorageBucketPrefix", "");
+
+        OffloadPoliciesImpl offloadPolicies =
+                OffloadPoliciesImpl.mergeConfiguration(topicLevelPolicies, null, brokerProperties);
+
+        Assert.assertNotNull(offloadPolicies);
+        assertEquals(offloadPolicies.getManagedLedgerExtraConfigurations(),
+                Map.of("tieredStorageBucketPrefix", ""));
+    }
+
 
     @Test
     public void brokerPropertyCompatibleTest() {
@@ -412,9 +527,17 @@ public class OffloadPoliciesTest {
         }
 
         private Class<?> getClass(String name) {
-            String file = name.replace('.', File.separatorChar) + ".class";
-            Path targetPath = Paths.get(getClass().getClassLoader().getResource(".").getPath()).getParent();
-            file = Paths.get(targetPath.toString(), "classes", file).toString();
+            String classFile = name.replace('.', File.separatorChar) + ".class";
+            Path testClassesDir = Paths.get(getClass().getClassLoader().getResource(".").getPath());
+            Path mainClassesDir;
+            if (testClassesDir.endsWith(Paths.get("classes", "java", "test"))) {
+                // Gradle layout: build/classes/java/test -> build/classes/java/main
+                mainClassesDir = testClassesDir.getParent().resolve("main");
+            } else {
+                // Maven layout: target/test-classes -> target/classes
+                mainClassesDir = testClassesDir.getParent().resolve("classes");
+            }
+            String file = mainClassesDir.resolve(classFile).toString();
             byte[] byteArr = null;
             try {
                 byteArr = loadClassData(file);
