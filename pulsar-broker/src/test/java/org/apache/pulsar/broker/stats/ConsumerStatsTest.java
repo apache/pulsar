@@ -65,6 +65,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
 import org.apache.pulsar.broker.service.plugin.EntryFilterProducerTest;
 import org.apache.pulsar.broker.service.plugin.EntryFilterWithClassLoader;
+import org.apache.pulsar.client.admin.GetStatsOptions;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -313,6 +314,32 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         ObjectMapper mapper = ObjectMapperFactory.create();
         JsonNode node = mapper.readTree(topicStatsJson).get("subscriptions").get(subName).get("consumers").get(0);
         assertThat(node.fieldNames()).toIterable().containsExactlyInAnyOrderElementsOf(expectedFields);
+    }
+
+    @Test
+    public void testKeySharedStatsWithoutConsumersDontComputeKeyHashRanges() throws Exception {
+        final String topicName = newUniqueName("persistent://my-property/my-ns/testKeySharedStatsWithoutConsumers");
+        final String subName = "my-subscription";
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscriptionName(subName)
+                .subscribe();
+
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        org.apache.pulsar.broker.service.Consumer brokerConsumer =
+                topicRef.getSubscription(subName).getConsumers().get(0);
+        TopicStats withoutConsumers = admin.topics().getStats(topicName,
+                GetStatsOptions.builder().excludeConsumers(true).build());
+        assertThat(withoutConsumers.getSubscriptions().get(subName).getConsumers()).isEmpty();
+        // the consumer's stats, which only the stats with the consumers show, didn't get the key hash ranges
+        assertThat(brokerConsumer.getStats().keyHashRangeArrays).isNull();
+
+        TopicStats withConsumers = admin.topics().getStats(topicName);
+        assertThat(withConsumers.getSubscriptions().get(subName).getConsumers().get(0).getKeyHashRangeArrays())
+                .isNotEmpty();
     }
 
     @Test
