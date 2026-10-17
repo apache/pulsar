@@ -47,6 +47,7 @@ import lombok.CustomLog;
 import org.apache.commons.lang3.JavaVersion;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
+import org.apache.pulsar.common.functions.MemoryLimit;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
@@ -506,6 +507,16 @@ public class RuntimeUtils {
 
             if (instanceConfig.isIgnoreUnknownConfigFields()) {
                 args.add("--ignore_unknown_config_fields");
+            }
+
+            MemoryLimit clientMemoryLimit = instanceConfig.getPulsarClientMemoryLimit();
+            if (clientMemoryLimit != null && clientMemoryLimit.getLimitInBytes() != null) {
+                args.add("--pulsar_client_memory_limit_bytes");
+                args.add(String.valueOf(clientMemoryLimit.getLimitInBytes()));
+            }
+            if (clientMemoryLimit != null && clientMemoryLimit.getPercentOfMaxDirectMemory() != null) {
+                args.add("--pulsar_client_memory_limit_percent");
+                args.add(String.valueOf(clientMemoryLimit.getPercentOfMaxDirectMemory()));
             }
         }
 
