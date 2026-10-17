@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.transaction.buffer;
 
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -69,6 +70,7 @@ import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.api.proto.TxnAction;
+import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
@@ -166,7 +168,7 @@ public class TransactionBufferClientTest extends TransactionTestBase {
         for (int i = 0; i < getPulsarServiceList().size(); i++) {
             getPulsarServiceList().get(i).getConfig().setTransactionBufferSegmentedSnapshotEnabled(true);
         }
-        String topic1 = NAMESPACE1 +  "/testRecoveryTransactionBufferWhenCommonTopicAndSystemTopicAtDifferentBroker";
+        String topic1 = NAMESPACE1 + "/testRecoveryTransactionBufferWhenCommonTopicAndSystemTopicAtDifferentBroker";
         admin.tenants().createTenant(TENANT,
                 new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace(NAMESPACE1, 4);
@@ -178,23 +180,30 @@ public class TransactionBufferClientTest extends TransactionTestBase {
                 .getPartitionedTopicResources()
                 .createPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
                         new PartitionedTopicMetadata(3));
-        assertTrue(admin.namespaces().getBundles(NAMESPACE1).getNumBundles() > 1);
-        for (int i = 0; true; i++) {
-            topic1 = topic1 + i;
-            admin.topics().createNonPartitionedTopic(topic1);
-            String segmentTopicBroker = admin.lookups()
-                    .lookupTopic(NAMESPACE1 + "/" + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
-            String indexTopicBroker = admin.lookups()
-                    .lookupTopic(NAMESPACE1 + "/" + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_INDEXES);
-            if (segmentTopicBroker.equals(indexTopicBroker)) {
-                String topicBroker = admin.lookups().lookupTopic(topic1);
-                if (!topicBroker.equals(segmentTopicBroker)) {
-                    break;
-                }
-            } else {
-                break;
+        PulsarService topicBroker = pulsarServiceList.get(0);
+        PulsarService snapshotBroker = pulsarServiceList.get(1);
+        NamespaceBundle topicBundle = topicBroker.getNamespaceService().getBundle(TopicName.get(topic1));
+        // Assign ownership before any lookup can place all bundles on the same broker.
+        topicBroker.getNamespaceService().getOwnershipCache().tryAcquiringOwnership(topicBundle)
+                .get(10, TimeUnit.SECONDS);
+        for (String snapshotTopic : List.of(SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT,
+                SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS,
+                SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_INDEXES)) {
+            String snapshotTopicName = NAMESPACE1 + "/" + snapshotTopic;
+            NamespaceBundle snapshotBundle = snapshotBroker.getNamespaceService()
+                    .getBundle(TopicName.get(snapshotTopicName));
+            assertThat(snapshotBundle).as("Snapshot topic %s must be in a different bundle", snapshotTopicName)
+                    .isNotEqualTo(topicBundle);
+            if (!snapshotBroker.getNamespaceService().getOwnershipCache().isNamespaceBundleOwned(snapshotBundle)) {
+                snapshotBroker.getNamespaceService().getOwnershipCache().tryAcquiringOwnership(snapshotBundle)
+                        .get(10, TimeUnit.SECONDS);
             }
+            assertThat(admin.lookups().lookupTopic(snapshotTopicName)).isEqualTo(snapshotBroker.getBrokerServiceUrl());
         }
+        // Exercise the existence check for a snapshot topic owned by another broker.
+        admin.topics().createNonPartitionedTopic(NAMESPACE1 + "/" + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
+        admin.topics().createNonPartitionedTopic(topic1);
+        assertThat(admin.lookups().lookupTopic(topic1)).isEqualTo(topicBroker.getBrokerServiceUrl());
         @Cleanup
         PulsarClient localPulsarClient = PulsarClient.builder()
                 .serviceUrl(pulsarServiceList.get(0).getBrokerServiceUrl())
