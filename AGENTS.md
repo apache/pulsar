@@ -43,7 +43,7 @@ Some areas have an agent guide of their own, which routes to that area's docs; r
 | Guide | Area |
 |-------|------|
 | [`tests/integration/AGENTS.md`](tests/integration/AGENTS.md) | The integration tests, which test Pulsar clusters in Docker containers. |
-| [`tests/performance/AGENTS.md`](tests/performance/AGENTS.md) | The performance tests, for running performance test experiments and automating them, including agent-based tuning. |
+| [`tests/performance/AGENTS.md`](tests/performance/AGENTS.md) | The Pulsar Performance Testing Framework, which runs a Pulsar cluster and its workloads in Docker on one host: performance experiments, profiling, A/B comparisons of revisions with charts, and automating them, including agent-based tuning. |
 | [`microbench/AGENTS.md`](microbench/AGENTS.md) | The JMH microbenchmarks, for the performance of a single class or method. |
 
 The authoritative project documentation is at <https://pulsar.apache.org>, whose source lives in the

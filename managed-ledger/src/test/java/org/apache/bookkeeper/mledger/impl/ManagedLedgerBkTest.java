@@ -30,6 +30,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -86,6 +87,90 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         super(2);
         // Use the v2 wire protocol so that reads exercise the BookKeeper batch read API against real bookies
         baseClientConf.setUseV2WireProtocol(true);
+    }
+
+    @DataProvider
+    public Object[][] addEntryHandoverByteLimits() {
+        return new Object[][] {
+                {new int[] {4, 4, 4}, 2},
+                {new int[] {4, 100, 4}, 1},
+                {new int[] {100, 4}, 1},
+                {new int[] {4, 6, 4}, 2}
+        };
+    }
+
+    @Test(timeOut = 30000, dataProvider = "addEntryHandoverByteLimits")
+    public void testAddEntryHandoverYieldsBeforeExceedingByteLimit(int[] entrySizes, int firstBatchEntries)
+            throws Exception {
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedLedgerConfig config = defaultConfig()
+                .setEnsembleSize(2).setWriteQuorumSize(2).setAckQuorumSize(2)
+                .setAddEntryHandoverMaxBatchBytesSize(10);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("handover-byte-limit-" + UUID.randomUUID(), config);
+        ManagedCursor cursor = ledger.openCursor("c1");
+        CountDownLatch workerStarted = new CountDownLatch(1);
+        CountDownLatch resumeWorker = new CountDownLatch(1);
+        CompletableFuture<Long> entriesBeforeOtherWork = new CompletableFuture<>();
+        List<CompletableFuture<Position>> positions = new ArrayList<>();
+        try {
+            // Hold the real BookKeeper worker until all adds and the competing task have been queued.
+            ledger.getExecutor().execute(() -> {
+                workerStarted.countDown();
+                try {
+                    if (!resumeWorker.await(10, TimeUnit.SECONDS)) {
+                        throw new AssertionError("Timed out waiting to resume the BookKeeper worker");
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new AssertionError(e);
+                }
+            });
+            assertThat(workerStarted.await(10, TimeUnit.SECONDS)).isTrue();
+            for (int i = 0; i < entrySizes.length; i++) {
+                CompletableFuture<Position> position = new CompletableFuture<>();
+                positions.add(position);
+                ByteBuf data = Unpooled.buffer(entrySizes[i]).writeZero(entrySizes[i]);
+                data.setByte(0, i);
+                try {
+                    ledger.asyncAddEntry(data, new AddEntryCallback() {
+                        @Override
+                        public void addComplete(Position addedPosition, ByteBuf entryData, Object ctx) {
+                            position.complete(addedPosition);
+                        }
+
+                        @Override
+                        public void addFailed(ManagedLedgerException exception, Object ctx) {
+                            position.completeExceptionally(exception);
+                        }
+                    }, null);
+                } finally {
+                    data.release();
+                }
+            }
+            // This task must run between the first batch and the adds that do not fit in it.
+            ledger.getExecutor().execute(() -> entriesBeforeOtherWork.complete(ledger.getCurrentLedgerEntries()));
+        } finally {
+            resumeWorker.countDown();
+        }
+
+        assertThat(entriesBeforeOtherWork.get(10, TimeUnit.SECONDS)).isEqualTo(firstBatchEntries);
+        List<Position> added = new ArrayList<>();
+        for (CompletableFuture<Position> position : positions) {
+            added.add(position.get(10, TimeUnit.SECONDS));
+        }
+        assertThat(added).isSorted().doesNotHaveDuplicates();
+        List<Entry> entries = cursor.readEntries(entrySizes.length);
+        try {
+            assertThat(entries).hasSize(entrySizes.length);
+            for (int i = 0; i < entrySizes.length; i++) {
+                assertThat(entries.get(i).getLength()).isEqualTo(entrySizes[i]);
+                assertThat(entries.get(i).getDataBuffer().getByte(0)).isEqualTo((byte) i);
+                assertThat(entries.get(i).getPosition()).isEqualTo(added.get(i));
+            }
+        } finally {
+            entries.forEach(Entry::release);
+        }
     }
 
     @Test

@@ -100,6 +100,7 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
         }
 
         throwRestExceptionIfUnauthorizedForNamespace(tenant, namespace, sourceName, "register", authParams);
+        checkPackageSourcePermission(sourcePkgUrl, authParams);
 
         try {
             // Check tenant exists
@@ -284,6 +285,7 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
         }
 
         throwRestExceptionIfUnauthorizedForNamespace(tenant, namespace, sourceName, "update", authParams);
+        checkPackageSourcePermission(sourcePkgUrl, authParams);
 
         FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
 

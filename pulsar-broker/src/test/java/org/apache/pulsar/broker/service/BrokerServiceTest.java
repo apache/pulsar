@@ -2379,6 +2379,30 @@ public class BrokerServiceTest extends BrokerTestBase {
     }
 
     @Test
+    public void testManagedLedgerContinueCachingAddedEntriesConfiguration() throws Exception {
+        var serviceConfiguration = pulsar.getConfiguration();
+        Long originalContinueCaching =
+                serviceConfiguration.getManagedLedgerContinueCachingAddedEntriesAfterLastActiveCursorLeavesMillis();
+        TopicName topicName = TopicName.get("persistent://prop/ns-abc/continue-caching-" + UUID.randomUUID());
+        try {
+            serviceConfiguration.setManagedLedgerContinueCachingAddedEntriesAfterLastActiveCursorLeavesMillis(12345L);
+            ManagedLedgerConfig ledgerConfig = pulsar.getBrokerService().getManagedLedgerConfig(topicName)
+                    .get(10, TimeUnit.SECONDS);
+            assertThat(ledgerConfig.getContinueCachingAddedEntriesAfterLastActiveCursorLeavesMillis())
+                    .isEqualTo(12345L);
+
+            // unset defaults to 2 * managedLedgerCacheEvictionTimeThresholdMillis
+            serviceConfiguration.setManagedLedgerContinueCachingAddedEntriesAfterLastActiveCursorLeavesMillis(null);
+            ledgerConfig = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get(10, TimeUnit.SECONDS);
+            assertThat(ledgerConfig.getContinueCachingAddedEntriesAfterLastActiveCursorLeavesMillis())
+                    .isEqualTo(2 * serviceConfiguration.getManagedLedgerCacheEvictionTimeThresholdMillis());
+        } finally {
+            serviceConfiguration.setManagedLedgerContinueCachingAddedEntriesAfterLastActiveCursorLeavesMillis(
+                    originalContinueCaching);
+        }
+    }
+
+    @Test
     public void testManagedLedgerAddEntryHandoverMaxBatchItemsConfiguration() throws Exception {
         String setting = "managedLedgerAddEntryHandoverMaxBatchItems";
         var serviceConfiguration = pulsar.getConfiguration();

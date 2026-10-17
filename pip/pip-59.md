@@ -2,9 +2,6 @@
 
 * Status: Drafting
 * Author: Christophe Bornet
-* Pull Request:
-* Mailing List discussion:
-* Release:
 
 # Motivation
 

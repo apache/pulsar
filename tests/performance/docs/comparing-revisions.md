@@ -33,17 +33,18 @@ use the CPU, and keep the disk that holds Docker's data less than 90 % full.
 
 ## Check out both revisions
 
-Use a worktree for each revision, so that both can be built and run without switching branches. Both revisions need
-the same performance tests, and everything they build from, so that only the code under test differs.
+Use a worktree for each revision, so that both can be built and run without switching branches. Both revisions need the
+same version of the Pulsar Performance Testing Framework, and everything it builds from, so that only the code under
+test differs.
 
-When the candidate changes only the code under test, and the base revision already has the same performance tests,
-check out the base revision as the baseline. For example, from a candidate checkout based on `origin/master`:
+When the candidate changes only the code under test, and the base revision already has the same version of the
+framework, check out the base revision as the baseline. For example, from a candidate checkout based on `origin/master`:
 
 ```bash
 git worktree add --detach ../pulsar-baseline origin/master
 ```
 
-Otherwise, for example when the candidate also changes the performance tests, or the base revision doesn't have them
+Otherwise, for example when the candidate also changes the framework, or the base revision doesn't have them
 yet, create the baseline from the candidate and restore only the code under test from the base revision. Take the
 paths from `git diff --stat origin/master...HEAD`, such as the broker's and the managed ledger's sources, and commit
 the result, so that the baseline's runs name their own commit:
@@ -90,6 +91,47 @@ several times, so that a drift of the host, such as its temperature, affects bot
 Keep the scenario, its settings and the profiler options identical for both revisions. Profiling has a measurement
 cost, so compare profiled runs only with profiled runs.
 
+## Comparing two Pulsar images
+
+Two tasks run a whole comparison of two Pulsar clusters in one command:
+
+- **`compareImages`** compares two released Pulsar images, such as two releases.
+- **`compareImageWithCheckout`** compares a released Pulsar image with this checkout.
+
+```bash
+# Two releases
+./gradlew :tests:performance:launcher:compareImages \
+  -Pperformance.compare.baselineImage=apachepulsar/pulsar:4.0.14 \
+  -Pperformance.compare.candidateImage=apachepulsar/pulsar:5.0.0 \
+  --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --name release-ab'
+# A release and the checkout
+./gradlew :tests:performance:launcher:compareImageWithCheckout \
+  -Pperformance.compare.baselineImage=apachepulsar/pulsar:5.0.0 \
+  --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --name release-ab'
+```
+
+- **Clusters:** each side's ZooKeeper, bookies and brokers run its Pulsar: a released image in the test image built on
+  it, as [Comparing with a released Pulsar](#comparing-with-a-released-pulsar) describes, or the checkout's test image.
+  The gateways and the applications always run the checkout's test image, and with it its Pulsar client, so that only
+  the clusters differ.
+- **Runs:** the task runs the scenario `-Pperformance.compare.repetitions` times on each side, 3 by default, alternating
+  which side runs first (A B, B A, A B, ...), so that a drift of the host affects both sides alike. The arguments are
+  the launcher's; each run gets a run directory of its own, as with `run`, so `--output` isn't allowed.
+- **Median runs:** the task leaves out a run that fails, and a run whose applications received messages out of order or
+  invalid messages, since it measured a bug. Of each side's other runs, it takes the median by
+  `-Pperformance.compare.medianBy`: `throughput`, the default, `publish-p99`, `e2e-p99` or `broker-cpu`; for an even
+  count, the lower of the middle two. For a scenario with a rate limit, where the throughput is the same on both sides,
+  take the median by a latency or by the broker's CPU. The latencies are the 99th percentiles of the runs' latency
+  logs.
+- **Results:** the task writes the comparison to `<reports root>/<yyyy-MM-dd>/comparisons/<name>/<MM-dd-HH-mm-ss>/` and
+  prints its path. Its `README.md` compares the median runs' throughput, publish p99, end-to-end p99 of the slowest
+  application, and broker CPU per million messages, with the change from A to B, and lists every run with its result
+  and a link to its report, or to its console log when it failed. Beside it are the [comparison charts](#comparison-charts) of the median runs, labeled with the images'
+  tags, or `checkout`.
+
+Prepare the host as for any comparison, and keep the comparison's runs and conclusions together, as the next sections
+describe.
+
 ## Comparing with a released Pulsar
 
 To compare a released Pulsar with the checkout, run the baseline with `-Pperformance.clusterPulsarImage=<image>`,
@@ -119,8 +161,8 @@ runs go under `pulsar-latest`, which gathers the runs of different releases as `
   and commit as the clients'. `run-info.json` has the image and the version as `cluster.pulsarImage` and
   `cluster.version`, beside the checkout's git keys.
 - Profiling works on the release too: the jonoffcpu agent is mounted into the profiled containers, and it has
-  libraries for musl. On Alpine, native frames are less complete than on the Wolfi image that profiled runs of the
-  checkout use.
+  libraries for musl, and the test image built on the release's image installs musl's debug symbols, so that native
+  frames in musl are named.
 
 ## Compare
 
@@ -132,6 +174,35 @@ runs go under `pulsar-latest`, which gathers the runs of different releases as `
   between runs of the same revision isn't a result.
 - Report percentage changes alongside the absolute values, and say which direction is better for each measure.
 - Compare profiles with the correlator, see [Comparing two profiles](analyzing-profiles.md#comparing-two-profiles).
+
+### Comparison charts
+
+`compareRuns` charts a baseline run (A) against a comparison run (B), such as each revision's median run, with the
+same axes for both runs, so that their values can be compared by position:
+
+```bash
+./gradlew :tests:performance:report-tool:compareRuns --args="--baseline <A run directory> \
+  --comparison <B run directory> --baseline-label 4.0.13 --comparison-label master --output <directory>"
+```
+
+It writes the throughput (published and consumed), the backlog, and the publish and end-to-end latency by
+percentile, the latency both on a linear and on a logarithmic axis (`latency-percentiles-log`), for latencies that
+differ by orders of magnitude. Each chart comes in two forms:
+
+| File | Form |
+|---|---|
+| `<chart>-<A label>-vs-<B label>.svg` | Both runs in one diagram: A's lines blue, B's orange |
+| `<chart>-<A label>-vs-<B label>-separate.svg` | A above B, in two panels with the same axes, each tinted in its run's color and labeled with it |
+
+The labels in the file names, such as `throughput-4.0.13-vs-5.0.0.svg`, keep the charts of several comparisons apart
+in one directory; characters other than letters, digits, dots and underscores become underscores, and
+`--no-labels-in-file-names` leaves them out (`throughput.svg`).
+
+Within a run, the published rate and the publish latency are dashed, and the consumed rate and the end-to-end latency
+solid. Time runs from each run's measurement start, and markers in each run's color show when its gateways finished
+publishing and when its consumers received their last measured message; labels of close markers stack. A label defaults to the run's name, the name of its directory's parent; `--baseline-label` and `--comparison-label`
+set it, such as to a release version in place of a branch name. The charts are read from the run
+directories, so runs of different checkouts or releases, and runs made before this task, can be compared.
 
 Each run's report records the commit it was made from, and whether the checkout had uncommitted changes. Keep the
 scenario, any local changes, the runs and the conclusions together, so that a later run can reproduce the workload.

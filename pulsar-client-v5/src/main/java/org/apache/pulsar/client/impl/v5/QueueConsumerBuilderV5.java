@@ -66,10 +66,7 @@ final class QueueConsumerBuilderV5<T> implements QueueConsumerBuilder<T> {
         try {
             return subscribeAsync().join();
         } catch (java.util.concurrent.CompletionException e) {
-            if (e.getCause() instanceof PulsarClientException pce) {
-                throw pce;
-            }
-            throw new PulsarClientException(e.getCause());
+            throw V5ExceptionMappings.toV5Exception(e);
         }
     }
 
@@ -89,13 +86,15 @@ final class QueueConsumerBuilderV5<T> implements QueueConsumerBuilder<T> {
 
         if (namespaceSet) {
             return MultiTopicQueueConsumer.createAsync(
-                    client, v5Schema, conf, namespaceName, propertyFilters);
+                            client, v5Schema, conf, namespaceName, propertyFilters)
+                    .exceptionallyCompose(V5ExceptionMappings::failWithV5Exception);
         }
         TopicName topic = V5Utils.parseScalableTopicInput(topicName);
         DagWatchClient dagWatch = new DagWatchClient(client.v4Client(), topic);
         return dagWatch.start()
                 .thenCompose(initialLayout -> ScalableQueueConsumer.createAsync(
-                        client, v5Schema, conf, dagWatch, initialLayout, dlqPolicy));
+                        client, v5Schema, conf, dagWatch, initialLayout, dlqPolicy))
+                .exceptionallyCompose(V5ExceptionMappings::failWithV5Exception);
     }
 
     @Override

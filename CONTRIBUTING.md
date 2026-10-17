@@ -157,7 +157,7 @@ isolation, such as SASL's one class per worker, takes precedence.
 
 Test JVMs write heap dumps on heap exhaustion to `/tmp/java_pid<PID>.hprof`, collected by CI's
 existing failure artifacts. Set `-PtestHeapDumpPath=<existing-directory>` to use another directory.
-[The performance testing guide](tests/performance/README.md) leads to tools for analyzing them.
+[The Pulsar Performance Testing Framework](tests/performance/README.md) leads to tools for analyzing them.
 
 Failed tests are retried once by default (`testRetryCount=1`; `0` when running inside the IDE). When
 running tests locally, prefer **`-PtestRetryCount=0`** to catch failures (including flakiness) early
@@ -257,18 +257,19 @@ any integration test and without changing it. See
 
 #### Profiling a performance scenario, including off-CPU time
 
-The performance tests' `profile` task profiles a whole scenario — a cluster and its workload
+The performance testing framework's `profile` task profiles a whole scenario — a cluster and its workload
 applications — with three recorders running at the same time in each profiled JVM:
 [async-profiler](https://github.com/async-profiler/async-profiler) samples CPU time and allocations,
 JDK Flight Recorder (JFR) records the JVM's own events, such as monitor contention, thread parking and
 garbage collection, into the same recording, and [jonoffcpu](https://github.com/jonoffcpu/jonoffcpu),
 which bundles async-profiler, records from the kernel every interval in which a thread was blocked.
 Joined to the Java stacks, those intervals give **off-CPU** profiles: where threads wait on locks,
-monitors, queues, I/O or GC, not only where they use CPU. See [Performance tests](#performance-tests).
+monitors, queues, I/O or GC, not only where they use CPU. See
+[Pulsar Performance Testing Framework](#pulsar-performance-testing-framework).
 
 #### Performance recording analysis
 
-[The performance testing guide](tests/performance/README.md) leads to rendering these recordings into
+[The framework's guide](tests/performance/README.md) leads to rendering these recordings into
 flame graphs, opening them in JDK Mission Control or IntelliJ IDEA, analyzing them with an AI agent,
 and investigating memory leaks in heap dumps.
 
@@ -282,17 +283,18 @@ integration tests**, selected with `--tests`, and run the **entire** set with Pe
 [`tests/README.md`](tests/README.md) describes running them, selecting TestNG suites and groups, the test
 images and profiling a test's cluster.
 
-### Performance tests
+### Pulsar Performance Testing Framework
 
-[`tests/performance`](tests/performance/README.md) is for running performance test experiments: it runs
-a Pulsar cluster and its workloads in Docker on one host, as a scenario file describes them, and writes a
-report for every run with throughput, latency, delivery and ordering checks and the host's CPU state.
-Runs can be profiled with async-profiler, JDK Flight Recorder and jonoffcpu's off-CPU recording at the
-same time, and two revisions can be compared. Everything runs from the
-command line and writes its results to files, which makes the experiments automatable, including tuning
-by AI agents. [`tests/performance/README.md`](tests/performance/README.md) is a tutorial for configuring
-a Linux host for consistent results, running a scenario, reading its report, profiling a run and
-comparing revisions.
+The Pulsar Performance Testing Framework, in [`tests/performance`](tests/performance/README.md), is for
+running performance experiments: it runs a Pulsar cluster and its workloads in Docker on one host, as a
+scenario file describes them, and writes a report for every run with throughput, latency, delivery and
+ordering checks and the host's CPU state. Runs can be profiled with async-profiler, JDK Flight Recorder
+and jonoffcpu's off-CPU recording at the same time, and two revisions can be compared, with A/B charts
+of their throughput, backlog and latency. Everything runs from the command line and writes its results
+to files, which makes the experiments automatable, including tuning by AI agents.
+[`tests/performance/README.md`](tests/performance/README.md) is a tutorial for configuring a Linux host
+for consistent results, running a scenario, reading its report, profiling a run and comparing
+revisions.
 
 ### Running the full CI pipeline (Personal CI)
 
@@ -420,5 +422,5 @@ PRs/issues first, then ask via a GitHub issue or dev@pulsar.apache.org.
 If you use an AI coding assistant (Claude Code, Copilot, Cursor, Gemini, Codex, Aider, …), see
 [`AGENTS.md`](AGENTS.md) for the agent-facing guidance — a routing index into this guide,
 [`ARCHITECTURE.md`](ARCHITECTURE.md), [`CODING.md`](CODING.md), and [`SECURITY.md`](SECURITY.md), plus
-the guardrails that apply specifically to AI-made changes. The integration tests, the performance tests
-and the microbenchmarks have agent guides of their own, which `AGENTS.md` links.
+the guardrails that apply specifically to AI-made changes. The integration tests, the Pulsar Performance
+Testing Framework and the microbenchmarks have agent guides of their own, which `AGENTS.md` links.

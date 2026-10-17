@@ -2,9 +2,7 @@
 
 - Status: Draft
 - Author: Alexandre DUVAL
-- Pull request:
-- Mailing list discussion: https://lists.apache.org/thread.html/a937326861b8e49fdb9fc8982010f41fb978a88311ebeb0f24bb695f@%3Cdev.pulsar.apache.org%3E
-- Release:
+- Mailing list discussion: https://lists.apache.org/thread/of8pxml78p885f28z9z99ljf3k88s1d4
 
 ## Motivation
 

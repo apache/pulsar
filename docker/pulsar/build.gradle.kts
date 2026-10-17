@@ -67,6 +67,7 @@ fun registerDockerBuild(taskName: String, dockerfile: String, imageTag: String) 
     val pythonClientVersion = libs.versions.pulsar.client.python.get()
     val snappyVersion = libs.versions.snappy.get()
     val jdkMajorVersion = libs.versions.docker.jdk.get()
+    val mimallocVersion = libs.versions.mimalloc.get()
     val minJavaVersion = providers.gradleProperty("pulsarJavaVersion").getOrElse("21")
 
     // Docker build context is the project directory
@@ -81,6 +82,7 @@ fun registerDockerBuild(taskName: String, dockerfile: String, imageTag: String) 
         "--build-arg", "PULSAR_CLIENT_PYTHON_VERSION=${pythonClientVersion}",
         "--build-arg", "SNAPPY_VERSION=${snappyVersion}",
         "--build-arg", "IMAGE_JDK_MAJOR_VERSION=${jdkMajorVersion}",
+        "--build-arg", "MIMALLOC_VERSION=${mimallocVersion}",
         "--build-arg", "PULSAR_MIN_JAVA_VERSION=${minJavaVersion}",
         "--build-arg", "PULSAR_OFFLOADER_TARBALL=build/target/${offloaderTarballName}",
     )
