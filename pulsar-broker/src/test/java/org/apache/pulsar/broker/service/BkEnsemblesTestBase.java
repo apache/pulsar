@@ -30,7 +30,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -56,7 +56,7 @@ import org.testng.annotations.BeforeMethod;
 /**
  * Test base for tests requires a bk ensemble.
  */
-@Slf4j
+@CustomLog
 public abstract class BkEnsemblesTestBase extends TestRetrySupport {
 
     protected PulsarService pulsar;
@@ -86,7 +86,7 @@ public abstract class BkEnsemblesTestBase extends TestRetrySupport {
         incrementSetupNumber();
         try {
             // start local bookie and zookeeper
-            bkEnsemble = new LocalBookkeeperEnsemble(numberOfBookies, 0, () -> 0);
+            bkEnsemble = new LocalBookkeeperEnsemble(numberOfBookies, 0);
             bkEnsemble.start();
 
             // start pulsar service
@@ -126,7 +126,7 @@ public abstract class BkEnsemblesTestBase extends TestRetrySupport {
             admin.tenants().createTenant("prop",
                     new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("usc")));
         } catch (Throwable t) {
-            log.error("Error setting up broker test", t);
+            log.error().exception(t).log("Error setting up broker test");
             Assert.fail("Broker test setup failed");
         }
     }

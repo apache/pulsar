@@ -39,7 +39,7 @@ import org.testng.annotations.Test;
 /**
  * Starts 3 brokers that are in 3 different clusters.
  */
-@Test(groups = "broker")
+@Test(groups = "broker-replication")
 public class ReplicatorRemoveClusterTest extends ReplicatorTestBase {
 
     protected String methodName;
@@ -49,7 +49,6 @@ public class ReplicatorRemoveClusterTest extends ReplicatorTestBase {
         methodName = m.getName();
         admin1.namespaces().removeBacklogQuota("pulsar/ns");
         admin1.namespaces().removeBacklogQuota("pulsar/ns1");
-        admin1.namespaces().removeBacklogQuota("pulsar/global/ns");
     }
 
     @Override
@@ -70,6 +69,7 @@ public class ReplicatorRemoveClusterTest extends ReplicatorTestBase {
     }
 
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testRemoveClusterFromNamespace() throws Exception {
         admin1.tenants().createTenant("pulsar1",

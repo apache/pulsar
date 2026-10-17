@@ -24,9 +24,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -51,7 +51,7 @@ import org.apache.pulsar.tests.TestRetrySupport;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 
-@Slf4j
+@CustomLog
 public abstract class TransactionTestBase extends TestRetrySupport {
     public static final String CLUSTER_NAME = "test";
 
@@ -100,6 +100,7 @@ public abstract class TransactionTestBase extends TestRetrySupport {
         return builder.build();
     }
 
+    @SuppressWarnings("deprecation")
     protected void setUpBase(int numBroker, int numPartitionsOfTC, String topic, int numPartitions) throws Exception{
         setBrokerCount(numBroker);
         internalSetup();
@@ -185,7 +186,6 @@ public abstract class TransactionTestBase extends TestRetrySupport {
         }
     }
 
-
     protected final void internalCleanup() {
         markCurrentSetupNumberCleaned();
         try {
@@ -210,7 +210,7 @@ public abstract class TransactionTestBase extends TestRetrySupport {
                 serviceConfigurationList.clear();
             }
         } catch (Exception e) {
-            log.warn("Failed to clean up mocked pulsar service:", e);
+            log.warn().exception(e).log("Failed to clean up mocked pulsar service");
         }
     }
 
@@ -237,6 +237,7 @@ public abstract class TransactionTestBase extends TestRetrySupport {
                 .atMost(5, TimeUnit.SECONDS)
                 .pollInterval(100, TimeUnit.MILLISECONDS)
                 .untilAsserted(() -> {
+                    @SuppressWarnings("unchecked")
                     List<PublisherStats> publisherStatsList =
                             (List<PublisherStats>) admin.topics()
                                     .getStats(snTopicName.getPartitionedTopicName()).getPublishers();

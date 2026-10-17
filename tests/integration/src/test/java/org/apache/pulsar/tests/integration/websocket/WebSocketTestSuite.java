@@ -27,20 +27,22 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.eclipse.jetty.client.HttpClient;
-import org.eclipse.jetty.websocket.api.WebSocketAdapter;
+import org.eclipse.jetty.websocket.api.Callback;
+import org.eclipse.jetty.websocket.api.Session;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketMessage;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketOpen;
 import org.eclipse.jetty.websocket.api.annotations.WebSocket;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 
+@CustomLog
 public abstract class WebSocketTestSuite extends PulsarTestSuite {
-    private static final Logger log = LoggerFactory.getLogger(WebSocketTestSuite.class);
 
     protected void testWebSocket(String url) throws Exception {
 
@@ -58,7 +60,7 @@ public abstract class WebSocketTestSuite extends PulsarTestSuite {
 
         admin.namespaces().createNamespace(namespace, Collections.singleton(pulsarCluster.getClusterName()));
 
-        log.debug("Using url {}", url);
+        log.debug().attr("url", url).log("Using url");
 
         @Cleanup
         WebSocketConsumer consumer = new WebSocketConsumer(url, topic);
@@ -73,17 +75,18 @@ public abstract class WebSocketTestSuite extends PulsarTestSuite {
 
         Map<String, Object> response = publisher.getResponse();
         Assert.assertEquals(response.get("result"), "ok", "Bad response: " + response);
-        log.debug("Publisher received response {}", response);
+        log.debug().attr("response", response).log("Publisher received response");
 
         String received = consumer.getPayloadFromResponse();
-        log.debug("Consumer received message {} ", received);
+        log.debug().attr("message", received).log("Consumer received message");
         Assert.assertEquals(received, "SGVsbG8gV29ybGQ=");
     }
 
     @WebSocket
-    public static class Client extends WebSocketAdapter implements AutoCloseable {
+    public abstract static class Client implements AutoCloseable {
         final BlockingQueue<String> incomingMessages = new ArrayBlockingQueue<>(10);
         private final WebSocketClient client;
+        private Session session;
 
         Client(String webSocketUri) throws Exception {
             HttpClient httpClient = new HttpClient();
@@ -92,11 +95,16 @@ public abstract class WebSocketTestSuite extends PulsarTestSuite {
             client.connect(this, URI.create(webSocketUri)).get();
         }
 
-        void sendText(String payload) throws IOException {
-            getSession().getRemote().sendString(payload);
+        @OnWebSocketOpen
+        public void onWebSocketConnect(Session session) {
+            this.session = session;
         }
 
-        @Override
+        void sendText(String payload) throws IOException {
+            session.sendText(payload, Callback.NOOP);
+        }
+
+        @OnWebSocketMessage
         public void onWebSocketText(String s) {
             incomingMessages.add(s);
         }
@@ -107,7 +115,6 @@ public abstract class WebSocketTestSuite extends PulsarTestSuite {
                 Assert.fail("Did not get websocket response within timeout");
             }
             return ObjectMapperFactory.getMapper().getObjectMapper().readValue(response, new TypeReference<>() {});
-
         }
 
         @Override

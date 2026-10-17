@@ -52,21 +52,28 @@ public class PulsarResources {
     @Getter
     private final LoadBalanceResources loadBalanceResources;
     @Getter
-    private final Optional<MetadataStore> localMetadataStore;
+    private final ScalableTopicResources scalableTopicResources;
+    @Getter
+    private final Optional<MetadataStoreExtended> localMetadataStore;
     @Getter
     private final Optional<MetadataStore> configurationMetadataStore;
 
-    public PulsarResources(MetadataStore localMetadataStore, MetadataStore configurationMetadataStore) {
+    public PulsarResources(MetadataStoreExtended localMetadataStore, MetadataStore configurationMetadataStore) {
         this(localMetadataStore, configurationMetadataStore, DEFAULT_OPERATION_TIMEOUT_SEC);
     }
 
-    public PulsarResources(MetadataStore localMetadataStore, MetadataStore configurationMetadataStore,
+    public PulsarResources(MetadataStoreExtended localMetadataStore, MetadataStore configurationMetadataStore,
                            int operationTimeoutSec) {
         this(localMetadataStore, configurationMetadataStore, operationTimeoutSec, ForkJoinPool.commonPool());
     }
 
-    public PulsarResources(MetadataStore localMetadataStore, MetadataStore configurationMetadataStore,
+    public PulsarResources(MetadataStoreExtended localMetadataStore, MetadataStore configurationMetadataStore,
             int operationTimeoutSec, Executor executor) {
+        this(localMetadataStore, configurationMetadataStore, operationTimeoutSec, executor, true);
+    }
+
+    public PulsarResources(MetadataStoreExtended localMetadataStore, MetadataStore configurationMetadataStore,
+            int operationTimeoutSec, Executor executor, boolean scalableTopicsEnabled) {
         if (configurationMetadataStore != null) {
             tenantResources = new TenantResources(configurationMetadataStore, operationTimeoutSec);
             clusterResources = new ClusterResources(localMetadataStore, configurationMetadataStore,
@@ -87,6 +94,8 @@ public class PulsarResources {
             bookieResources = new BookieResources(localMetadataStore, operationTimeoutSec);
             topicResources = new TopicResources(localMetadataStore);
             loadBalanceResources = new LoadBalanceResources(localMetadataStore, operationTimeoutSec);
+            scalableTopicResources = scalableTopicsEnabled
+                    ? new ScalableTopicResources(localMetadataStore, operationTimeoutSec) : null;
         } else {
             dynamicConfigResources = null;
             localPolicies = null;
@@ -94,6 +103,7 @@ public class PulsarResources {
             bookieResources = null;
             topicResources = null;
             loadBalanceResources = null;
+            scalableTopicResources = null;
         }
 
         this.localMetadataStore = Optional.ofNullable(localMetadataStore);

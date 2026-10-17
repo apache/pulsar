@@ -26,7 +26,7 @@ import java.util.EnumSet;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.Consumer;
@@ -51,7 +51,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTestBase {
 
     protected String superUserAuthToken;
@@ -96,8 +96,11 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
                 .clusterName(clusterName)
                 .build();
 
-        log.info("Setting up cluster {} with token authentication  and {} bookies, {} brokers",
-                spec.clusterName(), spec.numBookies(), spec.numBrokers());
+        log.info()
+                .attr("cluster", spec.clusterName())
+                .attr("and", spec.numBookies())
+                .attr("bookies", spec.numBrokers())
+                .log("Setting up cluster with token authentication and bookies, brokers");
 
         pulsarCluster = PulsarCluster.forSpec(spec);
 
@@ -126,7 +129,7 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
 
         pulsarCluster.start();
 
-        log.info("Cluster {} is setup", spec.clusterName());
+        log.info().attr("cluster", spec.clusterName()).log("Cluster is setup");
     }
 
     @AfterClass(alwaysRun = true)
