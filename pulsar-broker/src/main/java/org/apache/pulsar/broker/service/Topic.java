@@ -35,6 +35,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.EntryFilters;
@@ -42,6 +43,7 @@ import org.apache.pulsar.common.policies.data.HierarchyTopicPolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -83,6 +85,12 @@ public interface Topic {
         void completed(Exception e, long ledgerId, long entryId);
 
         default void setMetadataFromEntryData(ByteBuf entryData) {
+        }
+
+        default MessageMetadata getMessageMetadata(ByteBuf headersAndPayload) {
+            MessageMetadata messageMetadata = new MessageMetadata();
+            Commands.peekMessageMetadata(headersAndPayload, messageMetadata);
+            return messageMetadata;
         }
 
         default long getHighestSequenceId() {
