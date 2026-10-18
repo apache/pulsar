@@ -19,7 +19,9 @@
 package org.apache.pulsar.client.impl.schema;
 
 import static org.apache.pulsar.client.impl.schema.util.SchemaUtil.getJsr310ConversionEnabled;
+import static org.apache.pulsar.client.impl.schema.util.SchemaUtil.parseAvroSchema;
 import static org.apache.pulsar.client.impl.schema.util.SchemaUtil.parseSchemaInfo;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import lombok.CustomLog;
 import org.apache.avro.Conversion;
@@ -50,7 +52,10 @@ public class AvroSchema<T> extends AvroBaseStructSchema<T> {
     private ClassLoader pojoClassLoader;
 
     private AvroSchema(SchemaInfo schemaInfo, ClassLoader pojoClassLoader) {
-        super(schemaInfo);
+        this(schemaInfo, parseAvroSchema(new String(schemaInfo.getSchema(), StandardCharsets.UTF_8)), pojoClassLoader);
+    }
+    private AvroSchema(SchemaInfo schemaInfo, org.apache.avro.Schema parsedSchema, ClassLoader pojoClassLoader) {
+        super(schemaInfo, parsedSchema);
         this.pojoClassLoader = pojoClassLoader;
         boolean jsr310ConversionEnabled = getJsr310ConversionEnabled(schemaInfo);
         setReader(new MultiVersionAvroReader<>(schema, pojoClassLoader,
@@ -59,7 +64,12 @@ public class AvroSchema<T> extends AvroBaseStructSchema<T> {
     }
 
     private AvroSchema(SchemaReader<T> reader, SchemaWriter<T> writer, SchemaInfo schemaInfo) {
-        super(schemaInfo);
+        this(reader, writer, schemaInfo, parseAvroSchema(new String(schemaInfo.getSchema(), StandardCharsets.UTF_8)));
+    }
+
+    private AvroSchema(SchemaReader<T> reader, SchemaWriter<T> writer, SchemaInfo schemaInfo,
+                       org.apache.avro.Schema parsedSchema) {
+        super(schemaInfo, parsedSchema);
         setReader(reader);
         setWriter(writer);
         isCustomReaderAndWriter = true;
@@ -73,9 +83,9 @@ public class AvroSchema<T> extends AvroBaseStructSchema<T> {
     @Override
     public Schema<T> clone() {
         if (isCustomReaderAndWriter) {
-            return new AvroSchema<>(reader, writer, schemaInfo);
+            return new AvroSchema<>(reader, writer, schemaInfo, this.schema);
         }
-        Schema<T> schema = new AvroSchema<>(schemaInfo, pojoClassLoader);
+        Schema<T> schema = new AvroSchema<>(schemaInfo, this.schema, pojoClassLoader);
         if (schemaInfoProvider != null) {
             schema.setSchemaInfoProvider(schemaInfoProvider);
         }

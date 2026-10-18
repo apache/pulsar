@@ -39,8 +39,12 @@ public abstract class AvroBaseStructSchema<T> extends AbstractStructSchema<T>{
     protected final Schema schema;
 
     public AvroBaseStructSchema(SchemaInfo schemaInfo) {
+        this(schemaInfo, parseAvroSchema(new String(schemaInfo.getSchema(), UTF_8)));
+    }
+
+    protected AvroBaseStructSchema(SchemaInfo schemaInfo, Schema parsedSchema) {
         super(schemaInfo);
-        this.schema = parseAvroSchema(new String(schemaInfo.getSchema(), UTF_8));
+        this.schema = parsedSchema;
     }
 
     public Schema getAvroSchema(){
