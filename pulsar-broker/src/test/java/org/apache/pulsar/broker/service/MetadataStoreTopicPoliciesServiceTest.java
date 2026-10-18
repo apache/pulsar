@@ -215,11 +215,15 @@ public class MetadataStoreTopicPoliciesServiceTest {
 
     @DataProvider(name = "queuedNotificationInvalidation")
     public Object[][] queuedNotificationInvalidation() {
-        return new Object[][]{{"closed"}, {"unregistered"}, {"replaced"}};
+        return new Object[][]{
+                {"closed", false}, {"unregistered", false}, {"replaced", false},
+                {"closed", true}, {"unregistered", true}, {"replaced", true}
+        };
     }
 
     @Test(dataProvider = "queuedNotificationInvalidation")
-    public void testQueuedNotificationChecksListenerLifecycle(String invalidation) throws Exception {
+    public void testQueuedNotificationChecksListenerLifecycle(String invalidation, boolean keepOtherListener)
+            throws Exception {
         String path = MetadataStoreTopicPoliciesService.pathFor(TOPIC, false);
         when(localCache.get(path)).thenReturn(CompletableFuture.completedFuture(Optional.of(new TopicPolicies())));
         CountDownLatch topicThreadBlocked = new CountDownLatch(1);
@@ -232,6 +236,9 @@ public class MetadataStoreTopicPoliciesServiceTest {
         AtomicInteger oldCallbacks = new AtomicInteger();
         AtomicInteger replacementCallbacks = new AtomicInteger();
         TopicPolicyListener listener = policies -> oldCallbacks.incrementAndGet();
+        if (keepOtherListener) {
+            service.registerListener(TopicName.get(TOPIC + "-partition-1"), policies -> { });
+        }
         service.registerListener(TOPIC, listener);
         try {
             assertThat(topicThreadBlocked.await(5, TimeUnit.SECONDS)).isTrue();
@@ -249,6 +256,45 @@ public class MetadataStoreTopicPoliciesServiceTest {
             topicExecutor.submit(() -> { }).get(5, TimeUnit.SECONDS);
             assertThat(oldCallbacks).hasValue(0);
             assertThat(replacementCallbacks).as("an old notification must not reach a new registration").hasValue(0);
+        } finally {
+            releaseTopicThread.countDown();
+        }
+    }
+
+    @Test
+    public void testQueuedNotificationDoesNotOverrideNewListenerInitialization() throws Exception {
+        String path = MetadataStoreTopicPoliciesService.pathFor(TOPIC, false);
+        TopicPolicies oldValue = new TopicPolicies();
+        oldValue.setMaxProducerPerTopic(11);
+        TopicPolicies loadedValue = new TopicPolicies();
+        loadedValue.setMaxProducerPerTopic(22);
+        when(localCache.get(path)).thenReturn(CompletableFuture.completedFuture(Optional.of(oldValue)));
+        TopicName partition0 = TopicName.get(TOPIC + "-partition-0");
+        TopicName partition1 = TopicName.get(TOPIC + "-partition-1");
+        TopicPolicyListener oldListener = policies -> { };
+        service.registerListener(partition1, policies -> { });
+        service.registerListener(partition0, oldListener);
+        ExecutorService topicExecutor = notificationExecutor.chooseThread(TOPIC);
+        CountDownLatch topicThreadBlocked = new CountDownLatch(1);
+        CountDownLatch releaseTopicThread = new CountDownLatch(1);
+        List<Integer> appliedValues = new CopyOnWriteArrayList<>();
+        topicExecutor.execute(() -> {
+            topicThreadBlocked.countDown();
+            awaitLatch(releaseTopicThread);
+        });
+        try {
+            assertThat(topicThreadBlocked.await(5, TimeUnit.SECONDS)).isTrue();
+            localNotification.get().accept(new Notification(NotificationType.Modified, path));
+            service.unregisterListener(partition0, oldListener);
+            TopicPolicyListenerWrapper replacement = new TopicPolicyListenerWrapper(
+                    policies -> appliedValues.add(policies.getMaxProducerPerTopic()));
+            service.registerListener(partition0, replacement);
+            topicExecutor.execute(() -> replacement.completeInitialization(null, loadedValue));
+            releaseTopicThread.countDown();
+            topicExecutor.submit(() -> { }).get(5, TimeUnit.SECONDS);
+            assertThat(appliedValues)
+                    .as("a notification queued before registration must not override the newly loaded policies")
+                    .containsExactly(22);
         } finally {
             releaseTopicThread.countDown();
         }
