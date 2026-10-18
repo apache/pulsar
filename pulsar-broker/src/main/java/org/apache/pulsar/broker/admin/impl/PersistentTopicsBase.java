@@ -3468,19 +3468,16 @@ public class PersistentTopicsBase extends AdminResource {
                                 ManagedLedgerOfflineBacklog offlineTopicBacklog =
                                         new ManagedLedgerOfflineBacklog(config.getDigestType(), config.getPassword(),
                                                 pulsar().getAdvertisedAddress(), false);
-                                try {
-                                    PersistentOfflineTopicStats estimateOfflineTopicStats =
-                                            offlineTopicBacklog.estimateUnloadedTopicBacklog(
-                                                    pulsar().getBrokerService()
-                                                            .getManagedLedgerFactoryForTopic(topicName,
-                                                                    config.getStorageClassName()),
-                                                    topicName);
-                                    pulsar().getBrokerService()
-                                            .cacheOfflineTopicStats(topicName, estimateOfflineTopicStats);
-                                    return CompletableFuture.completedFuture(estimateOfflineTopicStats);
-                                } catch (Exception e) {
-                                    throw new RestException(e);
-                                }
+                                return offlineTopicBacklog.estimateUnloadedTopicBacklogAsync(
+                                                pulsar().getBrokerService()
+                                                        .getManagedLedgerFactoryForTopic(topicName,
+                                                                config.getStorageClassName()),
+                                                topicName, pulsar().getExecutor())
+                                        .thenApply(estimateOfflineTopicStats -> {
+                                            pulsar().getBrokerService()
+                                                    .cacheOfflineTopicStats(topicName, estimateOfflineTopicStats);
+                                            return estimateOfflineTopicStats;
+                                        });
                             });
 
                 });
