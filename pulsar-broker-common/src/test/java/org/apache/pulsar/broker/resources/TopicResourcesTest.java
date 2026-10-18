@@ -18,11 +18,14 @@
  */
 package org.apache.pulsar.broker.resources;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.metadata.api.Notification;
@@ -163,5 +166,22 @@ public class TopicResourcesTest {
         topicResources.handleNotification(new Notification(NotificationType.Created,
                 "/managed-ledgers/tenant/namespace/persistent/topic2"));
         verifyNoMoreInteractions(listener);
+    }
+
+    @Test
+    public void testListSegmentTopics() throws Exception {
+        String segmentDomain = "/managed-ledgers/tenant/namespace/segment";
+        when(metadataStore.getChildren(segmentDomain))
+                .thenReturn(CompletableFuture.completedFuture(List.of("topic", "my%20topic")));
+        when(metadataStore.getChildren(segmentDomain + "/topic"))
+                .thenReturn(CompletableFuture.completedFuture(List.of("0000-7fff-1", "8000-ffff-2")));
+        when(metadataStore.getChildren(segmentDomain + "/my%20topic"))
+                .thenReturn(CompletableFuture.completedFuture(List.of("0000-ffff-0")));
+
+        assertThat(topicResources.listSegmentTopicsAsync(NamespaceName.get("tenant/namespace")).get())
+                .containsExactlyInAnyOrder(
+                        "segment://tenant/namespace/topic/0000-7fff-1",
+                        "segment://tenant/namespace/topic/8000-ffff-2",
+                        "segment://tenant/namespace/my topic/0000-ffff-0");
     }
 }

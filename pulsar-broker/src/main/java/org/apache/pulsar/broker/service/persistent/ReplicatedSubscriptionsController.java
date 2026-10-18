@@ -31,8 +31,10 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -95,15 +97,19 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
     private final OpenTelemetryReplicatedSubscriptionStats stats;
 
     public ReplicatedSubscriptionsController(PersistentTopic topic, String localCluster) {
+        this(topic, localCluster, topic.getBrokerService().pulsar().getExecutor());
+    }
+
+    @VisibleForTesting
+    ReplicatedSubscriptionsController(PersistentTopic topic, String localCluster, ScheduledExecutorService executor) {
         this.topic = topic;
         this.localCluster = localCluster;
         this.log = LOG.with().attr("topic", topic.getName()).build();
         var pulsar = topic.getBrokerService().pulsar();
-        timer = pulsar.getExecutor()
-                .scheduleAtFixedRate(catchingAndLoggingThrowables(this::startNewSnapshot), 0,
-                        pulsar.getConfiguration().getReplicatedSubscriptionsSnapshotFrequencyMillis(),
-                        TimeUnit.MILLISECONDS);
         stats = pulsar.getOpenTelemetryReplicatedSubscriptionStats();
+        timer = executor.scheduleAtFixedRate(catchingAndLoggingThrowables(this::startNewSnapshot), 0,
+                pulsar.getConfiguration().getReplicatedSubscriptionsSnapshotFrequencyMillis(),
+                TimeUnit.MILLISECONDS);
     }
 
     public void receivedReplicatedSubscriptionMarker(Position position, int markerType, ByteBuf payload) {
@@ -294,6 +300,10 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
         while (it.hasNext()) {
             Map.Entry<String, ReplicatedSubscriptionsSnapshotBuilder> entry = it.next();
             if (entry.getValue().isTimedOut()) {
+                if (!pendingSnapshots.remove(entry.getKey(), entry.getValue())) {
+                    continue;
+                }
+
                 log.debug()
                         .attr("key", entry.getKey())
                         .log("Snapshot creation timed out for");
@@ -302,7 +312,6 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
                 timedoutSnapshotsMetric.inc();
                 var latencyMillis = entry.getValue().getDurationMillis();
                 stats.recordSnapshotTimedOut(latencyMillis);
-                it.remove();
             }
         }
     }
@@ -310,16 +319,17 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
     @SuppressWarnings("deprecation")
     void snapshotCompleted(String snapshotId) {
         ReplicatedSubscriptionsSnapshotBuilder snapshot = pendingSnapshots.remove(snapshotId);
-        lastCompletedSnapshotId = snapshotId;
-
-        if (snapshot != null) {
-            lastCompletedSnapshotStartTime = snapshot.getStartTimeMillis();
-
-            pendingSnapshotsMetric.dec();
-            var latencyMillis = snapshot.getDurationMillis();
-            ReplicatedSubscriptionsSnapshotBuilder.SNAPSHOT_METRIC.observe(latencyMillis);
-            stats.recordSnapshotCompleted(latencyMillis);
+        if (snapshot == null) {
+            return;
         }
+
+        lastCompletedSnapshotId = snapshotId;
+        lastCompletedSnapshotStartTime = snapshot.getStartTimeMillis();
+
+        pendingSnapshotsMetric.dec();
+        var latencyMillis = snapshot.getDurationMillis();
+        ReplicatedSubscriptionsSnapshotBuilder.SNAPSHOT_METRIC.observe(latencyMillis);
+        stats.recordSnapshotCompleted(latencyMillis);
     }
 
     void writeMarker(ByteBuf marker) {
@@ -328,6 +338,35 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
         } finally {
             marker.release();
         }
+    }
+
+    CompletableFuture<Position> writeMarkerAndGetPosition(ByteBuf marker) {
+        CompletableFuture<Position> future = new CompletableFuture<>();
+        Topic.PublishContext publishContext = new Topic.PublishContext() {
+            @Override
+            public void completed(Exception e, long ledgerId, long entryId) {
+                ReplicatedSubscriptionsController.this.completed(e, ledgerId, entryId);
+                if (e != null) {
+                    future.completeExceptionally(e);
+                } else {
+                    future.complete(PositionFactory.create(ledgerId, entryId));
+                }
+            }
+
+            @Override
+            public boolean isMarkerMessage() {
+                return true;
+            }
+        };
+
+        try {
+            topic.publishMessage(marker, publishContext);
+        } catch (Exception e) {
+            publishContext.completed(e, -1, -1);
+        } finally {
+            marker.release();
+        }
+        return future;
     }
 
     /**

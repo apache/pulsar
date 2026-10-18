@@ -41,10 +41,30 @@ public interface ModularLoadManagerStrategy {
      *            The load data from the leader broker.
      * @param conf
      *            The service configuration.
-     * @return The name of the selected broker as it appears on ZooKeeper.
+     * @return The selected broker ID.
      */
     Optional<String> selectBroker(Set<String> candidates, BundleData bundleToAssign, LoadData loadData,
             ServiceConfiguration conf);
+
+    /**
+     * Find a suitable broker to assign the given bundle when its stable name is available.
+     *
+     * @param candidates
+     *            The candidates for which the bundle may be assigned.
+     * @param bundle
+     *            The stable bundle name.
+     * @param bundleToAssign
+     *            The data for the bundle to assign.
+     * @param loadData
+     *            The load data from the leader broker.
+     * @param conf
+     *            The service configuration.
+     * @return The selected broker ID.
+     */
+    default Optional<String> selectBrokerForBundle(Set<String> candidates, String bundle, BundleData bundleToAssign,
+                                                   LoadData loadData, ServiceConfiguration conf) {
+        return selectBroker(candidates, bundleToAssign, loadData, conf);
+    }
 
     /**
      * Triggered when active brokers change.

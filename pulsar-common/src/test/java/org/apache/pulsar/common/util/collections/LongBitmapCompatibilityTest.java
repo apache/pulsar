@@ -85,6 +85,72 @@ public class LongBitmapCompatibilityTest {
     }
 
     /**
+     * Golden on-disk bytes, captured from the implementation before it moved to the on-heap
+     * {@code org.roaringbitmap.RoaringBitmap}. {@link #testLongBitmapBufferEqualsStandardRoaringBitmap}
+     * compares {@link LongBitmap} against {@code org.roaringbitmap.RoaringBitmap}, so once
+     * {@code ConcurrentRoaringBitmap} is itself backed by that class the comparison no longer pins
+     * the format against an independent reference. These literals do, and they must not change:
+     * the cursor's individually-deleted ranges and the delayed-delivery bucket snapshots are
+     * persisted in exactly this format.
+     */
+    private static final byte[] GOLDEN_POINTS = {
+            (byte) 0x3A, (byte) 0x30, (byte) 0x00, (byte) 0x00, (byte) 0x03, (byte) 0x00,
+            (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x01, (byte) 0x00,
+            (byte) 0x10, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0xFF, (byte) 0xFF,
+            (byte) 0x00, (byte) 0x00, (byte) 0x20, (byte) 0x00, (byte) 0x00, (byte) 0x00,
+            (byte) 0x24, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x26, (byte) 0x00,
+            (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x64, (byte) 0x00,
+            (byte) 0x00, (byte) 0x00, (byte) 0xFF, (byte) 0xFF,
+    };
+
+    private static final byte[] GOLDEN_RUN = {
+            (byte) 0x3B, (byte) 0x30, (byte) 0x00, (byte) 0x00, (byte) 0x01, (byte) 0x00,
+            (byte) 0x00, (byte) 0x87, (byte) 0x13, (byte) 0x01, (byte) 0x00, (byte) 0x00,
+            (byte) 0x00, (byte) 0x87, (byte) 0x13,
+    };
+
+    /**
+     * Pins the persisted format against literals rather than against another RoaringBitmap
+     * instance, so it keeps its meaning across a change of backing implementation.
+     */
+    @Test
+    public void testSerializedFormatMatchesGoldenBytes() {
+        LongBitmap points = LongBitmaps.create();
+        points.add(0);
+        points.add(100);
+        points.add(1L << 20);
+        points.add(0xFFFFFFFFL);
+        assertEquals(points.serialize(), GOLDEN_POINTS,
+                "persisted format changed for sparse points");
+
+        // A contiguous run exercises runOptimize(), which serialize() applies to its clone —
+        // the one place a container-representation change would surface in persisted bytes.
+        LongBitmap run = LongBitmaps.create();
+        for (int i = 0; i < 5000; i++) {
+            run.add(i);
+        }
+        assertEquals(run.serialize(), GOLDEN_RUN, "persisted format changed for a contiguous run");
+    }
+
+    /**
+     * The golden bytes must also read back. Guards the deserialize side of the format, including
+     * that {@code readerIndex} advances by exactly the payload length.
+     */
+    @Test
+    public void testGoldenBytesRoundTrip() {
+        for (byte[] golden : new byte[][]{GOLDEN_POINTS, GOLDEN_RUN}) {
+            ByteBuf buf = Unpooled.wrappedBuffer(golden);
+            try {
+                LongBitmap restored = LongBitmaps.deserialize(buf);
+                assertEquals(restored.serialize(), golden);
+                assertEquals(buf.readableBytes(), 0, "readerIndex must advance by the payload");
+            } finally {
+                buf.release();
+            }
+        }
+    }
+
+    /**
      * Round-trip: 32-bit RoaringBitmap buffer -> LongBitmap. Confirms that
      * persisted data written by the old code path can be read by LongBitmap.
      */
@@ -140,7 +206,7 @@ public class LongBitmapCompatibilityTest {
     /**
      * Roaring64Bitmap buffer cannot be deserialized as a LongBitmap.
      * Roaring64Bitmap's serialized format starts with a bucket count, not the
-     * 32-bit cookie (12346), so {@code MutableRoaringBitmap.deserialize} throws.
+     * 32-bit cookie (12346), so {@code RoaringBitmap.deserialize} throws.
      */
     @Test
     public void testRoaring64BufferNotReadableAsLongBitmap() throws Exception {
@@ -153,7 +219,7 @@ public class LongBitmapCompatibilityTest {
 
         ByteBuf buf = Unpooled.wrappedBuffer(roaring64Bytes);
         try {
-            // MutableRoaringBitmap wraps IOException as RuntimeException.
+            // RoaringBitmap wraps IOException as RuntimeException.
             assertThrows(Exception.class, () -> LongBitmaps.deserialize(buf));
         } finally {
             buf.release();

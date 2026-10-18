@@ -246,14 +246,16 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     protected void dispatchEntriesToConsumer(Consumer currentConsumer, List<Entry> entries,
                                              EntryBatchSizes batchSizes, EntryBatchIndexesAcks batchIndexesAcks,
                                              SendMessageInfo sendMessageInfo, long epoch) {
+        // sendMessageInfo is a thread-local instance that the next dispatch on this thread can overwrite before
+        // the write listener below runs on the connection's event loop, so capture the counts here.
+        final int totalMessages = sendMessageInfo.getTotalMessages();
+        final long totalBytes = sendMessageInfo.getTotalBytes();
         currentConsumer
-            .sendMessages(entries, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
-                    sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
-                    redeliveryTracker, epoch)
+            .sendMessages(entries, batchSizes, batchIndexesAcks, totalMessages, totalBytes,
+                    sendMessageInfo.getTotalChunkedMessages(), redeliveryTracker, epoch)
             .addListener(future -> {
                 if (future.isSuccess()) {
-                    acquirePermitsForDeliveredMessages(topic, cursor, entries.size(),
-                            sendMessageInfo.getTotalMessages(), sendMessageInfo.getTotalBytes());
+                    acquirePermitsForDeliveredMessages(topic, cursor, entries.size(), totalMessages, totalBytes);
 
                     // Schedule a new read batch operation only after the previous batch has been written to the socket.
                     executor.execute(() -> readMoreEntries(getActiveConsumer()));
@@ -397,6 +399,8 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                     entriesFuture = CompactedTopicUtils.asyncReadCompactedEntries(topic.getTopicCompactionService(),
                             cursor, messagesToRead, bytesToRead, topic.getMaxReadPosition(), readFromEarliest, true);
                 } else {
+                    // The continuation below dispatches to our executor. With inline read completion enabled,
+                    // cache hits skip the managed-ledger executor handoff and its unrelated publishing work.
                     entriesFuture = readEntriesWithSkipOrWait(cursor, messagesToRead, bytesToRead,
                             topic.getMaxReadPosition(), null);
                 }
@@ -444,12 +448,13 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             availablePermits = 1;
         }
 
-        int messagesToRead = Math.min(availablePermits, readBatchSize);
+        int maxReadBatchSize = Math.min(readBatchSize, serviceConfig.getDispatcherMaxReadBatchSize());
+        int messagesToRead = Math.min(availablePermits, maxReadBatchSize);
         long bytesToRead = serviceConfig.getDispatcherMaxReadSizeBytes();
         // if turn of precise dispatcher flow control, adjust the records to read
         if (consumer.isPreciseDispatcherFlowControl()) {
             int avgMessagesPerEntry = Math.max(1, consumer.getAvgMessagesPerEntry());
-            messagesToRead = Math.min((int) Math.ceil(availablePermits * 1.0 / avgMessagesPerEntry), readBatchSize);
+            messagesToRead = Math.min((int) Math.ceil(availablePermits * 1.0 / avgMessagesPerEntry), maxReadBatchSize);
         }
 
         // throttle only if: (1) cursor is not active (or flag for throttle-nonBacklogConsumer is enabled) bcz

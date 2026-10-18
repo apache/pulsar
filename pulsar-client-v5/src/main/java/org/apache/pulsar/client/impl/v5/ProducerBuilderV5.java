@@ -48,6 +48,9 @@ final class ProducerBuilderV5<T> implements ProducerBuilder<T> {
     ProducerBuilderV5(PulsarClientV5 client, Schema<T> v5Schema) {
         this.client = client;
         this.v5Schema = v5Schema;
+        // V5 default: a send blocks the caller when the client memory limit is reached (the v4
+        // default is to fail the send). See ProducerBuilder#blockIfQueueFull.
+        conf.setBlockIfQueueFull(true);
     }
 
     @Override
@@ -55,14 +58,7 @@ final class ProducerBuilderV5<T> implements ProducerBuilder<T> {
         try {
             return createAsync().join();
         } catch (java.util.concurrent.CompletionException e) {
-            Throwable cause = e.getCause();
-            if (cause instanceof PulsarClientException pce) {
-                throw pce;
-            }
-            if (cause instanceof org.apache.pulsar.client.api.PulsarClientException.NotFoundException) {
-                throw new PulsarClientException.NotFoundException(cause.getMessage());
-            }
-            throw new PulsarClientException(cause);
+            throw V5ExceptionMappings.toV5Exception(e);
         }
     }
 
@@ -91,7 +87,8 @@ final class ProducerBuilderV5<T> implements ProducerBuilder<T> {
                                 throw ex instanceof java.util.concurrent.CompletionException ce
                                         ? ce : new java.util.concurrent.CompletionException(ex);
                             }));
-                });
+                })
+                .exceptionallyCompose(V5ExceptionMappings::failWithV5Exception);
     }
 
     @Override

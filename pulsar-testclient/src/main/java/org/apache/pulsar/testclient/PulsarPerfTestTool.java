@@ -20,8 +20,8 @@ package org.apache.pulsar.testclient;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import com.google.common.annotations.VisibleForTesting;
 import java.io.FileInputStream;
-import java.lang.reflect.Constructor;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -44,7 +44,10 @@ public class PulsarPerfTestTool {
         commandMap = new HashMap<>();
     }
 
-    private String[] initCommander(String[] args) throws Exception {
+    @VisibleForTesting
+    String[] initCommander(String[] args) throws Exception {
+        // produce, consume, transaction and read pick the v4 or the V5 client from the topic domain
+        // (topic:// means V5), and --client-api overrides that choice.
         commandMap.put("produce", PerformanceProducer.class);
         commandMap.put("consume", PerformanceConsumer.class);
         commandMap.put("transaction", PerformanceTransaction.class);
@@ -64,24 +67,24 @@ public class PulsarPerfTestTool {
                 prop.load(fis);
             }
         }
-        commander.setDefaultValueProvider(PulsarPerfTestPropertiesProvider.create(prop));
-
+        // Register the command classes rather than instances: picocli builds each subcommand's spec
+        // from annotations and only instantiates the user object once that subcommand is selected.
+        // Instantiating them all here ran every command's static initializers on every invocation,
+        // which is how `pulsar-perf produce` ended up allocating the latency histograms of `consume`,
+        // `read`, `transaction` and `managed-ledger` as well.
         for (Map.Entry<String, Class<?>> c : commandMap.entrySet()) {
-            Constructor<?> constructor = c.getValue().getDeclaredConstructor();
-            constructor.setAccessible(true);
-            addCommand(c.getKey(), constructor.newInstance());
+            commander.addSubcommand(c.getKey(), c.getValue());
         }
+
+        // Both settings propagate to the subcommand hierarchy as it exists when they are called, so
+        // they must be applied after the subcommands are registered. CmdBase used to set the enum
+        // behaviour on the per-command CommandLine it built in its own constructor; that instance is
+        // no longer the one picocli parses with.
+        commander.setDefaultValueProvider(PulsarPerfTestPropertiesProvider.create(prop));
+        commander.setCaseInsensitiveEnumValuesAllowed(true);
 
         // Remove the first argument, it's the config file path
         return Arrays.copyOfRange(args, 1, args.length);
-    }
-
-    private void addCommand(String name, Object o) {
-        if (o instanceof CmdBase) {
-            commander.addSubcommand(name, ((CmdBase) o).getCommander());
-        } else {
-            commander.addSubcommand(o);
-        }
     }
 
     public static void main(String[] args) throws Exception {

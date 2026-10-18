@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.scalable;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -27,7 +28,8 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.broker.transaction.metadata.TxnMetadataStore;
+import org.apache.pulsar.broker.service.GetStatsOptions;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.api.proto.ScalableConsumerType;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
@@ -49,6 +51,18 @@ import org.apache.pulsar.metadata.api.coordination.CoordinationService;
  */
 @CustomLog
 public class ScalableTopicService {
+
+    /**
+     * Options used to read a segment's backing-topic stats, both for the per-segment stats
+     * endpoint and for the per-segment collection behind the topic-level stats: imprecise
+     * backlog (no ledger scan), per-subscription backlog size, no earliest-time-in-backlog
+     * lookup, publishers and consumers included.
+     */
+    public static final GetStatsOptions SEGMENT_STATS_OPTIONS =
+            new GetStatsOptions(false, true, false, false, false);
+
+    /** How long a request waits for a controller taking over as the leader, before going on. */
+    private static final Duration TAKEOVER_WAIT = Duration.ofSeconds(10);
 
     private final BrokerService brokerService;
     private final ScalableTopicResources resources;
@@ -95,30 +109,77 @@ public class ScalableTopicService {
 
     /**
      * Get or create a controller for a scalable topic. The controller will attempt
-     * leader election; only the leader actively coordinates consumers.
+     * leader election; only the leader actively coordinates consumers. A controller that
+     * closed itself, having found its topic deleted while taking over, is replaced. A takeover
+     * in progress is waited for, bounded, so that a request arriving meanwhile doesn't fail.
      */
     public CompletableFuture<ScalableTopicController> getOrCreateController(TopicName topic) {
         String key = topic.toString();
-        CompletableFuture<ScalableTopicController> stored = controllers.computeIfAbsent(key, k -> {
-            ScalableTopicController controller = new ScalableTopicController(
-                    topic, resources, brokerService, coordinationService);
-            return controller.initialize().thenApply(__ -> controller);
-        });
+        CompletableFuture<ScalableTopicController> stored = controllers.compute(key,
+                (k, existing) -> existing == null || isClosed(existing) ? newController(key, topic) : existing);
         // Evict failed futures so subsequent callers can retry. This runs *outside*
-        // computeIfAbsent, so modifying the map here is safe.
+        // compute, so modifying the map here is safe.
         return stored.exceptionally(ex -> {
             controllers.remove(key, stored);
             throw new RuntimeException("Failed to initialize controller for " + topic, ex);
+        }).thenCompose(this::awaitTakeOver);
+    }
+
+    private CompletableFuture<ScalableTopicController> newController(String key, TopicName topic) {
+        ScalableTopicController controller = new ScalableTopicController(
+                topic, resources, brokerService, coordinationService);
+        CompletableFuture<ScalableTopicController> future = new CompletableFuture<>();
+        // Released once its topic is deleted: the admin delete stops the controller on the
+        // broker serving it, not the ones other brokers hold for the topic. Closed before it is
+        // removed, as in releaseController().
+        controller.setTopicDeletedAction(() -> controller.close()
+                .whenComplete((__, ___) -> controllers.remove(key, future)));
+        controller.initialize().whenComplete((__, ex) -> {
+            if (ex == null) {
+                future.complete(controller);
+            } else {
+                // Release its leader election, and the lock if it was elected: the next
+                // controller of the topic gets an election of its own once this one is closed.
+                controller.close().exceptionally(closeEx -> {
+                    log.warn().attr("topic", topic).exceptionMessage(closeEx)
+                            .log("Failed to close a controller that failed to initialize");
+                    return null;
+                });
+                future.completeExceptionally(ex);
+            }
         });
+        return future;
+    }
+
+    private static boolean isClosed(CompletableFuture<ScalableTopicController> controller) {
+        return controller.isDone() && !controller.isCompletedExceptionally() && controller.join().isClosed();
+    }
+
+    private CompletableFuture<ScalableTopicController> awaitTakeOver(ScalableTopicController controller) {
+        CompletableFuture<Void> takeover = controller.takeOverInProgress();
+        if (takeover.isDone()) {
+            return CompletableFuture.completedFuture(controller);
+        }
+        // Timed out, or the term ended without serving: the request goes on and finds that the
+        // controller doesn't serve.
+        return FutureUtil.addTimeoutHandling(takeover.thenApply(__ -> controller), TAKEOVER_WAIT,
+                        brokerService.getPulsar().getExecutor(),
+                        () -> FutureUtil.createTimeoutException("The controller of " + controller.getTopicName()
+                                + " did not take over in time", ScalableTopicService.class, "awaitTakeOver"))
+                .handle((__, ___) -> controller);
     }
 
     /**
-     * Release the controller for a topic (e.g., on topic unload).
+     * Release the controller for a topic (e.g., on topic unload). It is closed before it is
+     * removed, so that a controller created for the topic afterwards gets a leader election of
+     * its own, rather than this one's.
      */
     public CompletableFuture<Void> releaseController(TopicName topic) {
-        CompletableFuture<ScalableTopicController> future = controllers.remove(topic.toString());
+        String key = topic.toString();
+        CompletableFuture<ScalableTopicController> future = controllers.get(key);
         if (future != null) {
-            return future.thenCompose(ScalableTopicController::close);
+            return future.thenCompose(ScalableTopicController::close)
+                    .whenComplete((__, ___) -> controllers.remove(key, future));
         }
         return CompletableFuture.completedFuture(null);
     }
@@ -146,6 +207,7 @@ public class ScalableTopicService {
         ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(
                 numInitialSegments,
                 brokerService.getPulsar().getConfiguration().getScalableTopicEntryBucketBudget(),
+                brokerService.getPulsar().getConfiguration().getScalableTopicEntryBucketMaxPerSegment(),
                 properties);
 
         // Write the scalable metadata FIRST, then materialize the underlying segment topics.
@@ -177,6 +239,16 @@ public class ScalableTopicService {
     public CompletableFuture<Void> splitSegment(TopicName topic, long segmentId) {
         return getOrCreateController(topic)
                 .thenCompose(controller -> controller.splitSegment(segmentId))
+                .thenApply(__ -> null);
+    }
+
+    /**
+     * Rebucket a segment (delegates to controller). Same leader contract as
+     * {@link #splitSegment(TopicName, long)}.
+     */
+    public CompletableFuture<Void> rebucketSegment(TopicName topic, long segmentId, int bucketCount) {
+        return getOrCreateController(topic)
+                .thenCompose(controller -> controller.rebucketSegment(segmentId, bucketCount))
                 .thenApply(__ -> null);
     }
 
@@ -231,10 +303,11 @@ public class ScalableTopicService {
     }
 
     /**
-     * Get aggregated stats for a scalable topic. Read-only: does not require leadership.
-     * Returns segment-DAG counts and per-subscription consumer counts, read from the
-     * metadata store so the answer is consistent regardless of which broker is serving the
-     * request.
+     * Get the stats of a scalable topic as a whole: the segment DAG with per-segment load,
+     * the subscriptions with their backlog across segments, and the producers. Delegates to
+     * the controller, which fans out to the segment-owning brokers; the REST layer routes
+     * the request to the controller leader so the STREAM consumer sessions it holds are
+     * part of the picture.
      */
     public CompletableFuture<ScalableTopicStats> getStats(TopicName topic) {
         return getOrCreateController(topic)
@@ -245,40 +318,26 @@ public class ScalableTopicService {
      * Delete a scalable topic and all its segment topics.
      */
     public CompletableFuture<Void> deleteScalableTopic(TopicName topic) {
-        // When transactions are enabled, the segments carry durable /txn/segment-state records
-        // (watermark + aborted-txn records). Delete them alongside the segment topics so they don't
-        // outlive the data.
-        TxnMetadataStore txnStore =
-                brokerService.getPulsar().getConfiguration().isTransactionCoordinatorEnabled()
-                        ? new TxnMetadataStore(brokerService.getPulsar().getLocalMetadataStore())
-                        : null;
         return releaseController(topic)
                 .thenCompose(__ -> resources.getScalableTopicMetadataAsync(topic))
+                // Delete the metadata before the segment topics, like the admin delete: the segment delete
+                // only deletes the durable transaction state of a segment no longer active in the layout.
+                .thenCompose(optMd -> resources.deleteScalableTopicAsync(topic).thenApply(__ -> optMd))
                 .thenCompose(optMd -> {
                     if (optMd.isEmpty()) {
                         return CompletableFuture.completedFuture(null);
                     }
                     ScalableTopicMetadata metadata = optMd.get();
-                    // Delete all underlying segment topics, then their durable transaction state.
+                    // Delete all underlying segment topics.
                     return FutureUtil.waitForAll(
                             metadata.getSegments().values().stream()
-                                    .map(segment -> deleteUnderlyingSegmentTopic(topic, segment)
-                                            .thenCompose(__ -> cleanupSegmentTxnState(txnStore, topic, segment)))
+                                    .map(segment -> deleteUnderlyingSegmentTopic(topic, segment))
                                     .toList()
                     );
                 })
-                .thenCompose(__ -> resources.deleteScalableTopicAsync(topic));
-    }
-
-    /** Delete the durable {@code /txn/segment-state} records for a segment being dropped. */
-    private CompletableFuture<Void> cleanupSegmentTxnState(TxnMetadataStore txnStore,
-                                                          TopicName parentTopic, SegmentInfo segment) {
-        if (txnStore == null) {
-            return CompletableFuture.completedFuture(null);
-        }
-        String segmentName = SegmentTopicName.fromParent(
-                parentTopic, segment.hashRange(), segment.segmentId()).toString();
-        return txnStore.deleteAllSegmentState(segmentName);
+                // The segments share the schema of the scalable topic; deleting them leaves it in place.
+                .thenCompose(__ -> brokerService.deleteSchema(topic))
+                .thenApply(__ -> null);
     }
 
     /**
@@ -316,6 +375,23 @@ public class ScalableTopicService {
         }
     }
 
+    /**
+     * Explicit clean leave: forwards to the locally-held controller, which deletes the
+     * persisted registration and rebalances the remaining consumers immediately. No-op when
+     * no controller entry exists here — which happens only for a consumer that never
+     * registered on this broker, a deleted topic, or a shutting-down service. (A deposed
+     * leader keeps its entry and fails via {@code checkLeader()}, taking the error path
+     * instead, which preserves the caller's registration ref and grace fallback.)
+     */
+    public CompletableFuture<Void> unregisterConsumer(TopicName topic, String subscription,
+                                                      String consumerName, long consumerId) {
+        CompletableFuture<ScalableTopicController> future = controllers.get(topic.toString());
+        if (future == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return future.thenCompose(c -> c.unregisterConsumer(subscription, consumerName, consumerId));
+    }
+
     // --- Internal helpers ---
 
     private CompletableFuture<Void> createUnderlyingSegmentTopic(TopicName parentTopic, SegmentInfo segment) {
@@ -332,11 +408,14 @@ public class ScalableTopicService {
     }
 
     private CompletableFuture<Void> deleteUnderlyingSegmentTopic(TopicName parentTopic, SegmentInfo segment) {
-        String segmentName = SegmentTopicName.fromParent(
-                parentTopic, segment.hashRange(), segment.segmentId()).toString();
+        String segmentName = SegmentTopicName.backingTopicName(parentTopic, segment);
         try {
-            return brokerService.getPulsar().getAdminClient()
-                    .scalableTopics().deleteSegmentAsync(segmentName, true)
+            PulsarAdmin admin = brokerService.getPulsar().getAdminClient();
+            // The segment endpoints can't address the persistent:// topic a legacy segment wraps.
+            CompletableFuture<Void> delete = segment.isLegacy()
+                    ? admin.topics().deleteAsync(segmentName, true)
+                    : admin.scalableTopics().deleteSegmentAsync(segmentName, true);
+            return delete
                     .exceptionally(ex -> {
                         log.warn().attr("segment", segmentName).exceptionMessage(ex)
                                 .log("Failed to delete segment topic");

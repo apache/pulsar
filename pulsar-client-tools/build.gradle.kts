@@ -32,12 +32,12 @@ dependencies {
     implementation(project(":pulsar-common"))
     implementation(project(":pulsar-client-messagecrypto-bc"))
     implementation(project(":pulsar-cli-utils"))
-    implementation(project(":pulsar-websocket")) {
-        exclude(group = "*", module = "*")
-    }
     api(libs.picocli)
-    implementation(libs.picocli.shell.jline3)
-    api(libs.jline)
+    implementation(libs.picocli.shell.jline3) {
+        exclude(group = "org.jline", module = "jline")
+    }
+    // The default bundle includes an optional FFM provider compiled for Java 22.
+    api(variantOf(libs.jline) { classifier("jdk11") })
     implementation(libs.commons.io)
     implementation(libs.commons.lang3)
     // guava was previously leaked onto the compile classpath via compileOnly(swagger-core 1.x)
@@ -61,7 +61,7 @@ dependencies {
 // Maven uses ant-plugin to copy pom.xml -> dummy.nar for TestCmdSinks/TestCmdSources.
 // The file is gitignored (*.nar), so we generate it from the build file instead.
 // Must run after processTestResources to avoid being overwritten.
-val generateDummyNar by tasks.registering(Copy::class) {
+val generateDummyNar = tasks.register<Copy>("generateDummyNar") {
     dependsOn(tasks.named("processTestResources"))
     from(layout.projectDirectory.file("build.gradle.kts"))
     into(layout.buildDirectory.dir("resources/test"))
