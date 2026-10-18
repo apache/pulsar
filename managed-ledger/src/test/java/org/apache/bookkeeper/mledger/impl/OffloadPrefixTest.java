@@ -1480,7 +1480,8 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         assertTrue(terminationMetadataPutStarted.await(5, TimeUnit.SECONDS));
 
         OffloadCallbackPromise offloadResult = new OffloadCallbackPromise();
-        ledger.asyncOffloadPrefix(lastPosition, offloadResult, null);
+        // The blocked metadata put holds the managed ledger lock, so start the offload from another thread
+        CompletableFuture.runAsync(() -> ledger.asyncOffloadPrefix(lastPosition, offloadResult, null));
         try {
             assertThrows(TimeoutException.class, () -> offloadResult.get(1, TimeUnit.SECONDS));
             assertEquals(metadataPutCount.get(), 1);
