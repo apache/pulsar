@@ -501,7 +501,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 }
 
                 // Last ledger stat may be zeroed, we must update it
-                if (!ledgers.isEmpty()) {
+                if (!ledgers.isEmpty() && isLastLedgerDeletedFromBookKeeper()) {
+                    // The final ledger of a terminated managed ledger was offloaded and deleted from BookKeeper: its
+                    // stats were stored when it got closed, and it is read from tiered storage
+                    initializeBookKeeper(callback);
+                } else if (!ledgers.isEmpty()) {
                     final long id = ledgers.lastKey();
                     OpenCallback opencb = (rc, lh, ctx1) -> {
                         executor.execute(() -> {
@@ -614,6 +618,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
             return promise;
         };
+    }
+
+    private boolean isLastLedgerDeletedFromBookKeeper() {
+        LedgerInfo lastLedger = ledgers.lastEntry().getValue();
+        return state == State.Terminated && lastLedger.hasOffloadContext()
+                && lastLedger.getOffloadContext().isComplete()
+                && lastLedger.getOffloadContext().isBookkeeperDeleted();
     }
 
     protected synchronized void initializeBookKeeper(final ManagedLedgerInitializeLedgerCallback callback) {
@@ -1488,7 +1499,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             long sizeAfter = getTotalSize() - sizeBeforePosLedger;
             if (ledgerInfo == null) {
                 return sizeAfter;
-            } else if (pos.getLedgerId() == currentLedger.getId()) {
+            } else if (currentLedger != null && pos.getLedgerId() == currentLedger.getId()) {
                 return sizeAfter - consumedLedgerSize(currentLedgerSize, currentLedgerEntries, pos.getEntryId());
             } else {
                 return sizeAfter - consumedLedgerSize(ledgerInfo.getSize(), ledgerInfo.getEntries(), pos.getEntryId());
@@ -1654,7 +1665,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             if (rc != BKException.Code.OK) {
                 callback.terminateFailed(createManagedLedgerException(rc), ctx);
             } else {
-                lastConfirmedEntry = PositionFactory.create(lh.getId(), lh.getLastAddConfirmed());
+                synchronized (ManagedLedgerImpl.this) {
+                    lastConfirmedEntry = PositionFactory.create(lh.getId(), lh.getLastAddConfirmed());
+                    updateClosedLedgerInfo(lh, lh.getLastAddConfirmed(), false);
+                }
                 storeTerminatedPosition(callback, ctx);
             }
         }, null);
@@ -1686,6 +1700,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 ledgersStat = stat;
                 metadataMutex.unlock();
                 log.info().attr("lastConfirmedEntry", lastConfirmedEntry).log("Terminated managed ledger");
+                // The final ledger was closed outside a rollover, so offload it from here
+                maybeOffloadInBackground(AUTOMATIC_OFFLOAD_TRIGGER);
                 callback.terminateComplete(lastConfirmedEntry, ctx);
             }
 
@@ -2256,6 +2272,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         }
 
+        updateClosedLedgerInfo(lh, lastAddConfirmed, true);
+
+        trimConsumedLedgersInBackground();
+
+        maybeOffloadInBackground(AUTOMATIC_OFFLOAD_TRIGGER);
+
+        createLedgerAfterClosed();
+    }
+
+    private void updateClosedLedgerInfo(final LedgerHandle lh, Long lastAddConfirmed, boolean removeEmptyLedger) {
         long entriesInLedger = lastAddConfirmed != null ? lastAddConfirmed + 1 : lh.getLastAddConfirmed() + 1;
         log.debug().attr("ledgerId", lh.getId()).attr("entries", entriesInLedger).log("Ledger has been closed");
         if (entriesInLedger > 0) {
@@ -2268,17 +2294,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 }
                 return info.setEntries(entriesInLedger).setSize(lh.getLength()).setTimestamp(clock.millis());
             });
-        } else {
+        } else if (removeEmptyLedger) {
             // The last ledger was empty, so we can discard it
             ledgers.remove(lh.getId());
             mbean.startDataLedgerDeleteOp();
         }
-
-        trimConsumedLedgersInBackground();
-
-        maybeOffloadInBackground(AUTOMATIC_OFFLOAD_TRIGGER);
-
-        createLedgerAfterClosed();
     }
 
     @Override
@@ -2402,7 +2422,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         LedgerHandle currentLedger = this.currentLedger;
 
-        if (currentLedger != null && ledgerId == currentLedger.getId()) {
+        if (isReadFromCurrentLedger(currentLedger, ledgerId)) {
             // Current writing ledger is not in the cache (since we don't want
             // it to be automatically evicted), and we cannot use 2 different
             // ledger handles (read & write)for the same ledger.
@@ -2518,6 +2538,19 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     public CompletableFuture<ReadHandle> reopenReadHandle(long ledgerId) {
         invalidateReadHandle(ledgerId);
         return getLedgerHandle(ledgerId);
+    }
+
+    /**
+     * Whether the entries of the given ledger are read through the handle of the current ledger. The final ledger of a
+     * terminated managed ledger stays the current ledger but can be offloaded, after which its BookKeeper copy gets
+     * deleted: it is then read through {@link #getLedgerHandle(long)}, like any other offloaded ledger.
+     */
+    private boolean isReadFromCurrentLedger(LedgerHandle currentLedger, long ledgerId) {
+        if (currentLedger == null || ledgerId != currentLedger.getId()) {
+            return false;
+        }
+        LedgerInfo info = ledgers.get(ledgerId);
+        return info == null || !info.hasOffloadContext() || !info.getOffloadContext().isComplete();
     }
 
     CompletableFuture<ReadHandle> getLedgerHandle(long ledgerId) {
@@ -2648,7 +2681,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         long ledgerId = ledgerHandle.getId();
         LedgerHandle currentLedger = this.currentLedger;
 
-        if (currentLedger != null && ledgerId != currentLedger.getId()) {
+        if (currentLedger != null && ledgerHandle != currentLedger) {
             // remove handle from ledger cache since we got a (read) error
             ledgerCache.remove(ledgerId);
             log.debug().attr("ledgerId", ledgerId).log("Removed ledger read handle from cache");
@@ -2667,7 +2700,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         LedgerHandle currentLedger = this.currentLedger;
         log.debug().attr("ledgerId", position.getLedgerId())
                 .attr("entryId", position.getEntryId()).log("Reading entry");
-        if (position.getLedgerId() == currentLedger.getId()) {
+        if (isReadFromCurrentLedger(currentLedger, position.getLedgerId())) {
             asyncReadEntry(currentLedger, position, callback, ctx);
         } else if (ledgers.containsKey(position.getLedgerId())) {
             getLedgerHandle(position.getLedgerId()).thenAccept(ledger -> asyncReadEntry(ledger, position, callback,
@@ -3435,6 +3468,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 return;
             }
 
+            // A terminated managed ledger has no current ledger once its final ledger was deleted from BookKeeper,
+            // and that final ledger is then kept like a current one
+            final long currentLedgerId = currentLedger != null ? currentLedger.getId()
+                    : ledgers.isEmpty() ? -1 : ledgers.lastKey();
             long slowestReaderLedgerId = -1;
             final LazyLoadableValue<Long> slowestNonDurationLedgerId =
                     new LazyLoadableValue<>(() -> getTheSlowestNonDurationReadPosition().getLedgerId());
@@ -3445,7 +3482,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 // At this point the lastLedger will be pointing to the
                 // ledger that has just been closed, therefore the +1 to
                 // include lastLedger in the trimming.
-                slowestReaderLedgerId = currentLedger.getId() + 1;
+                slowestReaderLedgerId = currentLedgerId + 1;
             } else {
                 Position slowestReaderPosition = cursors.getSlowestCursorPosition();
                 if (slowestReaderPosition != null) {
@@ -3453,7 +3490,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     // If the slowest reader position point the last entry in the ledger x,
                     // the slowestReaderLedgerId should be x + 1 and the ledger x could be deleted.
                     LedgerInfo ledgerInfo = ledgers.get(slowestReaderPosition.getLedgerId());
-                    if (ledgerInfo != null && ledgerInfo.getLedgerId() != currentLedger.getId()
+                    if (ledgerInfo != null && ledgerInfo.getLedgerId() != currentLedgerId
                             && ledgerInfo.getEntries() == slowestReaderPosition.getEntryId() + 1) {
                         slowestReaderLedgerId = slowestReaderPosition.getLedgerId() + 1;
                     } else {
@@ -3475,7 +3512,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             while (ledgerInfoIterator.hasNext()){
                 LedgerInfo ls = ledgerInfoIterator.next();
                 // currentLedger can not be deleted
-                if (ls.getLedgerId() == currentLedger.getId()) {
+                if (ls.getLedgerId() == currentLedgerId) {
                     log.debug().attr("ledgerId", ls.getLedgerId())
                         .log("Ledger skipped for deletion as it is currently being written to");
                     break;
@@ -3496,7 +3533,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         .attr("ageSeconds", (clock.millis() - ls.getTimestamp()) / 1000.0)
                         .attr("expired", expired)
                         .attr("overQuota", overRetentionQuota)
-                        .attr("currentLedgerId", currentLedger.getId())
+                        .attr("currentLedgerId", currentLedgerId)
                         .log("Checking ledger");
 
                 if (expired || overRetentionQuota) {
@@ -4025,7 +4062,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 // empty. In this the passed position is not technically
                 // "valid", per the above check, given that it's not written
                 // yes, but it will be valid for the logic here
-                && !(requestOffloadTo.getLedgerId() == currentLedger.getId()
+                && !(currentLedger != null && requestOffloadTo.getLedgerId() == currentLedger.getId()
                         && requestOffloadTo.getEntryId() == 0)) {
             log.warn().attr("position", pos)
                     .attr("lastConfirmedEntry", lastConfirmedEntry)
@@ -4057,23 +4094,30 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
 
             long current = ledgers.lastKey();
+            LedgerInfo lastLedgerInfo = ledgers.get(current);
+            boolean includeLastLedger = STATE_UPDATER.get(this) == State.Terminated
+                    && requestOffloadTo.compareTo(lastConfirmedEntry) >= 0
+                    && lastLedgerInfo != null
+                    && lastLedgerInfo.getEntries() > 0;
 
             // the first ledger which will not be offloaded. Defaults to current,
             // in the case that the whole headmap is offloaded. Otherwise, it will
             // be set as we iterate through the headmap values
-            long firstLedgerRetained = current;
-            for (LedgerInfo ls : ledgers.headMap(current).values()) {
-                if (requestOffloadTo.getLedgerId() > ls.getLedgerId()) {
+            Position firstPositionRetained = includeLastLedger ? lastConfirmedEntry.getNext()
+                    : PositionFactory.create(current, 0);
+            for (LedgerInfo ls : ledgers.headMap(current, includeLastLedger).values()) {
+                if (requestOffloadTo.getLedgerId() > ls.getLedgerId()
+                        || (includeLastLedger && requestOffloadTo.getLedgerId() == ls.getLedgerId())) {
                     // don't offload if ledger has already been offloaded, or is empty
                     if (!ls.getOffloadContext().isComplete() && ls.getSize() > 0) {
                         ledgersToOffload.add(ls);
                     }
                 } else {
-                    firstLedgerRetained = ls.getLedgerId();
+                    firstPositionRetained = PositionFactory.create(ls.getLedgerId(), 0);
                     break;
                 }
             }
-            firstUnoffloaded = PositionFactory.create(firstLedgerRetained, 0);
+            firstUnoffloaded = firstPositionRetained;
         }
 
         if (ledgersToOffload.isEmpty()) {
