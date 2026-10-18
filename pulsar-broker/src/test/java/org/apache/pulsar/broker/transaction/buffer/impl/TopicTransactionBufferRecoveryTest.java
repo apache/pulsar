@@ -21,8 +21,11 @@ package org.apache.pulsar.broker.transaction.buffer.impl;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.timeout;
@@ -31,6 +34,7 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Set;
@@ -39,10 +43,17 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
@@ -355,5 +366,120 @@ public class TopicTransactionBufferRecoveryTest extends ProducerConsumerBase {
         } finally {
             pulsar.setTransactionBufferProvider(originalProvider);
         }
+    }
+
+    /**
+     * A plain {@link ManagedLedgerException} (BookKeeper transient errors such as
+     * {@code BookieHandleNotAvailable}) must end recovery instead of falling through to the hot-loop
+     * branch. Without the fix in #26379, {@code readEntriesFailed} would decrement the outstanding
+     * read counter and let {@code fillQueue()} re-issue the identical read at ~1000 req/s, so the
+     * test must finish well under a second and issue exactly one read.
+     */
+    @Test(timeOut = 30_000)
+    public void testPlainManagedLedgerExceptionEndsRecovery() throws Exception {
+        String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tb-recovery-plain-mle");
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(tpName).create();
+        producer.send("msg".getBytes(StandardCharsets.UTF_8));
+        producer.close();
+
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
+                .getTopic(tpName, false).get().get();
+
+        ManagedCursorImpl managedCursor = mock(ManagedCursorImpl.class);
+        doReturn("transaction-buffer-sub").when(managedCursor).getName();
+        doReturn(true).when(managedCursor).hasMoreEntries();
+        doReturn(PositionFactory.EARLIEST).when(managedCursor).getMarkDeletedPosition();
+
+        AtomicInteger readCount = new AtomicInteger();
+        doAnswer(invocation -> {
+            readCount.incrementAndGet();
+            AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(1);
+            callback.readEntriesFailed(new ManagedLedgerException("Bookie handle is not available"), null);
+            return null;
+        }).when(managedCursor).asyncReadEntries(anyInt(), any(), anyLong(), any());
+
+        Field field = ManagedLedgerImpl.class.getDeclaredField("cursors");
+        field.setAccessible(true);
+        ManagedCursorContainer managedCursors = (ManagedCursorContainer) field
+                .get(persistentTopic.getManagedLedger());
+        managedCursors.removeCursor("transaction-buffer-sub");
+        managedCursors.add(managedCursor, managedCursor.getMarkDeletedPosition());
+
+        try {
+            new TopicTransactionBuffer(persistentTopic);
+        } catch (Exception ignored) {
+            // constructor may throw synchronously, but recovery runs async on a scheduler
+        }
+
+        // Recovery must have ended: either the topic is closing/closed, or the buffer future completed.
+        // The hot-loop bug would keep the scheduler thread occupied forever at ~1000 reads/s.
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() ->
+                persistentTopic.isClosingOrDeleting()
+                        || persistentTopic.getTransactionBuffer() == null
+                        || !persistentTopic.getTransactionBuffer().checkIfTBRecoverCompletely()
+                                .isDone() == false
+                        || persistentTopic.getTransactionBuffer().checkIfTBRecoverCompletely()
+                                .isCompletedExceptionally());
+
+        assertThat(readCount.get()).as("A plain ManagedLedgerException must not hot-loop")
+                .isEqualTo(1);
+    }
+
+    /**
+     * {@link ManagedLedgerException.NonRecoverableLedgerException} must end recovery even when
+     * {@code autoSkipNonRecoverableData} is false (the default). Without the fix in #26379, the
+     * missing brackets around the first {@code instanceof} condition let this case fall through to
+     * the decrement-only branch, creating an identical hot loop to the plain-exception case above.
+     */
+    @Test(timeOut = 30_000)
+    public void testNonRecoverableLedgerExceptionWithoutAutoSkipEndsRecovery() throws Exception {
+        String tpName = BrokerTestUtil
+                .newUniqueName("persistent://public/default/tb-recovery-nonrecoverable-no-autoskip");
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(tpName).create();
+        producer.send("msg".getBytes(StandardCharsets.UTF_8));
+        producer.close();
+
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
+                .getTopic(tpName, false).get().get();
+        // Keep the default: autoSkipNonRecoverableData = false
+        assertThat(persistentTopic.getManagedLedger().getConfig().isAutoSkipNonRecoverableData())
+                .as("Test precondition: default must be false").isFalse();
+
+        ManagedCursorImpl managedCursor = mock(ManagedCursorImpl.class);
+        doReturn("transaction-buffer-sub").when(managedCursor).getName();
+        doReturn(true).when(managedCursor).hasMoreEntries();
+        doReturn(PositionFactory.EARLIEST).when(managedCursor).getMarkDeletedPosition();
+
+        AtomicInteger readCount = new AtomicInteger();
+        doAnswer(invocation -> {
+            readCount.incrementAndGet();
+            AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(1);
+            callback.readEntriesFailed(
+                    new ManagedLedgerException.NonRecoverableLedgerException("No ledger exist"), null);
+            return null;
+        }).when(managedCursor).asyncReadEntries(anyInt(), any(), anyLong(), any());
+
+        Field field = ManagedLedgerImpl.class.getDeclaredField("cursors");
+        field.setAccessible(true);
+        ManagedCursorContainer managedCursors = (ManagedCursorContainer) field
+                .get(persistentTopic.getManagedLedger());
+        managedCursors.removeCursor("transaction-buffer-sub");
+        managedCursors.add(managedCursor, managedCursor.getMarkDeletedPosition());
+
+        try {
+            new TopicTransactionBuffer(persistentTopic);
+        } catch (Exception ignored) {
+            // constructor may throw synchronously, but recovery runs async on a scheduler
+        }
+
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() ->
+                persistentTopic.isClosingOrDeleting()
+                        || persistentTopic.getTransactionBuffer() == null
+                        || persistentTopic.getTransactionBuffer().checkIfTBRecoverCompletely()
+                                .isCompletedExceptionally());
+
+        assertThat(readCount.get())
+                .as("NonRecoverableLedgerException without autoSkip must not hot-loop")
+                .isEqualTo(1);
     }
 }

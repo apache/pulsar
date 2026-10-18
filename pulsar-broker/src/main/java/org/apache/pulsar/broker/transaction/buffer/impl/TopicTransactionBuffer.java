@@ -869,8 +869,6 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
         private final SpscArrayQueue<Entry> entryQueue;
 
-        private final AtomicLong exceptionNumber = new AtomicLong();
-
         public static final String SUBSCRIPTION_NAME = "transaction-buffer-sub";
 
         private final TopicTransactionBuffer topicTransactionBuffer;
@@ -979,7 +977,15 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 fillEntryQueueCallback.stopAndReleasePendingEntries();
                 closeCursor(SUBSCRIPTION_NAME);
             }
-            if (!shouldStopRecovery()) {
+            if (shouldStopRecovery()) {
+                return;
+            }
+            // Any read failure that was not recognised as "completes the replay" ends recovery
+            // exceptionally instead of reporting success with incomplete state.
+            ManagedLedgerException readFailure = fillEntryQueueCallback.readFailure();
+            if (readFailure != null) {
+                callBack.recoverExceptionally(readFailure);
+            } else {
                 callBack.recoverComplete();
             }
         }
@@ -1000,10 +1006,16 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             }, null);
         }
 
-        private void callBackException(ManagedLedgerException e) {
-            topicTransactionBuffer.log.error().exception(e)
-                    .log("Transaction buffer recover fail when recovering transaction entry");
-            this.exceptionNumber.getAndIncrement();
+        private void logReplayReadFailureCompleting(ManagedLedgerException e) {
+            // These failures complete the replay as if it reached the end of the log.
+            // They never reach recoverExceptionally, which would close the whole topic, and the
+            // callback goes on to log recovery as success -- so without this line a topic fenced
+            // by takeover, a cursor closed by teardown, or data skipped because autoSkipNonRecoverableData
+            // is enabled would leave no record at any default level. At most one per recovery:
+            // only one read is ever outstanding.
+            topicTransactionBuffer.log.warn()
+                    .exception(e)
+                    .log("Transaction buffer recovery read failed; completing the replay anyway");
         }
 
         private void closeReader(SystemTopicClient.Reader<TransactionBufferSnapshot> reader) {
@@ -1040,6 +1052,15 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
         private boolean stopped;
 
+        /**
+         * The read failure that ended this recovery attempt, or {@code null} if no read failed. Written
+         * on a managed ledger thread by {@link #readEntriesFailed} before the volatile {@link #isReadable}
+         * write that stops the recovery loop, and consumed by the recovery thread only after it has
+         * observed {@code fillQueue() == false}, so the volatile hand-off publishes it. Never set by
+         * the failures that complete the replay instead (see {@link #readEntriesFailed}).
+         */
+        private volatile ManagedLedgerException readFailure;
+
         private static final int NUMBER_OF_PER_READ_ENTRY = 100;
 
         private FillEntryQueueCallback(SpscArrayQueue<Entry> entryQueue, ManagedCursor cursor,
@@ -1048,9 +1069,24 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             this.cursor = cursor;
             this.recover = recover;
         }
+
+        /**
+         * The read failure that ended this recovery attempt, or {@code null} if it ended without one.
+         * Only meaningful once the recovery loop has exited.
+         */
+        ManagedLedgerException readFailure() {
+            return readFailure;
+        }
+
         boolean fillQueue() {
+            // isReadable is deliberately checked AFTER outstandingReadsRequests: readEntriesFailed
+            // clears isReadable before its decrement, so a thread that observes the failed read's
+            // decrement here is guaranteed to also observe isReadable == false. No read is therefore
+            // ever issued after a read failure, which keeps the failure recorded by readEntriesFailed
+            // the only one of the attempt. (The reverse order would allow one more doomed read.)
             if (entryQueue.size() + NUMBER_OF_PER_READ_ENTRY < entryQueue.capacity()
-                    && outstandingReadsRequests.get() == 0) {
+                    && outstandingReadsRequests.get() == 0
+                    && isReadable) {
                 if (cursor.hasMoreEntries()) {
                     outstandingReadsRequests.incrementAndGet();
                     cursor.asyncReadEntries(NUMBER_OF_PER_READ_ENTRY,
@@ -1097,15 +1133,43 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             if (stopped) {
                 return;
             }
-            if (recover.topic.getManagedLedger().getConfig().isAutoSkipNonRecoverableData()
-                    && exception instanceof ManagedLedgerException.NonRecoverableLedgerException
+            // These three failures have always completed the recovery as if it had reached the end of
+            // the log: the unreadable data is skipped by explicit configuration, or the store is being
+            // taken over or torn down and the buffer must still reach Ready to release its callers.
+            // TransactionTest#testEndTBRecoveringWhenManagerLedgerDisReadable pins Ready for each.
+            // The brackets below are intentional: && binds tighter than ||, so without them the
+            // condition would misclassify NonRecoverableLedgerException when autoSkipNonRecoverableData
+            // is false (the default), letting it fall through to the hot-loop branch.
+            boolean completesReplay =
+                    (recover.topic.getManagedLedger().getConfig().isAutoSkipNonRecoverableData()
+                            && exception instanceof ManagedLedgerException.NonRecoverableLedgerException)
                     || exception instanceof ManagedLedgerException.ManagedLedgerFencedException
-                    || exception instanceof ManagedLedgerException.CursorAlreadyClosedException) {
-                isReadable = false;
+                    || exception instanceof ManagedLedgerException.CursorAlreadyClosedException;
+
+            if (completesReplay) {
+                recover.logReplayReadFailureCompleting(exception);
             } else {
-                outstandingReadsRequests.decrementAndGet();
+                // Any other failure ends this recovery attempt instead of re-issuing the identical read
+                // in a hot loop that monopolises the transaction-recovery thread (issue #26379). The
+                // volatile write below must stay before the isReadable write: observing isReadable == false
+                // is what publishes it to the recovery thread.
+                //
+                // Two classes fall through here, both reachable with the shipped defaults:
+                // - NonRecoverableLedgerException when autoSkipNonRecoverableData is false. A deleted or
+                //   missing transaction-buffer ledger; OpReadEntry only advances past a bad ledger when
+                //   auto-skip is enabled, so the read position never moves and every retry is identical.
+                //   Retrying can never succeed.
+                // - A plain ManagedLedgerException, e.g. BookKeeper's BookieHandleNotAvailableException.
+                //   Retrying would be right here, but not at this rate; TopicTransactionBuffer has no
+                //   per-component retry machinery like PendingAckHandleImpl's isRetryableException +
+                //   backoff path, so we record the failure and let the recovery loop exit through
+                //   recoverExceptionally, which closes the topic so the broker reloads it fresh.
+                readFailure = exception;
             }
-            recover.callBackException(exception);
+            // Written before the decrement so that fillQueue() can never issue another read after a
+            // failure: it re-checks isReadable after observing outstandingReadsRequests == 0.
+            isReadable = false;
+            outstandingReadsRequests.decrementAndGet();
         }
     }
 }
