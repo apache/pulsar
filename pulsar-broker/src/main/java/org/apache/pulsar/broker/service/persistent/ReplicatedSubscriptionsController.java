@@ -42,7 +42,6 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.pulsar.broker.service.Replicator;
-import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.stats.OpenTelemetryReplicatedSubscriptionStats;
 import org.apache.pulsar.common.api.proto.ClusterMessageId;
@@ -231,30 +230,40 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
                     .log("Creating subscription at: after receiving update from replicated subscription");
             topic.createSubscription(update.getSubscriptionName(), InitialPosition.Earliest,
                             true /* replicateSubscriptionState */, Collections.emptyMap())
-                    .thenAccept(subscriptionCreated ->
-                            acknowledgeSubscriptionUpdate(update.getSubscriptionName(), subscriptionCreated, pos))
+                    .thenAccept(subscriptionCreated -> acknowledgeSubscriptionUpdate(update.getSubscriptionName(),
+                            (PersistentSubscription) subscriptionCreated, pos))
                     .exceptionally(e -> {
-                        if (e != null) {
-                            log.warn()
-                                    .attr("subscriptionName", update.getSubscriptionName())
-                                    .attr("pos", pos)
-                                    .exception(FutureUtil.unwrapCompletionException(e))
-                                    .log("Failed to create replicated subscription");
-                        }
+                        log.warn()
+                                .attr("subscriptionName", update.getSubscriptionName())
+                                .attr("pos", pos)
+                                .exceptionMessage(FutureUtil.unwrapCompletionException(e))
+                                .log("Failed to create replicated subscription");
                         return null;
                     });
         }
     }
 
-    private CompletableFuture<Void> acknowledgeSubscriptionUpdate(String subscriptionName, Subscription sub,
-                                                                  Position pos) {
+    private CompletableFuture<Void> acknowledgeSubscriptionUpdate(String subscriptionName,
+                                                                  PersistentSubscription sub, Position pos) {
         return sub.acknowledgeMessageAsync(Collections.singletonList(pos), AckType.Cumulative, Collections.emptyMap())
                 .whenComplete((__, e) -> {
-                    if (e != null) {
+                    if (e == null) {
+                        return;
+                    }
+                    Position markDeletePosition = sub.getCursor().getMarkDeletedPosition();
+                    if (pos.compareTo(markDeletePosition) <= 0) {
+                        // Local consumers already acknowledged past the replicated position: nothing to update
+                        log.debug()
+                                .attr("subscriptionName", subscriptionName)
+                                .attr("pos", pos)
+                                .attr("markDeletePosition", markDeletePosition)
+                                .log("Ignoring replicated subscription update behind the mark-delete position");
+                    } else {
                         log.warn()
                                 .attr("subscriptionName", subscriptionName)
                                 .attr("pos", pos)
-                                .exception(FutureUtil.unwrapCompletionException(e))
+                                .attr("markDeletePosition", markDeletePosition)
+                                .exceptionMessage(FutureUtil.unwrapCompletionException(e))
                                 .log("Failed to update replicated subscription");
                     }
                 });
