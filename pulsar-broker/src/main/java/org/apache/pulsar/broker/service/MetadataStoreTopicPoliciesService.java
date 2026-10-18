@@ -27,7 +27,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
@@ -54,9 +53,6 @@ public class MetadataStoreTopicPoliciesService implements TopicPoliciesService {
 
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final Map<TopicName, List<TopicPolicyListener>> listeners = new ConcurrentHashMap<>();
-    private final Map<String, PendingRefresh> pendingRefreshes = new ConcurrentHashMap<>();
-    private final Map<TopicName, AtomicReference<List<TopicPolicyListener>>> pendingDeleteNotifications =
-            new ConcurrentHashMap<>();
     private BrokerService brokerService;
     private MetadataCache<TopicPolicies> localPoliciesCache;
     private MetadataCache<TopicPolicies> globalPoliciesCache;
@@ -166,8 +162,6 @@ public class MetadataStoreTopicPoliciesService implements TopicPoliciesService {
     public void close() {
         if (closed.compareAndSet(false, true)) {
             listeners.clear();
-            pendingRefreshes.clear();
-            pendingDeleteNotifications.clear();
             if (localPoliciesCache != null) {
                 localPoliciesCache.invalidateAll();
             }
@@ -216,181 +210,45 @@ public class MetadataStoreTopicPoliciesService implements TopicPoliciesService {
         MetadataCache<TopicPolicies> cache = cache(isGlobalPolicy);
         cache.invalidate(path);
         if (notification.getType() == NotificationType.Deleted) {
-            pendingRefreshes.computeIfPresent(path, (__, refresh) -> {
-                refresh.revision++;
-                refresh.deleted = true;
-                return refresh;
-            });
-            notifyDeletedPolicies(topicName.get(), isGlobalPolicy);
-        } else {
-            queueRefresh(topicName.get(), isGlobalPolicy);
+            notifyListeners(topicName.get(), null);
+            return;
         }
+        cache.get(path).whenComplete((policies, error) -> {
+            if (error != null) {
+                log.warn()
+                        .attr("path", path)
+                        .exception(error)
+                        .log("Failed to refresh topic policies after metadata notification");
+                return;
+            }
+            notifyListeners(topicName.get(),
+                    policies.map(policy -> cloneWithScope(policy, isGlobalPolicy)).orElse(null));
+        });
     }
 
-    private void queueRefresh(TopicName topicName, boolean global) {
-        String path = pathFor(topicName, global);
-        PendingRefresh[] started = new PendingRefresh[1];
-        pendingRefreshes.compute(path, (__, current) -> {
-            List<TopicPolicyListener> topicListeners = listeners.get(topicName);
-            if (closed.get()) {
-                return null;
-            }
-            if (topicListeners == null) {
-                return current;
-            }
-            if (current == null) {
-                current = new PendingRefresh(topicName, global, path);
-                started[0] = current;
-            }
-            current.revision++;
-            current.deleted = false;
-            current.topicListeners = topicListeners;
-            return current;
-        });
-        if (started[0] != null) {
-            readPolicies(started[0]);
-        }
-    }
-
-    private void readPolicies(PendingRefresh refresh) {
-        long[] revision = {-1};
-        pendingRefreshes.computeIfPresent(refresh.path, (__, current) -> {
-            if (current != refresh) {
-                return current;
-            }
-            if (closed.get() || refresh.deleted || listeners.get(refresh.topicName) != refresh.topicListeners) {
-                return null;
-            }
-            revision[0] = refresh.revision;
-            return refresh;
-        });
-        if (revision[0] == -1) {
+    private void notifyListeners(TopicName topicName, @Nullable TopicPolicies policies) {
+        List<TopicPolicyListener> topicListeners = listeners.get(topicName);
+        if (closed.get() || topicListeners == null) {
             return;
         }
         try {
-            MetadataCache<TopicPolicies> policiesCache = cache(refresh.global);
-            policiesCache.invalidate(refresh.path);
-            policiesCache.get(refresh.path).whenComplete((policies, error) ->
-                    scheduleRefreshCompletion(refresh, revision[0], policies, error));
-        } catch (Throwable error) {
-            scheduleRefreshCompletion(refresh, revision[0], null, error);
-        }
-    }
-
-    private void scheduleRefreshCompletion(PendingRefresh refresh, long revision, Optional<TopicPolicies> policies,
-                                           Throwable error) {
-        try {
-            pendingDeleteNotifications.compute(refresh.topicName, (__, pending) -> {
-                brokerService.getTopicPoliciesNotifyThread(refresh.topicName).execute(() ->
-                        completeRefresh(refresh, revision, policies, error));
-                // A scoped completion separates deletion batches, preserving a subsequent deletion's position.
-                return null;
-            });
-        } catch (RejectedExecutionException rejected) {
-            pendingRefreshes.remove(refresh.path, refresh);
-            if (!closed.get()) {
-                log.warn().attr("path", refresh.path).exception(rejected)
-                        .log("Failed to schedule topic policy notification");
-            }
-        }
-    }
-
-    private void completeRefresh(PendingRefresh refresh, long revision, Optional<TopicPolicies> policies,
-                                 Throwable error) {
-        AtomicReference<List<TopicPolicyListener>> recipients = new AtomicReference<>();
-        pendingRefreshes.computeIfPresent(refresh.path, (__, current) -> {
-            if (current != refresh) {
-                return current;
-            }
-            if (closed.get() || refresh.deleted || listeners.get(refresh.topicName) != refresh.topicListeners) {
-                return null;
-            }
-            if (error == null && refresh.revision == revision) {
-                recipients.set(refresh.topicListeners);
-            }
-            return refresh;
-        });
-        if (error != null) {
-            log.warn().attr("path", refresh.path).exception(error)
-                    .log("Failed to refresh topic policies after metadata notification");
-        } else if (recipients.get() != null) {
-            notifyListeners(refresh.topicName,
-                    policies.map(policy -> cloneWithScope(policy, refresh.global)).orElse(null), recipients.get());
-        }
-        boolean[] refreshAgain = new boolean[1];
-        pendingRefreshes.computeIfPresent(refresh.path, (__, current) -> {
-            if (current != refresh) {
-                return current;
-            }
-            // Keep this refresh in flight through the callback, so incoming notifications only request one reread.
-            refreshAgain[0] = !closed.get() && !refresh.deleted && refresh.revision != revision
-                    && listeners.get(refresh.topicName) == refresh.topicListeners;
-            return refreshAgain[0] ? refresh : null;
-        });
-        if (refreshAgain[0]) {
-            readPolicies(refresh);
-        }
-    }
-
-    private void notifyDeletedPolicies(TopicName topicName, boolean global) {
-        if (closed.get() || !listeners.containsKey(topicName)) {
-            return;
-        }
-        try {
-            pendingDeleteNotifications.compute(topicName, (__, pending) -> {
-                List<TopicPolicyListener> topicListeners = listeners.get(topicName);
-                if (closed.get() || topicListeners == null || topicListeners.isEmpty()) {
-                    return pending;
+            brokerService.getTopicPoliciesNotifyThread(topicName).execute(() -> {
+                if (closed.get() || listeners.get(topicName) != topicListeners) {
+                    return;
                 }
-                if (pending != null) {
-                    pending.set(topicListeners);
-                    return pending;
-                }
-                AtomicReference<List<TopicPolicyListener>> notification = new AtomicReference<>(topicListeners);
-                brokerService.getTopicPoliciesNotifyThread(topicName).execute(() -> {
-                    pendingDeleteNotifications.remove(topicName, notification);
-                    List<TopicPolicyListener> recipients = notification.get();
-                    if (!closed.get() && listeners.get(topicName) == recipients) {
-                        notifyListeners(topicName, null, recipients);
+                for (TopicPolicyListener listener : topicListeners) {
+                    try {
+                        listener.onUpdate(policies == null ? null : policies.clone());
+                    } catch (Throwable error) {
+                        log.error().attr("topic", topicName).exception(error).log("Call topic policy listener error");
                     }
-                });
-                return notification;
+                }
             });
         } catch (RejectedExecutionException error) {
-            // Recover from a rejected deletion by reading the latest policies, without invoking a listener inline.
             if (!closed.get()) {
-                queueRefresh(topicName, global);
+                log.warn().attr("topic", topicName).exception(error)
+                        .log("Failed to schedule topic policy notification");
             }
-        }
-    }
-
-    private void notifyListeners(TopicName topicName, @Nullable TopicPolicies policies,
-                                 List<TopicPolicyListener> topicListeners) {
-        if (closed.get() || listeners.get(topicName) != topicListeners) {
-            return;
-        }
-        for (TopicPolicyListener listener : topicListeners) {
-            try {
-                listener.onUpdate(policies == null ? null : policies.clone());
-            } catch (Throwable error) {
-                log.error().attr("topic", topicName).exception(error).log("Call topic policy listener error");
-            }
-        }
-    }
-
-    private static final class PendingRefresh {
-        private final TopicName topicName;
-        private final boolean global;
-        private final String path;
-        // Guarded by pendingRefreshes.compute for this path.
-        private long revision;
-        private boolean deleted;
-        private List<TopicPolicyListener> topicListeners;
-
-        private PendingRefresh(TopicName topicName, boolean global, String path) {
-            this.topicName = topicName;
-            this.global = global;
-            this.path = path;
         }
     }
 
