@@ -32,6 +32,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.PulsarClientException.AlreadyClosedException;
+import org.apache.pulsar.client.api.PulsarClientException.TopicTerminatedException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.v5.Message;
 import org.apache.pulsar.client.api.v5.MessageId;
@@ -104,8 +107,17 @@ final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchCl
 
     /** Most recent layout target. Reconciles always converge toward this value. */
     private volatile ClientSegmentLayout latestLayout;
-    /** Coalesces concurrent reconcile attempts; only one runs at a time. */
+    /** Set when the segment consumers must be converged onto {@link #latestLayout} again. */
+    private final AtomicBoolean reconcileRequested = new AtomicBoolean(false);
+    /** Held while a layout is applied, so only one is applied at a time. */
     private final AtomicBoolean reconcileInProgress = new AtomicBoolean(false);
+    /** Whether a retry of the segments that failed to subscribe is scheduled. Guarded by {@code this}. */
+    private boolean retryScheduled = false;
+    /** Whether the backoff was reset after the pending retry was scheduled. Guarded by {@code this}. */
+    private boolean backoffResetSinceRetry = false;
+    /** Identifies the latest retry: a retry it replaced does nothing. Guarded by {@code this}. */
+    private long retryGeneration = 0;
+    /** Paces the retries. Guarded by {@code this}. */
     private final Backoff reconcileBackoff = Backoff.builder()
             .initialDelay(Duration.ofMillis(100))
             .maxBackoff(Duration.ofSeconds(30))
@@ -265,7 +277,7 @@ final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchCl
             Thread.currentThread().interrupt();
             throw new PulsarClientException("Close interrupted", e);
         } catch (ExecutionException e) {
-            throw new PulsarClientException(e.getCause());
+            throw V5ExceptionMappings.toV5Exception(e);
         }
     }
 
@@ -297,7 +309,8 @@ final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchCl
                             : CompletableFuture.completedFuture(null)));
         }
         return CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new))
-                .whenComplete((__, ___) -> segmentConsumers.clear());
+                .whenComplete((__, ___) -> segmentConsumers.clear())
+                .exceptionallyCompose(V5ExceptionMappings::failWithV5Exception);
     }
 
     // --- Layout change handling ---
@@ -305,43 +318,68 @@ final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchCl
     @Override
     public void onLayoutChange(ClientSegmentLayout newLayout, ClientSegmentLayout oldLayout) {
         // Fully async: safe to run on the netty IO thread that delivered the update.
-        // Store the target and kick off a reconcile. If a reconcile is already running,
-        // it will re-read latestLayout once it finishes. On failure, the reconcile
-        // reschedules itself with exponential backoff until it succeeds (or we close).
         latestLayout = newLayout;
         reconcile();
     }
 
+    /**
+     * Converge the per-segment consumers onto {@link #latestLayout}. A layout is applied as soon as
+     * it arrives, not after the consumers of the previous one have subscribed: a subscribe that keeps
+     * reconnecting must not delay subscribing the segments a split creates. A consumer that fails to
+     * subscribe is evicted and retried with backoff.
+     */
     private void reconcile() {
-        if (closed) {
-            return;
+        reconcileRequested.set(true);
+        // One thread applies at a time, and applies again if asked to meanwhile.
+        while (!closed && reconcileRequested.get() && reconcileInProgress.compareAndSet(false, true)) {
+            try {
+                reconcileRequested.set(false);
+                evictFailedSegmentConsumers();
+                subscribeSegments(latestLayout).whenComplete((__, ex) -> {
+                    if (ex == null) {
+                        synchronized (this) {
+                            reconcileBackoff.reset();
+                            backoffResetSinceRetry = retryScheduled;
+                        }
+                    } else if (!closed) {
+                        scheduleRetry(ex);
+                    }
+                });
+            } finally {
+                reconcileInProgress.set(false);
+            }
         }
-        if (!reconcileInProgress.compareAndSet(false, true)) {
-            // A reconcile is already in progress; it will observe the updated latestLayout
-            // when it finishes and re-run if needed.
-            return;
-        }
-        ClientSegmentLayout target = latestLayout;
-        subscribeSegments(target).whenComplete((__, ex) -> {
-            reconcileInProgress.set(false);
-            if (closed) {
+    }
+
+    /**
+     * Retry the segments that failed to subscribe after a backoff, with at most one retry scheduled.
+     * A retry scheduled before the backoff was last reset is replaced, so a new failure doesn't wait
+     * out the longer delay of earlier ones.
+     */
+    private void scheduleRetry(Throwable ex) {
+        Duration delay;
+        long generation;
+        synchronized (this) {
+            if (retryScheduled && !backoffResetSinceRetry) {
                 return;
             }
-            if (ex == null) {
-                reconcileBackoff.reset();
-                // If a newer layout arrived during this reconcile, run again to converge.
-                if (latestLayout != target) {
-                    reconcile();
+            retryScheduled = true;
+            backoffResetSinceRetry = false;
+            generation = ++retryGeneration;
+            delay = reconcileBackoff.next();
+        }
+        log.warn().attr("delayMs", delay.toMillis()).exceptionMessage(ex)
+                .log("Failed to apply layout update, retrying after backoff");
+        scheduler().schedule(() -> {
+            synchronized (this) {
+                if (generation != retryGeneration) {
+                    // Replaced by a later retry.
+                    return;
                 }
-                return;
+                retryScheduled = false;
             }
-            // Evict failed subscribe futures so the next attempt can re-try them.
-            evictFailedSegmentConsumers();
-            Duration delay = reconcileBackoff.next();
-            log.warn().attr("delayMs", delay.toMillis()).exceptionMessage(ex)
-                    .log("Failed to apply layout update, retrying after backoff");
-            scheduler().schedule(this::reconcile, delay.toMillis(), TimeUnit.MILLISECONDS);
-        });
+            reconcile();
+        }, delay.toMillis(), TimeUnit.MILLISECONDS);
     }
 
     private void evictFailedSegmentConsumers() {
@@ -432,50 +470,62 @@ final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchCl
                 });
     }
 
-    private void startReceiveLoop(org.apache.pulsar.client.api.Consumer<T> v4Consumer, long segmentId) {
-        v4Consumer.receiveAsync().thenAccept(v4Msg -> {
-            CompletableFuture<Void> ready;
-            if (shouldGoToDlq(v4Msg)) {
-                forwardToDlq(v4Msg, v4Consumer);
-                // DLQ-forwarded messages never enter the receive buffer — nothing to wait on.
-                ready = CompletableFuture.completedFuture(null);
-            } else {
-                ready = messageSink.accept(new MessageV5<>(v4Msg, segmentId));
+    private void startReceiveLoop(Consumer<T> v4Consumer, long segmentId) {
+        // One completion stage avoids an extra future and callback per received message.
+        v4Consumer.receiveAsync().handle((v4Msg, ex) -> {
+            if (ex != null) {
+                handleReceiveFailure(v4Consumer, segmentId, ex);
+                return null;
             }
-            // Re-arm only once the sink has room, so a slow consumer pauses this segment's
-            // receive loop (and the v4 flow-control permits) instead of buffering unboundedly.
-            ready.thenRun(() -> {
-                if (!closed) {
-                    startReceiveLoop(v4Consumer, segmentId);
+            try {
+                CompletableFuture<Void> ready;
+                if (shouldGoToDlq(v4Msg)) {
+                    forwardToDlq(v4Msg, v4Consumer);
+                    // DLQ-forwarded messages never enter the receive buffer — nothing to wait on.
+                    ready = CompletableFuture.completedFuture(null);
+                } else {
+                    ready = messageSink.accept(new MessageV5<>(v4Msg, segmentId));
                 }
-            });
-        }).exceptionally(ex -> {
-            Throwable cause = ex instanceof CompletionException ce && ce.getCause() != null ? ce.getCause() : ex;
-            if (closed
-                    || cause instanceof org.apache.pulsar.client.api.PulsarClientException.AlreadyClosedException) {
-                // The whole consumer is shutting down or the v4 consumer was closed
-                // externally; stop the receive loop without touching the map.
-                return null;
+                // Re-arm only once the sink has room, so a slow consumer pauses this segment's
+                // receive loop (and the v4 flow-control permits) instead of buffering unboundedly.
+                ready.thenRun(() -> {
+                    if (!closed) {
+                        startReceiveLoop(v4Consumer, segmentId);
+                    }
+                });
+            } catch (Throwable error) {
+                // Preserve the previous completion chain's handling of failures thrown by the sink.
+                handleReceiveFailure(v4Consumer, segmentId, error);
             }
-            if (cause instanceof org.apache.pulsar.client.api.PulsarClientException.TopicTerminatedException) {
-                // Segment is sealed and fully drained server-side. Close the v4
-                // consumer and drop it from the map — any further ack on a message
-                // already pulled from this segment is a no-op (the cursor is at the
-                // end and the entry is gone).
-                log.info().attr("segmentId", segmentId)
-                        .log("Sealed segment drained, closing v4 consumer");
-                segmentConsumers.remove(segmentId);
-                v4Consumer.closeAsync();
-                return null;
-            }
-            log.warn().attr("segmentId", segmentId)
-                    .exception(ex).log("Error receiving from segment, retrying");
-            // Hop to the v4 client's internal executor so repeated synchronous failures
-            // don't grow the stack unboundedly.
-            client.v4Client().getInternalExecutorService()
-                    .execute(() -> startReceiveLoop(v4Consumer, segmentId));
             return null;
         });
+    }
+
+    private void handleReceiveFailure(Consumer<T> v4Consumer, long segmentId, Throwable ex) {
+        Throwable cause = ex instanceof CompletionException ce && ce.getCause() != null ? ce.getCause() : ex;
+        if (closed
+                || cause instanceof AlreadyClosedException) {
+            // The whole consumer is shutting down or the v4 consumer was closed
+            // externally; stop the receive loop without touching the map.
+            return;
+        }
+        if (cause instanceof TopicTerminatedException) {
+            // Segment is sealed and fully drained server-side. Close the v4
+            // consumer and drop it from the map — any further ack on a message
+            // already pulled from this segment is a no-op (the cursor is at the
+            // end and the entry is gone).
+            log.info().attr("segmentId", segmentId)
+                    .log("Sealed segment drained, closing v4 consumer");
+            segmentConsumers.remove(segmentId);
+            v4Consumer.closeAsync();
+            return;
+        }
+        log.warn().attr("segmentId", segmentId)
+                .exception(ex).log("Error receiving from segment, retrying");
+        // Hop to the v4 client's internal executor so repeated synchronous failures
+        // don't grow the stack unboundedly.
+        client.v4Client().getInternalExecutorService()
+                .execute(() -> startReceiveLoop(v4Consumer, segmentId));
     }
 
     // --- DLQ ---
@@ -534,6 +584,9 @@ final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchCl
             if (dlqProducerFuture == null) {
                 dlqProducerFuture = client.newProducer(Schema.bytes())
                         .topic(dlqTopic)
+                        // Forwarding runs on the client's own threads, which must not block on the
+                        // memory limit: a rejected send is retried on the next redelivery instead.
+                        .blockIfQueueFull(false)
                         .createAsync();
             }
             return dlqProducerFuture;

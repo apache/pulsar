@@ -182,14 +182,14 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testNotExistIMessageFormatter() {
         IMessageFormatter msgFormatter =
-                PerformanceProducer.getMessageFormatter("org.apache.pulsar.testclient.NonExistentFormatter");
+                PerformanceProducerBase.getMessageFormatter("org.apache.pulsar.testclient.NonExistentFormatter");
         Assert.assertNull(msgFormatter);
     }
 
     @Test
     public void testDefaultIMessageFormatter() {
         IMessageFormatter msgFormatter =
-                PerformanceProducer.getMessageFormatter("org.apache.pulsar.testclient.DefaultMessageFormatter");
+                PerformanceProducerBase.getMessageFormatter("org.apache.pulsar.testclient.DefaultMessageFormatter");
         Assert.assertTrue(msgFormatter instanceof DefaultMessageFormatter);
     }
 

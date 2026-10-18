@@ -748,6 +748,11 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         // this will make first entry to be timed out but then managed-ledger will create a new ledger and next time add
         // entry should be successful.
         doNothing().when(ledgerHandle).asyncAddEntry(data, null, null);
+        doAnswer(invocation -> {
+            org.apache.bookkeeper.client.AsyncCallback.CloseCallback cb = invocation.getArgument(0);
+            cb.closeComplete(BKException.Code.OK, ledgerHandle, invocation.getArgument(1));
+            return null;
+        }).when(ledgerHandle).asyncClose(any(), any());
 
         MockedPulsarServiceBaseTest.setFieldValue(ManagedLedgerImpl.class, ml, "currentLedger", ledgerHandle);
         CountDownLatch latch = new CountDownLatch(1);

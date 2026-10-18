@@ -46,6 +46,10 @@ import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
  * @param mergeWindow       how long a segment must continuously stay below every merge threshold
  *                          before it becomes merge-eligible (measured from the load record's
  *                          metadata-store last-modified time)
+ * @param rebucketCooldown  minimum interval between automatic entry-bucket rollovers
+ * @param splitVsRebucketMinMsgRateIn consumer-driven scale-up splits only at/above this inbound
+ *                          msg/s on the busiest segment; below it, entry-buckets grow instead
+ * @param maxEntryBucketsPerSegment hard ceiling on a single segment's entry-bucket count
  * @param splitMsgRateIn    inbound msg/s above which a segment is split
  * @param splitBytesRateIn  inbound bytes/s above which a segment is split
  * @param splitMsgRateOut   outbound (dispatched) msg/s above which a segment is split
@@ -62,8 +66,11 @@ public record AutoScaleConfig(
         int minSegments,
         int maxDagDepth,
         Duration splitCooldown,
+        Duration rebucketCooldown,
         Duration mergeCooldown,
         Duration mergeWindow,
+        double splitVsRebucketMinMsgRateIn,
+        int maxEntryBucketsPerSegment,
         double splitMsgRateIn,
         double splitBytesRateIn,
         double splitMsgRateOut,
@@ -105,6 +112,17 @@ public record AutoScaleConfig(
         return config.validated();
     }
 
+    /**
+     * A disabled policy built from the broker configuration <b>without validation</b>: the
+     * fallback for an invalid resolved policy. Deliberately unvalidated — when the broker
+     * config itself violates an invariant, validating here would rethrow and fail every
+     * evaluation instead of disabling auto scaling as documented. Only {@code enabled} is
+     * consulted on the returned object.
+     */
+    static AutoScaleConfig disabledFallback(ServiceConfiguration conf) {
+        return brokerDefaults(conf).toBuilder().enabled(false).build();
+    }
+
     private static AutoScaleConfig brokerDefaults(ServiceConfiguration conf) {
         return AutoScaleConfig.builder()
                 .enabled(conf.isScalableTopicAutoScaleEnabled())
@@ -112,6 +130,10 @@ public record AutoScaleConfig(
                 .minSegments(conf.getScalableTopicMinSegments())
                 .maxDagDepth(conf.getScalableTopicMaxDagDepth())
                 .splitCooldown(Duration.ofSeconds(conf.getScalableTopicSplitCooldownSeconds()))
+                .rebucketCooldown(Duration.ofSeconds(conf.getScalableTopicRebucketCooldownSeconds()))
+                .splitVsRebucketMinMsgRateIn(
+                        conf.getScalableTopicSplitVsRebucketMinMsgRateInThreshold())
+                .maxEntryBucketsPerSegment(conf.getScalableTopicEntryBucketMaxPerSegment())
                 .mergeCooldown(Duration.ofSeconds(conf.getScalableTopicMergeCooldownSeconds()))
                 .mergeWindow(Duration.ofSeconds(conf.getScalableTopicMergeWindowSeconds()))
                 .splitMsgRateIn(conf.getScalableTopicSplitMsgRateInThreshold())
@@ -144,6 +166,12 @@ public record AutoScaleConfig(
         }
         if (o.getSplitCooldownSeconds() != null) {
             b.splitCooldown(Duration.ofSeconds(o.getSplitCooldownSeconds()));
+        }
+        if (o.getRebucketCooldownSeconds() != null) {
+            b.rebucketCooldown(Duration.ofSeconds(o.getRebucketCooldownSeconds()));
+        }
+        if (o.getSplitVsRebucketMinMsgRateInThreshold() != null) {
+            b.splitVsRebucketMinMsgRateIn(o.getSplitVsRebucketMinMsgRateInThreshold());
         }
         if (o.getMergeCooldownSeconds() != null) {
             b.mergeCooldown(Duration.ofSeconds(o.getMergeCooldownSeconds()));
@@ -194,6 +222,7 @@ public record AutoScaleConfig(
         check(maxSegments >= minSegments, "maxSegments must be >= minSegments");
         check(maxDagDepth >= 0, "maxDagDepth must be >= 0");
         check(!splitCooldown.isNegative(), "splitCooldown must not be negative");
+        check(!rebucketCooldown.isNegative(), "rebucketCooldown must not be negative");
         check(!mergeCooldown.isNegative(), "mergeCooldown must not be negative");
         check(!mergeWindow.isNegative(), "mergeWindow must not be negative");
         check(splitMsgRateIn > 0, "splitMsgRateInThreshold must be > 0");
@@ -204,6 +233,12 @@ public record AutoScaleConfig(
         check(mergeBytesRateIn >= 0, "mergeBytesRateInThreshold must be >= 0");
         check(mergeMsgRateOut >= 0, "mergeMsgRateOutThreshold must be >= 0");
         check(mergeBytesRateOut >= 0, "mergeBytesRateOutThreshold must be >= 0");
+        // Written as >= so a NaN (reachable via the JSON override) fails the check too.
+        check(splitVsRebucketMinMsgRateIn >= 0,
+                "splitVsRebucketMinMsgRateInThreshold must be >= 0");
+        check(maxEntryBucketsPerSegment >= 1 && maxEntryBucketsPerSegment
+                        <= EntryBucketSplits.MAX_BUCKETS,
+                "maxEntryBucketsPerSegment must be in [1, " + EntryBucketSplits.MAX_BUCKETS + "]");
         check(splitMsgRateIn > mergeMsgRateIn,
                 "splitMsgRateInThreshold must be > mergeMsgRateInThreshold (hysteresis)");
         check(splitBytesRateIn > mergeBytesRateIn,

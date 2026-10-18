@@ -20,11 +20,14 @@ package org.apache.pulsar.client.admin;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
 import org.apache.pulsar.common.policies.data.ScalableSubscriptionType;
 import org.apache.pulsar.common.policies.data.ScalableTopicMetadata;
 import org.apache.pulsar.common.policies.data.ScalableTopicStats;
+import org.apache.pulsar.common.policies.data.SegmentTopicStats;
 
 /**
  * Admin interface for scalable topic management.
@@ -195,6 +198,87 @@ public interface ScalableTopics {
     CompletableFuture<Void> removeAutoScalePolicyAsync(String topic);
 
     /**
+     * Get permissions on a scalable topic.
+     *
+     * <p>Retrieve the effective permissions for a scalable topic. These permissions are defined by the
+     * permissions set at the namespace level combined (union) with any eventual specific permission set on
+     * the topic, and apply to every segment of the topic.
+     *
+     * <p>Response Example:
+     *
+     * <pre>
+     * <code>{
+     *   "role-1" : [ "produce" ],
+     *   "role-2" : [ "consume" ]
+     * }</code>
+     * </pre>
+     *
+     * @param topic Topic name in the format "tenant/namespace/topic"
+     * @return a map of roles and their permissions
+     * @throws PulsarAdminException.NotAuthorizedException Don't have admin permission
+     * @throws PulsarAdminException.NotFoundException Scalable topic does not exist
+     * @throws PulsarAdminException Unexpected error
+     */
+    Map<String, Set<AuthAction>> getPermissions(String topic) throws PulsarAdminException;
+
+    /**
+     * Get permissions on a scalable topic asynchronously.
+     *
+     * @param topic Topic name in the format "tenant/namespace/topic"
+     * @return a map of roles and their permissions
+     */
+    CompletableFuture<Map<String, Set<AuthAction>>> getPermissionsAsync(String topic);
+
+    /**
+     * Grant a new permission to a client role on a scalable topic. The permission applies to every segment
+     * of the topic.
+     *
+     * <p>Request parameter example:
+     *
+     * <pre>
+     * <code>["produce", "consume"]</code>
+     * </pre>
+     *
+     * @param topic   Topic name in the format "tenant/namespace/topic"
+     * @param role    Client role to which grant permission
+     * @param actions Auth actions (produce and consume)
+     * @throws PulsarAdminException.NotAuthorizedException Don't have admin permission
+     * @throws PulsarAdminException.NotFoundException Scalable topic does not exist
+     * @throws PulsarAdminException.ConflictException Concurrent modification
+     * @throws PulsarAdminException Unexpected error
+     */
+    void grantPermission(String topic, String role, Set<AuthAction> actions) throws PulsarAdminException;
+
+    /**
+     * Grant a new permission to a client role on a scalable topic asynchronously.
+     *
+     * @param topic   Topic name in the format "tenant/namespace/topic"
+     * @param role    Client role to which grant permission
+     * @param actions Auth actions (produce and consume)
+     */
+    CompletableFuture<Void> grantPermissionAsync(String topic, String role, Set<AuthAction> actions);
+
+    /**
+     * Revoke the permissions granted to a client role on a scalable topic. Permissions granted at the
+     * namespace level are not affected.
+     *
+     * @param topic Topic name in the format "tenant/namespace/topic"
+     * @param role  Client role to which remove permission
+     * @throws PulsarAdminException.NotAuthorizedException Don't have admin permission
+     * @throws PulsarAdminException.NotFoundException Scalable topic does not exist
+     * @throws PulsarAdminException Unexpected error
+     */
+    void revokePermissions(String topic, String role) throws PulsarAdminException;
+
+    /**
+     * Revoke the permissions granted to a client role on a scalable topic asynchronously.
+     *
+     * @param topic Topic name in the format "tenant/namespace/topic"
+     * @param role  Client role to which remove permission
+     */
+    CompletableFuture<Void> revokePermissionsAsync(String topic, String role);
+
+    /**
      * Delete a scalable topic and all its underlying segment topics.
      *
      * @param topic Topic name in the format "tenant/namespace/topic"
@@ -229,18 +313,50 @@ public interface ScalableTopics {
     }
 
     /**
-     * Get aggregated stats for a scalable topic.
+     * Get the stats of a scalable topic as a whole: the segment DAG with per-segment load,
+     * every subscription with its backlog broken down across segments, and the producers
+     * attached to the topic.
      *
      * @param topic Topic name in the format "tenant/namespace/topic"
-     * @return stats including segment counts, per-segment layout info, and per-subscription
-     *         consumer counts
+     * @return the aggregated stats
      */
     ScalableTopicStats getStats(String topic) throws PulsarAdminException;
 
     /**
-     * Get aggregated stats for a scalable topic asynchronously.
+     * Get the stats of a scalable topic as a whole, asynchronously.
      */
     CompletableFuture<ScalableTopicStats> getStatsAsync(String topic);
+
+    /**
+     * Get the stats of a single segment of a scalable topic: the {@link SegmentTopicStats} of
+     * the topic backing the segment, as served by its owning broker.
+     *
+     * @param topic     Topic name in the format "tenant/namespace/topic"
+     * @param segmentId ID of the segment, as listed in the topic metadata or stats
+     * @return the segment's topic stats
+     */
+    SegmentTopicStats getSegmentStats(String topic, long segmentId) throws PulsarAdminException;
+
+    /**
+     * Get the stats of a single segment of a scalable topic, asynchronously.
+     */
+    CompletableFuture<SegmentTopicStats> getSegmentStatsAsync(String topic, long segmentId);
+
+    /**
+     * Get the stats of a single segment of a scalable topic, addressed by its name as listed
+     * in the topic stats: {@code segment://tenant/namespace/topic/<hashStart>-<hashEnd>-<segmentId>}.
+     * The name carries the parent topic and the segment ID, so this is equivalent to
+     * {@link #getSegmentStats(String, long)} for that segment.
+     *
+     * @param segmentTopic Full segment name ({@code segment://tenant/namespace/topic/descriptor})
+     * @return the segment's topic stats
+     */
+    SegmentTopicStats getSegmentStats(String segmentTopic) throws PulsarAdminException;
+
+    /**
+     * Get the stats of a single segment of a scalable topic by its name, asynchronously.
+     */
+    CompletableFuture<SegmentTopicStats> getSegmentStatsAsync(String segmentTopic);
 
     /**
      * Create a subscription on a scalable topic. The controller leader propagates the
@@ -323,6 +439,26 @@ public interface ScalableTopics {
      * @param segmentId ID of the segment to split
      */
     CompletableFuture<Void> splitSegmentAsync(String topic, long segmentId);
+
+    /**
+     * Rebucket a segment: roll it over to a same-range successor segment with the given
+     * entry-bucket count (PIP-486). The sealed predecessor drains under its old buckets while
+     * the successor takes new writes under the new ones.
+     *
+     * @param topic       Topic name in the format "tenant/namespace/topic"
+     * @param segmentId   ID of the segment to rebucket
+     * @param bucketCount entry-bucket count for the successor segment
+     */
+    void rebucketSegment(String topic, long segmentId, int bucketCount) throws PulsarAdminException;
+
+    /**
+     * Rebucket a segment asynchronously.
+     *
+     * @param topic       Topic name in the format "tenant/namespace/topic"
+     * @param segmentId   ID of the segment to rebucket
+     * @param bucketCount entry-bucket count for the successor segment
+     */
+    CompletableFuture<Void> rebucketSegmentAsync(String topic, long segmentId, int bucketCount);
 
     /**
      * Merge two adjacent segments into one.

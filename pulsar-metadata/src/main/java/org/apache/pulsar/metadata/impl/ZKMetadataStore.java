@@ -114,6 +114,11 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
             zkc.addWatch("/", eventWatcher, AddWatchMode.PERSISTENT_RECURSIVE);
             initBatchStrategy();
         } catch (Throwable t) {
+            try {
+                super.close();
+            } catch (Exception e) {
+                t.addSuppressed(e);
+            }
             throw new MetadataStoreException(t);
         }
     }
@@ -166,11 +171,17 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                         } else {
                             log.error().attr("code", Code.get(rc))
                                     .log("Failed to recreate persistent watch on ZooKeeper");
+                            // Only another session may reestablish the session on the re-connectable client, which
+                            // replaces it below
                             if (sessionWatcher != null) {
-                                sessionWatcher.setSessionInvalid();
+                                if (zkc instanceof PulsarZooKeeperClient) {
+                                    sessionWatcher.setSessionReplaced();
+                                } else {
+                                    sessionWatcher.setSessionInvalid();
+                                }
                             }
                             // On the re-connectable client, mark the session as expired to trigger a new reconnect,
-                            // and we will have the chance to set the watch again.
+                            // and we will have the chance to set the watch again on the new session.
                             if (zkc instanceof PulsarZooKeeperClient) {
                                 ((PulsarZooKeeperClient) zkc).process(
                                         new WatchedEvent(Watcher.Event.EventType.None,

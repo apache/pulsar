@@ -58,14 +58,6 @@ public class ManagedLedgerFactoryConfig {
     private long cacheEvictionTimeThresholdMillis = 1000;
 
     /**
-     * This setting configures the duration of continuing to cache added entries while there are no
-     * active cursors, when the last active cursor has left or immediately after initialization when
-     * the persistent topic and the managed ledger gets loaded.
-     * This setting is ignored unless cacheEvictionByExpectedReadCount is enabled.
-     */
-    private long continueCachingAddedEntriesAfterLastActiveCursorLeavesMillis;
-
-    /**
      * Maximum number of times the cache can extend the TTL of an entry that has remaining expected reads.
      * Only takes effect when cacheEvictionByExpectedReadCount is enabled.
      * This helps optimize cache efficiency for scenarios like:
@@ -74,7 +66,13 @@ public class ManagedLedgerFactoryConfig {
      * - Consumers temporarily falling behind the tail
      * Entries with remaining expected reads will have their TTL extended up to this many times
      * before being eligible for eviction. The TTL will be extended by
-     * managedLedgerCacheEvictionTimeThresholdMillis each time.
+     * managedLedgerCacheEvictionTimeThresholdMillis each time. When the cache needs memory, size-based eviction
+     * overrides this protection after requeuing an entry at most once per eviction pass. Both this protection and the
+     * one of cacheEvictionExtendTTLOfRecentlyAccessed apply only in a pass's first cycle through the cache's entries;
+     * after it, the pass removes entries in their order in the queue. Entries added while a pass is running are past
+     * its first cycle, so that pass doesn't requeue them.
+     * Without copyEntriesInCache, a cached entry keeps the larger buffer that it was received in allocated while its
+     * time to live is extended, so consider enabling copying before raising this value.
      */
     private int cacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes = 5;
 
@@ -85,7 +83,12 @@ public class ManagedLedgerFactoryConfig {
     private boolean cacheEvictionExtendTTLOfRecentlyAccessed = true;
 
     /**
-     * Whether we should make a copy of the entry payloads when inserting in cache.
+     * Whether we should make a copy of the entry payloads when inserting in cache. Without a copy, a cached entry keeps
+     * the buffer that it was received in allocated while it stays in the cache. That is a buffer of the Netty
+     * connection that the entry arrived on, from a client or from a bookie, such as a receive buffer or one that the
+     * TLS handler or the frame decoder allocated, and it can be much larger than the entry.
+     * The cache size limit counts only the entry's own size, so size-based eviction doesn't bound that memory, and
+     * cacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes extends how long it stays allocated.
      */
     private boolean copyEntriesInCache = false;
 
