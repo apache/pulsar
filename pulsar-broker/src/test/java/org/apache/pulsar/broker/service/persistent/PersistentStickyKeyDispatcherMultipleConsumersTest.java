@@ -654,7 +654,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
     public void testGetMessagesToReplayNowChecksDelayedTrackerOnce() {
         DelayedDeliveryTracker trackerMock = mock(DelayedDeliveryTracker.class);
         DelayedDeliveryTrackerFactory trackerFactoryMock = mock(DelayedDeliveryTrackerFactory.class);
-        doReturn(trackerMock).when(trackerFactoryMock).newTracker(any());
+        doReturn(CompletableFuture.completedFuture(trackerMock)).when(trackerFactoryMock).newTrackerAsync(any());
         doReturn(trackerFactoryMock).when(brokerMock).getDelayedDeliveryTrackerFactory();
         doReturn(true).when(topicMock).isDelayedDeliveryEnabled();
         doReturn(true).when(trackerMock).addMessage(anyLong(), anyLong(), anyLong());

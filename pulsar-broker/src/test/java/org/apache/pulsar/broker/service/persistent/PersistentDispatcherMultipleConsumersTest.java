@@ -467,6 +467,24 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
     }
 
     @Test
+    public void testDelayedDeliveryTrackerCreatedInline() throws Exception {
+        // Verify a factory that completes inline, like the in-memory one, installs the tracker right away and
+        // doesn't schedule an extra read.
+        DelayedDeliveryTracker tracker = Mockito.mock(DelayedDeliveryTracker.class);
+        long deliverAtTime = System.currentTimeMillis() + 5_000;
+        Mockito.doReturn(true).when(tracker).addMessage(1, 1, deliverAtTime);
+        PersistentDispatcherMultipleConsumers dispatcher =
+                newDispatcherWithDelayedTrackerFuture(CompletableFuture.completedFuture(tracker));
+
+        Assert.assertTrue(dispatcher.trackDelayedDelivery(1, 1, newDelayedMessageMetadata(deliverAtTime)));
+        Assert.assertFalse(dispatcher.isDelayedDeliveryTrackerCreatePending());
+        Assert.assertFalse(dispatcher.shouldPauseDeliveryForDelayTracker());
+        Assert.assertEquals(dispatcher.getDelayedDeliveryTrackerCreatePendingMessages(), 0);
+        Mockito.verify(tracker).addMessage(1, 1, deliverAtTime);
+        Mockito.verify(dispatcher, Mockito.never()).readMoreEntriesAsync();
+    }
+
+    @Test
     public void testDelayedDeliveryTrackerCreatedAsyncReplaysElapsedMessages() throws Exception {
         // Verify a pending message whose delivery time passed during the creation is replayed.
         CompletableFuture<DelayedDeliveryTracker> trackerFuture = new CompletableFuture<>();

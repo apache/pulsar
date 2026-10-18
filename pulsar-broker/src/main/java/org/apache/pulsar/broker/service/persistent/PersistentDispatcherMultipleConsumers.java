@@ -1402,11 +1402,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             createFuture = new CompletableFuture<>();
             delayedDeliveryTrackerCreateFuture = createFuture;
         }
-        createDelayedDeliveryTracker(createFuture);
+        createDelayedDeliveryTracker(createFuture, false);
         return true;
     }
 
-    private void createDelayedDeliveryTracker(CompletableFuture<Void> createFuture) {
+    private void createDelayedDeliveryTracker(CompletableFuture<Void> createFuture, boolean retry) {
         long startNanos = System.nanoTime();
         log.debug()
                 .attr("pendingDelayedMessages", messagesPendingDelayedDeliveryTracker.size())
@@ -1417,12 +1417,15 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         } catch (Throwable t) {
             trackerFuture = FutureUtil.failedFuture(t);
         }
+        // A first attempt that completes inline, as with the in-memory factory, never paused the dispatch: the read
+        // that found the delayed message is still in progress
+        boolean resumeDispatch = retry || !trackerFuture.isDone();
         if (!trackerFuture.isDone()) {
             scheduleDelayedDeliveryTrackerCreatePendingLog(createFuture, startNanos);
         }
         trackerFuture
                 .handle((tracker, ex) -> {
-                    delayedDeliveryTrackerCreated(createFuture, tracker, ex, startNanos);
+                    delayedDeliveryTrackerCreated(createFuture, tracker, ex, startNanos, resumeDispatch);
                     return null;
                 })
                 .exceptionally(ex -> {
@@ -1434,7 +1437,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     }
 
     private void delayedDeliveryTrackerCreated(CompletableFuture<Void> createFuture, DelayedDeliveryTracker tracker,
-                                               Throwable ex, long startNanos) {
+                                               Throwable ex, long startNanos, boolean resumeDispatch) {
         if (ex == null && tracker == null) {
             ex = new IllegalStateException("The delayed delivery tracker factory returned no tracker");
         }
@@ -1463,7 +1466,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         } finally {
             if (installed) {
                 createFuture.complete(null);
-                readMoreEntriesAsync();
+                if (resumeDispatch) {
+                    readMoreEntriesAsync();
+                }
             }
         }
 
@@ -1488,7 +1493,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             try {
                 topic.getBrokerService().executor().schedule(() -> {
                     if (delayedDeliveryTrackerCreateFuture == createFuture) {
-                        createDelayedDeliveryTracker(createFuture);
+                        createDelayedDeliveryTracker(createFuture, true);
                     }
                 }, retryDelayMillis, TimeUnit.MILLISECONDS);
             } catch (RejectedExecutionException e) {
