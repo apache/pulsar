@@ -62,6 +62,9 @@ public class TopicResourcesNotificationBenchmark {
     @Param({"1", "10"})
     public int watchersPerNamespace;
 
+    @Param({"TOPIC", "SUBSCRIPTION"})
+    public String notificationKind;
+
     private TopicResources topicResources;
     private Map<TopicListener, Pattern> originalListeners;
     private Notification[] notifications;
@@ -77,8 +80,11 @@ public class TopicResourcesNotificationBenchmark {
         for (int namespaceIndex = 0; namespaceIndex < namespaceCount; namespaceIndex++) {
             NamespaceName namespace = NamespaceName.get("tenant/namespace-" + namespaceIndex);
             String namespacePath = namespace.toString();
-            notifications[namespaceIndex] = new Notification(NotificationType.Created,
-                    "/managed-ledgers/" + namespacePath + "/persistent/topic");
+            String notificationPath = "/managed-ledgers/" + namespacePath + "/persistent/topic";
+            if ("SUBSCRIPTION".equals(notificationKind)) {
+                notificationPath += "/sub";
+            }
+            notifications[namespaceIndex] = new Notification(NotificationType.Created, notificationPath);
 
             Pattern namespacePattern = Pattern.compile("/managed-ledgers/("
                     + Pattern.quote(namespacePath) + ")/(persistent)/([^/]+)");

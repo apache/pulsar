@@ -202,6 +202,7 @@ public class TopicResourcesTest {
                 "/managed-ledgers/tenant/namespace/segment/topic",
                 "/managed-ledgers/tenant/namespace/segment/topic/persistent/descriptor",
                 "/managed-ledgers-extra/tenant/namespace/persistent/topic",
+                "/managed-ledgers/tenant/cluster/ns/persistent/topic",
                 "/managed-ledgers/tenant/namespace2/persistent/topic")) {
             topicResources.handleNotification(new Notification(NotificationType.Created, path));
         }
@@ -220,6 +221,39 @@ public class TopicResourcesTest {
                 "/managed-ledgers/tenant/persistent/persistent/topic"));
 
         verify(listener).onTopicEvent("persistent://tenant/persistent/topic", NotificationType.Created);
+    }
+
+    @Test
+    public void testTopicNamedPersistentIsDispatchedButItsSubscriptionIsIgnored() {
+        TopicListener listener = mock(TopicListener.class);
+        when(listener.getNamespaceName()).thenReturn(NamespaceName.get("tenant/namespace"));
+        topicResources.registerPersistentTopicListener(listener);
+
+        String topicPath = "/managed-ledgers/tenant/namespace/persistent/persistent";
+        topicResources.handleNotification(new Notification(NotificationType.Created, topicPath));
+        topicResources.handleNotification(new Notification(NotificationType.Deleted, topicPath));
+        topicResources.handleNotification(new Notification(NotificationType.Created, topicPath + "/sub"));
+        topicResources.handleNotification(new Notification(NotificationType.Deleted, topicPath + "/sub"));
+
+        verify(listener).getNamespaceName();
+        verify(listener).onTopicEvent("persistent://tenant/namespace/persistent", NotificationType.Created);
+        verify(listener).onTopicEvent("persistent://tenant/namespace/persistent", NotificationType.Deleted);
+        verifyNoMoreInteractions(listener);
+    }
+
+    @Test
+    public void testNamespaceAndTopicBothNamedPersistentDoNotConfusePathParsing() {
+        TopicListener listener = mock(TopicListener.class);
+        when(listener.getNamespaceName()).thenReturn(NamespaceName.get("tenant/persistent"));
+        topicResources.registerPersistentTopicListener(listener);
+
+        String topicPath = "/managed-ledgers/tenant/persistent/persistent/persistent";
+        topicResources.handleNotification(new Notification(NotificationType.Created, topicPath));
+        topicResources.handleNotification(new Notification(NotificationType.Created, topicPath + "/sub"));
+
+        verify(listener).getNamespaceName();
+        verify(listener).onTopicEvent("persistent://tenant/persistent/persistent", NotificationType.Created);
+        verifyNoMoreInteractions(listener);
     }
 
     @Test
