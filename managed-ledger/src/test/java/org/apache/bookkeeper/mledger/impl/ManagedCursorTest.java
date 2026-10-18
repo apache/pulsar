@@ -67,6 +67,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
@@ -3911,6 +3912,48 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             assertEquals(1, c1.replayEntries(positions).size());
         } catch (ManagedLedgerException e) {
             fail("Should have not failed");
+        }
+    }
+
+    @Test(timeOut = 20000)
+    void testReplayEntriesReadsRunsOfClosePositionsTogether() throws Exception {
+        ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig());
+        config.setMaxEntriesPerLedger(300);
+        ManagedLedger ledger = factory.open("test_replay_runs", config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+        List<Position> added = new ArrayList<>();
+        for (int i = 0; i < 600; i++) {
+            added.add(ledger.addEntry(("entry-" + i).getBytes(Encoding)));
+        }
+        // a run of every 8th entry longer than a range read takes, lone positions, and positions in both ledgers
+        Set<Position> positions = new TreeSet<>();
+        for (int i = 0; i < 296; i += 8) {
+            positions.add(added.get(i));
+        }
+        positions.add(added.get(299));
+        positions.add(added.get(300));
+        positions.add(added.get(450));
+        positions.add(added.get(461));
+
+        CompletableFuture<List<Entry>> replayed = new CompletableFuture<>();
+        cursor.asyncReplayEntries(positions, new AsyncCallbacks.ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                replayed.complete(entries);
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                replayed.completeExceptionally(exception);
+            }
+        }, null, true);
+
+        List<Entry> entries = replayed.get(10, TimeUnit.SECONDS);
+        // exactly the positions, in order, with their data
+        assertEquals(entries.stream().map(Entry::getPosition).toList(), new ArrayList<>(positions));
+        for (Entry entry : entries) {
+            assertEquals(new String(entry.getData(), Encoding), "entry-" + added.indexOf(entry.getPosition()));
+            entry.release();
         }
     }
 

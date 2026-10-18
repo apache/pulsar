@@ -34,6 +34,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.common.util.concurrent.RateLimiter;
 import io.github.merlimat.slog.Logger;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import java.time.Clock;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -1943,6 +1944,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
         };
 
+        List<Position> validPositions = new ArrayList<>(totalValidPositions);
         positions.stream().filter(position -> !alreadyAcknowledgedPositions.contains(position))
                 .forEach(p ->{
                     if (p.compareTo(this.readPosition) == 0) {
@@ -1952,10 +1954,80 @@ public class ManagedCursorImpl implements ManagedCursor {
                                 .attr("readPosition", this.readPosition)
                                 .log("Replay position equals read position, setting next readPosition");
                     }
-                    ledger.asyncReadEntry(p, cb, ctx);
+                    validPositions.add(p);
                 });
+        readReplayPositions(validPositions, cb, ctx);
 
         return alreadyAcknowledgedPositions;
+    }
+
+    // Replay positions closer to each other than this, in entries, are read with one storage read of the range
+    // between them, so that the read takes at most this many entries for each one wanted
+    static final int REPLAY_RANGE_MAX_GAP = 8;
+    // the most entries that one range read of replay positions takes
+    static final int REPLAY_RANGE_MAX_ENTRIES = 256;
+
+    /**
+     * Reads the replay positions, the runs of positions close to each other in a ledger with one read of the range
+     * between them, which releases the entries in between, and the other positions one at a time. A dispatcher's
+     * replay positions are often close: a consumer's pending entries, or the entries of the keys of a consumer that
+     * had no permits. Each wanted entry, or its failure, reaches the callback as a single-entry read's would.
+     */
+    private void readReplayPositions(List<Position> positions, ReadEntryCallback cb, Object ctx) {
+        positions.sort(null);
+        int start = 0;
+        while (start < positions.size()) {
+            Position first = positions.get(start);
+            int end = start + 1;
+            while (end < positions.size()) {
+                Position next = positions.get(end);
+                Position previous = positions.get(end - 1);
+                if (next.getLedgerId() != first.getLedgerId()
+                        || next.getEntryId() - previous.getEntryId() > REPLAY_RANGE_MAX_GAP
+                        || next.getEntryId() - first.getEntryId() >= REPLAY_RANGE_MAX_ENTRIES) {
+                    break;
+                }
+                end++;
+            }
+            if (end - start == 1) {
+                ledger.asyncReadEntry(first, cb, ctx);
+            } else {
+                readReplayRange(positions.subList(start, end), cb, ctx);
+            }
+            start = end;
+        }
+    }
+
+    private void readReplayRange(List<Position> wanted, ReadEntryCallback cb, Object ctx) {
+        long ledgerId = wanted.get(0).getLedgerId();
+        long firstEntry = wanted.get(0).getEntryId();
+        long lastEntry = wanted.get(wanted.size() - 1).getEntryId();
+        LongOpenHashSet wantedEntries = new LongOpenHashSet(wanted.size());
+        wanted.forEach(position -> wantedEntries.add(position.getEntryId()));
+        ledger.asyncReadEntries(ledgerId, firstEntry, lastEntry, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object readCtx) {
+                for (Entry entry : entries) {
+                    if (wantedEntries.remove(entry.getEntryId())) {
+                        cb.readEntryComplete(entry, ctx);
+                    } else {
+                        entry.release();
+                    }
+                }
+                // a wanted entry that the read didn't return fails as its own read would
+                for (int i = 0; i < wantedEntries.size(); i++) {
+                    cb.readEntryFailed(new ManagedLedgerException("Entry not found in the replay read of ledger "
+                            + ledgerId + " entries " + firstEntry + " to " + lastEntry), ctx);
+                }
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object readCtx) {
+                for (int i = 0; i < wantedEntries.size(); i++) {
+                    cb.readEntryFailed(exception, ctx);
+                }
+            }
+        }, ctx);
     }
 
     protected long getNumberOfEntries(Range<Position> range) {
