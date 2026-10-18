@@ -127,6 +127,10 @@ public interface PulsarClientImplementationBinding {
     <T extends com.google.protobuf.Message> Schema<T> newProtobufNativeSchema(
             SchemaDefinition schemaDefinition);
 
+    <T> Schema<T> newAvroSchema(Class<T> pojo);
+    <T extends com.google.protobuf.GeneratedMessage> Schema<T> newProtobufSchema(Class<T> clazz);
+    <T> Schema<T> newJSONSchema(Class<T> pojo);
+
     @SuppressWarnings("rawtypes")
     <T> Schema<T> newJSONSchema(SchemaDefinition schemaDefinition);
 

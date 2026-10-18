@@ -277,6 +277,21 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
         return ProtobufNativeSchema.of(schemaDefinition);
     }
 
+    @Override
+    public <T> Schema<T> newAvroSchema(Class<T> pojo) {
+        return getOrCreate(avroCache, pojo, AvroSchema::of);
+    }
+
+    @Override
+    public <T extends com.google.protobuf.GeneratedMessage> Schema<T> newProtobufSchema(Class<T> clazz) {
+        return getOrCreate(protobufCache, clazz, ProtobufSchema::of);
+    }
+
+    @Override
+    public <T> Schema<T> newJSONSchema(Class<T> pojo) {
+        return getOrCreate(jsonCache, pojo, JSONSchema::of);
+    }
+
     @SuppressWarnings("rawtypes")
     public <T> Schema<T> newJSONSchema(SchemaDefinition schemaDefinition) {
         return JSONSchema.of(schemaDefinition);

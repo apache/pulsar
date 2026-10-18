@@ -57,7 +57,6 @@ public class SchemaCreationBenchmark {
         definition = SchemaDefinition.<Foo>builder().withPojo(Foo.class).build();
         prebuilt = Schema.AVRO(Foo.class);   // warms cache, keeps value strongly reachable
     }
-    /*
     @Benchmark
     public void cacheMiss(Blackhole bh) {
         binding.clearAvroCache();
@@ -67,7 +66,6 @@ public class SchemaCreationBenchmark {
     public void cacheHitAvroSchema(Blackhole bh) {
         bh.consume(binding.newAvroSchema(Foo.class));
     }
-    */
     @Benchmark
     public void cloneOnly(Blackhole bh) {
         bh.consume(prebuilt.clone());
@@ -75,6 +73,7 @@ public class SchemaCreationBenchmark {
 
     @Benchmark
     public void ofOnly(Blackhole bh) {
+        binding.clearAvroCache();
         bh.consume(AvroSchema.of(Foo.class));
     }
     @Benchmark
