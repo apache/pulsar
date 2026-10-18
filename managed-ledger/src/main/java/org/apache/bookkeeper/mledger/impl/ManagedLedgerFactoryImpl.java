@@ -73,6 +73,7 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.MetadataNotFoundException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryMXBean;
@@ -1378,7 +1379,13 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
                         @Override
                         public void operationFailed(MetaStoreException e) {
-                            metadata.completeExceptionally(e);
+                            if (e instanceof MetadataNotFoundException) {
+                                // Preserve the previous behavior for missing managed-ledger metadata: publish an empty
+                                // snapshot so an offline backlog request returns zero instead of failing.
+                                metadata.complete(new ManagedLedgerInfo());
+                            } else {
+                                metadata.completeExceptionally(e);
+                            }
                         }
                     });
         } catch (Exception e) {
@@ -1474,15 +1481,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                     cursors.add(readCursorBacklogAsync(topicName.getPersistenceNamingEncoding(), cursor,
                             ledgers, bk, digestType, password));
                 }
-                CompletableFuture<List<CursorBacklog>> result = new CompletableFuture<>();
-                cursors.forEach(cursor -> cursor.whenComplete((backlog, error) -> {
-                    if (error != null) {
-                        result.completeExceptionally(error);
-                    }
-                }));
-                CompletableFuture.allOf(cursors.toArray(CompletableFuture[]::new)).thenRun(() ->
-                        result.complete(cursors.stream().map(cursor -> cursor.getNow(null)).toList()));
-                return result;
+                return CompletableFuture.allOf(cursors.toArray(CompletableFuture[]::new))
+                        .thenApply(__ -> cursors.stream().map(cursor -> cursor.getNow(null)).toList());
             });
         });
     }

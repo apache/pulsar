@@ -24,6 +24,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import java.nio.charset.StandardCharsets;
@@ -296,6 +297,66 @@ public class ManagedLedgerOfflineBacklogTest extends MockedBookKeeperTestCase {
                 .submit(() -> null).get(5, TimeUnit.SECONDS);
     }
 
+    @Test(timeOut = 15000)
+    public void testCursorFailureWaitsForOtherCursorCleanup() throws Exception {
+        TopicName topicName = TopicName.get("persistent://tenant/namespace/offline-wait-for-cursors");
+        Position lastPosition = createOfflineTopic(topicName);
+        LedgerHandle slowCursorLedger = bkc.createLedger(BookKeeper.DigestType.CRC32, new byte[0]);
+        slowCursorLedger.addEntry(new PositionInfo().setLedgerId(lastPosition.getLedgerId())
+                .setEntryId(-1).toByteArray());
+        slowCursorLedger.close();
+        writeCursorInfo(topicName, "slow-subscription", slowCursorLedger.getId(), -1, -1);
+
+        MetaStore actualStore = factory.getMetaStore();
+        MetaStore delayedStore = spy(actualStore);
+        CompletableFuture<MetaStoreCallback<ManagedCursorInfo>> failureCallback = new CompletableFuture<>();
+        doAnswer(invocation -> {
+            String cursorName = invocation.getArgument(1);
+            MetaStoreCallback<ManagedCursorInfo> callback = invocation.getArgument(2);
+            if ("subscription".equals(cursorName)) {
+                failureCallback.complete(callback);
+            } else {
+                actualStore.asyncGetCursorInfo(invocation.getArgument(0), cursorName, callback);
+            }
+            return null;
+        }).when(delayedStore).asyncGetCursorInfo(eq(topicName.getPersistenceNamingEncoding()), any(), any());
+
+        CompletableFuture<ReadHandle> observedHandle = new CompletableFuture<>();
+        ManagedLedgerFactoryImpl estimatorFactory = observeReadHandle(slowCursorLedger.getId(), observedHandle);
+        doReturn(delayedStore).when(estimatorFactory).getMetaStore();
+        CompletableFuture<LedgerEntries> observedEntries = new CompletableFuture<>();
+        CompletableFuture<Void> releaseSlowRead = new CompletableFuture<>();
+        bkc.setReadHandleInterceptor((ledgerId, first, last, entries) -> {
+            if (ledgerId != slowCursorLedger.getId()) {
+                return CompletableFuture.completedFuture(entries);
+            }
+            LedgerEntries observed = spy(entries);
+            observedEntries.complete(observed);
+            return releaseSlowRead.thenApply(__ -> observed);
+        });
+
+        ManagedLedgerOfflineBacklog backlog =
+                new ManagedLedgerOfflineBacklog(DigestType.CRC32, new byte[0], "broker", false);
+        CompletableFuture<PersistentOfflineTopicStats> result =
+                backlog.estimateUnloadedTopicBacklogAsync(estimatorFactory, topicName, cachedExecutor);
+        MetaStoreCallback<ManagedCursorInfo> callback = failureCallback.get(5, TimeUnit.SECONDS);
+        LedgerEntries entries = observedEntries.get(5, TimeUnit.SECONDS);
+        ReadHandle handle = observedHandle.get(5, TimeUnit.SECONDS);
+        callback.operationFailed(new ManagedLedgerException.MetaStoreException("injected cursor failure"));
+        try {
+            assertThat(result).isNotDone();
+            verify(handle, never()).closeAsync();
+        } finally {
+            releaseSlowRead.complete(null);
+        }
+
+        assertThatThrownBy(() -> result.get(5, TimeUnit.SECONDS))
+                .isInstanceOf(ExecutionException.class)
+                .hasRootCauseInstanceOf(ManagedLedgerException.MetaStoreException.class);
+        verify(entries).close();
+        verify(handle).closeAsync();
+    }
+
     @Test(dataProvider = "accuracy", timeOut = 15000)
     public void testUnknownCursorLacUsesTheBlockingExecutorOnlyForAccurateStats(boolean accurate) throws Exception {
         TopicName topicName = TopicName.get("persistent://tenant/namespace/offline-unknown-lac");
@@ -329,6 +390,24 @@ public class ManagedLedgerOfflineBacklogTest extends MockedBookKeeperTestCase {
         verify(observedHandle.get(5, TimeUnit.SECONDS)).closeAsync();
         factory.getScheduledExecutor().chooseThread(topicName.getPersistenceNamingEncoding())
                 .submit(() -> null).get(5, TimeUnit.SECONDS);
+    }
+
+    @Test(dataProvider = "accuracy", timeOut = 15000)
+    public void testMissingManagedLedgerReturnsZeroStats(boolean accurate) throws Exception {
+        TopicName topicName = TopicName.get("persistent://tenant/namespace/offline-missing");
+        ManagedLedgerOfflineBacklog backlog =
+                new ManagedLedgerOfflineBacklog(DigestType.CRC32, new byte[0], "broker", accurate);
+
+        PersistentOfflineTopicStats stats = backlog
+                .estimateUnloadedTopicBacklogAsync(factory, topicName, cachedExecutor).get(5, TimeUnit.SECONDS);
+
+        assertThat(stats.storageSize).isZero();
+        assertThat(stats.totalMessages).isZero();
+        assertThat(stats.messageBacklog).isZero();
+        assertThat(stats.dataLedgerDetails).isEmpty();
+        assertThat(stats.cursorDetails).isEmpty();
+        assertThat(metadataStore.exists("/managed-ledgers/" + topicName.getPersistenceNamingEncoding())
+                .get(5, TimeUnit.SECONDS)).isFalse();
     }
 
     @Test(dataProvider = "accuracy", timeOut = 15000)
