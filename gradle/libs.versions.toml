@@ -144,7 +144,8 @@ netty-reactive-streams = "2.0.20"
 # 9.2.0+ is required for CronType.SPRING53 (Spring 5.3+ cron syntax)
 cron-utils = "9.2.1"
 failsafe = "3.3.2"
-disruptor = "3.4.3"
+# The LMAX Disruptor of log4j2's async loggers, which bin/pulsar enables
+disruptor = "4.0.0"
 ant = "1.10.17"
 # guice is held at 5.1.0 to match what TestNG 7.x declares; Guice 7 switches from
 # javax.inject to jakarta.inject. jclouds is the only consumer that needs Guice 7 and
@@ -229,6 +230,7 @@ log4j-web = { module = "org.apache.logging.log4j:log4j-web", version.ref = "log4
 log4j-layout-template-json = { module = "org.apache.logging.log4j:log4j-layout-template-json", version.ref = "log4j2" }
 log4j-slf4j2-impl = { module = "org.apache.logging.log4j:log4j-slf4j2-impl", version.ref = "log4j2" }
 log4j-jul = { module = "org.apache.logging.log4j:log4j-jul", version.ref = "log4j2" }
+disruptor = { module = "com.lmax:disruptor", version.ref = "disruptor" }
 # slog
 slog = { module = "io.github.merlimat.slog:slog", version.ref = "slog" }
 # Lombok
