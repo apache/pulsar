@@ -19,12 +19,9 @@
 package org.apache.pulsar.broker.service;
 
 import com.google.common.annotations.VisibleForTesting;
-import java.util.Collections;
-import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -235,17 +232,13 @@ public class MetadataStoreTopicPoliciesService implements TopicPoliciesService {
             return;
         }
         // Only the listener instances registered before dispatch may receive this notification.
-        Set<TopicPolicyListener> recipients = Collections.newSetFromMap(new IdentityHashMap<>());
-        recipients.addAll(topicListeners);
+        List<TopicPolicyListener> recipients = List.copyOf(topicListeners);
         try {
             brokerService.getTopicPoliciesNotifyThread(topicName).execute(() -> {
-                if (closed.get() || listeners.get(topicName) != topicListeners) {
+                if (closed.get()) {
                     return;
                 }
-                for (TopicPolicyListener listener : topicListeners) {
-                    if (!recipients.contains(listener)) {
-                        continue;
-                    }
+                for (TopicPolicyListener listener : recipients) {
                     try {
                         listener.onUpdate(policies == null ? null : policies.clone());
                     } catch (Throwable error) {

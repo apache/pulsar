@@ -213,16 +213,16 @@ public class MetadataStoreTopicPoliciesServiceTest {
         }
     }
 
-    @DataProvider(name = "queuedNotificationInvalidation")
-    public Object[][] queuedNotificationInvalidation() {
+    @DataProvider(name = "queuedNotificationLifecycle")
+    public Object[][] queuedNotificationLifecycle() {
         return new Object[][]{
                 {"closed", false}, {"unregistered", false}, {"replaced", false},
                 {"closed", true}, {"unregistered", true}, {"replaced", true}
         };
     }
 
-    @Test(dataProvider = "queuedNotificationInvalidation")
-    public void testQueuedNotificationChecksListenerLifecycle(String invalidation, boolean keepOtherListener)
+    @Test(dataProvider = "queuedNotificationLifecycle")
+    public void testQueuedNotificationUsesDispatchSnapshot(String invalidation, boolean keepOtherListener)
             throws Exception {
         String path = MetadataStoreTopicPoliciesService.pathFor(TOPIC, false);
         when(localCache.get(path)).thenReturn(CompletableFuture.completedFuture(Optional.of(new TopicPolicies())));
@@ -254,7 +254,9 @@ public class MetadataStoreTopicPoliciesServiceTest {
             }
             releaseTopicThread.countDown();
             topicExecutor.submit(() -> { }).get(5, TimeUnit.SECONDS);
-            assertThat(oldCallbacks).hasValue(0);
+            assertThat(oldCallbacks)
+                    .as("queued notifications keep their listener snapshot unless the service is closed")
+                    .hasValue(invalidation.equals("closed") ? 0 : 1);
             assertThat(replacementCallbacks).as("an old notification must not reach a new registration").hasValue(0);
         } finally {
             releaseTopicThread.countDown();
