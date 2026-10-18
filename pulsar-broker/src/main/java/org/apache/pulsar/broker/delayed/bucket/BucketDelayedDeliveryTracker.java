@@ -31,6 +31,7 @@ import io.netty.util.Timer;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -42,6 +43,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
@@ -164,6 +166,19 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                                         long minIndexCountPerBucket, long timeStepPerBucketSnapshotSegmentInMillis,
                                         int maxIndexesPerBucketSnapshotSegment, int maxNumBuckets)
             throws RecoverDelayedDeliveryTrackerException {
+        this(context, timer, tickTimeMillis, clock, isDelayedDeliveryDeliverAtTimeStrict, bucketSnapshotStorage,
+                minIndexCountPerBucket, timeStepPerBucketSnapshotSegmentInMillis, maxIndexesPerBucketSnapshotSegment,
+                maxNumBuckets, true);
+    }
+
+    public BucketDelayedDeliveryTracker(DelayedDeliveryContext context,
+                                        Timer timer, long tickTimeMillis, Clock clock,
+                                        boolean isDelayedDeliveryDeliverAtTimeStrict,
+                                        BucketSnapshotStorage bucketSnapshotStorage,
+                                        long minIndexCountPerBucket, long timeStepPerBucketSnapshotSegmentInMillis,
+                                        int maxIndexesPerBucketSnapshotSegment, int maxNumBuckets,
+                                        boolean recoverBucketSnapshot)
+            throws RecoverDelayedDeliveryTrackerException {
         super(context, timer, tickTimeMillis, clock, isDelayedDeliveryDeliverAtTimeStrict);
         this.log = LOG.with().ctx(super.log).build();
         this.minIndexCountPerBucket = minIndexCountPerBucket;
@@ -178,21 +193,62 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         this.lastMutableBucket = new MutableBucket(ctx);
         this.stats = new BucketDelayedMessageIndexStats();
 
-        // Close the tracker if failed to recover.
-        try {
+        if (recoverBucketSnapshot) {
             recoverBucketSnapshot();
-        } catch (RecoverDelayedDeliveryTrackerException e) {
-            close();
-            throw e;
         }
     }
 
-    private synchronized long recoverBucketSnapshot() throws RecoverDelayedDeliveryTrackerException {
+    /**
+     * Recover the bucket snapshots without blocking the caller. On failure the tracker is closed.
+     */
+    public CompletableFuture<BucketDelayedDeliveryTracker> recoverBucketSnapshotAsync(
+            ScheduledExecutorService timeoutExecutor) {
+        try {
+            CompletableFuture<Long> recoverFuture = recoverBucketSnapshot0();
+            FutureUtil.addTimeoutHandling(recoverFuture, Duration.ofSeconds(AsyncOperationTimeoutSeconds * 5L),
+                    timeoutExecutor, () -> FutureUtil.createTimeoutException(
+                            "Timeout", getClass(), "recoverBucketSnapshotAsync(...)"));
+            return recoverFuture.thenApply(__ -> this).whenComplete((__, ex) -> {
+                if (ex != null) {
+                    log.warn()
+                            .attr("timeoutSeconds", AsyncOperationTimeoutSeconds * 5)
+                            .exception(FutureUtil.unwrapCompletionException(ex))
+                            .log("Failed to recover delayed message index bucket snapshot asynchronously, "
+                                    + "closing tracker");
+                    closeAsync();
+                }
+            });
+        } catch (Throwable t) {
+            log.warn()
+                    .exception(t)
+                    .log("Failed to start delayed message index bucket snapshot recovery asynchronously, "
+                            + "closing tracker");
+            closeAsync();
+            return FutureUtil.failedFuture(t);
+        }
+    }
+
+    public void recoverBucketSnapshot() throws RecoverDelayedDeliveryTrackerException {
+        try {
+            recoverBucketSnapshot0().get(AsyncOperationTimeoutSeconds * 5, TimeUnit.SECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            log.error()
+                    .exception(e)
+                    .log("Failed to recover delayed message index bucket snapshot.");
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
+            close();
+            throw new RecoverDelayedDeliveryTrackerException(e);
+        }
+    }
+
+    private synchronized CompletableFuture<Long> recoverBucketSnapshot0() {
         ManagedCursor cursor = ctx.cursor();
         Map<String, String> cursorProperties = cursor.getCursorProperties();
         if (MapUtils.isEmpty(cursorProperties)) {
             log.info("Recover delayed message index bucket snapshot finish, don't find bucket snapshot");
-            return 0;
+            return CompletableFuture.completedFuture(0L);
         }
         Map<Range<Long>, ImmutableBucket> toBeDeletedBucketMap = new HashMap<>();
         cursorProperties.keySet().forEach(key -> {
@@ -209,7 +265,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         Map<Range<Long>, ImmutableBucket> immutableBucketMap = immutableBuckets.asMapOfRanges();
         if (immutableBucketMap.isEmpty()) {
             log.info("Recover delayed message index bucket snapshot finish, don't find bucket snapshot");
-            return 0;
+            return CompletableFuture.completedFuture(0L);
         }
 
         Map<Range<Long>, CompletableFuture<List<DelayedIndex>>>
@@ -219,60 +275,52 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
             futures.put(key, handleRecoverBucketSnapshotEntry(entry.getValue()));
         }
 
-        try {
-            FutureUtil.waitForAll(futures.values()).get(AsyncOperationTimeoutSeconds * 5, TimeUnit.SECONDS);
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            log.error()
-                    .exception(e)
-                    .log("Failed to recover delayed message index bucket snapshot.");
-            if (e instanceof InterruptedException) {
-                Thread.currentThread().interrupt();
-            }
-            throw new RecoverDelayedDeliveryTrackerException(e);
-        }
-
-        for (Map.Entry<Range<Long>, CompletableFuture<List<DelayedIndex>>> entry : futures.entrySet()) {
-            Range<Long> key = entry.getKey();
-            // the future will always be completed since it was waited for above
-            List<DelayedIndex> indexList = entry.getValue().getNow(null);
-            ImmutableBucket immutableBucket = immutableBucketMap.get(key);
-            if (CollectionUtils.isEmpty(indexList)) {
-                // Delete bucket snapshot if indexList is empty
-                toBeDeletedBucketMap.put(key, immutableBucket);
-            } else {
-                DelayedIndex lastDelayedIndex = indexList.get(indexList.size() - 1);
-                this.snapshotSegmentLastIndexMap.put(
-                        new SnapshotKey(lastDelayedIndex.getLedgerId(), lastDelayedIndex.getEntryId()),
-                        immutableBucket);
-                for (DelayedIndex index : indexList) {
-                    this.sharedBucketPriorityQueue.add(index.getTimestamp(), index.getLedgerId(),
-                            index.getEntryId());
+        return FutureUtil.waitForAll(futures.values()).thenApply(__ -> {
+            synchronized (this) {
+                for (Map.Entry<Range<Long>, CompletableFuture<List<DelayedIndex>>> entry : futures.entrySet()) {
+                    Range<Long> key = entry.getKey();
+                    // the future is completed since waitForAll completed normally
+                    List<DelayedIndex> indexList = entry.getValue().getNow(null);
+                    ImmutableBucket immutableBucket = immutableBucketMap.get(key);
+                    if (CollectionUtils.isEmpty(indexList)) {
+                        // Delete bucket snapshot if indexList is empty
+                        toBeDeletedBucketMap.put(key, immutableBucket);
+                    } else {
+                        DelayedIndex lastDelayedIndex = indexList.get(indexList.size() - 1);
+                        this.snapshotSegmentLastIndexMap.put(
+                                new SnapshotKey(lastDelayedIndex.getLedgerId(), lastDelayedIndex.getEntryId()),
+                                immutableBucket);
+                        for (DelayedIndex index : indexList) {
+                            this.sharedBucketPriorityQueue.add(index.getTimestamp(), index.getLedgerId(),
+                                    index.getEntryId());
+                        }
+                    }
                 }
+
+                for (Map.Entry<Range<Long>, ImmutableBucket> mapEntry : toBeDeletedBucketMap.entrySet()) {
+                    Range<Long> key = mapEntry.getKey();
+                    ImmutableBucket immutableBucket = mapEntry.getValue();
+                    removeBucket(key);
+                    // delete asynchronously without waiting for completion
+                    immutableBucket.asyncDeleteBucketSnapshot(stats);
+                }
+
+                long totalLength = 0;
+                for (ImmutableBucket bucket : immutableBucketMap.values()) {
+                    index.restore(bucket.getDelayedIndexBitMap());
+                    totalLength += bucket.getSnapshotLength();
+                }
+                totalSnapshotLengthBytes.set(totalLength);
+                bucketsCount.set(immutableBuckets.asMapOfRanges().size());
+
+                log.info()
+                        .attr("buckets", immutableBucketMap.size())
+                        .attr("numberDelayedMessages", index.size())
+                        .log("Recover delayed message index bucket snapshot finish");
+
+                return index.size();
             }
-        }
-
-        for (Map.Entry<Range<Long>, ImmutableBucket> mapEntry : toBeDeletedBucketMap.entrySet()) {
-            Range<Long> key = mapEntry.getKey();
-            ImmutableBucket immutableBucket = mapEntry.getValue();
-            removeBucket(key);
-            // delete asynchronously without waiting for completion
-            immutableBucket.asyncDeleteBucketSnapshot(stats);
-        }
-
-        long totalLength = 0;
-        for (ImmutableBucket bucket : immutableBucketMap.values()) {
-            index.restore(bucket.getDelayedIndexBitMap());
-            totalLength += bucket.getSnapshotLength();
-        }
-        totalSnapshotLengthBytes.set(totalLength);
-        bucketsCount.set(immutableBuckets.asMapOfRanges().size());
-
-        log.info()
-                .attr("buckets", immutableBucketMap.size())
-                .attr("numberDelayedMessages", index.size())
-                .log("Recover delayed message index bucket snapshot finish");
-
-        return index.size();
+        });
     }
 
     /**
