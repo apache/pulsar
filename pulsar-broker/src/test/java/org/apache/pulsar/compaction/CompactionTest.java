@@ -2792,14 +2792,14 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
     }
 
     /**
-     * Verifies that a continuous readCompacted reader receives tombstones published after the
-     * initial compaction snapshot, even when a second compaction runs before those tombstones
-     * are consumed.
+     * A readCompacted reader that already finished the compacted snapshot must receive the tombstones published
+     * afterwards, even when a second compaction removes them before they are read. A reader created after that
+     * compaction still sees only the compacted view.
      */
-    @Test(timeOut = 15000)
-    public void testTableViewMissesDeletesWhenCompactionRunsBeforeTombstonesConsumed() throws Exception {
+    @Test(timeOut = 30000)
+    public void testReaderReceivesTombstonesWhenCompactionRunsBeforeConsumption() throws Exception {
         admin.namespaces().setRetention("my-tenant/my-ns", new RetentionPolicies(-1, -1));
-        final String topic = "persistent://my-tenant/my-ns/tableview-delete-after-compaction";
+        final String topic = newUniqueName("persistent://my-tenant/my-ns/tombstones-after-snapshot");
 
         pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe().close();
@@ -2819,6 +2819,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         }
         triggerAndWaitCompaction(topic);
 
+        // A receiver queue of 1 keeps all but the first tombstone in the topic until the reader asks for them.
         @Cleanup
         Reader<String> reader = pulsarClient.newReader(Schema.STRING)
                 .topic(topic)
@@ -2838,23 +2839,42 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 "key-2", "value-key-2",
                 "key-3", "value-key-3"));
 
+        MessageIdAdv lastTombstoneId = null;
         for (String key : deletedKeys) {
-            producer.newMessage().key(key).send();
+            lastTombstoneId = (MessageIdAdv) producer.newMessage().key(key).send();
         }
-        triggerAndWaitCompaction(topic);
+        final Position lastTombstone = PositionFactory.create(lastTombstoneId.getLedgerId(),
+                lastTombstoneId.getEntryId());
+        final PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).orElseThrow();
+        admin.topics().triggerCompaction(topic);
+        Awaitility.await().untilAsserted(() -> {
+            Position horizon = persistentTopic.getTopicCompactionService().getLastCompactedPosition().get();
+            assertNotNull(horizon);
+            assertTrue(horizon.compareTo(lastTombstone) >= 0);
+        });
 
-        final Set<String> receivedTombstones = new HashSet<>();
+        final List<String> receivedTombstones = new ArrayList<>();
         for (int i = 0; i < deletedKeys.size(); i++) {
-            Message<String> message = reader.readNext(1, TimeUnit.SECONDS);
+            Message<String> message = reader.readNext(5, TimeUnit.SECONDS);
             assertNotNull(message, "Expected tombstone " + (i + 1) + " of " + deletedKeys.size());
-            assertTrue(message.hasKey());
-            assertNull(message.getValue(), "Expected tombstone for key: " + message.getKey());
-            assertTrue(deletedKeys.contains(message.getKey()),
-                    "Unexpected tombstone key: " + message.getKey());
+            assertNull(message.getValue(), "Expected a tombstone for key " + message.getKey());
             receivedTombstones.add(message.getKey());
         }
-        assertEquals(receivedTombstones, Set.copyOf(deletedKeys),
-                "Should receive a tombstone for each deleted key");
+        assertEquals(receivedTombstones, deletedKeys);
+        assertNull(reader.readNext(1, TimeUnit.SECONDS));
+
+        @Cleanup
+        Reader<String> freshReader = pulsarClient.newReader(Schema.STRING)
+                .topic(topic)
+                .readCompacted(true)
+                .startMessageId(MessageId.earliest)
+                .create();
+        Message<String> message = freshReader.readNext(5, TimeUnit.SECONDS);
+        assertNotNull(message);
+        assertEquals(message.getKey(), keptKey);
+        assertEquals(message.getValue(), "value-keep");
+        assertNull(freshReader.readNext(1, TimeUnit.SECONDS));
     }
 
     @Test
