@@ -50,6 +50,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -171,6 +172,8 @@ public class ManagedCursorImpl implements ManagedCursor {
         AtomicIntegerFieldUpdater.newUpdater(ManagedCursorImpl.class, "resetCursorInProgress");
     @SuppressWarnings("unused")
     private volatile int resetCursorInProgress = FALSE;
+    // Guarded by pendingMarkDeleteOps. Completes after reset finishes, whether it succeeds or fails.
+    private CompletableFuture<Void> resetCursorFuture;
     private static final AtomicIntegerFieldUpdater<ManagedCursorImpl> PENDING_READ_OPS_UPDATER =
         AtomicIntegerFieldUpdater.newUpdater(ManagedCursorImpl.class, "pendingReadOps");
     @SuppressWarnings("unused")
@@ -1667,6 +1670,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 .attr("newReadPosition", newReadPosition)
                 .log("Initiate reset readPosition");
 
+        final CompletableFuture<Void> resetFuture;
         synchronized (pendingMarkDeleteOps) {
             if (!RESET_CURSOR_IN_PROGRESS_UPDATER.compareAndSet(this, FALSE, TRUE)) {
                 log.error()
@@ -1677,6 +1681,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                         newReadPosition);
                 return;
             }
+            resetFuture = new CompletableFuture<>();
+            resetCursorFuture = resetFuture;
         }
 
         final AsyncCallbacks.ResetCursorCallback callback = resetCursorCallback;
@@ -1760,8 +1766,10 @@ public class ManagedCursorImpl implements ManagedCursor {
                                 .attr("readPosition", newReadPosition)
                                 .log("Expected reset readPosition, but another reset in progress");
                     }
+                    resetCursorFuture = null;
                 }
                 updateLastActive();
+                resetFuture.complete(null);
                 callback.resetComplete(newReadPosition);
             }
 
@@ -1773,7 +1781,9 @@ public class ManagedCursorImpl implements ManagedCursor {
                                 .attr("readPosition", newReadPosition)
                                 .log("Expected reset readPosition, but another reset in progress");
                     }
+                    resetCursorFuture = null;
                 }
+                resetFuture.complete(null);
                 callback.resetFailed(new ManagedLedgerException.InvalidCursorPositionException(
                         "unable to persist readPosition for cursor reset " + newReadPosition), newReadPosition);
             }
@@ -3229,7 +3239,33 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public void asyncClose(final AsyncCallbacks.CloseCallback callback, final Object ctx) {
-        boolean alreadyClosing = !trySetStateToClosing();
+        if (isClosed()) {
+            callback.closeComplete(ctx);
+            return;
+        }
+        try {
+            // Callers can hold the cursor lock, including in ACK failure callbacks. Queue the close before
+            // taking pendingMarkDeleteOps to preserve the pendingMarkDeleteOps -> cursor lock order.
+            ledger.getExecutor().execute(() -> internalAsyncClose(callback, ctx));
+        } catch (RejectedExecutionException exception) {
+            callback.closeFailed(getManagedLedgerException(exception), ctx);
+        }
+    }
+
+    private void internalAsyncClose(final AsyncCallbacks.CloseCallback callback, final Object ctx) {
+        final CompletableFuture<Void> resetFuture;
+        final boolean alreadyClosing;
+        synchronized (pendingMarkDeleteOps) {
+            resetFuture = resetCursorFuture;
+            alreadyClosing = resetFuture == null && !trySetStateToClosing();
+        }
+        if (resetFuture != null) {
+            // A reset persists its target before applying it to the live cursor. Serializing close in that
+            // interval would combine the reset position with the old ACK state, overwriting the reset snapshot.
+            // Keep the cursor open so queued reset writes can finish, and resume close without blocking.
+            resetFuture.thenRun(() -> asyncClose(callback, ctx));
+            return;
+        }
         if (alreadyClosing) {
             log.info("State is already closed");
             callback.closeComplete(ctx);
@@ -3237,7 +3273,8 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
         closeWaitingCursor();
         setInactive();
-        persistPositionWhenClosing(lastMarkDeleteEntry.newPosition, lastMarkDeleteEntry.properties,
+        MarkDeleteEntry closingEntry = lastMarkDeleteEntry;
+        persistPositionWhenClosing(closingEntry.newPosition, closingEntry.properties,
                 new AsyncCallbacks.CloseCallback(){
 
                     @Override
