@@ -26,6 +26,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -208,13 +209,67 @@ public class ManagedLedgerOfflineBacklogTest extends MockedBookKeeperTestCase {
     }
 
     @Test(timeOut = 15000)
+    public void testTimeoutBeforeManagedLedgerMetadataDoesNotStartMoreReads() throws Exception {
+        TopicName topicName = TopicName.get("persistent://tenant/namespace/offline-metadata-timeout");
+        createOfflineTopic(topicName);
+        MetaStore actualStore = factory.getMetaStore();
+        MetaStore delayedStore = spy(actualStore);
+        BookKeeper observedBookKeeper = spy(bkc);
+        ManagedLedgerFactoryImpl estimatorFactory = spy(factory);
+        doReturn(delayedStore).when(estimatorFactory).getMetaStore();
+        doReturn(CompletableFuture.completedFuture(observedBookKeeper)).when(estimatorFactory).getBookKeeper();
+        CompletableFuture<Runnable> delayedCompletion = new CompletableFuture<>();
+        doAnswer(invocation -> {
+            MetaStoreCallback<ManagedLedgerInfo> callback = invocation.getArgument(2);
+            actualStore.getManagedLedgerInfo(topicName.getPersistenceNamingEncoding(), false,
+                    new MetaStoreCallback<>() {
+                        @Override
+                        public void operationComplete(ManagedLedgerInfo info, Stat stat) {
+                            delayedCompletion.complete(() -> callback.operationComplete(info, stat));
+                        }
+
+                        @Override
+                        public void operationFailed(ManagedLedgerException.MetaStoreException error) {
+                            delayedCompletion.complete(() -> callback.operationFailed(error));
+                        }
+                    });
+            return null;
+        }).when(delayedStore).getManagedLedgerInfo(eq(topicName.getPersistenceNamingEncoding()), eq(false), any());
+        PersistentOfflineTopicStats stats = new PersistentOfflineTopicStats(topicName.toString(), "broker");
+        stats.totalMessages = 17;
+        stats.storageSize = 19;
+        stats.messageBacklog = 23;
+        long generatedAt = stats.statGeneratedAt.getTime();
+        CompletableFuture<Void> result = estimatorFactory.estimateUnloadedTopicBacklogAsync(stats, topicName, false,
+                List.of(BookKeeper.DigestType.CRC32, new byte[0]), cachedExecutor, 100, TimeUnit.MILLISECONDS);
+        Runnable completeMetadata = delayedCompletion.get(5, TimeUnit.SECONDS);
+        assertThatThrownBy(() -> result.get(5, TimeUnit.SECONDS))
+                .isInstanceOf(ExecutionException.class).hasCauseInstanceOf(TimeoutException.class);
+
+        factory.getScheduledExecutor().chooseThread(topicName.getPersistenceNamingEncoding())
+                .submit(completeMetadata).get(5, TimeUnit.SECONDS);
+        factory.getScheduledExecutor().chooseThread(topicName.getPersistenceNamingEncoding())
+                .submit(() -> null).get(5, TimeUnit.SECONDS);
+
+        verify(observedBookKeeper, never()).newOpenLedgerOp();
+        verify(delayedStore, never()).getCursors(any(), any());
+        assertStatsUnchanged(stats, generatedAt);
+    }
+
+    @Test(timeOut = 15000)
     public void testTimeoutDoesNotPublishOrMutatePartialStats() throws Exception {
         TopicName topicName = TopicName.get("persistent://tenant/namespace/offline-timeout");
         Position lastPosition = createOfflineTopic(topicName);
-        writeCursorInfo(topicName, "subscription", -1, lastPosition.getLedgerId(), -1);
+        LedgerHandle cursorLedger = bkc.createLedger(BookKeeper.DigestType.CRC32, new byte[0]);
+        cursorLedger.addEntry(new PositionInfo().setLedgerId(lastPosition.getLedgerId())
+                .setEntryId(-1).toByteArray());
+        cursorLedger.close();
+        writeCursorInfo(topicName, "subscription", cursorLedger.getId(), -1, -1);
         MetaStore actualStore = factory.getMetaStore();
         MetaStore delayedStore = spy(actualStore);
-        ManagedLedgerFactoryImpl estimatorFactory = spy(factory);
+        CompletableFuture<ReadHandle> dataHandle = new CompletableFuture<>();
+        ManagedLedgerFactoryImpl estimatorFactory = observeReadHandle(lastPosition.getLedgerId(), dataHandle);
+        BookKeeper observedBookKeeper = estimatorFactory.getBookKeeper().get(5, TimeUnit.SECONDS);
         doReturn(delayedStore).when(estimatorFactory).getMetaStore();
         CompletableFuture<Runnable> delayedCompletion = new CompletableFuture<>();
         doAnswer(invocation -> {
@@ -249,6 +304,53 @@ public class ManagedLedgerOfflineBacklogTest extends MockedBookKeeperTestCase {
                 .submit(completeCursor).get(5, TimeUnit.SECONDS);
         factory.getScheduledExecutor().chooseThread(topicName.getPersistenceNamingEncoding())
                 .submit(() -> null).get(5, TimeUnit.SECONDS);
+        verify(observedBookKeeper).newOpenLedgerOp();
+        verify(dataHandle.get(5, TimeUnit.SECONDS)).closeAsync();
+        assertStatsUnchanged(stats, generatedAt);
+    }
+
+    @Test(timeOut = 15000)
+    public void testTimeoutDuringCursorReadClosesLateResources() throws Exception {
+        TopicName topicName = TopicName.get("persistent://tenant/namespace/offline-cursor-read-timeout");
+        Position lastPosition = createOfflineTopic(topicName);
+        LedgerHandle cursorLedger = bkc.createLedger(BookKeeper.DigestType.CRC32, new byte[0]);
+        cursorLedger.addEntry(new PositionInfo().setLedgerId(lastPosition.getLedgerId())
+                .setEntryId(-1).toByteArray());
+        cursorLedger.close();
+        writeCursorInfo(topicName, "subscription", cursorLedger.getId(), -1, -1);
+        CompletableFuture<ReadHandle> observedHandle = new CompletableFuture<>();
+        ManagedLedgerFactoryImpl estimatorFactory = observeReadHandle(cursorLedger.getId(), observedHandle);
+        CompletableFuture<LedgerEntries> observedEntries = new CompletableFuture<>();
+        CompletableFuture<Void> releaseRead = new CompletableFuture<>();
+        bkc.setReadHandleInterceptor((ledgerId, first, last, entries) -> {
+            if (ledgerId != cursorLedger.getId()) {
+                return CompletableFuture.completedFuture(entries);
+            }
+            LedgerEntries observed = spy(entries);
+            observedEntries.complete(observed);
+            return releaseRead.thenApply(__ -> observed);
+        });
+        PersistentOfflineTopicStats stats = new PersistentOfflineTopicStats(topicName.toString(), "broker");
+        stats.totalMessages = 17;
+        stats.storageSize = 19;
+        stats.messageBacklog = 23;
+        long generatedAt = stats.statGeneratedAt.getTime();
+        CompletableFuture<Void> result = estimatorFactory.estimateUnloadedTopicBacklogAsync(stats, topicName, false,
+                List.of(BookKeeper.DigestType.CRC32, new byte[0]), cachedExecutor, 1, TimeUnit.SECONDS);
+        LedgerEntries entries = observedEntries.get(5, TimeUnit.SECONDS);
+        ReadHandle handle = observedHandle.get(5, TimeUnit.SECONDS);
+        try {
+            assertThatThrownBy(() -> result.get(5, TimeUnit.SECONDS))
+                    .isInstanceOf(ExecutionException.class).hasCauseInstanceOf(TimeoutException.class);
+            verify(entries, never()).close();
+            verify(handle, never()).closeAsync();
+            assertStatsUnchanged(stats, generatedAt);
+        } finally {
+            releaseRead.complete(null);
+        }
+
+        verify(entries, timeout(5000)).close();
+        verify(handle, timeout(5000)).closeAsync();
         assertStatsUnchanged(stats, generatedAt);
     }
 
