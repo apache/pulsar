@@ -85,6 +85,9 @@ public class CompressionCodecLZ4 implements CompressionCodec {
 
     @Override
     public ByteBuf decode(ByteBuf encoded, int uncompressedLength) throws IOException {
+        if (uncompressedLength <= 0) {
+            throw new IOException("Invalid uncompressed length: " + uncompressedLength);
+        }
         ByteBuf uncompressed = PulsarByteBufAllocator.DEFAULT.buffer(uncompressedLength, uncompressedLength);
         try {
             if (encoded.hasMemoryAddress() && uncompressed.hasMemoryAddress()) {
