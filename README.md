@@ -172,7 +172,7 @@ for the Gradle build infrastructure and how to change build files.
 
     | Pulsar Version   |                                   JDK Version                                    |
     |------------------|:--------------------------------------------------------------------------------:|
-    | master           | [JDK 21](https://adoptium.net/en-GB/temurin/releases?version=21&os=any&arch=any) or [JDK 25](https://adoptium.net/en-GB/temurin/releases?version=25&os=any&arch=any) |
+    | master           | [JDK 21](https://adoptium.net/en-GB/temurin/releases?version=21&os=any&arch=any), [JDK 25](https://adoptium.net/en-GB/temurin/releases?version=25&os=any&arch=any) or [JDK 26](https://adoptium.net/en-GB/temurin/releases?version=26&os=any&arch=any) |
     | 4.0+             | [JDK 21](https://adoptium.net/en-GB/temurin/releases?version=21&os=any&arch=any) |
     | 2.11 +           | [JDK 17](https://adoptium.net/en-GB/temurin/releases?version=17&os=any&arch=any) |
     | 2.8 / 2.9 / 2.10 | [JDK 11](https://adoptium.net/en-GB/temurin/releases?version=11&os=any&arch=any) |
@@ -198,6 +198,12 @@ bin/pulsar standalone                                                    # run a
 ./gradlew quickCheck                                                     # license headers + checkstyle, no compile
 ./gradlew sanityCheck                                                    # quickCheck + compile main/test (pre-PR)
 ```
+
+Standalone bookies use kernel-assigned ports by default. To use fixed ports, run
+`bin/pulsar standalone --bookkeeper-port 3181`; bookie 0 uses port 3181, bookie 1 uses 3182, and so on.
+For existing standalone data with legacy `host:port` bookie IDs, each bookie recovers its port from its cookie,
+which takes precedence over `--bookkeeper-port`. Existing bookie IDs are preserved because ledger metadata
+references them; new metadata-store-backed standalone bookies use `bk-0`, `bk-1`, and so on.
 
 For the full build, lint, test, and PR workflow — test groups, integration tests, Personal CI, and PR
 conventions — see [`CONTRIBUTING.md`](CONTRIBUTING.md). For the module map and the Gradle build

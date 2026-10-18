@@ -480,11 +480,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
 
     private void updateTopicPolicyByBrokerConfig() {
         ServiceConfiguration config = brokerService.pulsar().getConfiguration();
-        topicPolicies.getInactiveTopicPolicies().updateBrokerValue(new InactiveTopicPolicies(
-                config.getBrokerDeleteInactiveTopicsMode(),
-                config.getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(),
-                config.isBrokerDeleteInactiveTopicsEnabled()));
-
+        updateBrokerInactiveTopicPolicies();
         updateBrokerSubscriptionTypesEnabled();
         topicPolicies.getMaxSubscriptionsPerTopic().updateBrokerValue(config.getMaxSubscriptionsPerTopic());
         topicPolicies.getMaxProducersPerTopic().updateBrokerValue(config.getMaxProducersPerTopic());
@@ -927,31 +923,15 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
         return brokerService.checkTopicNsOwnership(getName())
                 .thenCompose(__ ->
                         incrementTopicEpochIfNeeded(producer, producerQueuedFuture))
-                .thenCompose(producerEpoch -> {
-                    lock.writeLock().lock();
-                    try {
-                        checkTopicFenced();
-                        if (isMigrated()) {
-                            log.warn("Attempting to add producer to a migrated topic");
-                            throw new TopicMigratedException("Topic was already migrated");
-                        } else if (isTerminated()) {
-                            log.warn("Attempting to add producer to a terminated topic");
-                            throw new TopicTerminatedException("Topic was already terminated");
-                        }
-                        return internalAddProducer(producer).thenApply(ignore -> {
+                .thenCompose(producerEpoch ->
+                        internalAddProducer(producer).thenApply(ignore -> {
                             USAGE_COUNT_UPDATER.incrementAndGet(this);
                             log.debug()
                                     .attr("producerName", producer.getProducerName())
                                     .attr("usageCount", USAGE_COUNT_UPDATER.get(this))
                                     .log("Added producer");
                             return producerEpoch;
-                        });
-                    } catch (BrokerServiceException e) {
-                        return FutureUtil.failedFuture(e);
-                    } finally {
-                        lock.writeLock().unlock();
-                    }
-                });
+                        }));
     }
 
     protected CompletableFuture<Optional<Long>> incrementTopicEpochIfNeeded(Producer producer,
@@ -1128,23 +1108,41 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
     }
 
     protected CompletableFuture<Void> internalAddProducer(Producer producer) {
-        if (isSameAddressProducersExceeded(producer)) {
-            log.warn("Attempting to add producer to topic which reached max same address producers limit");
-            return CompletableFuture.failedFuture(new BrokerServiceException.ProducerBusyException(
-                    "Topic '" + topic + "' reached max same address producers limit"));
-        }
+        // Check the topic state under the lock on every attempt, including the retry after the old producer's
+        // connection liveness check, since the topic may have been closed while that check was in progress.
+        lock.writeLock().lock();
+        try {
+            checkTopicFenced();
+            if (isMigrated()) {
+                log.warn("Attempting to add producer to a migrated topic");
+                throw new TopicMigratedException("Topic was already migrated");
+            } else if (isTerminated()) {
+                log.warn("Attempting to add producer to a terminated topic");
+                throw new TopicTerminatedException("Topic was already terminated");
+            }
 
-        log.debug()
-                .attr("producerName", producer.getProducerName())
-                .log("Got request to create producer");
+            if (isSameAddressProducersExceeded(producer)) {
+                log.warn("Attempting to add producer to topic which reached max same address producers limit");
+                return CompletableFuture.failedFuture(new BrokerServiceException.ProducerBusyException(
+                        "Topic '" + topic + "' reached max same address producers limit"));
+            }
 
-        Producer existProducer = producers.putIfAbsent(producer.getProducerName(), producer);
-        if (existProducer != null) {
-            return tryOverwriteOldProducer(existProducer, producer);
-        } else if (!producer.isRemote()) {
-            USER_CREATED_PRODUCER_COUNTER_UPDATER.incrementAndGet(this);
+            log.debug()
+                    .attr("producerName", producer.getProducerName())
+                    .log("Got request to create producer");
+
+            Producer existProducer = producers.putIfAbsent(producer.getProducerName(), producer);
+            if (existProducer != null) {
+                return tryOverwriteOldProducer(existProducer, producer);
+            } else if (!producer.isRemote()) {
+                USER_CREATED_PRODUCER_COUNTER_UPDATER.incrementAndGet(this);
+            }
+            return CompletableFuture.completedFuture(null);
+        } catch (BrokerServiceException e) {
+            return FutureUtil.failedFuture(e);
+        } finally {
+            lock.writeLock().unlock();
         }
-        return CompletableFuture.completedFuture(null);
     }
 
     private CompletableFuture<Void> tryOverwriteOldProducer(Producer oldProducer, Producer newProducer) {
@@ -1386,6 +1384,10 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
         return topicPolicies.getInactiveTopicPolicies().get().isDeleteWhileInactive();
     }
 
+    public boolean isCloseWhileInactive() {
+        return brokerService.pulsar().getConfiguration().isBrokerCloseInactiveTopicsEnabled();
+    }
+
     public boolean deletePartitionedTopicMetadataWhileInactive() {
         return brokerService.pulsar().getConfiguration().isBrokerDeleteInactivePartitionedTopicMetadataEnabled();
     }
@@ -1442,6 +1444,15 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
             log.debug("Disabling publish throttling");
         }
         this.topicPublishRateLimiter.update(publishRate);
+    }
+
+    // brokerDeleteInactiveTopicsEnabled is dynamic and can be updated online.
+    public void updateBrokerInactiveTopicPolicies() {
+        ServiceConfiguration config = brokerService.pulsar().getConfiguration();
+        topicPolicies.getInactiveTopicPolicies().updateBrokerValue(new InactiveTopicPolicies(
+                config.getBrokerDeleteInactiveTopicsMode(),
+                config.getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(),
+                config.isBrokerDeleteInactiveTopicsEnabled()));
     }
 
     // subscriptionTypesEnabled is dynamic and can be updated online.

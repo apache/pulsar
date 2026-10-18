@@ -52,10 +52,7 @@ final class CheckpointConsumerBuilderV5<T> implements CheckpointConsumerBuilder<
         try {
             return createAsync().join();
         } catch (java.util.concurrent.CompletionException e) {
-            if (e.getCause() instanceof PulsarClientException pce) {
-                throw pce;
-            }
-            throw new PulsarClientException(e.getCause());
+            throw V5ExceptionMappings.toV5Exception(e);
         }
     }
 
@@ -81,14 +78,23 @@ final class CheckpointConsumerBuilderV5<T> implements CheckpointConsumerBuilder<
             return session.start()
                     .thenCompose(initialAssignment -> ScalableCheckpointConsumer.createManagedAsync(
                             client, v5Schema, topic.toString(), session, initialAssignment,
-                            startPosition, name));
+                            startPosition, name))
+                    .whenComplete((consumer, ex) -> {
+                        if (ex != null) {
+                            // See StreamConsumerBuilderV5: a failed subscribe must still send
+                            // its clean unsubscribe once the in-flight attempt settles.
+                            session.close();
+                        }
+                    })
+                    .exceptionallyCompose(V5ExceptionMappings::failWithV5Exception);
         }
 
         // Unmanaged: read every active segment, no broker-side state.
         DagWatchClient dagWatch = new DagWatchClient(client.v4Client(), topic);
         return dagWatch.start()
                 .thenCompose(initialLayout -> ScalableCheckpointConsumer.createUnmanagedAsync(
-                        client, v5Schema, dagWatch, initialLayout, startPosition, consumerName));
+                        client, v5Schema, dagWatch, initialLayout, startPosition, consumerName))
+                .exceptionallyCompose(V5ExceptionMappings::failWithV5Exception);
     }
 
     @Override

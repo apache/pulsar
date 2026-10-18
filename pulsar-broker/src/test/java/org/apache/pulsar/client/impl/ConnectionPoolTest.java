@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import io.netty.resolver.AbstractAddressResolver;
 import io.netty.resolver.AddressResolver;
@@ -30,23 +31,33 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.BinaryProtoLookupService.LookupDataResult;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.common.api.proto.CommandCloseProducer;
+import org.apache.pulsar.common.api.proto.CommandConnected;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
@@ -179,6 +190,83 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
         pool.closeAllConnections();
         pool.close();
         eventLoop.shutdownGracefully();
+    }
+
+    @DataProvider(name = "partitionMetadataFeatureCheck")
+    public Object[][] partitionMetadataFeatureCheck() {
+        return new Object[][]{
+                {0, false, false},
+                {1, false, false},
+                {0, false, true},
+                {0, true, false}
+        };
+    }
+
+    @Test(dataProvider = "partitionMetadataFeatureCheck", timeOut = 30_000)
+    public void testPartitionMetadataFeatureCheckReleasesConnection(int connectionsPerBroker,
+            boolean metadataAutoCreationEnabled, boolean useFallback) throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("persistent://public/default/partition-metadata");
+        admin.topics().createPartitionedTopic(topic, 2);
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl(pulsar.getBrokerServiceUrl());
+        conf.setConnectionsPerBroker(connectionsPerBroker);
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false,
+                new DefaultThreadFactory("partition-metadata-test"));
+        @Cleanup("shutdownNow")
+        ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(
+                new DefaultThreadFactory("partition-metadata-test-scheduled"));
+        AtomicReference<ClientCnx> connection = new AtomicReference<>();
+        AtomicInteger lookupRequests = new AtomicInteger();
+        try (ConnectionPool pool = new ConnectionPool(InstrumentProvider.NOOP, conf, eventLoop, () -> {
+            ClientCnx cnx = new ClientCnx(InstrumentProvider.NOOP, conf, eventLoop) {
+                @Override
+                protected void handleConnected(CommandConnected connected) {
+                    // Simulate an old broker's feature flag without bypassing the TCP handshake.
+                    connected.getFeatureFlags().setSupportsGetPartitionedMetadataWithoutAutoCreation(false);
+                    super.handleConnected(connected);
+                }
+
+                @Override
+                public CompletableFuture<LookupDataResult> newLookup(ByteBuf request, long requestId) {
+                    lookupRequests.incrementAndGet();
+                    return super.newLookup(request, requestId);
+                }
+            };
+            connection.set(cnx);
+            return cnx;
+        }, scheduler);
+             PulsarClientImpl client = new PulsarClientImpl(conf, eventLoop, pool)) {
+            CompletableFuture<PartitionedTopicMetadata> metadata =
+                    client.getPartitionedTopicMetadata(topic, metadataAutoCreationEnabled, useFallback);
+            if (!metadataAutoCreationEnabled && !useFallback) {
+                ExecutionException error = Assert.expectThrows(ExecutionException.class,
+                        () -> metadata.get(5, TimeUnit.SECONDS));
+                Throwable cause = FutureUtil.unwrapCompletionException(error);
+                Assert.assertTrue(cause instanceof PulsarClientException.FeatureNotSupportedException);
+                Assert.assertEquals(
+                        ((PulsarClientException.FeatureNotSupportedException) cause).getFailedFeatureCheck(),
+                        PulsarClientException.FailedFeatureCheck.SupportsGetPartitionedMetadataWithoutAutoCreation);
+                Assert.assertEquals(lookupRequests.get(), 0);
+            } else {
+                Assert.assertEquals(metadata.get(5, TimeUnit.SECONDS).partitions, 2);
+                Assert.assertEquals(lookupRequests.get(), 1);
+            }
+            ClientCnx cnx = connection.get();
+            Assert.assertNotNull(cnx);
+            Assert.assertFalse(cnx.isSupportsGetPartitionedMetadataWithoutAutoCreation());
+            if (connectionsPerBroker == 0) {
+                Assert.assertTrue(cnx.channel().closeFuture().await(5, TimeUnit.SECONDS),
+                        "The unpooled lookup connection must be closed even when the feature check rejects it");
+            } else {
+                cnx.channel().eventLoop().submit(() -> { }).get(5, TimeUnit.SECONDS);
+                Assert.assertTrue(cnx.channel().isActive(), "The pooled connection must remain reusable");
+                Assert.assertSame(pool.getConnection(client.getLookup().resolveHost())
+                        .get(5, TimeUnit.SECONDS), cnx);
+            }
+        } finally {
+            eventLoop.shutdownGracefully(0, 5, TimeUnit.SECONDS).sync();
+            admin.topics().deletePartitionedTopic(topic, true);
+        }
     }
 
     @Test

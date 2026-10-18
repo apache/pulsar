@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service.scalable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.apache.pulsar.common.scalable.SegmentInfo;
 import org.apache.pulsar.common.scalable.SegmentLoadStats;
 
@@ -37,7 +38,11 @@ import org.apache.pulsar.common.scalable.SegmentLoadStats;
  *   <li><b>Split</b> (fast, lightly coalesced by {@code splitCooldown}): consumer-count
  *       scale-up first, then traffic-driven scale-up.</li>
  *   <li><b>Merge</b> (lazy, gated by {@code mergeCooldown} + {@code mergeWindow} +
- *       {@code maxDagDepth}): only if no split fired.</li>
+ *       {@code maxDagDepth}): only if no split fired. A merge whose clamped bucket count
+ *       ({@code maxEntryBucketsPerSegment}) would drop total consumer capacity below the
+ *       parallelism live consumers currently get is skipped — merging must never idle a
+ *       consumer that owns a bucket today, since the rebucket lane cannot grow past the
+ *       ceiling to win the capacity back.</li>
  * </ol>
  */
 public final class AutoScalePolicyEvaluator {
@@ -53,6 +58,10 @@ public final class AutoScalePolicyEvaluator {
      *                            as zero load with no age (never merge-eligible)
      * @param streamConsumerCount per-subscription count of STREAM/CHECKPOINT (controller-managed)
      *                            consumers; QUEUE subscriptions are excluded by the caller
+     * @param bucketSharingSubscriptions the subscriptions in {@code streamConsumerCount} whose
+     *                            consumers can share a segment by entry-bucket (STREAM). The
+     *                            others (CHECKPOINT groups, and subscriptions whose consumer type
+     *                            is not known yet) count toward a consumer-driven split only
      * @param config              the resolved policy
      * @param nowMs               current wall-clock time, epoch millis
      * @param lastSplitAtMs       epoch millis of the last split on this topic (manual or auto),
@@ -65,10 +74,12 @@ public final class AutoScalePolicyEvaluator {
             SegmentLayout layout,
             Map<Long, SegmentLoadSample> loadBySegment,
             Map<String, Integer> streamConsumerCount,
+            Set<String> bucketSharingSubscriptions,
             AutoScaleConfig config,
             long nowMs,
             long lastSplitAtMs,
-            long lastMergeAtMs) {
+            long lastMergeAtMs,
+            long lastRebucketAtMs) {
 
         if (!config.enabled()) {
             return AutoScaleDecision.NONE;
@@ -76,13 +87,107 @@ public final class AutoScalePolicyEvaluator {
 
         List<SegmentInfo> active = new ArrayList<>(layout.getActiveSegments().values());
 
-        AutoScaleDecision split = trySplit(active, loadBySegment, streamConsumerCount,
-                config, nowMs, lastSplitAtMs);
+        AutoScaleDecision consumerScale = tryConsumerScale(active, loadBySegment,
+                streamConsumerCount, bucketSharingSubscriptions, config, nowMs, lastSplitAtMs,
+                lastRebucketAtMs);
+        if (!(consumerScale instanceof AutoScaleDecision.NoAction)) {
+            return consumerScale;
+        }
+
+        AutoScaleDecision split = trySplit(active, loadBySegment, config, nowMs, lastSplitAtMs);
         if (!(split instanceof AutoScaleDecision.NoAction)) {
             return split;
         }
 
-        return tryMerge(active, layout, loadBySegment, config, nowMs, lastMergeAtMs);
+        return tryMerge(active, layout, loadBySegment, streamConsumerCount, config, nowMs,
+                lastMergeAtMs);
+    }
+
+    // --- Consumer-driven scale-up: segments vs entry-buckets (PIP-486) ---
+
+    /**
+     * Serve surplus consumers (a subscription with more consumers than active segments) by
+     * adding capacity on one of two axes:
+     * <ul>
+     *   <li><b>Split</b> when traffic justifies a physical segment: the busiest segment's
+     *       inbound rate is at or above {@code splitVsRebucketMinMsgRateIn} and the topic is
+     *       under {@code maxSegments} — today's "segments first" behavior.</li>
+     *   <li><b>Rebucket-up</b> otherwise (a low-throughput topic, or the topic is at the
+     *       segment cap): if the existing entry-bucket capacity cannot absorb the surplus,
+     *       roll the smallest-bucketed segment over to the smallest power of two that lets
+     *       every consumer own a bucket, capped at {@code maxEntryBucketsPerSegment}.
+     *       Raising is fast (one rollover sized to the surplus); lowering is deliberately
+     *       not automated here — spiky consumer counts must not flap the bucketing. Only
+     *       bucket-sharing subscriptions count here: a checkpoint group's members each read
+     *       whole segments, so more buckets add no parallelism for it, only smaller batches.</li>
+     * </ul>
+     */
+    private static AutoScaleDecision tryConsumerScale(
+            List<SegmentInfo> active,
+            Map<Long, SegmentLoadSample> loadBySegment,
+            Map<String, Integer> streamConsumerCount,
+            Set<String> bucketSharingSubscriptions,
+            AutoScaleConfig config,
+            long nowMs,
+            long lastSplitAtMs,
+            long lastRebucketAtMs) {
+
+        int consumers = streamConsumerCount.values().stream()
+                .mapToInt(Integer::intValue).max().orElse(0);
+        int segments = active.size();
+        if (consumers <= segments) {
+            return AutoScaleDecision.NONE;
+        }
+
+        SegmentInfo busiest = busiestByMsgRateIn(active, loadBySegment);
+        if (busiest == null) {
+            return AutoScaleDecision.NONE;
+        }
+        boolean atSegmentCap = segments >= config.maxSegments();
+        boolean belowSplitFloor = statsOf(busiest.segmentId(), loadBySegment).msgRateIn()
+                < config.splitVsRebucketMinMsgRateIn();
+
+        if (!atSegmentCap && !belowSplitFloor) {
+            // Traffic justifies a physical segment.
+            if (withinCooldown(nowMs, lastSplitAtMs, config.splitCooldown().toMillis())) {
+                return AutoScaleDecision.NONE;
+            }
+            return new AutoScaleDecision.Split(busiest.segmentId(), "consumer-count");
+        }
+
+        // Bucket lane: absorb the bucket-sharing subscriptions' surplus with entry-buckets.
+        int bucketConsumers = streamConsumerCount.entrySet().stream()
+                .filter(e -> bucketSharingSubscriptions.contains(e.getKey()))
+                .mapToInt(Map.Entry::getValue).max().orElse(0);
+        long capacity = 0;
+        for (SegmentInfo segment : active) {
+            capacity += segment.bucketCount();
+        }
+        if (bucketConsumers <= capacity) {
+            // The existing buckets already absorb the surplus (broker-side fan-out).
+            return AutoScaleDecision.NONE;
+        }
+        if (withinCooldown(nowMs, lastRebucketAtMs, config.rebucketCooldown().toMillis())) {
+            return AutoScaleDecision.NONE;
+        }
+        // One shot: bring every segment below the common per-segment target up to it in a
+        // single decision, so the topic converges to a uniform bucketing in one evaluation —
+        // never one segment per cooldown, and no arrival-history-dependent skew.
+        int target = Math.min(nextPowerOfTwo(ceilDiv(bucketConsumers, segments)),
+                config.maxEntryBucketsPerSegment());
+        List<Long> below = new ArrayList<>();
+        for (SegmentInfo segment : active) {
+            if (segment.bucketCount() < target) {
+                below.add(segment.segmentId());
+            }
+        }
+        if (below.isEmpty()) {
+            // Bucket capacity is maxed out; the remaining surplus stays idle.
+            return AutoScaleDecision.NONE;
+        }
+        below.sort(Long::compareTo);
+        return new AutoScaleDecision.Rebucket(below, target,
+                atSegmentCap ? "at-max-segments" : "below-split-rate-floor");
     }
 
     // --- Split pass ---
@@ -90,7 +195,6 @@ public final class AutoScalePolicyEvaluator {
     private static AutoScaleDecision trySplit(
             List<SegmentInfo> active,
             Map<Long, SegmentLoadSample> loadBySegment,
-            Map<String, Integer> streamConsumerCount,
             AutoScaleConfig config,
             long nowMs,
             long lastSplitAtMs) {
@@ -102,20 +206,7 @@ public final class AutoScalePolicyEvaluator {
             return AutoScaleDecision.NONE;
         }
 
-        // (a) Consumer-driven: per-subscription max. If any managed subscription has more
-        // consumers than there are active segments, add a segment so the 1:1 assignment can
-        // give the extra consumer its own segment. Split the busiest segment by msgRateIn so
-        // the new pair lands where it relieves the most ingest.
-        int requiredConsumers = streamConsumerCount.values().stream()
-                .mapToInt(Integer::intValue).max().orElse(0);
-        if (requiredConsumers > active.size()) {
-            SegmentInfo target = busiestByMsgRateIn(active, loadBySegment);
-            if (target != null) {
-                return new AutoScaleDecision.Split(target.segmentId(), "consumer-count");
-            }
-        }
-
-        // (b) Load-driven: split the segment with the highest overload score among those over
+        // Load-driven: split the segment with the highest overload score among those over
         // at least one split threshold.
         SegmentInfo hottest = null;
         double hottestScore = 1.0; // strictly over threshold means a per-metric ratio > 1.0
@@ -126,11 +217,11 @@ public final class AutoScalePolicyEvaluator {
             String reason = null;
             double[] ratios = {
                     stats.msgRateIn() / config.splitMsgRateIn(),
-                    stats.bytesRateIn() / config.splitBytesRateIn(),
+                    stats.byteRateIn() / config.splitBytesRateIn(),
                     stats.msgRateOut() / config.splitMsgRateOut(),
-                    stats.bytesRateOut() / config.splitBytesRateOut(),
+                    stats.byteRateOut() / config.splitBytesRateOut(),
             };
-            String[] reasons = {"msgRateIn", "bytesRateIn", "msgRateOut", "bytesRateOut"};
+            String[] reasons = {"msgRateIn", "byteRateIn", "msgRateOut", "byteRateOut"};
             for (int i = 0; i < ratios.length; i++) {
                 if (ratios[i] > score) {
                     score = ratios[i];
@@ -156,6 +247,7 @@ public final class AutoScalePolicyEvaluator {
             List<SegmentInfo> active,
             SegmentLayout layout,
             Map<Long, SegmentLoadSample> loadBySegment,
+            Map<String, Integer> streamConsumerCount,
             AutoScaleConfig config,
             long nowMs,
             long lastMergeAtMs) {
@@ -169,6 +261,22 @@ public final class AutoScalePolicyEvaluator {
 
         long mergeWindowMs = config.mergeWindow().toMillis();
 
+        // A merged segment's bucket count is the clamped sum of the pair's (the same clamp
+        // mergeSegments applies), so an at-ceiling merge shrinks total consumer capacity —
+        // and the rebucket lane cannot grow past the ceiling to recover it. Skip any pair
+        // whose merge would leave less capacity than the parallelism consumers get today:
+        // min(consumers, capacity), so an already over-subscribed topic can still take a
+        // capacity-preserving merge, and an idle one can always consolidate. Every subscription
+        // counts, not only the bucket-sharing ones: the guard can only veto a merge, and one whose
+        // consumer type is not known yet (restored on failover) may turn out to share buckets.
+        int consumers = streamConsumerCount.values().stream()
+                .mapToInt(Integer::intValue).max().orElse(0);
+        long totalCapacity = 0;
+        for (SegmentInfo segment : active) {
+            totalCapacity += segment.bucketCount();
+        }
+        long usedParallelism = Math.min(consumers, totalCapacity);
+
         AutoScaleDecision.Merge coldest = null;
         double coldestCombined = Double.MAX_VALUE;
         for (int i = 0; i < active.size(); i++) {
@@ -180,6 +288,11 @@ public final class AutoScalePolicyEvaluator {
                 }
                 if (layout.mergeDepth(a.segmentId()) >= config.maxDagDepth()
                         || layout.mergeDepth(b.segmentId()) >= config.maxDagDepth()) {
+                    continue;
+                }
+                long pairCapacity = (long) a.bucketCount() + b.bucketCount();
+                long mergedCapacity = Math.min(pairCapacity, config.maxEntryBucketsPerSegment());
+                if (totalCapacity - pairCapacity + mergedCapacity < usedParallelism) {
                     continue;
                 }
                 if (!coldEnough(a.segmentId(), loadBySegment, config, nowMs, mergeWindowMs)
@@ -218,9 +331,9 @@ public final class AutoScalePolicyEvaluator {
         }
         SegmentLoadStats stats = sample.stats();
         return stats.msgRateIn() < config.mergeMsgRateIn()
-                && stats.bytesRateIn() < config.mergeBytesRateIn()
+                && stats.byteRateIn() < config.mergeBytesRateIn()
                 && stats.msgRateOut() < config.mergeMsgRateOut()
-                && stats.bytesRateOut() < config.mergeBytesRateOut();
+                && stats.byteRateOut() < config.mergeBytesRateOut();
     }
 
     // --- Helpers ---
@@ -236,7 +349,18 @@ public final class AutoScalePolicyEvaluator {
 
     private static double combinedRate(long segmentId, Map<Long, SegmentLoadSample> load) {
         SegmentLoadStats s = statsOf(segmentId, load);
-        return s.msgRateIn() + s.bytesRateIn() + s.msgRateOut() + s.bytesRateOut();
+        return s.msgRateIn() + s.byteRateIn() + s.msgRateOut() + s.byteRateOut();
+    }
+
+    /** Ceiling integer division for positive operands. */
+    private static int ceilDiv(int a, int b) {
+        return (a + b - 1) / b;
+    }
+
+    /** The smallest power of two {@code >= v} (for {@code v >= 1}). */
+    private static int nextPowerOfTwo(int v) {
+        int highest = Integer.highestOneBit(v);
+        return highest == v ? v : highest << 1;
     }
 
     private static SegmentInfo busiestByMsgRateIn(List<SegmentInfo> active,

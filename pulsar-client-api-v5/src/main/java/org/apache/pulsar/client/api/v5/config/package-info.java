@@ -22,8 +22,8 @@
  *
  * <p>Immutable records used to group related configuration parameters in builder APIs,
  * such as {@link org.apache.pulsar.client.api.v5.config.BatchingPolicy},
- * {@link org.apache.pulsar.client.api.v5.config.BackoffPolicy},
- * {@link org.apache.pulsar.client.api.v5.config.TlsPolicy}, and
- * {@link org.apache.pulsar.client.api.v5.config.DeadLetterPolicy}.
+ * {@link org.apache.pulsar.client.api.v5.config.BackoffPolicy}, and
+ * {@link org.apache.pulsar.client.api.v5.config.DeadLetterPolicy}. TLS configuration lives in the
+ * neutral {@link org.apache.pulsar.tls.TlsPolicy} value (PIP-478).
  */
 package org.apache.pulsar.client.api.v5.config;
