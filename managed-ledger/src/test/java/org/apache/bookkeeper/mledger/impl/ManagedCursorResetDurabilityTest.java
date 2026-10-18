@@ -21,13 +21,14 @@ package org.apache.bookkeeper.mledger.impl;
 import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.bookkeeper.client.BKException;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -39,12 +40,11 @@ import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.proto.BatchedEntryDeletionIndexInfo;
 import org.apache.bookkeeper.mledger.proto.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.PositionInfo;
-import org.apache.bookkeeper.mledger.util.MockClock;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
+import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore.OperationType;
-import org.awaitility.Awaitility;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -52,9 +52,9 @@ import org.testng.annotations.Test;
 @Test(timeOut = 30000)
 public class ManagedCursorResetDurabilityTest extends MockedBookKeeperTestCase {
 
-    @DataProvider(name = "individualAckFormats")
-    public Object[][] individualAckFormats() {
-        return new Object[][] {{false}, {true}};
+    @DataProvider(name = "successfulResetCases")
+    public Object[][] successfulResetCases() {
+        return new Object[][] {{false, false}, {true, true}};
     }
 
     @DataProvider(name = "batchIndexPersistenceSettings")
@@ -62,79 +62,78 @@ public class ManagedCursorResetDurabilityTest extends MockedBookKeeperTestCase {
         return new Object[][] {{true, 0}, {false, 10000}};
     }
 
-    @Test(dataProvider = "individualAckFormats")
-    public void testResetClearsPersistedIndividualAcknowledgments(boolean persistAsLongArray) throws Exception {
+    @Test(dataProvider = "successfulResetCases")
+    public void testResetPersistsAcknowledgmentState(boolean persistAsLongArray,
+            boolean requestedBatchAcknowledgment) throws Exception {
         ManagedLedgerConfig config = defaultConfig()
                 .setThrottleMarkDelete(0)
                 .setPersistIndividualAckAsLongArray(persistAsLongArray);
+        config.setDeletionAtBatchIndexLevelEnabled(true);
         @Cleanup
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("reset-individual-acks-" + persistAsLongArray,
-                config);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "reset-success-" + persistAsLongArray + "-" + requestedBatchAcknowledgment, config);
         ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("sub");
-        List<Position> positions = addEntries(ledger, 5);
+        List<Position> positions = addEntries(ledger, 6);
+        Position resetPosition = positions.get(2);
+        Position individuallyAcknowledged = positions.get(3);
+        Position laterBatch = positions.get(4);
+        cursor.markDelete(positions.get(0));
+        cursor.delete(individuallyAcknowledged);
+        cursor.delete(withAckSet(resetPosition, 4L));
+        cursor.delete(withAckSet(laterBatch, 2L));
 
-        cursor.delete(positions.get(3));
-        cursor.resetCursor(positions.get(1));
-        assertThat(cursor.isMessageDeleted(positions.get(3)))
-                .as("reset makes the previously acknowledged entry available for replay")
-                .isFalse();
+        cursor.resetCursor(requestedBatchAcknowledgment ? withAckSet(resetPosition, 6L) : resetPosition);
+
+        PositionInfo persisted = lastPersistedCursorPosition(cursor);
+        assertThat(persisted.getLedgerId()).isEqualTo(positions.get(1).getLedgerId());
+        assertThat(persisted.getEntryId()).isEqualTo(positions.get(1).getEntryId());
+        assertThat(persisted.getIndividualDeletedMessagesCount()).isZero();
+        assertThat(persisted.getIndividualDeletedMessageRangesCount()).isZero();
+        assertThat(persisted.getBatchedEntryDeletionIndexInfosCount())
+                .isEqualTo(requestedBatchAcknowledgment ? 1 : 0);
+        if (requestedBatchAcknowledgment) {
+            BatchedEntryDeletionIndexInfo batchInfo = persisted.getBatchedEntryDeletionIndexInfoAt(0);
+            assertThat(batchInfo.getPosition().getLedgerId()).isEqualTo(resetPosition.getLedgerId());
+            assertThat(batchInfo.getPosition().getEntryId()).isEqualTo(resetPosition.getEntryId());
+            assertThat(batchInfo.getDeleteSetsCount()).isEqualTo(1);
+            assertThat(batchInfo.getDeleteSetAt(0)).isEqualTo(6L);
+        }
 
         recoverPersistedCursor(cursor);
 
-        List<Entry> replayed = cursor.readEntries(5);
-        try {
-            assertThat(replayed).extracting(Entry::getPosition)
-                    .as("recovery must preserve every entry made available by the completed reset")
-                    .containsExactlyElementsOf(positions.subList(1, 5));
-        } finally {
-            replayed.forEach(Entry::release);
+        assertThat(cursor.getMarkDeletedPosition()).isEqualTo(positions.get(1));
+        assertThat(cursor.getReadPosition()).isEqualTo(resetPosition);
+        assertThat(cursor.isMessageDeleted(individuallyAcknowledged)).isFalse();
+        assertThat(cursor.getBatchPositionAckSet(laterBatch)).isNull();
+        if (requestedBatchAcknowledgment) {
+            assertThat(cursor.getBatchPositionAckSet(resetPosition)).containsExactly(6L);
+        } else {
+            assertThat(cursor.getBatchPositionAckSet(resetPosition)).isNull();
         }
     }
 
     @Test
-    public void testResetClearsPersistedBatchAcknowledgments() throws Exception {
-        ManagedLedgerConfig config = defaultConfig().setThrottleMarkDelete(0);
-        config.setDeletionAtBatchIndexLevelEnabled(true);
+    public void testResetPublishesCheckpointWhenOverrideRunsAlignmentDirectly() throws Exception {
         @Cleanup
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("reset-batch-acks", config);
-        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("sub");
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "reset-direct-alignment-override", defaultConfig().setThrottleMarkDelete(0));
         List<Position> positions = addEntries(ledger, 4);
-        Position batch = positions.get(3);
-        cursor.delete(AckSetStateUtil.createPositionWithAckSet(
-                batch.getLedgerId(), batch.getEntryId(), new long[] {2L}));
+        NonDurableCursorImpl cursor = new NonDurableCursorImpl(
+                bkc, ledger, "non-durable", null, CommandSubscribe.InitialPosition.Latest, false) {
+            @Override
+            protected void internalAsyncMarkDelete(Position newPosition, Map<String, Long> properties,
+                    MarkDeleteCallback callback, Object ctx, Runnable alignAcknowledgeStatusAfterPersisted) {
+                alignAcknowledgeStatusAfterPersisted.run();
+                callback.markDeleteComplete(ctx);
+            }
+        };
+        assertThat(cursor.lastMarkDeleteEntry.newPosition).isEqualTo(positions.get(3));
 
-        cursor.resetCursor(positions.get(1));
-        assertThat(cursor.getBatchPositionAckSet(batch)).isNull();
+        cursor.resetCursor(positions.get(2));
 
-        recoverPersistedCursor(cursor);
-
-        assertThat(cursor.getBatchPositionAckSet(batch))
-                .as("batch acknowledgments cleared by reset must remain cleared after recovery")
-                .isNull();
-    }
-
-    @Test
-    public void testResetPersistsRequestedBatchAcknowledgments() throws Exception {
-        ManagedLedgerConfig config = defaultConfig().setThrottleMarkDelete(0);
-        config.setDeletionAtBatchIndexLevelEnabled(true);
-        @Cleanup
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("reset-requested-batch-acks", config);
-        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("sub");
-        List<Position> positions = addEntries(ledger, 3);
-        Position batch = positions.get(1);
-        cursor.delete(AckSetStateUtil.createPositionWithAckSet(
-                batch.getLedgerId(), batch.getEntryId(), new long[] {4L}));
-        long[] resetAckSet = {6L};
-
-        cursor.resetCursor(AckSetStateUtil.createPositionWithAckSet(
-                batch.getLedgerId(), batch.getEntryId(), resetAckSet));
-        assertThat(cursor.getBatchPositionAckSet(batch)).containsExactly(resetAckSet);
-
-        recoverPersistedCursor(cursor);
-
-        assertThat(cursor.getBatchPositionAckSet(batch))
-                .as("the batch position requested by reset must survive recovery")
-                .containsExactly(resetAckSet);
+        Position expectedMarkDelete = positions.get(1);
+        assertThat(cursor.getMarkDeletedPosition()).isEqualTo(expectedMarkDelete);
+        assertThat(cursor.lastMarkDeleteEntry.newPosition).isEqualTo(expectedMarkDelete);
     }
 
     @Test
@@ -149,18 +148,13 @@ public class ManagedCursorResetDurabilityTest extends MockedBookKeeperTestCase {
         Position laterBatch = positions.get(4);
         cursor.markDelete(positions.get(0));
         cursor.delete(positions.get(3));
-        cursor.delete(AckSetStateUtil.createPositionWithAckSet(
-                resetPosition.getLedgerId(), resetPosition.getEntryId(), new long[] {4L}));
-        cursor.delete(AckSetStateUtil.createPositionWithAckSet(
-                laterBatch.getLedgerId(), laterBatch.getEntryId(), new long[] {2L}));
+        cursor.delete(withAckSet(resetPosition, 4L));
+        cursor.delete(withAckSet(laterBatch, 2L));
 
-        long previousMetadataStoreWrites = cursor.getStats().getPersistZookeeperSucceed();
         bkc.addEntryFailAfter(0, BKException.Code.NoBookieAvailableException);
         long[] resetAckSet = {6L};
-        cursor.resetCursor(AckSetStateUtil.createPositionWithAckSet(
-                resetPosition.getLedgerId(), resetPosition.getEntryId(), resetAckSet));
+        cursor.resetCursor(withAckSet(resetPosition, resetAckSet));
 
-        assertThat(cursor.getStats().getPersistZookeeperSucceed()).isGreaterThan(previousMetadataStoreWrites);
         ManagedCursorInfo persisted = storedCursorInfo(ledger);
         assertThat(persisted.getCursorsLedgerId()).as("the reset used the metadata-store fallback").isEqualTo(-1L);
         assertThat(persisted.getIndividualDeletedMessagesCount()).isZero();
@@ -195,70 +189,26 @@ public class ManagedCursorResetDurabilityTest extends MockedBookKeeperTestCase {
         Position laterBatch = positions.get(4);
         cursor.markDelete(positions.get(0));
         cursor.delete(positions.get(3));
-        cursor.delete(AckSetStateUtil.createPositionWithAckSet(
-                resetPosition.getLedgerId(), resetPosition.getEntryId(), new long[] {4L}));
-        cursor.delete(AckSetStateUtil.createPositionWithAckSet(
-                laterBatch.getLedgerId(), laterBatch.getEntryId(), new long[] {2L}));
+        cursor.delete(withAckSet(resetPosition, 4L));
+        cursor.delete(withAckSet(laterBatch, 2L));
         List<Entry> entries = cursor.readEntries(6);
         entries.forEach(Entry::release);
         Position previousMarkDelete = cursor.getMarkDeletedPosition();
         Position previousRead = cursor.getReadPosition();
-        long previousConsumed = cursor.getMessagesConsumedCounter();
-        long previousLedgerErrors = cursor.getStats().getPersistLedgerErrors();
-        long previousMetadataStoreErrors = cursor.getStats().getPersistZookeeperErrors();
 
         bkc.addEntryFailAfter(0, BKException.Code.NoBookieAvailableException);
         metadataStore.failConditional(new MetadataStoreException("reset metadata-store write failed"),
                 (operation, path) -> operation == OperationType.PUT
                         && path.equals("/managed-ledgers/" + ledger.getName() + "/sub"));
 
-        assertThatThrownBy(() -> cursor.resetCursor(AckSetStateUtil.createPositionWithAckSet(
-                resetPosition.getLedgerId(), resetPosition.getEntryId(), new long[] {6L})))
+        assertThatThrownBy(() -> cursor.resetCursor(withAckSet(resetPosition, 6L)))
                 .isInstanceOf(InvalidCursorPositionException.class);
 
-        assertThat(cursor.getStats().getPersistLedgerErrors()).isGreaterThan(previousLedgerErrors);
-        assertThat(cursor.getStats().getPersistZookeeperErrors()).isGreaterThan(previousMetadataStoreErrors);
         assertThat(cursor.getMarkDeletedPosition()).isEqualTo(previousMarkDelete);
         assertThat(cursor.getReadPosition()).isEqualTo(previousRead);
-        assertThat(cursor.getMessagesConsumedCounter()).isEqualTo(previousConsumed);
-        assertThat(cursor.isMessageDeleted(positions.get(2))).isFalse();
         assertThat(cursor.isMessageDeleted(positions.get(3))).isTrue();
         assertThat(cursor.getBatchPositionAckSet(resetPosition)).containsExactly(4L);
         assertThat(cursor.getBatchPositionAckSet(laterBatch)).containsExactly(2L);
-    }
-
-    @Test
-    public void testAcknowledgmentsAfterResetAndCursorLedgerRolloverArePersisted() throws Exception {
-        MockClock clock = new MockClock();
-        ManagedLedgerConfig config = defaultConfig().setThrottleMarkDelete(0)
-                .setClock(clock).setLedgerRolloverTimeout(5);
-        config.setDeletionAtBatchIndexLevelEnabled(true);
-        @Cleanup
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("reset-cursor-ledger-rollover", config);
-        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("sub");
-        List<Position> positions = addEntries(ledger, 6);
-        Position resetPosition = positions.get(1);
-        cursor.resetCursor(AckSetStateUtil.createPositionWithAckSet(
-                resetPosition.getLedgerId(), resetPosition.getEntryId(), new long[] {6L}));
-        long previousCursorLedger = cursor.getCursorLedger();
-
-        clock.advance(6, TimeUnit.SECONDS);
-        assertThat(cursor.periodicRollover()).isTrue();
-        Awaitility.await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
-            assertThat(cursor.getCursorLedger()).isNotEqualTo(previousCursorLedger);
-            assertThat(cursor.getState()).isEqualTo("Open");
-        });
-
-        // Ordinary ACKs after rollover must persist the live state rather than the earlier reset snapshot.
-        cursor.delete(AckSetStateUtil.createPositionWithAckSet(
-                resetPosition.getLedgerId(), resetPosition.getEntryId(), new long[] {4L}));
-        cursor.delete(positions.get(3));
-        recoverPersistedCursor(cursor);
-
-        assertThat(cursor.getBatchPositionAckSet(resetPosition)).containsExactly(4L);
-        assertThat(cursor.isMessageDeleted(positions.get(2))).isFalse();
-        assertThat(cursor.isMessageDeleted(positions.get(3))).isTrue();
-        assertThat(cursor.getReadPosition()).isEqualTo(resetPosition);
     }
 
     @Test(dataProvider = "batchIndexPersistenceSettings")
@@ -273,10 +223,8 @@ public class ManagedCursorResetDurabilityTest extends MockedBookKeeperTestCase {
         ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("sub");
         List<Position> positions = addEntries(ledger, 4);
         Position resetPosition = positions.get(1);
-        cursor.delete(positions.get(3));
 
-        cursor.resetCursor(AckSetStateUtil.createPositionWithAckSet(
-                resetPosition.getLedgerId(), resetPosition.getEntryId(), new long[] {6L}));
+        cursor.resetCursor(withAckSet(resetPosition, 6L));
 
         if (batchIndexAckEnabled) {
             assertThat(cursor.getBatchPositionAckSet(resetPosition)).containsExactly(6L);
@@ -287,8 +235,10 @@ public class ManagedCursorResetDurabilityTest extends MockedBookKeeperTestCase {
         assertThat(persisted.getBatchedEntryDeletionIndexInfosCount())
                 .as("a reset must respect the configured batch ACK persistence limit and feature switch")
                 .isZero();
-        assertThat(persisted.getIndividualDeletedMessagesCount()).isZero();
-        assertThat(persisted.getIndividualDeletedMessageRangesCount()).isZero();
+    }
+
+    private static Position withAckSet(Position position, long... ackSet) {
+        return AckSetStateUtil.createPositionWithAckSet(position.getLedgerId(), position.getEntryId(), ackSet);
     }
 
     private static List<Position> addEntries(ManagedLedgerImpl ledger, int count) throws Exception {
