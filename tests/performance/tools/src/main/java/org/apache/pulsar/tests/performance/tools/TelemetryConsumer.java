@@ -20,11 +20,11 @@ package org.apache.pulsar.tests.performance.tools;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
@@ -45,6 +45,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientSharedResources;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
@@ -279,6 +280,7 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
         private final AtomicBoolean stopping = new AtomicBoolean();
         private final AtomicReference<Throwable> restartFailure = new AtomicReference<>();
         private volatile Thread restarter;
+        private volatile Thread pauser;
         private int nextWarmupRound = 1;
         private volatile boolean finished;
 
@@ -408,6 +410,11 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
                 restarter = thread;
                 thread.start();
             }
+            if (scenario.behaviors().podPauses().enabled() && !stopping.get()) {
+                Thread thread = new Thread(this::pausePods, "iot-client-pauser-" + index);
+                pauser = thread;
+                thread.start();
+            }
         }
 
         void checkRestarts() {
@@ -472,6 +479,7 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
             // so that they don't open pods after they're closed, or use the shared resources after they are
             interruptAndAwait(joiner);
             interruptAndAwait(restarter);
+            interruptAndAwait(pauser);
             closePods();
         }
 
@@ -479,6 +487,7 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
             stopping.set(true);
             interruptAndAwait(joiner);
             interruptAndAwait(restarter);
+            interruptAndAwait(pauser);
         }
 
         /**
@@ -536,9 +545,7 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
                             listenersInFlight.incrementAndGet();
                             try {
                                 TelemetryMessage.Decoded decoded = TelemetryMessage.decode(message.getData());
-                                byte[] key = message.getKeyBytes();
-                                if (key == null || key.length != Long.BYTES
-                                        || ByteBuffer.wrap(key).getLong() != decoded.deviceId()) {
+                                if (!TelemetryMessage.hasKey(message, decoded.deviceId(), scenario.stringKeys())) {
                                     throw new IllegalArgumentException(
                                             "Telemetry key does not match payload device ID");
                                 }
@@ -598,6 +605,36 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
                 }
             }
         }
+
+        // Pauses random pods' consumers for the pause's time every interval, and resumes them then, also when the
+        // pauses stop. A pod that a restart replaces meanwhile is resumed, closed, harmlessly.
+        private void pausePods() {
+            IotScenario.PodPauses podPauses = scenario.behaviors().podPauses();
+            int pauseCount = Math.max(1, (int) Math.ceil(scenario.podsPerApplication() * podPauses.fraction()));
+            List<Consumer<byte[]>> paused = new ArrayList<>(pauseCount);
+            try {
+                while (!stopping.get()) {
+                    Thread.sleep(TimeUnit.SECONDS.toMillis(podPauses.intervalSeconds()) - podPauses.pauseMillis());
+                    synchronized (pods) {
+                        List<ClientAndConsumer> candidates = new ArrayList<>(pods);
+                        Collections.shuffle(candidates);
+                        for (ClientAndConsumer pod : candidates.subList(0, Math.min(pauseCount, candidates.size()))) {
+                            pod.consumer().pause();
+                            paused.add(pod.consumer());
+                        }
+                    }
+                    Thread.sleep(podPauses.pauseMillis());
+                    paused.forEach(Consumer::resume);
+                    paused.clear();
+                }
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+            } catch (RuntimeException error) {
+                restartFailure.compareAndSet(null, error);
+            } finally {
+                paused.forEach(Consumer::resume);
+            }
+        }
     }
 
     private record ClientAndConsumer(PulsarClient client, Consumer<byte[]> consumer) implements AutoCloseable {
@@ -610,14 +647,27 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
             }
         }
 
-        /** Closes the consumer, then the client, also when closing the consumer failed. */
+        /**
+         * Closes the consumer, then the client, also when closing the consumer failed. A pod that a restart closed and
+         * couldn't replace, as when the application stops during the restart, is already closed, which isn't a
+         * failure.
+         */
         CompletableFuture<Void> closeAsync() {
-            return consumer.closeAsync().handle((ignored, consumerFailure) -> consumerFailure)
-                    .thenCompose(consumerFailure -> client.closeAsync().thenRun(() -> {
-                        if (consumerFailure != null) {
-                            throw new CompletionException(consumerFailure);
-                        }
-                    }));
+            return consumer.closeAsync().handle((ignored, consumerFailure) -> unlessAlreadyClosed(consumerFailure))
+                    .thenCompose(consumerFailure -> client.closeAsync()
+                            .exceptionallyCompose(failure -> unlessAlreadyClosed(failure) == null
+                                    ? CompletableFuture.completedFuture(null) : CompletableFuture.failedFuture(failure))
+                            .thenRun(() -> {
+                                if (consumerFailure != null) {
+                                    throw new CompletionException(consumerFailure);
+                                }
+                            }));
+        }
+
+        private static Throwable unlessAlreadyClosed(Throwable failure) {
+            Throwable cause = failure instanceof CompletionException && failure.getCause() != null
+                    ? failure.getCause() : failure;
+            return cause instanceof PulsarClientException.AlreadyClosedException ? null : failure;
         }
     }
 }

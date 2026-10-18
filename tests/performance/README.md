@@ -86,7 +86,7 @@ the run report are written for the IoT domain.
 
 | Domain | Simulation |
 |---|---|
-| Device | A device ID, which is the message key. `devices.count` sets the number of devices |
+| Device | A device ID, which is the message key. `devices.count` sets the number of devices, and `devices.keyType` whether the key is the ID as bytes, the default, or `device-<ID>` as a string |
 | Telemetry message | A message with the device ID, the device's sequence number and the send time, `payload.size` bytes long |
 | Gateway | A Pulsar client in the gateways' container, with a producer named `iot-gateway-<gateway>-topic-<topic>` for each topic. `gateways.count` sets the number of gateways; their clients share I/O threads and memory, as the clients of one process can since PIP-234 |
 | Topics | `topics.count` topics; a device's messages always go to the same topic, the device ID modulo `topics.count` |

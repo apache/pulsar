@@ -20,7 +20,6 @@ package org.apache.pulsar.tests.performance.tools;
 
 import java.io.BufferedOutputStream;
 import java.io.DataOutputStream;
-import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -68,6 +67,7 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
     @Override
     public Integer call() throws Exception {
         IotScenario scenario = scenario();
+        boolean stringKeys = scenario.stringKeys();
         Files.createDirectories(output);
         long[] deviceSequences = new long[scenario.deviceCount()];
         long[] producerSequences = new long[Math.multiplyExact(scenario.gatewayCount(), scenario.topicCount())];
@@ -178,13 +178,11 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
                 }
                 long deviceSequence = deviceSequences[device]++;
                 long producerSequence = producerSequences[producerIndex]++;
-                byte[] key = ByteBuffer.allocate(Long.BYTES).putLong(device).array();
                 byte[] payload = TelemetryMessage.encode(device, deviceSequence, measurementMessage,
                         scenario.payloadBytes());
                 int completedDevice = device;
                 long sendStartedNanos = System.nanoTime();
-                producer.newMessage()
-                        .keyBytes(key)
+                TelemetryMessage.key(producer.newMessage(), device, stringKeys)
                         .sequenceId(producerSequence)
                         .value(payload)
                         .sendAsync()
