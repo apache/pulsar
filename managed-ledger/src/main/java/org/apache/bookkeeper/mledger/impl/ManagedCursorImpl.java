@@ -547,6 +547,7 @@ public class ManagedCursorImpl implements ManagedCursor {
      */
     void recover(final VoidCallback callback) {
         // Read the meta-data ledgerId from the store
+        long timestampStartReadCursorMeta = System.currentTimeMillis();
         log.info("[{}] Recovering from bookkeeper ledger cursor: {}", ledger.getName(), name);
         ledger.getStore().asyncGetCursorInfo(ledger.getName(), name, new MetaStoreCallback<ManagedCursorInfo>() {
             @Override
@@ -588,8 +589,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                     callback.operationComplete();
                 } else {
                     // Need to proceed and read the last entry in the specified ledger to find out the last position
-                    log.info("[{}] Cursor {} meta-data recover from ledger {}", ledger.getName(), name,
-                            info.getCursorsLedgerId());
+                    log.info("[{}] Cursor {} meta-data recover from ledger {} within {} ms", ledger.getName(), name,
+                            info.getCursorsLedgerId(), System.currentTimeMillis() - timestampStartReadCursorMeta);
                     recoverFromLedger(info, callback);
                 }
             }
@@ -610,9 +611,11 @@ public class ManagedCursorImpl implements ManagedCursor {
         // ManagedCursorInfo. The properties saved alongside that snapshot must be carried over: initialize()
         // persists whatever map it receives, so passing an empty map would durably wipe them out.
         Map<String, Long> rollbackProperties = recoverProperties(info.getPropertiesCount(), info::getProperties);
+        long startTimestampOpeningLedger = System.currentTimeMillis();
         OpenCallback openCallback = (rc, lh, ctx) -> {
             if (log.isInfoEnabled()) {
-                log.info("[{}] Opened ledger {} for cursor {}. rc={}", ledger.getName(), ledgerId, name, rc);
+                log.info("[{}] Opened ledger {} for cursor {}. rc={}. within {} ms", ledger.getName(), ledgerId, name,
+                        rc, System.currentTimeMillis() - startTimestampOpeningLedger);
             }
             if (isBkErrorNotRecoverable(rc) || (rc != BKException.Code.OK && ledgerForceRecovery)) {
                 log.error("[{}] Error opening metadata ledger {} for cursor {}: {}", ledger.getName(), ledgerId, name,

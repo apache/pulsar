@@ -246,6 +246,7 @@ public class MessageDeduplication {
             highestSequencedPersisted.put(k, v);
         });
         // Replay all the entries and apply all the sequence ids updates
+        final long startTimeReplayDedup = System.currentTimeMillis();
         log.info("[{}] Replaying {} entries for deduplication", topic.getName(),
                 managedCursor.getNumberOfEntries());
         return replayTask.replay(cursor, (__, buffer) -> {
@@ -261,13 +262,15 @@ public class MessageDeduplication {
             }
             snapshotCounter = replayTask.getNumEntriesProcessed();
             if (snapshotCounter >= snapshotInterval) {
+                log.info("Taking snapshot of sequence ids map");
                 return takeSnapshot(optPosition.get());
             } else {
                 return CompletableFuture.completedFuture(null);
             }
         }).thenRun(() -> {
             status = Status.Enabled;
-            log.info("[{}] Enabled deduplication", topic.getName());
+            log.info("[{}] Enabled deduplication within {} ms", topic.getName(),
+                    System.currentTimeMillis() - startTimeReplayDedup);
         });
     }
 
