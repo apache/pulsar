@@ -1966,6 +1966,9 @@ public class ManagedCursorImpl implements ManagedCursor {
     static final int REPLAY_RANGE_MAX_GAP = 8;
     // the most entries that one range read of replay positions takes
     static final int REPLAY_RANGE_MAX_ENTRIES = 256;
+    // the most bytes that one range read of replay positions takes, by the managed ledger's average entry size, so
+    // that large entries in between aren't read in bulk; it can't tell entries of very different sizes apart
+    static final long REPLAY_RANGE_MAX_BYTES = 1024 * 1024;
 
     /**
      * Reads the replay positions, the runs of positions close to each other in a ledger with one read of the range
@@ -1975,6 +1978,8 @@ public class ManagedCursorImpl implements ManagedCursor {
      */
     private void readReplayPositions(List<Position> positions, ReadEntryCallback cb, Object ctx) {
         positions.sort(null);
+        long averageEntrySize = Math.max(1, ledger.getTotalSize() / Math.max(1, ledger.getNumberOfEntries()));
+        long maxEntries = Math.min(REPLAY_RANGE_MAX_ENTRIES, REPLAY_RANGE_MAX_BYTES / averageEntrySize);
         int start = 0;
         while (start < positions.size()) {
             Position first = positions.get(start);
@@ -1984,7 +1989,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 Position previous = positions.get(end - 1);
                 if (next.getLedgerId() != first.getLedgerId()
                         || next.getEntryId() - previous.getEntryId() > REPLAY_RANGE_MAX_GAP
-                        || next.getEntryId() - first.getEntryId() >= REPLAY_RANGE_MAX_ENTRIES) {
+                        || next.getEntryId() - first.getEntryId() >= maxEntries) {
                     break;
                 }
                 end++;
@@ -2004,13 +2009,17 @@ public class ManagedCursorImpl implements ManagedCursor {
         long lastEntry = wanted.get(wanted.size() - 1).getEntryId();
         LongOpenHashSet wantedEntries = new LongOpenHashSet(wanted.size());
         wanted.forEach(position -> wantedEntries.add(position.getEntryId()));
-        ledger.asyncReadEntries(ledgerId, firstEntry, lastEntry, new ReadEntriesCallback() {
+        ledger.asyncReadEntries(ledgerId, firstEntry, lastEntry, wanted.size(), new ReadEntriesCallback() {
             @Override
             public void readEntriesComplete(List<Entry> entries, Object readCtx) {
                 for (Entry entry : entries) {
                     if (wantedEntries.remove(entry.getEntryId())) {
                         cb.readEntryComplete(entry, ctx);
                     } else {
+                        // an entry in between isn't read by this cursor: it doesn't count as its read
+                        if (entry instanceof EntryImpl entryImpl) {
+                            entryImpl.setDecreaseReadCountOnRelease(false);
+                        }
                         entry.release();
                     }
                 }

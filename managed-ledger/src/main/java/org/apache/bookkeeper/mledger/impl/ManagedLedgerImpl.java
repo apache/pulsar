@@ -2726,7 +2726,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      * Reads every entry from {@code firstEntry} to {@code lastEntry} of the ledger, without a size limit and without
      * caching them, as a cursor's replay of positions close to each other does with one storage read.
      */
-    void asyncReadEntries(long ledgerId, long firstEntry, long lastEntry, ReadEntriesCallback callback, Object ctx) {
+    void asyncReadEntries(long ledgerId, long firstEntry, long lastEntry, int entriesWanted,
+                          ReadEntriesCallback callback, Object ctx) {
+        // the entries read for the cursor, as each would count when read alone
+        for (int i = 0; i < entriesWanted; i++) {
+            mbean.addEntriesRead(1);
+        }
         LedgerHandle currentLedger = this.currentLedger;
         if (ledgerId == currentLedger.getId()) {
             asyncReadEntries(currentLedger, firstEntry, lastEntry, callback, ctx);
@@ -2746,7 +2751,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     private void asyncReadEntries(ReadHandle ledger, long firstEntry, long lastEntry, ReadEntriesCallback callback,
                                   Object ctx) {
-        mbean.addEntriesRead((int) (lastEntry - firstEntry + 1));
         if (config.getReadEntryTimeoutSeconds() > 0) {
             ReadEntryCallbackWrapper readCallback = ReadEntryCallbackWrapper.create(this, ledger.getId(), firstEntry,
                     callback, ctx, timeoutAtNanos(config.getReadEntryTimeoutSeconds()));
