@@ -964,7 +964,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         // Fixed name verified not to collide with the hash of "testMessageKey" under the current
         // consistent-hashing settings, so a "takeover-N" consumer can always take over that hash.
         @Cleanup
-        Consumer<Integer> consumer = createConsumerWithName(topic,"initial-owner");
+        Consumer<Integer> consumer = createConsumerWithName(topic, "initial-owner");
         String initialOwnerName = consumer.getConsumerName();
 
         @Cleanup
@@ -1037,10 +1037,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
             existingNames.add(existing.consumerName());
             probe.addConsumer(mockBrokerConsumer(existing.consumerName())).join();
         }
-        // Search the whole hash-key space. If no name takes over the hash once it's exhausted, an exact
-        // hash-point collision means takeover can't happen, so fail fast instead of looping.
-        int maxAttempts = selector.getKeyHashRange().getEnd();
-        for (int i = 0; i <maxAttempts ; i++) {
+        int maxAttempts = 1000;
+        for (int i = 0; i < maxAttempts; i++) {
             String name = "takeover-" + i;
             if (!existingNames.add(name)) {
                 continue;
@@ -1053,8 +1051,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
             }
             probe.removeConsumer(candidate);
         }
-        fail("Could not find a consumer name to take over hash " + messageKeyHash
-                + " after exhausting the hash-key space (" + maxAttempts + "slots)");
+        fail("No consumer name took over hash " + messageKeyHash
+                + " after " + maxAttempts + " attempts");
         return null;
     }
 
