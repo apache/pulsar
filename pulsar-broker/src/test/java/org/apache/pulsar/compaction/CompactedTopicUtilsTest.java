@@ -92,10 +92,14 @@ public class CompactedTopicUtilsTest {
         }).when(cursor).asyncReadEntries(Mockito.anyInt(), Mockito.anyLong(), Mockito.any(), Mockito.any(),
                 Mockito.any());
 
+        // The transaction max read position still bounds the read.
+        Position maxReadPosition = PositionFactory.create(1, 97);
         List<Entry> entries = CompactedTopicUtils.asyncReadCompactedEntries(service, cursor, 10, 1000,
-                PositionFactory.LATEST, false, false, PositionFactory.create(1, 91), null).get();
+                maxReadPosition, false, false, PositionFactory.create(1, 91), null).get();
 
         Assert.assertEquals(entries, List.of(tombstone));
+        Mockito.verify(cursor).asyncReadEntries(Mockito.eq(10), Mockito.eq(1000L), Mockito.any(), Mockito.any(),
+                Mockito.eq(maxReadPosition));
         Mockito.verify(service, Mockito.never()).readCompactedEntries(Mockito.any(), Mockito.anyInt());
         Mockito.verify(cursor, Mockito.never()).seek(Mockito.any());
         Mockito.verify(cursor, Mockito.never()).seek(Mockito.any(), Mockito.anyBoolean());
