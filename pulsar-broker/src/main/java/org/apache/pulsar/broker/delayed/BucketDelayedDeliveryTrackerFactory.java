@@ -78,100 +78,40 @@ public class BucketDelayedDeliveryTrackerFactory implements DelayedDeliveryTrack
 
     @Override
     public DelayedDeliveryTracker newTracker(AbstractPersistentDispatcherMultipleConsumers dispatcher) {
-        String topicName = dispatcher.getTopic().getName();
-        String subscriptionName = dispatcher.getSubscription().getName();
-        DelayedDeliveryTracker tracker;
-
         try {
-            tracker = newTracker0(dispatcher);
-            ((BucketDelayedDeliveryTracker) tracker).recoverBucketSnapshot();
+            BucketDelayedDeliveryTracker tracker = newTracker0(dispatcher);
+            tracker.recoverBucketSnapshot();
+            return tracker;
         } catch (RecoverDelayedDeliveryTrackerException ex) {
-            tracker = newFallbackTracker(dispatcher, topicName, subscriptionName, ex);
+            return newFallbackTracker(dispatcher, ex);
         }
-        return tracker;
     }
 
     @Override
     public CompletableFuture<DelayedDeliveryTracker> newTrackerAsync(
             AbstractPersistentDispatcherMultipleConsumers dispatcher) {
-        String topicName = null;
-        String subscriptionName = null;
+        CompletableFuture<BucketDelayedDeliveryTracker> recoverFuture;
         try {
-            topicName = dispatcher.getTopic().getName();
-            subscriptionName = dispatcher.getSubscription().getName();
-            String currentTopicName = topicName;
-            String currentSubscriptionName = subscriptionName;
-            BucketDelayedDeliveryTracker tracker;
-            tracker = newTracker0(dispatcher);
-            return tracker.recoverBucketSnapshotAsync(dispatcher.getTopic().getBrokerService().executor())
-                    .thenApply(delayedDeliveryTracker -> (DelayedDeliveryTracker) delayedDeliveryTracker)
-                    .exceptionallyCompose(ex -> newFallbackTrackerAsync(dispatcher, currentTopicName,
-                            currentSubscriptionName, FutureUtil.unwrapCompletionException(ex)));
-        } catch (RecoverDelayedDeliveryTrackerException ex) {
-            return newFallbackTrackerAsync(dispatcher, topicName, subscriptionName, ex);
+            recoverFuture = newTracker0(dispatcher)
+                    .recoverBucketSnapshotAsync(dispatcher.getTopic().getBrokerService().executor());
         } catch (Throwable t) {
-            return FutureUtil.failedFuture(t);
+            recoverFuture = FutureUtil.failedFuture(t);
         }
+        return recoverFuture.<DelayedDeliveryTracker>thenApply(tracker -> tracker)
+                .exceptionally(ex -> newFallbackTracker(dispatcher, FutureUtil.unwrapCompletionException(ex)));
     }
 
     private DelayedDeliveryTracker newFallbackTracker(AbstractPersistentDispatcherMultipleConsumers dispatcher,
-                                                      String topicName,
-                                                      String subscriptionName,
                                                       Throwable ex) {
-        BrokerService brokerService = dispatcher.getTopic().getBrokerService();
-        brokerService.initializeFallbackDelayedDeliveryTrackerFactory();
-        DelayedDeliveryTrackerFactory fallbackFactory = brokerService.getFallbackDelayedDeliveryTrackerFactory();
         log.warn()
-                .attr("topic", topicName)
-                .attr("subscription", subscriptionName)
-                .attr("dispatcher", dispatcher.getName())
-                .attr("async", false)
-                .attr("fallbackTrackerFactory", delayedDeliveryTrackerFactoryType(fallbackFactory))
+                .attr("topic", dispatcher.getTopic().getName())
+                .attr("subscription", dispatcher.getSubscription().getName())
                 .exception(ex)
                 .log("Failed to recover BucketDelayedDeliveryTracker, fallback to InMemoryDelayedDeliveryTracker");
-        return fallbackFactory.newTracker(dispatcher);
-    }
-
-    private CompletableFuture<DelayedDeliveryTracker> newFallbackTrackerAsync(
-            AbstractPersistentDispatcherMultipleConsumers dispatcher, String topicName, String subscriptionName,
-            Throwable ex) {
-        try {
-            BrokerService brokerService = dispatcher.getTopic().getBrokerService();
-            brokerService.initializeFallbackDelayedDeliveryTrackerFactory();
-            DelayedDeliveryTrackerFactory fallbackFactory = brokerService.getFallbackDelayedDeliveryTrackerFactory();
-            log.warn()
-                    .attr("topic", topicName)
-                    .attr("subscription", subscriptionName)
-                    .attr("dispatcher", dispatcher.getName())
-                    .attr("async", true)
-                    .attr("fallbackTrackerFactory", delayedDeliveryTrackerFactoryType(fallbackFactory))
-                    .exception(ex)
-                    .log("Failed to recover BucketDelayedDeliveryTracker, fallback to InMemoryDelayedDeliveryTracker");
-            return fallbackFactory.newTrackerAsync(dispatcher).whenComplete((__, fallbackEx) -> {
-                if (fallbackEx != null) {
-                    log.error()
-                            .attr("topic", topicName)
-                            .attr("subscription", subscriptionName)
-                            .attr("dispatcher", dispatcher.getName())
-                            .attr("fallbackTrackerFactory", delayedDeliveryTrackerFactoryType(fallbackFactory))
-                            .exception(FutureUtil.unwrapCompletionException(fallbackEx))
-                            .log("Failed to create fallback delayed delivery tracker");
-                }
-            });
-        } catch (Throwable t) {
-            log.error()
-                    .attr("topic", topicName)
-                    .attr("subscription", subscriptionName)
-                    .attr("dispatcher", dispatcher.getName())
-                    .attr("recoveryExceptionType", ex == null ? "null" : ex.getClass().getName())
-                    .exception(t)
-                    .log("Failed to create fallback delayed delivery tracker");
-            return FutureUtil.failedFuture(t);
-        }
-    }
-
-    private String delayedDeliveryTrackerFactoryType(DelayedDeliveryTrackerFactory factory) {
-        return factory == null ? "null" : factory.getClass().getSimpleName();
+        // If failed to create BucketDelayedDeliveryTracker, fallback to InMemoryDelayedDeliveryTracker
+        BrokerService brokerService = dispatcher.getTopic().getBrokerService();
+        brokerService.initializeFallbackDelayedDeliveryTrackerFactory();
+        return brokerService.getFallbackDelayedDeliveryTrackerFactory().newTracker(dispatcher);
     }
 
     @VisibleForTesting

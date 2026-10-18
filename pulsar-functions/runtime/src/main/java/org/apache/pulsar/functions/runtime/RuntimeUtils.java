@@ -47,6 +47,7 @@ import lombok.CustomLog;
 import org.apache.commons.lang3.JavaVersion;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
+import org.apache.pulsar.common.functions.MemoryLimit;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
@@ -359,6 +360,9 @@ public class RuntimeUtils {
                 args.add(String.format("-D%s=%s", FUNCTIONS_INSTANCE_CLASSPATH, systemFunctionInstanceClasspath));
             }
             args.add("-Dlog4j.configurationFile=" + logConfigFile);
+            // Bridge java.util.logging (JUL) to Log4j2 so that JUL logs from third-party libraries
+            // (Jersey, gRPC, Guava, etc.) are bridged into the Log4j2 configuration
+            args.add("-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager");
             // Use a single LoggerContext for the function process. The default
             // ClassLoaderContextSelector creates separate contexts per classloader,
             // which causes the LogAppender (added from the instance classloader) to
@@ -503,6 +507,16 @@ public class RuntimeUtils {
 
             if (instanceConfig.isIgnoreUnknownConfigFields()) {
                 args.add("--ignore_unknown_config_fields");
+            }
+
+            MemoryLimit clientMemoryLimit = instanceConfig.getPulsarClientMemoryLimit();
+            if (clientMemoryLimit != null && clientMemoryLimit.getLimitInBytes() != null) {
+                args.add("--pulsar_client_memory_limit_bytes");
+                args.add(String.valueOf(clientMemoryLimit.getLimitInBytes()));
+            }
+            if (clientMemoryLimit != null && clientMemoryLimit.getPercentOfMaxDirectMemory() != null) {
+                args.add("--pulsar_client_memory_limit_percent");
+                args.add(String.valueOf(clientMemoryLimit.getPercentOfMaxDirectMemory()));
             }
         }
 

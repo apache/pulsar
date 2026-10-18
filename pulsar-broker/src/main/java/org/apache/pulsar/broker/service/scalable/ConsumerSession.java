@@ -26,6 +26,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Getter;
 import org.apache.pulsar.broker.service.TransportCnx;
+import org.apache.pulsar.common.scalable.HashRange;
 
 /**
  * In-memory handle for a consumer registered with the controller leader.
@@ -167,9 +168,20 @@ public class ConsumerSession {
     }
 
     /**
-     * Push an assignment update to this consumer, if currently connected. Builds a
-     * {@code ScalableConsumerAssignment} proto and writes a
-     * {@code CommandScalableTopicAssignmentUpdate} to the connection.
+     * Make the consumer subscribe again, with whichever broker is the controller leader now: the
+     * controller holding this session stopped serving as the leader. No-op while disconnected.
+     */
+    public void resubscribe() {
+        TransportCnx localCnx = this.cnx;
+        if (localCnx != null && connected) {
+            localCnx.closeScalableConsumerSession(consumerId);
+        }
+    }
+
+    /**
+     * Push an assignment to this consumer, if currently connected. The connection sends it as the
+     * response to the consumer's subscribe while that is unanswered, and as a
+     * {@code CommandScalableTopicAssignmentUpdate} otherwise.
      */
     public void sendAssignmentUpdate(ConsumerAssignment assignment) {
         TransportCnx localCnx = this.cnx;
@@ -178,12 +190,7 @@ public class ConsumerSession {
             // reconnects (the coordinator re-pushes on attach).
             return;
         }
-        var sender = localCnx.getCommandSender();
-        if (sender == null) {
-            // Connection is in the middle of being torn down; skip silently.
-            return;
-        }
-        sender.sendScalableTopicAssignmentUpdate(consumerId, toProto(assignment));
+        localCnx.sendScalableConsumerAssignment(consumerId, toProto(assignment));
     }
 
     /**
@@ -196,11 +203,14 @@ public class ConsumerSession {
         var proto = new org.apache.pulsar.common.api.proto.ScalableConsumerAssignment()
                 .setLayoutEpoch(assignment.layoutEpoch());
         for (ConsumerAssignment.AssignedSegment seg : assignment.assignedSegments()) {
-            proto.addSegment()
+            var segProto = proto.addSegment()
                     .setSegmentId(seg.segmentId())
                     .setHashStart(seg.hashRange().start())
                     .setHashEnd(seg.hashRange().end())
                     .setSegmentTopic(seg.underlyingTopicName());
+            for (HashRange bucket : seg.bucketRanges()) {
+                segProto.addBucketRange().setStart(bucket.start()).setEnd(bucket.end());
+            }
         }
         return proto;
     }

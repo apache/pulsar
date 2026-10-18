@@ -24,19 +24,21 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import io.github.merlimat.slog.Logger;
+import io.netty.channel.EventLoopGroup;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -96,10 +98,16 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     protected final MessageRedeliveryController redeliveryMessages;
     protected final RedeliveryTracker redeliveryTracker;
 
-    private Optional<DelayedDeliveryTracker> delayedDeliveryTracker = Optional.empty();
-    private CompletableFuture<DelayedDeliveryTracker> delayedDeliveryTrackerCreateFuture = null;
-    private final Map<Position, Long> messagesPendingDelayedDeliveryTracker = new LinkedHashMap<>();
-    private long delayedDeliveryTrackerCreateStartTimeMillis = -1;
+    private volatile Optional<DelayedDeliveryTracker> delayedDeliveryTracker = Optional.empty();
+    // Set from the first delayed message until the asynchronously created tracker is installed. Dispatch is paused
+    // meanwhile, and the delayed messages already read wait in messagesPendingDelayedDeliveryTracker.
+    private volatile CompletableFuture<Void> delayedDeliveryTrackerCreateFuture = null;
+    // Guarded by this. A concurrent map only so that stats can read its size without taking the dispatcher lock.
+    private final Map<Position, Long> messagesPendingDelayedDeliveryTracker = new ConcurrentHashMap<>();
+    private final Backoff delayedDeliveryTrackerCreateBackoff = Backoff.builder()
+            .initialDelay(Duration.ofSeconds(1))
+            .maxBackoff(Duration.ofMinutes(1))
+            .build();
 
     protected volatile boolean havePendingRead = false;
     protected volatile boolean havePendingReplayRead = false;
@@ -169,7 +177,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 .attr("subscription", Codec.decode(cursor.getName()))
                 .build();
         this.dispatchMessagesThread = topic.getBrokerService().getTopicOrderedExecutor().chooseThread();
-        this.redeliveryMessages = new MessageRedeliveryController(allowOutOfOrderDelivery, false);
+        this.redeliveryMessages = new MessageRedeliveryController(allowOutOfOrderDelivery);
         this.redeliveryTracker = this.serviceConfig.isSubscriptionRedeliveryTrackerEnabled()
                 ? new InMemoryRedeliveryTracker()
                 : RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
@@ -227,7 +235,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                     .log("Attempting to add a consumer that already registered");
         }
 
-        consumerList.add(consumer);
+        addConsumerToList(consumer);
         if (consumerList.size() > 1
                 && consumer.getPriorityLevel() < consumerList.get(consumerList.size() - 2).getPriorityLevel()) {
             consumerList.sort(Comparator.comparingInt(Consumer::getPriorityLevel));
@@ -244,10 +252,12 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
     @Override
     public synchronized void removeConsumer(Consumer consumer) throws BrokerServiceException {
-        // decrement unack-message count for removed consumer
-        addUnAckedMessages(-consumer.getUnackedMessages());
-        if (consumerSet.removeAll(consumer) == 1) {
-            consumerList.remove(consumer);
+        if (removeConsumerInstance(consumer)) {
+            // decrement unack-message count for removed consumer. Only the removal that actually
+            // unregisters the consumer may debit it, otherwise removing an already-removed consumer
+            // debits the same messages again and drives the subscription counter negative.
+            addUnAckedMessages(-consumer.getUnackedMessages());
+            removeConsumerInstanceFromList(consumer);
             log.info()
                     .attr("consumer", consumer)
                     .attr("pendingAcks", consumer.getPendingAcks().size())
@@ -263,9 +273,12 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                         notifyAddedToReplay.setTrue();
                     }
                 });
-                totalAvailablePermits -= consumer.getAvailablePermits();
+                // Restore the invariant that the dispatcher total equals the sum of the removal balances of the
+                // remaining consumers. Exclude Flow permits that have not updated the dispatcher total yet.
+                int availablePermits = consumer.getAvailablePermitsForDispatcherRemoval();
+                totalAvailablePermits -= availablePermits;
                 log.debug()
-                        .attr("diffAvailablePermits", consumer.getAvailablePermits())
+                        .attr("availablePermits", availablePermits)
                         .attr("totalAvailablePermits", totalAvailablePermits)
                         .log("Decreased totalAvailablePermits");
                 if (notifyAddedToReplay.booleanValue()) {
@@ -279,7 +292,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
              * are not mismatch with {@link #consumerSet}. See more detail: https://github.com/apache/pulsar/pull/22270.
              */
             log.error().attr("consumer", consumer).log("Trying to remove a non-connected consumer");
-            consumerList.removeIf(c -> consumer.equals(c));
+            // The debit belongs to the removal that unregisters the consumer; do not repeat it here.
+            // The add-consumer failure path can also unregister via internalRemoveConsumer, but that
+            // consumer has not received any messages and therefore has nothing to debit.
+            removeConsumersFromList(c -> c == consumer);
             if (consumerList.isEmpty()) {
                 clearComponentsAfterRemovedAllConsumers();
             }
@@ -287,8 +303,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     }
 
     protected synchronized void internalRemoveConsumer(Consumer consumer) {
-        consumerSet.removeAll(consumer);
-        consumerList.remove(consumer);
+        removeConsumerInstance(consumer);
+        removeConsumerInstanceFromList(consumer);
     }
 
     protected synchronized void clearComponentsAfterRemovedAllConsumers() {
@@ -305,13 +321,23 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
     @Override
     public void consumerFlow(Consumer consumer, int additionalNumberOfMessages) {
-        topic.getBrokerService().executor().execute(() -> {
-            internalConsumerFlow(consumer, additionalNumberOfMessages);
-        });
+        EventLoopGroup flowExecutor = topic.getBrokerService().executor();
+        try {
+            flowExecutor.execute(() -> internalConsumerFlow(consumer, additionalNumberOfMessages));
+        } catch (RejectedExecutionException e) {
+            // Leave the permits pending so removal excludes this unapplied Flow during broker shutdown.
+            log.debug()
+                    .attr("consumer", consumer)
+                    .attr("executorShutdown", flowExecutor.isShuttingDown())
+                    .exception(e)
+                    .log("Unable to schedule flow control update");
+        }
     }
 
     private synchronized void internalConsumerFlow(Consumer consumer, int additionalNumberOfMessages) {
-        if (!consumerSet.contains(consumer)) {
+        // The queued Flow task is no longer pending, even if the consumer was removed while the task was waiting.
+        consumer.completePendingDispatcherFlow(additionalNumberOfMessages);
+        if (!containsConsumerInstance(consumer)) {
             log.debug()
                     .attr("consumer", consumer)
                     .log("Ignoring flow control from disconnected consumer");
@@ -325,6 +351,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 .attr("totalAvailablePermits", totalAvailablePermits)
                 .attr("additionalNumberOfMessages", additionalNumberOfMessages)
                 .log("Trigger new read after receiving flow control message");
+        readMoreEntriesAsync();
+    }
+
+    @Override
+    public void notifyChannelWritable(Consumer consumer) {
+        // Do not acquire the dispatcher monitor or write from Netty's writability notification stack.
+        // A fresh pass rechecks the current consumers and limits, without waiting for a pending retry timer.
         readMoreEntriesAsync();
     }
 
@@ -343,7 +376,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         }
     }
 
-    public synchronized void readMoreEntries() {
+    @Override
+    protected synchronized void internalReadMoreEntries() {
         if (cursor.isClosed()) {
             log.debug("Cursor is already closed, skipping read more entries");
             return;
@@ -363,7 +397,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             return;
         }
 
-        // increment the counter for readMoreEntries calls, to track the number of times readMoreEntries is called
+        // Count executed passes, not conflated requests, for pending-read rescheduling.
         readMoreEntriesCallCount++;
 
         // totalAvailablePermits may be updated by other threads
@@ -388,6 +422,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                         .log("Schedule replay of messages for consumers");
                 havePendingReplayRead = true;
                 updateMinReplayedPosition();
+                onReadStarted(ReadType.Replay);
                 Set<? extends Position> deletedMessages = topic.isDelayedDeliveryEnabled()
                         ? asyncReplayEntriesInOrder(messagesToReplayNow)
                         : asyncReplayEntries(messagesToReplayNow);
@@ -398,6 +433,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 // next entries as readCompletedEntries-callback was never called
                 if ((messagesToReplayNow.size() - deletedMessages.size()) == 0) {
                     havePendingReplayRead = false;
+                    onReadEnded(ReadType.Replay);
                     readMoreEntriesAsync();
                 }
             } else if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE) {
@@ -420,6 +456,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                         .log("Schedule read of messages");
                 havePendingRead = true;
                 updateMinReplayedPosition();
+                onReadStarted(ReadType.Normal);
 
                 messagesToRead = Math.min(messagesToRead, getMaxEntriesReadLimit());
                 cursor.asyncReadEntriesWithSkipOrWait(messagesToRead, bytesToRead, this, ReadType.Normal,
@@ -486,6 +523,31 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         minReplayedPosition = getFirstPositionInReplay().orElse(null);
     }
 
+    /**
+     * Called under the dispatcher's monitor when a normal or a replay read starts. A normal read and a replay read
+     * can be in flight at the same time. With the default direct dispatch, a read of a type doesn't start before the
+     * previous read of the same type was dispatched; with {@code dispatcherDispatchMessagesInSubscriptionThread}, it
+     * can start while the previous one's dispatch is still queued, see {@link #onDispatchQueued(ReadType)}. A read
+     * ends with the dispatch of its entries, in {@link #trySendMessagesToConsumers(ReadType, List)}, or with
+     * {@link #onReadEnded(ReadType)}.
+     */
+    protected void onReadStarted(ReadType readType) {
+    }
+
+    /**
+     * Called under the dispatcher's monitor when a completed read's dispatch is queued on the subscription's thread,
+     * with {@code dispatcherDispatchMessagesInSubscriptionThread}.
+     */
+    protected void onDispatchQueued(ReadType readType) {
+    }
+
+    /**
+     * Called under the dispatcher's monitor when a read ends without its entries being dispatched: it failed, was
+     * cancelled, read only deleted entries, or completed after every consumer disconnected.
+     */
+    protected void onReadEnded(ReadType readType) {
+    }
+
     private boolean shouldPauseOnAckStatePersist(ReadType readType) {
         // Allows new consumers to consume redelivered messages caused by the just-closed consumer.
         if (readType != ReadType.Normal) {
@@ -528,7 +590,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
     // left pair is messagesToRead, right pair is bytesToRead
     protected Pair<Integer, Long> calculateToRead(int currentTotalAvailablePermits) {
-        int messagesToRead = Math.min(currentTotalAvailablePermits, readBatchSize);
+        int maxReadBatchSize = Math.min(readBatchSize, serviceConfig.getDispatcherMaxReadBatchSize());
+        int messagesToRead = Math.min(currentTotalAvailablePermits, maxReadBatchSize);
         long bytesToRead = serviceConfig.getDispatcherMaxReadSizeBytes();
 
         Consumer c = getRandomConsumer();
@@ -537,15 +600,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             int avgMessagesPerEntry = Math.max(1, c.getAvgMessagesPerEntry());
             messagesToRead = Math.min(
                     (int) Math.ceil(currentTotalAvailablePermits * 1.0 / avgMessagesPerEntry),
-                    readBatchSize);
-        }
-
-        if (!isConsumerWritable()) {
-            // If the connection is not currently writable, we issue the read request anyway, but for a single
-            // message. The intent here is to keep use the request as a notification mechanism while avoiding to
-            // read and dispatch a big batch of messages which will need to wait before getting written to the
-            // socket.
-            messagesToRead = 1;
+                    maxReadBatchSize);
         }
 
         // throttle only if: (1) cursor is not active (or flag for throttle-nonBacklogConsumer is enabled) bcz
@@ -616,18 +671,18 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         IS_CLOSED_UPDATER.set(this, TRUE);
 
         Optional<DelayedDeliveryTracker> delayedDeliveryTracker;
-        CompletableFuture<DelayedDeliveryTracker> createFuture;
+        CompletableFuture<Void> createFuture;
         synchronized (this) {
             delayedDeliveryTracker = this.delayedDeliveryTracker;
             this.delayedDeliveryTracker = Optional.empty();
             createFuture = this.delayedDeliveryTrackerCreateFuture;
             this.delayedDeliveryTrackerCreateFuture = null;
-            delayedDeliveryTrackerCreateStartTimeMillis = -1;
             messagesPendingDelayedDeliveryTracker.clear();
         }
 
         if (createFuture != null) {
-            createFuture.complete(DelayedDeliveryTracker.DISABLE);
+            // Releases a waiting clearDelayedMessages(). A tracker whose creation completes later is closed.
+            createFuture.complete(null);
         }
         CompletableFuture<Void> closeTrackerFuture = delayedDeliveryTracker
                 .map(DelayedDeliveryTracker::closeAsync)
@@ -655,9 +710,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     }
 
     @Override
-    protected void cancelPendingRead() {
+    protected synchronized void cancelPendingRead() {
         if (havePendingRead && cursor.cancelPendingReadRequest()) {
             havePendingRead = false;
+            onReadEnded(ReadType.Normal);
         }
     }
 
@@ -706,6 +762,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         if (shouldRewindBeforeReadingOrReplaying && readType == ReadType.Normal) {
             // All consumers got disconnected before the completion of the read operation
             entries.forEach(Entry::release);
+            onReadEnded(ReadType.Normal);
             cursor.rewind();
             shouldRewindBeforeReadingOrReplaying = false;
             readMoreEntriesAsync();
@@ -727,6 +784,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             // setting sendInProgress here, because sendMessagesToConsumers will be executed
             // in a separate thread, and we want to prevent more reads
             acquireSendInProgress();
+            onDispatchQueued(readType);
             dispatchMessagesThread.execute(() -> {
                 handleSendingMessagesAndReadingMore(readType, entries, false, totalBytesSize);
             });
@@ -750,6 +808,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             canReadMoreImmediately = true;
         }
         if (triggerReadingMore) {
+            if (entriesProcessed == 0 && !isConsumerWritable()) {
+                // An in-flight read can finish after the channel becomes unwritable. Wait for the
+                // writable notification instead of polling the same backpressured consumers.
+                return;
+            }
             if (canReadMoreImmediately) {
                 // Call readMoreEntries in the same thread to trigger the next read
                 readMoreEntries();
@@ -840,23 +903,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         while (entriesToDispatch > 0 && isAtleastOneConsumerAvailable()) {
             Consumer c = getNextConsumer();
             if (c == null) {
-                // Do nothing, cursor will be rewind at reconnection
-                log.info()
-                        .attr("consumerCount", consumerList.size())
-                        .log("Rewind because no available consumer found");
-                entries.subList(start, entries.size()).forEach(Entry::release);
-                cursor.rewind();
-                lastNumberOfEntriesProcessed = (int) totalEntriesProcessed;
-                return false;
+                // Writability can change after the availability check. Preserve the remaining positions
+                // for replay instead of rewinding entries already sent to other consumers.
+                break;
             }
             // round-robin dispatch batch size for this consumer
-            int availablePermits = c.isWritable() ? c.getAvailablePermits() : 1;
-            if (!c.isWritable()) {
-                log.debug()
-                        .attr("consumer", c)
-                        .attr("availablePermits", c.getAvailablePermits())
-                        .log("Consumer is not writable, dispatching only 1 message");
-            }
+            // Once selected, queue this bounded batch even if a write changes channel writability.
+            int availablePermits = c.getAvailablePermits();
 
             int maxEntriesInThisBatch = getMaxEntriesInThisBatch(
                     remainingMessages, c.getMaxUnackedMessages(), c.getUnackedMessages(), avgBatchSizePerMsg,
@@ -881,6 +934,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                     entriesForThisConsumer, batchSizes, sendMessageInfo, batchIndexesAcks, cursor,
                     readType == ReadType.Replay, c);
             totalEntriesProcessed += entriesForThisConsumer.size();
+            // read before sendMessages: it hands batchIndexesAcks to the consumer's event loop, which recycles it
+            int totalAckedIndexCount = batchIndexesAcks.getTotalAckedIndexCount();
 
             c.sendMessages(entriesForThisConsumer, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
                     sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(), redeliveryTracker);
@@ -889,11 +944,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             remainingMessages -= msgSent;
             start += maxEntriesInThisBatch;
             entriesToDispatch -= maxEntriesInThisBatch;
-            TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this,
-                    -(msgSent - batchIndexesAcks.getTotalAckedIndexCount()));
+            TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -(msgSent - totalAckedIndexCount));
             log.debug()
                     .attr("msgSent", msgSent)
-                    .attr("totalAckedIndexCount", () -> batchIndexesAcks.getTotalAckedIndexCount())
+                    .attr("totalAckedIndexCount", totalAckedIndexCount)
                     .log("Added permits to TOTAL_AVAILABLE_PERMITS_UPDATER");
             totalMessagesSent += sendMessageInfo.getTotalMessages();
             totalBytesSent += sendMessageInfo.getTotalBytes();
@@ -989,6 +1043,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             totalEntries += filterEntriesForConsumer(entryAndMetadataList, batchSizes, sendMessageInfo,
                     batchIndexesAcks, cursor, readType == ReadType.Replay, consumer);
             totalEntriesProcessed += entryAndMetadataList.size();
+            // read before sendMessages: it hands batchIndexesAcks to the consumer's event loop, which recycles it
+            final int totalAckedIndexCount = batchIndexesAcks.getTotalAckedIndexCount();
             consumer.sendMessages(entryAndMetadataList, batchSizes, batchIndexesAcks,
                     sendMessageInfo.getTotalMessages(), sendMessageInfo.getTotalBytes(),
                     sendMessageInfo.getTotalChunkedMessages(), getRedeliveryTracker()
@@ -999,7 +1055,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             });
 
             TOTAL_AVAILABLE_PERMITS_UPDATER.getAndAdd(this,
-                    -(sendMessageInfo.getTotalMessages() - batchIndexesAcks.getTotalAckedIndexCount()));
+                    -(sendMessageInfo.getTotalMessages() - totalAckedIndexCount));
             totalMessagesSent += sendMessageInfo.getTotalMessages();
             totalBytesSent += sendMessageInfo.getTotalBytes();
         }
@@ -1057,6 +1113,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             cursor.rewind();
         }
 
+        onReadEnded(readType);
         if (readType == ReadType.Normal) {
             havePendingRead = false;
         } else {
@@ -1119,7 +1176,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             return 0;
         }
         for (Consumer consumer : consumerList) {
-            if (consumer != null && !consumer.isBlocked() && consumer.cnx().isActive()) {
+            if (consumer != null && !consumer.isBlocked() && consumer.cnx().isActive() && consumer.isWritable()) {
                 int availablePermits = consumer.getAvailablePermits();
                 if (availablePermits > 0) {
                     return availablePermits;
@@ -1135,14 +1192,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 return true;
             }
         }
-        log.debug("Consumer is not writable");
         return false;
     }
 
     @Override
     public boolean isConsumerAvailable(Consumer consumer) {
         return consumer != null && !consumer.isBlocked() && consumer.cnx().isActive()
-                && consumer.getAvailablePermits() > 0;
+                && consumer.isWritable() && consumer.getAvailablePermits() > 0;
     }
 
     @Override
@@ -1320,187 +1376,181 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             return false;
         }
 
-        CompletableFuture<DelayedDeliveryTracker> createFuture = null;
-        boolean startCreate = false;
-        long deliverAtTime = msgMetadata.hasDeliverAtTime() ? msgMetadata.getDeliverAtTime() : -1L;
+        CompletableFuture<Void> createFuture;
         synchronized (this) {
-            if (delayedDeliveryTracker.isEmpty()) {
-                if (!msgMetadata.hasDeliverAtTime()) {
-                    // No need to initialize the tracker here
-                    return false;
-                }
-
-                messagesPendingDelayedDeliveryTracker.put(PositionFactory.create(ledgerId, entryId), deliverAtTime);
-                if (delayedDeliveryTrackerCreateFuture == null) {
-                    startCreate = true;
-                    createFuture = new CompletableFuture<>();
-                    delayedDeliveryTrackerCreateFuture = createFuture;
-                    delayedDeliveryTrackerCreateStartTimeMillis = System.currentTimeMillis();
-                }
-            } else {
+            if (delayedDeliveryTracker.isPresent()) {
                 delayedDeliveryTracker.get().resetTickTime(topic.getDelayedDeliveryTickTimeMillis());
+                long deliverAtTime = msgMetadata.hasDeliverAtTime() ? msgMetadata.getDeliverAtTime() : -1L;
                 return delayedDeliveryTracker.get().addMessage(ledgerId, entryId, deliverAtTime);
             }
+            if (!msgMetadata.hasDeliverAtTime()) {
+                // No need to initialize the tracker here
+                return false;
+            }
+            if (isClosed()) {
+                // Don't start a tracker for a closed dispatcher. The message stays unacknowledged.
+                return true;
+            }
+
+            // Creating the tracker can recover bucket snapshots from storage, so it is done asynchronously.
+            // The message waits until the tracker is installed.
+            messagesPendingDelayedDeliveryTracker.put(PositionFactory.create(ledgerId, entryId),
+                    msgMetadata.getDeliverAtTime());
+            if (delayedDeliveryTrackerCreateFuture != null) {
+                return true;
+            }
+            createFuture = new CompletableFuture<>();
+            delayedDeliveryTrackerCreateFuture = createFuture;
         }
-        if (startCreate) {
-            createDelayedDeliveryTracker(createFuture);
-        }
+        createDelayedDeliveryTracker(createFuture);
         return true;
     }
 
-    private void createDelayedDeliveryTracker(CompletableFuture<DelayedDeliveryTracker> createFuture) {
-        if (!isDelayedDeliveryTrackerCreateActive(createFuture)) {
-            createFuture.complete(DelayedDeliveryTracker.DISABLE);
-            return;
-        }
-        log.info()
-                .attr("topic", topic.getName())
-                .attr("subscription", getSubscriptionName())
-                .attr("dispatcher", getName())
-                .attr("pendingDelayedMessages", getDelayedDeliveryTrackerCreatePendingMessages())
-                .log("Start delayed delivery tracker creation");
-        scheduleDelayedDeliveryTrackerCreatePendingLog(createFuture);
-        if (!isDelayedDeliveryTrackerCreateActive(createFuture)) {
-            createFuture.complete(DelayedDeliveryTracker.DISABLE);
-            return;
-        }
+    private void createDelayedDeliveryTracker(CompletableFuture<Void> createFuture) {
+        long startNanos = System.nanoTime();
+        log.debug()
+                .attr("pendingDelayedMessages", messagesPendingDelayedDeliveryTracker.size())
+                .log("Creating delayed delivery tracker");
         CompletableFuture<DelayedDeliveryTracker> trackerFuture;
         try {
             trackerFuture = topic.getBrokerService().getDelayedDeliveryTrackerFactory().newTrackerAsync(this);
         } catch (Throwable t) {
             trackerFuture = FutureUtil.failedFuture(t);
         }
-        trackerFuture.whenComplete((tracker, ex) -> delayedDeliveryTrackerCreated(createFuture, tracker, ex));
+        if (!trackerFuture.isDone()) {
+            scheduleDelayedDeliveryTrackerCreatePendingLog(createFuture, startNanos);
+        }
+        trackerFuture
+                .handle((tracker, ex) -> {
+                    delayedDeliveryTrackerCreated(createFuture, tracker, ex, startNanos);
+                    return null;
+                })
+                .exceptionally(ex -> {
+                    log.error()
+                            .exception(ex)
+                            .log("Failed to install the delayed delivery tracker");
+                    return null;
+                });
     }
 
-    private void delayedDeliveryTrackerCreated(CompletableFuture<DelayedDeliveryTracker> createFuture,
-                                               DelayedDeliveryTracker tracker, Throwable ex) {
-        DelayedDeliveryTracker trackerToUse = tracker == null ? DelayedDeliveryTracker.DISABLE : tracker;
-        if (ex != null) {
-            trackerToUse = DelayedDeliveryTracker.DISABLE;
+    private void delayedDeliveryTrackerCreated(CompletableFuture<Void> createFuture, DelayedDeliveryTracker tracker,
+                                               Throwable ex, long startNanos) {
+        if (ex == null && tracker == null) {
+            ex = new IllegalStateException("The delayed delivery tracker factory returned no tracker");
         }
-
-        boolean shouldCloseTracker = false;
-        boolean shouldReadMore = false;
-        boolean installedTracker = false;
-        boolean dispatcherClosed = false;
-        boolean createFutureChanged = false;
+        long durationMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
+        boolean installed = false;
+        boolean stale = false;
+        long retryDelayMillis = -1;
         int pendingDelayedMessages;
-        int replayDelayedMessages = 0;
-        long durationMillis;
-        synchronized (this) {
-            pendingDelayedMessages = messagesPendingDelayedDeliveryTracker.size();
-            durationMillis = getDelayedDeliveryTrackerCreateDurationMillis();
-            dispatcherClosed = isClosed();
-            createFutureChanged = delayedDeliveryTrackerCreateFuture != createFuture;
-            if (createFutureChanged || dispatcherClosed) {
-                shouldCloseTracker = trackerToUse != DelayedDeliveryTracker.DISABLE;
-            } else {
-                delayedDeliveryTrackerCreateFuture = null;
-                delayedDeliveryTrackerCreateStartTimeMillis = -1;
-                delayedDeliveryTracker = Optional.of(trackerToUse);
-                trackerToUse.resetTickTime(topic.getDelayedDeliveryTickTimeMillis());
-                for (Map.Entry<Position, Long> entry : messagesPendingDelayedDeliveryTracker.entrySet()) {
-                    Position position = entry.getKey();
-                    if (!trackerToUse.addMessage(position.getLedgerId(), position.getEntryId(), entry.getValue())) {
-                        redeliveryMessages.add(position.getLedgerId(), position.getEntryId());
-                        replayDelayedMessages++;
-                    }
-                }
-                messagesPendingDelayedDeliveryTracker.clear();
-                shouldReadMore = true;
-                installedTracker = true;
-            }
-        }
-        if (ex != null) {
-            log.warn()
-                    .attr("topic", topic.getName())
-                    .attr("subscription", getSubscriptionName())
-                    .attr("dispatcher", getName())
-                    .attr("durationMillis", durationMillis)
-                    .attr("pendingDelayedMessages", pendingDelayedMessages)
-                    .exception(FutureUtil.unwrapCompletionException(ex))
-                    .log("Failed to initialize delayed delivery tracker");
-        } else if (installedTracker) {
-            log.info()
-                    .attr("topic", topic.getName())
-                    .attr("subscription", getSubscriptionName())
-                    .attr("dispatcher", getName())
-                    .attr("durationMillis", durationMillis)
-                    .attr("pendingDelayedMessages", pendingDelayedMessages)
-                    .attr("replayDelayedMessages", replayDelayedMessages)
-                    .attr("trackerType", delayedDeliveryTrackerType(trackerToUse))
-                    .log("Delayed delivery tracker creation complete");
-        }
-        createFuture.complete(trackerToUse);
-        if (shouldCloseTracker) {
-            log.info()
-                    .attr("topic", topic.getName())
-                    .attr("subscription", getSubscriptionName())
-                    .attr("dispatcher", getName())
-                    .attr("durationMillis", durationMillis)
-                    .attr("pendingDelayedMessages", pendingDelayedMessages)
-                    .attr("dispatcherClosed", dispatcherClosed)
-                    .attr("createFutureChanged", createFutureChanged)
-                    .attr("trackerType", delayedDeliveryTrackerType(trackerToUse))
-                    .log("Close delayed delivery tracker after async creation is no longer needed");
-            trackerToUse.closeAsync();
-        }
-        if (shouldReadMore) {
-            readMoreEntriesAsync();
-        }
-    }
-
-    private synchronized boolean isDelayedDeliveryTrackerCreateActive(
-            CompletableFuture<DelayedDeliveryTracker> createFuture) {
-        return delayedDeliveryTrackerCreateFuture == createFuture && !isClosed();
-    }
-
-    private void scheduleDelayedDeliveryTrackerCreatePendingLog(
-            CompletableFuture<DelayedDeliveryTracker> createFuture) {
-        topic.getBrokerService().executor().schedule(() -> {
-            int pendingDelayedMessages;
-            long durationMillis;
-            synchronized (PersistentDispatcherMultipleConsumers.this) {
-                if (delayedDeliveryTrackerCreateFuture != createFuture) {
-                    return;
-                }
+        try {
+            synchronized (this) {
                 pendingDelayedMessages = messagesPendingDelayedDeliveryTracker.size();
-                durationMillis = getDelayedDeliveryTrackerCreateDurationMillis();
+                if (delayedDeliveryTrackerCreateFuture != createFuture) {
+                    // The dispatcher was closed while the tracker was being created
+                    stale = true;
+                } else if (ex != null) {
+                    // Keep the messages pending and dispatch paused: delivering them now would ignore their delay
+                    retryDelayMillis = delayedDeliveryTrackerCreateBackoff.next().toMillis();
+                } else {
+                    delayedDeliveryTrackerCreateFuture = null;
+                    delayedDeliveryTrackerCreateBackoff.reset();
+                    delayedDeliveryTracker = Optional.of(tracker);
+                    installed = true;
+                    addPendingMessagesToTracker(tracker);
+                }
             }
-            log.warn()
-                    .attr("topic", topic.getName())
-                    .attr("subscription", getSubscriptionName())
-                    .attr("dispatcher", getName())
+        } finally {
+            if (installed) {
+                createFuture.complete(null);
+                readMoreEntriesAsync();
+            }
+        }
+
+        if (installed) {
+            log.debug()
                     .attr("durationMillis", durationMillis)
                     .attr("pendingDelayedMessages", pendingDelayedMessages)
-                    .log("Delayed delivery tracker creation is still pending");
-        }, DELAYED_DELIVERY_TRACKER_CREATE_LOG_INTERVAL_MILLIS, TimeUnit.MILLISECONDS);
+                    .attr("trackerType", tracker.getClass().getSimpleName())
+                    .log("Created delayed delivery tracker");
+        } else if (stale) {
+            if (tracker != null) {
+                log.debug("Closing a delayed delivery tracker created after the dispatcher was closed");
+                tracker.closeAsync();
+            }
+        } else {
+            log.warn()
+                    .attr("durationMillis", durationMillis)
+                    .attr("pendingDelayedMessages", pendingDelayedMessages)
+                    .attr("retryDelayMillis", retryDelayMillis)
+                    .exception(FutureUtil.unwrapCompletionException(ex))
+                    .log("Failed to create delayed delivery tracker, dispatch stays paused until a retry succeeds");
+            try {
+                topic.getBrokerService().executor().schedule(() -> {
+                    if (delayedDeliveryTrackerCreateFuture == createFuture) {
+                        createDelayedDeliveryTracker(createFuture);
+                    }
+                }, retryDelayMillis, TimeUnit.MILLISECONDS);
+            } catch (RejectedExecutionException e) {
+                log.debug("Not retrying the delayed delivery tracker creation, the broker is shutting down");
+            }
+        }
+    }
+
+    private void addPendingMessagesToTracker(DelayedDeliveryTracker tracker) {
+        tracker.resetTickTime(topic.getDelayedDeliveryTickTimeMillis());
+        try {
+            var iterator = messagesPendingDelayedDeliveryTracker.entrySet().iterator();
+            while (iterator.hasNext()) {
+                Map.Entry<Position, Long> entry = iterator.next();
+                Position position = entry.getKey();
+                if (!tracker.addMessage(position.getLedgerId(), position.getEntryId(), entry.getValue())) {
+                    // The delivery time has already passed
+                    redeliveryMessages.add(position.getLedgerId(), position.getEntryId());
+                }
+                iterator.remove();
+            }
+        } finally {
+            // If the tracker failed, deliver the remaining messages rather than leaving them stuck
+            messagesPendingDelayedDeliveryTracker.keySet().forEach(position ->
+                    redeliveryMessages.add(position.getLedgerId(), position.getEntryId()));
+            messagesPendingDelayedDeliveryTracker.clear();
+        }
+    }
+
+    private void scheduleDelayedDeliveryTrackerCreatePendingLog(CompletableFuture<Void> createFuture,
+                                                                long startNanos) {
+        try {
+            topic.getBrokerService().executor().schedule(() -> {
+                if (delayedDeliveryTrackerCreateFuture == createFuture) {
+                    log.warn()
+                            .attr("durationMillis", TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos))
+                            .attr("pendingDelayedMessages", messagesPendingDelayedDeliveryTracker.size())
+                            .log("Delayed delivery tracker creation is still pending, dispatch is paused");
+                }
+            }, DELAYED_DELIVERY_TRACKER_CREATE_LOG_INTERVAL_MILLIS, TimeUnit.MILLISECONDS);
+        } catch (RejectedExecutionException e) {
+            // The broker is shutting down
+        }
     }
 
     @VisibleForTesting
-    synchronized boolean isDelayedDeliveryTrackerCreatePending() {
+    boolean isDelayedDeliveryTrackerCreatePending() {
         return delayedDeliveryTrackerCreateFuture != null;
     }
 
     @VisibleForTesting
-    synchronized int getDelayedDeliveryTrackerCreatePendingMessages() {
+    int getDelayedDeliveryTrackerCreatePendingMessages() {
         return messagesPendingDelayedDeliveryTracker.size();
     }
 
-    private long getDelayedDeliveryTrackerCreateDurationMillis() {
-        long startTimeMillis = delayedDeliveryTrackerCreateStartTimeMillis;
-        return startTimeMillis > 0 ? System.currentTimeMillis() - startTimeMillis : -1;
-    }
-
-    private String delayedDeliveryTrackerType(DelayedDeliveryTracker tracker) {
-        if (tracker == DelayedDeliveryTracker.DISABLE) {
-            return "DISABLE";
-        }
-        return tracker.getClass().getSimpleName();
-    }
-
     protected synchronized NavigableSet<Position> getMessagesToReplayNow(int maxMessagesToRead, long bytesToRead) {
+        boolean delayedMessagesAvailable =
+                delayedDeliveryTracker.isPresent() && delayedDeliveryTracker.get().hasMessageAvailable();
+        if (!delayedMessagesAvailable && redeliveryMessages.isEmpty()) {
+            // nothing to replay, the common case: skip the size cap's estimate, which the normal read computes again
+            return Collections.emptyNavigableSet();
+        }
         int cappedMaxMessagesToRead = cursor.applyMaxSizeCap(maxMessagesToRead, bytesToRead);
         if (cappedMaxMessagesToRead < maxMessagesToRead) {
             log.debug()
@@ -1508,7 +1558,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                     .attr("maxMessagesToRead", maxMessagesToRead)
                     .log("Capped max messages to read from redelivery list");
         }
-        if (delayedDeliveryTracker.isPresent() && delayedDeliveryTracker.get().hasMessageAvailable()) {
+        if (delayedMessagesAvailable) {
             delayedDeliveryTracker.get().resetTickTime(topic.getDelayedDeliveryTickTimeMillis());
             NavigableSet<Position> messagesAvailableNow =
                     delayedDeliveryTracker.get().getScheduledMessages(cappedMaxMessagesToRead);
@@ -1548,14 +1598,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     }
 
 
-
-    protected synchronized boolean shouldPauseDeliveryForDelayTracker() {
+    protected boolean shouldPauseDeliveryForDelayTracker() {
         return delayedDeliveryTrackerCreateFuture != null
-                || delayedDeliveryTracker.isPresent() && delayedDeliveryTracker.get().shouldPauseAllDeliveries();
+                || delayedDeliveryTracker.map(DelayedDeliveryTracker::shouldPauseAllDeliveries).orElse(false);
     }
 
     @Override
-    public synchronized long getNumberOfDelayedMessages() {
+    public long getNumberOfDelayedMessages() {
         return delayedDeliveryTracker.map(DelayedDeliveryTracker::getNumberOfDelayedMessages).orElse(0L)
                 + messagesPendingDelayedDeliveryTracker.size();
     }
@@ -1645,25 +1694,15 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     }
 
 
-    public synchronized long getDelayedTrackerMemoryUsage() {
+    public long getDelayedTrackerMemoryUsage() {
         return delayedDeliveryTracker.map(DelayedDeliveryTracker::getBufferMemoryUsage).orElse(0L);
     }
 
-    public synchronized Map<String, TopicMetricBean> getBucketDelayedIndexStats() {
-        if (delayedDeliveryTracker.isEmpty()) {
-            return Collections.emptyMap();
-        }
-
-        if (delayedDeliveryTracker.get() instanceof BucketDelayedDeliveryTracker) {
-            return ((BucketDelayedDeliveryTracker) delayedDeliveryTracker.get()).genTopicMetricMap();
-        }
-
-        return Collections.emptyMap();
-    }
-
-    @Override
-    public boolean isClassic() {
-        return false;
+    public Map<String, TopicMetricBean> getBucketDelayedIndexStats() {
+        return delayedDeliveryTracker
+                .filter(BucketDelayedDeliveryTracker.class::isInstance)
+                .map(tracker -> ((BucketDelayedDeliveryTracker) tracker).genTopicMetricMap())
+                .orElse(Collections.emptyMap());
     }
 
     public ManagedCursor getCursor() {

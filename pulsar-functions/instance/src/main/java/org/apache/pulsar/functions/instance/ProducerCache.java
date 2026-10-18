@@ -31,7 +31,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.CustomLog;
@@ -39,6 +38,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.stats.CacheMetricsCollector;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.PulsarExecutors;
 
 @CustomLog
 public class ProducerCache implements Closeable {
@@ -69,7 +69,7 @@ public class ProducerCache implements Closeable {
     private final ExecutorService cacheExecutor;
 
     public ProducerCache() {
-        cacheExecutor = Executors.newSingleThreadExecutor(new DefaultThreadFactory("ProducerCache"));
+        cacheExecutor = PulsarExecutors.newSingleThreadExecutor(new DefaultThreadFactory("ProducerCache"), false);
         Caffeine<ProducerCacheKey, Producer<?>> builder = Caffeine.newBuilder()
                 .recordStats()
                 .scheduler(Scheduler.systemScheduler())

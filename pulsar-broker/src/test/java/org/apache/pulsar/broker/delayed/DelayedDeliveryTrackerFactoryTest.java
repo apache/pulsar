@@ -38,6 +38,7 @@ import org.apache.pulsar.broker.delayed.proto.SnapshotMetadata;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.Subscription;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
@@ -262,43 +263,54 @@ public class DelayedDeliveryTrackerFactoryTest extends ProducerConsumerBase {
 
         Mockito.doReturn(factory).when(brokerService).getDelayedDeliveryTrackerFactory();
         Mockito.doReturn(brokerService).when(topic).getBrokerService();
+        CompletableFuture<Optional<Topic>> originalTopicFuture = pulsar.getBrokerService().getTopics().get(topicName);
         brokerService.getTopics().put(topicName, CompletableFuture.completedFuture(Optional.of(topic)));
+        try {
+            @Cleanup
+            Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                    .topic(topicName)
+                    .subscriptionName("sub")
+                    .subscriptionType(SubscriptionType.Shared)
+                    .subscribe();
 
-        @Cleanup
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic(topicName)
-                .subscriptionName("sub")
-                .subscriptionType(SubscriptionType.Shared)
-                .subscribe();
+            PersistentSubscription subscription = topic.getSubscription("sub");
+            Dispatcher dispatcher = subscription.getDispatcher();
+            Assert.assertTrue(dispatcher instanceof PersistentDispatcherMultipleConsumers);
+            PersistentDispatcherMultipleConsumers dispatcher0 = (PersistentDispatcherMultipleConsumers) dispatcher;
 
-        PersistentSubscription subscription = topic.getSubscription("sub");
-        Dispatcher dispatcher = subscription.getDispatcher();
-        Assert.assertTrue(dispatcher instanceof PersistentDispatcherMultipleConsumers);
-        PersistentDispatcherMultipleConsumers dispatcher0 = (PersistentDispatcherMultipleConsumers) dispatcher;
+            // Force bucket recovery to wait on snapshot metadata.
+            dispatcher0.getCursor().putCursorProperty(
+                    BucketDelayedDeliveryTracker.DELAYED_BUCKET_KEY_PREFIX + "_1_2", "1")
+                    .get(1, TimeUnit.MINUTES);
 
-        // Force bucket recovery to wait on snapshot metadata.
-        dispatcher0.getCursor().putCursorProperty(
-                BucketDelayedDeliveryTracker.DELAYED_BUCKET_KEY_PREFIX + "_1_2", "1")
-                .get(1, TimeUnit.MINUTES);
+            producer.newMessage()
+                    .value("delayed")
+                    .deliverAfter(100, TimeUnit.MILLISECONDS)
+                    .send();
 
-        producer.newMessage()
-                .value("delayed")
-                .deliverAfter(100, TimeUnit.MILLISECONDS)
-                .send();
+            Mockito.verify(storage, Mockito.timeout(10_000)).getBucketSnapshotMetadata(1L);
 
-        Mockito.verify(storage, Mockito.timeout(10_000)).getBucketSnapshotMetadata(1L);
+            // The delivery time has passed, but bucket recovery is still pending.
+            Assert.assertNull(consumer.receive(1, TimeUnit.SECONDS));
+            Assert.assertEquals(dispatcher0.getNumberOfDelayedMessages(), 1);
+            // The recovery doesn't hold the dispatcher lock
+            CompletableFuture.runAsync(() -> {
+                synchronized (dispatcher0) {
+                    dispatcher0.getNumberOfMessagesInReplay();
+                }
+            }).get(10, TimeUnit.SECONDS);
 
-        // The delivery time has passed, but bucket recovery is still pending.
-        Assert.assertNull(consumer.receive(1, TimeUnit.SECONDS));
+            // Finish bucket recovery; dispatcher should replay the elapsed delayed message.
+            metadataFuture.complete(new SnapshotMetadata());
+            Mockito.verify(storage, Mockito.timeout(10_000)).deleteBucketSnapshot(1L);
 
-        // Finish bucket recovery; dispatcher should replay the elapsed delayed message.
-        metadataFuture.complete(new SnapshotMetadata());
-        Mockito.verify(storage, Mockito.timeout(10_000)).deleteBucketSnapshot(1L);
-
-        var message = consumer.receive(10, TimeUnit.SECONDS);
-        Assert.assertNotNull(message);
-        Assert.assertEquals(message.getValue(), "delayed");
-        consumer.acknowledge(message);
+            var message = consumer.receive(10, TimeUnit.SECONDS);
+            Assert.assertNotNull(message);
+            Assert.assertEquals(message.getValue(), "delayed");
+            consumer.acknowledge(message);
+        } finally {
+            pulsar.getBrokerService().getTopics().put(topicName, originalTopicFuture);
+        }
     }
 
     // 1. Create BucketDelayedDeliveryTracker failed, fallback to InMemoryDelayedDeliveryTracker,
