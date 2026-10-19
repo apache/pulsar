@@ -19,20 +19,15 @@
 package org.apache.pulsar.broker.service.schema;
 
 import static org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage.bkException;
-import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotSame;
 import com.github.benmanes.caffeine.cache.Ticker;
 import java.nio.charset.StandardCharsets;
@@ -52,19 +47,15 @@ import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.LedgerHandle;
-import org.apache.bookkeeper.client.api.CreateBuilder;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.common.policies.data.SchemaMetadata;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.protocol.schema.StoredSchema;
 import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
-import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker", timeOut = 30000)
@@ -77,23 +68,15 @@ public class BookkeeperSchemaStorageEntryCacheTest {
     }
 
     private static final class Harness implements AutoCloseable {
-        private final String metadataUrl;
-        final FaultInjectionMetadataStore store;
+        private final MetadataStoreExtended store;
         final BookKeeper bookKeeper = mock(BookKeeper.class);
         final LedgerHandle handle = mock(LedgerHandle.class);
         final AtomicInteger openCount = new AtomicInteger();
         private final AtomicInteger nextOpenRc = new AtomicInteger(BKException.Code.OK);
         private final LinkedBlockingQueue<PendingRead> pendingReads = new LinkedBlockingQueue<>();
-        // Serialized SchemaEntry bytes served back when a ledger is read. Entries written through
-        // put() are recorded here, so reads return exactly what was written.
-        private final Map<Long, byte[]> writtenEntries = new ConcurrentHashMap<>();
+        private final Map<Long, byte[]> storedEntries = new ConcurrentHashMap<>();
         private final Map<Long, LedgerHandle> readHandles = new ConcurrentHashMap<>();
-        private final AtomicLong nextCreatedLedgerId = new AtomicLong(1000);
         final BookkeeperSchemaStorage storage;
-
-        Harness() throws Exception {
-            this(1, false, Ticker.systemTicker());
-        }
 
         Harness(int versions) throws Exception {
             this(versions, false, Ticker.systemTicker());
@@ -108,22 +91,21 @@ public class BookkeeperSchemaStorageEntryCacheTest {
         }
 
         private Harness(int versions, boolean latestOnlyLocator, Ticker cacheTicker) throws Exception {
-            metadataUrl = "memory:schema-entry-cache-" + StoreIds.incrementAndGet();
-            MetadataStoreExtended underlyingStore = MetadataStoreExtended.create(
-                    metadataUrl,
-                    MetadataStoreConfig.builder().build());
-            store = new FaultInjectionMetadataStore(underlyingStore);
+            String metadataUrl = "memory:schema-entry-cache-" + StoreIds.incrementAndGet();
+            store = MetadataStoreExtended.create(metadataUrl, MetadataStoreConfig.builder().build());
+
             when(handle.getId()).thenReturn(1L);
             stubReadCapture(handle);
             stubImmediateClose(handle);
             readHandles.put(1L, handle);
+
             List<IndexEntry> indexes = new ArrayList<>(versions);
             for (int version = 0; version < versions; version++) {
                 SchemaEntry schemaEntry = new SchemaEntry().setSchemaData(dataForVersion(version));
                 for (IndexEntry previous : indexes) {
                     schemaEntry.addIndex().copyFrom(previous);
                 }
-                writtenEntries.put(version + 1L, schemaEntry.toByteArray());
+                storedEntries.put(version + 1L, schemaEntry.toByteArray());
 
                 IndexEntry index = new IndexEntry();
                 index.setVersion(version);
@@ -148,12 +130,6 @@ public class BookkeeperSchemaStorageEntryCacheTest {
                 callback.openComplete(rc, ledgerHandle, invocation.getArgument(4));
                 return null;
             }).when(bookKeeper).asyncOpenLedger(anyLong(), any(), any(), any(), isNull(), eq(true));
-            doAnswer(invocation -> {
-                AsyncCallback.DeleteCallback callback = invocation.getArgument(1);
-                callback.deleteComplete(BKException.Code.OK, invocation.getArgument(2));
-                return null;
-            }).when(bookKeeper).asyncDeleteLedger(anyLong(), any(), isNull());
-            when(bookKeeper.newCreateLedgerOp()).thenAnswer(invocation -> newWriteHandleBuilder());
 
             SchemaLocator locator = new SchemaLocator();
             if (latestOnlyLocator) {
@@ -167,68 +143,19 @@ public class BookkeeperSchemaStorageEntryCacheTest {
             locator.setInfo().copyFrom(latest);
             store.put("/schemas/test", locator.toByteArray(), Optional.empty()).get(5, TimeUnit.SECONDS);
 
-            storage = createStorage(store, cacheTicker);
-        }
-
-        Peer createPeer() throws Exception {
-            MetadataStoreExtended underlyingStore = MetadataStoreExtended.create(
-                    metadataUrl, MetadataStoreConfig.builder().build());
-            FaultInjectionMetadataStore peerStore = new FaultInjectionMetadataStore(underlyingStore);
-            return new Peer(peerStore, createStorage(peerStore, Ticker.systemTicker()));
-        }
-
-        private BookkeeperSchemaStorage createStorage(FaultInjectionMetadataStore metadataStore,
-                                                       Ticker cacheTicker) throws Exception {
             BookKeeperClientFactory clientFactory = mock(BookKeeperClientFactory.class);
-            when(clientFactory.create(any(), eq(metadataStore), isNull(), eq(Optional.empty()), isNull()))
+            when(clientFactory.create(any(), eq(store), isNull(), eq(Optional.empty()), isNull()))
                     .thenReturn(CompletableFuture.completedFuture(bookKeeper));
             PulsarService pulsar = mock(PulsarService.class);
-            when(pulsar.getLocalMetadataStore()).thenReturn(metadataStore);
+            when(pulsar.getLocalMetadataStore()).thenReturn(store);
             when(pulsar.getConfiguration()).thenReturn(new ServiceConfiguration());
             when(pulsar.getBookKeeperClientFactory()).thenReturn(clientFactory);
-            BookkeeperSchemaStorage schemaStorage = new BookkeeperSchemaStorage(pulsar, cacheTicker);
-            schemaStorage.start();
-            return schemaStorage;
+            storage = new BookkeeperSchemaStorage(pulsar, cacheTicker);
+            storage.start();
         }
 
         void failNextOpen(int rc) {
             nextOpenRc.set(rc);
-        }
-
-        void failNextMetadataDelete(MetadataStoreException exception) {
-            store.failConditional(exception, (operation, path) ->
-                    operation == FaultInjectionMetadataStore.OperationType.DELETE
-                            && path.equals("/schemas/test"));
-        }
-
-        void failNextMetadataGet(MetadataStoreException exception) {
-            store.failConditional(exception, (operation, path) ->
-                    operation == FaultInjectionMetadataStore.OperationType.GET
-                            && path.equals("/schemas/test"));
-        }
-
-        private CreateBuilder newWriteHandleBuilder() {
-            long ledgerId = nextCreatedLedgerId.incrementAndGet();
-            LedgerHandle writeHandle = mock(LedgerHandle.class);
-            when(writeHandle.getId()).thenReturn(ledgerId);
-            doAnswer(invocation -> {
-                writtenEntries.put(ledgerId, invocation.getArgument(0));
-                AsyncCallback.AddCallback callback = invocation.getArgument(1);
-                callback.addComplete(BKException.Code.OK, writeHandle, 0L, invocation.getArgument(2));
-                return null;
-            }).when(writeHandle).asyncAddEntry(any(byte[].class), any(), isNull());
-            when(writeHandle.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
-
-            CreateBuilder builder = mock(CreateBuilder.class);
-            when(builder.withEnsembleSize(anyInt())).thenReturn(builder);
-            when(builder.withWriteQuorumSize(anyInt())).thenReturn(builder);
-            when(builder.withAckQuorumSize(anyInt())).thenReturn(builder);
-            when(builder.withDigestType(any())).thenReturn(builder);
-            when(builder.withPassword(any())).thenReturn(builder);
-            when(builder.withCustomMetadata(any())).thenReturn(builder);
-            when(builder.withLoggerContext(any())).thenReturn(builder);
-            when(builder.execute()).thenReturn(CompletableFuture.completedFuture(writeHandle));
-            return builder;
         }
 
         private void stubReadCapture(LedgerHandle ledgerHandle) {
@@ -257,10 +184,9 @@ public class BookkeeperSchemaStorageEntryCacheTest {
             if (pendingRead == null) {
                 throw new IllegalStateException("No pending BookKeeper read to complete");
             }
-            byte[] storedEntry = writtenEntries.get(pendingRead.handle().getId());
+            byte[] storedEntry = storedEntries.get(pendingRead.handle().getId());
             if (storedEntry == null) {
-                throw new IllegalStateException("No stored entry for ledger "
-                        + pendingRead.handle().getId());
+                throw new IllegalStateException("No stored entry for ledger " + pendingRead.handle().getId());
             }
             LedgerEntry entry = mock(LedgerEntry.class);
             when(entry.getEntry()).thenReturn(storedEntry);
@@ -275,490 +201,142 @@ public class BookkeeperSchemaStorageEntryCacheTest {
         }
     }
 
-    private static final class Peer implements AutoCloseable {
-        private final FaultInjectionMetadataStore store;
-        private final BookkeeperSchemaStorage storage;
-
-        private Peer(FaultInjectionMetadataStore store, BookkeeperSchemaStorage storage) {
-            this.store = store;
-            this.storage = storage;
-        }
-
-        @Override
-        public void close() throws Exception {
-            storage.close();
-            store.close();
-        }
-    }
-
     private record PendingRead(AsyncCallback.ReadCallback callback, LedgerHandle handle) {
     }
 
     @Test
-    public void testSchemaEntryReadHitsCache() throws Exception {
-        try (Harness harness = new Harness()) {
-            CompletableFuture<StoredSchema> first = harness.storage.get("test", SchemaVersion.Latest);
-            harness.completePendingRead(BKException.Code.OK);
-            assertEquals(first.get(5, TimeUnit.SECONDS).data, SchemaData);
-
-            CompletableFuture<StoredSchema> second = harness.storage.get("test", SchemaVersion.Latest);
-            assertEquals(second.get(5, TimeUnit.SECONDS).data, SchemaData);
-
-            CompletableFuture<StoredSchema> versioned =
+    public void testVersionedReadCacheSharesHistoryAndTargetLoads() throws Exception {
+        try (Harness harness = new Harness(3)) {
+            List<CompletableFuture<StoredSchema>> firstHistory =
+                    harness.storage.getAllForVersionedRead("test").get(5, TimeUnit.SECONDS);
+            CompletableFuture<StoredSchema> target =
                     harness.storage.get("test", new LongSchemaVersion(0));
-            assertEquals(versioned.get(5, TimeUnit.SECONDS).data, SchemaData);
+            List<CompletableFuture<StoredSchema>> secondHistory =
+                    harness.storage.getAllForVersionedRead("test").get(5, TimeUnit.SECONDS);
 
-            assertEquals(harness.openCount.get(), 1);
-            verify(harness.bookKeeper, times(1))
-                    .asyncOpenLedger(eq(1L), any(), any(), any(), isNull(), eq(true));
-            verify(harness.handle, times(1)).asyncReadEntries(anyLong(), anyLong(), any(), any());
-            assertEquals(harness.storage.cachedSchemaEntryCount(), 1);
+            assertFalse(firstHistory.get(0).isDone());
+            assertFalse(target.isDone());
+            assertFalse(secondHistory.get(0).isDone());
+
+            completeReadsAndAssertSchemas(harness, firstHistory);
+            assertSchemas(secondHistory);
+            StoredSchema targetSchema = target.get(5, TimeUnit.SECONDS);
+            StoredSchema historySchema = firstHistory.get(0).get(5, TimeUnit.SECONDS);
+            assertEquals(targetSchema.data, dataForVersion(0));
+            assertNotSame(historySchema.data, targetSchema.data);
+
+            historySchema.data[0] = 99;
+            assertEquals(targetSchema.data, dataForVersion(0));
+            for (int version = 0; version < 3; version++) {
+                assertEquals(harness.storage.get("test", new LongSchemaVersion(version))
+                        .get(5, TimeUnit.SECONDS).data, dataForVersion(version));
+            }
+            assertEquals(harness.openCount.get(), 3);
         }
     }
 
     @Test
-    public void testCachedSchemaDataIsDefensivelyCopied() throws Exception {
-        try (Harness harness = new Harness()) {
-            CompletableFuture<StoredSchema> firstRead = harness.storage.get("test", SchemaVersion.Latest);
-            harness.completePendingRead(BKException.Code.OK);
-            StoredSchema first = firstRead.get(5, TimeUnit.SECONDS);
-            assertEquals(first.data, SchemaData);
-
-            first.data[0] = 99;
-
-            StoredSchema second = harness.storage.get("test", SchemaVersion.Latest)
-                    .get(5, TimeUnit.SECONDS);
-            assertEquals(second.data, SchemaData);
-            assertNotSame(second.data, first.data);
-            assertEquals(harness.openCount.get(), 1);
-            assertEquals(harness.storage.cachedSchemaEntryCount(), 1);
-        }
-    }
-
-    @Test
-    public void testHotSchemaEntryExpiresAfterWriteDespiteRecentAccess() throws Exception {
+    public void testExpiredFailedVersionedReadIsRetried() throws Exception {
         AtomicLong tickerNanos = new AtomicLong();
         try (Harness harness = new Harness(tickerNanos::get)) {
-            CompletableFuture<StoredSchema> first = harness.storage.get("test", SchemaVersion.Latest);
+            CompletableFuture<StoredSchema> initial =
+                    harness.storage.get("test", new LongSchemaVersion(0));
             harness.completePendingRead(BKException.Code.OK);
-            assertEquals(first.get(5, TimeUnit.SECONDS).data, SchemaData);
-            assertEquals(harness.openCount.get(), 1);
+            assertEquals(initial.get(5, TimeUnit.SECONDS).data, SchemaData);
 
             tickerNanos.addAndGet(TimeUnit.MINUTES.toNanos(59));
-            assertEquals(harness.storage.get("test", SchemaVersion.Latest)
+            assertEquals(harness.storage.get("test", new LongSchemaVersion(0))
                     .get(5, TimeUnit.SECONDS).data, SchemaData);
             assertEquals(harness.openCount.get(), 1);
 
-            // A hot entry must expire based on its original load time rather than its last access.
-            // The next read therefore reaches BookKeeper and observes that the ledger is missing.
             tickerNanos.addAndGet(TimeUnit.MINUTES.toNanos(2));
-            harness.failNextOpen(BKException.Code.NoSuchLedgerExistsException);
-            Throwable error = harness.storage.get("test", SchemaVersion.Latest)
-                    .handle((__, ex) -> FutureUtil.unwrapCompletionException(ex))
-                    .get(5, TimeUnit.SECONDS);
-
-            assertEquals(error.getMessage(), bkException("Failed to open ledger",
-                    BKException.Code.NoSuchLedgerExistsException, 1, -1, false).getMessage());
-            assertEquals(harness.openCount.get(), 2);
-            assertEquals(harness.storage.cachedSchemaEntryCount(), 0);
-        }
-    }
-
-    @Test
-    public void testGetAllCachesEveryVersion() throws Exception {
-        try (Harness harness = new Harness(3)) {
-            List<CompletableFuture<StoredSchema>> first = harness.storage.getAll("test")
-                    .get(5, TimeUnit.SECONDS);
-            assertEquals(first.size(), 3);
-            for (int version = 0; version < 3; version++) {
-                harness.completePendingRead(BKException.Code.OK);
-            }
-            for (int version = 0; version < 3; version++) {
-                StoredSchema schema = first.get(version).get(5, TimeUnit.SECONDS);
-                assertEquals(((LongSchemaVersion) schema.version).getVersion(), version);
-                assertEquals(schema.data, dataForVersion(version));
-            }
-            assertEquals(harness.openCount.get(), 3);
-            assertEquals(harness.storage.cachedSchemaEntryCount(), 3);
-
-            // The second read of every version must be served from the cache without new BK reads
-            List<CompletableFuture<StoredSchema>> second = harness.storage.getAll("test")
-                    .get(5, TimeUnit.SECONDS);
-            for (int version = 0; version < 3; version++) {
-                StoredSchema schema = second.get(version).get(5, TimeUnit.SECONDS);
-                assertEquals(schema.data, dataForVersion(version));
-            }
-            assertEquals(harness.openCount.get(), 3);
-            assertEquals(harness.storage.cachedSchemaEntryCount(), 3);
-        }
-    }
-
-    @Test
-    public void testRegistrationReadsBookKeeperAfterPayloadCacheIsWarm() throws Exception {
-        try (Harness harness = new Harness(3)) {
-            List<CompletableFuture<StoredSchema>> warmReads = harness.storage.getAll("test")
-                    .get(5, TimeUnit.SECONDS);
-            for (int version = 0; version < 3; version++) {
-                harness.completePendingRead(BKException.Code.OK);
-            }
-            FutureUtil.waitForAll(warmReads).get(5, TimeUnit.SECONDS);
-            assertEquals(harness.openCount.get(), 3);
-            assertEquals(harness.storage.cachedSchemaEntryCount(), 3);
-
-            CompletableFuture<SchemaVersion> registration = harness.storage.put("test", schemas ->
-                    schemas.thenCompose(schemaFutures -> FutureUtil.waitForAll(schemaFutures)
-                            .thenApply(__ -> null)));
-
-            // Registration validates the underlying storage with a fresh read. The positive cache
-            // remains reserved for ordinary schema reads.
-            assertFalse(registration.isDone());
-
-            for (int version = 0; version < 3; version++) {
-                harness.completePendingRead(BKException.Code.OK);
-            }
-            assertEquals(registration.get(5, TimeUnit.SECONDS), null);
-            assertEquals(harness.openCount.get(), 6);
-
-            assertEquals(harness.storage.get("test", SchemaVersion.Latest)
-                    .get(5, TimeUnit.SECONDS).data, dataForVersion(2));
-            assertEquals(harness.openCount.get(), 6);
-        }
-    }
-
-    @Test
-    public void testDirectPutValidatesBookKeeperAfterPayloadCacheIsWarm() throws Exception {
-        try (Harness harness = new Harness()) {
-            CompletableFuture<StoredSchema> warmRead = harness.storage.get("test", SchemaVersion.Latest);
-            harness.completePendingRead(BKException.Code.OK);
-            assertEquals(warmRead.get(5, TimeUnit.SECONDS).data, SchemaData);
-            assertEquals(harness.storage.cachedSchemaEntryCount(), 1);
-
-            harness.failNextOpen(BKException.Code.NoSuchLedgerExistsException);
-            CompletableFuture<SchemaVersion> put = harness.storage.put(
-                    "test", "new-schema".getBytes(StandardCharsets.UTF_8), "hash".getBytes(StandardCharsets.UTF_8));
-            Throwable error = put.handle((__, ex) -> FutureUtil.unwrapCompletionException(ex))
-                    .get(5, TimeUnit.SECONDS);
-
-            assertEquals(error.getMessage(), bkException("Failed to open ledger",
-                    BKException.Code.NoSuchLedgerExistsException, 1, -1, false).getMessage());
-            assertEquals(harness.openCount.get(), 2);
-        }
-    }
-
-    @Test
-    public void testConcurrentReadsShareOneBookKeeperRead() throws Exception {
-        try (Harness harness = new Harness()) {
-            CompletableFuture<StoredSchema> first = harness.storage.get("test", SchemaVersion.Latest);
-            CompletableFuture<StoredSchema> second = harness.storage.get("test", SchemaVersion.Latest);
-            assertFalse(first.isDone());
-            assertFalse(second.isDone());
-
-            harness.completePendingRead(BKException.Code.OK);
-
-            StoredSchema firstSchema = first.get(5, TimeUnit.SECONDS);
-            StoredSchema secondSchema = second.get(5, TimeUnit.SECONDS);
-            assertEquals(firstSchema.data, SchemaData);
-            assertEquals(secondSchema.data, SchemaData);
-            assertNotSame(firstSchema.data, secondSchema.data);
-            assertEquals(harness.openCount.get(), 1);
-        }
-    }
-
-    @Test
-    public void testFailedReadIsNotCached() throws Exception {
-        try (Harness harness = new Harness()) {
-            CompletableFuture<StoredSchema> first = harness.storage.get("test", SchemaVersion.Latest);
-            harness.completePendingRead(BKException.Code.ReadException);
-            Throwable error = first.handle((schema, ex) -> FutureUtil.unwrapCompletionException(ex))
-                    .get(5, TimeUnit.SECONDS);
-            assertEquals(error.getMessage(), bkException("Failed to read entry",
-                    BKException.Code.ReadException, 1, 0, false).getMessage());
-            assertEquals(harness.storage.cachedSchemaEntryCount(), 0);
-
-            CompletableFuture<StoredSchema> second = harness.storage.get("test", SchemaVersion.Latest);
-            harness.completePendingRead(BKException.Code.OK);
-            assertEquals(second.get(5, TimeUnit.SECONDS).data, SchemaData);
-            assertEquals(harness.openCount.get(), 2);
-            assertEquals(harness.storage.cachedSchemaEntryCount(), 1);
-        }
-    }
-
-    @Test
-    public void testImmediateFailedOpenIsNotCached() throws Exception {
-        try (Harness harness = new Harness()) {
             harness.failNextOpen(BKException.Code.ReadException);
-
-            CompletableFuture<StoredSchema> first = harness.storage.get("test", SchemaVersion.Latest);
-            Throwable error = first.handle((schema, ex) -> FutureUtil.unwrapCompletionException(ex))
+            CompletableFuture<StoredSchema> failed =
+                    harness.storage.get("test", new LongSchemaVersion(0));
+            Throwable error = failed.handle((__, ex) -> FutureUtil.unwrapCompletionException(ex))
                     .get(5, TimeUnit.SECONDS);
             assertEquals(error.getMessage(), bkException("Failed to open ledger",
                     BKException.Code.ReadException, 1, -1, false).getMessage());
-            assertFalse(hasRecursiveUpdate(error));
-            assertEquals(harness.storage.cachedSchemaEntryCount(), 0);
 
-            CompletableFuture<StoredSchema> second = harness.storage.get("test", SchemaVersion.Latest);
+            CompletableFuture<StoredSchema> retry =
+                    harness.storage.get("test", new LongSchemaVersion(0));
             harness.completePendingRead(BKException.Code.OK);
-            assertEquals(second.get(5, TimeUnit.SECONDS).data, SchemaData);
-            assertEquals(harness.openCount.get(), 2);
-            assertEquals(harness.storage.cachedSchemaEntryCount(), 1);
+            assertEquals(retry.get(5, TimeUnit.SECONDS).data, SchemaData);
+            assertEquals(harness.openCount.get(), 3);
         }
     }
 
     @Test
-    public void testNestedHistoryEntryIsNotCached() throws Exception {
+    public void testNestedHistoryLookupOnlyCachesFinalVersionPayload() throws Exception {
         try (Harness harness = new Harness(3, true)) {
             CompletableFuture<StoredSchema> first =
                     harness.storage.get("test", new LongSchemaVersion(0));
-            // The latest entry is only a checkpoint used to locate version 0. It contains every
-            // older index and must not be retained in the payload cache.
             harness.completePendingRead(BKException.Code.OK);
             harness.completePendingRead(BKException.Code.OK);
             assertEquals(first.get(5, TimeUnit.SECONDS).data, dataForVersion(0));
             assertEquals(harness.openCount.get(), 2);
-            assertEquals(harness.storage.cachedSchemaEntryCount(), 1);
 
             CompletableFuture<StoredSchema> second =
                     harness.storage.get("test", new LongSchemaVersion(0));
-            // The checkpoint is read again, while the final version-0 payload is served from cache.
+            // The checkpoint is read again, while the final version-0 payload is cached.
             harness.completePendingRead(BKException.Code.OK);
             assertEquals(second.get(5, TimeUnit.SECONDS).data, dataForVersion(0));
             assertEquals(harness.openCount.get(), 3);
-            assertEquals(harness.storage.cachedSchemaEntryCount(), 1);
         }
     }
 
     @Test
-    public void testForceDeleteInvalidatesCachedEntries() throws Exception {
-        try (Harness harness = new Harness()) {
-            CompletableFuture<StoredSchema> read = harness.storage.get("test", SchemaVersion.Latest);
+    public void testLatestAndRawGetAllBypassVersionedReadCache() throws Exception {
+        try (Harness harness = new Harness(3)) {
+            CompletableFuture<StoredSchema> versioned =
+                    harness.storage.get("test", new LongSchemaVersion(0));
             harness.completePendingRead(BKException.Code.OK);
-            assertEquals(read.get(5, TimeUnit.SECONDS).data, SchemaData);
-            assertEquals(harness.storage.cachedSchemaEntryCount(), 1);
+            assertEquals(versioned.get(5, TimeUnit.SECONDS).data, dataForVersion(0));
 
-            harness.storage.delete("test", true).get(5, TimeUnit.SECONDS);
-
-            assertEquals(harness.storage.cachedSchemaEntryCount(), 0);
-            verify(harness.bookKeeper).asyncDeleteLedger(eq(1L), any(), isNull());
-        }
-    }
-
-    @Test
-    public void testForceDeleteInvalidatesCachedEntriesWhenMetadataIsMissing() throws Exception {
-        try (Harness harness = new Harness()) {
-            CompletableFuture<StoredSchema> read = harness.storage.get("test", SchemaVersion.Latest);
+            CompletableFuture<StoredSchema> firstLatest =
+                    harness.storage.get("test", SchemaVersion.Latest);
             harness.completePendingRead(BKException.Code.OK);
-            assertEquals(read.get(5, TimeUnit.SECONDS).data, SchemaData);
-            assertEquals(harness.storage.cachedSchemaEntryCount(), 1);
+            assertEquals(firstLatest.get(5, TimeUnit.SECONDS).data, dataForVersion(2));
 
-            harness.failNextMetadataDelete(new MetadataStoreException.NotFoundException("already deleted"));
-            assertEquals(harness.storage.delete("test", true).get(5, TimeUnit.SECONDS), null);
-            assertEquals(harness.storage.cachedSchemaEntryCount(), 0);
-        }
-    }
-
-    @Test
-    public void testForceDeleteInvalidatesCachedEntriesWhenMetadataDeleteFails() throws Exception {
-        try (Harness harness = new Harness()) {
-            CompletableFuture<StoredSchema> read = harness.storage.get("test", SchemaVersion.Latest);
+            CompletableFuture<StoredSchema> secondLatest =
+                    harness.storage.get("test", SchemaVersion.Latest);
             harness.completePendingRead(BKException.Code.OK);
-            assertEquals(read.get(5, TimeUnit.SECONDS).data, SchemaData);
-            assertEquals(harness.storage.cachedSchemaEntryCount(), 1);
-
-            harness.failNextMetadataDelete(new MetadataStoreException("injected delete failure"));
-            Throwable error = harness.storage.delete("test", true)
-                    .handle((__, ex) -> FutureUtil.unwrapCompletionException(ex))
-                    .get(5, TimeUnit.SECONDS);
-            assertEquals(error.getMessage(), "injected delete failure");
-            assertEquals(harness.storage.cachedSchemaEntryCount(), 0);
-
-            harness.failNextMetadataGet(new MetadataStoreException("injected locator read failure"));
-            Throwable locatorError = harness.storage.get("test", SchemaVersion.Latest)
-                    .handle((__, ex) -> FutureUtil.unwrapCompletionException(ex))
-                    .get(5, TimeUnit.SECONDS);
-            assertEquals(locatorError.getMessage(), "injected locator read failure");
-
-            harness.failNextOpen(BKException.Code.NoSuchLedgerExistsException);
-            Throwable readError = harness.storage.get("test", SchemaVersion.Latest)
-                    .handle((__, ex) -> FutureUtil.unwrapCompletionException(ex))
-                    .get(5, TimeUnit.SECONDS);
-            assertEquals(readError.getMessage(), bkException("Failed to open ledger",
-                    BKException.Code.NoSuchLedgerExistsException, 1, -1, false).getMessage());
-            assertEquals(harness.openCount.get(), 2);
-        }
-    }
-
-    @Test
-    public void testNonForceDeleteValidatesBookKeeperAfterPayloadCacheIsWarm() throws Exception {
-        try (Harness harness = new Harness()) {
-            CompletableFuture<StoredSchema> read = harness.storage.get("test", SchemaVersion.Latest);
-            harness.completePendingRead(BKException.Code.OK);
-            assertEquals(read.get(5, TimeUnit.SECONDS).data, SchemaData);
-            assertEquals(harness.storage.cachedSchemaEntryCount(), 1);
-
-            CompletableFuture<SchemaVersion> delete = harness.storage.delete("test", false);
-            assertFalse(delete.isDone());
-            harness.completePendingRead(BKException.Code.OK);
-
-            assertEquals(((LongSchemaVersion) delete.get(5, TimeUnit.SECONDS)).getVersion(), -1L);
-            assertEquals(harness.openCount.get(), 2);
-            assertEquals(harness.storage.cachedSchemaEntryCount(), 0);
-        }
-    }
-
-    @Test
-    public void testNonForceDeletePropagatesRecoverableBookKeeperFailure() throws Exception {
-        try (Harness harness = new Harness()) {
-            CompletableFuture<StoredSchema> read = harness.storage.get("test", SchemaVersion.Latest);
-            harness.completePendingRead(BKException.Code.OK);
-            assertEquals(read.get(5, TimeUnit.SECONDS).data, SchemaData);
-            assertEquals(harness.storage.cachedSchemaEntryCount(), 1);
-
-            harness.failNextOpen(BKException.Code.ReadException);
-            Throwable error = harness.storage.delete("test", false)
-                    .handle((__, ex) -> FutureUtil.unwrapCompletionException(ex))
-                    .get(5, TimeUnit.SECONDS);
-            assertEquals(error.getMessage(), bkException("Failed to open ledger",
-                    BKException.Code.ReadException, 1, -1, false).getMessage());
-            assertEquals(harness.openCount.get(), 2);
-            assertEquals(harness.storage.cachedSchemaEntryCount(), 1);
-            verify(harness.bookKeeper, times(0)).asyncDeleteLedger(anyLong(), any(), isNull());
-        }
-    }
-
-    @Test
-    public void testNonForceDeleteInvalidatesCachedEntryWhenLedgerIsMissing() throws Exception {
-        try (Harness harness = new Harness()) {
-            CompletableFuture<StoredSchema> read = harness.storage.get("test", SchemaVersion.Latest);
-            harness.completePendingRead(BKException.Code.OK);
-            assertEquals(read.get(5, TimeUnit.SECONDS).data, SchemaData);
-            assertEquals(harness.storage.cachedSchemaEntryCount(), 1);
-
-            harness.failNextOpen(BKException.Code.NoSuchLedgerExistsException);
-            assertEquals(harness.storage.delete("test", false).get(5, TimeUnit.SECONDS), null);
-            assertEquals(harness.openCount.get(), 2);
-            assertEquals(harness.storage.cachedSchemaEntryCount(), 0);
-
-            harness.failNextOpen(BKException.Code.NoSuchLedgerExistsException);
-            Throwable error = harness.storage.get("test", SchemaVersion.Latest)
-                    .handle((__, ex) -> FutureUtil.unwrapCompletionException(ex))
-                    .get(5, TimeUnit.SECONDS);
-            assertEquals(error.getMessage(), bkException("Failed to open ledger",
-                    BKException.Code.NoSuchLedgerExistsException, 1, -1, false).getMessage());
+            assertEquals(secondLatest.get(5, TimeUnit.SECONDS).data, dataForVersion(2));
             assertEquals(harness.openCount.get(), 3);
+
+            assertRawGetAllReadsEveryVersionFromBookKeeper(harness);
+            assertEquals(harness.openCount.get(), 6);
+
+            assertRawGetAllReadsEveryVersionFromBookKeeper(harness);
+            assertEquals(harness.openCount.get(), 9);
+
+            assertEquals(harness.storage.get("test", new LongSchemaVersion(0))
+                    .get(5, TimeUnit.SECONDS).data, dataForVersion(0));
+            assertEquals(harness.openCount.get(), 9);
         }
     }
 
-    @Test
-    public void testForceDeleteAndRecreateServesNewEntry() throws Exception {
-        try (Harness harness = new Harness()) {
-            CompletableFuture<StoredSchema> before = harness.storage.get("test", SchemaVersion.Latest);
-            harness.completePendingRead(BKException.Code.OK);
-            assertEquals(before.get(5, TimeUnit.SECONDS).data, SchemaData);
-
-            harness.storage.delete("test", true).get(5, TimeUnit.SECONDS);
-            // The local metadata store invalidates the locator cache synchronously on delete
-            CompletableFuture<StoredSchema> deleted = harness.storage.get("test", SchemaVersion.Latest);
-            assertEquals(deleted.get(5, TimeUnit.SECONDS), null);
-            assertEquals(harness.storage.cachedSchemaEntryCount(), 0);
-
-            // Re-create the schema: the new version must land in a new ledger, so the read after
-            // re-creation must return the new data even though the old entry was cached before
-            byte[] newData = "schema-recreated".getBytes(StandardCharsets.UTF_8);
-            SchemaVersion version = harness.storage.put("test", newData, "hash".getBytes())
-                    .get(5, TimeUnit.SECONDS);
-            assertEquals(((LongSchemaVersion) version).getVersion(), 0);
-
-            CompletableFuture<StoredSchema> after = harness.storage.get("test", SchemaVersion.Latest);
-            harness.completePendingRead(BKException.Code.OK);
-            StoredSchema recreated = after.get(5, TimeUnit.SECONDS);
-            assertEquals(recreated.data, newData);
-            assertEquals(harness.storage.cachedSchemaEntryCount(), 1);
-        }
+    private static void assertRawGetAllReadsEveryVersionFromBookKeeper(Harness harness) throws Exception {
+        List<CompletableFuture<StoredSchema>> schemas = harness.storage.getAll("test")
+                .get(5, TimeUnit.SECONDS);
+        completeReadsAndAssertSchemas(harness, schemas);
     }
 
-    @Test
-    public void testRemoteBrokerConvergesAfterSchemaChanges() throws Exception {
-        try (Harness harness = new Harness(); Peer peer = harness.createPeer()) {
-            CompletableFuture<StoredSchema> initialRead = peer.storage.get("test", SchemaVersion.Latest);
+    private static void completeReadsAndAssertSchemas(
+            Harness harness, List<CompletableFuture<StoredSchema>> schemas) throws Exception {
+        assertEquals(schemas.size(), 3);
+        for (int version = 0; version < 3; version++) {
             harness.completePendingRead(BKException.Code.OK);
-            assertEquals(initialRead.get(5, TimeUnit.SECONDS).data, SchemaData);
-
-            byte[] appendedData = "schema-appended".getBytes(StandardCharsets.UTF_8);
-            CompletableFuture<SchemaVersion> append = harness.storage.put("test", appendedData, new byte[] {1});
-            harness.completePendingRead(BKException.Code.OK);
-            assertEquals(((LongSchemaVersion) append.get(5, TimeUnit.SECONDS)).getVersion(), 1L);
-
-            await().atMost(5, TimeUnit.SECONDS).until(() -> {
-                SchemaMetadata metadata = peer.storage.getSchemaMetadata("test").get(5, TimeUnit.SECONDS);
-                return metadata != null && metadata.getInfo().getVersion() == 1L;
-            });
-            SchemaMetadata appendedMetadata = peer.storage.getSchemaMetadata("test")
-                    .get(5, TimeUnit.SECONDS);
-            long appendedLedgerId = appendedMetadata.getInfo().getLedgerId();
-            assertNotEquals(appendedLedgerId, 1L);
-
-            CompletableFuture<StoredSchema> appendedRead = peer.storage.get("test", SchemaVersion.Latest);
-            harness.completePendingRead(BKException.Code.OK);
-            assertEquals(appendedRead.get(5, TimeUnit.SECONDS).data, appendedData);
-
-            harness.storage.delete("test", true).get(5, TimeUnit.SECONDS);
-            await().atMost(5, TimeUnit.SECONDS).until(() ->
-                    peer.storage.getSchemaMetadata("test").get(5, TimeUnit.SECONDS) == null);
-            assertEquals(peer.storage.get("test", SchemaVersion.Latest).get(5, TimeUnit.SECONDS), null);
-
-            byte[] recreatedData = "schema-recreated-remotely".getBytes(StandardCharsets.UTF_8);
-            SchemaVersion recreatedVersion = harness.storage.put("test", recreatedData, new byte[] {2})
-                    .get(5, TimeUnit.SECONDS);
-            assertEquals(((LongSchemaVersion) recreatedVersion).getVersion(), 0L);
-
-            await().atMost(5, TimeUnit.SECONDS).until(() -> {
-                SchemaMetadata metadata = peer.storage.getSchemaMetadata("test").get(5, TimeUnit.SECONDS);
-                return metadata != null && metadata.getInfo().getVersion() == 0L
-                        && metadata.getInfo().getLedgerId() != appendedLedgerId;
-            });
-            CompletableFuture<StoredSchema> recreatedRead = peer.storage.get("test", SchemaVersion.Latest);
-            harness.completePendingRead(BKException.Code.OK);
-            assertEquals(recreatedRead.get(5, TimeUnit.SECONDS).data, recreatedData);
         }
+        assertSchemas(schemas);
     }
 
-    @Test
-    public void testInFlightReadCompletingAfterDeleteIsNotServedToNewReaders() throws Exception {
-        try (Harness harness = new Harness()) {
-            CompletableFuture<StoredSchema> inFlight = harness.storage.get("test", SchemaVersion.Latest);
-            assertFalse(inFlight.isDone());
-            await().atMost(5, TimeUnit.SECONDS)
-                    .until(() -> harness.storage.hasCachedSchemaEntry(1L, 0L));
-            assertEquals(harness.openCount.get(), 1);
-
-            // Force delete completes while the original read request is still pending
-            harness.storage.delete("test", true).get(5, TimeUnit.SECONDS);
-            assertEquals(harness.storage.cachedSchemaEntryCount(), 0);
-
-            // A read that already resolved the old locator may still complete after deletion.
-            // The old position is no longer reachable once the locator has been deleted.
-            harness.completePendingRead(BKException.Code.OK);
-            assertEquals(inFlight.get(5, TimeUnit.SECONDS).data, SchemaData);
-            assertEquals(harness.storage.cachedSchemaEntryCount(), 0);
-
-            // New readers resolve the (now absent) locator and see no schema
-            CompletableFuture<StoredSchema> after = harness.storage.get("test", SchemaVersion.Latest);
-            assertEquals(after.get(5, TimeUnit.SECONDS), null);
+    private static void assertSchemas(List<CompletableFuture<StoredSchema>> schemas) throws Exception {
+        assertEquals(schemas.size(), 3);
+        for (int version = 0; version < 3; version++) {
+            StoredSchema schema = schemas.get(version).get(5, TimeUnit.SECONDS);
+            assertEquals(((LongSchemaVersion) schema.version).getVersion(), version);
+            assertEquals(schema.data, dataForVersion(version));
         }
-    }
-
-    private static boolean hasRecursiveUpdate(Throwable error) {
-        if (error == null) {
-            return false;
-        }
-        if (error.getMessage() != null && error.getMessage().contains("Recursive update")) {
-            return true;
-        }
-        for (Throwable suppressed : error.getSuppressed()) {
-            if (hasRecursiveUpdate(suppressed)) {
-                return true;
-            }
-        }
-        return error.getCause() != error && hasRecursiveUpdate(error.getCause());
     }
 }

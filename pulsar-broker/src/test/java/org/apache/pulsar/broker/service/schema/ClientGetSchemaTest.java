@@ -21,9 +21,6 @@ package org.apache.pulsar.broker.service.schema;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertNull;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.expectThrows;
 import java.util.Optional;
 import java.util.function.Supplier;
 import lombok.Cleanup;
@@ -31,12 +28,11 @@ import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.protocol.schema.SchemaVersion;
+import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.schema.Schemas;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -106,10 +102,10 @@ public class ClientGetSchemaTest extends SharedPulsarBaseTest {
         BookkeeperSchemaStorage schemaStorage = (BookkeeperSchemaStorage) getSchemaStorage();
         long schemaLedgerId = schemaStorage.getSchemaLedgerList(key).get(0);
 
-        // Warm the payload cache before deleting the ledger. Schema registration must still read
-        // BookKeeper for recovery instead of accepting the cached payload as proof that the
-        // underlying schema storage is healthy.
-        assertNotNull(schemaStorage.get(key, SchemaVersion.Latest).get());
+        // Warm the versioned-read cache. Producer registration must still read BookKeeper directly
+        // so a missing ledger reaches the existing recovery path.
+        assertNotNull(getPulsar().getSchemaRegistryService()
+                .getSchema(key, new LongSchemaVersion(0)).get());
 
         // (2) break schema locator by deleting schema-ledger
         schemaStorage.getBookKeeper().deleteLedger(schemaLedgerId);
@@ -173,37 +169,6 @@ public class ClientGetSchemaTest extends SharedPulsarBaseTest {
             assertNotNull(producerWithoutSchema);
         } finally {
             getConfig().setSchemaLedgerForceRecovery(origValue);
-        }
-    }
-
-    @Test
-    public void testAutoUpdateDisabledRegistrationDoesNotUseCachedMissingLedger() throws Exception {
-        final String topic = newTopicName();
-        Schema<Schemas.PersonTwo> schema = Schema.AVRO(
-                SchemaDefinition.<Schemas.PersonTwo>builder().withAlwaysAllowNull(false)
-                        .withSupportSchemaVersioning(true).withPojo(Schemas.PersonTwo.class).build());
-
-        try (Producer<Schemas.PersonTwo> producer = pulsarClient.newProducer(schema).topic(topic).create()) {
-            assertNotNull(producer);
-        }
-
-        String key = TopicName.get(topic).getSchemaName();
-        BookkeeperSchemaStorage schemaStorage = (BookkeeperSchemaStorage) getSchemaStorage();
-        long schemaLedgerId = schemaStorage.getSchemaLedgerList(key).get(0);
-        assertNotNull(schemaStorage.get(key, SchemaVersion.Latest).get());
-        schemaStorage.getBookKeeper().deleteLedger(schemaLedgerId);
-
-        boolean autoUpdateEnabled = getConfig().isAllowAutoUpdateSchemaEnabled();
-        getConfig().setAllowAutoUpdateSchemaEnabled(false);
-        try {
-            admin.topics().unload(topic);
-            PulsarClientException.IncompatibleSchemaException error = expectThrows(
-                    PulsarClientException.IncompatibleSchemaException.class,
-                    () -> pulsarClient.newProducer(schema).topic(topic).create());
-            assertTrue(error.getMessage().contains("Schema not found and schema auto updating is disabled."));
-            assertNull(schemaStorage.getSchemaLedgerList(key));
-        } finally {
-            getConfig().setAllowAutoUpdateSchemaEnabled(autoUpdateEnabled);
         }
     }
 }

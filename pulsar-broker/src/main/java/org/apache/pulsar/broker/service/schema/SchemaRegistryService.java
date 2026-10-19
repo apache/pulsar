@@ -22,12 +22,9 @@ import io.github.merlimat.slog.Logger;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.schema.validator.SchemaRegistryServiceWithSchemaDataValidator;
-import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaStorage;
-import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.Reflections;
 
@@ -92,19 +89,6 @@ public interface SchemaRegistryService extends SchemaRegistry {
             }
         }
         return new DefaultSchemaRegistryService();
-    }
-
-    /**
-     * Find an existing version as part of a producer schema-registration decision.
-     *
-     * <p>The default preserves the ordinary lookup behavior. Implementations backed by a storage
-     * with a positive read cache can override this method when registration must validate the
-     * underlying storage independently of that cache.
-     */
-    default CompletableFuture<SchemaVersion> findSchemaVersionForSchemaRegistration(
-            String schemaId, SchemaData schemaData) {
-        return trimDeletedSchemaAndGetList(schemaId)
-                .thenCompose(schemas -> getSchemaVersionBySchemaData(schemas, schemaData));
     }
 
     void close() throws Exception;

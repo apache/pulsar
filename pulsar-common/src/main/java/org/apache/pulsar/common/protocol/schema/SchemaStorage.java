@@ -48,17 +48,6 @@ public interface SchemaStorage {
 
     CompletableFuture<List<CompletableFuture<StoredSchema>>> getAll(String key);
 
-    /**
-     * Get all schemas for a producer schema-registration decision.
-     *
-     * <p>The default implementation preserves the behavior of existing storage implementations.
-     * Implementations with a positive read cache can override this method when registration must
-     * validate the underlying storage independently of that cache.
-     */
-    default CompletableFuture<List<CompletableFuture<StoredSchema>>> getAllForSchemaRegistration(String key) {
-        return getAll(key);
-    }
-
     CompletableFuture<SchemaVersion> delete(String key, boolean forcefully);
 
     CompletableFuture<SchemaVersion> delete(String key);
