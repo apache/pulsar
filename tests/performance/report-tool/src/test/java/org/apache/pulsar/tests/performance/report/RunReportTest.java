@@ -310,7 +310,7 @@ public class RunReportTest {
             csv.append(epoch).append(",persistent://public/default/t-0,sub-0,")
                     .append(round == 0 ? 900_000 : in[round] - out0[round])
                     .append(',').append(in[round]).append(',').append(out0[round]).append(",0\n");
-            // sub-1 holds messages in replay while it stalls
+            // sub-1 holds entries in replay while it stalls
             csv.append(epoch).append(",persistent://public/default/t-0,sub-1,").append(in[round] - out1[round])
                     .append(',').append(in[round]).append(',').append(out1[round]).append(',')
                     .append(round == 3 ? 4000 : 0).append('\n');
@@ -429,7 +429,7 @@ public class RunReportTest {
         assertThat(report).contains("| Dispatched msg/s, all subscriptions | 250,000 | 100,000 |");
         assertThat(report).contains("| `sub-1` | 100,000 | 2 s | 50,000 |");
         assertThat(report).contains("| `sub-0` | 0 | 0 s | 0 |");
-        // Only sub-1 had messages in replay, sampled at most 4,000
+        // Only sub-1 had entries in replay, sampled at most 4,000
         assertThat(report).containsPattern("\\| `sub-1` \\| [0-9,]+ \\| 0 \\| 4,000 \\|\n");
         assertThat(report).contains("](replay.svg)");
         assertThat(run.resolve("replay.svg")).isRegularFile();

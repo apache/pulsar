@@ -340,11 +340,11 @@ public final class RunReport {
                 seconds.stream().mapToDouble(Double::doubleValue).toArray(), cut);
     }
 
-    /** The sampled topic stats of a run: one row per sample round. */
     /**
-     * The sampled topic stats, by subscription summed over the topics.
+     * The sampled topic stats of a run: one row per sample round, by subscription summed over the topics.
      *
-     * @param replay the messages in each subscription's replay queue, empty for files sampled before they were
+     * @param replay the entries in each subscription's replay queue, a batch counting once, empty for files sampled
+     *               before they were
      */
     record Samples(long[] epochMillis, double[] published, Map<String, double[]> dispatched,
                    Map<String, double[]> backlog, Map<String, double[]> replay) {
@@ -1218,8 +1218,9 @@ public final class RunReport {
         appendReplay(report, runDirectory, samples, seconds, finished, timeline, footer);
     }
 
-    // The replay queues, of the subscriptions that had messages in replay during the measurement, such as the
-    // Key_Shared messages held back for a consumer without permits and the messages of a closed consumer
+    // The replay queues, of the subscriptions that had entries in replay during the measurement, such as the
+    // Key_Shared entries held back for a consumer without permits and the entries of a closed consumer. The broker
+    // counts the replay queue's positions, entries, so that a batch counts once
     private static void appendReplay(StringBuilder report, Path runDirectory, Samples samples, double[] seconds,
                                      double finished, ChartTimeline timeline, String footer) throws IOException {
         StringBuilder rows = new StringBuilder();
@@ -1245,12 +1246,15 @@ public final class RunReport {
         if (series.isEmpty()) {
             return;
         }
-        TimeSeriesRenderer.render(runDirectory.resolve(REPLAY_CHART), "Replay queue", "Messages in replay",
+        TimeSeriesRenderer.render(runDirectory.resolve(REPLAY_CHART), "Replay queue", "Entries in replay",
                 timeline.seconds(), series, finished, timeline.cut(), footer);
-        report.append("\nThe messages in each subscription's replay queue, summed over its topics, sampled during the")
-                .append(" measurement: the messages that the broker holds back to dispatch again, such as a closed")
-                .append(" consumer's unacknowledged messages and, with Key_Shared, the messages of the keys whose")
-                .append(" consumer has no permits.\n\n| Subscription | Mean | Median | Sampled maximum |\n")
+        report.append("\nThe entries in each subscription's replay queue, summed over its topics, sampled during the")
+                .append(" measurement: the entries that the broker holds back to dispatch again, such as a closed")
+                .append(" consumer's unacknowledged entries and, with Key_Shared, the entries of the keys whose")
+                .append(" consumer has no permits. The broker counts entries, not messages: a batch counts once,")
+                .append(" however many messages it has, as in the look-ahead limit")
+                .append(" (`keySharedLookAheadMsgInReplayThresholdPerConsumer`).\n\n")
+                .append("| Subscription | Mean | Median | Sampled maximum |\n")
                 .append("|---|---:|---:|---:|\n").append(rows)
                 .append("\n![Replay queue over time](").append(REPLAY_CHART).append(".svg)\n");
     }

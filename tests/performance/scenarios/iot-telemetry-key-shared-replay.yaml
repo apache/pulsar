@@ -18,8 +18,8 @@
 # 100,000 devices, with string keys, from four topics through 20 pods each. Every 15 seconds each application pauses
 # three of its pods for five seconds, as a garbage collection or a slow downstream would stall them, and every 20
 # seconds it restarts one, as a rolling deployment does. While a pod is paused, the broker holds back its keys'
-# messages in the subscription's replay queue, thousands of them, and dispatches the other keys' messages around them;
-# a restarted pod's unacknowledged messages go there too. It measures the Key_Shared dispatcher's replay path: the
+# messages in the subscription's replay queue, thousands of entries, and dispatches the other keys' messages around
+# them; a restarted pod's unacknowledged messages go there too. It measures the Key_Shared dispatcher's replay path: the
 # replay queue's bookkeeping, the filtering of its positions on every read, and the replay reads.
 extends: [iot-telemetry-base.yaml, configs/iot-telemetry-high-mem.yaml]
 workloads:

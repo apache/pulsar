@@ -33,7 +33,7 @@ application-visible order across Key_Shared hash-range reassignment.
 - [`iot-telemetry-restarts.yaml`](../iot-telemetry-restarts.yaml) restarts 10% of each application's
   pods every 30 seconds.
 - [`iot-telemetry-key-shared-replay.yaml`](../iot-telemetry-key-shared-replay.yaml) stalls and restarts Key_Shared
-  consumers so that the subscriptions' replay queues hold thousands of messages: 30,000 msg/s with string keys to five
+  consumers so that the subscriptions' replay queues hold thousands of entries: 30,000 msg/s with string keys to five
   applications of 20 pods on four topics, each application pausing three pods for five seconds every 15 seconds and
   restarting one every 20 seconds. The report's Backlog and rates section shows the replay queues over time.
 - [`iot-telemetry-key-shared-stuck-consumer.yaml`](../iot-telemetry-key-shared-stuck-consumer.yaml) pauses one of
