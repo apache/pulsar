@@ -60,13 +60,14 @@ public final class RunReport {
     static final String LATENCY_CHART = "latency";
     static final String THROUGHPUT_CHART = "throughput";
     static final String BACKLOG_CHART = "backlog";
+    static final String REPLAY_CHART = "replay";
     static final String TEMPERATURE_CHART = "host-temperature";
     static final String FREQUENCY_CHART = "host-frequency";
     public static final String RESOLVED_CONFIG = "resolved-config.yaml";
     /** The broker's topic stats sampled during a run, one row per topic, subscription and sample. */
     public static final String TOPIC_STATS_FILE = "topic-stats.csv";
     public static final String TOPIC_STATS_HEADER =
-            "epochMillis,topic,subscription,msgBacklog,msgInCounter,msgOutCounter";
+            "epochMillis,topic,subscription,msgBacklog,msgInCounter,msgOutCounter,msgInReplay";
     /**
      * With offloading, each topic's ledgers and how many of them the brokers had offloaded, when the late applications
      * joined (phase {@code join}) and at the run's end (phase {@code end}).
@@ -339,9 +340,18 @@ public final class RunReport {
                 seconds.stream().mapToDouble(Double::doubleValue).toArray(), cut);
     }
 
-    /** The sampled topic stats of a run: one row per sample round. */
+    /**
+     * The sampled topic stats of a run: one row per sample round, by subscription summed over the topics.
+     *
+     * @param replay the entries in each subscription's replay queue, a batch counting once, empty for files sampled
+     *               before they were
+     */
     record Samples(long[] epochMillis, double[] published, Map<String, double[]> dispatched,
-                   Map<String, double[]> backlog) {
+                   Map<String, double[]> backlog, Map<String, double[]> replay) {
+        Samples(long[] epochMillis, double[] published, Map<String, double[]> dispatched,
+                Map<String, double[]> backlog) {
+            this(epochMillis, published, dispatched, backlog, Map.of());
+        }
     }
 
     private RunReport() {
@@ -786,7 +796,8 @@ public final class RunReport {
                 .append(" ms of its publishing; the time includes opening its pods. Its catch-up rate is the messages"
                         + " that it received until then, warmup included, per second since it joined; for an"
                         + " application that didn't catch up, it is the rate until its last message. The backlog is"
-                        + " the sampled topic stats' last sample before the application joined.");
+                        + " the sampled topic stats' last sample before the application joined, in entries, so that a"
+                        + " batch counts once.");
         boolean skipped = late.stream().anyMatch(consumer -> consumer.path("skippedMessages").asLong() > 0);
         if (skipped) {
             report.append(" Skipped are the messages that the application didn't receive: its subscription was moved"
@@ -1153,7 +1164,8 @@ public final class RunReport {
         report.append("\n## Backlog and rates\n\nSampled from the broker's topic stats once per second, or every"
                 + " topics / 100 seconds with more than 100 topics; the rates are the deltas of its message counters"
                 + " per second between samples, and a sampled maximum is not the exact peak between samples."
-                + " The rates are those of the whole seconds within the measurement (0 to ")
+                + " The backlogs are in entries, as the broker counts them: a batch counts once, however many"
+                + " messages it has. The rates are those of the whole seconds within the measurement (0 to ")
                 .append(String.format(Locale.ROOT, "%.1f", finished))
                 .append(" s), leaving out its first and last second, where the gateways start and finish. The")
                 .append(" [sampled topic stats](").append(TOPIC_STATS_FILE).append(") are a CSV file.\n\n")
@@ -1201,10 +1213,51 @@ public final class RunReport {
         List<TimeSeriesRenderer.Series> backlog = samples.backlog().entrySet().stream()
                 .map(entry -> new TimeSeriesRenderer.Series(entry.getKey(), timeline.select(entry.getValue())))
                 .toList();
-        TimeSeriesRenderer.render(runDirectory.resolve(BACKLOG_CHART), "Backlog", "Messages in the backlog",
+        TimeSeriesRenderer.render(runDirectory.resolve(BACKLOG_CHART), "Backlog", "Entries in the backlog",
                 timeline.seconds(), backlog, finished, timeline.cut(), footer);
         report.append("\n![Throughput over time](").append(THROUGHPUT_CHART).append(".svg)\n\n![Backlog over time](")
                 .append(BACKLOG_CHART).append(".svg)\n");
+        appendReplay(report, runDirectory, samples, seconds, finished, timeline, footer);
+    }
+
+    // The replay queues, of the subscriptions that had entries in replay during the measurement, such as the
+    // Key_Shared entries held back for a consumer without permits and the entries of a closed consumer. The broker
+    // counts the replay queue's positions, entries, so that a batch counts once
+    private static void appendReplay(StringBuilder report, Path runDirectory, Samples samples, double[] seconds,
+                                     double finished, ChartTimeline timeline, String footer) throws IOException {
+        StringBuilder rows = new StringBuilder();
+        List<TimeSeriesRenderer.Series> series = new ArrayList<>();
+        for (Map.Entry<String, double[]> entry : samples.replay().entrySet()) {
+            double[] window = new double[seconds.length];
+            int count = 0;
+            for (int round = 0; round < seconds.length; round++) {
+                if (seconds[round] >= 0 && seconds[round] <= finished && !Double.isNaN(entry.getValue()[round])) {
+                    window[count++] = entry.getValue()[round];
+                }
+            }
+            double[] sorted = Arrays.copyOf(window, count);
+            Arrays.sort(sorted);
+            if (count == 0 || sorted[count - 1] == 0) {
+                continue;
+            }
+            double mean = Arrays.stream(sorted).average().orElse(0);
+            rows.append(String.format(Locale.ROOT, "| `%s` | %,.0f | %,.0f | %,.0f |%n", entry.getKey(), mean,
+                    sorted[count / 2], sorted[count - 1]));
+            series.add(new TimeSeriesRenderer.Series(entry.getKey(), timeline.select(entry.getValue())));
+        }
+        if (series.isEmpty()) {
+            return;
+        }
+        TimeSeriesRenderer.render(runDirectory.resolve(REPLAY_CHART), "Replay queue", "Entries in replay",
+                timeline.seconds(), series, finished, timeline.cut(), footer);
+        report.append("\nThe entries in each subscription's replay queue, summed over its topics, sampled during the")
+                .append(" measurement: the entries that the broker holds back to dispatch again, such as a closed")
+                .append(" consumer's unacknowledged entries and, with Key_Shared, the entries of the keys whose")
+                .append(" consumer has no permits. Like the backlog, it is in entries, as is the look-ahead limit")
+                .append(" (`keySharedLookAheadMsgInReplayThresholdPerConsumer`).\n\n")
+                .append("| Subscription | Mean | Median | Sampled maximum |\n")
+                .append("|---|---:|---:|---:|\n").append(rows)
+                .append("\n![Replay queue over time](").append(REPLAY_CHART).append(".svg)\n");
     }
 
     private static void appendHost(StringBuilder report, Path runDirectory, HostSamples samples, HostSummary host,
@@ -1520,13 +1573,15 @@ public final class RunReport {
         TreeMap<Long, Map<String, Long>> inCounters = new TreeMap<>();
         TreeMap<Long, Map<List<String>, long[]>> subscriptions = new TreeMap<>();
         List<String> lines = Files.readAllLines(csv);
+        // a file sampled before the replay column existed has none
+        boolean hasReplay = !lines.isEmpty() && lines.get(0).split(",").length > 6;
         for (String line : lines.subList(1, lines.size())) {
             String[] fields = line.split(",");
             long epoch = Long.parseLong(fields[0]);
             inCounters.computeIfAbsent(epoch, e -> new LinkedHashMap<>()).put(fields[1], Long.parseLong(fields[4]));
             subscriptions.computeIfAbsent(epoch, e -> new HashMap<>())
                     .put(List.of(fields[1], fields[2]), new long[] {Long.parseLong(fields[3]),
-                            Long.parseLong(fields[5])});
+                            Long.parseLong(fields[5]), fields.length > 6 ? Long.parseLong(fields[6]) : 0});
         }
         long[] epochs = inCounters.keySet().stream().mapToLong(Long::longValue).toArray();
         int rounds = epochs.length;
@@ -1534,11 +1589,16 @@ public final class RunReport {
         Arrays.fill(published, Double.NaN);
         Map<String, double[]> dispatched = new TreeMap<>();
         Map<String, double[]> backlog = new TreeMap<>();
+        Map<String, double[]> replay = new TreeMap<>();
         for (int round = 0; round < rounds; round++) {
             Map<List<String>, long[]> current = subscriptions.get(epochs[round]);
             for (Map.Entry<List<String>, long[]> entry : current.entrySet()) {
                 double[] values = backlog.computeIfAbsent(entry.getKey().get(1), k -> nanArray(rounds));
                 values[round] = (Double.isNaN(values[round]) ? 0 : values[round]) + entry.getValue()[0];
+                if (hasReplay) {
+                    double[] inReplay = replay.computeIfAbsent(entry.getKey().get(1), k -> nanArray(rounds));
+                    inReplay[round] = (Double.isNaN(inReplay[round]) ? 0 : inReplay[round]) + entry.getValue()[2];
+                }
                 dispatched.computeIfAbsent(entry.getKey().get(1), k -> nanArray(rounds));
             }
             if (round == 0) {
@@ -1575,7 +1635,7 @@ public final class RunReport {
                 }
             }
         }
-        return new Samples(epochs, published, dispatched, backlog);
+        return new Samples(epochs, published, dispatched, backlog, replay);
     }
 
     private static double[] nanArray(int length) {

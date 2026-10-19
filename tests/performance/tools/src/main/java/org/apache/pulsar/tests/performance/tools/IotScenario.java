@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.SubscriptionType;
 
 /**
@@ -60,8 +61,29 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
     public record Payload(int size) {
     }
 
-    /** The devices whose telemetry the gateways publish, each with its own key and sequence. */
-    public record Devices(int count) {
+    /**
+     * The devices whose telemetry the gateways publish, each with its own key and sequence.
+     *
+     * @param keyType the messages' key: {@code bytes}, the default, the device's ID as 8 big-endian bytes, which the
+     *                broker receives base64-encoded, or {@code string}, {@code device-<ID>} as a plain string key,
+     *                which Key_Shared hashes as a string
+     */
+    public record Devices(int count, String keyType) {
+        /** The {@code keyType} of binary keys, the default. */
+        public static final String BYTES_KEYS = "bytes";
+        /** The {@code keyType} of string keys. */
+        public static final String STRING_KEYS = "string";
+        static final List<String> KEY_TYPES = List.of(BYTES_KEYS, STRING_KEYS);
+
+        public Devices {
+            if (keyType == null) {
+                keyType = BYTES_KEYS;
+            }
+        }
+
+        public Devices(int count) {
+            this(count, null);
+        }
     }
 
     /**
@@ -195,11 +217,16 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
     }
 
     /** What happens to the simulated system during the run, beyond the traffic. */
-    public record Behaviors(PodRestarts podRestarts) {
-        static final Behaviors NONE = new Behaviors(PodRestarts.NONE);
+    public record Behaviors(PodRestarts podRestarts, PodPauses podPauses) {
+        static final Behaviors NONE = new Behaviors(PodRestarts.NONE, PodPauses.NONE);
 
         public Behaviors {
             podRestarts = podRestarts != null ? podRestarts : PodRestarts.NONE;
+            podPauses = podPauses != null ? podPauses : PodPauses.NONE;
+        }
+
+        public Behaviors(PodRestarts podRestarts) {
+            this(podRestarts, null);
         }
     }
 
@@ -214,6 +241,23 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
 
         boolean enabled() {
             return intervalSeconds > 0 && fraction > 0;
+        }
+    }
+
+    /**
+     * Each application pauses some of its pods periodically, as a pod stalled by a garbage collection, a slow
+     * downstream or a debugger would: a paused pod's consumer stops asking for messages, so the broker holds back its
+     * keys' messages, which a Key_Shared subscription keeps in its replay queue, until it resumes.
+     *
+     * @param intervalSeconds how often each application pauses pods; 0 never
+     * @param fraction the fraction of an application's pods that each pause stops
+     * @param pauseMillis how long the pods stay paused, shorter than the interval
+     */
+    public record PodPauses(int intervalSeconds, double fraction, int pauseMillis) {
+        static final PodPauses NONE = new PodPauses(0, 0, 0);
+
+        boolean enabled() {
+            return intervalSeconds > 0 && fraction > 0 && pauseMillis > 0;
         }
     }
 
@@ -249,6 +293,7 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
         Producer producer = gateways.producer();
         Client client = applications.client();
         PodRestarts podRestarts = behaviors.podRestarts();
+        PodPauses podPauses = behaviors.podPauses();
         require(durationSeconds >= 1, "measurement.seconds must be at least 1");
         require(warmupSeconds >= 0 && warmupMessages >= 0 && warmupRoundDelaySeconds >= 0,
                 "warmup.seconds, warmup.messages and warmup.roundDelaySeconds must not be negative");
@@ -263,6 +308,8 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
                         && applications.podsPerApplication() >= 1,
                 "devices.count, gateways.count, topics.count, applications.count and "
                         + "applications.podsPerApplication must be at least 1");
+        require(Devices.KEY_TYPES.contains(devices.keyType()),
+                "devices.keyType must be one of " + Devices.KEY_TYPES + ", not " + devices.keyType());
         require(producer.ioThreads() >= 1 && producer.listenerThreads() >= 1 && client.ioThreads() >= 1
                         && client.listenerThreads() >= 1,
                 "The gateways' and the applications' ioThreads and listenerThreads must be at least 1");
@@ -351,6 +398,13 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
         }
         require(podRestarts.intervalSeconds() >= 0 && podRestarts.fraction() >= 0 && podRestarts.fraction() <= 1,
                 "behaviors.podRestarts.intervalSeconds must not be negative, and fraction must be from 0 to 1");
+        require(podPauses.intervalSeconds() >= 0 && podPauses.fraction() >= 0 && podPauses.fraction() <= 1
+                        && podPauses.pauseMillis() >= 0,
+                "behaviors.podPauses.intervalSeconds and pauseMillis must not be negative, and fraction must be from 0"
+                        + " to 1");
+        require(!podPauses.enabled()
+                        || podPauses.pauseMillis() < TimeUnit.SECONDS.toMillis(podPauses.intervalSeconds()),
+                "behaviors.podPauses.pauseMillis must be shorter than intervalSeconds");
     }
 
     private static void require(boolean condition, String message) {
@@ -381,6 +435,11 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
 
     public int deviceCount() {
         return devices.count();
+    }
+
+    /** Whether the gateways key the messages with strings rather than with bytes. */
+    public boolean stringKeys() {
+        return Devices.STRING_KEYS.equals(devices.keyType());
     }
 
     public int gatewayCount() {

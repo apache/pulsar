@@ -32,6 +32,13 @@ application-visible order across Key_Shared hash-range reassignment.
 - [`iot-telemetry.yaml`](../iot-telemetry.yaml) is the full topology without churn.
 - [`iot-telemetry-restarts.yaml`](../iot-telemetry-restarts.yaml) restarts 10% of each application's
   pods every 30 seconds.
+- [`iot-telemetry-key-shared-replay.yaml`](../iot-telemetry-key-shared-replay.yaml) stalls and restarts Key_Shared
+  consumers so that the subscriptions' replay queues hold thousands of entries: 30,000 msg/s with string keys to five
+  applications of 20 pods on four topics, each application pausing three pods for five seconds every 15 seconds and
+  restarting one every 20 seconds. The report's Backlog and rates section shows the replay queues over time.
+- [`iot-telemetry-key-shared-stuck-consumer.yaml`](../iot-telemetry-key-shared-stuck-consumer.yaml) pauses one of
+  each application's five pods for 45 seconds every minute, so that the replay queues reach their look-ahead limit
+  and dispatch stops until the pod resumes: what the broker spends while dispatch is stuck.
 - [`iot-telemetry-small.yaml`](../iot-telemetry-small.yaml) keeps the 20-way fanout,
   30 topics and 1,000 msg/s rate, but uses 10 gateways and 10 pods per application, with the low-memory
   configuration.
@@ -187,6 +194,7 @@ workloads:
       size: 64                 # bytes, the device's ID, sequence and send time included
     devices:
       count: 300000
+      keyType: bytes           # not set in the base file: bytes, the device's ID as 8 bytes, or string, device-<ID>
     gateways:
       count: 100
       producer:                # the gateways' Pulsar clients and producers
@@ -221,7 +229,17 @@ workloads:
       podRestarts:             # each application restarts this fraction of its pods every intervalSeconds
         intervalSeconds: 0
         fraction: 0.0
+      podPauses:               # not set in the base file: each application pauses this fraction of its pods
+        intervalSeconds: 0     # every intervalSeconds, for pauseMillis
+        fraction: 0.0
+        pauseMillis: 0
 ```
+
+`behaviors.podPauses` stalls pods as a garbage collection, a slow downstream or a debugger would: every
+`intervalSeconds`, each application pauses a random `fraction` of its pods' consumers for `pauseMillis`, shorter than
+the interval, and resumes them. A paused consumer stops asking for messages once it has received the ones it already
+asked for, so with Key_Shared the broker holds back its keys' messages in the subscription's replay queue, and
+dispatches the other keys' messages around them, until the replay queue reaches its look-ahead limit.
 
 `applications.joinSeconds` has each application join after the measurement starts: a list with a value for each
 application, in seconds, where 0 joins at the start, as every application does without the setting. An application
@@ -250,6 +268,11 @@ gateways batch messages of any device together, with the producer's default batc
 applications check each device's order, and with Key_Shared the gateways keep a batch to one device, as the next
 section describes. Skipping messages and resetting subscriptions need Key_Shared or Failover, since an application
 then expects each device's messages from the first one that it receives.
+
+`devices.keyType` sets the messages' key. With `bytes`, the default, it's the device's ID as 8 big-endian bytes, which
+the broker receives base64-encoded; with `string`, it's `device-<ID>` as a plain string key, the key type of most
+applications, which Key_Shared hashes as a string. The applications check that each message has its device's key
+either way.
 
 `timeoutSeconds` bounds the whole workload: the applications stop waiting for messages after it and the run fails,
 the gateways give up waiting for a warmup round or the measurement's start, and the launcher waits for the containers

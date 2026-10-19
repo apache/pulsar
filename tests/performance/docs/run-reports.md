@@ -104,7 +104,7 @@ didn't receive every message, and the launcher fails a run when an application's
 ├── <scenario>.yaml, resolved-config.yaml
 ├── run-info.json, run-id.txt
 ├── throughput.svg, backlog.svg, latency-percentiles.svg, latency-timeline.svg,
-│   host-temperature.svg, host-frequency.svg    the charts, each also as PNG
+│   replay.svg, host-temperature.svg, host-frequency.svg    the charts, each also as PNG
 ├── topic-stats.csv, host-stats.csv    the sampled topic stats and host CPU
 ├── host-io.csv                        the sampled Docker engine host CPU utilization and disk throughput
 ├── container-stats.csv, perf-stat.csv each container's CPU use, context switches and CPU counters
@@ -169,7 +169,9 @@ report has these sections:
   Correctness section, and their end-to-end latency, which includes the replication, with the remote cluster's files.
 - **Backlog and rates**: each subscription's backlog and the per-second rates, sampled from the broker's topic
   stats once per second, or every topics / 100 seconds with more than 100 topics, while the gateways publish and the applications receive. A sampled maximum is not the exact peak
-  between samples.
+  between samples. When a subscription had entries in its replay queue, such as Key_Shared messages held back for a
+  consumer without permits, the section also shows the replay queues. The broker counts the backlog and the replay
+  queue in entries, not messages: a batch counts once, however many messages it has.
 - **Host**: the CPU temperature, frequency and thermal throttling at the start and during the measurement, with
   their charts in a collapsed section; a chart whose values the host doesn't provide is left out. The report says so
   in bold when the CPU throttled during the measurement, and that throttling is unknown when the host has no thermal
@@ -201,10 +203,11 @@ beside it, rendered with [commonmark-java](https://github.com/commonmark/commonm
 | `launcher.log` | The launcher's log: Testcontainers' log and the Pulsar containers' logs, which stay off the console. It is written during the run, and a successful run deletes it at the end, since the containers' logs make it large, unless `--keep-launcher-log` or `-Pperformance.keepLauncherLog` keeps it; a failed run keeps it, and so does a run whose applications received duplicates, ordering violations or invalid messages |
 | `throughput.svg`, `.png` | Messages published and dispatched per second over the run, warmup included and the gateways' finish marked. A cool-down wait of 10 s or more before the measurement is cut out of the time axis |
 | `backlog.svg`, `.png` | Each subscription's backlog over the run, on the same time axis |
+| `replay.svg`, `.png` | The entries in each subscription's replay queue over the run, on the same time axis, when a subscription had any |
 | `latency-percentiles.svg`, `.png` | Latency by percentile, as HistogramLogAnalyzer plots it: publish and each application's end to end, on an axis that spreads the tail (90 %, 99 %, 99.9 %, …) |
 | `latency-timeline.svg`, `.png` | The maximum latency of each logged interval over the run, publish and per application |
 | `host-temperature.svg`, `.png`, `host-frequency.svg`, `.png` | The CPU package and hottest core temperature, and the mean and lowest core frequency, over the run |
-| `topic-stats.csv` | The broker's topic stats sampled once per second, or every topics / 100 seconds with more than 100 topics: backlog and message counters per subscription |
+| `topic-stats.csv` | The broker's topic stats sampled once per second, or every topics / 100 seconds with more than 100 topics: backlog, message counters and entries in replay per subscription |
 | `offload-storage.log.txt` | In a run that offloads to tiered storage, the storage's log, with every request when `offload.logRequests` is set, see [Offloading](offloading.md) |
 | `seeks.csv` | With an `offload.seeks` section, each seek to a random publish time: its topic, publish time, how long the reset and the read of the message took, and the position, see [Random seeks](offloading.md#random-seeks) |
 | `join-preparation.csv` | When the launcher prepared the late applications' join, each skip, reset and unload, and how long it took, see [Offloading](offloading.md) |
