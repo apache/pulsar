@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.nonpersistent;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.lang.reflect.Field;
@@ -30,6 +31,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.service.AbstractTopic;
+import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionFencedException;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.PulsarCommandSender;
 import org.apache.pulsar.broker.service.SubscriptionOption;
@@ -340,6 +342,67 @@ public class NonPersistentTopicTest extends BrokerTestBase {
                 .until(() -> subscriptionMap.get(keySharedSubName) == null);
     }
 
+
+    @Test
+    public void testReconnectWhileSubscriptionRemovalIsPending() throws Exception {
+        String topicName = "non-persistent://prop/ns-abc/reconnect-" + UUID.randomUUID();
+        String subName = "sub";
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName).enableBatching(false).create();
+        NonPersistentTopic topic = (NonPersistentTopic) pulsar.getBrokerService()
+                .getTopicReference(topicName).orElseThrow();
+        NonPersistentTopic spyTopic = Mockito.spy(topic);
+        pulsar.getBrokerService().getTopics().put(topicName,
+                CompletableFuture.completedFuture(Optional.of(spyTopic)));
+        NonPersistentSubscription subscription = Mockito.spy(
+                new NonPersistentSubscription(spyTopic, subName, Collections.emptyMap()));
+        spyTopic.getSubscriptions().put(subName, subscription);
+
+        CompletableFuture<Void> removalQueued = new CompletableFuture<>();
+        CompletableFuture<Void> allowRemoval = new CompletableFuture<>();
+        Mockito.doAnswer(inv -> {
+            CompletableFuture<Void> removal = allowRemoval.thenCompose(__ -> topic.unsubscribe(subName));
+            removalQueued.complete(null);
+            return removal;
+        }).when(spyTopic).unsubscribe(subName);
+
+        try {
+            @Cleanup
+            Consumer<String> first = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+                    .subscriptionName(subName).subscriptionMode(SubscriptionMode.NonDurable).subscribe();
+            first.close();
+            removalQueued.get(10, TimeUnit.SECONDS);
+
+            // Make the reconnect reach the old subscription before the queued removal can execute.
+            CompletableFuture<Throwable> addAttempt = new CompletableFuture<>();
+            Mockito.doAnswer(inv -> {
+                @SuppressWarnings("unchecked")
+                CompletableFuture<Void> result = (CompletableFuture<Void>) inv.callRealMethod();
+                result.whenComplete((__, error) -> addAttempt.complete(error));
+                return result;
+            }).when(subscription).addConsumer(Mockito.any());
+            CompletableFuture<Consumer<String>> reconnect = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+                    .subscriptionName(subName).subscriptionMode(SubscriptionMode.NonDurable).subscribeAsync();
+
+            assertTrue(addAttempt.get(10, TimeUnit.SECONDS) instanceof SubscriptionFencedException);
+            assertTrue(subscription.getConsumers().isEmpty());
+
+            allowRemoval.complete(null);
+            @Cleanup
+            Consumer<String> second = reconnect.get(30, TimeUnit.SECONDS);
+            assertTrue(second.isConnected());
+            assertNotSame(spyTopic.getSubscription(subName), subscription);
+            assertEquals(admin.topics().getStats(topicName).getSubscriptions().get(subName).getConsumers().size(), 1);
+
+            producer.send("after-reconnect");
+            Message<String> message = second.receive(10, TimeUnit.SECONDS);
+            assertNotNull(message);
+            assertEquals(message.getValue(), "after-reconnect");
+        } finally {
+            allowRemoval.complete(null);
+        }
+    }
 
     @Test
     public void testRemoveProducerOnNonPersistentTopic() throws Exception {
