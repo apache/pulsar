@@ -141,6 +141,7 @@ import org.apache.pulsar.broker.service.persistent.DispatchRateLimiterFactoryCla
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.SystemTopic;
 import org.apache.pulsar.broker.service.plugin.EntryFilterProvider;
+import org.apache.pulsar.broker.service.scalable.ScalableTopicMetrics;
 import org.apache.pulsar.broker.service.scalable.SegmentLoadReporter;
 import org.apache.pulsar.broker.stats.BrokerOperabilityMetrics.TopicLoadFailureReason;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
@@ -346,6 +347,9 @@ public class BrokerService implements Closeable {
     @Getter
     private volatile org.apache.pulsar.broker.service.scalable.ScalableTopicService scalableTopicService;
 
+    @Getter
+    private final ScalableTopicMetrics scalableTopicMetrics;
+
     private PulsarChannelInitializer.Factory pulsarChannelInitFactory = PulsarChannelInitializer.DEFAULT_FACTORY;
 
     private final List<Channel> listenChannels = new ArrayList<>(2);
@@ -386,6 +390,8 @@ public class BrokerService implements Closeable {
         this.keepAliveIntervalSeconds = pulsar.getConfiguration().getKeepAliveIntervalSeconds();
         this.pendingTopicLoadingQueue = Queues.newConcurrentLinkedQueue();
         this.pulsarStats = new PulsarStats(pulsar);
+        this.scalableTopicMetrics = new ScalableTopicMetrics(pulsar.getOpenTelemetry().getMeter(),
+                pulsar.getConfiguration().getClusterName());
 
         this.topicOrderedExecutor = OrderedExecutor.newBuilder()
                 .numThreads(pulsar.getConfiguration().getTopicOrderedExecutorThreadNum())
@@ -1065,6 +1071,7 @@ public class BrokerService implements Closeable {
                                     log.warn().exception(e).log("Error in closing authenticationService");
                                 }
                                 pulsarStats.close();
+                                scalableTopicMetrics.close();
                                 pendingTopicLoadOperationsCounter.close();
                                 pendingLookupOperationsCounter.close();
                                 try {
