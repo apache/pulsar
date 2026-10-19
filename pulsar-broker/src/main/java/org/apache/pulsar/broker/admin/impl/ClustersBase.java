@@ -83,11 +83,15 @@ import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 public class ClustersBase extends AdminResource {
 
     @GET
-    @Operation(summary = "Get the list of all the Pulsar clusters.")
+    @Operation(
+        summary = "Get the list of all the Pulsar clusters.",
+        description = "This operation requires Pulsar superuser privileges."
+    )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Return a list of clusters.",
                     content = @Content(array = @ArraySchema(
                             schema = @Schema(implementation = String.class), uniqueItems = true))),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission."),
             @ApiResponse(responseCode = "500", description = "Internal server error.")
     })
     public void getClusters(@Suspended AsyncResponse asyncResponse) {
