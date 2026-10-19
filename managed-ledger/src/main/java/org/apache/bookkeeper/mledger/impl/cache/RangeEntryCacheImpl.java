@@ -291,7 +291,7 @@ public class RangeEntryCacheImpl implements EntryCache {
     public void asyncReadEntry(ReadHandle lh, Position position, int expectedReadCount,
             final ReadEntryCallback callback, final Object ctx) {
         int readCount = expectedReadCount != DEFAULT_EXPECTED_READ_COUNT ? expectedReadCount
-                : DEFAULT_CACHE_INDIVIDUAL_READ_ENTRY ? 1 : 0;
+                : DEFAULT_CACHE_INDIVIDUAL_READ_ENTRY ? 1 : EntryImpl.NO_EXPECTED_READ_COUNT;
         try {
             asyncReadEntriesByPosition(lh, position, position, 1, NO_MAX_SIZE_LIMIT,
                     () -> readCount,
@@ -645,7 +645,7 @@ public class RangeEntryCacheImpl implements EntryCache {
                                     entriesToReturn.add(entry);
                                     totalSize += entry.getLength();
                                 }
-                                if (expectedReadCountVal > 0) {
+                                if (expectedReadCountVal >= 0) {
                                     insert(entriesToReturn, copyEntries || batchRead);
                                 }
 

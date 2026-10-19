@@ -600,7 +600,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                                 entries.getEntry(lh.getLastAddConfirmed());
                                         if (ledgerEntry != null) {
                                             promise.complete(
-                                                    Optional.of(EntryImpl.create(ledgerEntry, 0)));
+                                                    Optional.of(EntryImpl.create(ledgerEntry,
+                                                            EntryImpl.NO_EXPECTED_READ_COUNT)));
                                         } else {
                                             promise.complete(Optional.empty());
                                         }

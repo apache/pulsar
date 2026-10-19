@@ -82,6 +82,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ScanCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.SkipEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.EntryReadCountHandler;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursorAttributes;
 import org.apache.bookkeeper.mledger.ManagedCursorMXBean;
@@ -1970,11 +1971,11 @@ public class ManagedCursorImpl implements ManagedCursor {
     static final long REPLAY_RANGE_MAX_GAP_BYTES = 192 * 1024;
     // the most entries that one range read of replay positions takes
     static final int REPLAY_RANGE_MAX_ENTRIES = 256;
-    // The expected read count that the entries read from storage for a replay are cached with, so that a replay of an
-    // entry again, as when the entry is added to the replay queue again, can read it from the cache; once read, it
-    // stays cached until the cache evicts it, by age, or among the first when the cache needs room. The entries in
-    // between that a range read takes are cached the same way
-    static final int REPLAYED_ENTRY_EXPECTED_READ_COUNT = 1;
+    // The expected read count that the entries a replay reads from storage are cached with: 0, so that they're cached
+    // with a read count handler, which an increment, as when the dispatcher adds an entry to the replay queue again,
+    // reaches, and are evicted first otherwise. A wanted entry at 0 gets an expected read for the replay itself, see
+    // expectReplayRead
+    static final int REPLAYED_ENTRY_EXPECTED_READ_COUNT = 0;
     // the most bytes that one range read of replay positions takes, by the managed ledger's average entry size, so
     // that large entries in between aren't read in bulk; it can't tell entries of very different sizes apart
     static final long REPLAY_RANGE_MAX_BYTES = 1024 * 1024;
@@ -1984,21 +1985,33 @@ public class ManagedCursorImpl implements ManagedCursor {
      * entries in between them may not be cached, since the cache drops an entry once the cursors that read it have,
      * and a range read would wait for those to be read from storage. The other positions are grouped into runs of
      * positions close to each other in a ledger, by {@link #replayRuns}, and each run is read with one read of the
-     * range from its first position to its last, which releases the entries in between; a position that is a run of
-     * its own is read alone. A dispatcher's replay positions are often close: a consumer's pending entries, or the
-     * entries of the keys of a consumer that had no permits.
+     * range from its first position to its last, which releases the entries in between without counting them as
+     * read; a position that is a run of its own is read alone. A dispatcher's replay positions are often close: a
+     * consumer's pending entries, or the entries of the keys of a consumer that had no permits.
      *
-     * <p>The positions that the cache doesn't have are read with an expected read count of
-     * {@link #REPLAYED_ENTRY_EXPECTED_READ_COUNT}, so that the entries read from storage are cached for a replay of
-     * them again. Each wanted entry, or its failure, reaches the
-     * callback as a single-entry read's would.
+     * <p>The entries read from storage are cached with an expected read count of
+     * {@link #REPLAYED_ENTRY_EXPECTED_READ_COUNT}, the entries in between too, and a wanted entry without expected
+     * reads gets one for the replay, so that the dispatcher's increment, when it adds the entry to the replay queue
+     * again, keeps it cached. Each wanted entry, or its failure, reaches the callback as a single-entry read's would.
      */
     private void readReplayPositions(List<Position> replayPositions, ReadEntryCallback cb, Object ctx) {
+        ReadEntryCallback singleReadCallback = new ReadEntryCallback() {
+            @Override
+            public void readEntryComplete(Entry entry, Object readCtx) {
+                expectReplayRead(entry);
+                cb.readEntryComplete(entry, readCtx);
+            }
+
+            @Override
+            public void readEntryFailed(ManagedLedgerException exception, Object readCtx) {
+                cb.readEntryFailed(exception, readCtx);
+            }
+        };
         // the positions to read from storage
         List<Position> positions = new ArrayList<>(replayPositions.size());
         for (Position position : replayPositions) {
             if (ledger.entryCache.hasEntry(position)) {
-                ledger.asyncReadEntry(position, cb, ctx);
+                ledger.asyncReadEntry(position, REPLAYED_ENTRY_EXPECTED_READ_COUNT, singleReadCallback, ctx);
             } else {
                 positions.add(position);
             }
@@ -2011,7 +2024,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         long averageEntrySize = Math.max(1, ledger.getTotalSize() / Math.max(1, ledger.getNumberOfEntries()));
         for (List<Position> run : replayRuns(positions, averageEntrySize)) {
             if (run.size() == 1) {
-                ledger.asyncReadEntry(run.get(0), REPLAYED_ENTRY_EXPECTED_READ_COUNT, cb, ctx);
+                ledger.asyncReadEntry(run.get(0), REPLAYED_ENTRY_EXPECTED_READ_COUNT, singleReadCallback, ctx);
             } else {
                 readReplayRange(run, cb, ctx);
             }
@@ -2049,6 +2062,18 @@ public class ManagedCursorImpl implements ManagedCursor {
         return runs;
     }
 
+    /**
+     * Gives a replayed entry without expected reads, as one that the replay read from storage, an expected read for
+     * the replay itself, which the dispatcher's release of the entry completes. An entry that has expected reads
+     * already has the replay's: the dispatcher incremented its count when it added the position to the replay queue.
+     */
+    private static void expectReplayRead(Entry entry) {
+        EntryReadCountHandler readCountHandler = entry.getReadCountHandler();
+        if (readCountHandler != null && readCountHandler.getExpectedReadCount() < 1) {
+            readCountHandler.incrementExpectedReadCount();
+        }
+    }
+
     private void readReplayRange(List<Position> wanted, ReadEntryCallback cb, Object ctx) {
         long ledgerId = wanted.get(0).getLedgerId();
         long firstEntry = wanted.get(0).getEntryId();
@@ -2060,9 +2085,15 @@ public class ManagedCursorImpl implements ManagedCursor {
             public void readEntriesComplete(List<Entry> entries, Object readCtx) {
                 for (Entry entry : entries) {
                     if (wantedEntries.remove(entry.getEntryId())) {
+                        expectReplayRead(entry);
                         cb.readEntryComplete(entry, ctx);
                     } else {
-                        // an entry in between, which this cursor doesn't want
+                        // an entry in between, which this cursor doesn't read: releasing it doesn't count as a read,
+                        // so that one that the cache had keeps the expected reads of the cursors that will read it,
+                        // and one read from storage stays cached without expected reads
+                        if (entry instanceof EntryImpl entryImpl) {
+                            entryImpl.setDecreaseReadCountOnRelease(false);
+                        }
                         entry.release();
                     }
                 }
@@ -4549,7 +4580,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         } else if (isCacheReadEntry()) {
             return 1;
         } else {
-            return 0;
+            return EntryImpl.NO_EXPECTED_READ_COUNT;
         }
     }
 }

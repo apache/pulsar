@@ -3980,10 +3980,12 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                     toCache.add(position);
                 }
             }
-            // entries in between the uncached positions 8 and 16, and 32 and 40
+            // entries in between the uncached positions 8 and 16, and 32 and 40, which other cursors will read
             toCache.add(added.get(12));
             toCache.add(added.get(36));
             for (Position position : toCache) {
+                // the replay positions with the expected read that the dispatcher adds for the replay
+                int expectedReadCount = positions.contains(position) ? 1 : 2;
                 CompletableFuture<Entry> read = new CompletableFuture<>();
                 ledger.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
                     @Override
@@ -3997,9 +3999,12 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                     }
                 }, null);
                 Entry entry = read.get(10, TimeUnit.SECONDS);
-                ledger.entryCache.insert(entry);
+                EntryImpl toInsert = EntryImpl.create(position, entry.getDataBuffer(), expectedReadCount);
+                ledger.entryCache.insert(toInsert);
+                toInsert.setDecreaseReadCountOnRelease(false);
+                toInsert.release();
                 entry.release();
-                assertTrue(ledger.entryCache.hasEntry(position));
+                assertEquals(cachedExpectedReadCount(ledger, position), expectedReadCount);
             }
         }
         assertFalse(ledger.entryCache.hasEntry(added.get(1)));
@@ -4018,23 +4023,52 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         }, null, true);
 
         List<Entry> entries = replayed.get(10, TimeUnit.SECONDS);
-        // exactly the positions, in order, with their data
+        // exactly the positions, in order, with their data, each with an expected read for the replay
         assertEquals(entries.stream().map(Entry::getPosition).toList(), new ArrayList<>(positions));
         for (Entry entry : entries) {
             assertEquals(new String(entry.getData(), Encoding), "entry-" + added.indexOf(entry.getPosition()));
-            entry.release();
+            assertEquals(entry.getReadCountHandler().getExpectedReadCount(), 1);
         }
+        // the dispatcher adds the position 8 to the replay queue again, and releases the entries
+        entries.get(1).getReadCountHandler().incrementExpectedReadCount();
+        entries.forEach(Entry::release);
+        // the replay's read is done, and the position added again keeps an expected read
+        assertEquals(cachedExpectedReadCount(ledger, added.get(0)), 0);
+        assertEquals(cachedExpectedReadCount(ledger, added.get(8)), 1);
+        assertEquals(cachedExpectedReadCount(ledger, added.get(590)), 0);
         if (partlyCached) {
-            // the entries in between that a range read took from the cache stay cached
-            assertTrue(ledger.entryCache.hasEntry(added.get(12)));
-            assertTrue(ledger.entryCache.hasEntry(added.get(36)));
+            // the entries in between that the cache had keep the other cursors' expected reads
+            assertEquals(cachedExpectedReadCount(ledger, added.get(12)), 2);
+            assertEquals(cachedExpectedReadCount(ledger, added.get(36)), 2);
         } else {
-            // the ranges read from storage, a position alone too, are cached for a replay of them again, and the
-            // entries outside them aren't
-            assertTrue(ledger.entryCache.hasEntry(added.get(0)));
-            assertTrue(ledger.entryCache.hasEntry(added.get(590)));
+            // the entries in between that a range read took from storage are cached without expected reads, and the
+            // entries outside the ranges aren't read
+            assertEquals(cachedExpectedReadCount(ledger, added.get(1)), 0);
             assertFalse(ledger.entryCache.hasEntry(added.get(589)));
         }
+    }
+
+    // The expected read count of the cached entry, which reading it doesn't change
+    private static int cachedExpectedReadCount(ManagedLedgerImpl ledger, Position position) throws Exception {
+        assertTrue(ledger.entryCache.hasEntry(position));
+        CompletableFuture<Entry> read = new CompletableFuture<>();
+        ledger.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
+            @Override
+            public void readEntryComplete(Entry entry, Object ctx) {
+                read.complete(entry);
+            }
+
+            @Override
+            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                read.completeExceptionally(exception);
+            }
+        }, null);
+        EntryImpl entry = (EntryImpl) read.get(10, TimeUnit.SECONDS);
+        int expectedReadCount = entry.getReadCountHandler() != null
+                ? entry.getReadCountHandler().getExpectedReadCount() : -1;
+        entry.setDecreaseReadCountOnRelease(false);
+        entry.release();
+        return expectedReadCount;
     }
 
     @Test(timeOut = 20000)

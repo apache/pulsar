@@ -113,8 +113,8 @@ public interface EntryCache {
      * with the expected read count when it's read from storage.
      *
      * @param expectedReadCount
-     *            the expected read count that the entry is cached with when it's read from storage, 0 not to cache
-     *            it, or {@link #DEFAULT_EXPECTED_READ_COUNT} for the cache's default for a single entry
+     *            the expected read count that the entry is cached with when it's read from storage, a negative value
+     *            not to cache it, or {@link #DEFAULT_EXPECTED_READ_COUNT} for the cache's default for a single entry
      */
     default void asyncReadEntry(ReadHandle lh, Position position, int expectedReadCount, ReadEntryCallback callback,
                                 Object ctx) {
@@ -124,7 +124,7 @@ public interface EntryCache {
     /**
      * The expected read count argument for the cache's default for a single entry read.
      */
-    int DEFAULT_EXPECTED_READ_COUNT = -1;
+    int DEFAULT_EXPECTED_READ_COUNT = Integer.MIN_VALUE;
 
     /**
      * Whether the cache has the entry, without reading it.
