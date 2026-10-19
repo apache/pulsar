@@ -207,6 +207,14 @@ public class ScalableTopicControllerTest {
         return result;
     }
 
+    @Test(timeOut = 10_000)
+    public void testMetricCountsDoNotWaitForControllerMonitor() throws Exception {
+        synchronized (controller) {
+            assertEquals(CompletableFuture.supplyAsync(controller::metricCounts, scheduler).get(5, TimeUnit.SECONDS),
+                    new ScalableTopicMetrics.Counts(0, 0, 0));
+        }
+    }
+
     @Test
     public void testLayoutMetricsAndLeaderCounts() throws Exception {
         assertEquals(controller.metricCounts(), new ScalableTopicMetrics.Counts(0, 0, 0));

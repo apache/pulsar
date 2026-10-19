@@ -105,8 +105,11 @@ public class ScalableTopicController {
         this.metrics = metrics;
     }
 
-    /** A single immutable layout snapshot, contributed only while serving as leader. */
-    synchronized ScalableTopicMetrics.Counts metricCounts() {
+    /**
+     * Read volatile state and an immutable layout without acquiring the controller monitor: controller work
+     * must not block the shared Prometheus scrape or OpenTelemetry collection of unrelated metrics.
+     */
+    ScalableTopicMetrics.Counts metricCounts() {
         SegmentLayout layout = currentLayout;
         if (closed || leaderState != LeaderElectionState.Leading || layout == null) {
             return new ScalableTopicMetrics.Counts(0, 0, 0);

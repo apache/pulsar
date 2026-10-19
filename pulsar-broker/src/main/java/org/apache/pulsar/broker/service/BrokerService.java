@@ -1043,9 +1043,6 @@ public class BrokerService implements Closeable {
                                 log.info("Continuing to second phase in shutdown.");
 
                                 List<CompletableFuture<Void>> asyncCloseFutures = new ArrayList<>();
-                                if (scalableTopicService != null) {
-                                    asyncCloseFutures.add(scalableTopicService.closeAsync());
-                                }
                                 listenChannels.forEach(ch -> {
                                     if (ch.isOpen()) {
                                         asyncCloseFutures.add(closeChannel(ch));
@@ -1066,6 +1063,9 @@ public class BrokerService implements Closeable {
                                     authenticationService.close();
                                 } catch (IOException e) {
                                     log.warn().exception(e).log("Error in closing authenticationService");
+                                }
+                                if (scalableTopicService != null) {
+                                    scalableTopicService.closeMetrics();
                                 }
                                 pulsarStats.close();
                                 pendingTopicLoadOperationsCounter.close();

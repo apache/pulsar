@@ -23,10 +23,12 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -192,8 +194,47 @@ public class ScalableTopicServiceTest {
         assertThat(prometheusValue("controller_count")).isEqualTo(1.0);
         assertThat(prometheusSegments("active")).isEqualTo(3.0);
         assertThat(prometheusSegments("sealed")).isZero();
-        service.closeAsync().get();
+        service.close();
         assertThat(prometheusValue("controller_count")).isNull();
+    }
+
+    @Test
+    public void testMetricsCleanupDoesNotChangeControllerLifecycle() throws Exception {
+        service.close();
+        ScalableTopicResources observedResources = spy(resources);
+        service = new ScalableTopicService(brokerService, observedResources, coordinationService);
+        TopicName topic = scalableTopic("metrics-cleanup");
+        service.createScalableTopic(topic, 1).get();
+        ScalableTopicController controller = service.getOrCreateController(topic).get();
+        Object[] tasks = scheduler.getQueue().toArray();
+        clearInvocations(observedResources, scalableTopicsAdmin);
+
+        service.closeMetrics();
+
+        verifyNoInteractions(observedResources, scalableTopicsAdmin);
+        assertThat(prometheusValue("controller_count")).isNull();
+        assertThat(controller.isClosed()).isFalse();
+        assertThat(controller.isLeader()).isTrue();
+        assertThat(store.exists(resources.controllerLockPath(topic)).get()).isTrue();
+        assertThat(scheduler.getQueue().toArray()).containsExactlyInAnyOrder(tasks);
+    }
+
+    @Test(timeOut = 10_000)
+    public void testMetricsCleanupDoesNotWaitForControllerInitialization() throws Exception {
+        TopicName topic = scalableTopic("metrics-cleanup-pending-init");
+        service.createScalableTopic(topic, 1).get();
+        CompletableFuture<Void> create = new CompletableFuture<>();
+        when(scalableTopicsAdmin.createSegmentAsync(anyString(), any())).thenReturn(create);
+        CompletableFuture<ScalableTopicController> initializing = service.getOrCreateController(topic);
+        try {
+            assertThat(initializing).isNotDone();
+            service.closeMetrics();
+            assertThat(prometheusValue("controller_count")).isNull();
+            assertThat(initializing).isNotDone();
+        } finally {
+            create.complete(null);
+            initializing.get(5, TimeUnit.SECONDS);
+        }
     }
 
     private static Double prometheusValue(String suffix) {

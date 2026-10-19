@@ -44,8 +44,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.DoubleAdder;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Supplier;
+import lombok.CustomLog;
 
 /** Broker-level controller metrics, with shared state for Prometheus and OpenTelemetry. */
+@CustomLog
 public final class ScalableTopicMetrics implements AutoCloseable {
     private static final String OTEL_PREFIX = "pulsar.broker.scalable_topic.";
     private static final String ATTRIBUTE_PREFIX = "pulsar.scalable_topic.";
@@ -217,10 +219,17 @@ public final class ScalableTopicMetrics implements AutoCloseable {
     }
 
     private void collectState(Map<Point, Long> values) {
-        Counts current = counts.get();
-        values.merge(new Point(Metric.CONTROLLERS, Attributes.empty()), current.controllers(), Long::sum);
-        values.merge(new Point(Metric.SEGMENTS, attributes("segment.state", "active")), current.active(), Long::sum);
-        values.merge(new Point(Metric.SEGMENTS, attributes("segment.state", "sealed")), current.sealed(), Long::sum);
+        try {
+            Counts current = Objects.requireNonNull(counts.get());
+            values.merge(new Point(Metric.CONTROLLERS, Attributes.empty()), current.controllers(), Long::sum);
+            values.merge(new Point(Metric.SEGMENTS, attributes("segment.state", "active")),
+                    current.active(), Long::sum);
+            values.merge(new Point(Metric.SEGMENTS, attributes("segment.state", "sealed")),
+                    current.sealed(), Long::sum);
+        } catch (RuntimeException e) {
+            // A failed new state read must not fail the shared scrape or suppress other providers' metrics.
+            log.debug().exceptionMessage(e).log("Failed to collect scalable topic controller counts");
+        }
         counters.forEach((point, value) -> values.merge(point, value.sum(), Long::sum));
     }
 

@@ -115,11 +115,12 @@ public class ScalableTopicService {
         log.info("ScalableTopicService started");
     }
 
-    public void close() {
-        closeAsync().join();
+    /** Unregister only this service's metrics, without changing controller or metadata-store lifecycles. */
+    public void closeMetrics() {
+        metrics.close();
     }
 
-    public CompletableFuture<Void> closeAsync() {
+    public void close() {
         log.info().attr("controllerCount", controllers.size())
                 .log("Closing ScalableTopicService, releasing controllers");
         List<CompletableFuture<Void>> closeFutures = controllers.values().stream()
@@ -130,10 +131,12 @@ public class ScalableTopicService {
                             return null;
                         }))
                 .toList();
-        return FutureUtil.waitForAll(closeFutures).whenComplete((__, ex) -> {
+        try {
+            FutureUtil.waitForAll(closeFutures).join();
+        } finally {
             controllers.clear();
-            metrics.close();
-        });
+            closeMetrics();
+        }
     }
 
     // --- Controller management ---
