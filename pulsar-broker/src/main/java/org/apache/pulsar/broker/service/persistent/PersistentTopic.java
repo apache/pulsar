@@ -4670,6 +4670,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 MessageId messageId = new MessageIdImpl(lastPosition.getLedgerId(), lastPosition.getEntryId(), -1);
 
                 log.info().attr("messageId", messageId).log("Topic terminated at");
+                brokerService.onTopicTerminated(PersistentTopic.this);
                 future.complete(messageId);
             }
 
