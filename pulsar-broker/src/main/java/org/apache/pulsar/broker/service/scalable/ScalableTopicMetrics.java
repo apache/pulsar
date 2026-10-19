@@ -23,6 +23,7 @@ import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.BatchCallback;
 import io.opentelemetry.api.metrics.DoubleHistogram;
 import io.opentelemetry.api.metrics.Meter;
+import io.opentelemetry.api.metrics.MeterProvider;
 import io.opentelemetry.api.metrics.ObservableLongMeasurement;
 import io.prometheus.client.Collector;
 import io.prometheus.client.Collector.MetricFamilySamples;
@@ -51,6 +52,7 @@ import lombok.CustomLog;
 public final class ScalableTopicMetrics implements AutoCloseable {
     private static final String OTEL_PREFIX = "pulsar.broker.scalable_topic.";
     private static final String ATTRIBUTE_PREFIX = "pulsar.scalable_topic.";
+    private static final Meter NOOP_METER = MeterProvider.noop().get(ScalableTopicMetrics.class.getName());
 
     /** Shared explicit histogram boundaries in seconds, from 1 ms through 5 minutes. */
     static final List<Double> DURATION_BUCKETS =
@@ -135,8 +137,14 @@ public final class ScalableTopicMetrics implements AutoCloseable {
         this.cluster = Objects.requireNonNull(cluster);
         this.counts = Objects.requireNonNull(counts);
         this.registry = Objects.requireNonNull(registry);
-        synchronized (HISTOGRAMS) {
-            histograms = HISTOGRAMS.computeIfAbsent(meter, ignored -> new ConcurrentHashMap<>());
+        if (meter == NOOP_METER) {
+            // The API no-op Meter is shared across brokers and retains no SDK observations.
+            // Its Prometheus histograms must belong to this provider, not the singleton Meter's lifetime.
+            histograms = new ConcurrentHashMap<>();
+        } else {
+            synchronized (HISTOGRAMS) {
+                histograms = HISTOGRAMS.computeIfAbsent(meter, ignored -> new ConcurrentHashMap<>());
+            }
         }
         for (Metric metric : List.of(Metric.TAKEOVER, Metric.OPERATION_DURATION, Metric.SEAL_DURATION)) {
             otelHistograms.put(metric, meter.histogramBuilder(OTEL_PREFIX + metric.name)

@@ -40,6 +40,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
@@ -215,27 +216,111 @@ public class ScalableTopicMetricsTest {
 
     @Test
     public void testDefaultRegistryAndClusterIsolationWithDisabledOpenTelemetry() {
+        assertDisabledDefaultRegistryCycle("first", "second");
+    }
+
+    @Test
+    public void testDisabledDefaultRegistryIsolationWithSurvivorAndRepeatedCycles() {
+        Meter disabled = OpenTelemetry.noop().getMeter("resident");
+        try (var resident = new ScalableTopicMetrics(disabled, "resident-default", () -> EMPTY)) {
+            recordHistograms(resident, 0.005);
+            for (int attempt = 0; attempt < 2; attempt++) {
+                assertDisabledDefaultRegistryCycle("first-with-survivor", "second-with-survivor");
+                assertHistogramState(CollectorRegistry.defaultRegistry, "resident-default", 1, 0.005);
+            }
+        }
+        assertHistogramState(CollectorRegistry.defaultRegistry, "resident-default", 0, 0);
+    }
+
+    private void assertDisabledDefaultRegistryCycle(String firstCluster, String secondCluster) {
         Meter disabled = OpenTelemetry.noop().getMeter("disabled");
-        try (var first = new ScalableTopicMetrics(disabled, "first", () -> new ScalableTopicMetrics.Counts(1, 2, 3));
-             var second = new ScalableTopicMetrics(disabled, "second",
+        try (var first = new ScalableTopicMetrics(disabled, firstCluster,
+                     () -> new ScalableTopicMetrics.Counts(1, 2, 3));
+             var second = new ScalableTopicMetrics(disabled, secondCluster,
                      () -> new ScalableTopicMetrics.Counts(4, 5, 6))) {
             first.recordBlocked("max_segments");
             first.recordTakeover(0.5, true);
             second.recordOperation("merge", "auto", "partial", 1);
             var samples = Collections.list(CollectorRegistry.defaultRegistry.metricFamilySamples());
-            assertThat(sample(samples, "controller_count", Map.of("cluster", "first"))).isEqualTo(1);
-            assertThat(sample(samples, "controller_count", Map.of("cluster", "second"))).isEqualTo(4);
+            assertThat(sample(samples, "controller_count", Map.of("cluster", firstCluster))).isEqualTo(1);
+            assertThat(sample(samples, "controller_count", Map.of("cluster", secondCluster))).isEqualTo(4);
             assertThat(sample(samples, "auto_scale_blocked_total",
-                    Map.of("cluster", "first", "auto_scale_reason", "max_segments"))).isEqualTo(1);
+                    Map.of("cluster", firstCluster, "auto_scale_reason", "max_segments"))).isEqualTo(1);
             assertThat(sample(samples, "controller_takeover_duration_seconds_count",
-                    Map.of("cluster", "first", "operation_status", "success"))).isEqualTo(1);
-            assertThat(sample(samples, "layout_operation_total", Map.of("cluster", "second",
+                    Map.of("cluster", firstCluster, "operation_status", "success"))).isEqualTo(1);
+            assertThat(sample(samples, "layout_operation_total", Map.of("cluster", secondCluster,
                     "operation", "merge", "operation_trigger", "auto", "operation_status", "partial"))).isEqualTo(1);
             assertThat(reader.collectAllMetrics()).isEmpty();
         }
         assertThat(Collections.list(CollectorRegistry.defaultRegistry.metricFamilySamples()))
                 .flatExtracting(family -> family.samples)
-                .noneSatisfy(value -> assertThat(labels(value)).containsEntry("cluster", "first"));
+                .noneSatisfy(value -> assertThat(labels(value)).containsEntry("cluster", firstCluster));
+    }
+
+    @DataProvider
+    public Object[][] disabledProviderLayouts() {
+        return new Object[][]{{true, true}, {true, false}, {false, true}, {false, false}};
+    }
+
+    @Test(dataProvider = "disabledProviderLayouts")
+    public void testDisabledProvidersOwnHistogramLifetimes(boolean sameCluster, boolean sameRegistry) {
+        Meter disabled = OpenTelemetry.noop().getMeter("resident");
+        assertThat(OpenTelemetry.noop().getMeter("transient")).isSameAs(disabled);
+        String residentCluster = "resident-" + sameCluster + "-" + sameRegistry;
+        String transientCluster = sameCluster ? residentCluster : "transient-" + sameRegistry;
+        CollectorRegistry transientRegistry = sameRegistry ? registry : new CollectorRegistry();
+        try (var resident = new ScalableTopicMetrics(disabled, residentCluster, () -> EMPTY, registry)) {
+            recordHistograms(resident, 0.005);
+            assertHistogramState(registry, residentCluster, 1, 0.005);
+            for (int attempt = 0; attempt < 2; attempt++) {
+                try (var transientMetrics =
+                             new ScalableTopicMetrics(disabled, transientCluster, () -> EMPTY, transientRegistry)) {
+                    recordHistograms(transientMetrics, 0.01);
+                    boolean aggregate = sameCluster && sameRegistry;
+                    assertHistogramState(registry, residentCluster, aggregate ? 2 : 1, aggregate ? 0.015 : 0.005);
+                    assertHistogramState(transientRegistry, transientCluster,
+                            aggregate ? 2 : 1, aggregate ? 0.015 : 0.01);
+                    if (!sameCluster && !sameRegistry) {
+                        assertHistogramState(registry, transientCluster, 0, 0);
+                        assertHistogramState(transientRegistry, residentCluster, 0, 0);
+                    }
+                }
+                assertHistogramState(registry, residentCluster, 1, 0.005);
+                if (!sameCluster || !sameRegistry) {
+                    assertHistogramState(transientRegistry, transientCluster, 0, 0);
+                }
+            }
+        }
+        assertHistogramState(registry, residentCluster, 0, 0);
+    }
+
+    private static void recordHistograms(ScalableTopicMetrics metrics, double seconds) {
+        metrics.recordTakeover(seconds, true);
+        metrics.recordOperation("split", "manual", "success", seconds);
+        metrics.recordSeal("split", seconds);
+    }
+
+    private static void assertHistogramState(CollectorRegistry registry, String cluster, long count, double sum) {
+        Map<String, Map<String, String>> series = Map.of(
+                "controller_takeover_duration_seconds", Map.of("cluster", cluster, "operation_status", "success"),
+                "layout_operation_duration_seconds",
+                Map.of("cluster", cluster, "operation", "split", "operation_status", "success"),
+                "layout_seal_duration_seconds", Map.of("cluster", cluster, "operation", "split"));
+        series.forEach((name, labels) -> {
+            List<String> names = List.of("cluster", "operation", "operation_status").stream()
+                    .filter(labels::containsKey).toList();
+            String[] labelNames = names.toArray(String[]::new);
+            String[] labelValues = names.stream().map(labels::get).toArray(String[]::new);
+            Double actualCount = registry.getSampleValue(PROM_PREFIX + name + "_count", labelNames, labelValues);
+            Double actualSum = registry.getSampleValue(PROM_PREFIX + name + "_sum", labelNames, labelValues);
+            if (count == 0) {
+                assertThat(actualCount).as("%s count for closed provider %s", name, cluster).isNull();
+                assertThat(actualSum).as("%s sum for closed provider %s", name, cluster).isNull();
+            } else {
+                assertThat(actualCount).as("%s count for %s", name, cluster).isEqualTo((double) count);
+                assertThat(actualSum).as("%s sum for %s", name, cluster).isCloseTo(sum, offset(0.000001));
+            }
+        });
     }
 
     @Test
