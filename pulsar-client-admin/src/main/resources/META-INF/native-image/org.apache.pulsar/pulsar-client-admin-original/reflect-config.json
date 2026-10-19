@@ -1339,9 +1339,6 @@
     ]
   },
   {
-    "name": "com.fasterxml.jackson.module.jaxb.JaxbAnnotationIntrospector"
-  },
-  {
     "name": "com.fasterxml.jackson.module.paramnames.ParameterNamesModule"
   }
 ]
