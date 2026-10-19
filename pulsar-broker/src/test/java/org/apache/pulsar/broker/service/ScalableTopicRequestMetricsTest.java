@@ -32,14 +32,22 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelPromise;
+import io.netty.channel.EventLoop;
+import io.netty.channel.VoidChannelPromise;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.opentelemetry.api.OpenTelemetry;
 import io.prometheus.client.CollectorRegistry;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.resources.PulsarResources;
@@ -52,6 +60,7 @@ import org.apache.pulsar.broker.service.scalable.ScalableTopicService;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicsWatcherSession;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.common.api.proto.BaseCommand;
+import org.apache.pulsar.common.api.proto.ScalableConsumerAssignment;
 import org.apache.pulsar.common.api.proto.ScalableConsumerType;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.protocol.Commands;
@@ -88,7 +97,11 @@ public class ScalableTopicRequestMetricsTest {
     }
 
     private void connect() {
-        cnx = new ServerCnx(context.getPulsarService());
+        connect(new ServerCnx(context.getPulsarService()));
+    }
+
+    private void connect(ServerCnx connection) {
+        cnx = connection;
         channel = new EmbeddedChannel(new LengthFieldBasedFrameDecoder(5 * 1024 * 1024, 0, 4, 0, 4), cnx);
         channel.writeInbound(Commands.newConnect("none", "", null));
         assertThat(readResponse().getType()).isEqualTo(BaseCommand.Type.CONNECTED);
@@ -295,6 +308,99 @@ public class ScalableTopicRequestMetricsTest {
         }
         assertRequestCount("unsubscribe", "failure", 1);
         assertRequestCount("unsubscribe", "success", 2);
+    }
+
+    @Test
+    public void successfulWriteKeepsItsOutcomeWhenDisconnectPrecedesListenerNotification() {
+        class DeferredWriteCnx extends ServerCnx {
+            private ChannelHandlerContext output;
+
+            DeferredWriteCnx() {
+                super(ScalableTopicRequestMetricsTest.this.context.getPulsarService());
+            }
+
+            @Override
+            public ChannelHandlerContext ctx() {
+                return output == null ? super.ctx() : output;
+            }
+        }
+        var service = mock(ScalableTopicService.class);
+        when(brokerService.getScalableTopicService()).thenReturn(service);
+        when(service.registerConsumer(any(), anyString(), anyString(), anyLong(), any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(new ConsumerAssignment(1, List.of())));
+        var connection = new DeferredWriteCnx();
+        connect(connection);
+        Deque<Runnable> notifications = new ArrayDeque<>();
+        EventLoop notifier = mock(EventLoop.class);
+        doAnswer(invocation -> {
+            notifications.addLast(invocation.getArgument(0));
+            return null;
+        }).when(notifier).execute(any(Runnable.class));
+        Channel promiseChannel = mock(Channel.class);
+        when(promiseChannel.eventLoop()).thenReturn(notifier);
+        ChannelHandlerContext output = mock(ChannelHandlerContext.class);
+        when(output.channel()).thenReturn(channel);
+        when(output.voidPromise()).thenReturn(new VoidChannelPromise(promiseChannel, true));
+        doAnswer(invocation -> {
+            ByteBuf response = invocation.getArgument(0);
+            response.release();
+            ChannelPromise promise = invocation.getArgument(1);
+            promise.setSuccess();
+            return promise;
+        }).when(output).writeAndFlush(any(), any(ChannelPromise.class));
+        connection.output = output;
+        channel.writeInbound(Commands.newScalableTopicSubscribe(1, "topic://public/default/t", "sub", "c", 1,
+                ScalableConsumerType.STREAM));
+        channel.runPendingTasks();
+        assertThat(notifications).as("the write succeeded but its listeners are queued").hasSize(1);
+        assertRequestCount("subscribe", "success", 0);
+        assertRequestCount("subscribe", "failure", 0);
+        channel.close();
+        assertRequestCount("subscribe", "failure", 0);
+        notifications.removeFirst().run();
+        assertRequestCount("subscribe", "success", 1);
+        assertRequestCount("subscribe", "failure", 0);
+    }
+
+    @Test
+    public void customSenderOverridesKeepOriginalDispatchWithoutInventedWriteMetrics() {
+        class CustomSenderCnx extends ServerCnx {
+            private PulsarCommandSender alternate;
+
+            CustomSenderCnx() {
+                super(ScalableTopicRequestMetricsTest.this.context.getPulsarService());
+            }
+
+            @Override
+            public PulsarCommandSender getCommandSender() {
+                return alternate == null ? super.getCommandSender() : alternate;
+            }
+        }
+        var service = mock(ScalableTopicService.class);
+        when(brokerService.getScalableTopicService()).thenReturn(service);
+        when(service.registerConsumer(any(), anyString(), anyString(), anyLong(), any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(new ConsumerAssignment(1, List.of())));
+        var connection = new CustomSenderCnx();
+        connect(connection);
+        AtomicInteger responses = new AtomicInteger();
+        connection.alternate = new PulsarCommandSenderImpl(null, connection,
+                brokerService.getMaxTopicListInFlightLimiter()) {
+            @Override
+            public void sendScalableTopicSubscribeResponse(long requestId, ScalableConsumerAssignment assignment) {
+                assertThat(requestId).isEqualTo(1);
+                assertThat(assignment.getLayoutEpoch()).isEqualTo(1);
+                responses.incrementAndGet();
+            }
+        };
+        channel.writeInbound(Commands.newScalableTopicSubscribe(1, "topic://public/default/t", "sub", "c", 1,
+                ScalableConsumerType.STREAM));
+        channel.runPendingTasks();
+        assertThat(responses.get()).as("the old virtual sender override still receives the response").isEqualTo(1);
+        assertThat(channel.outboundMessages()).isEmpty();
+        assertRequestCount("subscribe", "success", 0);
+        assertRequestCount("subscribe", "failure", 0);
+        channel.close();
+        assertRequestCount("subscribe", "failure", 0);
     }
 
     private ScalableTopicResources spyScalableResources() {
