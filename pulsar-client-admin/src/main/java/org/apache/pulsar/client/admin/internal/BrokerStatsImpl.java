@@ -59,7 +59,7 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
 
     @Override
     public CompletableFuture<String> getMetricsAsync(String broker) {
-        WebTarget path = withBroker(adminV2BrokerStats.path("/metrics"), broker);
+        WebTarget path = brokerStats(broker).path("/metrics");
         return asyncGetRequest(path, new FutureCallback<String>(){});
     }
 
@@ -80,7 +80,7 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
 
     @Override
     public CompletableFuture<AllocatorStats> getAllocatorStatsAsync(String allocatorName, String broker) {
-        WebTarget path = withBroker(adminV2BrokerStats.path("/allocator-stats").path(allocatorName), broker);
+        WebTarget path = brokerStats(broker).path("/allocator-stats").path(allocatorName);
         return asyncGetRequest(path, new FutureCallback<AllocatorStats>(){});
     }
 
@@ -101,7 +101,7 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
 
     @Override
     public CompletableFuture<String> getMBeansAsync(String broker) {
-        WebTarget path = withBroker(adminV2BrokerStats.path("/mbeans"), broker);
+        WebTarget path = brokerStats(broker).path("/mbeans");
         return asyncGetRequest(path, new FutureCallback<String>(){});
     }
 
@@ -122,7 +122,7 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
 
     @Override
     public CompletableFuture<String> getTopicsAsync(String broker) {
-        WebTarget path = withBroker(adminV2BrokerStats.path("/topics"), broker);
+        WebTarget path = brokerStats(broker).path("/topics");
         return asyncGetRequest(path, new FutureCallback<String>(){});
     }
 
@@ -143,7 +143,7 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
 
     @Override
     public CompletableFuture<LoadManagerReport> getLoadReportAsync(String broker) {
-        WebTarget path = withBroker(adminV2BrokerStats.path("/load-report"), broker);
+        WebTarget path = brokerStats(broker).path("/load-report");
         return asyncGetRequest(path, new FutureCallback<LoadManagerReport>(){});
     }
 
@@ -164,12 +164,18 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
 
     @Override
     public CompletableFuture<String> getPendingBookieOpsStatsAsync(String broker) {
-        WebTarget path = withBroker(adminV2BrokerStats.path("/bookieops"), broker);
+        WebTarget path = brokerStats(broker).path("/bookieops");
         return asyncGetRequest(path, new FutureCallback<String>(){});
     }
 
-    private static WebTarget withBroker(WebTarget path, String broker) {
-        return broker == null || broker.isEmpty() ? path : path.queryParam("broker", broker);
+    /**
+     * Explicit broker selection uses the broker-specific route, so a broker that doesn't support it fails
+     * the request (404) instead of returning its own stats.
+     */
+    private WebTarget brokerStats(String broker) {
+        return broker == null || broker.isEmpty()
+                ? adminV2BrokerStats
+                : adminV2BrokerStats.path("brokers").path(broker);
     }
 
     public JsonObject getBrokerResourceAvailability(String namespace) throws PulsarAdminException {

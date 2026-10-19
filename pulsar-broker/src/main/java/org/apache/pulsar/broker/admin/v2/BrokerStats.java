@@ -28,7 +28,6 @@ import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
-import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.StreamingOutput;
 import java.util.Collection;
@@ -52,8 +51,25 @@ public class BrokerStats extends BrokerStatsBase {
                             schema = @Schema(type = "object", description = "Nested JSON object:"
                                     + " namespace -> bundle range -> persistent/non-persistent -> topic -> stats"))),
             @ApiResponse(responseCode = "403", description = "Don't have admin permission") })
-    public StreamingOutput getTopics2(@QueryParam("broker") String broker) throws Exception {
-        return super.getTopics2(broker);
+    public StreamingOutput getTopics2() throws Exception {
+        return super.getTopics2();
+    }
+
+    @GET
+    @Path("/brokers/{broker}/topics")
+    @Operation(summary = "Get all the topic stats by namespace of the given broker",
+            description = "Redirects to the given broker when it is not the one serving the request")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Get all the topic stats by namespace of the given broker",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(type = "object", description = "Nested JSON object:"
+                                    + " namespace -> bundle range -> persistent/non-persistent -> topic -> stats"))),
+            @ApiResponse(responseCode = "307", description = "Redirect to the given broker"),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission"),
+            @ApiResponse(responseCode = "404", description = "Broker not found") })
+    public StreamingOutput getTopics2(@PathParam("broker") String broker) throws Exception {
+        validateSuperUserAccessAndRedirect(broker);
+        return super.getTopics2();
     }
 
     @GET

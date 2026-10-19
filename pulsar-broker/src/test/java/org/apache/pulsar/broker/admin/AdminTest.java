@@ -814,18 +814,18 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     @Test
     public void brokerStats() throws Exception {
         doReturn("client-id").when(brokerStats).clientAppId();
-        Collection<Metrics> metrics = brokerStats.getMetrics(null);
+        Collection<Metrics> metrics = brokerStats.getMetrics();
         assertNotNull(metrics);
-        LocalBrokerData loadReport = (LocalBrokerData) brokerStats.getLoadReport(null);
+        LocalBrokerData loadReport = (LocalBrokerData) brokerStats.getLoadReport();
         assertNotNull(loadReport);
         assertNotNull(loadReport.getCpu());
-        Collection<Metrics> mBeans = brokerStats.getMBeans(null);
+        Collection<Metrics> mBeans = brokerStats.getMBeans();
         assertFalse(mBeans.isEmpty());
-        AllocatorStats allocatorStats = brokerStats.getAllocatorStats("default", null);
+        AllocatorStats allocatorStats = brokerStats.getAllocatorStats("default");
         assertNotNull(allocatorStats);
-        Map<String, Map<String, PendingBookieOpsStats>> bookieOpsStats = brokerStats.getPendingBookieOpsStats(null);
+        Map<String, Map<String, PendingBookieOpsStats>> bookieOpsStats = brokerStats.getPendingBookieOpsStats();
         assertTrue(bookieOpsStats.isEmpty());
-        StreamingOutput topic = brokerStats.getTopics2(null);
+        StreamingOutput topic = brokerStats.getTopics2();
         assertNotNull(topic);
         try {
             brokerStats.getBrokerResourceAvailability("prop", "ns2");
