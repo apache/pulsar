@@ -29,9 +29,13 @@ import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.EntryAndMetadata;
 import org.apache.pulsar.broker.service.EntryBucketConsumerSelector;
 import org.apache.pulsar.broker.service.Subscription;
+import org.apache.pulsar.broker.service.scalable.SegmentOwnerMetrics;
+import org.apache.pulsar.broker.service.scalable.SegmentOwnerMetrics.EntryBucketViolation;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.common.api.proto.IntRange;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.protocol.Commands;
 
 /**
  * PIP-486: Key_Shared dispatcher for a scalable-topic segment shared by <b>entry-bucket</b>.
@@ -60,6 +64,7 @@ public class PersistentEntryBucketDispatcherMultipleConsumers
         extends PersistentStickyKeyDispatcherMultipleConsumers {
 
     private final EntryBucketConsumerSelector bucketSelector;
+    private final SegmentOwnerMetrics segmentOwnerMetrics;
 
     PersistentEntryBucketDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor,
             Subscription subscription, ServiceConfiguration conf, KeySharedMeta ksm) {
@@ -68,6 +73,7 @@ public class PersistentEntryBucketDispatcherMultipleConsumers
         super(topic, cursor, subscription, conf, ksm,
                 new EntryBucketConsumerSelector(validateBucketBoundaries(ksm)), true);
         this.bucketSelector = (EntryBucketConsumerSelector) getSelector();
+        this.segmentOwnerMetrics = topic.getBrokerService().getSegmentOwnerMetrics();
     }
 
     /**
@@ -135,6 +141,7 @@ public class PersistentEntryBucketDispatcherMultipleConsumers
             // Cached so pending acks, redelivery and draining all see the same canonical value.
             return entryAndMetadata.getOrUpdateCachedStickyKeyHash(stickyKey -> {
                 var metadata = entryAndMetadata.getMetadata();
+                recordEntryBucketViolation(metadata);
                 if (metadata != null && metadata.hasEntryHashMin()) {
                     // The producer stamped the entry's effective bucket range: route the whole
                     // entry by its bucket.
@@ -145,6 +152,45 @@ public class PersistentEntryBucketDispatcherMultipleConsumers
                 return bucketSelector.makeStickyKeyHash(stickyKey);
             });
         }
-        return bucketSelector.makeStickyKeyHash(peekStickyKey(entry));
+        MessageMetadata metadata = entry.getMessageMetadata();
+        if (metadata == null) {
+            metadata = Commands.peekMessageMetadata(entry.getDataBuffer(), subscription.toString(), -1);
+        }
+        recordEntryBucketViolation(metadata);
+        // Keep the raw-entry fallback key-based, including for stamped entries.
+        return bucketSelector.makeStickyKeyHash(metadata == null ? Commands.NONE_KEY
+                : Commands.resolveStickyKey(metadata));
+    }
+
+    private void recordEntryBucketViolation(MessageMetadata metadata) {
+        if (segmentOwnerMetrics == null || metadata == null) {
+            return;
+        }
+        if (metadata.hasEntryHashMin()) {
+            if (metadata.hasEntryHashMax()
+                    && bucketSelector.bucketIndexOfHash(metadata.getEntryHashMin())
+                    != bucketSelector.bucketIndexOfHash(metadata.getEntryHashMax())) {
+                segmentOwnerMetrics.recordEntryBucketViolation(EntryBucketViolation.STRADDLING);
+            }
+        } else if (metadata.hasNumMessagesInBatch()) {
+            segmentOwnerMetrics.recordEntryBucketViolation(EntryBucketViolation.UNSTAMPED_BATCH);
+        }
+    }
+
+    /**
+     * Return the number of buckets currently withheld for a handoff.
+     *
+     * <p>Each tracker lookup is thread-safe. Concurrent handoffs can change the count during a scrape,
+     * but each canonical bucket is counted at most once, regardless of its outstanding entry count.
+     */
+    public long getDrainingBucketsCount() {
+        long count = 0;
+        var tracker = getDrainingHashesTracker();
+        for (int bucket = 0; bucket < bucketSelector.getBucketRanges().size(); bucket++) {
+            if (tracker.getEntry(bucketSelector.canonicalHashOfBucket(bucket)) != null) {
+                count++;
+            }
+        }
+        return count;
     }
 }
