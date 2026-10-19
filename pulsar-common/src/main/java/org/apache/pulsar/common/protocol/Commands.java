@@ -2555,6 +2555,11 @@ public class Commands {
         }
     }
 
+    /**
+     * The key that Key_Shared dispatch hashes: the ordering key, else the partition key, decoded when it is Base64,
+     * else the producer name and sequence ID. {@link #resolveStickyKeyHash(MessageMetadata)} hashes the same key, so a
+     * change to the priority here changes it there too.
+     */
     public static byte[] resolveStickyKey(MessageMetadata metadata) {
         byte[] stickyKey;
         if (metadata.hasOrderingKey()) {
@@ -2577,7 +2582,8 @@ public class Commands {
     /**
      * {@link Murmur3_32Hash#makeHash(byte[])} of {@link #resolveStickyKey(MessageMetadata)}, which hashes the key where
      * it is: an ordering key in the metadata's buffer, and a partition key from its string, decoding a Base64 key and
-     * encoding a plain one to UTF-8 as it hashes them.
+     * encoding a plain one to UTF-8 as it hashes them. It follows resolveStickyKey's priority of the keys, and leaves
+     * the other keys to it.
      */
     public static int resolveStickyKeyHash(MessageMetadata metadata) {
         if (metadata.hasOrderingKey()) {
