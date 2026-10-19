@@ -170,8 +170,8 @@ report has these sections:
 - **Backlog and rates**: each subscription's backlog and the per-second rates, sampled from the broker's topic
   stats once per second, or every topics / 100 seconds with more than 100 topics, while the gateways publish and the applications receive. A sampled maximum is not the exact peak
   between samples. When a subscription had entries in its replay queue, such as Key_Shared messages held back for a
-  consumer without permits, the section also shows the replay queues; the broker counts them in entries, so that a
-  batch counts once.
+  consumer without permits, the section also shows the replay queues. The broker counts the backlog and the replay
+  queue in entries, not messages: a batch counts once, however many messages it has.
 - **Host**: the CPU temperature, frequency and thermal throttling at the start and during the measurement, with
   their charts in a collapsed section; a chart whose values the host doesn't provide is left out. The report says so
   in bold when the CPU throttled during the measurement, and that throttling is unknown when the host has no thermal

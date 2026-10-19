@@ -796,7 +796,8 @@ public final class RunReport {
                 .append(" ms of its publishing; the time includes opening its pods. Its catch-up rate is the messages"
                         + " that it received until then, warmup included, per second since it joined; for an"
                         + " application that didn't catch up, it is the rate until its last message. The backlog is"
-                        + " the sampled topic stats' last sample before the application joined.");
+                        + " the sampled topic stats' last sample before the application joined, in entries, so that a"
+                        + " batch counts once.");
         boolean skipped = late.stream().anyMatch(consumer -> consumer.path("skippedMessages").asLong() > 0);
         if (skipped) {
             report.append(" Skipped are the messages that the application didn't receive: its subscription was moved"
@@ -1163,7 +1164,8 @@ public final class RunReport {
         report.append("\n## Backlog and rates\n\nSampled from the broker's topic stats once per second, or every"
                 + " topics / 100 seconds with more than 100 topics; the rates are the deltas of its message counters"
                 + " per second between samples, and a sampled maximum is not the exact peak between samples."
-                + " The rates are those of the whole seconds within the measurement (0 to ")
+                + " The backlogs are in entries, as the broker counts them: a batch counts once, however many"
+                + " messages it has. The rates are those of the whole seconds within the measurement (0 to ")
                 .append(String.format(Locale.ROOT, "%.1f", finished))
                 .append(" s), leaving out its first and last second, where the gateways start and finish. The")
                 .append(" [sampled topic stats](").append(TOPIC_STATS_FILE).append(") are a CSV file.\n\n")
@@ -1211,7 +1213,7 @@ public final class RunReport {
         List<TimeSeriesRenderer.Series> backlog = samples.backlog().entrySet().stream()
                 .map(entry -> new TimeSeriesRenderer.Series(entry.getKey(), timeline.select(entry.getValue())))
                 .toList();
-        TimeSeriesRenderer.render(runDirectory.resolve(BACKLOG_CHART), "Backlog", "Messages in the backlog",
+        TimeSeriesRenderer.render(runDirectory.resolve(BACKLOG_CHART), "Backlog", "Entries in the backlog",
                 timeline.seconds(), backlog, finished, timeline.cut(), footer);
         report.append("\n![Throughput over time](").append(THROUGHPUT_CHART).append(".svg)\n\n![Backlog over time](")
                 .append(BACKLOG_CHART).append(".svg)\n");
@@ -1251,8 +1253,7 @@ public final class RunReport {
         report.append("\nThe entries in each subscription's replay queue, summed over its topics, sampled during the")
                 .append(" measurement: the entries that the broker holds back to dispatch again, such as a closed")
                 .append(" consumer's unacknowledged entries and, with Key_Shared, the entries of the keys whose")
-                .append(" consumer has no permits. The broker counts entries, not messages: a batch counts once,")
-                .append(" however many messages it has, as in the look-ahead limit")
+                .append(" consumer has no permits. Like the backlog, it is in entries, as is the look-ahead limit")
                 .append(" (`keySharedLookAheadMsgInReplayThresholdPerConsumer`).\n\n")
                 .append("| Subscription | Mean | Median | Sampled maximum |\n")
                 .append("|---|---:|---:|---:|\n").append(rows)
