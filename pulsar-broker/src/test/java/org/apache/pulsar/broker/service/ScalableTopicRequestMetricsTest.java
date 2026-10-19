@@ -1,0 +1,302 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.pulsar.broker.service;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+import io.opentelemetry.api.OpenTelemetry;
+import io.prometheus.client.CollectorRegistry;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.service.scalable.ConsumerAssignment;
+import org.apache.pulsar.broker.service.scalable.ConsumerSession;
+import org.apache.pulsar.broker.service.scalable.ScalableTopicMetrics;
+import org.apache.pulsar.broker.service.scalable.ScalableTopicService;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
+import org.apache.pulsar.common.api.proto.BaseCommand;
+import org.apache.pulsar.common.api.proto.ScalableConsumerType;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.protocol.Commands;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
+
+@Test(groups = "broker", timeOut = 30000)
+public class ScalableTopicRequestMetricsTest {
+    private PulsarTestContext context;
+    private BrokerService brokerService;
+    private ServerCnx cnx;
+    private EmbeddedChannel channel;
+    private CollectorRegistry registry;
+    private ScalableTopicMetrics metrics;
+    private ServiceConfiguration config;
+
+    @BeforeMethod
+    public void setup() throws Exception {
+        config = new ServiceConfiguration();
+        config.setClusterName("test");
+        config.setBrokerShutdownTimeoutMs(0L);
+        config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0));
+        config.setBacklogQuotaCheckEnabled(false);
+        context = PulsarTestContext.builderForNonStartableContext().config(config).spyByDefault().build();
+        brokerService = context.getBrokerService();
+        registry = new CollectorRegistry();
+        metrics = new ScalableTopicMetrics(OpenTelemetry.noop().getMeter("test"), "test", registry);
+        when(brokerService.getScalableTopicMetrics()).thenReturn(metrics);
+    }
+
+    private void connect() {
+        cnx = new ServerCnx(context.getPulsarService());
+        channel = new EmbeddedChannel(new LengthFieldBasedFrameDecoder(5 * 1024 * 1024, 0, 4, 0, 4), cnx);
+        channel.writeInbound(Commands.newConnect("none", "", null));
+        assertThat(readResponse().getType()).isEqualTo(BaseCommand.Type.CONNECTED);
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void cleanup() throws Exception {
+        if (channel != null) {
+            channel.finishAndReleaseAll();
+        }
+        if (metrics != null) {
+            metrics.close();
+        }
+        if (context != null) {
+            context.close();
+        }
+    }
+
+    @Test
+    public void disabledRequestsAreFailures() {
+        config.setScalableTopicsEnabled(false);
+        connect();
+        channel.writeInbound(Commands.newScalableTopicLookup(1, "topic://public/default/t"));
+        readResponse();
+        channel.writeInbound(Commands.newWatchScalableTopics(2, "public/default", null, null));
+        readResponse();
+        channel.writeInbound(Commands.newScalableTopicSubscribe(3, "topic://public/default/t", "sub", "c", 1,
+                ScalableConsumerType.STREAM));
+        readResponse();
+        channel.writeInbound(Commands.newScalableTopicUnsubscribe(4, 1));
+        readResponse();
+        for (String type : List.of("lookup", "watch_topics", "subscribe", "unsubscribe")) {
+            assertRequestCount(type, "failure", 1);
+            assertRequestCount(type, "success", 0);
+        }
+        assertSessions("topic", 0);
+        assertSessions("namespace", 0);
+    }
+
+    @Test
+    public void authorizationFailureIsMeasuredWithoutOpeningWatch() {
+        var authorization = mock(AuthorizationService.class);
+        when(brokerService.isAuthorizationEnabled()).thenReturn(true);
+        when(brokerService.getAuthorizationService()).thenReturn(authorization);
+        var allowed = new CompletableFuture<Boolean>();
+        when(authorization.allowTopicOperationAsync(any(), any(), any(), any(), any(), any()))
+                .thenReturn(allowed);
+        connect();
+        channel.writeInbound(Commands.newScalableTopicLookup(1, "topic://public/default/t"));
+        channel.runPendingTasks();
+        assertRequestCount("lookup", "failure", 0);
+        assertSessions("topic", 0);
+        allowed.complete(false);
+        assertThat(readResponse().getScalableTopicUpdate().hasError()).isTrue();
+        assertRequestCount("lookup", "failure", 1);
+        assertSessions("topic", 0);
+    }
+
+    @Test
+    public void authorizationCompletingAfterDisconnectDoesNotLeakWatch() {
+        var authorization = mock(AuthorizationService.class);
+        when(brokerService.isAuthorizationEnabled()).thenReturn(true);
+        when(brokerService.getAuthorizationService()).thenReturn(authorization);
+        var allowed = new CompletableFuture<Boolean>();
+        when(authorization.allowTopicOperationAsync(any(), any(), any(), any(), any(), any()))
+                .thenReturn(allowed);
+        connect();
+        channel.writeInbound(Commands.newScalableTopicLookup(1, "topic://public/default/t"));
+        channel.close();
+        allowed.complete(true);
+        channel.runPendingTasks();
+        assertRequestCount("lookup", "failure", 1);
+        assertSessions("topic", 0);
+    }
+
+    @Test
+    public void subscribeAuthorizationCompletingAfterDisconnectDoesNotRegister() {
+        var authorization = mock(AuthorizationService.class);
+        when(brokerService.isAuthorizationEnabled()).thenReturn(true);
+        when(brokerService.getAuthorizationService()).thenReturn(authorization);
+        var allowed = new CompletableFuture<Boolean>();
+        when(authorization.allowTopicOperationAsync(any(), any(), any(), any(), any(), any()))
+                .thenReturn(allowed);
+        var service = mock(ScalableTopicService.class);
+        when(brokerService.getScalableTopicService()).thenReturn(service);
+        connect();
+        channel.writeInbound(Commands.newScalableTopicSubscribe(1, "topic://public/default/t", "sub", "c", 1,
+                ScalableConsumerType.STREAM));
+        channel.close();
+        allowed.complete(true);
+        channel.runPendingTasks();
+        assertRequestCount("subscribe", "failure", 1);
+        assertRequestCount("subscribe", "success", 0);
+        verify(service, never()).registerConsumer(any(), anyString(), anyString(), anyLong(), any(), any());
+    }
+
+    @Test
+    public void lookupReplacementCloseAndDisconnect() {
+        doReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata(0)))
+                .when(brokerService).fetchPartitionedTopicMetadataAsync(any());
+        connect();
+        for (int i = 0; i < 2; i++) {
+            channel.writeInbound(Commands.newScalableTopicLookup(1, "persistent://public/default/t"));
+            assertThat(readResponse().getScalableTopicUpdate().hasError()).isFalse();
+            assertSessions("topic", 1);
+        }
+        assertRequestCount("lookup", "success", 2);
+        assertThat(sample("pulsar_scalable_topic_watch_update_total",
+                new String[]{"cluster", "operation_status"}, new String[]{"test", "success"})).isZero();
+        channel.writeInbound(Commands.newScalableTopicClose(1));
+        channel.writeInbound(Commands.newScalableTopicClose(1));
+        assertSessions("topic", 0);
+        channel.writeInbound(Commands.newScalableTopicLookup(2, "persistent://public/default/t"));
+        readResponse();
+        assertSessions("topic", 1);
+        channel.close();
+        assertSessions("topic", 0);
+    }
+
+    @Test
+    public void namespaceReplacementAndDisconnect() {
+        connect();
+        for (int i = 0; i < 2; i++) {
+            channel.writeInbound(Commands.newWatchScalableTopics(1, "public/default", null, null));
+            assertThat(readResponse().getWatchScalableTopicsUpdate().hasError()).isFalse();
+            assertSessions("namespace", 1);
+        }
+        assertRequestCount("watch_topics", "success", 2);
+        channel.writeInbound(Commands.newWatchScalableTopicsClose(1));
+        channel.writeInbound(Commands.newWatchScalableTopicsClose(1));
+        assertSessions("namespace", 0);
+        channel.writeInbound(Commands.newWatchScalableTopics(2, "public/default", null, null));
+        readResponse();
+        channel.close();
+        assertSessions("namespace", 0);
+    }
+
+    @Test
+    public void subscribeMeasuresFirstResponseNotRegistrationCompletion() {
+        var service = mock(ScalableTopicService.class);
+        when(brokerService.getScalableTopicService()).thenReturn(service);
+        var registration = new CompletableFuture<ConsumerAssignment>();
+        when(service.registerConsumer(any(), anyString(), anyString(), anyLong(), any(), any()))
+                .thenAnswer(invocation -> {
+                    ServerCnx connection = invocation.getArgument(5);
+                    connection.sendScalableConsumerAssignment(1,
+                            ConsumerSession.toProto(new ConsumerAssignment(1, List.of())));
+                    return registration;
+                });
+        connect();
+        channel.writeInbound(Commands.newScalableTopicSubscribe(1, "topic://public/default/t", "sub", "c", 1,
+                ScalableConsumerType.STREAM));
+        assertThat(readResponse().getScalableTopicSubscribeResponse().hasError()).isFalse();
+        assertThat(registration).isNotDone();
+        assertRequestCount("subscribe", "success", 1);
+        cnx.sendScalableConsumerAssignment(1, ConsumerSession.toProto(new ConsumerAssignment(2, List.of())));
+        readResponse();
+        registration.completeExceptionally(new IllegalStateException("failure after response"));
+        channel.runPendingTasks();
+        assertRequestCount("subscribe", "success", 1);
+        assertRequestCount("subscribe", "failure", 0);
+    }
+
+    @Test
+    public void subscribeFailureAndUnsubscribeRetry() {
+        var service = mock(ScalableTopicService.class);
+        when(brokerService.getScalableTopicService()).thenReturn(service);
+        when(service.registerConsumer(any(), anyString(), anyString(), anyLong(), any(), any()))
+                .thenReturn(CompletableFuture.failedFuture(new IllegalStateException("failed")))
+                .thenReturn(CompletableFuture.completedFuture(new ConsumerAssignment(1, List.of())));
+        connect();
+        for (int i = 0; i < 2; i++) {
+            channel.writeInbound(Commands.newScalableTopicSubscribe(i, "topic://public/default/t", "sub", "c", 1,
+                    ScalableConsumerType.STREAM));
+            readResponse();
+        }
+        assertRequestCount("subscribe", "failure", 1);
+        assertRequestCount("subscribe", "success", 1);
+        when(service.unregisterConsumer(any(), anyString(), anyString(), anyLong()))
+                .thenReturn(CompletableFuture.failedFuture(new IllegalStateException("failed")))
+                .thenReturn(CompletableFuture.completedFuture(null));
+        for (int i = 0; i < 3; i++) {
+            channel.writeInbound(Commands.newScalableTopicUnsubscribe(10 + i, 1));
+            readResponse();
+        }
+        assertRequestCount("unsubscribe", "failure", 1);
+        assertRequestCount("unsubscribe", "success", 2);
+    }
+
+    private void assertRequestCount(String type, String status, double expected) {
+        assertThat(sample("pulsar_scalable_topic_request_duration_seconds_count",
+                new String[]{"cluster", "request_type", "operation_status"}, new String[]{"test", type, status}))
+                .as("%s %s requests", type, status).isEqualTo(expected);
+    }
+
+    private void assertSessions(String type, double expected) {
+        assertThat(sample("pulsar_scalable_topic_watch_session_count",
+                new String[]{"cluster", "watch_type"}, new String[]{"test", type}))
+                .as("open %s watches", type).isEqualTo(expected);
+    }
+
+    private double sample(String name, String[] labels, String[] values) {
+        Double value = registry.getSampleValue(name, labels, values);
+        return value == null ? 0 : value;
+    }
+
+    private BaseCommand readResponse() {
+        await().until(() -> {
+            channel.runPendingTasks();
+            return !channel.outboundMessages().isEmpty();
+        });
+        ByteBuf frame = channel.readOutbound();
+        try {
+            frame.readInt();
+            int commandSize = frame.readInt();
+            var command = new BaseCommand();
+            command.parseFrom(frame, commandSize);
+            return command;
+        } finally {
+            frame.release();
+        }
+    }
+}

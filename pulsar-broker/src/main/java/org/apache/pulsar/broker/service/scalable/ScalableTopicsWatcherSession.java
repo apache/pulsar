@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.service.scalable;
 
 import io.github.merlimat.slog.Logger;
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelFuture;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -41,6 +43,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 
@@ -121,6 +124,9 @@ public class ScalableTopicsWatcherSession implements ScalableTopicResources.Name
 
     private final AtomicBoolean closed = new AtomicBoolean();
     private final AtomicBoolean snapshotEmitted = new AtomicBoolean();
+    private final AtomicBoolean initialResponseCompleted = new AtomicBoolean();
+    private final ScalableTopicMetrics metrics;
+    private final ScalableTopicMetrics.Request request;
 
     // --- Coalescing state. All three fields guarded by `coalesceLock`. ---
     private final Object coalesceLock = new Object();
@@ -135,6 +141,19 @@ public class ScalableTopicsWatcherSession implements ScalableTopicResources.Name
                                          ServerCnx cnx,
                                          ScalableTopicResources resources,
                                          ScheduledExecutorService scheduler) {
+        this(watchId, namespace, propertyFilters, clientHash, cnx, resources, scheduler,
+                cnx.getBrokerService() == null ? null : cnx.getBrokerService().getScalableTopicMetrics(), null);
+    }
+
+    public ScalableTopicsWatcherSession(long watchId,
+                                         NamespaceName namespace,
+                                         Map<String, String> propertyFilters,
+                                         String clientHash,
+                                         ServerCnx cnx,
+                                         ScalableTopicResources resources,
+                                         ScheduledExecutorService scheduler,
+                                         ScalableTopicMetrics metrics,
+                                         ScalableTopicMetrics.Request request) {
         this.watchId = watchId;
         this.namespace = namespace;
         this.propertyFilters = propertyFilters == null ? Map.of() : propertyFilters;
@@ -148,6 +167,11 @@ public class ScalableTopicsWatcherSession implements ScalableTopicResources.Name
                 .attr("watchId", watchId)
                 .attr("filters", this.propertyFilters)
                 .build();
+        this.metrics = metrics;
+        this.request = request;
+        if (metrics != null) {
+            metrics.sessionOpened(ScalableTopicMetrics.WatchType.NAMESPACE);
+        }
     }
 
     @Override
@@ -162,10 +186,26 @@ public class ScalableTopicsWatcherSession implements ScalableTopicResources.Name
      * listener.
      */
     public CompletableFuture<Void> start() {
+        return FutureUtil.supplySafely(this::startAsync).whenComplete((ignored, error) -> {
+            if (error != null) {
+                close();
+            }
+        });
+    }
+
+    private CompletableFuture<Void> startAsync() {
+        if (closed.get()) {
+            return CompletableFuture.failedFuture(new IllegalStateException("Watch session is closed"));
+        }
         // Register BEFORE computing the initial set, so that no event is lost. An event that
         // arrives before the listing completes may or may not be reflected in it: it is only
         // recorded in changedDuringListing, and settled once the listing is in place.
         resources.registerNamespaceListener(this);
+        // A concurrent close may have deregistered before registration completed.
+        if (closed.get()) {
+            resources.deregisterNamespaceListener(this);
+            return CompletableFuture.failedFuture(new IllegalStateException("Watch session is closed"));
+        }
 
         return resources.findScalableTopicsByPropertiesAsync(namespace, propertyFilters)
                 .thenAccept(listedTopics -> {
@@ -194,15 +234,42 @@ public class ScalableTopicsWatcherSession implements ScalableTopicResources.Name
                     if (clientHash != null && clientHash.equals(TopicList.calculateHash(initialTopics))) {
                         log.info().attr("topics", initialTopics.size())
                                 .log("Reconnect hash matched; skipping snapshot");
+                        completeInitialRequest(true);
                     } else {
                         log.info().attr("topics", initialTopics.size()).log("Initial snapshot");
-                        cnx.ctx().writeAndFlush(
-                                Commands.newWatchScalableTopicsSnapshot(watchId, initialTopics));
+                        pushSnapshot(initialTopics);
                     }
                     // Diffs are computed against the snapshot's set: let them out only after it.
                     snapshotEmitted.set(true);
                     topicsToRead.forEach(this::evaluateTopic);
                 });
+    }
+
+    private void pushSnapshot(List<String> topics) {
+        ByteBuf command = Commands.newWatchScalableTopicsSnapshot(watchId, topics);
+        ChannelFuture write;
+        try {
+            write = cnx.ctx().writeAndFlush(command);
+        } catch (RuntimeException e) {
+            command.release();
+            throw e;
+        }
+        write.addListener(future -> {
+            completeInitialRequest(future.isSuccess());
+            if (!future.isSuccess()) {
+                close();
+            }
+        });
+    }
+
+    private void completeInitialRequest(boolean success) {
+        if (request != null && initialResponseCompleted.compareAndSet(false, true)) {
+            if (success) {
+                request.success();
+            } else {
+                request.failure();
+            }
+        }
     }
 
     /**
@@ -360,6 +427,10 @@ public class ScalableTopicsWatcherSession implements ScalableTopicResources.Name
     public void close() {
         if (!closed.compareAndSet(false, true)) {
             return;
+        }
+        completeInitialRequest(false);
+        if (metrics != null) {
+            metrics.sessionClosed(ScalableTopicMetrics.WatchType.NAMESPACE);
         }
         resources.deregisterNamespaceListener(this);
     }

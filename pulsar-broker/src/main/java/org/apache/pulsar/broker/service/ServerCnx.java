@@ -106,6 +106,8 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.scalable.ConsumerAssignment;
 import org.apache.pulsar.broker.service.scalable.ConsumerSession;
 import org.apache.pulsar.broker.service.scalable.DagWatchSession;
+import org.apache.pulsar.broker.service.scalable.ScalableTopicMetrics;
+import org.apache.pulsar.broker.service.scalable.ScalableTopicMetrics.RequestType;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicService;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicsWatcherSession;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
@@ -524,6 +526,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         // have dropped. The controller marks them disconnected and starts the grace-period
         // timer; if they reconnect in time, their assignment is preserved.
         if (!scalableConsumerRegistrations.isEmpty()) {
+            scalableConsumerRegistrations.values().forEach(ref -> ref.request().failure());
             var scalableTopicService = service.getScalableTopicService();
             if (scalableTopicService != null) {
                 scalableConsumerRegistrations.values().forEach(ref ->
@@ -828,6 +831,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     protected void handleCommandScalableTopicLookup(
             CommandScalableTopicLookup commandScalableTopicLookup) {
         checkArgument(state == State.Connected);
+        var request = service.getScalableTopicMetrics().startRequest(RequestType.LOOKUP);
 
         final long sessionId = commandScalableTopicLookup.getSessionId();
         final String topicStr = commandScalableTopicLookup.getTopic();
@@ -839,6 +843,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 .log("Received ScalableTopicLookup");
 
         if (!scalableTopicsEnabled) {
+            request.failure();
             ctx.writeAndFlush(Commands.newScalableTopicError(sessionId, ServerError.NotAllowedError,
                     "Scalable topics are disabled on this broker"));
             return;
@@ -849,6 +854,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             topicName = TopicName.get(topicStr);
         } catch (Exception e) {
             log.warn().attr("topic", topicStr).log("Invalid topic name in ScalableTopicLookup");
+            request.failure();
             ctx.close();
             return;
         }
@@ -856,6 +862,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         // Scalable topics do not support non-persistent storage. Reject early with a
         // clear error rather than failing later in segment infrastructure.
         if (topicName.getDomain() == TopicDomain.non_persistent) {
+            request.failure();
             ctx.writeAndFlush(Commands.newScalableTopicError(sessionId, ServerError.NotAllowedError,
                     "Scalable topics do not support non-persistent:// topics"));
             return;
@@ -863,6 +870,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         if (!this.service.getPulsar().isRunning()) {
             log.warn("ScalableTopicLookup rejected: broker not ready");
+            request.failure();
             ctx.close();
             return;
         }
@@ -871,45 +879,56 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 .getScalableTopicResources();
         if (resources == null) {
             log.warn("ScalableTopicLookup rejected: scalable topic resources not available");
+            request.failure();
             ctx.close();
             return;
         }
 
         isTopicOperationAllowed(topicName, TopicOperation.LOOKUP, authenticationData, originalAuthData)
-                .thenAccept(isAuthorized -> {
+                .thenAcceptAsync(isAuthorized -> {
                     if (!isAuthorized) {
                         final String msg = "Client is not authorized to ScalableTopicLookup";
                         log.warn()
                                 .attr("principal", getPrincipal())
                                 .attr("topic", topicName)
                                 .log(msg);
+                        request.failure();
                         ctx.writeAndFlush(Commands.newScalableTopicError(sessionId,
                                 ServerError.AuthorizationError, msg));
                         return;
                     }
+                    if (!isActive) {
+                        request.failure();
+                        return;
+                    }
                     // Create a DagWatchSession that will send the initial layout and watch for changes
                     var session = new DagWatchSession(
-                            sessionId, topicName, this, resources, service, createIfMissing);
-                    dagWatchSessions.put(sessionId, session);
+                            sessionId, topicName, this, resources, service, createIfMissing, request);
+                    var previous = dagWatchSessions.put(sessionId, session);
+                    if (previous != null) {
+                        previous.close();
+                    }
 
                     session.start()
-                            .thenAcceptAsync(session::pushUpdate, ctx.executor())
+                            .thenAcceptAsync(session::pushInitialResponse, ctx.executor())
                             .exceptionally(ex -> {
                                 Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
                                 log.warn().attr("topic", topicName).exception(cause)
                                         .log("ScalableTopicLookup failed");
-                                dagWatchSessions.remove(sessionId);
+                                dagWatchSessions.remove(sessionId, session);
                                 session.close();
+                                request.failure();
                                 ctx.executor().execute(() ->
                                     ctx.writeAndFlush(Commands.newScalableTopicError(sessionId,
                                             ServerError.TopicNotFound, cause.getMessage()))
                                 );
                                 return null;
                             });
-                })
+                }, ctx.executor())
                 .exceptionally(ex -> {
                     logAuthException(remoteAddress, "scalable-topic-lookup", getPrincipal(),
                             Optional.of(topicName), ex);
+                    request.failure();
                     ctx.writeAndFlush(Commands.newScalableTopicError(sessionId,
                             ServerError.AuthorizationError,
                             "Exception occurred while trying to authorize ScalableTopicLookup"));
@@ -934,6 +953,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     protected void handleCommandWatchScalableTopics(
             CommandWatchScalableTopics cmd) {
         checkArgument(state == State.Connected);
+        var request = service.getScalableTopicMetrics().startRequest(RequestType.WATCH_TOPICS);
 
         final long watchId = cmd.getWatchId();
         final String namespaceStr = cmd.getNamespace();
@@ -941,6 +961,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 .log("Received WatchScalableTopics");
 
         if (!scalableTopicsEnabled) {
+            request.failure();
             ctx.writeAndFlush(Commands.newWatchScalableTopicsError(watchId,
                     ServerError.NotAllowedError, "Scalable topics are disabled on this broker"));
             return;
@@ -951,6 +972,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             namespaceName = NamespaceName.get(namespaceStr);
         } catch (Exception e) {
             log.warn().attr("namespace", namespaceStr).log("Invalid namespace in WatchScalableTopics");
+            request.failure();
             ctx.writeAndFlush(Commands.newWatchScalableTopicsError(watchId,
                     ServerError.InvalidTopicName, "Invalid namespace: " + namespaceStr));
             return;
@@ -965,6 +987,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         if (!this.service.getPulsar().isRunning()) {
             log.warn("WatchScalableTopics rejected: broker not ready");
+            request.failure();
             ctx.writeAndFlush(Commands.newWatchScalableTopicsError(watchId,
                     ServerError.ServiceNotReady, "Broker not ready"));
             return;
@@ -974,40 +997,52 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 service.getPulsar().getPulsarResources().getScalableTopicResources();
         if (resources == null) {
             log.warn("WatchScalableTopics rejected: scalable topic resources not available");
+            request.failure();
             ctx.writeAndFlush(Commands.newWatchScalableTopicsError(watchId,
                     ServerError.ServiceNotReady, "Scalable topic resources not available"));
             return;
         }
 
         isNamespaceOperationAllowed(namespaceName, NamespaceOperation.GET_TOPICS)
-                .thenAccept(isAuthorized -> {
+                .thenAcceptAsync(isAuthorized -> {
                     if (!isAuthorized) {
                         final String msg = "Client is not authorized to WatchScalableTopics";
                         log.warn().attr("principal", getPrincipal()).attr("namespace", namespaceName)
                                 .log(msg);
+                        request.failure();
                         ctx.writeAndFlush(Commands.newWatchScalableTopicsError(watchId,
                                 ServerError.AuthorizationError, msg));
                         return;
                     }
+                    if (!isActive) {
+                        request.failure();
+                        return;
+                    }
                     var session = new ScalableTopicsWatcherSession(watchId, namespaceName, propertyFilters,
-                                    clientHash, this, resources, service.getPulsar().getExecutor());
-                    scalableTopicsWatchers.put(watchId, session);
+                                    clientHash, this, resources, service.getPulsar().getExecutor(),
+                                    service.getScalableTopicMetrics(), request);
+                    var previous = scalableTopicsWatchers.put(watchId, session);
+                    if (previous != null) {
+                        previous.close();
+                    }
 
                     session.start().exceptionally(ex -> {
                         Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
                         log.warn().attr("namespace", namespaceName).exception(cause)
                                 .log("WatchScalableTopics failed");
-                        scalableTopicsWatchers.remove(watchId);
+                        scalableTopicsWatchers.remove(watchId, session);
+                        request.failure();
                         session.close();
                         ctx.executor().execute(() -> ctx.writeAndFlush(
                                 Commands.newWatchScalableTopicsError(watchId,
                                         ServerError.UnknownError, cause.getMessage())));
                         return null;
                     });
-                })
+                }, ctx.executor())
                 .exceptionally(ex -> {
                     logNamespaceNameAuthException(remoteAddress, "watch-scalable-topics",
                             getPrincipal(), Optional.of(namespaceName), ex);
+                    request.failure();
                     ctx.writeAndFlush(Commands.newWatchScalableTopicsError(watchId,
                             ServerError.AuthorizationError,
                             "Exception occurred while authorizing WatchScalableTopics"));
@@ -1172,13 +1207,15 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             String consumerName,
             CompletableFuture<?> registration,
             long requestId,
-            AtomicBoolean answered) {}
+            AtomicBoolean answered,
+            ScalableTopicMetrics.Request request) {}
 
     @Override
     protected void handleCommandScalableTopicSubscribe(
             CommandScalableTopicSubscribe
                     commandScalableTopicSubscribe) {
         checkArgument(state == State.Connected);
+        var request = service.getScalableTopicMetrics().startRequest(RequestType.SUBSCRIBE);
 
         final long requestId = commandScalableTopicSubscribe.getRequestId();
         final String topicStr = commandScalableTopicSubscribe.getTopic();
@@ -1193,6 +1230,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 .log("Received ScalableTopicSubscribe");
 
         if (!scalableTopicsEnabled) {
+            request.failure();
             getCommandSender().sendScalableTopicSubscribeError(requestId, ServerError.NotAllowedError,
                     "Scalable topics are disabled on this broker");
             return;
@@ -1202,6 +1240,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         try {
             topicName = TopicName.get(topicStr);
         } catch (Exception e) {
+            request.failure();
             getCommandSender().sendScalableTopicSubscribeError(requestId,
                     ServerError.InvalidTopicName, "Invalid topic name: " + topicStr);
             return;
@@ -1209,13 +1248,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         var scalableTopicService = service.getScalableTopicService();
         if (scalableTopicService == null) {
+            request.failure();
             getCommandSender().sendScalableTopicSubscribeError(requestId,
                     ServerError.ServiceNotReady, "Scalable topic service not available");
             return;
         }
 
         isTopicOperationAllowed(topicName, subscription, TopicOperation.CONSUME)
-                .thenAccept(isAuthorized -> {
+                .thenAcceptAsync(isAuthorized -> {
                     if (!isAuthorized) {
                         final String msg = "Client is not authorized to ScalableTopicSubscribe";
                         log.warn()
@@ -1223,8 +1263,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 .attr("topic", topicName)
                                 .attr("subscription", subscription)
                                 .log(msg);
+                        request.failure();
                         getCommandSender().sendScalableTopicSubscribeError(requestId,
                                 ServerError.AuthorizationError, msg);
+                        return;
+                    }
+                    if (!isActive) {
+                        request.failure();
                         return;
                     }
                     // Record the registration BEFORE starting it, carrying its future: an
@@ -1236,7 +1281,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     // returns (see sendScalableConsumerAssignment).
                     var registration = new CompletableFuture<ConsumerAssignment>();
                     var ref = new ScalableConsumerRegistrationRef(topicName, subscription,
-                            consumerName, registration, requestId, new AtomicBoolean());
+                            consumerName, registration, requestId, new AtomicBoolean(), request);
                     scalableConsumerRegistrations.put(consumerId, ref);
                     FutureUtil.completeAfter(registration, FutureUtil.supplySafely(() ->
                             registerScalableConsumer(scalableTopicService, topicName, subscription,
@@ -1254,6 +1299,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 // Nothing was registered: drop the ref so unsubscribes and the
                                 // disconnect sweep have nothing to report for it.
                                 scalableConsumerRegistrations.remove(consumerId, ref);
+                                request.failure();
                                 getCommandSender().sendScalableTopicSubscribeError(requestId,
                                         ServerError.UnknownError, cause.getMessage());
                             }
@@ -1263,14 +1309,16 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             return;
                         }
                         if (unanswered) {
+                            request.success();
                             getCommandSender().sendScalableTopicSubscribeResponse(requestId,
                                     ConsumerSession.toProto(assignment));
                         }
                     }, ctx.executor());
-                })
+                }, ctx.executor())
                 .exceptionally(ex -> {
                     logAuthException(remoteAddress, "scalable-topic-subscribe", getPrincipal(),
                             Optional.of(topicName), ex);
+                    request.failure();
                     getCommandSender().sendScalableTopicSubscribeError(requestId,
                             ServerError.AuthorizationError,
                             "Exception occurred while trying to authorize ScalableTopicSubscribe");
@@ -1305,6 +1353,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     public void sendScalableConsumerAssignment(long consumerId, ScalableConsumerAssignment assignment) {
         ScalableConsumerRegistrationRef ref = scalableConsumerRegistrations.get(consumerId);
         if (ref != null && ref.answered().compareAndSet(false, true)) {
+            ref.request().success();
             getCommandSender().sendScalableTopicSubscribeResponse(ref.requestId(), assignment);
         } else {
             getCommandSender().sendScalableTopicAssignmentUpdate(consumerId, assignment);
@@ -1332,9 +1381,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     protected void handleCommandScalableTopicUnsubscribe(
             CommandScalableTopicUnsubscribe commandScalableTopicUnsubscribe) {
         checkArgument(state == State.Connected);
+        var request = service.getScalableTopicMetrics().startRequest(RequestType.UNSUBSCRIBE);
         final long requestId = commandScalableTopicUnsubscribe.getRequestId();
         final long consumerId = commandScalableTopicUnsubscribe.getConsumerId();
         if (!scalableTopicsEnabled) {
+            request.failure();
             writeAndFlush(Commands.newError(requestId, ServerError.NotAllowedError,
                     "Scalable topics are disabled on this broker"));
             return;
@@ -1346,6 +1397,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         var scalableTopicService = service.getScalableTopicService();
         if (ref == null || scalableTopicService == null) {
             // Unknown or already swept by a disconnect: idempotent success.
+            request.success();
             getCommandSender().sendSuccessResponse(requestId);
             return;
         }
@@ -1365,6 +1417,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
                         log.warn().attr("consumerName", ref.consumerName()).exceptionMessage(cause)
                                 .log("ScalableTopicUnsubscribe failed");
+                        request.failure();
                         getCommandSender().sendErrorResponse(requestId, ServerError.UnknownError,
                                 cause.getMessage());
                         return;
@@ -1372,6 +1425,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     // Removed only on success; a channelInactive racing the unregister just
                     // re-reports an already-removed session, which the coordinator ignores.
                     scalableConsumerRegistrations.remove(consumerId, ref);
+                    request.success();
                     getCommandSender().sendSuccessResponse(requestId);
                 }, ctx.executor());
     }
