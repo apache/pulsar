@@ -37,6 +37,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -94,6 +97,193 @@ public class ScalableTopicConsumerMetricsTest {
         // A restarted broker can register the exact same metric names.
         try (var metrics = new ScalableTopicConsumerMetrics(meter, registry, "test", () -> ConsumerStats.EMPTY)) {
             assertThat(sample(registry, "rebalance_total", "rebalance_reason", "consumer_join")).isZero();
+        }
+    }
+
+    @Test
+    public void testSharedRegistryRetainsCountersWhenSourceClosesAndIsReplaced() {
+        var registry = new CollectorRegistry();
+        var meter = OpenTelemetry.noop().getMeter("test");
+        var retired = new AtomicBoolean();
+        try (var first = new ScalableTopicConsumerMetrics(meter, registry, "test", () -> {
+                 assertThat(retired.get()).as("Retired gauge suppliers must not be collected").isFalse();
+                 return new ConsumerStats(2, 0, 0, 2);
+             });
+             var second = new ScalableTopicConsumerMetrics(meter, registry, "test",
+                     () -> new ConsumerStats(0, 1, 0, 3))) {
+            for (RebalanceReason reason : RebalanceReason.values()) {
+                first.recordRebalance(reason);
+                second.recordRebalance(reason);
+            }
+            assertReasonTotals(registry, 2);
+            first.close();
+            first.close();
+            retired.set(true);
+            for (RebalanceReason reason : RebalanceReason.values()) {
+                first.recordRebalance(reason); // Late events cannot alter this source's final retained totals.
+            }
+            assertReasonTotals(registry, 2);
+            assertThat(sample(registry, "consumer_count", "consumer_state", "active")).isZero();
+            assertThat(sample(registry, "consumer_count", "consumer_state", "idle")).isEqualTo(1);
+            assertThat(sample(registry, "segment_blocked_count", null, null)).isEqualTo(3);
+            for (RebalanceReason reason : RebalanceReason.values()) {
+                second.recordRebalance(reason);
+            }
+            assertReasonTotals(registry, 3);
+            try (var replacement = new ScalableTopicConsumerMetrics(meter, registry, "test",
+                    () -> new ConsumerStats(1, 0, 0, 1))) {
+                assertReasonTotals(registry, 3);
+                for (RebalanceReason reason : RebalanceReason.values()) {
+                    replacement.recordRebalance(reason);
+                }
+                assertReasonTotals(registry, 4);
+                assertThat(sample(registry, "consumer_count", "consumer_state", "active")).isEqualTo(1);
+            }
+            assertReasonTotals(registry, 4);
+        }
+        assertThat(registry.metricFamilySamples().hasMoreElements()).isFalse();
+        try (var restarted = new ScalableTopicConsumerMetrics(meter, registry, "test", () -> ConsumerStats.EMPTY)) {
+            assertReasonTotals(registry, 0);
+        }
+    }
+
+    @Test
+    public void testGaugeFailureDoesNotRemoveActiveRebalanceCountsAfterRetirement() {
+        var registry = new CollectorRegistry();
+        var meter = OpenTelemetry.noop().getMeter("test");
+        var fail = new AtomicBoolean();
+        try (var first = new ScalableTopicConsumerMetrics(meter, registry, "test", () -> ConsumerStats.EMPTY);
+             var second = new ScalableTopicConsumerMetrics(meter, registry, "test", () -> {
+                 if (fail.get()) {
+                     throw new IllegalStateException("Injected gauge source failure after retirement");
+                 }
+                 return new ConsumerStats(1, 0, 0, 0);
+             })) {
+            first.recordRebalance(RebalanceReason.CONSUMER_JOIN);
+            first.recordRebalance(RebalanceReason.CONSUMER_JOIN);
+            for (int i = 0; i < 3; i++) {
+                second.recordRebalance(RebalanceReason.CONSUMER_JOIN);
+            }
+            first.close();
+            assertThat(sample(registry, "rebalance_total", "rebalance_reason", "consumer_join")).isEqualTo(5);
+            fail.set(true);
+            assertThat(sample(registry, "rebalance_total", "rebalance_reason", "consumer_join")).isEqualTo(5);
+            assertThat(registry.getSampleValue("pulsar_scalable_topic_consumer_count",
+                    new String[]{"cluster", "consumer_state"}, new String[]{"test", "active"})).isNull();
+            second.recordRebalance(RebalanceReason.CONSUMER_JOIN);
+            assertThat(sample(registry, "rebalance_total", "rebalance_reason", "consumer_join")).isEqualTo(6);
+            fail.set(false);
+            assertThat(sample(registry, "consumer_count", "consumer_state", "active")).isEqualTo(1);
+        }
+    }
+
+    @Test
+    public void testOpenTelemetryCountersSurviveGaugeFailureAndRetiredCallbacksStop() throws IOException {
+        var registry = new CollectorRegistry();
+        var firstCalls = new AtomicInteger();
+        var fail = new AtomicBoolean();
+        try (var reader = InMemoryMetricReader.create();
+             var provider = SdkMeterProvider.builder().registerMetricReader(reader).build();
+             var first = new ScalableTopicConsumerMetrics(provider.get("first"), registry, "test", () -> {
+                 firstCalls.incrementAndGet();
+                 return ConsumerStats.EMPTY;
+             });
+             var second = new ScalableTopicConsumerMetrics(provider.get("second"), registry, "test", () -> {
+                 if (fail.get()) {
+                     throw new IllegalStateException("Injected OpenTelemetry gauge failure");
+                 }
+                 return ConsumerStats.EMPTY;
+             })) {
+            first.recordRebalance(RebalanceReason.CONSUMER_JOIN);
+            second.recordRebalance(RebalanceReason.CONSUMER_JOIN);
+            reader.collectAllMetrics();
+            first.close();
+            int callsAtClose = firstCalls.get();
+            fail.set(true);
+            for (long expected = 1; expected <= 2; expected++) {
+                var metrics = reader.collectAllMetrics();
+                assertThat(metrics).extracting(MetricData::getName).containsOnly(
+                        ScalableTopicConsumerMetrics.REBALANCE_COUNT);
+                long joins = metrics.stream().flatMap(metric -> metric.getLongSumData().getPoints().stream())
+                        .filter(point -> "consumer_join".equals(point.getAttributes().get(
+                                AttributeKey.stringKey("pulsar.scalable_topic.rebalance.reason"))))
+                        .mapToLong(point -> point.getValue()).sum();
+                assertThat(joins).isEqualTo(expected);
+                assertThat(firstCalls.get()).as("Closed OTel callbacks must not be retained").isEqualTo(callsAtClose);
+                assertThat(sample(registry, "rebalance_total", "rebalance_reason", "consumer_join"))
+                        .isEqualTo(expected + 1);
+                second.recordRebalance(RebalanceReason.CONSUMER_JOIN);
+            }
+        }
+    }
+
+    @Test
+    public void testRetiredClusterKeepsOnlyCountersUntilCollectorIsUnregistered() {
+        var registry = new CollectorRegistry();
+        var meter = OpenTelemetry.noop().getMeter("test");
+        try (var first = new ScalableTopicConsumerMetrics(meter, registry, "retired",
+                     () -> new ConsumerStats(2, 0, 0, 4));
+             var second = new ScalableTopicConsumerMetrics(meter, registry, "test", () -> ConsumerStats.EMPTY)) {
+            first.recordRebalance(RebalanceReason.CONSUMER_JOIN);
+            second.recordRebalance(RebalanceReason.CONSUMER_JOIN);
+            second.recordRebalance(RebalanceReason.CONSUMER_JOIN);
+            first.close();
+            assertThat(registry.getSampleValue("pulsar_scalable_topic_rebalance_total",
+                    new String[]{"cluster", "rebalance_reason"}, new String[]{"retired", "consumer_join"}))
+                    .isEqualTo(1);
+            assertThat(registry.getSampleValue("pulsar_scalable_topic_consumer_count",
+                    new String[]{"cluster", "consumer_state"}, new String[]{"retired", "active"})).isNull();
+            assertThat(registry.getSampleValue("pulsar_scalable_topic_segment_blocked_count",
+                    new String[]{"cluster"}, new String[]{"retired"})).isNull();
+            assertThat(sample(registry, "rebalance_total", "rebalance_reason", "consumer_join")).isEqualTo(2);
+            try (var replacement = new ScalableTopicConsumerMetrics(meter, registry, "retired",
+                    () -> new ConsumerStats(1, 0, 0, 0))) {
+                replacement.recordRebalance(RebalanceReason.CONSUMER_JOIN);
+                assertThat(registry.getSampleValue("pulsar_scalable_topic_rebalance_total",
+                        new String[]{"cluster", "rebalance_reason"}, new String[]{"retired", "consumer_join"}))
+                        .isEqualTo(2);
+            }
+        }
+        assertThat(registry.metricFamilySamples().hasMoreElements()).isFalse();
+    }
+
+    @Test
+    public void testCollectionConcurrentWithRetirementDoesNotDoubleCount() throws Exception {
+        var registry = new CollectorRegistry();
+        var meter = OpenTelemetry.noop().getMeter("test");
+        var block = new AtomicBoolean();
+        var collecting = new CompletableFuture<Void>();
+        var resume = new CompletableFuture<ConsumerStats>();
+        try (var first = new ScalableTopicConsumerMetrics(meter, registry, "test", () -> {
+                 if (block.get()) {
+                     collecting.complete(null);
+                     return resume.join();
+                 }
+                 return ConsumerStats.EMPTY;
+             });
+             var second = new ScalableTopicConsumerMetrics(meter, registry, "test", () -> ConsumerStats.EMPTY);
+             var executor = Executors.newSingleThreadExecutor()) {
+            first.recordRebalance(RebalanceReason.CONSUMER_JOIN);
+            second.recordRebalance(RebalanceReason.CONSUMER_JOIN);
+            block.set(true);
+            try {
+                var sample = CompletableFuture.supplyAsync(() ->
+                        sample(registry, "rebalance_total", "rebalance_reason", "consumer_join"), executor);
+                collecting.get(5, TimeUnit.SECONDS);
+                CompletableFuture.runAsync(first::close).get(5, TimeUnit.SECONDS);
+                resume.complete(ConsumerStats.EMPTY);
+                assertThat(sample.get(5, TimeUnit.SECONDS)).isEqualTo(2);
+                assertThat(sample(registry, "rebalance_total", "rebalance_reason", "consumer_join")).isEqualTo(2);
+            } finally {
+                resume.complete(ConsumerStats.EMPTY);
+            }
+        }
+    }
+
+    private static void assertReasonTotals(CollectorRegistry registry, long expected) {
+        for (String reason : List.of("consumer_join", "consumer_leave", "consumer_evict",
+                "layout_change", "segment_drained")) {
+            assertThat(sample(registry, "rebalance_total", "rebalance_reason", reason)).isEqualTo(expected);
         }
     }
 
