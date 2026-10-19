@@ -42,6 +42,7 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientSharedResources;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
@@ -68,6 +69,7 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
     public Integer call() throws Exception {
         IotScenario scenario = scenario();
         boolean stringKeys = scenario.stringKeys();
+        IotScenario.ScheduledDelivery scheduledDelivery = scenario.behaviors().scheduledDelivery();
         Files.createDirectories(output);
         long[] deviceSequences = new long[scenario.deviceCount()];
         long[] producerSequences = new long[Math.multiplyExact(scenario.gatewayCount(), scenario.topicCount())];
@@ -182,10 +184,19 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
                         scenario.payloadBytes());
                 int completedDevice = device;
                 long sendStartedNanos = System.nanoTime();
-                TelemetryMessage.key(producer.newMessage(), device, stringKeys)
+                TypedMessageBuilder<byte[]> message = TelemetryMessage.key(producer.newMessage(), device, stringKeys)
                         .sequenceId(producerSequence)
-                        .value(payload)
-                        .sendAsync()
+                        .value(payload);
+                if (scheduledDelivery.enabled() && measurementMessage) {
+                    long delayMillis = scheduledDelivery.minDelayMillis() + random.nextInt(
+                            scheduledDelivery.maxDelayMillis() - scheduledDelivery.minDelayMillis() + 1);
+                    // the time that the client sends to the broker, which the applications compare the receipt with
+                    long deliverAtEpochMs = System.currentTimeMillis() + delayMillis;
+                    message.deliverAt(deliverAtEpochMs)
+                            .property(IotScenario.ScheduledDelivery.DELIVER_AT_PROPERTY,
+                                    Long.toString(deliverAtEpochMs));
+                }
+                message.sendAsync()
                         .whenComplete((messageId, error) -> {
                             if (error != null) {
                                 failure.compareAndSet(null, error);
@@ -240,6 +251,10 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
             long measurementElapsedNanos = finishedNanos - measurementStartedNanos;
             sendLatency.close();
             writeState(deviceSequences);
+            if (scenario.handsOverFinalSequences()) {
+                // the applications check what they received against each device's last message
+                FinalSequencesMarker.mark(coordinationDirectory(), runId, deviceSequences);
+            }
             Files.writeString(output.resolve("gateways-summary.json"),
                     "{\n  \"sent\": " + completed.get()
                             + ",\n  \"warmupMessages\": " + warmupCompleted.get()
@@ -382,6 +397,10 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
         Integer batchingMaxPublishDelayMillis = scenario.gateways().producer().batchingMaxPublishDelayMillis();
         if (batchingMaxPublishDelayMillis != null) {
             builder.batchingMaxPublishDelay(batchingMaxPublishDelayMillis, TimeUnit.MILLISECONDS);
+        }
+        Integer chunkMaxMessageSizeBytes = scenario.gateways().producer().chunkMaxMessageSizeBytes();
+        if (chunkMaxMessageSizeBytes != null) {
+            builder.enableChunking(true).chunkMaxMessageSize(chunkMaxMessageSizeBytes);
         }
         return builder;
     }

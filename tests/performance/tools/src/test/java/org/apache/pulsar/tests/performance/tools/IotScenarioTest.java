@@ -234,6 +234,203 @@ public class IotScenarioTest {
     }
 
     @Test
+    public void partitionsTheTopics() {
+        IotScenario plain = scenario(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2), null));
+        assertThat(plain.topics().partitioned()).isFalse();
+        assertThat(plain.statsTopicNames()).containsExactly("persistent://public/default/iot-0",
+                "persistent://public/default/iot-1");
+        IotScenario partitioned = withTopics(new IotScenario.Topics(2, "persistent://public/default/iot-", 2),
+                new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2), null));
+        assertThat(partitioned.topicNames()).containsExactly("persistent://public/default/iot-0",
+                "persistent://public/default/iot-1");
+        assertThat(partitioned.statsTopicNames()).containsExactly("persistent://public/default/iot-0-partition-0",
+                "persistent://public/default/iot-0-partition-1", "persistent://public/default/iot-1-partition-0",
+                "persistent://public/default/iot-1-partition-1");
+        assertThatThrownBy(() -> withTopics(new IotScenario.Topics(2, "persistent://public/default/iot-", -1),
+                new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2), null)))
+                .hasMessageContaining("topics.partitions must not be negative");
+        // the launcher prepares a join with each topic's stats
+        assertThatThrownBy(() -> withTopics(new IotScenario.Topics(2, "persistent://public/default/iot-", 2),
+                new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2), null, List.of(0, 30), null,
+                        null, true)))
+                .hasMessageContaining("topics.partitions doesn't support");
+        assertThatThrownBy(() -> withTopics(new IotScenario.Topics(2, "persistent://public/default/iot-", 2),
+                new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2), null, List.of(0, 30), null)))
+                .hasMessageContaining("topics.partitions doesn't support applications.joinSeconds");
+        // a scenario file without the setting keeps non-partitioned topics
+        IotScenario.Topics fromYaml = new YamlScenarioLoader().mapper().convertValue(Map.of("count", 2,
+                "prefix", "persistent://public/default/iot-"), IotScenario.Topics.class);
+        assertThat(fromYaml.partitions()).isZero();
+    }
+
+    @Test
+    public void keepsTheLatestStateOfASubscription() {
+        IotScenario latest = scenario(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2), null,
+                null, null, null, false, null, null, "latestState"));
+        assertThat(latest.applications().keepsLatestState()).isTrue();
+        assertThat(latest.applications().readsCompacted()).isFalse();
+        assertThat(latest.handsOverFinalSequences()).isTrue();
+        // a redelivered older message would look like a state going back
+        assertThatThrownBy(() -> scenario(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, null, null, null, false, null, "Shared", "latestState")))
+                .hasMessageContaining("applications.mode latestState needs a subscription type that keeps each"
+                        + " device's order");
+        assertThatThrownBy(() -> withBehaviors(new IotScenario.Behaviors(new IotScenario.PodRestarts(30, 0.5)),
+                new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2), null, null, null, null,
+                        false, null, null, "latestState")))
+                .hasMessageContaining("doesn't support behaviors.podRestarts");
+    }
+
+    @Test
+    public void subscribesByPattern() {
+        IotScenario.Topics byPattern = new IotScenario.Topics(2, "persistent://public/default/iot-site-", null, 30);
+        assertThat(byPattern.subscribedByPattern()).isTrue();
+        assertThat(byPattern.pattern().matcher("persistent://public/default/iot-site-17").matches()).isTrue();
+        assertThat(byPattern.pattern().matcher("persistent://public/default/iot-site-app-0-DLQ").matches()).isFalse();
+        assertThat(withTopics(byPattern, new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null)).topics().patternDiscoverySeconds()).isEqualTo(30);
+        assertThatThrownBy(() -> withTopics(new IotScenario.Topics(2, "persistent://public/default/iot.site-", null,
+                30), new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2), null)))
+                .hasMessageContaining("needs a topics.prefix without regular expression characters");
+        assertThatThrownBy(() -> withTopics(new IotScenario.Topics(2, "persistent://public/default/iot-site-", 2, 30),
+                new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2), null)))
+                .hasMessageContaining("doesn't support topics.partitions");
+        assertThat(new IotScenario.Topics(2, "persistent://public/default/iot-").subscribedByPattern()).isFalse();
+    }
+
+    @Test
+    public void choosesTheMode() {
+        assertThat(scenario(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2), null))
+                .applications().readsCompacted()).isFalse();
+        IotScenario readers = scenario(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2), null,
+                null, null, null, false, null, null, "compactedReaders"));
+        assertThat(readers.applications().readsCompacted()).isTrue();
+        assertThatThrownBy(() -> scenario(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, null, null, null, false, null, null, "tableView")))
+                .hasMessageContaining("applications.mode must be one of [subscription, compactedReaders, latestState]");
+        // a reading pod rebuilds the state from the start at any time, so it doesn't join later
+        assertThatThrownBy(() -> scenario(new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, List.of(0, 30), null, null, false, null, null, "compactedReaders")))
+                .hasMessageContaining("applications.mode compactedReaders doesn't support");
+        assertThatThrownBy(() -> new IotScenario("pulsar://localhost:6650", new IotScenario.Warmup(0, 1_000, 1, 0),
+                new IotScenario.Measurement(120, 1_000), 0, new IotScenario.Payload(64),
+                new IotScenario.Devices(1_000),
+                new IotScenario.Gateways(10, new IotScenario.Producer(2, 2, 100, true, true, null), null),
+                new IotScenario.Topics(2, "persistent://public/default/iot-"),
+                new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2), null, null, null, null,
+                        false, null, null, "compactedReaders"), null, 300))
+                .hasMessageContaining("applications.mode compactedReaders doesn't support");
+        // a scenario file without the setting keeps the subscription
+        IotScenario.Applications fromYaml = new YamlScenarioLoader().mapper().convertValue(Map.of("count", 2,
+                "podsPerApplication", 2, "subscriptionPrefix", "app-", "client",
+                Map.of("ioThreads", 2, "listenerThreads", 2)), IotScenario.Applications.class);
+        assertThat(fromYaml.mode()).isEqualTo("subscription");
+    }
+
+    @Test
+    public void chunksLargeMessages() {
+        IotScenario.Producer unbatchedChunks = new IotScenario.Producer(2, 2, 100, false, true, null, null, 131_072);
+        IotScenario chunked = new IotScenario("pulsar://localhost:6650", new IotScenario.Warmup(0, 0, 1, 0),
+                new IotScenario.Measurement(120, 1_000), 0, new IotScenario.Payload(1_048_576),
+                new IotScenario.Devices(1_000), new IotScenario.Gateways(10, unbatchedChunks, null),
+                new IotScenario.Topics(2, "persistent://public/default/iot-"),
+                new IotScenario.Applications(1, 2, "app-", new IotScenario.Client(2, 2, 16), null), null, 300);
+        assertThat(chunked.gateways().producer().chunkMaxMessageSizeBytes()).isEqualTo(131_072);
+        assertThat(chunked.applications().client().receiverQueueSize()).isEqualTo(16);
+        assertThatThrownBy(() -> new IotScenario("pulsar://localhost:6650", new IotScenario.Warmup(0, 0, 1, 0),
+                new IotScenario.Measurement(120, 1_000), 0, new IotScenario.Payload(1_048_576),
+                new IotScenario.Devices(1_000),
+                new IotScenario.Gateways(10, new IotScenario.Producer(2, 2, 100, true, true, null, null, 131_072),
+                        null),
+                new IotScenario.Topics(2, "persistent://public/default/iot-"),
+                new IotScenario.Applications(1, 2, "app-", new IotScenario.Client(2, 2), null), null, 300))
+                .hasMessageContaining("needs batchingEnabled: false");
+        assertThatThrownBy(() -> new IotScenario("pulsar://localhost:6650", new IotScenario.Warmup(0, 0, 1, 0),
+                new IotScenario.Measurement(120, 1_000), 0, new IotScenario.Payload(1_048_576),
+                new IotScenario.Devices(1_000), new IotScenario.Gateways(10, unbatchedChunks, null),
+                new IotScenario.Topics(2, "persistent://public/default/iot-"),
+                new IotScenario.Applications(1, 2, "app-", new IotScenario.Client(2, 2), null, null, null, null,
+                        false, null, "Shared"), null, 300))
+                .hasMessageContaining("needs a subscription type other than Shared");
+        // compaction would keep only a message's last chunk
+        assertThatThrownBy(() -> new IotScenario("pulsar://localhost:6650", new IotScenario.Warmup(0, 0, 1, 0),
+                new IotScenario.Measurement(120, 1_000), 0, new IotScenario.Payload(1_048_576),
+                new IotScenario.Devices(1_000), new IotScenario.Gateways(10, unbatchedChunks, null),
+                new IotScenario.Topics(2, "persistent://public/default/iot-"),
+                new IotScenario.Applications(1, 2, "app-", new IotScenario.Client(2, 2), null, null, null, null,
+                        false, null, null, "compactedReaders"), null, 300))
+                .hasMessageContaining("chunkMaxMessageSizeBytes doesn't support applications.mode compactedReaders");
+    }
+
+    @Test
+    public void schedulesTheDelivery() {
+        IotScenario.Applications shared = new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, null, null, null, false, null, "Shared");
+        IotScenario.ScheduledDelivery scheduled = new IotScenario.ScheduledDelivery(1_000, 60_000, null);
+        assertThat(scheduled.earlyToleranceMillis()).isEqualTo(1_000);
+        assertThat(withBehaviors(new IotScenario.Behaviors(null, null, null, scheduled), shared).behaviors()
+                .scheduledDelivery().enabled()).isTrue();
+        assertThatThrownBy(() -> withBehaviors(new IotScenario.Behaviors(null, null, null, scheduled),
+                new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2), null)))
+                .hasMessageContaining("behaviors.scheduledDelivery needs applications.subscriptionType Shared");
+        assertThatThrownBy(() -> withBehaviors(new IotScenario.Behaviors(null, null, null,
+                new IotScenario.ScheduledDelivery(2_000, 1_000, null)), shared))
+                .hasMessageContaining("0 <= minDelayMillis <= maxDelayMillis");
+        // the last message is delivered 200 s after the measurement's 120 s
+        assertThatThrownBy(() -> withBehaviors(new IotScenario.Behaviors(null, null, null,
+                new IotScenario.ScheduledDelivery(0, 200_000, null)), shared))
+                .hasMessageContaining("timeoutSeconds is 300, but the last scheduled message is delivered 200 s"
+                        + " after the warmup and the measurement, which take 120 s, so set timeoutSeconds to at"
+                        + " least 320");
+    }
+
+    @Test
+    public void failsAndRetriesMessages() {
+        assertThat(new IotScenario.ProcessingFailures(0.05, 0.01, null, null, null).retry()).isEqualTo("negativeAck");
+        IotScenario.ProcessingFailures failures =
+                new IotScenario.ProcessingFailures(0.05, 0.01, "retryTopic", null, null);
+        assertThat(failures.maxRedeliveries()).isEqualTo(3);
+        long poison = 0;
+        long transientFailures = 0;
+        for (long sequence = 0; sequence < 100_000; sequence++) {
+            if (failures.poison(7, sequence)) {
+                poison++;
+                // a poison message fails every attempt
+                assertThat(failures.fails(7, sequence, 10)).isTrue();
+            } else if (failures.fails(7, sequence, 0)) {
+                transientFailures++;
+                // the same messages fail their second attempt, and succeed by their third
+                assertThat(failures.fails(7, sequence, 1)).isTrue();
+                assertThat(failures.fails(7, sequence, 2)).isFalse();
+            }
+        }
+        assertThat(poison).isBetween(800L, 1_200L);
+        assertThat(transientFailures).isBetween(4_500L, 5_500L);
+        IotScenario.Applications shared = new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2),
+                null, null, null, null, false, null, "Shared");
+        assertThat(withBehaviors(new IotScenario.Behaviors(null, null, failures), shared)
+                .handsOverFinalSequences()).isTrue();
+        assertThatThrownBy(() -> withBehaviors(new IotScenario.Behaviors(null, null, failures),
+                new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2), null)))
+                .hasMessageContaining("behaviors.processingFailures needs applications.subscriptionType Shared");
+        // a late application's catch-up would count the retry topic as one of the topics
+        assertThatThrownBy(() -> withBehaviors(new IotScenario.Behaviors(null, null, failures),
+                new IotScenario.Applications(2, 2, "app-", new IotScenario.Client(2, 2), null, List.of(0, 30), null,
+                        null, false, null, "Shared")))
+                .hasMessageContaining("doesn't support applications.joinSeconds");
+        assertThatThrownBy(() -> withBehaviors(new IotScenario.Behaviors(null, null,
+                new IotScenario.ProcessingFailures(0.05, 0, "retryTopic", null, 2)), shared))
+                .hasMessageContaining("maxRedeliveries must be at least 3");
+        // the test scenario's gateways batch, so negative acknowledgments can't count the attempts
+        assertThatThrownBy(() -> withBehaviors(new IotScenario.Behaviors(null, null,
+                new IotScenario.ProcessingFailures(0.05, 0, null, null, null)), shared))
+                .hasMessageContaining("behaviors.processingFailures.retry negativeAck needs no podRestarts");
+        assertThatThrownBy(() -> withBehaviors(new IotScenario.Behaviors(null, null,
+                new IotScenario.ProcessingFailures(0.05, 0, "deadLetter", null, null)), shared))
+                .hasMessageContaining("behaviors.processingFailures.retry must be one of [negativeAck, retryTopic]");
+    }
+
+    @Test
     public void validatesThePodPauses() {
         assertThat(withBehaviors(null).behaviors().podPauses().enabled()).isFalse();
         assertThat(withBehaviors(new IotScenario.Behaviors(null, new IotScenario.PodPauses(15, 0.1, 5000)))
@@ -251,12 +448,17 @@ public class IotScenarioTest {
     }
 
     private static IotScenario withBehaviors(IotScenario.Behaviors behaviors) {
+        return withBehaviors(behaviors,
+                new IotScenario.Applications(1, 2, "app-", new IotScenario.Client(2, 2), null));
+    }
+
+    private static IotScenario withBehaviors(IotScenario.Behaviors behaviors,
+                                             IotScenario.Applications applications) {
         return new IotScenario("pulsar://localhost:6650", new IotScenario.Warmup(0, 0, 1, 0),
                 new IotScenario.Measurement(120, 1_000), 0, new IotScenario.Payload(64),
                 new IotScenario.Devices(1_000),
                 new IotScenario.Gateways(10, new IotScenario.Producer(2, 2, 100, true, true, null), null),
-                new IotScenario.Topics(2, "persistent://public/default/iot-"),
-                new IotScenario.Applications(1, 2, "app-", new IotScenario.Client(2, 2), null), behaviors, 300);
+                new IotScenario.Topics(2, "persistent://public/default/iot-"), applications, behaviors, 300);
     }
 
     @Test
@@ -363,6 +565,13 @@ public class IotScenarioTest {
 
     private static IotScenario scenario(IotScenario.Applications applications) {
         return scenario(applications, new IotScenario.Warmup(0, 0, 1, 0));
+    }
+
+    private static IotScenario withTopics(IotScenario.Topics topics, IotScenario.Applications applications) {
+        return new IotScenario("pulsar://localhost:6650", new IotScenario.Warmup(0, 0, 1, 0),
+                new IotScenario.Measurement(120, 1_000), 0, new IotScenario.Payload(64), new IotScenario.Devices(1_000),
+                new IotScenario.Gateways(10, new IotScenario.Producer(2, 2, 100, true, true, null), null),
+                topics, applications, null, 300);
     }
 
     // The gateways without batching, as skipping messages needs
