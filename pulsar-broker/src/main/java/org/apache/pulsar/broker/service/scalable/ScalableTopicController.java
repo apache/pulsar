@@ -97,11 +97,11 @@ public class ScalableTopicController {
     private final Duration gcInterval;
 
     private volatile SegmentLayout currentLayout;
-    private ScalableTopicMetrics metrics = ScalableTopicMetrics.NOOP;
+    private ScalableTopicControllerMetrics metrics = ScalableTopicControllerMetrics.NOOP;
     /** Monotonic start of the election term, including takeover retry backoff. Guarded by this. */
     private long takeoverStartedNanos;
 
-    void setMetrics(ScalableTopicMetrics metrics) {
+    void setMetrics(ScalableTopicControllerMetrics metrics) {
         this.metrics = metrics;
     }
 
@@ -109,13 +109,13 @@ public class ScalableTopicController {
      * Read volatile state and an immutable layout without acquiring the controller monitor: controller work
      * must not block the shared Prometheus scrape or OpenTelemetry collection of unrelated metrics.
      */
-    ScalableTopicMetrics.Counts metricCounts() {
+    ScalableTopicControllerMetrics.Counts metricCounts() {
         SegmentLayout layout = currentLayout;
         if (closed || leaderState != LeaderElectionState.Leading || layout == null) {
-            return new ScalableTopicMetrics.Counts(0, 0, 0);
+            return new ScalableTopicControllerMetrics.Counts(0, 0, 0);
         }
         long active = layout.getActiveSegments().size();
-        return new ScalableTopicMetrics.Counts(1, active, layout.getAllSegments().size() - active);
+        return new ScalableTopicControllerMetrics.Counts(1, active, layout.getAllSegments().size() - active);
     }
 
     /** Per-subscription consumer tracking. */

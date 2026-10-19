@@ -85,7 +85,7 @@ public class ScalableTopicControllerAutoScaleTest {
     private Policies namespacePolicies;
     private ScalableTopicController controller;
     private TopicName topicName;
-    private ScalableTopicMetrics metrics;
+    private ScalableTopicControllerMetrics metrics;
 
     @BeforeMethod
     public void setUp() throws Exception {
@@ -97,7 +97,7 @@ public class ScalableTopicControllerAutoScaleTest {
 
         // Auto-scale tuned for deterministic single-shot evaluation: no cooldowns/windows so a
         // single evaluateAutoScaleForTest() call acts immediately, low-ish thresholds.
-        metrics = mock(ScalableTopicMetrics.class);
+        metrics = mock(ScalableTopicControllerMetrics.class);
         config = new ServiceConfiguration();
         config.setScalableTopicAutoScaleEnabled(true);
         config.setScalableTopicMaxSegments(64);

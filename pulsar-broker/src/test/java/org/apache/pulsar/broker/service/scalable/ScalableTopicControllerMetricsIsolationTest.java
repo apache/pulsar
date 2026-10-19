@@ -45,11 +45,11 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
-public class ScalableTopicMetricsIsolationTest {
+public class ScalableTopicControllerMetricsIsolationTest {
     private static final String PREFIX = "pulsar_metrics_isolation_";
     private static final String OTEL_PREFIX = "pulsar.broker.scalable_topic.";
     private static final String CLUSTER = "metrics-isolation";
-    private static final ScalableTopicMetrics.Counts COUNTS = new ScalableTopicMetrics.Counts(1, 2, 3);
+    private static final ScalableTopicControllerMetrics.Counts COUNTS = new ScalableTopicControllerMetrics.Counts(1, 2, 3);
 
     @DataProvider
     public Object[][] registries() {
@@ -75,7 +75,7 @@ public class ScalableTopicMetricsIsolationTest {
             summary.labels(CLUSTER, "persistent://tenant/ns/topic").observe(0.02);
             List<MetricFamilySamples> before = existingPrometheus(registry);
             assertThat(before).hasSize(4);
-            try (var added = new ScalableTopicMetrics(meter, CLUSTER, () -> COUNTS, registry)) {
+            try (var added = new ScalableTopicControllerMetrics(meter, CLUSTER, () -> COUNTS, registry)) {
                 recordAllMetrics(added);
                 assertThat(existingPrometheus(registry)).containsExactlyInAnyOrderElementsOf(before);
                 assertThat(existingPrometheus(registry)).containsExactlyInAnyOrderElementsOf(before);
@@ -88,7 +88,7 @@ public class ScalableTopicMetricsIsolationTest {
             assertThat(after).isNotEqualTo(before);
             assertThat(counter.labels(CLUSTER, "persistent://tenant/ns/topic").get()).isEqualTo(9);
             assertThat(gauge.labels(CLUSTER, "persistent://tenant/ns/topic").get()).isEqualTo(2);
-            try (var replacement = new ScalableTopicMetrics(meter, CLUSTER, () -> COUNTS, registry)) {
+            try (var replacement = new ScalableTopicControllerMetrics(meter, CLUSTER, () -> COUNTS, registry)) {
                 recordAllMetrics(replacement);
                 assertThat(existingPrometheus(registry)).containsExactlyInAnyOrderElementsOf(after);
             }
@@ -120,7 +120,7 @@ public class ScalableTopicMetricsIsolationTest {
                 Map<String, Object> before = existingOpenTelemetry(reader.collectAllMetrics());
                 assertThat(before).hasSize(3);
                 Map<String, Object> updated;
-                try (var added = new ScalableTopicMetrics(meter, CLUSTER, () -> COUNTS, new CollectorRegistry())) {
+                try (var added = new ScalableTopicControllerMetrics(meter, CLUSTER, () -> COUNTS, new CollectorRegistry())) {
                     recordAllMetrics(added);
                     assertThat(existingOpenTelemetry(reader.collectAllMetrics())).isEqualTo(before);
                     assertThat(existingOpenTelemetry(reader.collectAllMetrics())).isEqualTo(before);
@@ -132,7 +132,7 @@ public class ScalableTopicMetricsIsolationTest {
                 }
                 assertThat(existingOpenTelemetry(reader.collectAllMetrics())).isEqualTo(updated);
                 try (var replacement =
-                             new ScalableTopicMetrics(meter, CLUSTER, () -> COUNTS, new CollectorRegistry())) {
+                             new ScalableTopicControllerMetrics(meter, CLUSTER, () -> COUNTS, new CollectorRegistry())) {
                     recordAllMetrics(replacement);
                     assertThat(existingOpenTelemetry(reader.collectAllMetrics())).isEqualTo(updated);
                 }
@@ -157,13 +157,13 @@ public class ScalableTopicMetricsIsolationTest {
             counter.add(11);
             existing.inc(7);
             Map<String, Object> before = existingOpenTelemetry(reader.collectAllMetrics());
-            try (var broken = new ScalableTopicMetrics(meter, CLUSTER, () -> {
+            try (var broken = new ScalableTopicControllerMetrics(meter, CLUSTER, () -> {
                 if (nullState) {
                     return null;
                 }
                 throw new IllegalStateException("Cannot read new controller state");
             });
-                 var healthy = new ScalableTopicMetrics(meter, CLUSTER, () -> COUNTS)) {
+                 var healthy = new ScalableTopicControllerMetrics(meter, CLUSTER, () -> COUNTS)) {
                 broken.recordBlocked("invalid_policy");
                 recordAllMetrics(healthy);
                 ByteArrayOutputStream output = new ByteArrayOutputStream();
@@ -191,7 +191,7 @@ public class ScalableTopicMetricsIsolationTest {
         }
     }
 
-    private static void recordAllMetrics(ScalableTopicMetrics metrics) {
+    private static void recordAllMetrics(ScalableTopicControllerMetrics metrics) {
         metrics.recordTakeover(0.005, true);
         metrics.recordOperation("split", "auto", "success", 0.1);
         metrics.recordSeal("split", 0.01);

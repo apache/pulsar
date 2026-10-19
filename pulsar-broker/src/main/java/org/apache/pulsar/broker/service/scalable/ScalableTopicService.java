@@ -69,7 +69,7 @@ public class ScalableTopicService {
     private final BrokerService brokerService;
     private final ScalableTopicResources resources;
     private final CoordinationService coordinationService;
-    private final ScalableTopicMetrics metrics;
+    private final ScalableTopicControllerMetrics metrics;
 
     /**
      * Active controllers for topics this broker coordinates. The value is a future so
@@ -88,12 +88,12 @@ public class ScalableTopicService {
         var pulsar = brokerService.getPulsar();
         var telemetry = pulsar.getOpenTelemetry();
         var config = pulsar.getConfiguration();
-        this.metrics = new ScalableTopicMetrics(telemetry != null ? telemetry.getMeter()
+        this.metrics = new ScalableTopicControllerMetrics(telemetry != null ? telemetry.getMeter()
                 : OpenTelemetry.noop().getMeter(ScalableTopicService.class.getName()),
                 config != null ? Objects.toString(config.getClusterName(), "") : "", this::metricCounts);
     }
 
-    private ScalableTopicMetrics.Counts metricCounts() {
+    private ScalableTopicControllerMetrics.Counts metricCounts() {
         long leaders = 0;
         long active = 0;
         long sealed = 0;
@@ -101,12 +101,12 @@ public class ScalableTopicService {
             if (!future.isDone() || future.isCompletedExceptionally()) {
                 continue;
             }
-            ScalableTopicMetrics.Counts counts = future.join().metricCounts();
+            ScalableTopicControllerMetrics.Counts counts = future.join().metricCounts();
             leaders += counts.controllers();
             active += counts.active();
             sealed += counts.sealed();
         }
-        return new ScalableTopicMetrics.Counts(leaders, active, sealed);
+        return new ScalableTopicControllerMetrics.Counts(leaders, active, sealed);
     }
 
     // --- Lifecycle ---

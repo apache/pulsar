@@ -110,7 +110,7 @@ public class ScalableTopicControllerTest {
 
     private TopicName topicName;
     private ScalableTopicController controller;
-    private ScalableTopicMetrics metrics;
+    private ScalableTopicControllerMetrics metrics;
 
     @BeforeMethod
     public void setUp() throws Exception {
@@ -164,7 +164,7 @@ public class ScalableTopicControllerTest {
         when(scalableTopics.getSegmentStatsAsync(anyString(), anyLong()))
                 .thenAnswer(inv -> CompletableFuture.completedFuture(segmentTopicStats()));
 
-        metrics = mock(ScalableTopicMetrics.class);
+        metrics = mock(ScalableTopicControllerMetrics.class);
         controller = newController(topicName);
     }
 
@@ -212,21 +212,21 @@ public class ScalableTopicControllerTest {
     public void testMetricCountsDoNotWaitForControllerMonitor() throws Exception {
         synchronized (controller) {
             assertEquals(CompletableFuture.supplyAsync(controller::metricCounts, scheduler).get(5, TimeUnit.SECONDS),
-                    new ScalableTopicMetrics.Counts(0, 0, 0));
+                    new ScalableTopicControllerMetrics.Counts(0, 0, 0));
         }
     }
 
     @Test
     public void testLayoutMetricsAndLeaderCounts() throws Exception {
-        assertEquals(controller.metricCounts(), new ScalableTopicMetrics.Counts(0, 0, 0));
+        assertEquals(controller.metricCounts(), new ScalableTopicControllerMetrics.Counts(0, 0, 0));
         controller.initialize().get();
         verify(metrics).recordTakeover(anyDouble(), eq(true));
-        assertEquals(controller.metricCounts(), new ScalableTopicMetrics.Counts(1, 4, 0));
+        assertEquals(controller.metricCounts(), new ScalableTopicControllerMetrics.Counts(1, 4, 0));
 
         controller.splitSegment(0).get();
         verify(metrics).recordOperation(eq("split"), eq("manual"), eq("success"), anyDouble());
         verify(metrics).recordSeal(eq("split"), anyDouble());
-        assertEquals(controller.metricCounts(), new ScalableTopicMetrics.Counts(1, 5, 1));
+        assertEquals(controller.metricCounts(), new ScalableTopicControllerMetrics.Counts(1, 5, 1));
 
         controller.mergeSegments(1, 2).get();
         verify(metrics).recordOperation(eq("merge"), eq("manual"), eq("success"), anyDouble());
@@ -235,7 +235,7 @@ public class ScalableTopicControllerTest {
         verify(metrics).recordOperation(eq("rebucket"), eq("manual"), eq("success"), anyDouble());
         verify(metrics).recordSeal(eq("rebucket"), anyDouble());
         controller.close().get();
-        assertEquals(controller.metricCounts(), new ScalableTopicMetrics.Counts(0, 0, 0));
+        assertEquals(controller.metricCounts(), new ScalableTopicControllerMetrics.Counts(0, 0, 0));
     }
 
     @Test
@@ -261,7 +261,7 @@ public class ScalableTopicControllerTest {
         verify(scalableTopics).terminateSegmentAsync(anyString());
         verify(metrics).recordOperation(eq("split"), eq("manual"), eq("partial"), anyDouble());
         verify(metrics, never()).recordSeal(anyString(), anyDouble());
-        assertEquals(controller.metricCounts(), new ScalableTopicMetrics.Counts(1, 4, 0));
+        assertEquals(controller.metricCounts(), new ScalableTopicControllerMetrics.Counts(1, 4, 0));
     }
 
     private record PendingTakeover(CompletableFuture<Void> initialization,
@@ -321,7 +321,7 @@ public class ScalableTopicControllerTest {
                 .when(resources).listSubscriptionsAsync(topicName);
         assertThrows(ExecutionException.class, () -> controller.initialize().get());
         verify(metrics).recordTakeover(anyDouble(), eq(false));
-        assertEquals(controller.metricCounts(), new ScalableTopicMetrics.Counts(0, 0, 0));
+        assertEquals(controller.metricCounts(), new ScalableTopicControllerMetrics.Counts(0, 0, 0));
     }
 
     @Test

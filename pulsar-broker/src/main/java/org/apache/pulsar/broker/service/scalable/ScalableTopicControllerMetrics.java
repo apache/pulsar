@@ -62,10 +62,10 @@ import lombok.CustomLog;
  * With the API no-op Meter, Prometheus histogram history is provider-local instead of Meter-wide.
  */
 @CustomLog
-public final class ScalableTopicMetrics implements AutoCloseable {
+public final class ScalableTopicControllerMetrics implements AutoCloseable {
     private static final String OTEL_PREFIX = "pulsar.broker.scalable_topic.";
     private static final String ATTRIBUTE_PREFIX = "pulsar.scalable_topic.";
-    private static final Meter NOOP_METER = MeterProvider.noop().get(ScalableTopicMetrics.class.getName());
+    private static final Meter NOOP_METER = MeterProvider.noop().get(ScalableTopicControllerMetrics.class.getName());
 
     /** Shared explicit histogram boundaries in seconds, from 1 ms through 5 minutes. */
     static final List<Double> DURATION_BUCKETS =
@@ -84,7 +84,7 @@ public final class ScalableTopicMetrics implements AutoCloseable {
     // SDK histograms outlive service recreation. Values must not reference their weak Meter keys.
     private static final Map<Meter, Map<HistogramKey, Histogram>> HISTOGRAMS = new WeakHashMap<>();
 
-    public static final ScalableTopicMetrics NOOP = new ScalableTopicMetrics();
+    public static final ScalableTopicControllerMetrics NOOP = new ScalableTopicControllerMetrics();
 
     public record Counts(long controllers, long active, long sealed) { }
 
@@ -132,7 +132,7 @@ public final class ScalableTopicMetrics implements AutoCloseable {
     private final Map<Metric, DoubleHistogram> otelHistograms = new HashMap<>();
     private final AtomicBoolean closed = new AtomicBoolean();
 
-    private ScalableTopicMetrics() {
+    private ScalableTopicControllerMetrics() {
         cluster = null;
         counts = null;
         registry = null;
@@ -148,7 +148,7 @@ public final class ScalableTopicMetrics implements AutoCloseable {
      * live-provider counters only: membership changes or partial close may lower or reset cumulative series,
      * rather than provide general monotonic multi-broker aggregation.
      */
-    public ScalableTopicMetrics(Meter meter, String cluster, Supplier<Counts> counts) {
+    public ScalableTopicControllerMetrics(Meter meter, String cluster, Supplier<Counts> counts) {
         this(meter, cluster, counts, CollectorRegistry.defaultRegistry);
     }
 
@@ -159,7 +159,7 @@ public final class ScalableTopicMetrics implements AutoCloseable {
      * registry and cluster contribute live-provider counters, so membership changes or partial close may lower or
      * reset cumulative series. This is not general monotonic multi-broker aggregation.
      */
-    ScalableTopicMetrics(Meter meter, String cluster, Supplier<Counts> counts, CollectorRegistry registry) {
+    ScalableTopicControllerMetrics(Meter meter, String cluster, Supplier<Counts> counts, CollectorRegistry registry) {
         this.meter = Objects.requireNonNull(meter);
         this.cluster = Objects.requireNonNull(cluster);
         this.counts = Objects.requireNonNull(counts);
@@ -312,7 +312,7 @@ public final class ScalableTopicMetrics implements AutoCloseable {
     }
 
     private static final class MeterCallbacks {
-        private final Set<ScalableTopicMetrics> providers = ConcurrentHashMap.newKeySet();
+        private final Set<ScalableTopicControllerMetrics> providers = ConcurrentHashMap.newKeySet();
         private final BatchCallback callback;
 
         private MeterCallbacks(Meter meter) {
@@ -343,7 +343,7 @@ public final class ScalableTopicMetrics implements AutoCloseable {
      * Meters for isolation. API no-op Meter histograms instead follow each provider's lifetime.
      */
     private static final class RegistryCollector extends Collector implements Collector.Describable {
-        private final Set<ScalableTopicMetrics> providers = ConcurrentHashMap.newKeySet();
+        private final Set<ScalableTopicControllerMetrics> providers = ConcurrentHashMap.newKeySet();
 
         @Override
         public List<MetricFamilySamples> describe() {
@@ -358,7 +358,7 @@ public final class ScalableTopicMetrics implements AutoCloseable {
         public List<MetricFamilySamples> collect() {
             Map<Metric, Map<SampleKey, Double>> families = new LinkedHashMap<>();
             Set<Map<HistogramKey, Histogram>> histograms = Collections.newSetFromMap(new IdentityHashMap<>());
-            for (ScalableTopicMetrics provider : providers) {
+            for (ScalableTopicControllerMetrics provider : providers) {
                 Map<Point, Long> values = new HashMap<>();
                 provider.collectState(values);
                 values.forEach((point, value) -> add(families, point, provider.cluster, "", null, value));

@@ -213,7 +213,7 @@ public class ScalableTopicControllerFailoverTest {
         CollectorRegistry registry = new CollectorRegistry();
         var reader = InMemoryMetricReader.create();
         try (var sdk = SdkMeterProvider.builder().registerMetricReader(reader).build();
-             var metrics = new ScalableTopicMetrics(sdk.get("interrupted-takeover"), "test-cluster",
+             var metrics = new ScalableTopicControllerMetrics(sdk.get("interrupted-takeover"), "test-cluster",
                      first::metricCounts, registry)) {
             first.setMetrics(metrics);
             CompletableFuture<Void> initialization = first.initialize();
@@ -296,7 +296,7 @@ public class ScalableTopicControllerFailoverTest {
         CollectorRegistry registry = new CollectorRegistry();
         var reader = InMemoryMetricReader.create();
         try (var sdk = SdkMeterProvider.builder().registerMetricReader(reader).build();
-             var metrics = new ScalableTopicMetrics(sdk.get("deposed-controller"), "test-cluster",
+             var metrics = new ScalableTopicControllerMetrics(sdk.get("deposed-controller"), "test-cluster",
                      first::metricCounts, registry)) {
             first.setMetrics(metrics);
             first.initialize().get(5, TimeUnit.SECONDS);
@@ -307,9 +307,9 @@ public class ScalableTopicControllerFailoverTest {
 
             broker2.takeOverControllerLock();
             Awaitility.await().atMost(Duration.ofSeconds(5)).until(() -> second.isLeader() && !first.isLeader());
-            ScalableTopicMetrics.Counts newLeaderCounts = second.metricCounts();
+            ScalableTopicControllerMetrics.Counts newLeaderCounts = second.metricCounts();
             assertThat(newLeaderCounts.controllers()).isEqualTo(1);
-            assertThat(first.metricCounts()).isEqualTo(new ScalableTopicMetrics.Counts(0, 0, 0));
+            assertThat(first.metricCounts()).isEqualTo(new ScalableTopicControllerMetrics.Counts(0, 0, 0));
 
             if (succeeds) {
                 resumeCommit.complete(null);
@@ -368,7 +368,7 @@ public class ScalableTopicControllerFailoverTest {
                     new String[]{"cluster"}, new String[]{"test-cluster"})).isZero();
             assertThat(scalableMetric(collected, "controller.count").getLongSumData().getPoints())
                     .singleElement().satisfies(point -> assertThat(point.getValue()).isZero());
-            assertThat(first.metricCounts()).isEqualTo(new ScalableTopicMetrics.Counts(0, 0, 0));
+            assertThat(first.metricCounts()).isEqualTo(new ScalableTopicControllerMetrics.Counts(0, 0, 0));
             assertThat(second.metricCounts()).isEqualTo(newLeaderCounts);
         } finally {
             resumeCommit.completeExceptionally(new IllegalStateException("release held update during cleanup"));

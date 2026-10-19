@@ -44,12 +44,12 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
-public class ScalableTopicMetricsTest {
+public class ScalableTopicControllerMetricsTest {
     private static final String OTEL_PREFIX = "pulsar.broker.scalable_topic.";
     private static final String PROM_PREFIX = "pulsar_scalable_topic_";
     private static final String ATTRIBUTE_PREFIX = "pulsar.scalable_topic.";
     private static final String CLUSTER = "test-cluster";
-    private static final ScalableTopicMetrics.Counts EMPTY = new ScalableTopicMetrics.Counts(0, 0, 0);
+    private static final ScalableTopicControllerMetrics.Counts EMPTY = new ScalableTopicControllerMetrics.Counts(0, 0, 0);
 
     private InMemoryMetricReader reader;
     private SdkMeterProvider sdk;
@@ -71,7 +71,7 @@ public class ScalableTopicMetricsTest {
 
     @Test
     public void testCounterAndHistogramParity() {
-        try (var metrics = new ScalableTopicMetrics(meter, CLUSTER, () -> EMPTY, registry)) {
+        try (var metrics = new ScalableTopicControllerMetrics(meter, CLUSTER, () -> EMPTY, registry)) {
             metrics.recordTakeover(0.005, true);
             metrics.recordTakeover(0.2, false);
             metrics.recordOperation("split", "auto", "success", 0.001);
@@ -122,17 +122,17 @@ public class ScalableTopicMetricsTest {
 
     @Test
     public void testGaugesReadCurrentCountsAtCollection() {
-        AtomicReference<ScalableTopicMetrics.Counts> counts = new AtomicReference<>(EMPTY);
+        AtomicReference<ScalableTopicControllerMetrics.Counts> counts = new AtomicReference<>(EMPTY);
         AtomicInteger reads = new AtomicInteger();
-        try (var metrics = new ScalableTopicMetrics(meter, CLUSTER, () -> {
+        try (var metrics = new ScalableTopicControllerMetrics(meter, CLUSTER, () -> {
             reads.incrementAndGet();
             return counts.get();
         }, registry)) {
             assertThat(reads).hasValue(0);
-            counts.set(new ScalableTopicMetrics.Counts(2, 5, 7));
+            counts.set(new ScalableTopicControllerMetrics.Counts(2, 5, 7));
             assertGauges(reader.collectAllMetrics(), Collections.list(registry.metricFamilySamples()), 2, 5, 7);
             assertThat(reads).hasValue(2);
-            counts.set(new ScalableTopicMetrics.Counts(1, 3, 11));
+            counts.set(new ScalableTopicControllerMetrics.Counts(1, 3, 11));
             assertGauges(reader.collectAllMetrics(), Collections.list(registry.metricFamilySamples()), 1, 3, 11);
             assertThat(reads).hasValue(4);
         }
@@ -141,12 +141,12 @@ public class ScalableTopicMetricsTest {
     @Test
     public void testMultipleInstancesAggregateAndCleanUp() {
         AtomicInteger firstReads = new AtomicInteger();
-        var first = new ScalableTopicMetrics(meter, CLUSTER, () -> {
+        var first = new ScalableTopicControllerMetrics(meter, CLUSTER, () -> {
             firstReads.incrementAndGet();
-            return new ScalableTopicMetrics.Counts(1, 2, 3);
+            return new ScalableTopicControllerMetrics.Counts(1, 2, 3);
         }, registry);
-        var second = new ScalableTopicMetrics(meter, CLUSTER,
-                () -> new ScalableTopicMetrics.Counts(4, 5, 6), registry);
+        var second = new ScalableTopicControllerMetrics(meter, CLUSTER,
+                () -> new ScalableTopicControllerMetrics.Counts(4, 5, 6), registry);
         try {
             first.recordOperation("split", "manual", "success", 0.005);
             second.recordOperation("split", "manual", "success", 0.01);
@@ -184,7 +184,7 @@ public class ScalableTopicMetricsTest {
                     .doesNotContain(OTEL_PREFIX + "controller.count", OTEL_PREFIX + "segment.count",
                             OTEL_PREFIX + "layout.operation.count", OTEL_PREFIX + "auto_scale.blocked.count");
             // SDK synchronous histograms retain their observations; callbacks and Prom collectors do not.
-            try (var replacement = new ScalableTopicMetrics(meter, CLUSTER, () -> EMPTY, registry)) {
+            try (var replacement = new ScalableTopicControllerMetrics(meter, CLUSTER, () -> EMPTY, registry)) {
                 assertGauges(reader.collectAllMetrics(), Collections.list(registry.metricFamilySamples()), 0, 0, 0);
             }
         } finally {
@@ -195,13 +195,13 @@ public class ScalableTopicMetricsTest {
 
     @Test
     public void testRecreatedServiceKeepsHistogramParity() {
-        try (var first = new ScalableTopicMetrics(meter, CLUSTER, () -> EMPTY, registry)) {
+        try (var first = new ScalableTopicControllerMetrics(meter, CLUSTER, () -> EMPTY, registry)) {
             first.recordTakeover(0.005, true);
             assertHistogramParity(reader.collectAllMetrics(), Collections.list(registry.metricFamilySamples()),
                     "controller.takeover.duration", "controller_takeover_duration_seconds", 1, 0.005);
         }
         assertThat(Collections.list(registry.metricFamilySamples())).isEmpty();
-        try (var replacement = new ScalableTopicMetrics(meter, CLUSTER, () -> EMPTY, registry)) {
+        try (var replacement = new ScalableTopicControllerMetrics(meter, CLUSTER, () -> EMPTY, registry)) {
             replacement.recordTakeover(0.01, true);
             assertHistogramParity(reader.collectAllMetrics(), Collections.list(registry.metricFamilySamples()),
                     "controller.takeover.duration", "controller_takeover_duration_seconds", 2, 0.015);
@@ -213,8 +213,8 @@ public class ScalableTopicMetricsTest {
     public void testDistinctMetersRemoveClosedBrokerHistograms() {
         var otherReader = InMemoryMetricReader.create();
         try (var otherSdk = SdkMeterProvider.builder().registerMetricReader(otherReader).build();
-             var first = new ScalableTopicMetrics(meter, CLUSTER, () -> EMPTY, registry);
-             var second = new ScalableTopicMetrics(otherSdk.get("other-broker"), CLUSTER, () -> EMPTY, registry)) {
+             var first = new ScalableTopicControllerMetrics(meter, CLUSTER, () -> EMPTY, registry);
+             var second = new ScalableTopicControllerMetrics(otherSdk.get("other-broker"), CLUSTER, () -> EMPTY, registry)) {
             first.recordTakeover(0.005, true);
             second.recordTakeover(0.01, true);
             var before = Collections.list(registry.metricFamilySamples());
@@ -234,8 +234,8 @@ public class ScalableTopicMetricsTest {
     @Test(dataProvider = "sdkHistogramClusters")
     public void testSharedSdkMeterHistogramHistorySpansRegistriesAndClusters(String otherCluster) {
         var otherRegistry = new CollectorRegistry();
-        try (var first = new ScalableTopicMetrics(meter, CLUSTER, () -> EMPTY, registry);
-             var second = new ScalableTopicMetrics(meter, otherCluster, () -> EMPTY, otherRegistry)) {
+        try (var first = new ScalableTopicControllerMetrics(meter, CLUSTER, () -> EMPTY, registry);
+             var second = new ScalableTopicControllerMetrics(meter, otherCluster, () -> EMPTY, otherRegistry)) {
             recordHistograms(first, 0.005);
             // A registry with a live provider sees the Meter's history, even before that provider records anything.
             assertHistogramState(registry, CLUSTER, 1, 0.005);
@@ -265,8 +265,8 @@ public class ScalableTopicMetricsTest {
         var otherRegistry = new CollectorRegistry();
         var otherReader = InMemoryMetricReader.create();
         try (var otherSdk = SdkMeterProvider.builder().registerMetricReader(otherReader).build();
-             var first = new ScalableTopicMetrics(meter, CLUSTER, () -> EMPTY, registry);
-             var second = new ScalableTopicMetrics(otherSdk.get("other-broker"), otherCluster,
+             var first = new ScalableTopicControllerMetrics(meter, CLUSTER, () -> EMPTY, registry);
+             var second = new ScalableTopicControllerMetrics(otherSdk.get("other-broker"), otherCluster,
                      () -> EMPTY, otherRegistry)) {
             recordHistograms(first, 0.005);
             assertHistogramState(otherRegistry, CLUSTER, 0, 0);
@@ -296,7 +296,7 @@ public class ScalableTopicMetricsTest {
     @Test
     public void testDisabledDefaultRegistryIsolationWithSurvivorAndRepeatedCycles() {
         Meter disabled = OpenTelemetry.noop().getMeter("resident");
-        try (var resident = new ScalableTopicMetrics(disabled, "resident-default", () -> EMPTY)) {
+        try (var resident = new ScalableTopicControllerMetrics(disabled, "resident-default", () -> EMPTY)) {
             recordHistograms(resident, 0.005);
             for (int attempt = 0; attempt < 2; attempt++) {
                 assertDisabledDefaultRegistryCycle("first-with-survivor", "second-with-survivor");
@@ -308,10 +308,10 @@ public class ScalableTopicMetricsTest {
 
     private void assertDisabledDefaultRegistryCycle(String firstCluster, String secondCluster) {
         Meter disabled = OpenTelemetry.noop().getMeter("disabled");
-        try (var first = new ScalableTopicMetrics(disabled, firstCluster,
-                     () -> new ScalableTopicMetrics.Counts(1, 2, 3));
-             var second = new ScalableTopicMetrics(disabled, secondCluster,
-                     () -> new ScalableTopicMetrics.Counts(4, 5, 6))) {
+        try (var first = new ScalableTopicControllerMetrics(disabled, firstCluster,
+                     () -> new ScalableTopicControllerMetrics.Counts(1, 2, 3));
+             var second = new ScalableTopicControllerMetrics(disabled, secondCluster,
+                     () -> new ScalableTopicControllerMetrics.Counts(4, 5, 6))) {
             first.recordBlocked("max_segments");
             first.recordTakeover(0.5, true);
             second.recordOperation("merge", "auto", "partial", 1);
@@ -343,12 +343,12 @@ public class ScalableTopicMetricsTest {
         String residentCluster = "resident-" + sameCluster + "-" + sameRegistry;
         String transientCluster = sameCluster ? residentCluster : "transient-" + sameRegistry;
         CollectorRegistry transientRegistry = sameRegistry ? registry : new CollectorRegistry();
-        try (var resident = new ScalableTopicMetrics(disabled, residentCluster, () -> EMPTY, registry)) {
+        try (var resident = new ScalableTopicControllerMetrics(disabled, residentCluster, () -> EMPTY, registry)) {
             recordHistograms(resident, 0.005);
             assertHistogramState(registry, residentCluster, 1, 0.005);
             for (int attempt = 0; attempt < 2; attempt++) {
                 try (var transientMetrics =
-                             new ScalableTopicMetrics(disabled, transientCluster, () -> EMPTY, transientRegistry)) {
+                             new ScalableTopicControllerMetrics(disabled, transientCluster, () -> EMPTY, transientRegistry)) {
                     recordHistograms(transientMetrics, 0.01);
                     boolean aggregate = sameCluster && sameRegistry;
                     assertHistogramState(registry, residentCluster, aggregate ? 2 : 1, aggregate ? 0.015 : 0.005);
@@ -368,7 +368,7 @@ public class ScalableTopicMetricsTest {
         assertHistogramState(registry, residentCluster, 0, 0);
     }
 
-    private static void recordHistograms(ScalableTopicMetrics metrics, double seconds) {
+    private static void recordHistograms(ScalableTopicControllerMetrics metrics, double seconds) {
         metrics.recordTakeover(seconds, true);
         metrics.recordOperation("split", "manual", "success", seconds);
         metrics.recordSeal("split", seconds);
@@ -410,24 +410,24 @@ public class ScalableTopicMetricsTest {
     @Test
     public void testCountersAreRegistryLocalAndNoopNeverRegisters() {
         var otherRegistry = new CollectorRegistry();
-        try (var first = new ScalableTopicMetrics(meter, CLUSTER, () -> EMPTY, registry);
-             var second = new ScalableTopicMetrics(meter, CLUSTER, () -> EMPTY, otherRegistry)) {
+        try (var first = new ScalableTopicControllerMetrics(meter, CLUSTER, () -> EMPTY, registry);
+             var second = new ScalableTopicControllerMetrics(meter, CLUSTER, () -> EMPTY, otherRegistry)) {
             first.recordBlocked("invalid_policy");
             assertThat(sample(Collections.list(registry.metricFamilySamples()), "auto_scale_blocked_total",
                     Map.of("cluster", CLUSTER, "auto_scale_reason", "invalid_policy"))).isEqualTo(1);
             assertThat(Collections.list(otherRegistry.metricFamilySamples())).hasSize(2);
-            ScalableTopicMetrics.NOOP.recordBlocked("arbitrary");
-            ScalableTopicMetrics.NOOP.recordOperation(null, null, null, Double.NaN);
-            ScalableTopicMetrics.NOOP.recordTakeover(Double.NaN, false);
-            ScalableTopicMetrics.NOOP.recordSeal(null, Double.NaN);
-            ScalableTopicMetrics.NOOP.close();
+            ScalableTopicControllerMetrics.NOOP.recordBlocked("arbitrary");
+            ScalableTopicControllerMetrics.NOOP.recordOperation(null, null, null, Double.NaN);
+            ScalableTopicControllerMetrics.NOOP.recordTakeover(Double.NaN, false);
+            ScalableTopicControllerMetrics.NOOP.recordSeal(null, Double.NaN);
+            ScalableTopicControllerMetrics.NOOP.close();
             assertThat(Collections.list(otherRegistry.metricFamilySamples())).hasSize(2);
         }
     }
 
     @Test
     public void testRejectsUnboundedLabelsAndInvalidDurations() {
-        try (var metrics = new ScalableTopicMetrics(meter, CLUSTER, () -> EMPTY, registry)) {
+        try (var metrics = new ScalableTopicControllerMetrics(meter, CLUSTER, () -> EMPTY, registry)) {
             assertThatThrownBy(() -> metrics.recordOperation("topic-name", "auto", "success", 1))
                     .isInstanceOf(IllegalArgumentException.class);
             assertThatThrownBy(() -> metrics.recordOperation("split", "unknown", "success", 1))
@@ -468,7 +468,7 @@ public class ScalableTopicMetricsTest {
         long totalCount = 0;
         double totalSum = 0;
         for (var point : metric.getHistogramData().getPoints()) {
-            assertThat(point.getBoundaries()).containsExactlyElementsOf(ScalableTopicMetrics.DURATION_BUCKETS);
+            assertThat(point.getBoundaries()).containsExactlyElementsOf(ScalableTopicControllerMetrics.DURATION_BUCKETS);
             Map<String, String> labels = labels(point.getAttributes());
             assertThat(sample(prometheus, prometheusName + "_count", labels)).isEqualTo(point.getCount());
             assertThat(sample(prometheus, prometheusName + "_sum", labels)).isEqualTo(point.getSum());
