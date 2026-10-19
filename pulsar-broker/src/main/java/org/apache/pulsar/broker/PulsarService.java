@@ -63,6 +63,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -333,6 +334,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         Init, Started, Closing, Closed
     }
 
+    private volatile boolean metadataSessionLost;
+    // How many times the local metadata store's session was lost, to tell one loss from the next
+    private final AtomicLong metadataSessionLosses = new AtomicLong();
     private volatile State state;
 
     private final ReentrantLock mutex = new ReentrantLock();
@@ -1280,14 +1284,37 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         addBrokerAdditionalServlets(webService, attributeMap, config);
     }
 
+    /**
+     * Whether the local metadata store's session was lost and not reestablished yet. The store may have deleted the
+     * session's ephemeral nodes meanwhile, and another broker may have acquired the bundles whose locks they were.
+     */
+    public boolean isMetadataSessionLost() {
+        return metadataSessionLost;
+    }
+
+    /** How many times the local metadata store's session was lost since the broker started. */
+    public long getMetadataSessionLossCount() {
+        return metadataSessionLosses.get();
+    }
+
     private void handleMetadataSessionEvent(SessionEvent e) {
         log.info().attr("event", e).log("Received metadata service session event");
+        if (e == SessionEvent.SessionLost) {
+            metadataSessionLosses.incrementAndGet();
+            metadataSessionLost = true;
+        } else if (e == SessionEvent.SessionReestablished) {
+            metadataSessionLost = false;
+        }
         if (e == SessionEvent.SessionLost
                 && config.getZookeeperSessionExpiredPolicy() == MetadataSessionExpiredPolicy.shutdown) {
             log.warn()
                     .attr("threads", ThreadDumpUtil.buildThreadDiagnosticString())
                     .log("The session with metadata service was lost. Shutting down.\n\n");
             shutdownNow();
+        }
+        BrokerService broker = brokerService;
+        if (broker != null) {
+            broker.onMetadataSessionEvent(e);
         }
     }
 

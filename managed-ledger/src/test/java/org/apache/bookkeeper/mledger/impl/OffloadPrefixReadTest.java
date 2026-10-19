@@ -34,6 +34,7 @@ import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
 import java.time.Duration;
@@ -280,6 +281,78 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
     }
 
 
+
+    @Test
+    public void testReadTerminatedFinalLedgerDeletedFromBookkeeper() throws Exception {
+        MockLedgerOffloader offloader = spy(MockLedgerOffloader.class);
+        MockClock clock = new MockClock();
+        offloader.getOffloadPolicies().setManagedLedgerOffloadDeletionLagInMillis(300000L);
+        ManagedLedgerConfig config = defaultConfig();
+        config.setMaxEntriesPerLedger(10);
+        config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
+        config.setRetentionTime(10, TimeUnit.MINUTES);
+        config.setRetentionSizeInMB(10);
+        config.setLedgerOffloader(offloader);
+        config.setClock(clock);
+
+        String ledgerName = "terminated_final_ledger_read";
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(ledgerName, config);
+        for (int i = 0; i < 15; i++) {
+            ledger.addEntry(("entry-" + i).getBytes());
+        }
+        Position lastPosition = ledger.terminate();
+        long finalLedgerId = lastPosition.getLedgerId();
+        assertEquals(ledger.getLedgersInfoAsList().size(), 2);
+
+        assertEquals(ledger.offloadPrefix(lastPosition), lastPosition.getNext());
+        LedgerInfo finalLedger = ledger.getLedgersInfo().get(finalLedgerId);
+        assertTrue(finalLedger.getOffloadContext().isComplete());
+        UUID finalLedgerUUID = new UUID(finalLedger.getOffloadContext().getUidMsb(),
+                finalLedger.getOffloadContext().getUidLsb());
+
+        // Delete the offloaded ledgers from bookkeeper, the final one included
+        clock.advance(6, TimeUnit.MINUTES);
+        CompletableFuture<Void> promise = new CompletableFuture<>();
+        ledger.internalTrimConsumedLedgers(promise);
+        promise.join();
+        assertTrue(ledger.getLedgersInfo().get(finalLedgerId).getOffloadContext().isBookkeeperDeleted());
+        assertEventuallyTrue(() -> !bkc.getLedgers().contains(finalLedgerId));
+
+        // The final ledger is read from the offloader
+        assertReadsAllEntries(ledger, 15);
+        verify(offloader).readOffloaded(eq(finalLedgerId), eq(finalLedgerUUID), anyMap());
+
+        // And it is still part of the managed ledger once reloaded
+        ledger.close();
+        ManagedLedgerImpl reopened = (ManagedLedgerImpl) factory.open(ledgerName, config);
+        assertTrue(reopened.isTerminated());
+        assertEquals(reopened.getLastConfirmedEntry(), lastPosition);
+        assertTrue(reopened.getLedgersInfo().containsKey(finalLedgerId));
+        assertEquals(reopened.getNumberOfEntries(), 15);
+        assertReadsAllEntries(reopened, 15);
+        verify(offloader, times(2)).readOffloaded(eq(finalLedgerId), eq(finalLedgerUUID), anyMap());
+
+        CompletableFuture<Void> trimAfterReload = new CompletableFuture<>();
+        reopened.internalTrimConsumedLedgers(trimAfterReload);
+        trimAfterReload.join();
+        assertTrue(reopened.getLedgersInfo().containsKey(finalLedgerId));
+        reopened.close();
+    }
+
+    private static void assertReadsAllEntries(ManagedLedgerImpl ledger, int numberOfEntries) throws Exception {
+        ManagedCursor cursor = ledger.newNonDurableCursor(PositionFactory.EARLIEST);
+        int i = 0;
+        while (i < numberOfEntries) {
+            for (Entry e : cursor.readEntries(numberOfEntries)) {
+                try {
+                    assertEquals(new String(e.getData()), "entry-" + i++);
+                } finally {
+                    e.release();
+                }
+            }
+        }
+        assertFalse(cursor.hasMoreEntries());
+    }
 
     @Test
     public void testSkipOffloadIfReadOnly() throws Exception {

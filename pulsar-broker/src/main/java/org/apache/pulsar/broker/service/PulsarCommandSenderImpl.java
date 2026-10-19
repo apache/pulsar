@@ -33,6 +33,7 @@ import java.util.function.Function;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.broker.service.scalable.ScalableTopicMetrics.RequestType;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
@@ -87,7 +88,7 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
         BaseCommand command = Commands.newSuccessCommand(requestId);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
-        writeAndFlush(outBuf);
+        cnx.writeScalableTopicResponse(cnx.ctx(), outBuf, RequestType.UNSUBSCRIBE, requestId, true);
     }
 
     @Override
@@ -95,7 +96,7 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
         BaseCommand command = Commands.newErrorCommand(requestId, error, message);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
-        writeAndFlush(outBuf);
+        cnx.writeScalableTopicResponse(cnx.ctx(), outBuf, RequestType.UNSUBSCRIBE, requestId, false);
     }
 
     @Override
@@ -493,12 +494,14 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
     @Override
     public void sendScalableTopicSubscribeResponse(long requestId,
             org.apache.pulsar.common.api.proto.ScalableConsumerAssignment assignment) {
-        writeAndFlush(Commands.newScalableTopicSubscribeResponse(requestId, assignment));
+        ByteBuf outBuf = Commands.newScalableTopicSubscribeResponse(requestId, assignment);
+        cnx.writeScalableTopicResponse(cnx.ctx(), outBuf, RequestType.SUBSCRIBE, requestId, true);
     }
 
     @Override
     public void sendScalableTopicSubscribeError(long requestId, ServerError error, String message) {
-        writeAndFlush(Commands.newScalableTopicSubscribeError(requestId, error, message));
+        ByteBuf outBuf = Commands.newScalableTopicSubscribeError(requestId, error, message);
+        cnx.writeScalableTopicResponse(cnx.ctx(), outBuf, RequestType.SUBSCRIBE, requestId, false);
     }
 
     @Override

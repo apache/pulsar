@@ -18,11 +18,23 @@
  */
 package org.apache.pulsar.broker.service.scalable;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
+import org.apache.pulsar.broker.service.scalable.SegmentOwnerMetrics.LoadReportResult;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.scalable.SegmentLoadStats;
 import org.apache.pulsar.metadata.api.CacheGetResult;
@@ -58,6 +70,56 @@ public class SegmentLoadReporterTest {
 
     private static SegmentLoadStats stats(double msgIn) {
         return new SegmentLoadStats(msgIn, 0, 0, 0);
+    }
+
+    @Test
+    public void testReportOutcomeMetrics() throws Exception {
+        SegmentOwnerMetrics metrics = mock(SegmentOwnerMetrics.class);
+        var measured = new SegmentLoadReporter(resources, () -> THRESHOLD, metrics);
+        assertThat(measured.reportIfChanged(TOPIC, 0, stats(1000)).get()).isTrue();
+        assertThat(measured.reportIfChanged(TOPIC, 0, stats(1100)).get()).isFalse();
+        measured.forget(TOPIC, 0);
+        // An unchanged first sample on a new owner must also be counted as unchanged.
+        assertThat(measured.reportIfChanged(TOPIC, 0, stats(1100)).get()).isFalse();
+        assertThat(measured.reportIfChanged(TOPIC, 0, stats(2000)).get()).isTrue();
+        verify(metrics, times(2)).recordLoadReport(LoadReportResult.WRITTEN);
+        verify(metrics, times(2)).recordLoadReport(LoadReportResult.UNCHANGED);
+        verifyNoMoreInteractions(metrics);
+    }
+
+    @Test
+    public void testFailedReadAndWriteCountOnceAndAllowRetry() throws Exception {
+        SegmentOwnerMetrics metrics = mock(SegmentOwnerMetrics.class);
+        ScalableTopicResources failing = spy(resources);
+        var measured = new SegmentLoadReporter(failing, () -> THRESHOLD, metrics);
+        doReturn(CompletableFuture.failedFuture(new IllegalStateException("read failed")),
+                CompletableFuture.completedFuture(Optional.empty()))
+                .when(failing).getSegmentLoadAsync(TOPIC, 0);
+        assertThatThrownBy(() -> measured.reportIfChanged(TOPIC, 0, stats(1000)).join())
+                .hasRootCauseMessage("read failed");
+        doReturn(CompletableFuture.failedFuture(new IllegalStateException("write failed")),
+                CompletableFuture.completedFuture(null))
+                .when(failing).reportSegmentLoadAsync(any(), anyLong(), any());
+        assertThatThrownBy(() -> measured.reportIfChanged(TOPIC, 0, stats(1000)).join())
+                .hasRootCauseMessage("write failed");
+        assertThat(measured.reportIfChanged(TOPIC, 0, stats(1000)).get()).isTrue();
+        assertThat(measured.reportIfChanged(TOPIC, 0, stats(1000)).get()).isFalse();
+        verify(metrics, times(2)).recordLoadReport(LoadReportResult.FAILED);
+        verify(metrics).recordLoadReport(LoadReportResult.WRITTEN);
+        verify(metrics).recordLoadReport(LoadReportResult.UNCHANGED);
+        verifyNoMoreInteractions(metrics);
+    }
+
+    @Test
+    public void testSynchronousSamplingFailureIsReturnedAndCounted() {
+        SegmentOwnerMetrics metrics = mock(SegmentOwnerMetrics.class);
+        var measured = new SegmentLoadReporter(resources, () -> {
+            throw new IllegalStateException("threshold failed");
+        }, metrics);
+        CompletableFuture<Boolean> report = measured.reportIfChanged(TOPIC, 0, stats(1));
+        assertThatThrownBy(report::join).hasRootCauseMessage("threshold failed");
+        verify(metrics).recordLoadReport(LoadReportResult.FAILED);
+        verifyNoMoreInteractions(metrics);
     }
 
     // --- isMaterialChange (pure) ---
