@@ -79,6 +79,7 @@ import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicFactory;
@@ -100,6 +101,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -1125,6 +1127,92 @@ public class PersistentTopicTest extends BrokerTestBase {
 
         subscribe.close();
         admin.topics().delete(topicName);
+    }
+
+    @Test
+    public void testDurableSubscriptionRejectedDuringNonDurableCursorRetirement() throws Exception {
+        restartBroker(configuration -> configuration.setTopicFactoryClassName(
+                InitializationTopicFactory.class.getName()));
+
+        final String topicName = "persistent://" + newTopicName();
+        final String subscriptionName = "shared-subscription";
+        CountDownLatch removalStarted = new CountDownLatch(1);
+        CompletableFuture<Void> allowRemoval = new CompletableFuture<>();
+        AtomicReference<PersistentTopic> decoratedTopic = new AtomicReference<>();
+        AtomicReference<PersistentSubscription> retiringSubscription = new AtomicReference<>();
+
+        BrokerTestInterceptor.INSTANCE.setPersistentTopicDecorator(topic -> {
+            if (!topic.getName().equals(topicName)) {
+                return topic;
+            }
+
+            PersistentTopic decorated = spy(topic);
+            doAnswer(invocation -> {
+                String removedSubscriptionName = invocation.getArgument(0);
+                PersistentSubscription expected = invocation.getArgument(1);
+                if (subscriptionName.equals(removedSubscriptionName)
+                        && expected == retiringSubscription.get()) {
+                    removalStarted.countDown();
+                    return allowRemoval.thenComposeAsync(ignored -> {
+                        try {
+                            return (CompletableFuture<Void>) invocation.callRealMethod();
+                        } catch (Throwable error) {
+                            return CompletableFuture.failedFuture(error);
+                        }
+                    }, pulsar.getExecutor());
+                }
+                return invocation.callRealMethod();
+            }).when(decorated).removeSubscription(any(String.class), any(PersistentSubscription.class));
+            decoratedTopic.set(decorated);
+            return decorated;
+        });
+
+        PulsarClient client = null;
+        Consumer<byte[]> consumer = null;
+        try {
+            client = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
+            consumer = client.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                    .subscriptionMode(SubscriptionMode.NonDurable).subscribe();
+
+            PersistentTopic topic = decoratedTopic.get();
+            assertThat(topic).as("the broker must use the decorated persistent topic").isNotNull();
+            PersistentSubscription subscription = topic.getSubscription(subscriptionName);
+            assertThat(subscription).isNotNull();
+            retiringSubscription.set(subscription);
+            ManagedLedgerImpl ledger = (ManagedLedgerImpl) topic.getManagedLedger();
+
+            consumer.closeAsync().get(10, TimeUnit.SECONDS);
+            assertThat(removalStarted.await(10, TimeUnit.SECONDS))
+                    .as("the real non-durable cursor deletion must reach the map-removal boundary")
+                    .isTrue();
+            assertThat(ledger.getCursors().get(subscriptionName))
+                    .as("non-durable cursor deletion has completed before map removal")
+                    .isNull();
+            assertThat(topic.getSubscription(subscriptionName))
+                    .as("the retiring subscription remains reserved until map removal")
+                    .isSameAs(subscription);
+
+            CompletableFuture<?> durableAdmission = topic.createSubscription(subscriptionName,
+                    CommandSubscribe.InitialPosition.Earliest, false, Collections.emptyMap());
+            assertThatThrownBy(() -> durableAdmission.get(10, TimeUnit.SECONDS))
+                    .isInstanceOf(ExecutionException.class)
+                    .hasCauseInstanceOf(BrokerServiceException.NotAllowedException.class);
+            assertThat(ledger.getCursors().get(subscriptionName))
+                    .as("rejected durable admission must not leave an orphaned cursor")
+                    .isNull();
+        } finally {
+            allowRemoval.complete(null);
+            try {
+                if (consumer != null) {
+                    consumer.close();
+                }
+                if (client != null) {
+                    client.close();
+                }
+            } finally {
+                BrokerTestInterceptor.INSTANCE.reset();
+            }
+        }
     }
 
     @Test

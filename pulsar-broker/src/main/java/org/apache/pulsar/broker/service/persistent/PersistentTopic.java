@@ -1197,8 +1197,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
 
         Map<String, Long> properties = PersistentSubscription.getBaseCursorProperties(replicated);
-        ledger.asyncOpenCursor(Codec.encode(subscriptionName), initialPosition, properties, subscriptionProperties,
-                new OpenCursorCallback() {
+        OpenCursorCallback callback = new OpenCursorCallback() {
             @Override
             public void openCursorComplete(ManagedCursor cursor, Object ctx) {
                 log.debug().attr("subscription", subscriptionName).log("Opened cursor");
@@ -1241,7 +1240,23 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     close();
                 }
             }
-        }, null);
+        };
+
+        boolean nonDurableSubscriptionExists;
+        synchronized (ledger) {
+            PersistentSubscription subscription = subscriptions.get(subscriptionName);
+            nonDurableSubscriptionExists = subscription != null && subscription.getCursor() != null
+                    && !subscription.getCursor().isDurable();
+            if (!nonDurableSubscriptionExists) {
+                // Serialize durable cursor creation with non-durable subscription admission and retirement.
+                ledger.asyncOpenCursor(Codec.encode(subscriptionName), initialPosition, properties,
+                        subscriptionProperties, callback, null);
+            }
+        }
+        if (nonDurableSubscriptionExists) {
+            subscriptionFuture.completeExceptionally(
+                    new NotAllowedException("NonDurable subscription with the same name already exists."));
+        }
         return subscriptionFuture;
     }
 
