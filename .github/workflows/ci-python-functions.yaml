@@ -33,8 +33,15 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Do not depend on the repository or enterprise default token permissions.
+permissions:
+  contents: read
+
 jobs:
   preconditions:
+    permissions:
+      contents: read
+      pull-requests: read # List changed files and check whether the PR is ready.
     name: Preconditions
     runs-on: ubuntu-24.04
     outputs:

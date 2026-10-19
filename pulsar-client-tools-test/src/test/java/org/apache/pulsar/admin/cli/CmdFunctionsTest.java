@@ -45,6 +45,7 @@ import org.apache.pulsar.admin.cli.CmdFunctions.UpdateFunction;
 import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.MemoryLimit;
 import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
@@ -498,6 +499,46 @@ public class CmdFunctionsTest {
 
         verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
 
+    }
+
+    @Test
+    public void testCreateFunctionWithClientApi() throws Exception {
+        cmd.run(new String[] {
+            "create",
+            "--name", FN_NAME,
+            "--inputs", "persistent://sample/ns1/in",
+            "--output", "persistent://sample/ns1/out",
+            "--client-api", "V5",
+            "--jar", JAR_NAME,
+            "--tenant", "sample",
+            "--namespace", "ns1",
+            "--className", DummyFunction.class.getName(),
+        });
+
+        CreateFunction creater = cmd.getCreater();
+        assertEquals(FunctionConfig.ClientApi.V5, creater.getFunctionConfig().getClientApi());
+        verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
+    }
+
+    @Test
+    public void testCreateFunctionWithPulsarClientMemoryLimit() throws Exception {
+        cmd.run(new String[] {
+            "create",
+            "--name", FN_NAME,
+            "--inputs", "persistent://sample/ns1/in",
+            "--output", "persistent://sample/ns1/out",
+            "--client-memory-limit", "64M",
+            "--client-memory-limit-percent", "25",
+            "--jar", JAR_NAME,
+            "--tenant", "sample",
+            "--namespace", "ns1",
+            "--className", DummyFunction.class.getName(),
+        });
+
+        CreateFunction creater = cmd.getCreater();
+        assertEquals(new MemoryLimit().setLimitInBytes(64L * 1024 * 1024).setPercentOfMaxDirectMemory(25.0),
+                creater.getFunctionConfig().getPulsarClientMemoryLimit());
+        verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
     }
 
     @Test

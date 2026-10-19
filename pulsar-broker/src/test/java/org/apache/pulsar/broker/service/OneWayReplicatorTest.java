@@ -20,6 +20,8 @@ package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.service.persistent.BrokerServicePersistInternalMethodInvoker.ensureNoBacklogByInflightTask;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -56,10 +58,12 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -92,6 +96,8 @@ import org.apache.pulsar.broker.service.persistent.GeoPersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
+import org.apache.pulsar.broker.testinterceptor.BrokerTestInterceptor;
+import org.apache.pulsar.broker.testinterceptor.BrokerTestInterceptor.TestManagedLedgerStorage;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -167,6 +173,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
     protected void setConfigDefaults(ServiceConfiguration config, String clusterName,
                                      LocalBookkeeperEnsemble bookkeeperEnsemble, ZookeeperServerTest brokerConfigZk) {
         super.setConfigDefaults(config, clusterName, bookkeeperEnsemble, brokerConfigZk);
+        config.setManagedLedgerStorageClassName(TestManagedLedgerStorage.class.getName());
     }
 
     @Test(timeOut = 45 * 1000)
@@ -522,8 +529,8 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         waitReplicatorStarted(topicName);
         admin1.namespaces().setSchemaCompatibilityStrategy(ns, SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE);
         admin2.namespaces().setSchemaCompatibilityStrategy(ns, SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE);
-        admin1.namespaces().setIsAllowAutoUpdateSchemaAsync(ns, true, null);
-        admin2.namespaces().setIsAllowAutoUpdateSchemaAsync(ns, isAllowAutoUpdateSchema, null);
+        admin1.namespaces().setIsAllowAutoUpdateSchema(ns, true, null);
+        admin2.namespaces().setIsAllowAutoUpdateSchema(ns, isAllowAutoUpdateSchema, null);
         RetentionPolicies retentionPolicies = new RetentionPolicies(10, 1);
         admin1.namespaces().setRetention(ns, retentionPolicies);
         admin2.namespaces().setRetention(ns, retentionPolicies);
@@ -598,8 +605,8 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         });
 
         // Change policies.
-        admin1.namespaces().setIsAllowAutoUpdateSchemaAsync(ns, true, null);
-        admin2.namespaces().setIsAllowAutoUpdateSchemaAsync(ns, isAllowAutoUpdateSchema,
+        admin1.namespaces().setIsAllowAutoUpdateSchema(ns, true, null);
+        admin2.namespaces().setIsAllowAutoUpdateSchema(ns, isAllowAutoUpdateSchema,
                 allowAutoUpdateSchemaWithReplicator);
         Awaitility.await().untilAsserted(() -> {
             assertTrue(topic1.get().isAllowAutoUpdateSchema);
@@ -624,7 +631,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             TopicStats topicStats = admin1.topics().getStats(topicName);
             assertEquals(topicStats.getReplication().get(cluster2).getReplicationBacklog(), 1);
             // Change the policy to allow replicator update schemas.
-            admin2.namespaces().setIsAllowAutoUpdateSchemaAsync(ns, isAllowAutoUpdateSchema, true);
+            admin2.namespaces().setIsAllowAutoUpdateSchema(ns, isAllowAutoUpdateSchema, true);
             Awaitility.await().untilAsserted(() -> {
                 assertEquals(topic2.isAllowAutoUpdateSchema, isAllowAutoUpdateSchema);
                 assertTrue(topic2.isAllowAutoUpdateSchemaWithReplicator);
@@ -930,13 +937,16 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             producer1.send("msg" + i);
         }
 
-        // Inject a probable error.
-        AtomicInteger roundrobin = new  AtomicInteger();
+        // Smoke-test progress while failures keep alternating with successful reads. The deterministic
+        // owner-loop tests verify that ACK demand resumes reads before the fallback timer.
+        AtomicInteger readAttempts = new AtomicInteger();
+        AtomicInteger injectedFailures = new AtomicInteger();
         Supplier<ManagedLedgerException> bkErrorOrNot = () -> {
-            if (roundrobin.incrementAndGet() % 2 == 0) {
-                return null;
+            if (readAttempts.incrementAndGet() % 2 == 1) {
+                injectedFailures.incrementAndGet();
+                return new ManagedLedgerException.TooManyRequestsException("mocked error");
             }
-            return new ManagedLedgerException.TooManyRequestsException("mocked error");
+            return null;
         };
         // bkErrorOrNot doesn't block, so evaluate it inline on the calling read thread via directExecutor().
         ManagedLedgerTest.makeReadEntryProbFail(ml1, bkErrorOrNot, MoreExecutors.directExecutor());
@@ -945,7 +955,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         pulsar1.getConfig().setReplicationStartAt("earliest");
         admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1, cluster2));
         waitReplicatorStarted(topicName);
-        Awaitility.await().atMost(Duration.ofSeconds(600)).pollInterval(Duration.ofSeconds(1)).untilAsserted(() -> {
+        Awaitility.await().atMost(Duration.ofSeconds(30)).pollInterval(Duration.ofSeconds(1)).untilAsserted(() -> {
             TopicStats topicStats = admin1.topics().getStats(topicName);
             assertEquals(topicStats.getReplication().get(cluster2).getReplicationBacklog(), 0);
         });
@@ -964,6 +974,8 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         }
         assertEquals(received.size(), msgPublished.size());
         assertEquals(received, msgPublished);
+        // Smoke check that the ledger fault hook ran; it does not identify which cursor observed a failure.
+        assertTrue(injectedFailures.get() > 0, "The ledger read fault hook must inject at least one failure");
 
         // cleanup.
         producer1.close();
@@ -2440,6 +2452,117 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
                 {1, -1L},
                 {-1, 1L}
         };
+    }
+
+    @DataProvider
+    public Object[][] dynamicReplicationReadLimitModes() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(timeOut = 90_000, dataProvider = "dynamicReplicationReadLimitModes")
+    public void testReplicatorHonorsDynamicReadBatchSizeDecrease(boolean keepRateLimiter) throws Exception {
+        String topicName = BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/dynamic-read-limit");
+        int originalMaxReadBatchSize = pulsar1.getConfig().getDispatcherMaxReadBatchSize();
+        int reducedBatchSize = 100;
+        BlockingQueue<Integer> requestedReadSizes = new LinkedBlockingQueue<>();
+        String cursorName = AbstractReplicator.getReplicatorName(config1.getReplicatorPrefix(), cluster2);
+        BrokerTestInterceptor.INSTANCE.applyCursorSpyDecorator(cursor -> {
+            if (cursorName.equals(cursor.getName()) && cursor.getManagedLedger().getName()
+                    .equals(TopicName.get(topicName).getPersistenceNamingEncoding())) {
+                doAnswer(invocation -> {
+                    requestedReadSizes.add(invocation.getArgument(0));
+                    return invocation.callRealMethod();
+                }).when(cursor).asyncReadEntriesOrWait(anyInt(), anyLong(), any(), any(), any());
+            }
+        });
+        boolean topicCreated = false;
+        try {
+            admin1.brokers().updateDynamicConfiguration("dispatcherMaxReadBatchSize", "500");
+            Awaitility.await().untilAsserted(() ->
+                    assertThat(pulsar1.getConfig().getDispatcherMaxReadBatchSize()).isEqualTo(500));
+            admin1.topics().createNonPartitionedTopic(topicName);
+            topicCreated = true;
+            admin1.topicPolicies().setReplicatorDispatchRate(topicName, DispatchRate.builder()
+                    .dispatchThrottlingRateInMsg(1).ratePeriodInSecond(3600).build());
+            GeoPersistentReplicator replicator = getReplicator(topicName);
+            Awaitility.await().untilAsserted(() -> {
+                assertThat(replicator.getRateLimiter()).isPresent();
+                assertThat(replicator.getRateLimiter().orElseThrow().getDispatchRateOnMsg()).isEqualTo(1);
+            });
+            @Cleanup
+            Consumer<byte[]> consumer = client2.newConsumer().topic(topicName)
+                    .subscriptionName("sub").subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                    .subscribe();
+            @Cleanup
+            Producer<byte[]> producer = client1.newProducer().topic(topicName)
+                    .enableBatching(false).create();
+            producer.send(new byte[] {-1});
+            Message<byte[]> warmup = consumer.receive(10, TimeUnit.SECONDS);
+            assertThat(warmup).isNotNull();
+            assertThat(warmup.getValue()).containsExactly((byte) -1);
+            consumer.acknowledge(warmup);
+            waitForReplicationTaskFinish(topicName);
+            ManagedCursorImpl cursor = (ManagedCursorImpl) replicator.getCursor();
+            // Exhaust the real limiter so there is no old pending read to complete after the config change.
+            Awaitility.await().untilAsserted(() -> {
+                assertThat(replicator.getRateLimiter().orElseThrow().getAvailableDispatchRateLimitOnMsg()).isZero();
+                assertThat(cursor.hasPendingReadRequest()).isFalse();
+                assertThat(cursor.getPendingReadOpsCount()).isZero();
+            });
+            requestedReadSizes.clear();
+            admin1.brokers().updateDynamicConfiguration("dispatcherMaxReadBatchSize", "100");
+            Awaitility.await().untilAsserted(() ->
+                    assertThat(pulsar1.getConfig().getDispatcherMaxReadBatchSize()).isEqualTo(reducedBatchSize));
+            int messageCount = 250;
+            List<CompletableFuture<MessageId>> sends = new ArrayList<>();
+            for (int i = 0; i < messageCount; i++) {
+                sends.add(producer.sendAsync(new byte[] {(byte) i}));
+            }
+            FutureUtil.waitForAll(sends).get(30, TimeUnit.SECONDS);
+            assertThat(requestedReadSizes).isEmpty();
+            if (keepRateLimiter) {
+                admin1.topicPolicies().setReplicatorDispatchRate(topicName, DispatchRate.builder()
+                        .dispatchThrottlingRateInMsg(1000).ratePeriodInSecond(1).build());
+            } else {
+                admin1.topicPolicies().removeReplicatorDispatchRate(topicName);
+            }
+            // Check the first new request: later completions already shrink the cached batch size.
+            assertThat(requestedReadSizes.poll(10, TimeUnit.SECONDS))
+                    .as("first replication read after lowering the dynamic maximum")
+                    .isNotNull().isBetween(1, reducedBatchSize);
+            for (int i = 0; i < messageCount; i++) {
+                Message<byte[]> message = consumer.receive(10, TimeUnit.SECONDS);
+                assertThat(message).isNotNull();
+                assertThat(message.getValue()).containsExactly((byte) i);
+                consumer.acknowledge(message);
+            }
+            waitForReplicationTaskFinish(topicName);
+            assertThat(getReplicator(topicName)).isSameAs(replicator);
+            assertThat(requestedReadSizes).allSatisfy(size -> assertThat(size).isBetween(1, reducedBatchSize));
+        } finally {
+            BrokerTestInterceptor.INSTANCE.reset();
+            try {
+                if (topicCreated) {
+                    admin1.topicPolicies().removeReplicatorDispatchRate(topicName);
+                    admin1.topics().setReplicationClusters(topicName, List.of(cluster1));
+                    PersistentTopic sourceTopic = (PersistentTopic) broker1.getTopicReference(topicName).orElseThrow();
+                    // Cursor removal finishes asynchronously after the replication producer disconnects.
+                    Awaitility.await().untilAsserted(() ->
+                            assertThat(sourceTopic.getReplicators()).doesNotContainKey(cluster2));
+                    admin1.topics().delete(topicName, true);
+                    try {
+                        admin2.topics().delete(topicName, true);
+                    } catch (PulsarAdminException.NotFoundException ignored) {
+                        // The remote topic may already have been removed.
+                    }
+                }
+            } finally {
+                admin1.brokers().updateDynamicConfiguration("dispatcherMaxReadBatchSize",
+                        Integer.toString(originalMaxReadBatchSize));
+                Awaitility.await().untilAsserted(() -> assertThat(pulsar1.getConfig().getDispatcherMaxReadBatchSize())
+                        .isEqualTo(originalMaxReadBatchSize));
+            }
+        }
     }
 
     @Test(timeOut = 90_000, dataProvider = "replicatorDispatchRateLimits")

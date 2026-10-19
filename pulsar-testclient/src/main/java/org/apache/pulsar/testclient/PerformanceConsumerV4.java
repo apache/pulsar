@@ -34,54 +34,73 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.PulsarClientSharedResources;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.impl.ConsumerBase;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
-import picocli.CommandLine.Command;
-import picocli.CommandLine.Option;
 
 /**
- * The {@code consume} benchmark driven by the v4 ({@code pulsar-client-original}) client.
+ * Runs the {@code consume} benchmark with the v4 ({@code pulsar-client-original}) client.
  *
- * <p>This is the counterpart of {@link PerformanceConsumer}: the benchmark itself — options,
- * accounting, subscription fan-out, transaction lifecycle and reports — comes from
- * {@link PerformanceConsumerBase}, and only the client bindings differ. It exists so the v4 client
- * and v4 (non-scalable) topics can be measured without the V5 SDK in the path, and it keeps the
- * v4-only consumer behaviour working: real {@code Exclusive}/{@code Failover}/{@code Key_Shared}
- * subscription types, {@code MessageListener} dispatch on the client's listener threads, pooled
- * messages, batch-index acknowledgment, the chunked-message knobs, the receiver-queue limits and
- * the auto-scaled receiver-queue reporting.
+ * <p>Used for {@code persistent://}, {@code non-persistent://} and unprefixed topics, and for any topic
+ * with {@code --client-api V4}. The benchmark itself — accounting, subscription fan-out, transaction
+ * lifecycle and reports — comes from {@link PerformanceConsumerBase}, and only the client bindings
+ * differ. It keeps the v4-only consumer behaviour working: real {@code Exclusive}/{@code Failover}/
+ * {@code Key_Shared} subscription types, {@code MessageListener} dispatch on the client's listener
+ * threads, pooled messages, batch-index acknowledgment, the chunked-message knobs, the receiver-queue
+ * limits and the auto-scaled receiver-queue reporting.
  */
-@Command(name = "consume-v4", description = "Test pulsar consumer performance using the v4 client.")
 public class PerformanceConsumerV4
         extends PerformanceConsumerBase<PulsarClient, Consumer<ByteBuffer>, Message<ByteBuffer>, Transaction> {
 
     private static final DecimalFormat DEC = new DecimalFormat("0.000");
 
-    @Option(names = { "-sp", "--subscription-position" }, description = "Subscription position")
-    private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Latest;
+    private PulsarClientSharedResources sharedResources;
 
     /** Receiver-queue depth samples, only allocated when {@code --auto-scaled-receiver-queue-size} is on. */
     private Recorder qRecorder;
     private Histogram qHistogram;
     private MessageListener<ByteBuffer> listener;
 
-    public PerformanceConsumerV4() {
-        super("consume-v4");
+    public PerformanceConsumerV4(PerformanceConsumer arguments) {
+        super(arguments);
+    }
+
+    @Override
+    protected int isolatedClientCount() {
+        return arguments.v4.isolatedClients;
     }
 
     @Override
     protected void prepareRun() {
-        if (this.autoScaledReceiverQueueSize) {
+        sharedResources = PulsarClientSharedResources.builder()
+                .resourceTypes(PulsarClientSharedResources.SharedResource.EventLoopGroup,
+                        PulsarClientSharedResources.SharedResource.ListenerExecutor,
+                        PulsarClientSharedResources.SharedResource.InternalExecutor,
+                        PulsarClientSharedResources.SharedResource.ScheduledExecutor,
+                        PulsarClientSharedResources.SharedResource.LookupExecutor,
+                        PulsarClientSharedResources.SharedResource.Timer,
+                        PulsarClientSharedResources.SharedResource.DnsResolver)
+                .configureEventLoop(config -> config.numberOfThreads(arguments.ioThreads)
+                        .enableBusyWait(arguments.enableBusyWait))
+                .configureThreadPool(PulsarClientSharedResources.SharedResource.ListenerExecutor,
+                        config -> config.numberOfThreads(arguments.listenerThreads))
+                .configureThreadPool(PulsarClientSharedResources.SharedResource.InternalExecutor,
+                        config -> config.numberOfThreads(arguments.ioThreads))
+                .configureThreadPool(PulsarClientSharedResources.SharedResource.ScheduledExecutor,
+                        config -> config.numberOfThreads(arguments.ioThreads))
+                .configureThreadPool(PulsarClientSharedResources.SharedResource.LookupExecutor,
+                        config -> config.numberOfThreads(1))
+                .build();
+        if (arguments.v4.autoScaledReceiverQueueSize) {
             // The queue-depth histogram is bounded by the receiver queue size, and the digit count
             // is what dominates an HdrHistogram's footprint, so it uses the same precision as the
             // latency recorders rather than a hardcoded one. See LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS.
             // HdrHistogram rejects a highest-trackable value below 2, which `-aq -q 0` would
             // otherwise hit at startup.
-            qRecorder = new Recorder(Math.max(2, this.receiverQueueSize), LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
+            qRecorder = new Recorder(Math.max(2, arguments.receiverQueueSize), LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
         }
         this.listener = (consumer, msg) -> {
             if (checkDone()) {
@@ -96,9 +115,25 @@ public class PerformanceConsumerV4
 
     @Override
     protected PulsarClient createClient() throws PulsarClientException {
-        ClientBuilder clientBuilder = PerfClientUtils.createClientBuilderFromArguments(this)
-                .enableTransaction(this.isEnableTransaction);
+        ClientBuilder clientBuilder = PerfClientUtils.createClientBuilderFromArguments(arguments)
+                .enableTransaction(arguments.isEnableTransaction);
+        if (sharedResources != null) {
+            clientBuilder.sharedResources(sharedResources);
+        }
         return clientBuilder.build();
+    }
+
+    @Override
+    protected void closeResources() {
+        if (sharedResources != null) {
+            try {
+                sharedResources.close();
+            } catch (PulsarClientException e) {
+                log.warn().exception(e).log("Failed to close shared client resources");
+            } finally {
+                sharedResources = null;
+            }
+        }
     }
 
     @Override
@@ -111,28 +146,28 @@ public class PerformanceConsumerV4
                                                                      String subscription) {
         ConsumerBuilder<ByteBuffer> consumerBuilder = client.newConsumer(Schema.BYTEBUFFER)
                 .messageListener(this.listener)
-                .receiverQueueSize(this.receiverQueueSize)
-                .maxTotalReceiverQueueSizeAcrossPartitions(this.maxTotalReceiverQueueSizeAcrossPartitions)
-                .acknowledgmentGroupTime(this.acknowledgmentsGroupingDelayMillis, TimeUnit.MILLISECONDS)
+                .receiverQueueSize(arguments.receiverQueueSize)
+                .maxTotalReceiverQueueSizeAcrossPartitions(arguments.v4.maxTotalReceiverQueueSizeAcrossPartitions)
+                .acknowledgmentGroupTime(arguments.acknowledgmentsGroupingDelayMillis, TimeUnit.MILLISECONDS)
                 .subscriptionType(
-                        org.apache.pulsar.client.api.SubscriptionType.valueOf(this.subscriptionType.name()))
-                .subscriptionInitialPosition(this.subscriptionInitialPosition)
-                .autoAckOldestChunkedMessageOnQueueFull(this.autoAckOldestChunkedMessageOnQueueFull)
-                .enableBatchIndexAcknowledgment(this.batchIndexAck)
-                .poolMessages(this.poolMessages)
-                .replicateSubscriptionState(this.replicatedSubscription)
-                .autoScaledReceiverQueueSizeEnabled(this.autoScaledReceiverQueueSize)
+                        org.apache.pulsar.client.api.SubscriptionType.valueOf(arguments.subscriptionType.name()))
+                .subscriptionInitialPosition(arguments.subscriptionInitialPosition)
+                .autoAckOldestChunkedMessageOnQueueFull(arguments.v4.autoAckOldestChunkedMessageOnQueueFull)
+                .enableBatchIndexAcknowledgment(arguments.v4.batchIndexAck)
+                .poolMessages(arguments.v4.poolMessages)
+                .replicateSubscriptionState(arguments.v4.replicatedSubscription)
+                .autoScaledReceiverQueueSizeEnabled(arguments.v4.autoScaledReceiverQueueSize)
                 .topic(topic)
                 .subscriptionName(subscription);
-        if (this.maxPendingChunkedMessage > 0) {
-            consumerBuilder.maxPendingChunkedMessage(this.maxPendingChunkedMessage);
+        if (arguments.v4.maxPendingChunkedMessage > 0) {
+            consumerBuilder.maxPendingChunkedMessage(arguments.v4.maxPendingChunkedMessage);
         }
-        if (this.expireTimeOfIncompleteChunkedMessageMs > 0) {
-            consumerBuilder.expireTimeOfIncompleteChunkedMessage(this.expireTimeOfIncompleteChunkedMessageMs,
+        if (arguments.v4.expireTimeOfIncompleteChunkedMessageMs > 0) {
+            consumerBuilder.expireTimeOfIncompleteChunkedMessage(arguments.v4.expireTimeOfIncompleteChunkedMessageMs,
                     TimeUnit.MILLISECONDS);
         }
-        if (isNotBlank(this.encKeyFile)) {
-            consumerBuilder.defaultCryptoKeyReader(this.encKeyFile);
+        if (isNotBlank(arguments.encKeyFile)) {
+            consumerBuilder.defaultCryptoKeyReader(arguments.encKeyFile);
         }
         return consumerBuilder.subscribeAsync();
     }
@@ -140,7 +175,7 @@ public class PerformanceConsumerV4
     @Override
     protected Transaction newTransaction(PulsarClient client) throws Exception {
         return client.newTransaction()
-                .withTransactionTimeout(this.transactionTimeout, TimeUnit.SECONDS)
+                .withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS)
                 .build()
                 .get();
     }
@@ -179,7 +214,7 @@ public class PerformanceConsumerV4
 
     @Override
     protected void releaseMessage(Message<ByteBuffer> msg) {
-        if (this.poolMessages) {
+        if (arguments.v4.poolMessages) {
             msg.release();
         }
     }

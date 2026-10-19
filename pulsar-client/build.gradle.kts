@@ -101,6 +101,8 @@ dependencies {
     testImplementation(libs.opentelemetry.sdk)
     testImplementation(libs.opentelemetry.sdk.testing)
     testImplementation(libs.joda.time)
+    // Captures slog output, which goes to its Log4j2 backend, to assert on what a test logged.
+    testImplementation(libs.log4j.core)
     testImplementation(project(":pulsar-client-messagecrypto-bc"))
     testImplementation(project(":pulsar-functions:pulsar-functions-proto"))
 }
@@ -164,7 +166,7 @@ tasks.named("compileTestJava") { dependsOn(generateTestAvro) }
 run {
     val fromGroup = "it.unimi.dsi"
     val fromName = "fastutil"
-    val toGroup = "org.apache.pulsar"
+    val toGroup = project.group.toString()
     val toName = "pulsar-client-fastutil-minimized"
     val toVersion = version.toString()
 

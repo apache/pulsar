@@ -38,6 +38,14 @@ Apache Pulsar is licensed under the Apache License 2.0, and all contributions mu
 | [`CODING.md`](CODING.md) | Coding conventions: style, async/`CompletableFuture`, concurrency, logging ([slog](https://github.com/merlimat/slog)), dependencies, backward compatibility, testing, and the review checklist. |
 | [`SECURITY.md`](SECURITY.md) | Reporting a vulnerability, disclosure hygiene, and checking exposure to an already-public CVE. |
 
+Some areas have an agent guide of their own, which routes to that area's docs; read it before working there:
+
+| Guide | Area |
+|-------|------|
+| [`tests/integration/AGENTS.md`](tests/integration/AGENTS.md) | The integration tests, which test Pulsar clusters in Docker containers. |
+| [`tests/performance/AGENTS.md`](tests/performance/AGENTS.md) | The Pulsar Performance Testing Framework, which runs a Pulsar cluster and its workloads in Docker on one host: performance experiments, profiling, A/B comparisons of revisions with charts, and automating them, including agent-based tuning. |
+| [`microbench/AGENTS.md`](microbench/AGENTS.md) | The JMH microbenchmarks, for the performance of a single class or method. |
+
 The authoritative project documentation is at <https://pulsar.apache.org>, whose source lives in the
 [`apache/pulsar-site`](https://github.com/apache/pulsar-site) repository (where documentation changes
 are contributed). The files above and the website remain the source of truth — this guide just layers
@@ -56,8 +64,9 @@ A few rules matter specifically when an AI tool makes the change, on top of the 
   these outward-facing actions — see *Licensing and provenance* above.
 - **A clean local run is weak evidence for concurrency/data race fixes** (timing- and
   platform-dependent). See [`CODING.md`](CODING.md#reproducing-concurrency--memory-visibility-bugs).
-- **Follow Java style guidance.** For Java conventions, including imports over fully qualified class
-  names, follow [`CODING.md`](CODING.md#style).
+- **Follow Java style guidance** in [`CODING.md`](CODING.md#style). One hard rule: reference classes
+  by simple name with an `import`, never by fully qualified name inline — unless two classes share a
+  simple name in one file, in which case the less used one stays qualified.
 - **Check before claiming conformance.** Run `./gradlew quickCheck` for a fast source-only pass
   (license headers + checkstyle, no compilation) or `./gradlew sanityCheck` to also
   compile every module's main and test sources; neither builds shadow jars. See

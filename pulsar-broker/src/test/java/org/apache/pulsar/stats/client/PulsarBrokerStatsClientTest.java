@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.stats.client;
 
-import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -68,7 +67,7 @@ public class PulsarBrokerStatsClientTest extends SharedPulsarBaseTest {
         URL url = new URL("http://localhost:15000");
         @Cleanup
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(url.toString()).build();
-        BrokerStatsImpl client = (BrokerStatsImpl) spy(admin.brokerStats());
+        BrokerStatsImpl client = (BrokerStatsImpl) admin.brokerStats();
         try {
             client.getLoadReport();
         } catch (PulsarAdminException e) {
@@ -127,9 +126,8 @@ public class PulsarBrokerStatsClientTest extends SharedPulsarBaseTest {
 
         PersistentTopicInternalStats internalStats = topic.getInternalStats(true).get();
         assertNotNull(internalStats.ledgers.get(0).metadata);
-        // For the mock test, the default ensembles is ["192.0.2.1:1234","192.0.2.2:1234","192.0.2.3:1234"]
-        // The registered bookie ID is 192.168.1.1:5000
-        assertTrue(internalStats.ledgers.get(0).underReplicated);
+        // Every bookie in the ensemble is registered and available
+        assertFalse(internalStats.ledgers.get(0).underReplicated);
 
         for (ManagedLedgerInternalStats.LedgerInfo ledgerInfo : internalStats.ledgers) {
             if (ledgerInfo.ledgerId == firstLedgerId) {
