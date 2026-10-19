@@ -4570,13 +4570,16 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     /**
      * When cache eviction by expected read count is enabled, this method returns the number of cursors
-     * that are at the same position or before this cursor.
+     * that are at the same position or before this cursor, or {@link EntryImpl#NO_EXPECTED_READ_COUNT} for an
+     * inactive cursor, so that the entries that it reads aren't cached.
      *
-     * @return the number of cursors at the same position or before
+     * @return the number of cursors at the same position or before, or a negative value for no caching
      */
     public int getNumberOfCursorsAtSamePositionOrBefore() {
         if (ledger.getConfig().isCacheEvictionByExpectedReadCount()) {
-            return ledger.getNumberOfCursorsAtSamePositionOrBefore(this);
+            // 0 is the count of an inactive cursor, which doesn't cache the entries it reads
+            int numberOfCursors = ledger.getNumberOfCursorsAtSamePositionOrBefore(this);
+            return numberOfCursors > 0 ? numberOfCursors : EntryImpl.NO_EXPECTED_READ_COUNT;
         } else if (isCacheReadEntry()) {
             return 1;
         } else {

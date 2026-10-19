@@ -43,9 +43,13 @@ public class EntryReadCountHandlerImpl implements EntryReadCountHandler {
         EXPECTED_READ_COUNT_UPDATER.incrementAndGet(this);
     }
 
+    /**
+     * Marks one expected read done. The count doesn't go below 0: an entry without expected reads, such as one that
+     * a replay read cached in between the positions it wanted, owes none to the readers that read it.
+     */
     @Override
     public void markRead() {
-        EXPECTED_READ_COUNT_UPDATER.decrementAndGet(this);
+        EXPECTED_READ_COUNT_UPDATER.getAndUpdate(this, count -> count > 0 ? count - 1 : count);
     }
 
     /**

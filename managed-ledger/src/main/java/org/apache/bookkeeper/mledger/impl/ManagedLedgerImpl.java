@@ -2737,8 +2737,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      * storage are cached with the expected read count.
      *
      * @param entriesWanted the entries of the range that the cursor reads, which the entries-read stat counts
-     * @param expectedReadCount the expected read count that the entries read from storage are cached with; 0 doesn't
-     *                          cache them
+     * @param expectedReadCount the expected read count that the entries read from storage are cached with; a
+     *                          negative value doesn't cache them
      */
     void asyncReadEntries(long ledgerId, long firstEntry, long lastEntry, int entriesWanted, int expectedReadCount,
                           ReadEntriesCallback callback, Object ctx) {
@@ -2960,7 +2960,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 readEntryCallback.readEntryComplete(entry, cntx);
             } else {
                 slog.debug().attr("ledgerId", ledgerId).attr("entryId", entryId).log("Read entry already completed");
-                entry.release();
+                releaseUnread(entry);
             }
         }
 
@@ -2979,7 +2979,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 readEntriesCallback.readEntriesComplete(returnedEntries, cntx);
             } else {
                 slog.debug().attr("ledgerId", ledgerId).attr("entryId", entryId).log("Read entry already completed");
-                returnedEntries.forEach(Entry::release);
+                returnedEntries.forEach(ReadEntryCallbackWrapper::releaseUnread);
             }
         }
 
@@ -2990,6 +2990,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             } else {
                 slog.debug().attr("ledgerId", ledgerId).attr("entryId", entryId).log("Read entry already completed");
             }
+        }
+
+        // nobody reads an entry of a read that timed out, so its expected reads remain for the reads that do
+        private static void releaseUnread(Entry entry) {
+            if (entry instanceof EntryImpl entryImpl) {
+                entryImpl.setDecreaseReadCountOnRelease(false);
+            }
+            entry.release();
         }
 
         boolean isCompleted() {

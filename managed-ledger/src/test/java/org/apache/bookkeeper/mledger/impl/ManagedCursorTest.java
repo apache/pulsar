@@ -4045,6 +4045,61 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             // entries outside the ranges aren't read
             assertEquals(cachedExpectedReadCount(ledger, added.get(1)), 0);
             assertFalse(ledger.entryCache.hasEntry(added.get(589)));
+            // another cursor's read of the entry 1 has no expected read to take
+            CompletableFuture<Entry> read = new CompletableFuture<>();
+            ledger.asyncReadEntry(added.get(1), new AsyncCallbacks.ReadEntryCallback() {
+                @Override
+                public void readEntryComplete(Entry entry, Object ctx) {
+                    read.complete(entry);
+                }
+
+                @Override
+                public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                    read.completeExceptionally(exception);
+                }
+            }, null);
+            read.get(10, TimeUnit.SECONDS).release();
+            assertEquals(cachedExpectedReadCount(ledger, added.get(1)), 0);
+            // and a replay of it adds an expected read for the replay
+            CompletableFuture<List<Entry>> replayedAgain = new CompletableFuture<>();
+            cursor.asyncReplayEntries(Set.of(added.get(1)), new AsyncCallbacks.ReadEntriesCallback() {
+                @Override
+                public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                    replayedAgain.complete(entries);
+                }
+
+                @Override
+                public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                    replayedAgain.completeExceptionally(exception);
+                }
+            }, null, true);
+            Entry entry = replayedAgain.get(10, TimeUnit.SECONDS).get(0);
+            assertEquals(entry.getReadCountHandler().getExpectedReadCount(), 1);
+            entry.release();
+            assertEquals(cachedExpectedReadCount(ledger, added.get(1)), 0);
+        }
+    }
+
+    @Test(timeOut = 20000)
+    void testReadsOfAnInactiveCursorAreNotCached() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("test_inactive_cursor_reads",
+                initManagedLedgerConfig(defaultConfig()));
+        ledger.openCursor("active");
+        ManagedCursorImpl inactive = (ManagedCursorImpl) ledger.openCursor("inactive");
+        List<Position> added = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            added.add(ledger.addEntry(("entry-" + i).getBytes(Encoding)));
+        }
+        ledger.entryCache.clear();
+        inactive.setInactive();
+        // an inactive cursor's reads aren't cached
+        assertEquals(inactive.getNumberOfCursorsAtSamePositionOrBefore(), EntryImpl.NO_EXPECTED_READ_COUNT);
+
+        List<Entry> entries = inactive.readEntries(10);
+        assertEquals(entries.size(), 10);
+        entries.forEach(Entry::release);
+        for (Position position : added) {
+            assertFalse(ledger.entryCache.hasEntry(position));
         }
     }
 
