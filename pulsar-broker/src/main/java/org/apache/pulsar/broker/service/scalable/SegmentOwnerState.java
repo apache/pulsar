@@ -20,51 +20,58 @@ package org.apache.pulsar.broker.service.scalable;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
+import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
-import org.apache.pulsar.broker.resources.ScalableTopicResources.MetadataPathListener;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicEventsListener;
 import org.apache.pulsar.broker.service.persistent.PersistentEntryBucketDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.scalable.SegmentInfo;
 import org.apache.pulsar.common.scalable.SegmentTopicName;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.Notification;
+import org.apache.pulsar.metadata.api.NotificationType;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
 
 /**
- * Read-only segment-owner gauges. Metadata is watched asynchronously once per hosted parent;
- * collection only visits loaded topics and reads in-memory state, never starting a controller.
+ * Segment-owner gauges backed by the existing layout cache and topic/metadata lifecycle events.
  *
- * <p>Call {@link #start()} during broker startup, {@link #refresh()} periodically to reconcile
- * ownership and retry failed reads, and {@link #close()} before closing metadata resources.
- * Unknown or failed metadata reads do not contribute alerts. Terminated {@code persistent://}
- * topics are also considered as migration candidates, but count only when the parent's metadata
- * confirms their legacy backing-topic name. Nonterminated regular topics cause no metadata reads;
- * a migration is discovered on reconciliation after its legacy topics have been terminated.
+ * <p>There is no per-parent layout copy, per-parent listener, or periodic forced metadata refresh.
+ * Ownership events warm cold caches with ordinary cached reads. Stats updates only repair missing
+ * cache entries or failed initial reads. Scrapes visit the tracked owners and use non-loading cache
+ * snapshots; they never perform metadata I/O or start controllers.
  */
 public final class SegmentOwnerState implements Supplier<SegmentOwnerMetrics.Gauges>, AutoCloseable {
     private final BrokerService brokerService;
     private final ScalableTopicResources resources;
+    private final MetadataCache<ScalableTopicMetadata> layoutCache;
     private final Map<TopicName, Parent> parents = new ConcurrentHashMap<>();
+    private final Map<String, Parent> metadataPaths = new ConcurrentHashMap<>();
+    private final Set<Parent> cacheRepairs = ConcurrentHashMap.newKeySet();
     private final Object ownershipLock = new Object();
     private final TopicEventsListener topicListener = this::onTopicEvent;
-    // Guarded by ownershipLock, including each Parent's ownedTopics.
+    private final Consumer<Notification> metadataListener = this::onMetadataNotification;
     private boolean started;
-    private long ownershipVersion;
     private volatile boolean closed;
+    private volatile boolean ready;
+    private volatile boolean connected = true;
 
     public SegmentOwnerState(BrokerService brokerService, ScalableTopicResources resources) {
         this.brokerService = brokerService;
         this.resources = resources;
+        this.layoutCache = resources.getCache();
     }
 
     public void start() {
@@ -74,12 +81,22 @@ public final class SegmentOwnerState implements Supplier<SegmentOwnerMetrics.Gau
             }
             started = true;
         }
+        resources.registerMetadataListener(metadataListener);
+        synchronized (ownershipLock) {
+            if (!closed) {
+                ready = true;
+            }
+        }
+        if (!ready) {
+            resources.deregisterMetadataListener(metadataListener);
+            return;
+        }
+        // Registration already replays the broker's topic cache, including pending loads.
         brokerService.addTopicEventListener(topicListener);
         if (closed) {
             brokerService.removeTopicEventListener(topicListener);
-            return;
+            resources.deregisterMetadataListener(metadataListener);
         }
-        refresh();
     }
 
     private void onTopicEvent(String name, TopicEventsListener.TopicEvent event,
@@ -88,271 +105,325 @@ public final class SegmentOwnerState implements Supplier<SegmentOwnerMetrics.Gau
             return;
         }
         TopicName topic = TopicName.get(name);
-        if (!topic.isSegment()) {
-            if (topic.getDomain() != TopicDomain.persistent) {
-                return;
-            }
-            if (event == TopicEventsListener.TopicEvent.LOAD
-                    && brokerService.getTopicReference(name)
-                            .filter(loaded -> loaded instanceof PersistentTopic persistent
-                                    && persistent.getManagedLedger().isTerminated()).isEmpty()) {
-                return;
-            }
+        if (!topic.isSegment() && topic.getDomain() != TopicDomain.persistent) {
+            return;
         }
-        TopicName parentName = topic.isSegment() ? SegmentTopicName.getParentTopicName(topic)
-                : topic.toScalableTopic();
-        Parent added = null;
-        Parent removed = null;
-        synchronized (ownershipLock) {
-            if (closed) {
-                return;
+        if (event == TopicEventsListener.TopicEvent.LOAD) {
+            var future = brokerService.getTopics().get(name);
+            if (future != null) {
+                onTopicCacheEntryAdded(name, future);
             }
-            if (event == TopicEventsListener.TopicEvent.LOAD) {
-                Parent parent = parents.get(parentName);
-                if (parent == null) {
-                    parent = new Parent(parentName);
-                    parents.put(parentName, parent);
-                    added = parent;
+            // Synchronously completed loads are covered by the post-publication broker hook.
+        } else if (event == TopicEventsListener.TopicEvent.UNLOAD
+                || event == TopicEventsListener.TopicEvent.DELETE) {
+            synchronized (ownershipLock) {
+                // A late notification from the old owner must not remove a newly loaded instance.
+                if (brokerService.getTopicReference(name).isPresent()) {
+                    return;
                 }
-                parent.ownedTopics.add(name);
-            } else if (event == TopicEventsListener.TopicEvent.UNLOAD
-                    || event == TopicEventsListener.TopicEvent.DELETE) {
+                TopicName parentName = parentName(topic);
                 Parent parent = parents.get(parentName);
-                if (parent != null && parent.ownedTopics.remove(name) && parent.ownedTopics.isEmpty()) {
-                    parents.remove(parentName);
-                    removed = parent;
+                if (parent != null && parent.owners.remove(name) != null && parent.owners.isEmpty()) {
+                    parents.remove(parentName, parent);
+                    metadataPaths.remove(parent.layoutPath, parent);
+                    metadataPaths.remove(parent.controllerPath, parent);
+                    cacheRepairs.remove(parent);
                 }
-            } else {
-                return;
             }
-            ownershipVersion++;
-        }
-        if (added != null) {
-            added.start();
-        }
-        if (removed != null) {
-            removed.close();
         }
     }
 
-    /** Reconcile loaded ownership and retry metadata reads without waiting for their completion. */
-    public void refresh() {
-        if (closed) {
+    /** Observe a new topic future after the broker has published it in its ownership cache. */
+    public void onTopicCacheEntryAdded(String name, CompletableFuture<Optional<Topic>> future) {
+        if (!ready || closed) {
             return;
         }
-        long version;
-        synchronized (ownershipLock) {
-            version = ownershipVersion;
-        }
-        Map<TopicName, Set<String>> owned = new HashMap<>();
-        brokerService.forEachTopic(topic -> {
-            TopicName name = TopicName.get(topic.getName());
-            if (name.isSegment()) {
-                owned.computeIfAbsent(SegmentTopicName.getParentTopicName(name), __ -> new HashSet<>())
-                        .add(topic.getName());
-            } else if (name.getDomain() == TopicDomain.persistent && topic instanceof PersistentTopic persistent
-                    && persistent.getManagedLedger().isTerminated()) {
-                owned.computeIfAbsent(name.toScalableTopic(), __ -> new HashSet<>()).add(topic.getName());
+        future.thenAccept(loaded -> {
+            if (!closed && brokerService.getTopics().get(name) == future) {
+                loaded.ifPresent(topic -> onTopicLoaded(topic, future));
             }
         });
-        List<Parent> added = new ArrayList<>();
-        List<Parent> removed = new ArrayList<>();
+    }
+
+    private void onTopicLoaded(Topic topic, CompletableFuture<Optional<Topic>> future) {
+        TopicName name = TopicName.get(topic.getName());
+        if (name.isSegment() || topic instanceof PersistentTopic persistent
+                && persistent.getManagedLedger().isTerminated()) {
+            track(name, topic, future);
+        }
+    }
+
+    /** Successful termination discovers legacy owners that migrated after they were loaded. */
+    public void onTopicTerminated(Topic topic) {
+        if (ready && !closed && TopicName.get(topic.getName()).getDomain() == TopicDomain.persistent) {
+            track(TopicName.get(topic.getName()), topic, null);
+        }
+    }
+
+    private static TopicName parentName(TopicName topic) {
+        return topic.isSegment() ? SegmentTopicName.getParentTopicName(topic) : topic.toScalableTopic();
+    }
+
+    private void track(TopicName topic, Topic expected, CompletableFuture<Optional<Topic>> future) {
+        Parent parent;
         synchronized (ownershipLock) {
-            if (closed) {
+            if (!ready || closed || brokerService.getTopicReference(topic.toString()).orElse(null) != expected
+                    || future != null && brokerService.getTopics().get(topic.toString()) != future) {
                 return;
             }
-            // A topic event raced with the scan. Keep its newer ownership; the next sweep reconciles.
-            if (version == ownershipVersion) {
-                parents.entrySet().removeIf(entry -> {
-                    if (!owned.containsKey(entry.getKey())) {
-                        removed.add(entry.getValue());
-                        return true;
-                    }
-                    return false;
-                });
-                owned.forEach((name, topics) -> {
-                    Parent parent = parents.get(name);
-                    if (parent == null) {
-                        parent = new Parent(name);
-                        parents.put(name, parent);
-                        added.add(parent);
-                    }
-                    parent.ownedTopics.clear();
-                    parent.ownedTopics.addAll(topics);
-                });
-                ownershipVersion++;
+            TopicName name = parentName(topic);
+            parent = parents.get(name);
+            if (parent == null) {
+                parent = new Parent(name);
+                parents.put(name, parent);
+                metadataPaths.put(parent.layoutPath, parent);
+                metadataPaths.put(parent.controllerPath, parent);
+            }
+            parent.owners.put(topic.toString(), topic);
+        }
+        parent.ensureCachedState();
+    }
+
+    private void onMetadataNotification(Notification notification) {
+        Parent parent = metadataPaths.get(notification.getPath());
+        if (parent == null || closed) {
+            return;
+        }
+        NotificationType type = notification.getType();
+        if (type != NotificationType.Created && type != NotificationType.Modified && type != NotificationType.Deleted) {
+            return;
+        }
+        if (notification.getPath().equals(parent.controllerPath)) {
+            synchronized (parent) {
+                parent.controllerVersion++;
+                parent.controllerPresent = type != NotificationType.Deleted;
+            }
+        } else {
+            synchronized (parent) {
+                parent.layoutVersion++;
+                parent.layoutAbsent = type == NotificationType.Deleted;
+            }
+            if (type != NotificationType.Deleted) {
+                parent.ensureCachedState();
             }
         }
-        removed.forEach(Parent::close);
-        added.forEach(Parent::start);
-        parents.values().forEach(Parent::refresh);
+    }
+
+    /** Drain only deduplicated cache misses/failures; warm parents are not scanned, polled, or forced fresh. */
+    public void onStatsUpdate() {
+        List<Parent> pending = new ArrayList<>(cacheRepairs);
+        for (Parent parent : pending) {
+            if (cacheRepairs.remove(parent)) {
+                parent.ensureCachedState();
+            }
+        }
+    }
+
+    /** Reuse the broker's existing session callback, rather than registering another store/session listener. */
+    public void onMetadataSessionEvent(SessionEvent event) {
+        connected = event.isConnected();
+        if (!ready || closed) {
+            return;
+        }
+        parents.values().forEach(parent -> {
+            synchronized (parent) {
+                parent.controllerVersion++;
+                parent.controllerPresent = null;
+                parent.layoutVersion++;
+                parent.layoutAbsent = false;
+            }
+            if (connected) {
+                parent.ensureCachedState();
+            }
+        });
     }
 
     @Override
     public SegmentOwnerMetrics.Gauges get() {
+        long leaderless = 0;
+        long unwritable = 0;
+        long draining = 0;
         if (closed) {
             return new SegmentOwnerMetrics.Gauges(0, 0, 0);
         }
-        Set<TopicName> leaderless = new HashSet<>();
-        long[] counts = new long[2];
-        brokerService.forEachTopic(topic -> {
-            if (!(topic instanceof PersistentTopic persistent)) {
-                return;
+        for (Parent parent : parents.values()) {
+            ScalableTopicMetadata layout = parent.cachedLayout().orElse(null);
+            if (layout == null && layoutCache.supportsQuietSnapshots() && !parent.layoutAbsent) {
+                parent.requestRepair();
             }
-            TopicName name = TopicName.get(topic.getName());
-            if (!name.isSegment() && (name.getDomain() != TopicDomain.persistent
-                    || !persistent.getManagedLedger().isTerminated())) {
-                return;
-            }
-            TopicName parentName = name.isSegment() ? SegmentTopicName.getParentTopicName(name)
-                    : name.toScalableTopic();
-            Parent parent = parents.get(parentName);
-            Map<String, Boolean> layout = parent != null ? parent.layout.value : null;
-            // A terminated classic topic is not necessarily a migrated segment. Confirm membership first.
-            if (!name.isSegment() && (layout == null || !layout.containsKey(topic.getName()))) {
-                return;
-            }
-            if (parent != null) {
-                if (Boolean.FALSE.equals(parent.controller.value)) {
-                    leaderless.add(parentName);
+            boolean hostedSegment = false;
+            Map<String, SegmentInfo> legacySegments = null;
+            for (Map.Entry<String, TopicName> owner : parent.owners.entrySet()) {
+                Topic loaded = brokerService.getTopicReference(owner.getKey()).orElse(null);
+                if (!(loaded instanceof PersistentTopic persistent)) {
+                    continue;
                 }
-                if (layout != null && Boolean.TRUE.equals(layout.get(topic.getName()))
-                        && persistent.getManagedLedger().isTerminated()) {
-                    counts[0]++;
+                TopicName name = owner.getValue();
+                SegmentInfo segment = null;
+                if (layout != null) {
+                    if (name.isSegment()) {
+                        segment = layout.getSegments().get(name.getSegmentId());
+                    } else {
+                        if (legacySegments == null) {
+                            // Index legacy names once per collection, not once per hosted partition.
+                            legacySegments = new HashMap<>();
+                            for (SegmentInfo info : layout.getSegments().values()) {
+                                if (info.isLegacy()) {
+                                    legacySegments.put(info.legacyTopicName(), info);
+                                }
+                            }
+                        }
+                        segment = legacySegments.get(owner.getKey());
+                    }
+                }
+                if (!name.isSegment() && segment == null) {
+                    continue;
+                }
+                hostedSegment = true;
+                if (segment != null && segment.isActive() && persistent.getManagedLedger().isTerminated()) {
+                    unwritable++;
+                }
+                for (var subscription : persistent.getSubscriptions().values()) {
+                    if (subscription.getDispatcher()
+                            instanceof PersistentEntryBucketDispatcherMultipleConsumers dispatcher) {
+                        draining += dispatcher.getDrainingBucketsCount();
+                    }
                 }
             }
-            persistent.getSubscriptions().values().forEach(subscription -> {
-                if (subscription.getDispatcher()
-                        instanceof PersistentEntryBucketDispatcherMultipleConsumers dispatcher) {
-                    counts[1] += dispatcher.getDrainingBucketsCount();
-                }
-            });
-        });
-        return new SegmentOwnerMetrics.Gauges(leaderless.size(), counts[0], counts[1]);
+            if (hostedSegment && connected && Boolean.FALSE.equals(parent.controllerPresent)) {
+                leaderless++;
+            }
+        }
+        return new SegmentOwnerMetrics.Gauges(leaderless, unwritable, draining);
     }
 
     @Override
     public void close() {
-        List<Parent> removed;
         synchronized (ownershipLock) {
             if (closed) {
                 return;
             }
             closed = true;
-            removed = new ArrayList<>(parents.values());
+            ready = false;
             parents.clear();
+            metadataPaths.clear();
+            cacheRepairs.clear();
         }
         brokerService.removeTopicEventListener(topicListener);
-        removed.forEach(Parent::close);
+        resources.deregisterMetadataListener(metadataListener);
     }
 
-    private final class Parent implements AutoCloseable {
-        private final Set<String> ownedTopics = new HashSet<>();
-        private final Watch<Map<String, Boolean>> layout;
-        private final Watch<Boolean> controller;
-        private volatile boolean disposed;
+    private final class Parent {
+        private final TopicName name;
+        private final String layoutPath;
+        private final String controllerPath;
+        private final Map<String, TopicName> owners = new ConcurrentHashMap<>();
+        private volatile Boolean controllerPresent;
+        // Pending reads and notification generations are guarded by this parent.
+        private boolean layoutPending;
+        private volatile boolean layoutAbsent;
+        private long layoutVersion;
+        private boolean controllerPending;
+        private long controllerVersion;
 
         private Parent(TopicName name) {
-            layout = new Watch<>(resources.topicPath(name),
-                    () -> resources.getScalableTopicMetadataAsync(name, true).thenApply(metadata -> metadata
-                            .map(md -> md.getSegments().values().stream().collect(Collectors.toUnmodifiableMap(
-                                    segment -> SegmentTopicName.backingTopicName(name, segment),
-                                    segment -> segment.isActive())))
-                            .orElse(Map.of())));
-            controller = new Watch<>(resources.controllerLockPath(name),
-                    () -> resources.getStore().exists(resources.controllerLockPath(name)));
+            this.name = name;
+            layoutPath = resources.topicPath(name);
+            controllerPath = resources.controllerLockPath(name);
         }
 
-        private void start() {
-            resources.registerPathListener(layout);
-            resources.registerPathListener(controller);
-            // close() may have raced with registration. Ensure neither listener can leak.
-            if (disposed) {
-                resources.deregisterPathListener(layout);
-                resources.deregisterPathListener(controller);
-            } else {
-                refresh();
+        private boolean owned() {
+            return !closed && parents.get(name) == this;
+        }
+
+        private Optional<ScalableTopicMetadata> cachedLayout() {
+            return layoutCache.supportsQuietSnapshots()
+                    ? layoutCache.getIfCachedQuietly(layoutPath) : Optional.empty();
+        }
+
+        private void requestRepair() {
+            if (owned()) {
+                cacheRepairs.add(this);
+                if (!owned()) {
+                    cacheRepairs.remove(this);
+                }
             }
         }
 
-        private void refresh() {
-            layout.refresh(false);
-            controller.refresh(false);
+        private void ensureControllerIfRelevant(Optional<ScalableTopicMetadata> layout) {
+            if (owners.values().stream().anyMatch(TopicName::isSegment)
+                    || layoutCache.supportsQuietSnapshots()
+                    && layout.filter(md -> md.getSegments().values().stream().anyMatch(segment ->
+                            segment.isLegacy() && owners.containsKey(segment.legacyTopicName()))).isPresent()) {
+                ensureController();
+            }
         }
 
-        @Override
-        public void close() {
-            disposed = true;
-            layout.close();
-            controller.close();
-            resources.deregisterPathListener(layout);
-            resources.deregisterPathListener(controller);
-        }
-    }
-
-    /** One coalesced asynchronous read per path; notification generations reject stale completions. */
-    private static final class Watch<T> implements MetadataPathListener, AutoCloseable {
-        private final String path;
-        private final Supplier<CompletableFuture<T>> reader;
-        private volatile T value;
-        // All remaining fields are guarded by this watch, never used on the scrape path.
-        private long version;
-        private boolean reading;
-        private boolean dirty;
-        private boolean closed;
-
-        private Watch(String path, Supplier<CompletableFuture<T>> reader) {
-            this.path = path;
-            this.reader = reader;
-        }
-
-        @Override
-        public String getMetadataPath() {
-            return path;
-        }
-
-        @Override
-        public void onNotification(Notification notification) {
-            refresh(true);
-        }
-
-        private void refresh(boolean invalidated) {
-            long readVersion;
+        private void ensureCachedState() {
+            if (!owned() || !connected) {
+                return;
+            }
+            Optional<ScalableTopicMetadata> cached = cachedLayout();
+            ensureControllerIfRelevant(cached);
+            if (!layoutCache.supportsQuietSnapshots() || cached.isPresent()) {
+                return;
+            }
+            long version;
             synchronized (this) {
-                if (closed) {
+                if (layoutPending || layoutAbsent || !owned()) {
                     return;
                 }
-                if (invalidated) {
-                    version++;
-                    value = null;
-                }
-                if (reading) {
-                    dirty |= invalidated;
-                    return;
-                }
-                reading = true;
-                readVersion = version;
+                layoutPending = true;
+                version = layoutVersion;
             }
-            FutureUtil.supplySafely(reader).whenComplete((result, error) -> {
-                boolean again;
-                synchronized (this) {
-                    reading = false;
-                    if (!closed && version == readVersion) {
-                        value = error == null ? result : null;
-                    }
-                    again = dirty && !closed;
-                    dirty = false;
+            FutureUtil.supplySafely(() -> resources.getScalableTopicMetadataAsync(name))
+                    .whenComplete((metadata, error) -> {
+                        boolean changed;
+                        synchronized (this) {
+                            layoutPending = false;
+                            changed = version != layoutVersion;
+                            if (!changed) {
+                                layoutAbsent = error == null && metadata.isEmpty();
+                            }
+                        }
+                        if (owned()) {
+                            if (changed) {
+                                ensureCachedState();
+                            } else if (error == null) {
+                                ensureControllerIfRelevant(metadata);
+                            } else {
+                                requestRepair();
+                            }
+                        }
+                    });
+        }
+
+        private void ensureController() {
+            long version;
+            synchronized (this) {
+                if (!owned() || !connected || controllerPresent != null || controllerPending) {
+                    return;
                 }
-                if (again) {
-                    refresh(false);
+                controllerPending = true;
+                version = controllerVersion;
+            }
+            FutureUtil.supplySafely(() -> resources.getStore().exists(controllerPath)).whenComplete((exists, error) -> {
+                boolean changed;
+                synchronized (this) {
+                    controllerPending = false;
+                    changed = version != controllerVersion;
+                    if (!changed && owned() && connected) {
+                        controllerPresent = error == null ? exists : null;
+                    }
+                }
+                if (owned() && connected && controllerPresent == null) {
+                    if (changed) {
+                        ensureController();
+                    } else if (error != null) {
+                        requestRepair();
+                    }
                 }
             });
-        }
-
-        @Override
-        public synchronized void close() {
-            closed = true;
-            value = null;
         }
     }
 }

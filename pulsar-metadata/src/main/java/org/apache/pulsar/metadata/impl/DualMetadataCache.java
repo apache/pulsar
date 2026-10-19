@@ -81,6 +81,16 @@ public class DualMetadataCache<T> implements MetadataCache<T> {
     }
 
     @Override
+    public boolean supportsQuietSnapshots() {
+        return metadataCache.get().supportsQuietSnapshots();
+    }
+
+    @Override
+    public Optional<T> getIfCachedQuietly(String path) {
+        return metadataCache.get().getIfCachedQuietly(path);
+    }
+
+    @Override
     public CompletableFuture<List<String>> getChildren(String path) {
         return metadataCache.get().getChildren(path);
     }

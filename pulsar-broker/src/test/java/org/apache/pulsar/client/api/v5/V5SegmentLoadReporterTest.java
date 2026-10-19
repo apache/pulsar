@@ -118,6 +118,35 @@ public class V5SegmentLoadReporterTest extends V5ClientBaseTest {
                 assertThat(ownerGauge("segment_unwritable_count")).isEqualTo(initialUnwritable));
     }
 
+    @Test
+    public void testMigrationTerminationTracksLegacyOwnerWithoutPolling() throws Exception {
+        double initialLeaderless = ownerGauge("leaderless_count");
+        String topic = getNamespace() + "/legacy-owner-" + System.nanoTime();
+        String legacyName = "persistent://" + topic;
+        admin.topics().createNonPartitionedTopic(legacyName);
+        try (var producer = pulsarClient.newProducer().topic(legacyName).create()) {
+            producer.send(new byte[]{1});
+        }
+        var broker = getPulsar().getBrokerService();
+        assertThat(broker.getTopicReference(legacyName)).isPresent();
+        admin.scalableTopics().migrateToScalable(topic, false);
+        TopicName parent = TopicName.get("topic://" + topic);
+        var resources = getPulsar().getPulsarResources().getScalableTopicResources();
+        var metadata = resources.getScalableTopicMetadataAsync(parent).get().orElseThrow();
+        for (var segment : metadata.getSegments().values()) {
+            if (!segment.isLegacy()) {
+                String name = SegmentTopicName.backingTopicName(parent, segment);
+                broker.getTopicReference(name).orElseThrow().close(true).get();
+            }
+        }
+        // Only the already-loaded legacy topic remains. No stats tick or topic reload discovers it:
+        // the successful termination hook must have registered it during migration.
+        assertThat(broker.getTopicReference(legacyName)).isPresent();
+        Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(() ->
+                assertThat(ownerGauge("leaderless_count")).isEqualTo(initialLeaderless + 1));
+        assertThat(resources.getStore().exists(resources.controllerLockPath(parent)).get()).isFalse();
+    }
+
     private double loadReports(String result) {
         Double sample = CollectorRegistry.defaultRegistry.getSampleValue(
                 "pulsar_scalable_topic_segment_load_report_total",
