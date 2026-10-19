@@ -3950,9 +3950,9 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         return runs.stream().map(run -> run.stream().map(Position::getEntryId).toList()).toList();
     }
 
-    // Replays runs of close positions whose entries aren't cached, or of which every other one is cached, which are
-    // read one at a time
-    private void replayRunsOfClosePositions(String name, boolean cacheEveryOther) throws Exception {
+    // Replays runs of close positions whose entries aren't cached, or of which every third one is cached, which is read
+    // from the cache, with some entries in between the others cached too, which their range reads take from the cache
+    private void replayRunsOfClosePositions(String name, boolean partlyCached) throws Exception {
         ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig());
         config.setMaxEntriesPerLedger(300);
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(name, config);
@@ -3972,27 +3972,34 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         positions.add(added.get(590));
         // the replay reads the entries from storage, unless they're cached
         ledger.entryCache.clear();
-        if (cacheEveryOther) {
+        if (partlyCached) {
+            List<Position> toCache = new ArrayList<>();
             int i = 0;
             for (Position position : positions) {
-                if (i++ % 2 == 0) {
-                    CompletableFuture<Entry> read = new CompletableFuture<>();
-                    ledger.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
-                        @Override
-                        public void readEntryComplete(Entry entry, Object ctx) {
-                            read.complete(entry);
-                        }
-
-                        @Override
-                        public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
-                            read.completeExceptionally(exception);
-                        }
-                    }, null);
-                    Entry entry = read.get(10, TimeUnit.SECONDS);
-                    ledger.entryCache.insert(entry);
-                    entry.release();
-                    assertTrue(ledger.entryCache.hasEntry(position));
+                if (i++ % 3 == 0) {
+                    toCache.add(position);
                 }
+            }
+            // entries in between the uncached positions 8 and 16, and 32 and 40
+            toCache.add(added.get(12));
+            toCache.add(added.get(36));
+            for (Position position : toCache) {
+                CompletableFuture<Entry> read = new CompletableFuture<>();
+                ledger.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
+                    @Override
+                    public void readEntryComplete(Entry entry, Object ctx) {
+                        read.complete(entry);
+                    }
+
+                    @Override
+                    public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                        read.completeExceptionally(exception);
+                    }
+                }, null);
+                Entry entry = read.get(10, TimeUnit.SECONDS);
+                ledger.entryCache.insert(entry);
+                entry.release();
+                assertTrue(ledger.entryCache.hasEntry(position));
             }
         }
         assertFalse(ledger.entryCache.hasEntry(added.get(1)));
@@ -4017,9 +4024,13 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             assertEquals(new String(entry.getData(), Encoding), "entry-" + added.indexOf(entry.getPosition()));
             entry.release();
         }
-        if (!cacheEveryOther) {
-            // the ranges read from storage, a position alone too, are cached for a replay of them again, until the
-            // cache's time-based eviction, and the entries outside them aren't
+        if (partlyCached) {
+            // the entries in between that a range read took from the cache stay cached
+            assertTrue(ledger.entryCache.hasEntry(added.get(12)));
+            assertTrue(ledger.entryCache.hasEntry(added.get(36)));
+        } else {
+            // the ranges read from storage, a position alone too, are cached for a replay of them again, and the
+            // entries outside them aren't
             assertTrue(ledger.entryCache.hasEntry(added.get(0)));
             assertTrue(ledger.entryCache.hasEntry(added.get(590)));
             assertFalse(ledger.entryCache.hasEntry(added.get(589)));

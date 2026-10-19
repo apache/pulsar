@@ -1971,8 +1971,9 @@ public class ManagedCursorImpl implements ManagedCursor {
     // the most entries that one range read of replay positions takes
     static final int REPLAY_RANGE_MAX_ENTRIES = 256;
     // The expected read count that the entries read from storage for a replay are cached with, so that a replay of an
-    // entry again, as when the entry is added to the replay queue again, can read it from the cache until the cache's
-    // time-based eviction; the entries in between that the range read takes are cached the same way
+    // entry again, as when the entry is added to the replay queue again, can read it from the cache; once read, it
+    // stays cached until the cache evicts it, by age, or among the first when the cache needs room. The entries in
+    // between that a range read takes are cached the same way
     static final int REPLAYED_ENTRY_EXPECTED_READ_COUNT = 1;
     // the most bytes that one range read of replay positions takes, by the managed ledger's average entry size, so
     // that large entries in between aren't read in bulk; it can't tell entries of very different sizes apart
@@ -1984,11 +1985,12 @@ public class ManagedCursorImpl implements ManagedCursor {
      * and a range read would wait for those to be read from storage. The other positions are grouped into runs of
      * positions close to each other in a ledger, by {@link #replayRuns}, and each run is read with one read of the
      * range from its first position to its last, which releases the entries in between; a position that is a run of
-     * its own is read as a range of one entry. A dispatcher's replay positions are often close: a consumer's pending
-     * entries, or the entries of the keys of a consumer that had no permits.
+     * its own is read alone. A dispatcher's replay positions are often close: a consumer's pending entries, or the
+     * entries of the keys of a consumer that had no permits.
      *
-     * <p>The ranges are read with an expected read count of {@link #REPLAYED_ENTRY_EXPECTED_READ_COUNT}, so that the
-     * entries read from storage are cached for a replay of them again. Each wanted entry, or its failure, reaches the
+     * <p>The positions that the cache doesn't have are read with an expected read count of
+     * {@link #REPLAYED_ENTRY_EXPECTED_READ_COUNT}, so that the entries read from storage are cached for a replay of
+     * them again. Each wanted entry, or its failure, reaches the
      * callback as a single-entry read's would.
      */
     private void readReplayPositions(List<Position> replayPositions, ReadEntryCallback cb, Object ctx) {
@@ -2008,7 +2010,11 @@ public class ManagedCursorImpl implements ManagedCursor {
         positions.sort(null);
         long averageEntrySize = Math.max(1, ledger.getTotalSize() / Math.max(1, ledger.getNumberOfEntries()));
         for (List<Position> run : replayRuns(positions, averageEntrySize)) {
-            readReplayRange(run, cb, ctx);
+            if (run.size() == 1) {
+                ledger.asyncReadEntry(run.get(0), REPLAYED_ENTRY_EXPECTED_READ_COUNT, cb, ctx);
+            } else {
+                readReplayRange(run, cb, ctx);
+            }
         }
     }
 

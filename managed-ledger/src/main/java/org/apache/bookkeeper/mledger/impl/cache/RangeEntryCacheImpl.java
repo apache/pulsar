@@ -284,9 +284,17 @@ public class RangeEntryCacheImpl implements EntryCache {
     @Override
     public void asyncReadEntry(ReadHandle lh, Position position, final ReadEntryCallback callback,
             final Object ctx) {
+        asyncReadEntry(lh, position, DEFAULT_EXPECTED_READ_COUNT, callback, ctx);
+    }
+
+    @Override
+    public void asyncReadEntry(ReadHandle lh, Position position, int expectedReadCount,
+            final ReadEntryCallback callback, final Object ctx) {
+        int readCount = expectedReadCount != DEFAULT_EXPECTED_READ_COUNT ? expectedReadCount
+                : DEFAULT_CACHE_INDIVIDUAL_READ_ENTRY ? 1 : 0;
         try {
             asyncReadEntriesByPosition(lh, position, position, 1, NO_MAX_SIZE_LIMIT,
-                    () -> DEFAULT_CACHE_INDIVIDUAL_READ_ENTRY ? 1 : 0,
+                    () -> readCount,
                     new ReadEntriesCallback() {
                 @Override
                 public void readEntriesComplete(List<Entry> entries, Object ctx) {
