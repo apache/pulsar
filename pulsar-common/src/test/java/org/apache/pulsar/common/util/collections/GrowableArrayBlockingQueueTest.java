@@ -25,15 +25,64 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.testng.annotations.Test;
 
 public class GrowableArrayBlockingQueueTest {
+
+    @Test
+    public void arraySnapshotsPreserveOrderAcrossWrapAndGrowth() {
+        GrowableArrayBlockingQueue<Integer> queue = new GrowableArrayBlockingQueue<>(4);
+        queue.addAll(List.of(1, 2, 3, 4));
+        queue.poll();
+        queue.poll();
+        queue.addAll(List.of(5, 6));
+        Object[] wrapped = queue.toArray();
+        assertEquals(wrapped, new Object[]{3, 4, 5, 6});
+        queue.offer(7);
+        Integer[] target = {99, 99, 99, 99, 99, 99, 99};
+        assertTrue(queue.toArray(target) == target);
+        assertEquals(target, new Integer[]{3, 4, 5, 6, 7, null, 99});
+        queue.clear();
+        assertEquals(wrapped, new Object[]{3, 4, 5, 6});
+    }
+
+    @Test
+    public void executorShutdownDrainsTaskOfferedAfterInitialDrain() {
+        AtomicInteger executions = new AtomicInteger();
+        Runnable initial = executions::incrementAndGet;
+        Runnable late = executions::decrementAndGet;
+        AtomicBoolean injectLateOffer = new AtomicBoolean(true);
+        GrowableArrayBlockingQueue<Runnable> queue = new GrowableArrayBlockingQueue<>() {
+            @Override
+            public int drainTo(Collection<? super Runnable> target) {
+                int drained = super.drainTo(target);
+                // Model an in-flight execute() offer completing after shutdown's first drain.
+                if (injectLateOffer.getAndSet(false)) {
+                    offer(late);
+                }
+                return drained;
+            }
+        };
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(1, 1, 0, TimeUnit.MILLISECONDS, queue);
+        queue.offer(initial);
+        try {
+            assertEquals(executor.shutdownNow(), List.of(initial, late));
+            assertTrue(queue.isEmpty());
+            assertTrue(executor.isTerminated());
+            assertEquals(executions.get(), 0);
+        } finally {
+            executor.shutdownNow();
+        }
+    }
 
     @Test
     public void simple() throws Exception {

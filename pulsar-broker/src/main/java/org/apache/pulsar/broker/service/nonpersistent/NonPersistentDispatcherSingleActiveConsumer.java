@@ -101,7 +101,9 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
 
     @Override
     protected void scheduleReadOnActiveConsumer() {
-        // No-op
+        // Non-persistent topics have no cursor to rewind/read, but Failover consumers still need
+        // ActiveConsumerChange notifications (same as PersistentDispatcherSingleActiveConsumer).
+        notifyActiveConsumerChanged(getActiveConsumer());
     }
 
     @Override

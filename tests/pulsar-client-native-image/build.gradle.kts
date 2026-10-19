@@ -39,6 +39,20 @@ dependencies {
     testImplementation(libs.testcontainers)
 }
 
+// The GraalVM native-build-tools plugin is not configuration-cache compatible: its tasks hold
+// references to Project, SourceSetContainer and TaskContainer, none of which can be serialized.
+// Opt those tasks out explicitly so builds that pull them in — `./gradlew test`, `./gradlew check`
+// and the NATIVE_IMAGE integration test group — run without the configuration cache instead of
+// failing (the build enables the configuration cache by default in gradle.properties). Drop this
+// once https://github.com/graalvm/native-build-tools/issues/477 is fixed.
+tasks.configureEach {
+    if (javaClass.name.startsWith("org.graalvm.buildtools.")) {
+        notCompatibleWithConfigurationCache(
+            "The GraalVM native-build-tools plugin is not configuration-cache compatible"
+        )
+    }
+}
+
 val nativeImageName = "pulsar-client-native-tester"
 
 graalvmNative {
@@ -50,11 +64,19 @@ graalvmNative {
     binaries.named("main") {
         imageName = nativeImageName
         mainClass = "org.apache.pulsar.tests.integration.nativeimage.NativeImageTesterApp"
+        // The plugin builds a shared library when java-library is applied; the smoke test runs an executable.
+        sharedLibrary = false
         buildArgs.add("--no-fallback")
+        // GraalVM simulates class initializers in parallel, and two threads can publish different results
+        // for TypeParameterMatcher, failing the build with "mismatch with existing registration".
+        // Registering the class itself as run-time initialized gives every thread the same result.
+        buildArgs.add("--initialize-at-run-time=io.netty.util.internal.TypeParameterMatcher")
     }
 }
 
 tasks.named<Test>("test") {
+    // Each worker executes the full XML suite, so do not split it into class batches.
+    forkEvery = 0
     useTestNG {
         suiteXmlFiles = listOf(file("src/test/resources/native-image-tests.xml"))
     }

@@ -103,6 +103,11 @@ public class TransactionBufferDisable implements TransactionBuffer {
     }
 
     @Override
+    public boolean isTxnOngoing(TxnID txnID) {
+        return false;
+    }
+
+    @Override
     public void syncMaxReadPositionForNormalPublish(Position position, boolean isMarkerMessage) {
         if (!isMarkerMessage) {
             updateLastDispatchablePosition(position);

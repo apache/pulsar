@@ -23,8 +23,6 @@ plugins {
 
 dependencies {
     implementation(libs.slog)
-    compileOnly(project(":pulsar-client-tools"))
-    compileOnly(project(":pulsar-broker"))
 
     testImplementation(project(":pulsar-client-tools"))
     testImplementation(project(":pulsar-broker"))
@@ -41,7 +39,7 @@ dependencies {
 }
 
 // Copy the custom commands NAR from the example module into test resources
-val copyCustomCommandsNar by tasks.registering(Copy::class) {
+val copyCustomCommandsNar = tasks.register<Copy>("copyCustomCommandsNar") {
     dependsOn(":pulsar-client-tools-customcommand-example:nar")
     from(project(":pulsar-client-tools-customcommand-example").layout.buildDirectory.dir("libs"))
     include("customCommands-nar.nar")

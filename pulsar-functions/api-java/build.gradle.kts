@@ -24,6 +24,7 @@ plugins {
 dependencies {
     api(libs.slog)
     api(project(":pulsar-client-api"))
+    api(project(":pulsar-client-api-v5"))
     api(project(":pulsar-client-admin-api"))
     api(libs.slf4j.api)
 }

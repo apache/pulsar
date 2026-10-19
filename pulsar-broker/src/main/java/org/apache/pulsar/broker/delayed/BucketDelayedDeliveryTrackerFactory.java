@@ -22,6 +22,7 @@ import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -77,34 +78,50 @@ public class BucketDelayedDeliveryTrackerFactory implements DelayedDeliveryTrack
 
     @Override
     public DelayedDeliveryTracker newTracker(AbstractPersistentDispatcherMultipleConsumers dispatcher) {
-        String topicName = dispatcher.getTopic().getName();
-        String subscriptionName = dispatcher.getSubscription().getName();
-        BrokerService brokerService = dispatcher.getTopic().getBrokerService();
-        DelayedDeliveryTracker tracker;
-
         try {
-            tracker = newTracker0(dispatcher);
+            BucketDelayedDeliveryTracker tracker = newTracker0(dispatcher);
+            tracker.recoverBucketSnapshot();
+            return tracker;
         } catch (RecoverDelayedDeliveryTrackerException ex) {
-            log.warn()
-                    .attr("topic", topicName)
-                    .attr("subscription", subscriptionName)
-                    .exception(ex)
-                    .log("Failed to recover BucketDelayedDeliveryTracker, fallback to"
-                            + " InMemoryDelayedDeliveryTracker. topic , subscription");
-            // If failed to create BucketDelayedDeliveryTracker, fallback to InMemoryDelayedDeliveryTracker
-            brokerService.initializeFallbackDelayedDeliveryTrackerFactory();
-            tracker = brokerService.getFallbackDelayedDeliveryTrackerFactory().newTracker(dispatcher);
+            return newFallbackTracker(dispatcher, ex);
         }
-        return tracker;
+    }
+
+    @Override
+    public CompletableFuture<DelayedDeliveryTracker> newTrackerAsync(
+            AbstractPersistentDispatcherMultipleConsumers dispatcher) {
+        CompletableFuture<BucketDelayedDeliveryTracker> recoverFuture;
+        try {
+            recoverFuture = newTracker0(dispatcher)
+                    .recoverBucketSnapshotAsync(dispatcher.getTopic().getBrokerService().executor());
+        } catch (Throwable t) {
+            recoverFuture = FutureUtil.failedFuture(t);
+        }
+        return recoverFuture.<DelayedDeliveryTracker>thenApply(tracker -> tracker)
+                .exceptionally(ex -> newFallbackTracker(dispatcher, FutureUtil.unwrapCompletionException(ex)));
+    }
+
+    private DelayedDeliveryTracker newFallbackTracker(AbstractPersistentDispatcherMultipleConsumers dispatcher,
+                                                      Throwable ex) {
+        log.warn()
+                .attr("topic", dispatcher.getTopic().getName())
+                .attr("subscription", dispatcher.getSubscription().getName())
+                .exception(ex)
+                .log("Failed to recover BucketDelayedDeliveryTracker, fallback to InMemoryDelayedDeliveryTracker");
+        // If failed to create BucketDelayedDeliveryTracker, fallback to InMemoryDelayedDeliveryTracker
+        BrokerService brokerService = dispatcher.getTopic().getBrokerService();
+        brokerService.initializeFallbackDelayedDeliveryTrackerFactory();
+        return brokerService.getFallbackDelayedDeliveryTrackerFactory().newTracker(dispatcher);
     }
 
     @VisibleForTesting
     BucketDelayedDeliveryTracker newTracker0(AbstractPersistentDispatcherMultipleConsumers dispatcher)
             throws RecoverDelayedDeliveryTrackerException {
-        return new BucketDelayedDeliveryTracker(dispatcher, timer, tickTimeMillis,
-                isDelayedDeliveryDeliverAtTimeStrict, bucketSnapshotStorage, delayedDeliveryMinIndexCountPerBucket,
+        return new BucketDelayedDeliveryTracker(new DispatcherDelayedDeliveryContext(dispatcher), timer,
+                tickTimeMillis, Clock.systemUTC(), isDelayedDeliveryDeliverAtTimeStrict,
+                bucketSnapshotStorage, delayedDeliveryMinIndexCountPerBucket,
                 TimeUnit.SECONDS.toMillis(delayedDeliveryMaxTimeStepPerBucketSnapshotSegmentSeconds),
-                delayedDeliveryMaxIndexesPerBucketSnapshotSegment, delayedDeliveryMaxNumBuckets);
+                delayedDeliveryMaxIndexesPerBucketSnapshotSegment, delayedDeliveryMaxNumBuckets, false);
     }
 
     /**
