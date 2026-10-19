@@ -26,6 +26,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import static org.testng.AssertJUnit.assertNotSame;
 import static org.testng.AssertJUnit.assertSame;
 import io.opentelemetry.api.OpenTelemetry;
@@ -272,6 +273,38 @@ public class PendingReadsManagerTest  {
             pos++;
         }
 
+    }
+
+    @Test
+    public void singleEntryReadsShareAnIncludingReadAndNotEachOther() throws Exception {
+        boolean shouldCacheEntry = false;
+        PreparedReadFromStorage range = prepareReadFromStorage(lh, rangeEntryCache, 100, 199, shouldCacheEntry);
+        PreparedReadFromStorage single1 = prepareReadFromStorage(lh, rangeEntryCache, 300, 300, shouldCacheEntry);
+        PreparedReadFromStorage single2 = prepareReadFromStorage(lh, rangeEntryCache, 305, 305, shouldCacheEntry);
+
+        CapturingReadEntriesCallback rangeCallback = new CapturingReadEntriesCallback();
+        pendingReadsManager.readEntries(lh, 100, 199, shouldCacheEntry, rangeCallback, CTX);
+        // as a dispatcher's replay reads single entries: one inside the pending range read, two outside of it
+        CapturingReadEntriesCallback included = new CapturingReadEntriesCallback();
+        pendingReadsManager.readEntries(lh, 150, 150, shouldCacheEntry, included, CTX2);
+        CapturingReadEntriesCallback separate1 = new CapturingReadEntriesCallback();
+        pendingReadsManager.readEntries(lh, 300, 300, shouldCacheEntry, separate1, CTX);
+        CapturingReadEntriesCallback separate2 = new CapturingReadEntriesCallback();
+        pendingReadsManager.readEntries(lh, 305, 305, shouldCacheEntry, separate2, CTX);
+
+        range.storageReadCompleted();
+        single1.storageReadCompleted();
+        single2.storageReadCompleted();
+
+        for (CapturingReadEntriesCallback callback : List.of(rangeCallback, included, separate1, separate2)) {
+            callback.get();
+        }
+        verifyRange(rangeCallback.entries, 100, 199);
+        // the included single entry came from the range read
+        verifyRange(included.entries, 150, 150);
+        assertNull(entryRangeReadCount.get(Pair.of(150L, 150L)));
+        verifyRange(separate1.entries, 300, 300);
+        verifyRange(separate2.entries, 305, 305);
     }
 
     @Test
