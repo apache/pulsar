@@ -1979,14 +1979,17 @@ public class ManagedCursorImpl implements ManagedCursor {
     static final long REPLAY_RANGE_MAX_BYTES = 1024 * 1024;
 
     /**
-     * Reads the replay positions, the runs of positions close to each other in a ledger with one read of the range
-     * between them, which releases the entries in between, and the other positions one at a time. A dispatcher's
-     * replay positions are often close: a consumer's pending entries, or the entries of the keys of a consumer that
-     * had no permits. Each wanted entry, or its failure, reaches the callback as a single-entry read's would.
+     * Reads the replay positions. The positions whose entries are cached are read one at a time, from the cache: the
+     * entries in between them may not be cached, since the cache drops an entry once the cursors that read it have,
+     * and a range read would wait for those to be read from storage. The other positions are grouped into runs of
+     * positions close to each other in a ledger, by {@link #replayRuns}, and each run is read with one read of the
+     * range from its first position to its last, which releases the entries in between; a position that is a run of
+     * its own is read as a range of one entry. A dispatcher's replay positions are often close: a consumer's pending
+     * entries, or the entries of the keys of a consumer that had no permits.
      *
-     * <p>The positions whose entries are cached are read one at a time, from the cache: the entries in between may
-     * not be cached, since the cache drops an entry once the cursors that read it have, and a range read would wait
-     * for them to be read from storage.
+     * <p>The ranges are read with an expected read count of {@link #REPLAYED_ENTRY_EXPECTED_READ_COUNT}, so that the
+     * entries read from storage are cached for a replay of them again. Each wanted entry, or its failure, reaches the
+     * callback as a single-entry read's would.
      */
     private void readReplayPositions(List<Position> replayPositions, ReadEntryCallback cb, Object ctx) {
         // the positions to read from storage
@@ -2013,7 +2016,7 @@ public class ManagedCursorImpl implements ManagedCursor {
      * The runs of the sorted positions that one range read each takes: positions in a ledger at most
      * {@link #REPLAY_RANGE_MAX_GAP} entries apart, whose entries in between take at most
      * {@link #REPLAY_RANGE_MAX_GAP_BYTES}, spanning at most {@link #REPLAY_RANGE_MAX_ENTRIES} entries and
-     * {@link #REPLAY_RANGE_MAX_BYTES}, by the average entry size. A position that is a run of its own is read alone.
+     * {@link #REPLAY_RANGE_MAX_BYTES}, by the average entry size. A position can be a run of its own.
      */
     @VisibleForTesting
     static List<List<Position>> replayRuns(List<Position> positions, long averageEntrySize) {

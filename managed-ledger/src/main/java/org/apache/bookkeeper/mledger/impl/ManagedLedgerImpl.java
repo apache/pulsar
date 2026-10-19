@@ -2723,8 +2723,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     /**
-     * Reads every entry from {@code firstEntry} to {@code lastEntry} of the ledger, without a size limit and without
-     * caching them, as a cursor's replay of positions close to each other does with one storage read.
+     * Reads every entry from {@code firstEntry} to {@code lastEntry} of the ledger through the entry cache, without a
+     * size limit, as a cursor's replay of positions close to each other does with one read. The entries read from
+     * storage are cached with the expected read count.
+     *
+     * @param entriesWanted the entries of the range that the cursor reads, which the entries-read stat counts
+     * @param expectedReadCount the expected read count that the entries read from storage are cached with; 0 doesn't
+     *                          cache them
      */
     void asyncReadEntries(long ledgerId, long firstEntry, long lastEntry, int entriesWanted, int expectedReadCount,
                           ReadEntriesCallback callback, Object ctx) {
