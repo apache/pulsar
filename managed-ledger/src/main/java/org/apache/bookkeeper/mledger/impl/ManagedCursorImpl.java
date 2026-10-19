@@ -2047,6 +2047,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             public void readEntriesComplete(List<Entry> entries, Object readCtx) {
                 for (Entry entry : entries) {
                     if (wantedEntries.remove(entry.getEntryId())) {
+                        ledger.cacheReplayedEntry(entry);
                         cb.readEntryComplete(entry, ctx);
                     } else {
                         // an entry in between isn't read by this cursor: it doesn't count as its read

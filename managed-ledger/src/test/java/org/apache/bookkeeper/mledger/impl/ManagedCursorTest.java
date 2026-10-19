@@ -4017,6 +4017,13 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             assertEquals(new String(entry.getData(), Encoding), "entry-" + added.indexOf(entry.getPosition()));
             entry.release();
         }
+        if (!cacheEveryOther) {
+            // a position that a range read took from storage is cached for a replay of it again, not the entries in
+            // between, nor a position read alone
+            assertTrue(ledger.entryCache.hasEntry(added.get(0)));
+            assertFalse(ledger.entryCache.hasEntry(added.get(1)));
+            assertFalse(ledger.entryCache.hasEntry(added.get(590)));
+        }
     }
 
     @Test(timeOut = 20000)
