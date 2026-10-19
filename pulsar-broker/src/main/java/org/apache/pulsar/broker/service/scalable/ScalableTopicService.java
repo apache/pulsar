@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.scalable;
 
+import io.prometheus.client.CollectorRegistry;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -84,13 +85,28 @@ public class ScalableTopicService {
         this.coordinationService = coordinationService;
     }
 
+    private volatile ScalableTopicConsumerMetrics consumerMetrics;
+
     // --- Lifecycle ---
 
-    public void start() {
+    public synchronized void start() {
+        if (consumerMetrics != null) {
+            return;
+        }
+        consumerMetrics = new ScalableTopicConsumerMetrics(
+                brokerService.getPulsar().getOpenTelemetry().getMeter(), CollectorRegistry.defaultRegistry,
+                brokerService.getPulsar().getConfiguration().getClusterName(), this::consumerStats);
         log.info("ScalableTopicService started");
     }
 
     public void close() {
+        closeAsync().join();
+    }
+
+    public CompletableFuture<Void> closeAsync() {
+        if (consumerMetrics != null) {
+            consumerMetrics.close();
+        }
         log.info().attr("controllerCount", controllers.size())
                 .log("Closing ScalableTopicService, releasing controllers");
         List<CompletableFuture<Void>> closeFutures = controllers.values().stream()
@@ -101,8 +117,22 @@ public class ScalableTopicService {
                             return null;
                         }))
                 .toList();
-        FutureUtil.waitForAll(closeFutures).join();
-        controllers.clear();
+        return FutureUtil.waitForAll(closeFutures).whenComplete((__, ___) -> controllers.clear());
+    }
+
+    SubscriptionCoordinator.ConsumerStats consumerStats() {
+        SubscriptionCoordinator.ConsumerStats stats = SubscriptionCoordinator.ConsumerStats.EMPTY;
+        for (CompletableFuture<ScalableTopicController> future : controllers.values()) {
+            // Collection never waits for controller initialization or a failed takeover.
+            if (!future.isDone() || future.isCompletedExceptionally()) {
+                continue;
+            }
+            ScalableTopicController controller = future.getNow(null);
+            if (controller != null) {
+                stats = stats.plus(controller.consumerStats());
+            }
+        }
+        return stats;
     }
 
     // --- Controller management ---
@@ -128,6 +158,9 @@ public class ScalableTopicService {
     private CompletableFuture<ScalableTopicController> newController(String key, TopicName topic) {
         ScalableTopicController controller = new ScalableTopicController(
                 topic, resources, brokerService, coordinationService);
+        if (consumerMetrics != null) {
+            controller.setRebalanceListener(consumerMetrics::recordRebalance);
+        }
         CompletableFuture<ScalableTopicController> future = new CompletableFuture<>();
         // Released once its topic is deleted: the admin delete stops the controller on the
         // broker serving it, not the ones other brokers hold for the topic. Closed before it is

@@ -36,6 +36,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import lombok.Getter;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.TransportCnx;
@@ -66,6 +67,25 @@ import org.apache.pulsar.common.util.Backoff;
  * new leader regardless of how long they had been disconnected under the old one.
  */
 public class SubscriptionCoordinator {
+
+    enum RebalanceReason {
+        CONSUMER_JOIN,
+        CONSUMER_LEAVE,
+        CONSUMER_EVICT,
+        LAYOUT_CHANGE,
+        SEGMENT_DRAINED
+    }
+
+    record ConsumerStats(long active, long idle, long disconnected, long blocked) {
+        static final ConsumerStats EMPTY = new ConsumerStats(0, 0, 0, 0);
+
+        ConsumerStats plus(ConsumerStats other) {
+            return new ConsumerStats(active + other.active, idle + other.idle,
+                    disconnected + other.disconnected, blocked + other.blocked);
+        }
+    }
+
+    private Consumer<RebalanceReason> rebalanceListener = __ -> { };
 
     private static final Logger LOG = Logger.get(SubscriptionCoordinator.class);
     private final Logger log;
@@ -223,8 +243,9 @@ public class SubscriptionCoordinator {
                             // The registration is persisted: the next leader restores it.
                             throw notServing();
                         }
-                        sessions.put(consumerName, session);
-                        Map<ConsumerSession, ConsumerAssignment> result = rebalanceAndNotify();
+                        ConsumerSession previous = sessions.put(consumerName, session);
+                        Map<ConsumerSession, ConsumerAssignment> result = rebalanceAndNotify(
+                                previous == null ? RebalanceReason.CONSUMER_JOIN : null);
                         // First consumer (or rejoining one) — kick off drain checks at the
                         // shortest delay rather than whatever long backoff we'd accumulated
                         // while idle.
@@ -281,11 +302,8 @@ public class SubscriptionCoordinator {
                         if (removed != null) {
                             removed.cancelGraceTimer();
                         }
-                        if (sessions.isEmpty()) {
-                            segmentAssignments.clear();
-                            return Map.of();
-                        }
-                        return rebalanceAndNotify();
+                        return removed == null ? snapshotAssignments()
+                                : rebalanceAndNotify(RebalanceReason.CONSUMER_LEAVE);
                     }
                 });
     }
@@ -348,7 +366,7 @@ public class SubscriptionCoordinator {
             segmentAssignments.clear();
             return CompletableFuture.completedFuture(Map.of());
         }
-        Map<ConsumerSession, ConsumerAssignment> result = rebalanceAndNotify();
+        Map<ConsumerSession, ConsumerAssignment> result = rebalanceAndNotify(RebalanceReason.LAYOUT_CHANGE);
         // New sealed segments may have appeared — restart drain checks from the
         // initial delay rather than continuing whatever long backoff we'd settled into.
         resetAndRearmDrainPoll();
@@ -368,7 +386,8 @@ public class SubscriptionCoordinator {
         this.drainChecker = checker;
         log.info().log("Drain checker installed on existing coordinator; rebalancing");
         if (!sessions.isEmpty()) {
-            rebalanceAndNotify();
+            // Restoring STREAM ordering on reconnect is not a membership or layout change.
+            rebalanceAndNotify(null);
         }
         resetAndRearmDrainPoll();
     }
@@ -435,6 +454,10 @@ public class SubscriptionCoordinator {
         if (!segment.isActive() && drainedSegmentIds.contains(segment.segmentId())) {
             return false;
         }
+        return ancestorsDrained(segment, layout);
+    }
+
+    private boolean ancestorsDrained(SegmentInfo segment, SegmentLayout layout) {
         Map<Long, SegmentInfo> segments = layout.getAllSegments();
         Set<Long> visited = new HashSet<>();
         Deque<Long> ancestors = new ArrayDeque<>(segment.parentIds());
@@ -473,7 +496,7 @@ public class SubscriptionCoordinator {
             // on the same DAG branch often follow shortly.
             if (!sessions.isEmpty()) {
                 log.info().attr("drained", segmentIds).log("Sealed segments drained, rebalancing");
-                rebalanceAndNotify();
+                rebalanceAndNotify(RebalanceReason.SEGMENT_DRAINED);
             }
             resetAndRearmDrainPoll();
         }
@@ -583,6 +606,37 @@ public class SubscriptionCoordinator {
         return Set.copyOf(sessions.values());
     }
 
+    /** Installed before this coordinator is published. The listener must not acquire controller locks. */
+    synchronized void setRebalanceListener(Consumer<RebalanceReason> listener) {
+        rebalanceListener = listener;
+    }
+
+    /** A consistent, subscription-local snapshot; shared segments still make every sharer active. */
+    synchronized ConsumerStats consumerStats() {
+        if (closed) {
+            return ConsumerStats.EMPTY;
+        }
+        long active = 0;
+        long idle = 0;
+        long disconnected = 0;
+        for (var entry : computeAssignment(currentLayout, sessions.values()).entrySet()) {
+            if (!entry.getKey().isConnected()) {
+                disconnected++;
+            } else if (entry.getValue().assignedSegments().isEmpty()) {
+                idle++;
+            } else {
+                active++;
+            }
+        }
+        // Count only ancestor blocking, not sealed segments retired after draining themselves.
+        long blocked = drainChecker == null || sessions.isEmpty() ? 0
+                : currentLayout.getAllSegments().values().stream()
+                .filter(segment -> segment.isActive() || !drainedSegmentIds.contains(segment.segmentId()))
+                .filter(segment -> !ancestorsDrained(segment, currentLayout))
+                .count();
+        return new ConsumerStats(active, idle, disconnected, blocked);
+    }
+
     // --- Internals ---
 
     /**
@@ -623,11 +677,7 @@ public class SubscriptionCoordinator {
                         if (closed) {
                             return;
                         }
-                        if (!sessions.isEmpty()) {
-                            rebalanceAndNotify();
-                        } else {
-                            segmentAssignments.clear();
-                        }
+                        rebalanceAndNotify(RebalanceReason.CONSUMER_EVICT);
                     }
                 });
     }
@@ -760,10 +810,13 @@ public class SubscriptionCoordinator {
         return result;
     }
 
-    private Map<ConsumerSession, ConsumerAssignment> rebalanceAndNotify() {
+    private Map<ConsumerSession, ConsumerAssignment> rebalanceAndNotify(RebalanceReason reason) {
         Map<ConsumerSession, ConsumerAssignment> assignments =
                 computeAssignment(currentLayout, sessions.values());
         updateSegmentAssignmentIndex(assignments);
+        if (reason != null) {
+            rebalanceListener.accept(reason);
+        }
 
         for (var entry : assignments.entrySet()) {
             entry.getKey().sendAssignmentUpdate(entry.getValue());

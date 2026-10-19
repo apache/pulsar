@@ -33,6 +33,8 @@ import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import io.opentelemetry.api.OpenTelemetry;
+import io.prometheus.client.CollectorRegistry;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -53,6 +55,7 @@ import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.resources.SubscriptionType;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.TransportCnx;
+import org.apache.pulsar.broker.stats.PulsarBrokerOpenTelemetry;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.ScalableTopics;
 import org.apache.pulsar.client.admin.Topics;
@@ -115,7 +118,12 @@ public class ScalableTopicServiceTest {
         scalableTopicsAdmin = mock(ScalableTopics.class);
 
         when(brokerService.getPulsar()).thenReturn(pulsar);
-        when(pulsar.getConfiguration()).thenReturn(new ServiceConfiguration());
+        ServiceConfiguration config = new ServiceConfiguration();
+        config.setClusterName("test");
+        when(pulsar.getConfiguration()).thenReturn(config);
+        PulsarBrokerOpenTelemetry telemetry = mock(PulsarBrokerOpenTelemetry.class);
+        when(telemetry.getMeter()).thenReturn(OpenTelemetry.noop().getMeter("test"));
+        when(pulsar.getOpenTelemetry()).thenReturn(telemetry);
         when(brokerService.getTopicIfExists(anyString()))
                 .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
         when(brokerService.deleteSchema(any(TopicName.class)))
@@ -578,6 +586,30 @@ public class ScalableTopicServiceTest {
         assertNotSame(c1, c2);
         assertEquals(c1.getTopicName(), tn1);
         assertEquals(c2.getTopicName(), tn2);
+    }
+
+    @Test
+    public void testConsumerMetricsAggregateLeadersAndRetainCountersAfterRelease() throws Exception {
+        TopicName first = scalableTopic("metrics-first");
+        TopicName second = scalableTopic("metrics-second");
+        service.createScalableTopic(first, 1).get();
+        service.createScalableTopic(second, 1).get();
+        service.registerConsumer(first, "stream", "one", 1, ScalableConsumerType.STREAM,
+                mock(TransportCnx.class)).get();
+        service.registerConsumer(second, "checkpoint", "two", 2, ScalableConsumerType.CHECKPOINT,
+                mock(TransportCnx.class)).get();
+        assertEquals(service.consumerStats(), new SubscriptionCoordinator.ConsumerStats(2, 0, 0, 0));
+        service.onConsumerDisconnect(first, "stream", "one");
+        assertEquals(service.consumerStats(), new SubscriptionCoordinator.ConsumerStats(1, 0, 1, 0));
+        service.releaseController(first).get();
+        assertEquals(service.consumerStats(), new SubscriptionCoordinator.ConsumerStats(1, 0, 0, 0));
+        service.releaseController(second).get();
+        assertEquals(service.consumerStats(), SubscriptionCoordinator.ConsumerStats.EMPTY);
+        assertEquals(CollectorRegistry.defaultRegistry.getSampleValue("pulsar_scalable_topic_rebalance_total",
+                new String[]{"cluster", "rebalance_reason"}, new String[]{"test", "consumer_join"}), 2.0);
+        service.start(); // Idempotent: must not reset counters or register another collector.
+        assertEquals(CollectorRegistry.defaultRegistry.getSampleValue("pulsar_scalable_topic_rebalance_total",
+                new String[]{"cluster", "rebalance_reason"}, new String[]{"test", "consumer_join"}), 2.0);
     }
 
     /**
