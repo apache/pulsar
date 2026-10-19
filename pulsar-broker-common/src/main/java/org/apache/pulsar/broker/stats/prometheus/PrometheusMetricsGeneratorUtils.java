@@ -96,6 +96,11 @@ public class PrometheusMetricsGeneratorUtils {
     }
 
     static String getTypeNameSuffix(Collector.Type type) {
+        // The client stores counter family names without _total, but Prometheus text format
+        // associates TYPE metadata with the sample name, unlike OpenMetrics.
+        if (type.equals(Collector.Type.COUNTER)) {
+            return "_total";
+        }
         if (type.equals(Collector.Type.INFO)) {
             return "_info";
         }

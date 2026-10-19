@@ -88,6 +88,7 @@ public class PrometheusMetricsGeneratorUtilsTest {
         counter.inc();
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         PrometheusMetricsGeneratorUtils.generate(defaultClusterValue, out,  Collections.emptyList());
+        assertTrue(out.toString().contains("# TYPE " + metricsName + "_total counter\n"));
         assertTrue(out.toString().contains(
                 String.format("%s_total{cluster=\"%s\"} 1.0", metricsName, defaultClusterValue)
         ));
