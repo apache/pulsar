@@ -538,7 +538,7 @@ public class AutoScalePolicyEvaluatorTest {
                 "should pick the coldest adjacent pair {2,3}, got " + m);
     }
 
-    // --- blocked evaluations and alternative actions ---
+    // --- blocked evaluations and baseline action priority ---
 
     private static SegmentLayout singleSlotLayout() {
         return new SegmentLayout(0, 3, Map.of(
@@ -610,18 +610,34 @@ public class AutoScalePolicyEvaluatorTest {
     }
 
     @Test
-    public void testLoadSplitSkipsHotSingleSlotSegment() {
+    public void testLoadSplitKeepsHottestSingleSlotCandidate() {
         AutoScaleDecision decision = decide(singleSlotLayout(), Map.of(
                 0L, sample(SPLIT_MSG_IN * 10, 0, 0, 0, 0),
                 1L, sample(SPLIT_MSG_IN * 2, 0, 0, 0, 0)), Map.of(), baseConfig().build());
+        assertThat(decision).isEqualTo(new AutoScaleDecision.Blocked("unsplittable"));
+    }
+
+    @Test
+    public void testLoadSplitKeepsValidHottestCandidate() {
+        AutoScaleDecision decision = decide(singleSlotLayout(), Map.of(
+                0L, sample(SPLIT_MSG_IN * 2, 0, 0, 0, 0),
+                1L, sample(SPLIT_MSG_IN * 10, 0, 0, 0, 0)), Map.of(), baseConfig().build());
         assertThat(decision).isEqualTo(new AutoScaleDecision.Split(1, "msgRateIn"));
     }
 
     @Test
-    public void testConsumerSplitSkipsBusySingleSlotSegment() {
+    public void testConsumerSplitKeepsBusiestSingleSlotCandidate() {
         AutoScaleDecision decision = decide(singleSlotLayout(), Map.of(
                 0L, sample(4_000, 0, 0, 0, 0),
                 1L, sample(2_000, 0, 0, 0, 0)), Map.of("group", 4), Set.of(), baseConfig().build());
+        assertThat(decision).isEqualTo(new AutoScaleDecision.Blocked("unsplittable"));
+    }
+
+    @Test
+    public void testConsumerSplitKeepsValidBusiestCandidate() {
+        AutoScaleDecision decision = decide(singleSlotLayout(), Map.of(
+                0L, sample(2_000, 0, 0, 0, 0),
+                1L, sample(4_000, 0, 0, 0, 0)), Map.of("group", 4), Set.of(), baseConfig().build());
         assertThat(decision).isEqualTo(new AutoScaleDecision.Split(1, "consumer-count"));
     }
 
@@ -641,11 +657,19 @@ public class AutoScalePolicyEvaluatorTest {
     }
 
     @Test
-    public void testUnsplittableConsumerDemandCanRebucketInstead() {
+    public void testUnsplittableConsumerDemandDoesNotRebucketInstead() {
         AutoScaleDecision decision = decide(singleSlotLayout(),
                 Map.of(0L, sample(2_000, 0, 0, 0, 0)), Map.of("sub", 4), baseConfig().build());
-        assertThat(decision).isEqualTo(new AutoScaleDecision.Rebucket(List.of(0L, 1L, 2L), 2,
-                "below-split-rate-floor"));
+        assertThat(decision).isEqualTo(new AutoScaleDecision.Blocked("unsplittable"));
+    }
+
+    @Test
+    public void testUnsplittableConsumerDemandDoesNotSelectTrafficSplit() {
+        AutoScaleDecision decision = decide(singleSlotLayout(), Map.of(
+                0L, sample(2_000, 0, 0, 0, 0),
+                1L, sample(0, 0, 0, SPLIT_BYTES_OUT * 2, 0)),
+                Map.of("group", 4), Set.of(), baseConfig().build());
+        assertThat(decision).isEqualTo(new AutoScaleDecision.Blocked("unsplittable"));
     }
 
     @Test
@@ -660,13 +684,60 @@ public class AutoScalePolicyEvaluatorTest {
     }
 
     @Test
-    public void testUnsplittableDoesNotSuppressColdMerge() {
+    public void testUnsplittableTrafficSplitDoesNotSelectColdMerge() {
         AutoScaleDecision decision = decide(singleSlotLayout(), Map.of(
                 0L, sample(SPLIT_MSG_IN * 2, 0, 0, 0, old()),
                 1L, cold(old()), 2L, cold(old())), Map.of(), baseConfig().build());
+        assertThat(decision).isEqualTo(new AutoScaleDecision.Blocked("unsplittable"));
+    }
+
+    @Test
+    public void testUnsplittableConsumerSplitDoesNotSelectColdMerge() {
+        AutoScaleDecision decision = decide(singleSlotLayout(), Map.of(
+                0L, sample(2_000, 0, 0, 0, old()),
+                1L, cold(old()), 2L, cold(old())), Map.of("group", 4), Set.of(), baseConfig().build());
+        assertThat(decision).isEqualTo(new AutoScaleDecision.Blocked("unsplittable"));
+    }
+
+    @Test
+    public void testSingleSlotAtSegmentCapReportsCap() {
+        SegmentLayout layout = singleSlotLayout();
+        AutoScaleConfig config = baseConfig().maxSegments(3).build();
+        assertThat(decide(layout, Map.of(0L, sample(SPLIT_MSG_IN * 2, 0, 0, 0, 0)), Map.of(), config))
+                .isEqualTo(new AutoScaleDecision.Blocked("max_segments"));
+        assertThat(decide(layout, Map.of(0L, sample(2_000, 0, 0, 0, 0)),
+                Map.of("group", 4), Set.of(), config))
+                .isEqualTo(new AutoScaleDecision.Blocked("max_segments"));
+    }
+
+    @Test
+    public void testSingleSlotAtSegmentCapDoesNotSuppressTrafficLaneMerge() {
+        AutoScaleDecision decision = decide(singleSlotLayout(), Map.of(
+                0L, sample(SPLIT_MSG_IN * 2, 0, 0, 0, old()),
+                1L, cold(old()), 2L, cold(old())), Map.of(), baseConfig().maxSegments(3).build());
         assertThat(decision).isInstanceOf(AutoScaleDecision.Merge.class);
         AutoScaleDecision.Merge merge = (AutoScaleDecision.Merge) decision;
         assertThat(Set.of(merge.segmentId1(), merge.segmentId2())).isEqualTo(Set.of(1L, 2L));
+    }
+
+    @Test
+    public void testSingleSlotAtSegmentCapDoesNotSuppressConsumerLaneMerge() {
+        AutoScaleDecision decision = decide(singleSlotLayout(), Map.of(
+                0L, sample(2_000, 0, 0, 0, old()),
+                1L, cold(old()), 2L, cold(old())), Map.of("group", 4), Set.of(),
+                baseConfig().maxSegments(3).build());
+        assertThat(decision).isInstanceOf(AutoScaleDecision.Merge.class);
+        AutoScaleDecision.Merge merge = (AutoScaleDecision.Merge) decision;
+        assertThat(Set.of(merge.segmentId1(), merge.segmentId2())).isEqualTo(Set.of(1L, 2L));
+    }
+
+    @Test
+    public void testSingleSlotAtSegmentCapCanStillRebucket() {
+        AutoScaleDecision decision = decide(singleSlotLayout(),
+                Map.of(0L, sample(SPLIT_MSG_IN * 2, 0, 0, 0, 0)), Map.of("sub", 4),
+                baseConfig().maxSegments(3).build());
+        assertThat(decision).isEqualTo(new AutoScaleDecision.Rebucket(List.of(0L, 1L, 2L), 2,
+                "at-max-segments"));
     }
 
     @Test

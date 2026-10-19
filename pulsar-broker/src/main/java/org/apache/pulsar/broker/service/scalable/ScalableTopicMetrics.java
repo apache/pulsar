@@ -47,7 +47,20 @@ import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Supplier;
 import lombok.CustomLog;
 
-/** Broker-level controller metrics, with shared state for Prometheus and OpenTelemetry. */
+/**
+ * Broker-level controller metrics, with shared state for Prometheus and OpenTelemetry.
+ *
+ * <p>The ordinary deployment scope is one broker SDK {@link Meter}, one Prometheus registry and one cluster.
+ * Real SDK histogram history is Meter-wide and survives provider recreation. Sharing that Meter across distinct
+ * registries or clusters does not provide independent histogram isolation: each registry with a live provider
+ * exposes the Meter's shared history, including its other clusters. OpenTelemetry cluster scope comes from the
+ * broker SDK resource, not an instrument attribute. Use separate SDK Meters for independent scopes.
+ *
+ * <p>Embedded providers sharing a registry and cluster aggregate counters from live providers only. Membership
+ * changes, including partial close or recreation, may lower or reset cumulative counter series, even though the
+ * OpenTelemetry observers report monotonic sums. This is not general monotonic multi-broker aggregation.
+ * With the API no-op Meter, Prometheus histogram history is provider-local instead of Meter-wide.
+ */
 @CustomLog
 public final class ScalableTopicMetrics implements AutoCloseable {
     private static final String OTEL_PREFIX = "pulsar.broker.scalable_topic.";
@@ -128,10 +141,24 @@ public final class ScalableTopicMetrics implements AutoCloseable {
         closed.set(true);
     }
 
+    /**
+     * Creates metrics for the ordinary one-broker SDK Meter, default registry and cluster scope.
+     * Real SDK histogram history is Meter-wide, not independently isolated by distinct registries or clusters;
+     * use separate SDK Meters for independent scopes. Embedded providers sharing the registry and cluster aggregate
+     * live-provider counters only: membership changes or partial close may lower or reset cumulative series,
+     * rather than provide general monotonic multi-broker aggregation.
+     */
     public ScalableTopicMetrics(Meter meter, String cluster, Supplier<Counts> counts) {
         this(meter, cluster, counts, CollectorRegistry.defaultRegistry);
     }
 
+    /**
+     * Creates metrics with an explicit registry for embedded deployments and tests; the ordinary deployment
+     * scope remains one broker SDK Meter, registry and cluster. A distinct registry or cluster does not isolate
+     * real SDK Meter-wide histogram history; use separate SDK Meters for independent scopes. Providers sharing a
+     * registry and cluster contribute live-provider counters, so membership changes or partial close may lower or
+     * reset cumulative series. This is not general monotonic multi-broker aggregation.
+     */
     ScalableTopicMetrics(Meter meter, String cluster, Supplier<Counts> counts, CollectorRegistry registry) {
         this.meter = Objects.requireNonNull(meter);
         this.cluster = Objects.requireNonNull(cluster);
@@ -307,6 +334,14 @@ public final class ScalableTopicMetrics implements AutoCloseable {
         }
     }
 
+    /**
+     * Merges live-provider state and counters by cluster in one registry, without general monotonic multi-broker
+     * guarantees: provider membership changes or partial close can lower or reset counters. The ordinary scope is
+     * one broker SDK Meter, registry and cluster. Each real SDK Meter's histogram history is included once while
+     * any provider using it remains in this registry, including history recorded through other registries or clusters.
+     * Distinct registries or clusters sharing that Meter are not independent histogram scopes; use separate SDK
+     * Meters for isolation. API no-op Meter histograms instead follow each provider's lifetime.
+     */
     private static final class RegistryCollector extends Collector implements Collector.Describable {
         private final Set<ScalableTopicMetrics> providers = ConcurrentHashMap.newKeySet();
 

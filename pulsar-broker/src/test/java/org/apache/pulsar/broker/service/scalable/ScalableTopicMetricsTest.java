@@ -150,10 +150,14 @@ public class ScalableTopicMetricsTest {
         try {
             first.recordOperation("split", "manual", "success", 0.005);
             second.recordOperation("split", "manual", "success", 0.01);
+            first.recordBlocked("max_segments");
+            first.recordBlocked("max_segments");
+            second.recordBlocked("max_segments");
             var otel = reader.collectAllMetrics();
             var prometheus = Collections.list(registry.metricFamilySamples());
             assertGauges(otel, prometheus, 5, 7, 9);
             assertCounterParity(otel, prometheus, "layout.operation.count", "layout_operation_total", 2);
+            assertCounterParity(otel, prometheus, "auto_scale.blocked.count", "auto_scale_blocked_total", 3);
             assertHistogramParity(otel, prometheus, "layout.operation.duration",
                     "layout_operation_duration_seconds", 2, 0.015);
             assertThat(prometheus.stream().flatMap(family -> family.samples.stream())
@@ -162,9 +166,17 @@ public class ScalableTopicMetricsTest {
             first.close();
             first.close();
             int readsBefore = firstReads.get();
-            assertGauges(reader.collectAllMetrics(), Collections.list(registry.metricFamilySamples()), 4, 5, 6);
+            var afterCloseOtel = reader.collectAllMetrics();
+            var afterClosePrometheus = Collections.list(registry.metricFamilySamples());
+            assertGauges(afterCloseOtel, afterClosePrometheus, 4, 5, 6);
             assertThat(firstReads).hasValue(readsBefore);
-            assertHistogramParity(reader.collectAllMetrics(), Collections.list(registry.metricFamilySamples()),
+            // Embedded counters include only live providers, even for OTel's monotonic sum observers.
+            // Partial close intentionally lowers both cumulative series; histogram history remains Meter-wide.
+            assertCounterParity(afterCloseOtel, afterClosePrometheus,
+                    "layout.operation.count", "layout_operation_total", 1);
+            assertCounterParity(afterCloseOtel, afterClosePrometheus,
+                    "auto_scale.blocked.count", "auto_scale_blocked_total", 1);
+            assertHistogramParity(afterCloseOtel, afterClosePrometheus,
                     "layout.operation.duration", "layout_operation_duration_seconds", 2, 0.015);
             second.close();
             assertThat(Collections.list(registry.metricFamilySamples())).isEmpty();
@@ -212,6 +224,68 @@ public class ScalableTopicMetricsTest {
             assertHistogramParity(otherReader.collectAllMetrics(), Collections.list(registry.metricFamilySamples()),
                     "controller.takeover.duration", "controller_takeover_duration_seconds", 1, 0.01);
         }
+    }
+
+    @DataProvider
+    public Object[][] sdkHistogramClusters() {
+        return new Object[][]{{CLUSTER}, {"other-cluster"}};
+    }
+
+    @Test(dataProvider = "sdkHistogramClusters")
+    public void testSharedSdkMeterHistogramHistorySpansRegistriesAndClusters(String otherCluster) {
+        var otherRegistry = new CollectorRegistry();
+        try (var first = new ScalableTopicMetrics(meter, CLUSTER, () -> EMPTY, registry);
+             var second = new ScalableTopicMetrics(meter, otherCluster, () -> EMPTY, otherRegistry)) {
+            recordHistograms(first, 0.005);
+            // A registry with a live provider sees the Meter's history, even before that provider records anything.
+            assertHistogramState(registry, CLUSTER, 1, 0.005);
+            assertHistogramState(otherRegistry, CLUSTER, 1, 0.005);
+            assertSdkHistogramState(reader.collectAllMetrics(), 1, 0.005);
+
+            recordHistograms(second, 0.01);
+            boolean sameCluster = CLUSTER.equals(otherCluster);
+            for (var currentRegistry : List.of(registry, otherRegistry)) {
+                assertHistogramState(currentRegistry, CLUSTER, sameCluster ? 2 : 1, sameCluster ? 0.015 : 0.005);
+                assertHistogramState(currentRegistry, otherCluster, sameCluster ? 2 : 1, sameCluster ? 0.015 : 0.01);
+            }
+            // Cluster is not an instrument attribute: the SDK combines both providers' observations.
+            assertSdkHistogramState(reader.collectAllMetrics(), 2, 0.015);
+
+            first.close();
+            assertThat(Collections.list(registry.metricFamilySamples())).isEmpty();
+            assertHistogramState(otherRegistry, CLUSTER, sameCluster ? 2 : 1, sameCluster ? 0.015 : 0.005);
+            assertHistogramState(otherRegistry, otherCluster, sameCluster ? 2 : 1, sameCluster ? 0.015 : 0.01);
+            assertSdkHistogramState(reader.collectAllMetrics(), 2, 0.015);
+        }
+        assertThat(Collections.list(otherRegistry.metricFamilySamples())).isEmpty();
+    }
+
+    @Test(dataProvider = "sdkHistogramClusters")
+    public void testDistinctSdkMetersIsolateHistogramScopes(String otherCluster) {
+        var otherRegistry = new CollectorRegistry();
+        var otherReader = InMemoryMetricReader.create();
+        try (var otherSdk = SdkMeterProvider.builder().registerMetricReader(otherReader).build();
+             var first = new ScalableTopicMetrics(meter, CLUSTER, () -> EMPTY, registry);
+             var second = new ScalableTopicMetrics(otherSdk.get("other-broker"), otherCluster,
+                     () -> EMPTY, otherRegistry)) {
+            recordHistograms(first, 0.005);
+            assertHistogramState(otherRegistry, CLUSTER, 0, 0);
+            recordHistograms(second, 0.01);
+            assertHistogramState(registry, CLUSTER, 1, 0.005);
+            assertHistogramState(otherRegistry, otherCluster, 1, 0.01);
+            assertSdkHistogramState(reader.collectAllMetrics(), 1, 0.005);
+            assertSdkHistogramState(otherReader.collectAllMetrics(), 1, 0.01);
+            if (!CLUSTER.equals(otherCluster)) {
+                assertHistogramState(registry, otherCluster, 0, 0);
+                assertHistogramState(otherRegistry, CLUSTER, 0, 0);
+            }
+
+            first.close();
+            assertThat(Collections.list(registry.metricFamilySamples())).isEmpty();
+            assertHistogramState(otherRegistry, otherCluster, 1, 0.01);
+            assertSdkHistogramState(otherReader.collectAllMetrics(), 1, 0.01);
+        }
+        assertThat(Collections.list(otherRegistry.metricFamilySamples())).isEmpty();
     }
 
     @Test
@@ -300,6 +374,16 @@ public class ScalableTopicMetricsTest {
         metrics.recordSeal("split", seconds);
     }
 
+    private static void assertSdkHistogramState(Collection<MetricData> metrics, long count, double sum) {
+        for (String name : List.of("controller.takeover.duration", "layout.operation.duration",
+                "layout.seal.duration")) {
+            assertThat(metric(metrics, name).getHistogramData().getPoints()).singleElement().satisfies(point -> {
+                assertThat(point.getCount()).as("%s SDK count", name).isEqualTo(count);
+                assertThat(point.getSum()).as("%s SDK sum", name).isCloseTo(sum, offset(0.000001));
+            });
+        }
+    }
+
     private static void assertHistogramState(CollectorRegistry registry, String cluster, long count, double sum) {
         Map<String, Map<String, String>> series = Map.of(
                 "controller_takeover_duration_seconds", Map.of("cluster", cluster, "operation_status", "success"),
@@ -324,7 +408,7 @@ public class ScalableTopicMetricsTest {
     }
 
     @Test
-    public void testRegistriesAreIsolatedAndNoopNeverRegisters() {
+    public void testCountersAreRegistryLocalAndNoopNeverRegisters() {
         var otherRegistry = new CollectorRegistry();
         try (var first = new ScalableTopicMetrics(meter, CLUSTER, () -> EMPTY, registry);
              var second = new ScalableTopicMetrics(meter, CLUSTER, () -> EMPTY, otherRegistry)) {

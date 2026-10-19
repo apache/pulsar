@@ -49,6 +49,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
@@ -64,6 +65,7 @@ import org.apache.pulsar.metadata.TestZKServer;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
+import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
@@ -181,6 +183,89 @@ public class ScalableTopicControllerFailoverTest {
         assertThatThrownBy(() -> first.registerConsumer("sub", "consumer-1", 1L,
                 ScalableConsumerType.STREAM, mock(TransportCnx.class)))
                 .hasMessageContaining("not the leader");
+    }
+
+    @DataProvider
+    public Object[][] takeoverInterruptions() {
+        return new Object[][]{
+                {"close", false}, {"close", true},
+                {"leadership_loss", false}, {"leadership_loss", true},
+                {"superseded", false}, {"superseded", true}
+        };
+    }
+
+    @Test(dataProvider = "takeoverInterruptions", timeOut = 30_000)
+    public void testInterruptedTakeoverIsNotFailure(String interruption, boolean restoreFails) throws Exception {
+        ScalableTopicResources heldResources = spy(broker1.resources);
+        CompletableFuture<List<String>> restore = new CompletableFuture<>();
+        CompletableFuture<Void> entered = new CompletableFuture<>();
+        AtomicInteger restores = new AtomicInteger();
+        doAnswer(invocation -> {
+            if (restores.getAndIncrement() == 0) {
+                entered.complete(null);
+                return restore;
+            }
+            return CompletableFuture.completedFuture(List.of());
+        }).when(heldResources).listSubscriptionsAsync(topic);
+        ScalableTopicController first = new ScalableTopicController(topic, heldResources,
+                broker1.brokerService, broker1.coordinationService);
+        broker1.controllers.add(first);
+        CollectorRegistry registry = new CollectorRegistry();
+        var reader = InMemoryMetricReader.create();
+        try (var sdk = SdkMeterProvider.builder().registerMetricReader(reader).build();
+             var metrics = new ScalableTopicMetrics(sdk.get("interrupted-takeover"), "test-cluster",
+                     first::metricCounts, registry)) {
+            first.setMetrics(metrics);
+            CompletableFuture<Void> initialization = first.initialize();
+            entered.get(5, TimeUnit.SECONDS);
+            assertThat(first.isLeader()).as("the old attempt has not started serving").isFalse();
+            if ("close".equals(interruption)) {
+                first.close().get(5, TimeUnit.SECONDS);
+            } else {
+                ScalableTopicController second = broker2.newController();
+                second.initialize().get(5, TimeUnit.SECONDS);
+                broker2.takeOverControllerLock();
+                Awaitility.await().atMost(Duration.ofSeconds(5)).until(() -> second.isLeader()
+                        && first.getLeaderState() == LeaderElectionState.Following);
+                if ("superseded".equals(interruption)) {
+                    broker1.takeOverControllerLock();
+                    Awaitility.await().atMost(Duration.ofSeconds(5))
+                            .until(() -> first.isLeader() && !second.isLeader());
+                }
+            }
+            if (restoreFails) {
+                restore.completeExceptionally(new IllegalStateException("obsolete restoration failed"));
+            } else {
+                restore.complete(List.of());
+            }
+            // An obsolete initialization may finish normally or exceptionally; neither is a takeover failure.
+            initialization.handle((__, ex) -> null).get(5, TimeUnit.SECONDS);
+            assertThat(registry.getSampleValue(
+                    "pulsar_scalable_topic_controller_takeover_duration_seconds_count",
+                    new String[]{"cluster", "operation_status"}, new String[]{"test-cluster", "failure"})).isNull();
+            Collection<MetricData> collected = reader.collectAllMetrics();
+            if ("superseded".equals(interruption)) {
+                assertThat(scalableMetric(collected, "controller.takeover.duration").getHistogramData().getPoints())
+                        .singleElement().satisfies(point -> {
+                            assertThat(point.getCount()).isEqualTo(1);
+                            assertThat(point.getAttributes()).isEqualTo(Attributes.builder()
+                                    .put("pulsar.scalable_topic.operation.status", "success").build());
+                        });
+                assertThat(registry.getSampleValue(
+                        "pulsar_scalable_topic_controller_takeover_duration_seconds_count",
+                        new String[]{"cluster", "operation_status"}, new String[]{"test-cluster", "success"}))
+                        .isEqualTo(1);
+            } else {
+                assertThat(collected).noneSatisfy(metric -> assertThat(metric.getName())
+                        .isEqualTo("pulsar.broker.scalable_topic.controller.takeover.duration"));
+                assertThat(registry.getSampleValue(
+                        "pulsar_scalable_topic_controller_takeover_duration_seconds_count",
+                        new String[]{"cluster", "operation_status"}, new String[]{"test-cluster", "success"}))
+                        .isNull();
+            }
+        } finally {
+            restore.completeExceptionally(new IllegalStateException("release held restoration during cleanup"));
+        }
     }
 
     @DataProvider

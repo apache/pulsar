@@ -431,8 +431,13 @@ public class ScalableTopicController {
         // Not under the monitor: a takeover that finds the topic deleted closes this controller,
         // and with it the leader election, whose monitor comes first.
         CompletableFuture<Void> takeover = FutureUtil.supplySafely(() -> takeOver(term))
-                .whenComplete((__, ex) -> metrics.recordTakeover(elapsedSeconds(startedNanos),
-                        ex == null && isCurrentTerm(term) && isLeader()));
+                .whenComplete((__, ex) -> {
+                    // Superseded or closed attempts are abandoned, not failed takeovers.
+                    // Successful takeover is recorded at the actual transition to serving.
+                    if (ex != null && isCurrentTerm(term)) {
+                        metrics.recordTakeover(elapsedSeconds(startedNanos), false);
+                    }
+                });
         long retryDelayMs;
         synchronized (this) {
             if (term != this.term) {
@@ -498,6 +503,7 @@ public class ScalableTopicController {
 
     private void serveAsLeader(long term) {
         CompletableFuture<Void> served;
+        long startedNanos;
         synchronized (this) {
             if (closed || term != this.term) {
                 return;
@@ -506,7 +512,10 @@ public class ScalableTopicController {
             scheduleGcTask();
             scheduleAutoScaleTask();
             served = leadership;
+            startedNanos = takeoverStartedNanos;
         }
+        // Record the completed takeover before waiters can close or supersede the serving controller.
+        metrics.recordTakeover(elapsedSeconds(startedNanos), true);
         // Not under the monitor: the requests that waited for the takeover go on from here.
         served.complete(null);
     }

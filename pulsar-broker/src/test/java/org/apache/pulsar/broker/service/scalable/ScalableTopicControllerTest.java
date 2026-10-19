@@ -25,6 +25,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -261,6 +262,54 @@ public class ScalableTopicControllerTest {
         verify(metrics).recordOperation(eq("split"), eq("manual"), eq("partial"), anyDouble());
         verify(metrics, never()).recordSeal(anyString(), anyDouble());
         assertEquals(controller.metricCounts(), new ScalableTopicMetrics.Counts(1, 4, 0));
+    }
+
+    private record PendingTakeover(CompletableFuture<Void> initialization,
+                                   CompletableFuture<List<String>> restore) { }
+
+    private PendingTakeover startPendingTakeover() throws Exception {
+        controller.close().get(5, TimeUnit.SECONDS);
+        resources = spy(resources);
+        CompletableFuture<List<String>> restore = new CompletableFuture<>();
+        CompletableFuture<Void> entered = new CompletableFuture<>();
+        doAnswer(invocation -> {
+            entered.complete(null);
+            return restore;
+        }).when(resources).listSubscriptionsAsync(topicName);
+        controller = newController(topicName);
+        CompletableFuture<Void> initialization = controller.initialize();
+        entered.get(5, TimeUnit.SECONDS);
+        return new PendingTakeover(initialization, restore);
+    }
+
+    @Test
+    public void testClosedTakeoverIsNotRecordedAsFailure() throws Exception {
+        PendingTakeover pending = startPendingTakeover();
+        try {
+            controller.close().get(5, TimeUnit.SECONDS);
+            pending.restore().complete(List.of());
+            pending.initialization().handle((__, ex) -> null).get(5, TimeUnit.SECONDS);
+            verify(metrics, never()).recordTakeover(anyDouble(), anyBoolean());
+        } finally {
+            pending.restore().complete(List.of());
+        }
+    }
+
+    @Test
+    public void testSuccessfulTakeoverRecordedBeforeWaitersResume() throws Exception {
+        PendingTakeover pending = startPendingTakeover();
+        try {
+            CompletableFuture<Void> closedByWaiter = controller.takeOverInProgress()
+                    .thenCompose(__ -> controller.close());
+            pending.restore().complete(List.of());
+            pending.initialization().get(5, TimeUnit.SECONDS);
+            closedByWaiter.get(5, TimeUnit.SECONDS);
+            verify(metrics).recordTakeover(anyDouble(), eq(true));
+            verify(metrics, never()).recordTakeover(anyDouble(), eq(false));
+            assertTrue(controller.isClosed());
+        } finally {
+            pending.restore().complete(List.of());
+        }
     }
 
     @Test

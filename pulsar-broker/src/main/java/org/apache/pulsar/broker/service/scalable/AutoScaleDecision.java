@@ -48,9 +48,10 @@ public sealed interface AutoScaleDecision
     }
 
     /**
-     * Eligible demand could not be served by any action. The evaluator emits
+     * Eligible demand was blocked by a hard limit. The evaluator emits
      * {@code max_segments}, {@code max_entry_buckets}, {@code max_dag_depth}, or
      * {@code unsplittable}; policy resolution may report {@code invalid_policy} separately.
+     * An unsplittable split candidate ends evaluation without selecting an alternative action.
      * Cooldowns alone never produce a blocked decision.
      */
     record Blocked(String reason) implements AutoScaleDecision {
