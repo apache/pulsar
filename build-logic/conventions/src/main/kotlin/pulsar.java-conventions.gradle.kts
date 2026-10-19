@@ -94,7 +94,9 @@ val testJavaVersion = if (path == ":tests:pulsar-client-java-compatibility") {
 } else {
     providers.gradleProperty("testJavaVersion").map { it.toInt() }
 }
-val testRelease = testJavaVersion.getOrElse(pulsarJavaVersion.get())
+// A newer test JVM (-PtestJavaVersion=25) only changes the test launcher; test sources are still
+// compiled by the Gradle JDK, which may not support a release above the server baseline.
+val testRelease = minOf(testJavaVersion.getOrElse(pulsarJavaVersion.get()), pulsarJavaVersion.get())
 if (path == ":tests:pulsar-client-java-compatibility") {
     tasks.withType<Test>().configureEach {
         systemProperty("pulsarClientJavaVersion", pulsarClientJavaVersion.get())
