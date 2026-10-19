@@ -1044,7 +1044,7 @@ public class BrokerService implements Closeable {
 
                                 List<CompletableFuture<Void>> asyncCloseFutures = new ArrayList<>();
                                 if (scalableTopicService != null) {
-                                    asyncCloseFutures.add(scalableTopicService.closeAsync());
+                                    scalableTopicService.closeMetrics();
                                 }
                                 listenChannels.forEach(ch -> {
                                     if (ch.isOpen()) {

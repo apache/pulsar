@@ -99,14 +99,15 @@ public class ScalableTopicService {
         log.info("ScalableTopicService started");
     }
 
-    public void close() {
-        closeAsync().join();
-    }
-
-    public CompletableFuture<Void> closeAsync() {
+    /** Release only this service's new instruments, without changing controller teardown. */
+    public void closeMetrics() {
         if (consumerMetrics != null) {
             consumerMetrics.close();
         }
+    }
+
+    public void close() {
+        closeMetrics();
         log.info().attr("controllerCount", controllers.size())
                 .log("Closing ScalableTopicService, releasing controllers");
         List<CompletableFuture<Void>> closeFutures = controllers.values().stream()
@@ -117,7 +118,8 @@ public class ScalableTopicService {
                             return null;
                         }))
                 .toList();
-        return FutureUtil.waitForAll(closeFutures).whenComplete((__, ___) -> controllers.clear());
+        FutureUtil.waitForAll(closeFutures).join();
+        controllers.clear();
     }
 
     SubscriptionCoordinator.ConsumerStats consumerStats() {

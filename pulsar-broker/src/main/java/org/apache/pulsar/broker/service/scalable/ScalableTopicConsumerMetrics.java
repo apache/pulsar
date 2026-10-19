@@ -34,10 +34,12 @@ import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLongArray;
 import java.util.function.Supplier;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.service.scalable.SubscriptionCoordinator.ConsumerStats;
 import org.apache.pulsar.broker.service.scalable.SubscriptionCoordinator.RebalanceReason;
 
 /** Bounded-cardinality broker metrics, sharing the same state on both export paths. */
+@CustomLog
 final class ScalableTopicConsumerMetrics implements AutoCloseable {
     static final String CONSUMER_COUNT = "pulsar.broker.scalable_topic.consumer.count";
     static final String BLOCKED_COUNT = "pulsar.broker.scalable_topic.segment.blocked.count";
@@ -94,12 +96,18 @@ final class ScalableTopicConsumerMetrics implements AutoCloseable {
                 rebalance.record(snapshot.rebalances[i], REASON_ATTRIBUTES.get(i));
             }
         }, consumers, blocked, rebalance);
-        synchronized (COLLECTORS) {
-            COLLECTORS.computeIfAbsent(registry, key -> {
-                PrometheusCollector collector = new PrometheusCollector();
-                key.register(collector);
-                return collector;
-            }).sources.add(this);
+        try {
+            synchronized (COLLECTORS) {
+                COLLECTORS.computeIfAbsent(registry, key -> {
+                    PrometheusCollector collector = new PrometheusCollector();
+                    key.register(collector);
+                    return collector;
+                }).sources.add(this);
+            }
+        } catch (RuntimeException e) {
+            // A failed registration must not leave a callback in the broker's shared meter.
+            callback.close();
+            throw e;
         }
     }
 
@@ -168,7 +176,14 @@ final class ScalableTopicConsumerMetrics implements AutoCloseable {
                     List.of("cluster", "rebalance_reason"));
             Map<String, Snapshot> clusters = new HashMap<>();
             for (ScalableTopicConsumerMetrics source : sources) {
-                clusters.merge(source.cluster, source.snapshot(), Snapshot::plus);
+                try {
+                    clusters.merge(source.cluster, source.snapshot(), Snapshot::plus);
+                } catch (RuntimeException e) {
+                    // This registry also exports existing broker metrics. A failed new source
+                    // must not abort their scrape, or prevent other brokers from being collected.
+                    log.debug().attr("cluster", source.cluster).exceptionMessage(e)
+                            .log("Skipping failed scalable-topic consumer metrics snapshot");
+                }
             }
             clusters.forEach((cluster, snapshot) -> {
                 long[] counts = snapshot.consumerCounts();

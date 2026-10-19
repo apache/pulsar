@@ -963,7 +963,7 @@ public class ScalableTopicController {
         rebalanceListener = listener;
     }
 
-    synchronized SubscriptionCoordinator.ConsumerStats consumerStats() {
+    SubscriptionCoordinator.ConsumerStats consumerStats() {
         if (closed || !isLeader()) {
             return SubscriptionCoordinator.ConsumerStats.EMPTY;
         }
@@ -971,7 +971,8 @@ public class ScalableTopicController {
         for (SubscriptionCoordinator coordinator : subscriptions.values()) {
             stats = stats.plus(coordinator.consumerStats());
         }
-        return stats;
+        // Leadership may have ended while the lock-free snapshots were being read.
+        return closed || !isLeader() ? SubscriptionCoordinator.ConsumerStats.EMPTY : stats;
     }
 
     private SubscriptionCoordinator newCoordinator(String subscription,

@@ -612,6 +612,37 @@ public class ScalableTopicServiceTest {
                 new String[]{"cluster", "rebalance_reason"}, new String[]{"test", "consumer_join"}), 2.0);
     }
 
+    @Test
+    public void testClosingMetricsDoesNotReleaseControllersOrConsumerSessions() throws Exception {
+        TopicName topic = scalableTopic("metrics-only-cleanup");
+        service.createScalableTopic(topic, 1).get();
+        ScalableTopicController controller = service.getOrCreateController(topic).get();
+        service.registerConsumer(topic, "checkpoint", "one", 1, ScalableConsumerType.CHECKPOINT,
+                mock(TransportCnx.class)).get();
+        service.closeMetrics();
+        assertTrue(controller.isLeader());
+        assertEquals(resources.listConsumersAsync(topic, "checkpoint").get(), List.of("one"));
+        assertEquals(service.consumerStats(), new SubscriptionCoordinator.ConsumerStats(1, 0, 0, 0));
+        assertEquals(CollectorRegistry.defaultRegistry.getSampleValue("pulsar_scalable_topic_consumer_count",
+                new String[]{"cluster", "consumer_state"}, new String[]{"test", "active"}), null);
+        service.registerConsumer(topic, "checkpoint", "two", 2, ScalableConsumerType.CHECKPOINT,
+                mock(TransportCnx.class)).get();
+        assertEquals(service.consumerStats(), new SubscriptionCoordinator.ConsumerStats(1, 1, 0, 0));
+    }
+
+    @Test
+    public void testMetricCollectionDoesNotAcquireControllerMonitor() throws Exception {
+        TopicName topic = scalableTopic("metrics-no-controller-lock");
+        service.createScalableTopic(topic, 1).get();
+        ScalableTopicController controller = service.getOrCreateController(topic).get();
+        service.registerConsumer(topic, "checkpoint", "one", 1, ScalableConsumerType.CHECKPOINT,
+                mock(TransportCnx.class)).get();
+        synchronized (controller) {
+            assertEquals(CompletableFuture.supplyAsync(service::consumerStats, scheduler)
+                    .get(5, TimeUnit.SECONDS), new SubscriptionCoordinator.ConsumerStats(1, 0, 0, 0));
+        }
+    }
+
     /**
      * Holds back the next delete of a path until it is released: {@link FaultInjectionMetadataStore}
      * can fail an operation, but not delay it.

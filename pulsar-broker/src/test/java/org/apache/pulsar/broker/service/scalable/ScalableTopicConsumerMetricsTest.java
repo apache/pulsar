@@ -19,17 +19,34 @@
 package org.apache.pulsar.broker.service.scalable;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
 import io.prometheus.client.CollectorRegistry;
+import io.prometheus.client.Counter;
+import io.prometheus.client.Gauge;
+import io.prometheus.client.Histogram;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.scalable.SubscriptionCoordinator.ConsumerStats;
 import org.apache.pulsar.broker.service.scalable.SubscriptionCoordinator.RebalanceReason;
+import org.apache.pulsar.broker.stats.OpenTelemetryReplicatedSubscriptionStats;
+import org.apache.pulsar.broker.stats.PulsarBrokerOpenTelemetry;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
@@ -78,6 +95,205 @@ public class ScalableTopicConsumerMetricsTest {
         try (var metrics = new ScalableTopicConsumerMetrics(meter, registry, "test", () -> ConsumerStats.EMPTY)) {
             assertThat(sample(registry, "rebalance_total", "rebalance_reason", "consumer_join")).isZero();
         }
+    }
+
+    @Test
+    public void testExistingPrometheusMetricsSurviveLifecycle() throws IOException {
+        var registry = new CollectorRegistry();
+        var counter = Counter.build("audit_existing_counter", "Existing counter").labelNames("owner")
+                .register(registry);
+        var gauge = Gauge.build("audit_existing_gauge", "Existing gauge").labelNames("owner")
+                .register(registry);
+        var histogram = Histogram.build("audit_existing_histogram", "Existing histogram")
+                .labelNames("owner").buckets(1, 2, 4).register(registry);
+        counter.labels("broker").inc(7);
+        gauge.labels("broker").set(3);
+        histogram.labels("broker").observe(1.5);
+        String baseline = existingPrometheusSnapshot(registry);
+        var meter = OpenTelemetry.noop().getMeter("test");
+        try (var metrics = new ScalableTopicConsumerMetrics(meter, registry, "test",
+                () -> new ConsumerStats(2, 1, 0, 3))) {
+            assertThat(existingPrometheusSnapshot(registry)).isEqualTo(baseline);
+            metrics.recordRebalance(RebalanceReason.CONSUMER_JOIN);
+            assertThat(sample(registry, "rebalance_total", "rebalance_reason", "consumer_join")).isEqualTo(1);
+            assertThat(existingPrometheusSnapshot(registry)).isEqualTo(baseline);
+            assertThat(existingPrometheusSnapshot(registry)).isEqualTo(baseline);
+        }
+        assertThat(existingPrometheusSnapshot(registry)).isEqualTo(baseline);
+        counter.labels("broker").inc();
+        gauge.labels("broker").set(5);
+        histogram.labels("broker").observe(3);
+        assertThat(registry.getSampleValue("audit_existing_counter_total", new String[]{"owner"},
+                new String[]{"broker"})).isEqualTo(8);
+        assertThat(registry.getSampleValue("audit_existing_gauge", new String[]{"owner"},
+                new String[]{"broker"})).isEqualTo(5);
+        assertThat(registry.getSampleValue("audit_existing_histogram_count", new String[]{"owner"},
+                new String[]{"broker"})).isEqualTo(2);
+        String updated = existingPrometheusSnapshot(registry);
+        assertThat(updated).isNotEqualTo(baseline);
+        try (var restarted = new ScalableTopicConsumerMetrics(meter, registry, "test", () -> ConsumerStats.EMPTY)) {
+            restarted.recordRebalance(RebalanceReason.LAYOUT_CHANGE);
+            assertThat(existingPrometheusSnapshot(registry)).isEqualTo(updated);
+        }
+        assertThat(existingPrometheusSnapshot(registry)).isEqualTo(updated);
+    }
+
+    @Test
+    public void testExistingOpenTelemetryMetricsSurviveLifecycle() throws IOException {
+        var registry = new CollectorRegistry();
+        var gaugeValue = new AtomicLong(9);
+        try (var reader = InMemoryMetricReader.create();
+             var provider = SdkMeterProvider.builder().registerMetricReader(reader).build()) {
+            var meter = provider.get("test");
+            PulsarService pulsar = mock(PulsarService.class);
+            PulsarBrokerOpenTelemetry telemetry = mock(PulsarBrokerOpenTelemetry.class);
+            when(pulsar.getOpenTelemetry()).thenReturn(telemetry);
+            when(telemetry.getMeter()).thenReturn(meter);
+            var existing = new OpenTelemetryReplicatedSubscriptionStats(pulsar);
+            try (var gauge = meter.gaugeBuilder("audit.existing.gauge").ofLongs().setUnit("{session}")
+                    .setDescription("Existing asynchronous gauge")
+                    .buildWithCallback(measurement -> measurement.record(gaugeValue.get(),
+                            Attributes.of(AttributeKey.stringKey("owner"), "broker")))) {
+                existing.recordSnapshotStarted();
+                existing.recordSnapshotCompleted(125);
+                existing.recordSnapshotTimedOut(250);
+                Map<String, List<String>> baseline = existingOpenTelemetrySnapshot(reader);
+                assertThat(baseline).hasSize(3);
+                try (var metrics = new ScalableTopicConsumerMetrics(meter, registry, "test",
+                        () -> new ConsumerStats(2, 1, 0, 3))) {
+                    assertThat(existingOpenTelemetrySnapshot(reader)).isEqualTo(baseline);
+                    metrics.recordRebalance(RebalanceReason.CONSUMER_JOIN);
+                    assertThat(existingOpenTelemetrySnapshot(reader)).isEqualTo(baseline);
+                    assertThat(existingOpenTelemetrySnapshot(reader)).isEqualTo(baseline);
+                }
+                assertThat(existingOpenTelemetrySnapshot(reader)).isEqualTo(baseline);
+                existing.recordSnapshotStarted();
+                existing.recordSnapshotCompleted(500);
+                gaugeValue.set(12);
+                Map<String, List<String>> updated = existingOpenTelemetrySnapshot(reader);
+                assertThat(updated).isNotEqualTo(baseline);
+                assertThat(updated).allSatisfy((name, snapshot) ->
+                        assertThat(snapshot).isNotEqualTo(baseline.get(name)));
+                try (var restarted = new ScalableTopicConsumerMetrics(meter, registry, "test",
+                        () -> ConsumerStats.EMPTY)) {
+                    restarted.recordRebalance(RebalanceReason.LAYOUT_CHANGE);
+                    assertThat(existingOpenTelemetrySnapshot(reader)).isEqualTo(updated);
+                }
+                assertThat(existingOpenTelemetrySnapshot(reader)).isEqualTo(updated);
+            }
+        }
+    }
+
+    @Test
+    public void testFailedSourceDoesNotBreakExistingMetricsOrHealthySource() throws IOException {
+        var registry = new CollectorRegistry();
+        Gauge.build("audit_existing_gauge", "Existing gauge").register(registry).set(17);
+        String baseline = existingPrometheusSnapshot(registry);
+        var fail = new AtomicBoolean();
+        var gaugeValue = new AtomicLong(19);
+        try (var reader = InMemoryMetricReader.create();
+             var provider = SdkMeterProvider.builder().registerMetricReader(reader).build();
+             var gauge = provider.get("test").gaugeBuilder("audit.existing.gauge").ofLongs()
+                     .buildWithCallback(measurement -> measurement.record(gaugeValue.get()));
+             var healthy = new ScalableTopicConsumerMetrics(provider.get("healthy"), registry, "test",
+                     () -> new ConsumerStats(2, 0, 0, 4));
+             var failing = new ScalableTopicConsumerMetrics(provider.get("failing"), registry, "test", () -> {
+                 if (fail.get()) {
+                     throw new IllegalStateException("Injected new metrics source failure");
+                 }
+                 return ConsumerStats.EMPTY;
+             })) {
+            healthy.recordRebalance(RebalanceReason.CONSUMER_JOIN);
+            Map<String, List<String>> telemetryBaseline = existingOpenTelemetrySnapshot(reader);
+            fail.set(true);
+            // Serialize the whole shared registry: checking only a healthy collector would hide propagation.
+            assertThat(existingPrometheusSnapshot(registry)).isEqualTo(baseline);
+            assertThat(sample(registry, "consumer_count", "consumer_state", "active")).isEqualTo(2);
+            assertThat(sample(registry, "segment_blocked_count", null, null)).isEqualTo(4);
+            assertThat(sample(registry, "rebalance_total", "rebalance_reason", "consumer_join")).isEqualTo(1);
+            assertThat(existingOpenTelemetrySnapshot(reader)).isEqualTo(telemetryBaseline);
+            gaugeValue.set(23);
+            assertThat(existingOpenTelemetrySnapshot(reader)).isNotEqualTo(telemetryBaseline);
+        }
+        assertThat(existingPrometheusSnapshot(registry)).isEqualTo(baseline);
+    }
+
+    @Test
+    public void testRegistrationCollisionDoesNotLeakOpenTelemetryCallback() throws IOException {
+        var registry = new CollectorRegistry();
+        var existing = Gauge.build("pulsar_scalable_topic_consumer_count", "Pre-existing collector")
+                .register(registry);
+        existing.set(29);
+        var supplierCalls = new AtomicInteger();
+        try (var reader = InMemoryMetricReader.create();
+             var provider = SdkMeterProvider.builder().registerMetricReader(reader).build();
+             var gauge = provider.get("test").gaugeBuilder("audit.existing.gauge").ofLongs()
+                     .buildWithCallback(measurement -> measurement.record(31))) {
+            Map<String, List<String>> baseline = existingOpenTelemetrySnapshot(reader);
+            assertThatThrownBy(() -> new ScalableTopicConsumerMetrics(provider.get("test"), registry, "test", () -> {
+                supplierCalls.incrementAndGet();
+                return ConsumerStats.EMPTY;
+            })).isInstanceOf(IllegalArgumentException.class);
+            assertThat(existingOpenTelemetrySnapshot(reader)).isEqualTo(baseline);
+            assertThat(existingOpenTelemetrySnapshot(reader)).isEqualTo(baseline);
+            assertThat(supplierCalls.get()).as("Failed registration must remove its asynchronous callback").isZero();
+            assertThat(registry.getSampleValue("pulsar_scalable_topic_consumer_count")).isEqualTo(29);
+            existing.inc();
+            assertThat(registry.getSampleValue("pulsar_scalable_topic_consumer_count")).isEqualTo(30);
+            assertThat(serialize(registry)).contains("Pre-existing collector");
+        }
+    }
+
+    private static String serialize(CollectorRegistry registry) throws IOException {
+        var output = new StringBuilder();
+        var families = registry.metricFamilySamples();
+        while (families.hasMoreElements()) {
+            var family = families.nextElement();
+            output.append(family.name).append(" HELP ").append(family.help)
+                    .append(" TYPE ").append(family.type).append('\n');
+            for (var sample : family.samples) {
+                output.append(sample.name).append(sample.labelNames).append(sample.labelValues)
+                        .append('=').append(sample.value).append('\n');
+            }
+        }
+        return output.toString();
+    }
+
+    private static String existingPrometheusSnapshot(CollectorRegistry registry) throws IOException {
+        return serialize(registry).lines().filter(line -> line.contains("audit_existing_"))
+                .sorted().collect(Collectors.joining("\n"));
+    }
+
+    private static Map<String, List<String>> existingOpenTelemetrySnapshot(InMemoryMetricReader reader) {
+        Set<String> names = Set.of(OpenTelemetryReplicatedSubscriptionStats.SNAPSHOT_OPERATION_COUNT_METRIC_NAME,
+                OpenTelemetryReplicatedSubscriptionStats.SNAPSHOT_DURATION_METRIC_NAME, "audit.existing.gauge");
+        return reader.collectAllMetrics().stream().filter(metric -> names.contains(metric.getName()))
+                .collect(Collectors.toMap(MetricData::getName, metric -> {
+                    List<String> snapshot = new ArrayList<>();
+                    snapshot.add(metric.getDescription());
+                    snapshot.add(metric.getUnit());
+                    snapshot.add(metric.getType().name());
+                    switch (metric.getType()) {
+                        case LONG_SUM -> {
+                            var sum = metric.getLongSumData();
+                            snapshot.add(sum.getAggregationTemporality().name());
+                            snapshot.add(Boolean.toString(sum.isMonotonic()));
+                            sum.getPoints().forEach(point ->
+                                    snapshot.add(point.getAttributes() + "=" + point.getValue()));
+                        }
+                        case LONG_GAUGE -> metric.getLongGaugeData().getPoints()
+                                .forEach(point -> snapshot.add(point.getAttributes() + "=" + point.getValue()));
+                        case HISTOGRAM -> {
+                            var histogram = metric.getHistogramData();
+                            snapshot.add(histogram.getAggregationTemporality().name());
+                            histogram.getPoints().forEach(point -> snapshot.add(point.getAttributes() + "="
+                                    + point.getCount() + ":" + point.getSum() + ":" + point.getMin() + ":"
+                                    + point.getMax() + ":" + point.getBoundaries() + ":" + point.getCounts()));
+                        }
+                        default -> throw new AssertionError("Unexpected existing instrument: " + metric.getType());
+                    }
+                    return snapshot;
+                }));
     }
 
     private static void assertExports(InMemoryMetricReader reader, CollectorRegistry registry,

@@ -86,6 +86,10 @@ public class SubscriptionCoordinator {
     }
 
     private Consumer<RebalanceReason> rebalanceListener = __ -> { };
+    // Updated under this coordinator's monitor; exporters only read the immutable volatile snapshot.
+    private volatile ConsumerStats consumerStatsSnapshot = ConsumerStats.EMPTY;
+    private Set<String> assignedConsumerNames = Set.of();
+    private long blockedSegmentCount;
 
     private static final Logger LOG = Logger.get(SubscriptionCoordinator.class);
     private final Logger log;
@@ -227,6 +231,7 @@ public class SubscriptionCoordinator {
             existing.attach(consumerId, cnx);
             Map<ConsumerSession, ConsumerAssignment> current =
                     computeAssignment(currentLayout, sessions.values());
+            updateConsumerStats(current);
             ConsumerAssignment assignment = current.get(existing);
             if (assignment != null) {
                 existing.sendAssignmentUpdate(assignment);
@@ -302,8 +307,18 @@ public class SubscriptionCoordinator {
                         if (removed != null) {
                             removed.cancelGraceTimer();
                         }
-                        return removed == null ? snapshotAssignments()
-                                : rebalanceAndNotify(RebalanceReason.CONSUMER_LEAVE);
+                        RebalanceReason reason = removed == null ? null : RebalanceReason.CONSUMER_LEAVE;
+                        if (sessions.isEmpty()) {
+                            segmentAssignments.clear();
+                            updateConsumerStats(Map.of());
+                            if (reason != null) {
+                                rebalanceListener.accept(reason);
+                            }
+                            return Map.of();
+                        }
+                        // Preserve the existing notification/index refresh even if another in-flight
+                        // removal already removed this session; only the event count is suppressed.
+                        return rebalanceAndNotify(reason);
                     }
                 });
     }
@@ -320,6 +335,7 @@ public class SubscriptionCoordinator {
             return;
         }
         session.markDisconnected();
+        publishConsumerStats();
     }
 
     /**
@@ -348,6 +364,7 @@ public class SubscriptionCoordinator {
         Map<ConsumerSession, ConsumerAssignment> result =
                 computeAssignment(currentLayout, sessions.values());
         updateSegmentAssignmentIndex(result);
+        updateConsumerStats(result);
         return result;
     }
 
@@ -364,6 +381,7 @@ public class SubscriptionCoordinator {
         this.currentLayout = newLayout;
         if (sessions.isEmpty()) {
             segmentAssignments.clear();
+            updateConsumerStats(Map.of());
             return CompletableFuture.completedFuture(Map.of());
         }
         Map<ConsumerSession, ConsumerAssignment> result = rebalanceAndNotify(RebalanceReason.LAYOUT_CHANGE);
@@ -421,6 +439,8 @@ public class SubscriptionCoordinator {
      */
     public synchronized void close() {
         closed = true;
+        consumerStatsSnapshot = ConsumerStats.EMPTY;
+        assignedConsumerNames = Set.of();
         if (drainPollTask != null) {
             drainPollTask.cancel(false);
             drainPollTask = null;
@@ -611,30 +631,46 @@ public class SubscriptionCoordinator {
         rebalanceListener = listener;
     }
 
-    /** A consistent, subscription-local snapshot; shared segments still make every sharer active. */
-    synchronized ConsumerStats consumerStats() {
-        if (closed) {
-            return ConsumerStats.EMPTY;
-        }
-        long active = 0;
-        long idle = 0;
-        long disconnected = 0;
-        for (var entry : computeAssignment(currentLayout, sessions.values()).entrySet()) {
-            if (!entry.getKey().isConnected()) {
-                disconnected++;
-            } else if (entry.getValue().assignedSegments().isEmpty()) {
-                idle++;
-            } else {
-                active++;
+    /** Collection never acquires coordination locks, computes assignments, or performs IO. */
+    ConsumerStats consumerStats() {
+        return consumerStatsSnapshot;
+    }
+
+    private void updateConsumerStats(Map<ConsumerSession, ConsumerAssignment> assignments) {
+        Set<String> assigned = new HashSet<>();
+        assignments.forEach((session, assignment) -> {
+            if (!assignment.assignedSegments().isEmpty()) {
+                assigned.add(session.getConsumerName());
             }
-        }
-        // Count only ancestor blocking, not sealed segments retired after draining themselves.
-        long blocked = drainChecker == null || sessions.isEmpty() ? 0
+        });
+        assignedConsumerNames = assigned;
+        // Compute ancestor blocking on state transitions, never on a shared metrics scrape.
+        blockedSegmentCount = drainChecker == null || sessions.isEmpty() ? 0
                 : currentLayout.getAllSegments().values().stream()
                 .filter(segment -> segment.isActive() || !drainedSegmentIds.contains(segment.segmentId()))
                 .filter(segment -> !ancestorsDrained(segment, currentLayout))
                 .count();
-        return new ConsumerStats(active, idle, disconnected, blocked);
+        publishConsumerStats();
+    }
+
+    private void publishConsumerStats() {
+        if (closed || sessions.isEmpty()) {
+            consumerStatsSnapshot = ConsumerStats.EMPTY;
+            return;
+        }
+        long active = 0;
+        long idle = 0;
+        long disconnected = 0;
+        for (ConsumerSession session : sessions.values()) {
+            if (!session.isConnected()) {
+                disconnected++;
+            } else if (assignedConsumerNames.contains(session.getConsumerName())) {
+                active++;
+            } else {
+                idle++;
+            }
+        }
+        consumerStatsSnapshot = new ConsumerStats(active, idle, disconnected, blockedSegmentCount);
     }
 
     // --- Internals ---
@@ -662,6 +698,7 @@ public class SubscriptionCoordinator {
                 return;
             }
             sessions.remove(consumerName);
+            publishConsumerStats();
             log.info().attr("consumer", consumerName)
                     .log("Consumer evicted after grace period");
         }
@@ -677,7 +714,13 @@ public class SubscriptionCoordinator {
                         if (closed) {
                             return;
                         }
-                        rebalanceAndNotify(RebalanceReason.CONSUMER_EVICT);
+                        if (!sessions.isEmpty()) {
+                            rebalanceAndNotify(RebalanceReason.CONSUMER_EVICT);
+                        } else {
+                            segmentAssignments.clear();
+                            updateConsumerStats(Map.of());
+                            rebalanceListener.accept(RebalanceReason.CONSUMER_EVICT);
+                        }
                     }
                 });
     }
@@ -814,6 +857,7 @@ public class SubscriptionCoordinator {
         Map<ConsumerSession, ConsumerAssignment> assignments =
                 computeAssignment(currentLayout, sessions.values());
         updateSegmentAssignmentIndex(assignments);
+        updateConsumerStats(assignments);
         if (reason != null) {
             rebalanceListener.accept(reason);
         }

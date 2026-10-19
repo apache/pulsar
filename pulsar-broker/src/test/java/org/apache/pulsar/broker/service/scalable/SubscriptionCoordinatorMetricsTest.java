@@ -22,7 +22,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -30,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -240,6 +244,28 @@ public class SubscriptionCoordinatorMetricsTest {
     }
 
     @Test
+    public void testEvictionSnapshotFollowsPublishedAssignments() {
+        SubscriptionCoordinator coordinator = coordinator(initialLayout(1), false);
+        register(coordinator, "c1", 1);
+        TransportCnx remaining = mock(TransportCnx.class);
+        coordinator.registerConsumer("c2", 2, remaining).join();
+        clearInvocations(remaining);
+        CompletableFuture<Void> deletion = new CompletableFuture<>();
+        when(resources.unregisterConsumerAsync(any(), anyString(), anyString())).thenReturn(deletion);
+        coordinator.onConsumerDisconnect("c1");
+        scheduled.get(scheduled.size() - 1).run();
+        // Eviction has removed c1, but c2 is still idle until persistence completes and
+        // the original rebalance path actually publishes c2's replacement assignment.
+        assertStats(coordinator, 0, 1, 0, 0);
+        verify(remaining, times(0)).sendScalableConsumerAssignment(anyLong(), any());
+        deletion.complete(null);
+        assertStats(coordinator, 1, 0, 0, 0);
+        verify(remaining).sendScalableConsumerAssignment(anyLong(), any());
+        assertThat(rebalances).containsExactly(RebalanceReason.CONSUMER_JOIN,
+                RebalanceReason.CONSUMER_JOIN, RebalanceReason.CONSUMER_EVICT);
+    }
+
+    @Test
     public void testEvictionCompletingAfterCloseDoesNotCount() {
         SubscriptionCoordinator coordinator = coordinator(initialLayout(1), false);
         register(coordinator, "c1", 1);
@@ -306,6 +332,41 @@ public class SubscriptionCoordinatorMetricsTest {
         assertStats(coordinator, 0, 0, 0, 0);
         assertThat(scheduled).as("closed drain poll must not rearm").hasSize(scheduledBeforeCompletion);
         assertThat(rebalances).containsExactly(RebalanceReason.CONSUMER_JOIN);
+    }
+
+    @Test
+    public void testMetricCollectionDoesNotAcquireCoordinatorMonitor() throws Exception {
+        SubscriptionCoordinator coordinator = coordinator(initialLayout(1), true);
+        register(coordinator, "c1", 1);
+        try (var executor = Executors.newSingleThreadExecutor()) {
+            synchronized (coordinator) {
+                assertThat(CompletableFuture.supplyAsync(coordinator::consumerStats, executor)
+                        .get(5, TimeUnit.SECONDS)).isEqualTo(new ConsumerStats(1, 0, 0, 0));
+            }
+        }
+    }
+
+    @Test
+    public void testConcurrentDuplicateLeavePreservesAssignmentNotifications() {
+        SubscriptionCoordinator coordinator = coordinator(initialLayout(1), false);
+        register(coordinator, "c1", 1);
+        TransportCnx remaining = mock(TransportCnx.class);
+        coordinator.registerConsumer("c2", 2, remaining).join();
+        clearInvocations(remaining);
+        CompletableFuture<Void> firstDelete = new CompletableFuture<>();
+        CompletableFuture<Void> secondDelete = new CompletableFuture<>();
+        when(resources.unregisterConsumerAsync(any(), anyString(), anyString()))
+                .thenReturn(firstDelete, secondDelete);
+        var firstLeave = coordinator.unregisterConsumer("c1", 1);
+        var secondLeave = coordinator.unregisterConsumer("c1", 1);
+        firstDelete.complete(null);
+        secondDelete.complete(null);
+        assertThat(firstLeave).isCompleted();
+        assertThat(secondLeave).isCompleted();
+        verify(remaining, times(2)).sendScalableConsumerAssignment(anyLong(), any());
+        assertStats(coordinator, 1, 0, 0, 0);
+        assertThat(rebalances).containsExactly(RebalanceReason.CONSUMER_JOIN,
+                RebalanceReason.CONSUMER_JOIN, RebalanceReason.CONSUMER_LEAVE);
     }
 
     private SubscriptionCoordinator coordinator(SegmentLayout layout, boolean ordered) {
