@@ -45,7 +45,7 @@ import org.openjdk.jmh.annotations.Warmup;
 // java.lang open, as bin/pulsar runs the broker: without it, the direct hash encodes the key
 @Fork(value = 2, jvmArgsAppend = "--add-opens=java.base/java.lang=ALL-UNNAMED")
 public class Murmur3Utf8HashBenchmark {
-    @Param({"device-123456", "3f2b8c1e-5a7d-4e9b-8c6f-1d2e3f4a5b6c", "käyttäjä-123456"})
+    @Param({"device-123456", "3f2b8c1e-5a7d-4e9b-8c6f-1d2e3f4a5b6c", "käyttäjä-123456", "设备-123456"})
     private String key;
     private byte[] keyBytes;
 

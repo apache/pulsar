@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.Range;
+import org.apache.pulsar.common.util.Murmur3_32Hash;
 
 /**
  * Abstraction for selecting the same consumer based on a key.
@@ -80,15 +81,20 @@ public interface StickyKeyConsumerSelector {
      * @return the generated hash value
      */
     default int makeStickyKeyHash(byte[] stickyKey) {
-        return StickyKeyConsumerSelectorUtils.makeStickyKeyHash(stickyKey, getKeyHashRange());
+        return makeStickyKeyHashOfKeyHash(Murmur3_32Hash.getInstance().makeHash(stickyKey));
     }
 
     /**
-     * Make a hash from a string key without creating an intermediate byte array. It must be the same as
-     * {@link #makeStickyKeyHash(byte[])} of the key's UTF-8 bytes, so a selector that overrides one overrides both.
+     * Make a hash from the sticky key's hash, {@link Murmur3_32Hash#makeHash(byte[])} of its bytes, which is the same
+     * as {@link #makeStickyKeyHash(byte[])} of those bytes. The key can then be hashed where it is, such as by
+     * {@link org.apache.pulsar.common.protocol.Commands#resolveStickyKeyHash}, without copying it into an array. A
+     * selector that maps the key's hash differently overrides this method.
+     *
+     * @param keyHash the sticky key's hash
+     * @return the generated hash value
      */
-    default int makeStickyKeyHash(String stickyKey) {
-        return StickyKeyConsumerSelectorUtils.makeStickyKeyHash(stickyKey, getKeyHashRange());
+    default int makeStickyKeyHashOfKeyHash(int keyHash) {
+        return StickyKeyConsumerSelectorUtils.makeStickyKeyHashOfKeyHash(keyHash, getKeyHashRange());
     }
 
     /**

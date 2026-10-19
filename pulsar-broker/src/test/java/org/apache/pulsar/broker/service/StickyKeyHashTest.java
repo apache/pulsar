@@ -20,6 +20,8 @@ package org.apache.pulsar.broker.service;
 
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.List;
@@ -27,6 +29,7 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.util.Murmur3_32Hash;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -45,10 +48,11 @@ public class StickyKeyHashTest {
     }
 
     @Test(dataProvider = "selectors")
-    public void testStringKeyHashMatchesItsUtf8BytesHash(StickyKeyConsumerSelector selector) {
+    public void testKeyHashMatchesTheKeyBytesHash(StickyKeyConsumerSelector selector) {
         for (String key : KEYS) {
-            assertEquals(selector.makeStickyKeyHash(key),
-                    selector.makeStickyKeyHash(key.getBytes(StandardCharsets.UTF_8)), key);
+            byte[] bytes = key.getBytes(StandardCharsets.UTF_8);
+            assertEquals(selector.makeStickyKeyHashOfKeyHash(Murmur3_32Hash.getInstance().makeHash(bytes)),
+                    selector.makeStickyKeyHash(bytes), key);
         }
     }
 
@@ -59,9 +63,17 @@ public class StickyKeyHashTest {
             assertEntryHashMatches(selector, new MessageMetadata().setPartitionKey(key)
                     .setOrderingKey("ordering".getBytes(StandardCharsets.UTF_8)));
         }
-        assertEntryHashMatches(selector, new MessageMetadata()
-                .setPartitionKey(Base64.getEncoder().encodeToString(new byte[]{1, 2, (byte) 0xff}))
-                .setPartitionKeyB64Encoded(true));
+        for (int length = 0; length < 8; length++) {
+            byte[] key = new byte[length];
+            for (int i = 0; i < length; i++) {
+                key[i] = (byte) (0xf0 + i * 37);
+            }
+            assertEntryHashMatches(selector, new MessageMetadata()
+                    .setPartitionKey(Base64.getEncoder().encodeToString(key)).setPartitionKeyB64Encoded(true));
+            assertEntryHashMatches(selector, new MessageMetadata()
+                    .setPartitionKey(Base64.getEncoder().withoutPadding().encodeToString(key))
+                    .setPartitionKeyB64Encoded(true));
+        }
         assertEntryHashMatches(selector, new MessageMetadata()
                 .setOrderingKey("ordering".getBytes(StandardCharsets.UTF_8)));
         assertEntryHashMatches(selector, new MessageMetadata().setProducerName("producer").setSequenceId(1));
@@ -81,7 +93,7 @@ public class StickyKeyHashTest {
 
         assertEquals(entry.getOrUpdateCachedStickyKeyHash(new ConsistentHashingStickyKeyConsumerSelector(100) {
             @Override
-            public int makeStickyKeyHash(String stickyKey) {
+            public int makeStickyKeyHashOfKeyHash(int keyHash) {
                 return hash + 1;
             }
         }), hash);
@@ -91,5 +103,26 @@ public class StickyKeyHashTest {
         EntryAndMetadata entry = EntryAndMetadata.create(mock(Entry.class), metadata);
         assertEquals(entry.getOrUpdateCachedStickyKeyHash(selector),
                 selector.makeStickyKeyHash(Commands.resolveStickyKey(metadata)), metadata.toString());
+        // as the broker has it, parsed from the entry, with the keys still in the buffer
+        MessageMetadata parsed = parse(metadata);
+        EntryAndMetadata parsedEntry = EntryAndMetadata.create(mock(Entry.class), parsed);
+        assertEquals(parsedEntry.getOrUpdateCachedStickyKeyHash(selector),
+                selector.makeStickyKeyHash(Commands.resolveStickyKey(parse(metadata))), metadata.toString());
+    }
+
+    private static MessageMetadata parse(MessageMetadata metadata) {
+        MessageMetadata complete = new MessageMetadata().copyFrom(metadata);
+        if (!complete.hasProducerName()) {
+            complete.setProducerName("producer");
+        }
+        if (!complete.hasSequenceId()) {
+            complete.setSequenceId(1);
+        }
+        complete.setPublishTime(1);
+        ByteBuf buffer = Unpooled.buffer();
+        complete.writeTo(buffer);
+        MessageMetadata parsed = new MessageMetadata();
+        parsed.parseFrom(buffer, buffer.readableBytes());
+        return parsed;
     }
 }
