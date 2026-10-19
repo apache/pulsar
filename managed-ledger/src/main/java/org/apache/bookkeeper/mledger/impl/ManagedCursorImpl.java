@@ -1961,9 +1961,13 @@ public class ManagedCursorImpl implements ManagedCursor {
         return alreadyAcknowledgedPositions;
     }
 
-    // Replay positions closer to each other than this, in entries, are read with one storage read of the range
-    // between them, so that the read takes at most this many entries for each one wanted
+    // Replay positions at most this many entries apart are read with one storage read of the range between them, when
+    // the entries in between take at most REPLAY_RANGE_MAX_GAP_BYTES
     static final int REPLAY_RANGE_MAX_GAP = 8;
+    // the most bytes of the entries in between two replay positions that a range read takes, by the managed ledger's
+    // average entry size: a producer batch of the default 128 KiB at most, with its headers, so that large entries
+    // aren't read in vain
+    static final long REPLAY_RANGE_MAX_GAP_BYTES = 192 * 1024;
     // the most entries that one range read of replay positions takes
     static final int REPLAY_RANGE_MAX_ENTRIES = 256;
     // the most bytes that one range read of replay positions takes, by the managed ledger's average entry size, so
@@ -1992,7 +1996,26 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
         positions.sort(null);
         long averageEntrySize = Math.max(1, ledger.getTotalSize() / Math.max(1, ledger.getNumberOfEntries()));
+        for (List<Position> run : replayRuns(positions, averageEntrySize)) {
+            if (run.size() == 1) {
+                ledger.asyncReadEntry(run.get(0), cb, ctx);
+            } else {
+                readReplayRange(run, cb, ctx);
+            }
+        }
+    }
+
+    /**
+     * The runs of the sorted positions that one range read each takes: positions in a ledger at most
+     * {@link #REPLAY_RANGE_MAX_GAP} entries apart, whose entries in between take at most
+     * {@link #REPLAY_RANGE_MAX_GAP_BYTES}, spanning at most {@link #REPLAY_RANGE_MAX_ENTRIES} entries and
+     * {@link #REPLAY_RANGE_MAX_BYTES}, by the average entry size. A position that is a run of its own is read alone.
+     */
+    @VisibleForTesting
+    static List<List<Position>> replayRuns(List<Position> positions, long averageEntrySize) {
         long maxEntries = Math.min(REPLAY_RANGE_MAX_ENTRIES, REPLAY_RANGE_MAX_BYTES / averageEntrySize);
+        long maxGap = Math.min(REPLAY_RANGE_MAX_GAP, 1 + REPLAY_RANGE_MAX_GAP_BYTES / averageEntrySize);
+        List<List<Position>> runs = new ArrayList<>();
         int start = 0;
         while (start < positions.size()) {
             Position first = positions.get(start);
@@ -2001,19 +2024,16 @@ public class ManagedCursorImpl implements ManagedCursor {
                 Position next = positions.get(end);
                 Position previous = positions.get(end - 1);
                 if (next.getLedgerId() != first.getLedgerId()
-                        || next.getEntryId() - previous.getEntryId() > REPLAY_RANGE_MAX_GAP
+                        || next.getEntryId() - previous.getEntryId() > maxGap
                         || next.getEntryId() - first.getEntryId() >= maxEntries) {
                     break;
                 }
                 end++;
             }
-            if (end - start == 1) {
-                ledger.asyncReadEntry(first, cb, ctx);
-            } else {
-                readReplayRange(positions.subList(start, end), cb, ctx);
-            }
+            runs.add(positions.subList(start, end));
             start = end;
         }
+        return runs;
     }
 
     private void readReplayRange(List<Position> wanted, ReadEntryCallback cb, Object ctx) {

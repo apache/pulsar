@@ -3925,6 +3925,31 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         replayRunsOfClosePositions("test_replay_runs_partly_cached", true);
     }
 
+    @Test
+    void testReplayRunsAreBoundedByTheGapAndTheSizeOfTheEntries() {
+        List<Position> positions = new ArrayList<>();
+        for (long entryId : new long[]{0, 2, 4, 12, 30, 600, 601}) {
+            positions.add(PositionFactory.create(1, entryId));
+        }
+        positions.add(PositionFactory.create(2, 0));
+        // small entries: the positions in a ledger at most 8 entries apart
+        assertEquals(runEntryIds(ManagedCursorImpl.replayRuns(positions, 100)),
+                List.of(List.of(0L, 2L, 4L, 12L), List.of(30L), List.of(600L, 601L), List.of(0L)));
+        // 100 KiB entries: one entry in between fits the 192 KiB gap, and 10 entries the 1 MiB span
+        assertEquals(runEntryIds(ManagedCursorImpl.replayRuns(positions, 100 * 1024)),
+                List.of(List.of(0L, 2L, 4L), List.of(12L), List.of(30L), List.of(600L, 601L), List.of(0L)));
+        assertEquals(runEntryIds(ManagedCursorImpl.replayRuns(List.of(PositionFactory.create(1, 0),
+                PositionFactory.create(1, 3)), 100 * 1024)), List.of(List.of(0L), List.of(3L)));
+        // entries larger than the gap: only adjacent positions are read together
+        assertEquals(runEntryIds(ManagedCursorImpl.replayRuns(positions, 200 * 1024)),
+                List.of(List.of(0L), List.of(2L), List.of(4L), List.of(12L), List.of(30L), List.of(600L, 601L),
+                        List.of(0L)));
+    }
+
+    private static List<List<Long>> runEntryIds(List<List<Position>> runs) {
+        return runs.stream().map(run -> run.stream().map(Position::getEntryId).toList()).toList();
+    }
+
     // Replays runs of close positions whose entries aren't cached, or of which every other one is cached, which are
     // read one at a time
     private void replayRunsOfClosePositions(String name, boolean cacheEveryOther) throws Exception {
@@ -3936,15 +3961,15 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         for (int i = 0; i < 600; i++) {
             added.add(ledger.addEntry(("entry-" + i).getBytes(Encoding)));
         }
-        // a run of every 8th entry longer than a range read takes, lone positions, and positions in both ledgers
+        // a run of every 8th entry longer than a range read takes, positions in both ledgers, and lone positions in
+        // the second ledger, further apart than a range read's gap
         Set<Position> positions = new TreeSet<>();
         for (int i = 0; i < 296; i += 8) {
             positions.add(added.get(i));
         }
         positions.add(added.get(299));
         positions.add(added.get(300));
-        positions.add(added.get(450));
-        positions.add(added.get(461));
+        positions.add(added.get(590));
         // the replay reads the entries from storage, unless they're cached
         ledger.entryCache.clear();
         if (cacheEveryOther) {
