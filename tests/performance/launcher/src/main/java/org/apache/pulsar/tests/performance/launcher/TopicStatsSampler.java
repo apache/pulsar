@@ -313,6 +313,37 @@ final class TopicStatsSampler implements AutoCloseable {
         }
     }
 
+    /**
+     * The subscriptions' backlog, summed over the topics, which it asks the brokers for now, outside the rounds. Fails
+     * when a topic's stats can't be read.
+     */
+    long backlog(Collection<String> subscriptions) throws Exception {
+        long backlog = 0;
+        for (String topic : topics) {
+            PulsarAdmin asked = owners.getOrDefault(topic, admin);
+            TopicStats stats;
+            try {
+                stats = unwrap(asked.topics().getStatsAsync(topic, STATS_OPTIONS));
+            } catch (PulsarAdminException.NotFoundException e) {
+                // A topic that no message created has no backlog
+                continue;
+            } catch (Exception e) {
+                // A round may have found the owner meanwhile
+                if (owners.getOrDefault(topic, admin) == asked && !locateOwner(topic)) {
+                    throw e;
+                }
+                stats = unwrap(requestStats(topic));
+            }
+            for (String subscription : subscriptions) {
+                SubscriptionStats subscriptionStats = stats.getSubscriptions().get(subscription);
+                if (subscriptionStats != null) {
+                    backlog += subscriptionStats.getMsgBacklog();
+                }
+            }
+        }
+        return backlog;
+    }
+
     /** The backlog of the latest round that sampled every topic, or null before there is one. */
     Backlog latestBacklog() {
         return latestBacklog;
