@@ -32,6 +32,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.Getter;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -165,7 +166,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     }
 
     private synchronized void readEntriesComplete(List<Entry> entries, Consumer readConsumer, long epoch,
-                                                  long readOpEpoch) {
+                                                  long readOpEpoch, Position originalLedgerReadPosition) {
         if (readOpEpoch != this.readOpEpoch) {
             // Stale completion: this read was disowned by a redeliver-driven cursor rewind + re-arm
             // (internalRedeliverUnacknowledgedMessages) that already issued a newer read. Clearing
@@ -187,6 +188,9 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
 
         havePendingRead = false;
         isFirstRead = false;
+        if (originalLedgerReadPosition != null) {
+            this.originalLedgerReadPosition = originalLedgerReadPosition;
+        }
 
         if (readBatchSize < serviceConfig.getDispatcherMaxReadBatchSize()) {
             int newReadBatchSize = Math.min(readBatchSize * 2, serviceConfig.getDispatcherMaxReadBatchSize());
@@ -392,12 +396,14 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                 //   https://github.com/apache/pulsar/issues/13690
                 final var epoch = consumer.readCompacted() ? DEFAULT_CONSUMER_EPOCH : consumer.getConsumerEpoch();
                 final CompletableFuture<List<Entry>> entriesFuture;
+                final AtomicReference<Position> originalLedgerRead = new AtomicReference<>();
                 if (consumer.readCompacted()) {
                     boolean readFromEarliest = isFirstRead && MessageId.earliest.equals(consumer.getStartMessageId())
                             && (!cursor.isDurable() || cursor.getName().equals(Compactor.COMPACTION_SUBSCRIPTION)
                             || hasValidMarkDeletePosition(cursor));
                     entriesFuture = CompactedTopicUtils.asyncReadCompactedEntries(topic.getTopicCompactionService(),
-                            cursor, messagesToRead, bytesToRead, topic.getMaxReadPosition(), readFromEarliest, true);
+                            cursor, messagesToRead, bytesToRead, topic.getMaxReadPosition(), readFromEarliest, true,
+                            originalLedgerReadPosition, originalLedgerRead::set);
                 } else {
                     // The continuation below dispatches to our executor. With inline read completion enabled,
                     // cache hits skip the managed-ledger executor handoff and its unrelated publishing work.
@@ -406,7 +412,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                 }
                 entriesFuture.whenCompleteAsync((entries, e) -> {
                     if (e == null) {
-                        readEntriesComplete(entries, consumer, epoch, readOpEpoch);
+                        readEntriesComplete(entries, consumer, epoch, readOpEpoch, originalLedgerRead.get());
                     } else {
                         readEntriesFailed(e, consumer, readOpEpoch);
                     }
