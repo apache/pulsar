@@ -4018,11 +4018,11 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             entry.release();
         }
         if (!cacheEveryOther) {
-            // the positions read from storage, in a range or alone, are cached for a replay of them again, not the
-            // entries in between
+            // the ranges read from storage, a position alone too, are cached for a replay of them again, until the
+            // cache's time-based eviction, and the entries outside them aren't
             assertTrue(ledger.entryCache.hasEntry(added.get(0)));
             assertTrue(ledger.entryCache.hasEntry(added.get(590)));
-            assertFalse(ledger.entryCache.hasEntry(added.get(1)));
+            assertFalse(ledger.entryCache.hasEntry(added.get(589)));
         }
     }
 

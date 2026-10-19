@@ -2726,25 +2726,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      * Reads every entry from {@code firstEntry} to {@code lastEntry} of the ledger, without a size limit and without
      * caching them, as a cursor's replay of positions close to each other does with one storage read.
      */
-    /**
-     * Caches the entry with the expected read count, unless the cache already has it: a cached entry keeps its own
-     * expected read count.
-     *
-     * @param entry the entry to cache, which the caller still owns
-     * @param expectedReadCount the number of reads that the cache keeps the entry for
-     */
-    void cacheEntryIfAbsent(Entry entry, int expectedReadCount) {
-        if (entryCache.hasEntry(entry.getPosition())) {
-            return;
-        }
-        EntryImpl toCache = EntryImpl.create(entry.getPosition(), entry.getDataBuffer(), expectedReadCount);
-        entryCache.insert(toCache);
-        // the cached entry shares the expected read count, which releasing this one mustn't count as a read of
-        toCache.setDecreaseReadCountOnRelease(false);
-        toCache.release();
-    }
-
-    void asyncReadEntries(long ledgerId, long firstEntry, long lastEntry, int entriesWanted,
+    void asyncReadEntries(long ledgerId, long firstEntry, long lastEntry, int entriesWanted, int expectedReadCount,
                           ReadEntriesCallback callback, Object ctx) {
         // the entries read for the cursor, as each would count when read alone
         for (int i = 0; i < entriesWanted; i++) {
@@ -2752,10 +2734,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
         LedgerHandle currentLedger = this.currentLedger;
         if (ledgerId == currentLedger.getId()) {
-            asyncReadEntries(currentLedger, firstEntry, lastEntry, callback, ctx);
+            asyncReadEntries(currentLedger, firstEntry, lastEntry, expectedReadCount, callback, ctx);
         } else if (ledgers.containsKey(ledgerId)) {
-            getLedgerHandle(ledgerId).thenAccept(ledger -> asyncReadEntries(ledger, firstEntry, lastEntry, callback,
-                    ctx)).exceptionally(ex -> {
+            getLedgerHandle(ledgerId).thenAccept(ledger -> asyncReadEntries(ledger, firstEntry, lastEntry,
+                    expectedReadCount, callback, ctx)).exceptionally(ex -> {
                 log.error().attr("ledgerId", ledgerId).exceptionMessage(ex)
                         .log("Error opening ledger for reading entries");
                 callback.readEntriesFailed(ManagedLedgerException.getManagedLedgerException(ex.getCause()), ctx);
@@ -2767,19 +2749,19 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    private void asyncReadEntries(ReadHandle ledger, long firstEntry, long lastEntry, ReadEntriesCallback callback,
-                                  Object ctx) {
+    private void asyncReadEntries(ReadHandle ledger, long firstEntry, long lastEntry, int expectedReadCount,
+                                  ReadEntriesCallback callback, Object ctx) {
         if (config.getReadEntryTimeoutSeconds() > 0) {
             ReadEntryCallbackWrapper readCallback = ReadEntryCallbackWrapper.create(this, ledger.getId(), firstEntry,
                     callback, ctx, timeoutAtNanos(config.getReadEntryTimeoutSeconds()));
-            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, ManagedLedgerUtils.NO_MAX_SIZE_LIMIT, () -> 0,
-                    readCallback, ctx);
+            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, ManagedLedgerUtils.NO_MAX_SIZE_LIMIT,
+                    () -> expectedReadCount, readCallback, ctx);
             if (readCallback.registerTimeout()) {
                 factory.getReadEntryTimeoutTracker().add(readCallback);
             }
         } else {
-            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, ManagedLedgerUtils.NO_MAX_SIZE_LIMIT, () -> 0,
-                    callback, ctx);
+            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, ManagedLedgerUtils.NO_MAX_SIZE_LIMIT,
+                    () -> expectedReadCount, callback, ctx);
         }
     }
 
