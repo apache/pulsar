@@ -2727,19 +2727,21 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      * caching them, as a cursor's replay of positions close to each other does with one storage read.
      */
     /**
-     * Caches an entry that a replay read from storage with an expected read count of 1, so that a replay of it again,
-     * as when the entry is added to the replay queue again, can read it from the cache. An entry that the cache
-     * already has keeps its expected read count.
+     * Caches the entry with the expected read count, unless the cache already has it: a cached entry keeps its own
+     * expected read count.
+     *
+     * @param entry the entry to cache, which the caller still owns
+     * @param expectedReadCount the number of reads that the cache keeps the entry for
      */
-    void cacheReplayedEntry(Entry entry) {
+    void cacheEntryIfAbsent(Entry entry, int expectedReadCount) {
         if (entryCache.hasEntry(entry.getPosition())) {
             return;
         }
-        EntryImpl replayed = EntryImpl.create(entry.getPosition(), entry.getDataBuffer(), 1);
-        entryCache.insert(replayed);
+        EntryImpl toCache = EntryImpl.create(entry.getPosition(), entry.getDataBuffer(), expectedReadCount);
+        entryCache.insert(toCache);
         // the cached entry shares the expected read count, which releasing this one mustn't count as a read of
-        replayed.setDecreaseReadCountOnRelease(false);
-        replayed.release();
+        toCache.setDecreaseReadCountOnRelease(false);
+        toCache.release();
     }
 
     void asyncReadEntries(long ledgerId, long firstEntry, long lastEntry, int entriesWanted,

@@ -1970,6 +1970,9 @@ public class ManagedCursorImpl implements ManagedCursor {
     static final long REPLAY_RANGE_MAX_GAP_BYTES = 192 * 1024;
     // the most entries that one range read of replay positions takes
     static final int REPLAY_RANGE_MAX_ENTRIES = 256;
+    // The expected read count that an entry read from storage for a replay is cached with, so that a replay of it
+    // again, as when the entry is added to the replay queue again, can read it from the cache
+    static final int REPLAYED_ENTRY_EXPECTED_READ_COUNT = 1;
     // the most bytes that one range read of replay positions takes, by the managed ledger's average entry size, so
     // that large entries in between aren't read in bulk; it can't tell entries of very different sizes apart
     static final long REPLAY_RANGE_MAX_BYTES = 1024 * 1024;
@@ -1998,11 +2001,27 @@ public class ManagedCursorImpl implements ManagedCursor {
         long averageEntrySize = Math.max(1, ledger.getTotalSize() / Math.max(1, ledger.getNumberOfEntries()));
         for (List<Position> run : replayRuns(positions, averageEntrySize)) {
             if (run.size() == 1) {
-                ledger.asyncReadEntry(run.get(0), cb, ctx);
+                readReplayPosition(run.get(0), cb, ctx);
             } else {
                 readReplayRange(run, cb, ctx);
             }
         }
+    }
+
+    // Reads a replay position that the cache didn't have, and caches its entry for a replay of it again
+    private void readReplayPosition(Position position, ReadEntryCallback cb, Object ctx) {
+        ledger.asyncReadEntry(position, new ReadEntryCallback() {
+            @Override
+            public void readEntryComplete(Entry entry, Object readCtx) {
+                ledger.cacheEntryIfAbsent(entry, REPLAYED_ENTRY_EXPECTED_READ_COUNT);
+                cb.readEntryComplete(entry, readCtx);
+            }
+
+            @Override
+            public void readEntryFailed(ManagedLedgerException exception, Object readCtx) {
+                cb.readEntryFailed(exception, readCtx);
+            }
+        }, ctx);
     }
 
     /**
@@ -2047,7 +2066,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             public void readEntriesComplete(List<Entry> entries, Object readCtx) {
                 for (Entry entry : entries) {
                     if (wantedEntries.remove(entry.getEntryId())) {
-                        ledger.cacheReplayedEntry(entry);
+                        ledger.cacheEntryIfAbsent(entry, REPLAYED_ENTRY_EXPECTED_READ_COUNT);
                         cb.readEntryComplete(entry, ctx);
                     } else {
                         // an entry in between isn't read by this cursor: it doesn't count as its read
