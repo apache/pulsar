@@ -65,6 +65,10 @@ graalvmNative {
         imageName = nativeImageName
         mainClass = "org.apache.pulsar.tests.integration.nativeimage.NativeImageTesterApp"
         buildArgs.add("--no-fallback")
+        // GraalVM simulates class initializers in parallel, and two threads can publish different results
+        // for TypeParameterMatcher, failing the build with "mismatch with existing registration".
+        // Registering the class itself as run-time initialized gives every thread the same result.
+        buildArgs.add("--initialize-at-run-time=io.netty.util.internal.TypeParameterMatcher")
     }
 }
 
