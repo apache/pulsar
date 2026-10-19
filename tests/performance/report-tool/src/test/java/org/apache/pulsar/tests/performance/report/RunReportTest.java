@@ -285,6 +285,51 @@ public class RunReportTest {
     }
 
     @Test
+    public void reportsTheScheduledDelivery() throws IOException {
+        StringBuilder report = new StringBuilder();
+        JsonNode consumer = mapper.readTree("{\"applicationIndex\": 1, \"earlyDeliveries\": 2,"
+                + " \"maxEarlyMillis\": 1500}");
+        RunReport.appendScheduledDelivery(report, mapper.readTree("{\"applications\": {\"subscriptionPrefix\":"
+                + " \"commands-\"}}"), List.of(consumer));
+        assertThat(report).isEmpty();
+        RunReport.appendScheduledDelivery(report, mapper.readTree("{\"applications\": {\"subscriptionPrefix\":"
+                + " \"commands-\"}, \"behaviors\": {\"scheduledDelivery\": {\"minDelayMillis\": 60000,"
+                + " \"maxDelayMillis\": 300000}}}"), List.of(consumer));
+        assertThat(report.toString()).contains("## Scheduled delivery")
+                .contains("60,000 to 300,000 ms ahead").contains("more than 1,000 ms before")
+                .contains("| commands-1 | 2 | 1,500 ms |");
+    }
+
+    @Test
+    public void reportsTheProcessingFailures() throws IOException {
+        StringBuilder report = new StringBuilder();
+        RunReport.appendProcessingFailures(report, mapper.readTree("{\"applications\": {\"subscriptionPrefix\":"
+                + " \"alarm-\"}}"), List.of(mapper.readTree("{\"applicationIndex\": 0}")));
+        assertThat(report).isEmpty();
+        RunReport.appendProcessingFailures(report, mapper.readTree("{\"applications\": {\"subscriptionPrefix\":"
+                + " \"alarm-\"}, \"behaviors\": {\"processingFailures\": {\"fraction\": 0.05, \"poisonFraction\":"
+                + " 0.001, \"retry\": \"retryTopic\", \"retryDelayMillis\": 2000, \"maxRedeliveries\": 3}}}"),
+                List.of(mapper.readTree("{\"applicationIndex\": 0, \"failedAttempts\": 1500, \"deadLetters\": 30,"
+                        + " \"expectedDeadLetters\": 30, \"unexpectedDeadLetters\": 0}")));
+        assertThat(report.toString()).contains("## Processing failures")
+                .contains("5.00 % of the messages, and every attempt of 0.10 %")
+                .contains("after 3 retries, by the retry topic with a 2,000 ms delay")
+                .contains("| alarm-0 | 1,500 | 30 | 30 | 0 |");
+    }
+
+    @Test
+    public void reportsTheDeviceStatesOfCompactedReaders() throws IOException {
+        JsonNode workload = mapper.readTree("{\"applications\": {\"subscriptionPrefix\": \"twin-\"}}");
+        StringBuilder report = new StringBuilder();
+        RunReport.appendDeviceStates(report, workload, List.of(mapper.readTree("{\"applicationIndex\": 0}")));
+        assertThat(report).isEmpty();
+        RunReport.appendDeviceStates(report, workload, List.of(mapper.readTree("{\"applicationIndex\": 1,"
+                + " \"mode\": \"compactedReaders\", \"staleDevices\": 2, \"podStartUpMillis\": [900, 300, 1200]}")));
+        assertThat(report.toString()).contains("## Device states")
+                .contains("| twin-1 | 2 | 3 | 900 ms | 1,200 ms |");
+    }
+
+    @Test
     public void reportsCorrectnessThroughputLatencyAndSampledStats() throws IOException {
         Files.createDirectories(run.resolve("gateways"));
         Files.writeString(run.resolve("gateways/gateways-summary.json"), "{\"measurementMessages\": 400000,"

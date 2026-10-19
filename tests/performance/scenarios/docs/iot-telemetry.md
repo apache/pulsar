@@ -39,6 +39,33 @@ application-visible order across Key_Shared hash-range reassignment.
 - [`iot-telemetry-key-shared-stuck-consumer.yaml`](../iot-telemetry-key-shared-stuck-consumer.yaml) pauses one of
   each application's five pods for 45 seconds every minute, so that the replay queues reach their look-ahead limit
   and dispatch stops until the pod resumes: what the broker spends while dispatch is stuck.
+- [`iot-telemetry-failover-processors.yaml`](../iot-telemetry-failover-processors.yaml) runs eight stream
+  processors with hot standbys: each application is a Failover subscription of three pods on four topics of 12
+  partitions, so each partition has one active consumer, and every 20 seconds each application restarts one pod, whose
+  partitions fail over to a standby: the fail-overs' delivery gap and redelivery, with each device's order checked.
+- [`iot-device-shadow.yaml`](../iot-device-shadow.yaml) keeps device shadows on compacted topics: the broker compacts
+  the four topics every 4 MB of updates, and two applications of three pods read them compacted from the start with
+  `applications.mode: compactedReaders`, restarting one pod each every 30 seconds, which rebuilds its state from the
+  compacted topics: the compaction, the restarted pods' start-up time, and each device's latest state at every pod.
+- [`iot-alarm-retries.yaml`](../iot-alarm-retries.yaml) processes alarms with retries and a dead letter topic: four
+  applications with Shared subscriptions fail the first two attempts of 5 % of the alarms and retry them through
+  their retry topic after 2 seconds, and the 0.1 % that fail every attempt go to their dead letter topic: the retry
+  topics' delayed deliveries and the dead letter topics, with each alarm processed or dead-lettered once.
+- [`iot-scheduled-commands.yaml`](../iot-scheduled-commands.yaml) schedules device commands for maintenance windows
+  with delayed delivery: each of the 5,000 commands per second is delivered 1 to 5 minutes later, so each of the four
+  Shared subscriptions' delayed delivery trackers holds up to about 1.5 million messages: their cost and how late
+  the commands arrive.
+- [`iot-ota-firmware.yaml`](../iot-ota-firmware.yaml) distributes firmware images of 1 MiB in 128 KiB chunks: the
+  chunks of four producers' images interleave in each topic, and three Key_Shared applications with two pods put the
+  images together, restarting a pod every 30 seconds mid-transfer: chunked messages' throughput, latency and
+  redelivery, with each image whole, once and in order for its model.
+- [`iot-fleet-onboarding.yaml`](../iot-fleet-onboarding.yaml) brings 2,000 sites' topics online during the
+  measurement: the gateways' first messages create them, and three applications subscribed by a pattern discover them
+  as they appear: topic creation and discovery under load, with every message delivered once and in order.
+- [`iot-disconnected-sites.yaml`](../iot-disconnected-sites.yaml) takes four sites offline for two of every three
+  minutes on a namespace with a 60 s message TTL and a 20 MB backlog quota that evicts the oldest messages: the
+  expiry's and the eviction's cost, with each device's latest state checked at every site, as `applications.mode:
+  latestState` does.
 - [`iot-telemetry-small.yaml`](../iot-telemetry-small.yaml) keeps the 20-way fanout,
   30 topics and 1,000 msg/s rate, but uses 10 gateways and 10 pods per application, with the low-memory
   configuration.
@@ -205,19 +232,24 @@ workloads:
         precreate: false       # open every producer before the first message
         precreateConcurrency: 32  # with precreate, producers created at the same time, in a random order
         # batchingMaxPublishDelayMillis: 10  # how long a batch waits for more messages; the client's default is 1 ms
+        # chunkMaxMessageSizeBytes: 131072  # chunk larger messages into chunks of this size; needs no batching
       env:                     # the gateways' container, which runs every gateway; from the memory configuration
         PULSAR_MEM: -Xms512m -Xmx512m -XX:MaxDirectMemorySize=256m -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch
     topics:
       count: 30
       prefix: persistent://public/default/iot-telemetry-
+      partitions: 0            # not set in the base file: the partitions of each topic, 0 for non-partitioned
+      # patternDiscoverySeconds: 30  # subscribe by the pattern <prefix>\d+, discovering topics every 30 s
     applications:              # each a subscription of its own, consumed through its pods
       count: 20
       podsPerApplication: 100  # a Pulsar client with a consumer of the subscription each
       subscriptionPrefix: iot-application-
       subscriptionType: Key_Shared  # not set in the base file: Key_Shared, Shared or Failover
+      mode: subscription       # not set in the base file: subscription, compactedReaders or latestState
       client:                  # the client resources that every pod's client shares
         ioThreads: 8
         listenerThreads: 16
+        receiverQueueSize: 1000  # not set in the base file: each pod's consumer's receiver queue
       env:                     # the applications' container, which runs every application; from the memory configuration
         PULSAR_MEM: -Xms1536m -Xmx1536m -XX:MaxDirectMemorySize=256m -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch
       joinSeconds: []          # not set in the base file: each application's join after the measurement starts, in s
@@ -233,7 +265,88 @@ workloads:
         intervalSeconds: 0     # every intervalSeconds, for pauseMillis
         fraction: 0.0
         pauseMillis: 0
+      scheduledDelivery:       # not set in the base file: the gateways schedule the measured messages' delivery
+        minDelayMillis: 0
+        maxDelayMillis: 0      # 0 for none
+        earlyToleranceMillis: 1000
+      processingFailures:      # not set in the base file: the applications fail and retry some messages
+        fraction: 0.0          # the first two attempts of this fraction fail
+        poisonFraction: 0.0    # every attempt of this fraction fails: they're dead-lettered
+        retry: negativeAck     # or retryTopic
+        retryDelayMillis: 1000
+        maxRedeliveries: 3
 ```
+
+`topics.partitions` makes each topic a partitioned topic of that many partitions, which the launcher creates before
+the workloads start. A gateway's producer routes each device's messages to one partition by the device's key, and each
+pod's consumer subscribes to every partition. The launcher samples each partition's stats. The applications' join
+preparation (`skipMessages`, `unloadBeforeJoin` and `resetToMillis`), offloading and a remote cluster don't support
+partitioned topics.
+
+`topics.patternDiscoverySeconds` makes the applications subscribe to the topics by a pattern, the prefix followed by
+the index, instead of by their names, so they discover the topics as the gateways' first messages create them: through
+the broker's topic list watcher, and every `patternDiscoverySeconds` by a lookup. Each subscription is created at the
+earliest position when its topic is discovered, so no message is lost. The prefix mustn't have regular expression
+characters, since the client finds the namespace in the pattern, and the pattern doesn't go with partitioned topics,
+late applications, compacted readers or processing failures, since the client subscribes to the retry topic only
+with the topics' names.
+
+`applications.mode` sets how each pod reads the topics. With `subscription`, the default, it has a consumer of its
+application's subscription, which receives every message. With `compactedReaders`, it has a reader of each topic that
+reads it compacted from the start, as a TableView does, and keeps each device's latest sequence: the device's state.
+Such a pod receives each device's latest message that compaction kept, and then every later one. A device's sequence
+that falls is an ordering violation, and a repeated one is reported as a duplicate without failing the run, since a
+state service takes it. The application has received everything when,
+once the gateways have finished, each of its pods has every device's last message; the devices that a pod lacks then
+count as invalid. A restarted pod has started up when it receives the first message published after its start, and
+the latency covers only such messages. The topics are compacted by the broker, with
+`brokerServiceCompactionThresholdInBytes` in `cluster.brokers.env`. The pods restart only once the warmup has
+completed. The mode doesn't support `joinSeconds`, the join preparation, `behaviors.podPauses`, `warmup.messages` or
+chunked messages, of which compaction would keep only the last chunk.
+
+`behaviors.processingFailures` makes the applications fail to process some messages and retry them, as workers do
+when a downstream service fails. The first and second attempts of a `fraction` of the messages fail, and every
+attempt of a `poisonFraction` of them, chosen by a hash of the device and the sequence, so that the check after the
+run knows which messages fail. `retry` sets how a failed message is retried: `negativeAck`, the
+default, which the broker redelivers after `retryDelayMillis`, or `retryTopic`, which the consumer republishes to
+the application's retry topic, `<topics.prefix><subscription>-RETRY`, with a delivery delay of `retryDelayMillis`, as
+`reconsumeLater` does. After `maxRedeliveries`, at least 3, a message goes to the application's dead letter topic,
+`<topics.prefix><subscription>-DLQ`, which the application also consumes. Each message counts as received once,
+processed or dead-lettered; a message dead-lettered again, as when a reconnection loses the acknowledgment of its
+first dead-lettering, is a duplicate, and the dead letters must be exactly the messages of the `poisonFraction`, which the
+applications compute from each device's last sequence that the gateways hand over. The failures need Shared
+subscriptions, since retries deliver a device's messages out of order, and no late applications, whose catch-up
+would count the retry topic as one of the topics. With `negativeAck`, the broker counts every
+redelivery of a message as an attempt, including those of a restarted or paused pod's messages and of a nacked
+message's batch, so it needs no pod restarts or pauses and unbatched gateways; `retryTopic` counts only the retries. A failed attempt isn't a receipt, and a
+message's latency is that of the attempt that succeeds, since its last publication.
+
+`behaviors.scheduledDelivery` makes the gateways schedule each measured message's delivery a random delay ahead,
+from `minDelayMillis` to `maxDelayMillis`, with `deliverAt`, and put the delivery time in the message's `deliverAt`
+property. The broker keeps the messages in its delayed delivery trackers until then. The applications record how late
+each scheduled message arrives after its delivery time, instead of after its publishing, and count the messages that
+arrive more than `earlyToleranceMillis`, 1,000 by default, before it: a broker without
+`isDelayedDeliveryDeliverAtTimeStrict` delivers messages up to its `delayedDeliveryTickTimeMillis` before their time.
+It needs Shared subscriptions, and a `timeoutSeconds` that leaves room for the last delay. The warmup messages aren't
+scheduled.
+
+`gateways.producer.chunkMaxMessageSizeBytes` makes the gateways' producers chunk the messages larger than it into
+chunks of that size, which the consumers put together again. It needs `batchingEnabled: false`, and a subscription
+type other than Shared, which would deliver a message's chunks to different consumers. Every application checks that
+each message's payload has the configured size, so a message put together wrongly is invalid. With large messages,
+`applications.client.receiverQueueSize` keeps each pod's receiver queue to fewer messages than the client's default,
+1,000.
+
+With `applications.mode: latestState`, the pods consume the application's subscription, and the application keeps
+each device's latest sequence, as a pod that reads compacted does: a falling sequence is an ordering violation, and
+gaps are allowed, such as the messages that a message TTL or a backlog quota's eviction removes. Once the gateways
+have finished, the pauses stop, and the application has received everything when it has each device's last message,
+or when no message has arrived for 10 seconds, since a device's last message may have expired or been evicted: the
+devices without their last state are reported in the Device states section, not as invalid. Since a dispatch that
+stopped would look the same, the launcher then checks that the subscriptions have no backlog left: the expired and
+evicted messages have left it. The mode needs a subscription type that keeps each device's order, and the warmup to
+end before the first pod pause. It doesn't support pod restarts, whose redeliveries would look like falling states,
+processing failures, scheduled delivery, `joinSeconds`, the join preparation or `warmup.messages`.
 
 `behaviors.podPauses` stalls pods as a garbage collection, a slow downstream or a debugger would: every
 `intervalSeconds`, each application pauses a random `fraction` of its pods' consumers for `pauseMillis`, shorter than

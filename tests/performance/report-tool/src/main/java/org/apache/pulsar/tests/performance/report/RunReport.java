@@ -31,6 +31,7 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -383,6 +384,9 @@ public final class RunReport {
         appendProfiles(report, runDirectory, mapper);
         NetworkReport.append(report, runDirectory, mapper, measurementStart);
         appendCorrectness(report, "Correctness", run.workload(), consumers);
+        appendDeviceStates(report, run.workload(), consumers);
+        appendProcessingFailures(report, run.workload(), consumers);
+        appendScheduledDelivery(report, run.workload(), consumers);
         appendThroughput(report, producer, consumers);
         Path stats = runDirectory.resolve(TOPIC_STATS_FILE);
         Samples samples = Files.isRegularFile(stats) ? readSamples(stats) : null;
@@ -440,10 +444,15 @@ public final class RunReport {
                     + brokerEnvs.path("managedLedgerDefaultAckQuorum").asText()));
         }
         report.append(row("Gateways", workload.path("gateways").path("count").asInt() + " gateway(s) × "
-                        + workload.path("topics").path("count").asInt() + " topic(s)"))
+                        + workload.path("topics").path("count").asInt() + " topic(s)"
+                        + (workload.path("topics").path("partitions").asInt(0) > 0
+                        ? " of " + workload.path("topics").path("partitions").asInt() + " partitions" : "")))
                 .append(row("Applications", workload.path("applications").path("count").asInt() + " × "
                         + workload.path("applications").path("podsPerApplication").asInt()
-                        + " pods, " + workload.path("applications").path("subscriptionType").asText("Key_Shared")))
+                        + " pods, " + ("compactedReaders".equals(workload.path("applications").path("mode").asText())
+                        ? "compacted readers" : workload.path("applications").path("subscriptionType")
+                        .asText("Key_Shared") + ("latestState".equals(workload.path("applications").path("mode")
+                        .asText()) ? ", latest state" : ""))))
                 .append(row("Messages", String.format(Locale.ROOT, "%,d measured, %,d warmup",
                         messageCount(producer, "measurementMessages",
                                 workload.path("measurement").path("messages").asLong()),
@@ -703,6 +712,92 @@ public final class RunReport {
                     + " with the same message ID, redelivered, and %,d with another one: the broker persisted the"
                     + " message twice%s.%n", redelivered, republished, republished > 0
                     ? ", see each application's `republished-duplicates.txt`" : ""));
+        }
+    }
+
+    /**
+     * With processing failures: each application's failed attempts, and the messages that reached its dead letter
+     * topic, against those that fail at every attempt. Nothing without them.
+     */
+    static void appendProcessingFailures(StringBuilder report, JsonNode workload, List<JsonNode> consumers) {
+        JsonNode failures = workload.path("behaviors").path("processingFailures");
+        if (failures.path("fraction").asDouble() <= 0 && failures.path("poisonFraction").asDouble() <= 0) {
+            return;
+        }
+        report.append(String.format(Locale.ROOT, "%n## Processing failures%n%nThe applications fail the first two"
+                        + " attempts of %s of the messages, and every attempt of %s, which reach the dead letter"
+                        + " topic after %d retries, by %s with a %,d ms delay.%n%n"
+                        + "| Application | Failed attempts | Dead letters | Expected | Unexpected |%n"
+                        + "|---|---:|---:|---:|---:|%n",
+                percent(failures.path("fraction").asDouble()), percent(failures.path("poisonFraction").asDouble()),
+                failures.path("maxRedeliveries").asInt(3),
+                "retryTopic".equals(failures.path("retry").asText()) ? "the retry topic" : "negative acknowledgment",
+                failures.path("retryDelayMillis").asInt(1000)));
+        for (JsonNode consumer : consumers) {
+            report.append(String.format(Locale.ROOT, "| %s | %,d | %,d | %,d | %,d |%n",
+                    applicationName(workload, consumer.path("applicationIndex").asInt()),
+                    consumer.path("failedAttempts").asLong(), consumer.path("deadLetters").asLong(),
+                    consumer.path("expectedDeadLetters").asLong(), consumer.path("unexpectedDeadLetters").asLong()));
+        }
+    }
+
+    /**
+     * With scheduled delivery: the delays, and each application's messages that arrived earlier than their delivery
+     * time allows. Nothing without it.
+     */
+    static void appendScheduledDelivery(StringBuilder report, JsonNode workload, List<JsonNode> consumers) {
+        JsonNode scheduled = workload.path("behaviors").path("scheduledDelivery");
+        if (scheduled.path("maxDelayMillis").asInt() <= 0) {
+            return;
+        }
+        report.append(String.format(Locale.ROOT, "%n## Scheduled delivery%n%nThe gateways schedule each measured"
+                        + " message's delivery %,d to %,d ms ahead. The latency of a scheduled message is how late it"
+                        + " arrives after its delivery time. A message that arrives more than %,d ms before its time"
+                        + " counts as early.%n%n| Application | Early deliveries | Most before the time |%n"
+                        + "|---|---:|---:|%n",
+                scheduled.path("minDelayMillis").asInt(), scheduled.path("maxDelayMillis").asInt(),
+                scheduled.path("earlyToleranceMillis").asInt(1000)));
+        for (JsonNode consumer : consumers) {
+            report.append(String.format(Locale.ROOT, "| %s | %,d | %,d ms |%n",
+                    applicationName(workload, consumer.path("applicationIndex").asInt()),
+                    consumer.path("earlyDeliveries").asLong(), consumer.path("maxEarlyMillis").asLong()));
+        }
+    }
+
+    private static String percent(double fraction) {
+        return String.format(Locale.ROOT, "%.2f %%", fraction * 100);
+    }
+
+    /**
+     * For applications whose pods read the topics compacted: the devices whose last state a pod lacked at the end,
+     * and how long the restarted pods took to rebuild their state, until they received the first message published
+     * after their start. Nothing for applications that consume a subscription.
+     */
+    static void appendDeviceStates(StringBuilder report, JsonNode workload, List<JsonNode> consumers) {
+        List<JsonNode> readers = consumers.stream()
+                .filter(consumer -> "compactedReaders".equals(consumer.path("mode").asText())
+                        || "latestState".equals(consumer.path("mode").asText())).toList();
+        if (readers.isEmpty()) {
+            return;
+        }
+        report.append("\n## Device states\n\nEach application keeps each device's latest state, in each pod that"
+                + " reads the topics compacted, or over its pods that consume its subscription with mode latestState,"
+                + " where the messages that the broker expired or evicted are gaps. Unique messages counts the updates"
+                + " of the states. A restarted pod has rebuilt its state when it receives the first message published"
+                + " after its start; a pod restarted after the last one has none.\n\n"
+                + "| Application | Devices without their last state | Rebuilt pods | Start-up p50 | Start-up max |\n"
+                + "|---|---:|---:|---:|---:|\n");
+        for (JsonNode consumer : readers) {
+            List<Long> startUps = new ArrayList<>();
+            consumer.path("podStartUpMillis").forEach(millis -> startUps.add(millis.asLong()));
+            Collections.sort(startUps);
+            String median = startUps.isEmpty() ? "–"
+                    : String.format(Locale.ROOT, "%,d ms", startUps.get(startUps.size() / 2));
+            String max = startUps.isEmpty() ? "–"
+                    : String.format(Locale.ROOT, "%,d ms", startUps.get(startUps.size() - 1));
+            report.append(String.format(Locale.ROOT, "| %s | %,d | %,d | %s | %s |%n",
+                    applicationName(workload, consumer.path("applicationIndex").asInt()),
+                    consumer.path("staleDevices").asLong(), startUps.size(), median, max));
         }
     }
 
