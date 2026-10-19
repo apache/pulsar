@@ -18,10 +18,12 @@
  */
 package org.apache.pulsar.broker.service.scalable;
 
+import io.opentelemetry.api.OpenTelemetry;
 import io.prometheus.client.CollectorRegistry;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.CustomLog;
@@ -68,6 +70,7 @@ public class ScalableTopicService {
     private final BrokerService brokerService;
     private final ScalableTopicResources resources;
     private final CoordinationService coordinationService;
+    private final ScalableTopicControllerMetrics metrics;
 
     /**
      * Active controllers for topics this broker coordinates. The value is a future so
@@ -83,6 +86,38 @@ public class ScalableTopicService {
         this.brokerService = brokerService;
         this.resources = resources;
         this.coordinationService = coordinationService;
+        this.metrics = createControllerMetrics();
+    }
+
+    private ScalableTopicControllerMetrics createControllerMetrics() {
+        try {
+            var pulsar = brokerService.getPulsar();
+            var telemetry = pulsar.getOpenTelemetry();
+            var config = pulsar.getConfiguration();
+            return new ScalableTopicControllerMetrics(telemetry != null ? telemetry.getMeter()
+                    : OpenTelemetry.noop().getMeter(ScalableTopicService.class.getName()),
+                    config != null ? Objects.toString(config.getClusterName(), "") : "", this::metricCounts);
+        } catch (RuntimeException e) {
+            log.warn().exceptionMessage(e)
+                    .log("Failed to initialize scalable-topic controller metrics; continuing without them");
+            return ScalableTopicControllerMetrics.NOOP;
+        }
+    }
+
+    private ScalableTopicControllerMetrics.Counts metricCounts() {
+        long leaders = 0;
+        long active = 0;
+        long sealed = 0;
+        for (CompletableFuture<ScalableTopicController> future : controllers.values()) {
+            if (!future.isDone() || future.isCompletedExceptionally()) {
+                continue;
+            }
+            ScalableTopicControllerMetrics.Counts counts = future.join().metricCounts();
+            leaders += counts.controllers();
+            active += counts.active();
+            sealed += counts.sealed();
+        }
+        return new ScalableTopicControllerMetrics.Counts(leaders, active, sealed);
     }
 
     private volatile ScalableTopicConsumerMetrics consumerMetrics;
@@ -104,11 +139,12 @@ public class ScalableTopicService {
         log.info("ScalableTopicService started");
     }
 
-    /** Release only this service's new instruments, without changing controller teardown. */
+    /** Release only this service's instruments, without changing controller or metadata-store lifecycles. */
     public void closeMetrics() {
         if (consumerMetrics != null) {
             consumerMetrics.close();
         }
+        metrics.close();
     }
 
     public void close() {
@@ -165,6 +201,7 @@ public class ScalableTopicService {
     private CompletableFuture<ScalableTopicController> newController(String key, TopicName topic) {
         ScalableTopicController controller = new ScalableTopicController(
                 topic, resources, brokerService, coordinationService);
+        controller.setMetrics(metrics);
         if (consumerMetrics != null) {
             controller.setRebalanceListener(consumerMetrics::recordRebalance);
         }
