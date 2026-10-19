@@ -395,8 +395,9 @@ public class Murmur3_32Hash implements Hash {
         return finish(h1, remainingBytes(bytes, chunksEnd), len);
     }
 
-    // The length of the whole chunks of len bytes. A loop up to it, rather than while i + CHUNK_SIZE <= len, which
-    // could overflow, is a counted loop for the JIT: without a safepoint poll in each iteration, and unrolled
+    // The length of the whole chunks of len bytes. A loop up to it is a counted loop for the JIT, without a safepoint
+    // poll or a bounds check in each iteration, and unrolled; a loop while i + CHUNK_SIZE <= len isn't, since the JIT
+    // can't prove that the sum doesn't overflow
     private static int chunksLength(int len) {
         return len & -CHUNK_SIZE;
     }

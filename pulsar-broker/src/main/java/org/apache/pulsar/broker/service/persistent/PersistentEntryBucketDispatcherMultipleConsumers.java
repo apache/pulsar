@@ -144,6 +144,6 @@ public class PersistentEntryBucketDispatcherMultipleConsumers
             // the producer would have stamped, normalized to the same bucket.
             return entryAndMetadata.getOrUpdateCachedStickyKeyHash(bucketSelector);
         }
-        return bucketSelector.makeStickyKeyHash(peekStickyKey(entry));
+        return bucketSelector.makeStickyKeyHashOfKeyHash(peekStickyKeyHash(entry));
     }
 }

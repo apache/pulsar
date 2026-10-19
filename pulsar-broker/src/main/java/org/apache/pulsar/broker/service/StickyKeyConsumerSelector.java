@@ -83,6 +83,8 @@ public interface StickyKeyConsumerSelector {
     default int makeStickyKeyHash(byte[] stickyKey) {
         return makeStickyKeyHashOfKeyHash(Murmur3_32Hash.getInstance().makeHash(stickyKey));
     }
+    // The dispatchers make most hashes with makeStickyKeyHashOfKeyHash, from the key's hash: a selector that maps keys
+    // to hashes differently overrides that method, not this one, so that both give the same hash
 
     /**
      * Make a hash from the sticky key's hash, {@link Murmur3_32Hash#makeHash(byte[])} of its bytes, which is the same

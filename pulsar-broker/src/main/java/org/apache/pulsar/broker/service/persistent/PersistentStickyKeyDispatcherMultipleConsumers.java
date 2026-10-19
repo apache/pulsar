@@ -854,7 +854,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             // use the cached sticky key hash if available, otherwise calculate the sticky key hash and cache it
             return entryAndMetadata.getOrUpdateCachedStickyKeyHash(selector);
         }
-        return selector.makeStickyKeyHash(peekStickyKey(entry));
+        return selector.makeStickyKeyHashOfKeyHash(peekStickyKeyHash(entry));
     }
 
     @Override

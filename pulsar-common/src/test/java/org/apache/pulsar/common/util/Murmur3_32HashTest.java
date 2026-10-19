@@ -144,7 +144,7 @@ public class Murmur3_32HashTest {
     public void testBase64HashRejectsWhatTheDecoderRejects() {
         Hash hash = Murmur3_32Hash.getInstance();
         String[] values = {"A", "AAAAA", "A===", "AA=", "AA=A", "AAA=A", "=AAA", "AA-_", "AA AA", "AAé=", "AA\n=",
-                "AAAA=", "AAAA==", "漢字", "AAAAA==="};
+                "AAAA=", "AAAA==", "漢字", "AAAAA===", "AA==AAAA", "AAAA=AA="};
         for (String value : values) {
             byte[] decoded;
             try {

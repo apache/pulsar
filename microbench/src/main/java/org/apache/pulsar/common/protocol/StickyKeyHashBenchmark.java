@@ -19,8 +19,7 @@
 package org.apache.pulsar.common.protocol;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-import java.nio.charset.StandardCharsets;
+import io.netty.buffer.PooledByteBufAllocator;
 import java.util.Base64;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
@@ -36,12 +35,13 @@ import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Warmup;
 
 /**
  * Compares hashing a message's sticky key from its metadata, as Key_Shared dispatch does for each entry and
  * subscription: resolving the key into a byte array and hashing it, or hashing it where it is. The metadata is
- * parsed from a buffer, as the broker has it. Run it with {@code -prof gc}.
+ * parsed from a pooled direct buffer, as the broker has it. Run it with {@code -prof gc}.
  */
 @State(Scope.Thread)
 @BenchmarkMode(Mode.AverageTime)
@@ -58,6 +58,7 @@ public class StickyKeyHashBenchmark {
     @Param({"plain", "base64-16", "base64-8", "ordering-16"})
     private String keyType;
     private MessageMetadata metadata;
+    private ByteBuf buffer;
 
     @Setup
     public void setup() {
@@ -73,12 +74,18 @@ public class StickyKeyHashBenchmark {
             case "ordering-16" -> written.setOrderingKey(binary);
             default -> throw new IllegalArgumentException(keyType);
         }
-        ByteBuf buffer = Unpooled.buffer();
+        // a pooled direct buffer, as the broker reads entries into
+        buffer = PooledByteBufAllocator.DEFAULT.directBuffer();
         written.writeTo(buffer);
         metadata = new MessageMetadata();
         metadata.parseFrom(buffer, buffer.readableBytes());
-        // the partition key's string, which the metadata keeps once read
-        metadata.getPartitionKey().getBytes(StandardCharsets.UTF_8);
+        // reads the partition key's string, which the metadata then keeps
+        metadata.getPartitionKey();
+    }
+
+    @TearDown
+    public void tearDown() {
+        buffer.release();
     }
 
     @Benchmark
