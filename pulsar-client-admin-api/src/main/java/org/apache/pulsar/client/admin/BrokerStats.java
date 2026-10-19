@@ -132,4 +132,90 @@ public interface BrokerStats {
      * @return
      */
     CompletableFuture<LoadManagerReport> getLoadReportAsync();
+
+    /**
+     * Returns Monitoring metrics of the given broker.
+     *
+     * @param broker broker id, as returned by the brokers list
+     */
+    String getMetrics(String broker) throws PulsarAdminException;
+
+    /**
+     * Returns Monitoring metrics of the given broker asynchronously.
+     *
+     * @param broker broker id, as returned by the brokers list
+     */
+    CompletableFuture<String> getMetricsAsync(String broker);
+
+    /**
+     * Requests JSON string server mbean dump of the given broker.
+     *
+     * @param broker broker id, as returned by the brokers list
+     */
+    String getMBeans(String broker) throws PulsarAdminException;
+
+    /**
+     * Requests JSON string server mbean dump of the given broker asynchronously.
+     *
+     * @param broker broker id, as returned by the brokers list
+     */
+    CompletableFuture<String> getMBeansAsync(String broker);
+
+    /**
+     * Returns JSON string topics stats of the given broker.
+     *
+     * @param broker broker id, as returned by the brokers list
+     */
+    String getTopics(String broker) throws PulsarAdminException;
+
+    /**
+     * Returns JSON string topics stats of the given broker asynchronously.
+     *
+     * @param broker broker id, as returned by the brokers list
+     */
+    CompletableFuture<String> getTopicsAsync(String broker);
+
+    /**
+     * Get pending bookie client op stats by namespace of the given broker.
+     *
+     * @param broker broker id, as returned by the brokers list
+     */
+    String getPendingBookieOpsStats(String broker) throws PulsarAdminException;
+
+    /**
+     * Get pending bookie client op stats by namespace of the given broker asynchronously.
+     *
+     * @param broker broker id, as returned by the brokers list
+     */
+    CompletableFuture<String> getPendingBookieOpsStatsAsync(String broker);
+
+    /**
+     * Get the stats for the Netty allocator of the given broker.
+     *
+     * @param allocatorName
+     * @param broker broker id, as returned by the brokers list
+     */
+    AllocatorStats getAllocatorStats(String allocatorName, String broker) throws PulsarAdminException;
+
+    /**
+     * Get the stats for the Netty allocator of the given broker asynchronously.
+     *
+     * @param allocatorName
+     * @param broker broker id, as returned by the brokers list
+     */
+    CompletableFuture<AllocatorStats> getAllocatorStatsAsync(String allocatorName, String broker);
+
+    /**
+     * Get load of the given broker.
+     *
+     * @param broker broker id, as returned by the brokers list
+     */
+    LoadManagerReport getLoadReport(String broker) throws PulsarAdminException;
+
+    /**
+     * Get load of the given broker asynchronously.
+     *
+     * @param broker broker id, as returned by the brokers list
+     */
+    CompletableFuture<LoadManagerReport> getLoadReportAsync(String broker);
 }

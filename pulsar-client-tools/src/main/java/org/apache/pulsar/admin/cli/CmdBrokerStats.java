@@ -41,12 +41,16 @@ public class CmdBrokerStats extends CmdBase {
 
     @Command(description = "dump metrics for Monitoring")
     private class CmdMonitoringMetrics extends CliCommand {
+        @Option(names = {"-b", "--broker"}, description = "Broker id (from `brokers list`) to get the stats of;"
+                + " defaults to the connected broker", required = false)
+        private String broker;
+
         @Option(names = {"-i", "--indent"}, description = "Indent JSON output", required = false)
         private boolean indent = false;
 
         @Override
         void run() throws Exception {
-            String s = getAdmin().brokerStats().getMetrics();
+            String s = getAdmin().brokerStats().getMetrics(broker);
             JsonArray metrics = new Gson().fromJson(s, JsonArray.class);
 
             try (Writer out = new OutputStreamWriter(System.out, StandardCharsets.UTF_8);
@@ -69,12 +73,16 @@ public class CmdBrokerStats extends CmdBase {
 
     @Command(description = "dump mbean stats")
     private class CmdDumpMBeans extends CliCommand {
+        @Option(names = {"-b", "--broker"}, description = "Broker id (from `brokers list`) to get the stats of;"
+                + " defaults to the connected broker", required = false)
+        private String broker;
+
         @Option(names = {"-i", "--indent"}, description = "Indent JSON output", required = false)
         private boolean indent = false;
 
         @Override
         void run() throws Exception {
-            String s = getAdmin().brokerStats().getMBeans();
+            String s = getAdmin().brokerStats().getMBeans(broker);
             JsonArray result = new Gson().fromJson(s, JsonArray.class);
             try (Writer out = new OutputStreamWriter(System.out, StandardCharsets.UTF_8);
                  JsonWriter jsonWriter = new JsonWriter(out)) {
@@ -90,21 +98,28 @@ public class CmdBrokerStats extends CmdBase {
 
     @Command(description = "dump broker load-report")
     private class CmdLoadReport extends CliCommand {
+        @Option(names = {"-b", "--broker"}, description = "Broker id (from `brokers list`) to get the stats of;"
+                + " defaults to the connected broker", required = false)
+        private String broker;
 
         @Override
         void run() throws Exception {
-            print(getAdmin().brokerStats().getLoadReport());
+            print(getAdmin().brokerStats().getLoadReport(broker));
         }
     }
 
     @Command(description = "dump topics stats")
     private class CmdTopics extends CliCommand {
+        @Option(names = {"-b", "--broker"}, description = "Broker id (from `brokers list`) to get the stats of;"
+                + " defaults to the connected broker", required = false)
+        private String broker;
+
         @Option(names = {"-i", "--indent"}, description = "Indent JSON output", required = false)
         private boolean indent = false;
 
         @Override
         void run() throws Exception {
-            String s = getAdmin().brokerStats().getTopics();
+            String s = getAdmin().brokerStats().getTopics(broker);
             JsonObject result = new Gson().fromJson(s, JsonObject.class);
             try (Writer out = new OutputStreamWriter(System.out, StandardCharsets.UTF_8);
                  JsonWriter jsonWriter = new JsonWriter(out)) {
@@ -123,9 +138,13 @@ public class CmdBrokerStats extends CmdBase {
         @Parameters(description = "allocator-name", arity = "1")
         private String allocatorName;
 
+        @Option(names = {"-b", "--broker"}, description = "Broker id (from `brokers list`) to get the stats of;"
+                + " defaults to the connected broker", required = false)
+        private String broker;
+
         @Override
         void run() throws Exception {
-            AllocatorStats stats = getAdmin().brokerStats().getAllocatorStats(allocatorName);
+            AllocatorStats stats = getAdmin().brokerStats().getAllocatorStats(allocatorName, broker);
             ObjectMapper mapper = ObjectMapperFactory.create();
             ObjectWriter writer = mapper.writerWithDefaultPrettyPrinter();
             try (Writer out = new OutputStreamWriter(System.out, StandardCharsets.UTF_8)) {

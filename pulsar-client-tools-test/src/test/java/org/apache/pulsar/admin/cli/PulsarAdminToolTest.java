@@ -187,25 +187,30 @@ public class PulsarAdminToolTest {
 
         CmdBrokerStats brokerStats = new CmdBrokerStats(() -> admin);
 
-        doReturn("null").when(mockBrokerStats).getTopics();
+        doReturn("null").when(mockBrokerStats).getTopics(null);
         brokerStats.run(split("topics"));
-        verify(mockBrokerStats).getTopics();
+        verify(mockBrokerStats).getTopics(null);
 
-        doReturn(null).when(mockBrokerStats).getLoadReport();
+        doReturn(null).when(mockBrokerStats).getLoadReport(null);
         brokerStats.run(split("load-report"));
-        verify(mockBrokerStats).getLoadReport();
+        verify(mockBrokerStats).getLoadReport(null);
 
-        doReturn("null").when(mockBrokerStats).getMBeans();
+        doReturn("null").when(mockBrokerStats).getMBeans(null);
         brokerStats.run(split("mbeans"));
-        verify(mockBrokerStats).getMBeans();
+        verify(mockBrokerStats).getMBeans(null);
 
-        doReturn("null").when(mockBrokerStats).getMetrics();
+        doReturn("null").when(mockBrokerStats).getMetrics(null);
         brokerStats.run(split("monitoring-metrics"));
-        verify(mockBrokerStats).getMetrics();
+        verify(mockBrokerStats).getMetrics(null);
 
-        doReturn(null).when(mockBrokerStats).getAllocatorStats("default");
+        doReturn(null).when(mockBrokerStats).getAllocatorStats("default", null);
         brokerStats.run(split("allocator-stats default"));
-        verify(mockBrokerStats).getAllocatorStats("default");
+        verify(mockBrokerStats).getAllocatorStats("default", null);
+
+        brokerStats.run(split("load-report --broker host:8080"));
+        verify(mockBrokerStats).getLoadReport("host:8080");
+        brokerStats.run(split("allocator-stats default -b host:8080"));
+        verify(mockBrokerStats).getAllocatorStats("default", "host:8080");
     }
 
     @Test

@@ -28,6 +28,7 @@ import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.StreamingOutput;
 import java.util.Collection;
@@ -51,8 +52,8 @@ public class BrokerStats extends BrokerStatsBase {
                             schema = @Schema(type = "object", description = "Nested JSON object:"
                                     + " namespace -> bundle range -> persistent/non-persistent -> topic -> stats"))),
             @ApiResponse(responseCode = "403", description = "Don't have admin permission") })
-    public StreamingOutput getTopics2() throws Exception {
-        return super.getTopics2();
+    public StreamingOutput getTopics2(@QueryParam("broker") String broker) throws Exception {
+        return super.getTopics2(broker);
     }
 
     @GET
