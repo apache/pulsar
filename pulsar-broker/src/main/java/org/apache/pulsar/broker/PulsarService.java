@@ -1312,6 +1312,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                     .log("The session with metadata service was lost. Shutting down.\n\n");
             shutdownNow();
         }
+        BrokerService broker = brokerService;
+        if (broker != null) {
+            broker.onMetadataSessionEvent(e);
+        }
     }
 
     private void addBrokerAdditionalServlets(WebService webService,

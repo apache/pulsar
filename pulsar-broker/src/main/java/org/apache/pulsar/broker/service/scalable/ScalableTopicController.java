@@ -36,6 +36,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 import lombok.Getter;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -95,6 +96,8 @@ public class ScalableTopicController {
     private final Duration gcInterval;
 
     private volatile SegmentLayout currentLayout;
+
+    private Consumer<SubscriptionCoordinator.RebalanceReason> rebalanceListener = __ -> { };
 
     /** Per-subscription consumer tracking. */
     private final ConcurrentHashMap<String, SubscriptionCoordinator> subscriptions = new ConcurrentHashMap<>();
@@ -949,6 +952,30 @@ public class ScalableTopicController {
     }
 
     private SubscriptionCoordinator createCoordinator(String subscription,
+            ScalableConsumerType consumerType) {
+        SubscriptionCoordinator coordinator = newCoordinator(subscription, consumerType);
+        coordinator.setRebalanceListener(rebalanceListener);
+        return coordinator;
+    }
+
+    /** Set before initialization, so restored and newly registered coordinators share the broker counter. */
+    void setRebalanceListener(Consumer<SubscriptionCoordinator.RebalanceReason> listener) {
+        rebalanceListener = listener;
+    }
+
+    SubscriptionCoordinator.ConsumerStats consumerStats() {
+        if (closed || !isLeader()) {
+            return SubscriptionCoordinator.ConsumerStats.EMPTY;
+        }
+        SubscriptionCoordinator.ConsumerStats stats = SubscriptionCoordinator.ConsumerStats.EMPTY;
+        for (SubscriptionCoordinator coordinator : subscriptions.values()) {
+            stats = stats.plus(coordinator.consumerStats());
+        }
+        // Leadership may have ended while the lock-free snapshots were being read.
+        return closed || !isLeader() ? SubscriptionCoordinator.ConsumerStats.EMPTY : stats;
+    }
+
+    private SubscriptionCoordinator newCoordinator(String subscription,
             ScalableConsumerType consumerType) {
         // Parent-drain ordering matters only for STREAM consumers (Exclusive per-segment
         // subscription with broker-tracked cursors → preserving per-key order across a
