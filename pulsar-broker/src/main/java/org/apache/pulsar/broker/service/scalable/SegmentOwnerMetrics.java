@@ -23,7 +23,6 @@ import io.opentelemetry.api.metrics.BatchCallback;
 import io.opentelemetry.api.metrics.Meter;
 import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;
-import io.prometheus.client.CounterMetricFamily;
 import io.prometheus.client.GaugeMetricFamily;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -32,6 +31,7 @@ import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Supplier;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusCounterMetricFamily;
 
 /** Broker-level segment-owner metrics, with a single source for both export paths. */
 public final class SegmentOwnerMetrics implements AutoCloseable {
@@ -190,10 +190,10 @@ public final class SegmentOwnerMetrics implements AutoCloseable {
             var draining = new GaugeMetricFamily(PROMETHEUS_PREFIX + "entry_bucket_draining_count",
                     "Entry buckets withheld until their previous owner acknowledges in-flight messages.",
                     List.of("cluster"));
-            var violations = new CounterMetricFamily(PROMETHEUS_PREFIX + "entry_bucket_violation",
+            var violations = new PrometheusCounterMetricFamily(PROMETHEUS_PREFIX + "entry_bucket_violation",
                     "Entries that cannot be routed by a single entry bucket.",
                     List.of("cluster", "entry_bucket_violation"));
-            var loadReports = new CounterMetricFamily(PROMETHEUS_PREFIX + "segment_load_report",
+            var loadReports = new PrometheusCounterMetricFamily(PROMETHEUS_PREFIX + "segment_load_report",
                     "Segment load samples by reporting result.", List.of("cluster", "load_report_result"));
             totals.forEach((cluster, total) -> {
                 leaderless.addMetric(List.of(cluster), total.leaderless);

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.scalable;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
 import static org.assertj.core.api.Assertions.assertThat;
 import io.opentelemetry.api.OpenTelemetry;
@@ -25,10 +26,15 @@ import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
 import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
 import io.prometheus.client.CollectorRegistry;
+import io.prometheus.client.Counter;
+import java.io.ByteArrayOutputStream;
+import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.broker.service.scalable.SegmentOwnerMetrics.EntryBucketViolation;
 import org.apache.pulsar.broker.service.scalable.SegmentOwnerMetrics.Gauges;
 import org.apache.pulsar.broker.service.scalable.SegmentOwnerMetrics.LoadReportResult;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGeneratorUtils;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
@@ -90,6 +96,55 @@ public class SegmentOwnerMetricsTest {
             assertThat(registry.getSampleValue(SegmentOwnerMetrics.PROMETHEUS_PREFIX + names[i].replace('.', '_'),
                     new String[]{"cluster"}, new String[]{"test-cluster"})).isEqualTo((double) values[i]);
         }
+    }
+
+    @Test
+    public void testExistingMetricsSurviveSegmentOwnerCollectorLifecycle() throws Exception {
+        String legacyName = "segment_owner_compatibility_" + UUID.randomUUID().toString().replace("-", "");
+        Counter legacy = Counter.build(legacyName, "Existing counter").labelNames("subscription").register();
+        try (var reader = InMemoryMetricReader.create();
+             var provider = SdkMeterProvider.builder().registerMetricReader(reader).build()) {
+            var legacyChild = legacy.labels("existing-subscription");
+            legacyChild.inc(7);
+            var meter = provider.get("compatibility-test");
+            var legacyOtel = meter.counterBuilder("test.existing.counter").build();
+            legacyOtel.add(7);
+            List<String> before = legacyOutput(legacyName);
+            assertThat(before).contains("# TYPE " + legacyName + " counter");
+            var attributes = Attributes.empty();
+            assertMetricLongSumValue(reader.collectAllMetrics(), "test.existing.counter", attributes, 7);
+
+            try (var metrics = new SegmentOwnerMetrics(meter, "compatibility-cluster", () -> new Gauges(2, 3, 4))) {
+                metrics.recordEntryBucketViolation(EntryBucketViolation.STRADDLING);
+                metrics.recordLoadReport(LoadReportResult.WRITTEN);
+                for (int scrape = 0; scrape < 3; scrape++) {
+                    assertThat(legacyOutput(legacyName)).as("existing Prometheus output during scrape %s", scrape)
+                            .containsExactlyElementsOf(before);
+                    assertThat(legacyChild.get()).as("existing Prometheus state").isEqualTo(7);
+                    assertMetricLongSumValue(reader.collectAllMetrics(), "test.existing.counter", attributes, 7);
+                }
+            }
+            assertThat(legacyOutput(legacyName)).as("existing output after new collector closes")
+                    .containsExactlyElementsOf(before);
+            assertMetricLongSumValue(reader.collectAllMetrics(), "test.existing.counter", attributes, 7);
+            // Closing only the new collector must not prevent the original instruments from updating.
+            legacyChild.inc(2);
+            legacyOtel.add(2);
+            assertThat(legacyChild.get()).isEqualTo(9);
+            assertThat(legacyOutput(legacyName)).contains(legacyName
+                    + "_total{cluster=\"compatibility-cluster\",subscription=\"existing-subscription\"} 9.0");
+            assertMetricLongSumValue(reader.collectAllMetrics(), "test.existing.counter", attributes, 9);
+        } finally {
+            CollectorRegistry.defaultRegistry.unregister(legacy);
+        }
+    }
+
+    private static List<String> legacyOutput(String legacyName) throws Exception {
+        var out = new ByteArrayOutputStream();
+        PrometheusMetricsGeneratorUtils.generate("compatibility-cluster", out, List.of());
+        return out.toString(UTF_8).lines()
+                .filter(line -> line.startsWith(legacyName) || line.startsWith("# TYPE " + legacyName))
+                .sorted().toList();
     }
 
     @Test
