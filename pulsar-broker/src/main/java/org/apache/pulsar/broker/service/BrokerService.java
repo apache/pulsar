@@ -1074,6 +1074,9 @@ public class BrokerService implements Closeable {
                                 log.info("Continuing to second phase in shutdown.");
 
                                 List<CompletableFuture<Void>> asyncCloseFutures = new ArrayList<>();
+                                if (scalableTopicService != null) {
+                                    scalableTopicService.closeMetrics();
+                                }
                                 listenChannels.forEach(ch -> {
                                     if (ch.isOpen()) {
                                         asyncCloseFutures.add(closeChannel(ch));
