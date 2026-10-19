@@ -25,8 +25,10 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -109,13 +111,16 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
     private final Map<NamespaceListener, NamespaceName> namespaceListeners =
             new ConcurrentHashMap<>();
 
+    /** Broker-scoped observers sharing the existing metadata-store listener. */
+    private final Set<Consumer<Notification>> metadataListeners = ConcurrentHashMap.newKeySet();
+
     public ScalableTopicResources(MetadataStore store, int operationTimeoutSec) {
         super(store, ScalableTopicMetadata.class, operationTimeoutSec);
         this.subscriptionCache = store.getMetadataCache(SubscriptionMetadata.class);
         this.consumerRegistrationCache = store.getMetadataCache(ConsumerRegistration.class);
         this.segmentLoadCache = store.getMetadataCache(SegmentLoadStats.class);
-        // Single shared metadata-store listener fans out to both per-path and
-        // per-namespace subscribers. Per-subscriber lifecycle goes through the
+        // Single shared metadata-store listener fans out to per-path and
+        // per-namespace subscribers and broker-scoped observers. Lifecycle goes through the
         // register / deregister methods below.
         if (store instanceof MetadataStoreExtended ext) {
             ext.registerListener(this::handleNotification);
@@ -190,6 +195,26 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
     }
 
     /**
+     * Register a broker-scoped observer of every notification below {@code /topics/}, including
+     * controller and subscription paths. Registering the same observer again is idempotent.
+     *
+     * <p>This reuses the existing store listener; it does not register another store listener.
+     * The caller must invoke {@link #deregisterMetadataListener(Consumer)} when it closes to avoid
+     * retaining the observer and its broker-scoped state.
+     */
+    public void registerMetadataListener(Consumer<Notification> listener) {
+        metadataListeners.add(listener);
+    }
+
+    /**
+     * Deregister an observer on caller shutdown. Safe to call repeatedly or for an unregistered observer.
+     * A notification already being dispatched may still reach the observer.
+     */
+    public void deregisterMetadataListener(Consumer<Notification> listener) {
+        metadataListeners.remove(listener);
+    }
+
+    /**
      * Single fan-out path. For each registered subscriber:
      * <ul>
      *   <li>Path listener: dispatch when the notification's path equals the listener's
@@ -197,6 +222,7 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
      *   <li>Namespace listener: dispatch when the notification's path is a direct
      *       child of {@code /topics/<tenant>/<ns>} (skips subtree events like
      *       subscriptions / controller lock).</li>
+     *   <li>Broker-scoped observer: dispatch every notification below {@code /topics/}.</li>
      * </ul>
      */
     void handleNotification(Notification notification) {
@@ -236,6 +262,19 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
                             .attr("path", path)
                             .exceptionMessage(e)
                             .log("Failed to dispatch scalable-topic namespace notification");
+                }
+            }
+        }
+
+        if (!metadataListeners.isEmpty() && path.startsWith(SCALABLE_TOPIC_PATH + "/")) {
+            for (Consumer<Notification> listener : metadataListeners) {
+                try {
+                    listener.accept(notification);
+                } catch (Exception e) {
+                    log.warn().attr("listener", listener)
+                            .attr("path", path)
+                            .exceptionMessage(e)
+                            .log("Failed to dispatch scalable-topic metadata notification");
                 }
             }
         }
