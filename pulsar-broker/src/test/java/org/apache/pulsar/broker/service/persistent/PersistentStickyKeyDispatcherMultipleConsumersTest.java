@@ -654,7 +654,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
     public void testGetMessagesToReplayNowChecksDelayedTrackerOnce() {
         DelayedDeliveryTracker trackerMock = mock(DelayedDeliveryTracker.class);
         DelayedDeliveryTrackerFactory trackerFactoryMock = mock(DelayedDeliveryTrackerFactory.class);
-        doReturn(trackerMock).when(trackerFactoryMock).newTracker(any());
+        doReturn(CompletableFuture.completedFuture(trackerMock)).when(trackerFactoryMock).newTrackerAsync(any());
         doReturn(trackerFactoryMock).when(brokerMock).getDelayedDeliveryTrackerFactory();
         doReturn(true).when(topicMock).isDelayedDeliveryEnabled();
         doReturn(true).when(trackerMock).addMessage(anyLong(), anyLong(), anyLong());
@@ -746,6 +746,101 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
             verify(cursorMock).asyncReadEntriesWithSkipOrWait(anyInt(), anyLong(), any(), any(), any(), any());
         } finally {
             slowWrite.trySuccess(null);
+        }
+    }
+
+    @Test(timeOut = 10000)
+    public void testSlowWriteOfWholeBatchDoesNotBlockOtherConsumers() throws Exception {
+        succeededFuture = ImmediateEventExecutor.INSTANCE.newSucceededFuture(null);
+        EventLoopGroup brokerExecutor = brokerMock.executor();
+        ArrayDeque<Runnable> readyTasks = new ArrayDeque<>();
+        doAnswer(inv -> {
+            readyTasks.add(inv.getArgument(0, Runnable.class));
+            return null;
+        }).when(brokerExecutor).execute(any(Runnable.class));
+        Consumer slowConsumer = createMockConsumer();
+        doReturn("slow-consumer").when(slowConsumer).consumerName();
+        doReturn(1000).when(slowConsumer).getAvailablePermits();
+        // The pending bytes stay below the high watermark: no writability change will resume dispatch.
+        doReturn(true).when(slowConsumer).isWritable();
+        Promise<Void> slowWrite = ImmediateEventExecutor.INSTANCE.newPromise();
+        doAnswer(inv -> {
+            List<Entry> entries = inv.getArgument(0);
+            entries.stream().filter(Objects::nonNull).forEach(Entry::release);
+            return slowWrite;
+        }).when(slowConsumer).sendMessages(anyList(), any(), any(), anyInt(), anyLong(), anyLong(), any());
+        persistentDispatcher.addConsumer(consumerMock).join();
+        persistentDispatcher.addConsumer(slowConsumer).join();
+        persistentDispatcher.totalAvailablePermits = 2000;
+        String slowKey = generateKeyForConsumer(persistentDispatcher.getSelector(), slowConsumer);
+        try {
+            // Every entry of this read belongs to the slow consumer, so no other write completes.
+            persistentDispatcher.readEntriesComplete(new ArrayList<>(List.of(
+                    createEntry(1, 1, "slow", 1, slowKey), createEntry(1, 2, "slow", 2, slowKey))),
+                    PersistentDispatcherMultipleConsumers.ReadType.Normal);
+            verify(slowConsumer).sendMessages(anyList(), any(), any(), anyInt(), anyLong(), anyLong(), any());
+            verify(consumerMock, never()).sendMessages(anyList(), any(), any(), anyInt(), anyLong(), anyLong(),
+                    any());
+            assertThat(slowWrite.isDone()).isFalse();
+            while (!readyTasks.isEmpty()) {
+                readyTasks.remove().run();
+            }
+            // The writable consumer's entries come from a read that doesn't wait for the slow socket.
+            verify(cursorMock).asyncReadEntriesWithSkipOrWait(anyInt(), anyLong(), any(), any(), any(), any());
+        } finally {
+            slowWrite.trySuccess(null);
+        }
+    }
+
+    @Test(timeOut = 10000)
+    public void testPendingWritesToAllConsumersDeferNextReadUntilOneCompletes() throws Exception {
+        EventLoopGroup brokerExecutor = brokerMock.executor();
+        ArrayDeque<Runnable> readyTasks = new ArrayDeque<>();
+        doAnswer(inv -> {
+            readyTasks.add(inv.getArgument(0, Runnable.class));
+            return null;
+        }).when(brokerExecutor).execute(any(Runnable.class));
+        Promise<Void> firstWrite = ImmediateEventExecutor.INSTANCE.newPromise();
+        doAnswer(inv -> {
+            List<Entry> entries = inv.getArgument(0);
+            entries.stream().filter(Objects::nonNull).forEach(Entry::release);
+            return firstWrite;
+        }).when(consumerMock).sendMessages(anyList(), any(), any(), anyInt(), anyLong(), anyLong(), any());
+        Consumer secondConsumer = createMockConsumer();
+        doReturn("second-consumer").when(secondConsumer).consumerName();
+        doReturn(1000).when(secondConsumer).getAvailablePermits();
+        doReturn(true).when(secondConsumer).isWritable();
+        Promise<Void> secondWrite = ImmediateEventExecutor.INSTANCE.newPromise();
+        doAnswer(inv -> {
+            List<Entry> entries = inv.getArgument(0);
+            entries.stream().filter(Objects::nonNull).forEach(Entry::release);
+            return secondWrite;
+        }).when(secondConsumer).sendMessages(anyList(), any(), any(), anyInt(), anyLong(), anyLong(), any());
+        persistentDispatcher.addConsumer(consumerMock).join();
+        persistentDispatcher.addConsumer(secondConsumer).join();
+        persistentDispatcher.totalAvailablePermits = 2000;
+        String firstKey = generateKeyForConsumer(persistentDispatcher.getSelector(), consumerMock);
+        String secondKey = generateKeyForConsumer(persistentDispatcher.getSelector(), secondConsumer);
+        try {
+            persistentDispatcher.readEntriesComplete(new ArrayList<>(List.of(
+                    createEntry(1, 1, "first", 1, firstKey), createEntry(1, 2, "second", 2, secondKey))),
+                    PersistentDispatcherMultipleConsumers.ReadType.Normal);
+            verify(consumerMock).sendMessages(anyList(), any(), any(), anyInt(), anyLong(), anyLong(), any());
+            verify(secondConsumer).sendMessages(anyList(), any(), any(), anyInt(), anyLong(), anyLong(), any());
+            while (!readyTasks.isEmpty()) {
+                readyTasks.remove().run();
+            }
+            // Every eligible consumer received entries: the next read waits for a write to complete.
+            verify(cursorMock, never()).asyncReadEntriesWithSkipOrWait(anyInt(), anyLong(), any(), any(), any(),
+                    any());
+            firstWrite.setSuccess(null);
+            while (!readyTasks.isEmpty()) {
+                readyTasks.remove().run();
+            }
+            verify(cursorMock).asyncReadEntriesWithSkipOrWait(anyInt(), anyLong(), any(), any(), any(), any());
+        } finally {
+            firstWrite.trySuccess(null);
+            secondWrite.trySuccess(null);
         }
     }
 
