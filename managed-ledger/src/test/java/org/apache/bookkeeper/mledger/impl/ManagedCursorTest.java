@@ -5712,6 +5712,26 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testShouldCloseLedgerEntriesJitterStaysWithinConfiguredMax() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMetadataMaxEntriesPerLedger(1000);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "testShouldCloseLedgerEntriesJitterStaysWithinConfiguredMax", config);
+
+        LedgerHandle belowJitterRange = mock(LedgerHandle.class);
+        when(belowJitterRange.getLastAddConfirmed()).thenReturn(949L);
+        LedgerHandle atConfiguredMax = mock(LedgerHandle.class);
+        when(atConfiguredMax.getLastAddConfirmed()).thenReturn(1000L);
+
+        // Every cursor draws its own jitter: none may roll over before 95% of the limit or go past the limit.
+        for (int i = 0; i < 50; i++) {
+            ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c" + i);
+            assertFalse(cursor.shouldCloseLedger(belowJitterRange));
+            assertTrue(cursor.shouldCloseLedger(atConfiguredMax));
+        }
+    }
+
+    @Test
     public void testReadEmptyEntryList() throws Exception {
         ManagedLedgerConfig managedLedgerConfig = defaultConfig();
         managedLedgerConfig.setMaxEntriesPerLedger(1);

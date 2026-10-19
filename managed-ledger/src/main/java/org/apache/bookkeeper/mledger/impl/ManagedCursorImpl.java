@@ -312,8 +312,10 @@ public class ManagedCursorImpl implements ManagedCursor {
     @SuppressWarnings("unused")
     private volatile int pendingMarkDeletedSubmittedCount = 0;
     private volatile long lastLedgerSwitchTimestamp;
-    // Stable per-cursor jitter in [1.0, 1.05) so rollover does not re-roll on each check
-    // or miss a config update by caching the derived threshold.
+    // Stable per-cursor jitter so cursors created together don't roll over their ledgers together. It is
+    // drawn once, so it doesn't change on each check, and applied to the live config, so config updates
+    // are not missed. The time jitter is in [1.0, 1.05), like the managed ledger's. The entries jitter is
+    // in (0.95, 1.0], so the configured max entries per ledger is never exceeded.
     private final double rolloverTimeJitter;
     private final double rolloverEntriesJitter;
     private final Clock clock;
@@ -397,7 +399,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         this.lastActive = this.clock.millis();
         this.lastLedgerSwitchTimestamp = this.clock.millis();
         this.rolloverTimeJitter = 1 + ThreadLocalRandom.current().nextDouble() * 0.05;
-        this.rolloverEntriesJitter = 1 + ThreadLocalRandom.current().nextDouble() * 0.05;
+        this.rolloverEntriesJitter = 1 - ThreadLocalRandom.current().nextDouble() * 0.05;
 
         if (getConfig().getThrottleMarkDelete() > 0.0) {
             markDeleteLimiter = RateLimiter.create(getConfig().getThrottleMarkDelete());
@@ -3767,8 +3769,9 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     boolean shouldCloseLedger(LedgerHandle lh) {
         long now = clock.millis();
+        // Rounded up, so small limits (below 20) are not changed by the jitter
         long maximumLedgerRolloverEntries = (long)
-                (getConfig().getMetadataMaxEntriesPerLedger() * rolloverEntriesJitter);
+                Math.ceil(getConfig().getMetadataMaxEntriesPerLedger() * rolloverEntriesJitter);
         long maximumLedgerRolloverTimeMs = (long)
                 (getConfig().getLedgerRolloverTimeout() * 1000L * rolloverTimeJitter);
         if (ledger.getFactory().isMetadataServiceAvailable()
