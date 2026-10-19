@@ -30,7 +30,10 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.DefaultChannelPromise;
+import io.netty.util.concurrent.ImmediateEventExecutor;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -82,6 +85,8 @@ public class DagWatchSessionTest {
 
         when(resources.topicPath(TOPIC)).thenReturn(TOPIC_PATH);
         when(cnx.ctx()).thenReturn(ctx);
+        when(ctx.writeAndFlush(any())).thenReturn(
+                new DefaultChannelPromise(mock(Channel.class), ImmediateEventExecutor.INSTANCE).setSuccess());
         // Default: metadata store has a valid registerListener hook.
         var store = mock(org.apache.pulsar.metadata.api.MetadataStore.class);
         when(resources.getStore()).thenReturn(store);
