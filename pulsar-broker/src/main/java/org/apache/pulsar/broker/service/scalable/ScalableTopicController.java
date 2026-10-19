@@ -749,8 +749,8 @@ public class ScalableTopicController {
                                                 consumers, bucketSharing, config, clock.millis(),
                                                 lastSplitAtMs, lastMergeAtMs, lastRebucketAtMs))
                                 .thenCompose(decision -> {
-                                    autoScaleBlockedReason = decision instanceof AutoScaleDecision.NoAction none
-                                            ? none.blockedReason() : null;
+                                    autoScaleBlockedReason =
+                                            AutoScalePolicyEvaluator.blockedReason(currentLayout, decision);
                                     return dispatch(decision, config, trigger);
                                 });
                     })
@@ -1703,6 +1703,10 @@ public class ScalableTopicController {
      * <p>STREAM consumer sessions (connected state, segment assignment) are the leader's
      * in-memory state, which is why the REST layer routes stats requests to the controller
      * leader.
+     *
+     * <p>The latest load records are read from metadata, not sampled by updating or resetting
+     * traffic rate meters. These on-demand reads retain normal metadata-store and cache metrics
+     * accounting, just like other admin reads.
      */
     public CompletableFuture<ScalableTopicStats> getStats() {
         SegmentLayout layout = this.currentLayout;

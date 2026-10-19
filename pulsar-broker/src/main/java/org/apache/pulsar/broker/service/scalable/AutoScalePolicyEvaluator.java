@@ -161,8 +161,7 @@ public final class AutoScalePolicyEvaluator {
             if (withinCooldown(nowMs, lastSplitAtMs, config.splitCooldown().toMillis())) {
                 return AutoScaleDecision.NONE;
             }
-            return !isSplittable(busiest) ? new AutoScaleDecision.NoAction("unsplittable")
-                    : new AutoScaleDecision.Split(busiest.segmentId(), "consumer-count");
+            return new AutoScaleDecision.Split(busiest.segmentId(), "consumer-count");
         }
 
         // Bucket lane: absorb the bucket-sharing subscriptions' surplus with entry-buckets.
@@ -243,9 +242,6 @@ public final class AutoScalePolicyEvaluator {
             }
         }
         if (hottest != null) {
-            if (!isSplittable(hottest)) {
-                return new AutoScaleDecision.NoAction("unsplittable");
-            }
             return active.size() >= config.maxSegments()
                     ? new AutoScaleDecision.NoAction("max_segments")
                     : new AutoScaleDecision.Split(hottest.segmentId(), hottestReason);
@@ -355,8 +351,21 @@ public final class AutoScalePolicyEvaluator {
 
     // --- Helpers ---
 
-    private static boolean isSplittable(SegmentInfo segment) {
-        return segment.hashRange().start() < segment.hashRange().end();
+    /**
+     * Read diagnostic state without changing the selected action. In particular, a singleton
+     * still follows the existing failed-split path rather than falling through to a merge.
+     */
+    static String blockedReason(SegmentLayout layout, AutoScaleDecision decision) {
+        if (decision instanceof AutoScaleDecision.NoAction none) {
+            return none.blockedReason();
+        }
+        if (decision instanceof AutoScaleDecision.Split split) {
+            SegmentInfo segment = layout.getActiveSegments().get(split.segmentId());
+            if (segment != null && segment.hashRange().size() == 1) {
+                return "unsplittable";
+            }
+        }
+        return null;
     }
 
     private static boolean withinCooldown(long nowMs, long lastAtMs, long cooldownMs) {

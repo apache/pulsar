@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api.v5;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -30,6 +31,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import lombok.Cleanup;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.v5.config.BatchingPolicy;
 import org.apache.pulsar.client.api.v5.schema.Schema;
@@ -166,6 +168,76 @@ public class V5ScalableTopicStatsTest extends V5ClientBaseTest {
                 () -> admin.scalableTopics().getSegmentStats("persistent://public/default/not-a-segment"));
         assertThrows("a malformed segment descriptor is rejected client-side", PulsarAdminException.class,
                 () -> admin.scalableTopics().getSegmentStats("segment://public/default/x/0000-ffff"));
+    }
+
+    @Test(timeOut = 60_000)
+    public void testStatsQueriesPreserveClassicTrafficCountersAndRates() throws Exception {
+        String topic = newScalableTopic(1);
+        String subscription = "metrics-sub";
+        admin.scalableTopics().createSubscription(topic, subscription, ScalableSubscriptionType.STREAM);
+        @Cleanup
+        StreamConsumer<String> consumer = v5Client.newStreamConsumer(Schema.string())
+                .topic(topic)
+                .subscriptionName(subscription)
+                .consumerName("metrics-consumer")
+                .subscribe();
+        @Cleanup
+        Producer<String> producer = v5Client.newProducer(Schema.string())
+                .topic(topic)
+                .producerName("metrics-producer")
+                .batchingPolicy(BatchingPolicy.ofDisabled())
+                .create();
+        String segmentName = admin.scalableTopics().getStats(topic).getLayout().getSegments().get(0L).getName();
+        PersistentTopic segment = (PersistentTopic) getTopicReference(segmentName).orElseThrow();
+        var brokerService = getPulsar().getBrokerService();
+
+        // Production rotates the classic rate meters under this monitor. Keep that independent
+        // periodic task from changing the sample while exercising the loaded-topic stats paths,
+        // which do not take this monitor. This test runs on the TestNG thread, not a broker thread.
+        synchronized (brokerService.getPulsarStats()) {
+            int messages = 20;
+            for (int i = 0; i < messages; i++) {
+                producer.newMessage().key("k-" + i).value("v-" + i).send();
+            }
+            for (int i = 0; i < messages; i++) {
+                Message<String> message = consumer.receive(Duration.ofSeconds(10));
+                assertNotNull(message, "receive timed out at " + i);
+                consumer.acknowledgeCumulative(message.id());
+            }
+            Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(() ->
+                    assertThat(segment.getSubscription(subscription).getNumberOfEntriesInBacklog(false)).isZero());
+            brokerService.updateRates();
+            ClassicTrafficSnapshot before = classicTrafficSnapshot(segment, subscription);
+            assertThat(before.counters().get(0)).isEqualTo(messages);
+            assertThat(before.rates().get(0)).isPositive();
+            assertThat(before.rates().get(3)).isPositive();
+
+            for (int i = 0; i < 3; i++) {
+                admin.scalableTopics().getStats(topic);
+                admin.scalableTopics().getSegmentStats(topic, 0L);
+                assertThat(classicTrafficSnapshot(segment, subscription))
+                        .as("stats queries must not reset or record classic traffic metrics")
+                        .isEqualTo(before);
+            }
+        }
+    }
+
+    private record ClassicTrafficSnapshot(List<Long> counters, List<Double> rates) {
+    }
+
+    private static ClassicTrafficSnapshot classicTrafficSnapshot(PersistentTopic segment, String subscription) {
+        var publisher = segment.getProducers().values().iterator().next().getStats();
+        var consumer = segment.getSubscription(subscription).getConsumers().get(0);
+        var consumerStats = consumer.getStats();
+        return new ClassicTrafficSnapshot(List.of(segment.getMsgInCounter(), segment.getBytesInCounter(),
+                segment.getMsgOutCounter(), segment.getBytesOutCounter(), segment.getTotalPublishRateLimitCounter(),
+                publisher.getMsgInCounter(), publisher.getBytesInCounter(), publisher.getChunkedMsgInCounter(),
+                publisher.getMsgIn().getCount(), consumer.getMsgOutCounter(), consumer.getBytesOutCounter(),
+                consumer.getMessageAckCounter(), consumer.getMessageRedeliverCounter()),
+                List.of(publisher.getMsgIn().getRate(), publisher.getMsgIn().getValueRate(),
+                        publisher.getMsgIn().getAverageValue(), consumerStats.getMsgRateOut(),
+                        consumerStats.getMsgThroughputOut(), consumerStats.getMsgRateRedeliver(),
+                        consumerStats.getMessageAckRate()));
     }
 
     @Test

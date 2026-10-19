@@ -583,13 +583,21 @@ public class AutoScalePolicyEvaluatorTest {
                 .mapToLong(SegmentInfo::segmentId).min().orElseThrow();
         Map<Long, SegmentLoadSample> hot = Map.of(id, sample(1_000_000, 0, 0, 0, old()),
                 splittable, sample(SPLIT_MSG_IN + 1, 0, 0, 0, old()));
-        assertThat(decide(layout, hot, Map.of(), baseConfig().build()))
-                .isEqualTo(new AutoScaleDecision.NoAction("unsplittable"));
+        AutoScaleDecision traffic = decide(layout, hot, Map.of(), baseConfig().build());
+        assertThat(traffic).isEqualTo(new AutoScaleDecision.Split(id, "msgRateIn"));
+        assertThat(AutoScalePolicyEvaluator.blockedReason(layout, traffic)).isEqualTo("unsplittable");
         assertThat(decide(layout, Map.of(id, hot.get(id)), Map.of(), baseConfig().build()))
-                .isEqualTo(new AutoScaleDecision.NoAction("unsplittable"));
+                .isEqualTo(traffic);
         AutoScaleDecision consumer = decide(layout, hot, Map.of("checkpoint", 100), Set.of(),
                 baseConfig().build());
-        assertThat(consumer).isEqualTo(new AutoScaleDecision.NoAction("unsplittable"));
+        assertThat(consumer).isEqualTo(new AutoScaleDecision.Split(id, "consumer-count"));
+        assertThat(AutoScalePolicyEvaluator.blockedReason(layout, consumer)).isEqualTo("unsplittable");
+
+        // Diagnostic reporting must not let a failed hot-key split fall through to a cold merge.
+        Map<Long, SegmentLoadSample> mixed = new HashMap<>();
+        layout.getActiveSegments().keySet().forEach(segmentId -> mixed.put(segmentId, cold(old())));
+        mixed.put(id, hot.get(id));
+        assertThat(decide(layout, mixed, Map.of(), baseConfig().build())).isEqualTo(traffic);
     }
 
 }
