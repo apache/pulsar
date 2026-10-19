@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.scalable;
 
 import io.github.merlimat.slog.Logger;
+import io.netty.channel.ChannelFuture;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -121,6 +122,10 @@ public class ScalableTopicsWatcherSession implements ScalableTopicResources.Name
 
     private final AtomicBoolean closed = new AtomicBoolean();
     private final AtomicBoolean snapshotEmitted = new AtomicBoolean();
+    private final AtomicBoolean initialResponseCompleted = new AtomicBoolean();
+    private final AtomicBoolean metricsTrackingStopped = new AtomicBoolean();
+    private final ScalableTopicMetrics metrics;
+    private final ScalableTopicMetrics.Request request;
 
     // --- Coalescing state. All three fields guarded by `coalesceLock`. ---
     private final Object coalesceLock = new Object();
@@ -135,6 +140,19 @@ public class ScalableTopicsWatcherSession implements ScalableTopicResources.Name
                                          ServerCnx cnx,
                                          ScalableTopicResources resources,
                                          ScheduledExecutorService scheduler) {
+        this(watchId, namespace, propertyFilters, clientHash, cnx, resources, scheduler,
+                cnx.getBrokerService() == null ? null : cnx.getBrokerService().getScalableTopicMetrics(), null);
+    }
+
+    public ScalableTopicsWatcherSession(long watchId,
+                                         NamespaceName namespace,
+                                         Map<String, String> propertyFilters,
+                                         String clientHash,
+                                         ServerCnx cnx,
+                                         ScalableTopicResources resources,
+                                         ScheduledExecutorService scheduler,
+                                         ScalableTopicMetrics metrics,
+                                         ScalableTopicMetrics.Request request) {
         this.watchId = watchId;
         this.namespace = namespace;
         this.propertyFilters = propertyFilters == null ? Map.of() : propertyFilters;
@@ -148,6 +166,11 @@ public class ScalableTopicsWatcherSession implements ScalableTopicResources.Name
                 .attr("watchId", watchId)
                 .attr("filters", this.propertyFilters)
                 .build();
+        this.metrics = metrics;
+        this.request = request;
+        if (metrics != null) {
+            metrics.sessionOpened(ScalableTopicMetrics.WatchType.NAMESPACE);
+        }
     }
 
     @Override
@@ -194,15 +217,30 @@ public class ScalableTopicsWatcherSession implements ScalableTopicResources.Name
                     if (clientHash != null && clientHash.equals(TopicList.calculateHash(initialTopics))) {
                         log.info().attr("topics", initialTopics.size())
                                 .log("Reconnect hash matched; skipping snapshot");
+                        completeInitialRequest(true);
                     } else {
                         log.info().attr("topics", initialTopics.size()).log("Initial snapshot");
-                        cnx.ctx().writeAndFlush(
-                                Commands.newWatchScalableTopicsSnapshot(watchId, initialTopics));
+                        pushSnapshot(initialTopics);
                     }
                     // Diffs are computed against the snapshot's set: let them out only after it.
                     snapshotEmitted.set(true);
                     topicsToRead.forEach(this::evaluateTopic);
                 });
+    }
+
+    private void pushSnapshot(List<String> topics) {
+        ChannelFuture write = cnx.ctx().writeAndFlush(Commands.newWatchScalableTopicsSnapshot(watchId, topics));
+        write.addListener(future -> completeInitialRequest(future.isSuccess()));
+    }
+
+    private void completeInitialRequest(boolean success) {
+        if (request != null && initialResponseCompleted.compareAndSet(false, true)) {
+            if (success) {
+                request.success();
+            } else {
+                request.failure();
+            }
+        }
     }
 
     /**
@@ -361,6 +399,15 @@ public class ScalableTopicsWatcherSession implements ScalableTopicResources.Name
         if (!closed.compareAndSet(false, true)) {
             return;
         }
+        completeInitialRequest(false);
+        stopMetricsTracking();
         resources.deregisterNamespaceListener(this);
+    }
+
+    /** Stops counting this session without changing its lifecycle or request completion. */
+    public void stopMetricsTracking() {
+        if (metricsTrackingStopped.compareAndSet(false, true) && metrics != null) {
+            metrics.sessionClosed(ScalableTopicMetrics.WatchType.NAMESPACE);
+        }
     }
 }

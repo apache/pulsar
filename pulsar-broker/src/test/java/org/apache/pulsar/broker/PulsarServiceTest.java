@@ -26,6 +26,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import static org.testng.AssertJUnit.assertSame;
+import io.prometheus.client.CollectorRegistry;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -181,6 +182,20 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         }
 
         assertEquals(thrownCnt, 6);
+    }
+
+    @Test
+    public void testScalableConsumerMetricsReleasedOnBrokerShutdown() throws Exception {
+        restartBroker(config -> config.setScalableTopicsEnabled(true));
+        assertThat(pulsar.getBrokerService().getScalableTopicService()).isNotNull();
+        String name = "pulsar_scalable_topic_consumer_count";
+        String[] labels = {"cluster", "consumer_state"};
+        String[] values = {conf.getClusterName(), "active"};
+        assertThat(CollectorRegistry.defaultRegistry.getSampleValue(name, labels, values)).isEqualTo(0.0);
+
+        pulsar.closeAsync().get(30, TimeUnit.SECONDS);
+
+        assertThat(CollectorRegistry.defaultRegistry.getSampleValue(name, labels, values)).isNull();
     }
 
     @Test
