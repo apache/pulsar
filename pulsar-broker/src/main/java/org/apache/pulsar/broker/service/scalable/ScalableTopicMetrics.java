@@ -27,13 +27,13 @@ import io.opentelemetry.api.metrics.ObservableLongUpDownCounter;
 import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Histogram;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.LongSupplier;
@@ -101,6 +101,7 @@ public final class ScalableTopicMetrics implements AutoCloseable {
     private final CollectorRegistry registry;
     private final LongSupplier nanoTime;
     private final AtomicBoolean closed = new AtomicBoolean();
+    private final Object cumulativeLock = new Object();
     private final AtomicLong[] watchSessions = {new AtomicLong(), new AtomicLong()};
     private final AtomicLong successfulUpdates = new AtomicLong();
     private final AtomicLong failedUpdates = new AtomicLong();
@@ -123,8 +124,11 @@ public final class ScalableTopicMetrics implements AutoCloseable {
         this.registry = Objects.requireNonNull(registry);
         this.nanoTime = Objects.requireNonNull(nanoTime);
         Objects.requireNonNull(meter);
+        // The shared collector exports no exemplars. Disable sampling here so recording under the freeze lock
+        // cannot invoke a globally configured exemplar sampler.
         prometheusRequestDuration = Histogram.build(REQUEST_DURATION, REQUEST_HELP)
                 .labelNames("cluster", "request_type", "operation_status")
+                .withoutExemplars()
                 .buckets(DURATION_BUCKETS.stream().mapToDouble(Double::doubleValue).toArray()).create();
         requestDuration = meter.histogramBuilder(REQUEST_DURATION_METRIC_NAME)
                 .setDescription(REQUEST_HELP).setUnit("s")
@@ -150,7 +154,7 @@ public final class ScalableTopicMetrics implements AutoCloseable {
                     registry.register(collector);
                     COLLECTORS.put(registry, collector);
                 }
-                collector.brokers.add(this);
+                collector.add(this);
             }
         } catch (RuntimeException e) {
             sessionCount.close();
@@ -177,8 +181,10 @@ public final class ScalableTopicMetrics implements AutoCloseable {
     }
 
     public void recordWatchUpdate(boolean success) {
-        if (!closed.get()) {
-            (success ? successfulUpdates : failedUpdates).incrementAndGet();
+        synchronized (cumulativeLock) {
+            if (!closed.get()) {
+                (success ? successfulUpdates : failedUpdates).incrementAndGet();
+            }
         }
     }
 
@@ -201,25 +207,37 @@ public final class ScalableTopicMetrics implements AutoCloseable {
         }
 
         private void complete(boolean success) {
-            if (completed.compareAndSet(false, true) && !closed.get()) {
-                double seconds = (nanoTime.getAsLong() - startedAt) / 1_000_000_000.0;
-                requestDuration.record(seconds, success ? type.successAttributes : type.failureAttributes);
+            if (!completed.compareAndSet(false, true) || closed.get()) {
+                return;
+            }
+            double seconds = (nanoTime.getAsLong() - startedAt) / 1_000_000_000.0;
+            synchronized (cumulativeLock) {
+                if (closed.get()) {
+                    return;
+                }
                 prometheusRequestDuration.labels(cluster, type.label, success ? "success" : "failure").observe(seconds);
             }
+            // An accepted observation must reach both paths even if close() runs here. Keep SDK calls outside the lock.
+            requestDuration.record(seconds, success ? type.successAttributes : type.failureAttributes);
         }
     }
 
     @Override
     public void close() {
-        if (!closed.compareAndSet(false, true)) {
-            return;
+        List<Collector.MetricFamilySamples> cumulative;
+        synchronized (cumulativeLock) {
+            if (!closed.compareAndSet(false, true)) {
+                return;
+            }
+            // Freeze cumulative state before transferring it; an in-flight recording cannot be lost at retirement.
+            cumulative = collectCumulative();
         }
         sessionCount.close();
         updateCount.close();
         synchronized (COLLECTORS) {
             SharedCollector collector = COLLECTORS.get(registry);
-            collector.brokers.remove(this);
-            if (collector.brokers.isEmpty()) {
+            collector.retire(this, cumulative);
+            if (collector.isEmpty()) {
                 registry.unregister(collector);
                 COLLECTORS.remove(registry);
             }
@@ -233,26 +251,64 @@ public final class ScalableTopicMetrics implements AutoCloseable {
                     List.of("cluster", "watch_type"), List.of(cluster, type.label),
                     watchSessions[type.ordinal()].get()));
         }
+        List<Collector.MetricFamilySamples> families = collectCumulative();
+        families.add(new Collector.MetricFamilySamples(
+                WATCH_SESSION_COUNT, Collector.Type.GAUGE, SESSION_HELP, sessions));
+        return families;
+    }
+
+    private List<Collector.MetricFamilySamples> collectCumulative() {
         List<Collector.MetricFamilySamples.Sample> updates = List.of(
                 new Collector.MetricFamilySamples.Sample(WATCH_UPDATE + "_total",
                         List.of("cluster", "operation_status"), List.of(cluster, "success"), successfulUpdates.get()),
                 new Collector.MetricFamilySamples.Sample(WATCH_UPDATE + "_total",
                         List.of("cluster", "operation_status"), List.of(cluster, "failure"), failedUpdates.get()));
         List<Collector.MetricFamilySamples> families = new ArrayList<>(prometheusRequestDuration.collect());
-        families.add(new Collector.MetricFamilySamples(
-                WATCH_SESSION_COUNT, Collector.Type.GAUGE, SESSION_HELP, sessions));
         families.add(new Collector.MetricFamilySamples(WATCH_UPDATE, Collector.Type.COUNTER, UPDATE_HELP, updates));
         return families;
     }
 
-    private record SampleKey(String name, List<String> labelNames, List<String> labelValues) {
-        private SampleKey(Collector.MetricFamilySamples.Sample sample) {
-            this(sample.name, sample.labelNames, sample.labelValues);
+    private record SampleKey(String family, String name, List<String> labelNames, List<String> labelValues) {
+        private SampleKey(Collector.MetricFamilySamples family, Collector.MetricFamilySamples.Sample sample) {
+            this(family.name, sample.name, List.copyOf(sample.labelNames), List.copyOf(sample.labelValues));
+        }
+
+        private String cluster() {
+            return labelValues.get(labelNames.indexOf("cluster"));
         }
     }
 
     private static final class SharedCollector extends Collector implements Collector.Describable {
-        private final List<ScalableTopicMetrics> brokers = new CopyOnWriteArrayList<>();
+        // Publish membership and retired totals together, so a scrape sees each broker's contribution exactly once.
+        // Writers hold COLLECTORS; scrapes read one immutable snapshot without taking that lock.
+        private record State(List<ScalableTopicMetrics> brokers, Map<SampleKey, BigDecimal> retired) {}
+        private volatile State state = new State(List.of(), Map.of());
+
+        private void add(ScalableTopicMetrics broker) {
+            State current = state;
+            List<ScalableTopicMetrics> brokers = new ArrayList<>(current.brokers);
+            brokers.add(broker);
+            state = new State(List.copyOf(brokers), current.retired);
+        }
+
+        private void retire(ScalableTopicMetrics broker, List<MetricFamilySamples> cumulative) {
+            State current = state;
+            List<ScalableTopicMetrics> brokers = new ArrayList<>(current.brokers);
+            brokers.remove(broker);
+            Map<SampleKey, BigDecimal> retired = new LinkedHashMap<>(current.retired);
+            if (brokers.stream().anyMatch(active -> active.cluster.equals(broker.cluster))) {
+                merge(retired, cumulative);
+            } else {
+                // The last broker ends this cluster's series lifetime. Retain no history for inactive clusters.
+                retired.keySet().removeIf(key -> key.cluster().equals(broker.cluster));
+            }
+            // Only fixed-label sample totals are retained, never retired brokers or their SDK callbacks.
+            state = new State(List.copyOf(brokers), Map.copyOf(retired));
+        }
+
+        private boolean isEmpty() {
+            return state.brokers.isEmpty();
+        }
 
         @Override
         public List<MetricFamilySamples> describe() {
@@ -261,26 +317,35 @@ public final class ScalableTopicMetrics implements AutoCloseable {
                     new MetricFamilySamples(WATCH_UPDATE, Type.COUNTER, UPDATE_HELP, List.of()));
         }
 
-        @Override
-        public List<MetricFamilySamples> collect() {
-            Map<String, Map<SampleKey, Double>> samplesByFamily = new LinkedHashMap<>();
-            for (ScalableTopicMetrics broker : brokers) {
-                for (MetricFamilySamples family : broker.collect()) {
-                    Map<SampleKey, Double> samples =
-                            samplesByFamily.computeIfAbsent(family.name, ignored -> new LinkedHashMap<>());
-                    for (MetricFamilySamples.Sample sample : family.samples) {
-                        // Creation timestamps cannot be summed, and are not part of these metric families.
-                        if (!sample.name.endsWith("_created")) {
-                            samples.merge(new SampleKey(sample), sample.value, Double::sum);
-                        }
+        private static void merge(Map<SampleKey, BigDecimal> samples, List<MetricFamilySamples> families) {
+            for (MetricFamilySamples family : families) {
+                for (MetricFamilySamples.Sample sample : family.samples) {
+                    // Creation timestamps cannot be summed, and are not part of these metric families.
+                    if (!sample.name.endsWith("_created")) {
+                        samples.merge(new SampleKey(family, sample), BigDecimal.valueOf(sample.value), BigDecimal::add);
                     }
                 }
+            }
+        }
+
+        @Override
+        public List<MetricFamilySamples> collect() {
+            State current = state;
+            // Exact aggregation avoids a floating-point _sum decrease when retirement changes the grouping.
+            Map<SampleKey, BigDecimal> totals = new LinkedHashMap<>(current.retired);
+            for (ScalableTopicMetrics broker : current.brokers) {
+                // Frozen brokers remain readable by scrapes that captured the pre-retirement snapshot.
+                merge(totals, broker.collect());
             }
             List<MetricFamilySamples> result = new ArrayList<>();
             for (MetricFamilySamples description : describe()) {
                 List<MetricFamilySamples.Sample> samples = new ArrayList<>();
-                samplesByFamily.getOrDefault(description.name, Map.of()).forEach((key, value) ->
-                        samples.add(new MetricFamilySamples.Sample(key.name, key.labelNames, key.labelValues, value)));
+                totals.forEach((key, value) -> {
+                    if (key.family.equals(description.name)) {
+                        samples.add(new MetricFamilySamples.Sample(
+                                key.name, key.labelNames, key.labelValues, value.doubleValue()));
+                    }
+                });
                 result.add(new MetricFamilySamples(description.name, description.type, description.help, samples));
             }
             return result;
