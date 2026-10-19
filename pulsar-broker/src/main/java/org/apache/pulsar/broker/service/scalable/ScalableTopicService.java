@@ -93,9 +93,14 @@ public class ScalableTopicService {
         if (consumerMetrics != null) {
             return;
         }
-        consumerMetrics = new ScalableTopicConsumerMetrics(
-                brokerService.getPulsar().getOpenTelemetry().getMeter(), CollectorRegistry.defaultRegistry,
-                brokerService.getPulsar().getConfiguration().getClusterName(), this::consumerStats);
+        try {
+            consumerMetrics = new ScalableTopicConsumerMetrics(
+                    brokerService.getPulsar().getOpenTelemetry().getMeter(), CollectorRegistry.defaultRegistry,
+                    brokerService.getPulsar().getConfiguration().getClusterName(), this::consumerStats);
+        } catch (RuntimeException e) {
+            log.warn().exceptionMessage(e)
+                    .log("Failed to initialize scalable-topic consumer metrics; continuing without them");
+        }
         log.info("ScalableTopicService started");
     }
 

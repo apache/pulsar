@@ -231,8 +231,19 @@ public class SubscriptionCoordinator {
             existing.attach(consumerId, cnx);
             Map<ConsumerSession, ConsumerAssignment> current =
                     computeAssignment(currentLayout, sessions.values());
-            updateConsumerStats(current);
             ConsumerAssignment assignment = current.get(existing);
+            if (assignment != null) {
+                // Only this consumer receives an assignment on reconnect. A pending eviction
+                // may change the computed assignments of peers that have not been notified yet.
+                Set<String> assigned = new HashSet<>(assignedConsumerNames);
+                if (assignment.assignedSegments().isEmpty()) {
+                    assigned.remove(consumerName);
+                } else {
+                    assigned.add(consumerName);
+                }
+                assignedConsumerNames = assigned;
+            }
+            publishConsumerStats();
             if (assignment != null) {
                 existing.sendAssignmentUpdate(assignment);
             }

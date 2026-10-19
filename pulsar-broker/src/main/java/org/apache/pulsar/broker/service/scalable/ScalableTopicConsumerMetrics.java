@@ -49,7 +49,8 @@ final class ScalableTopicConsumerMetrics implements AutoCloseable {
     private static final String PROM_BLOCKED_COUNT = "pulsar_scalable_topic_segment_blocked_count";
     private static final String PROM_REBALANCE = "pulsar_scalable_topic_rebalance";
     private static final String CONSUMER_DESCRIPTION = "Consumer sessions coordinated by this broker.";
-    private static final String BLOCKED_DESCRIPTION = "Segments waiting for ancestors to drain, per subscription.";
+    private static final String BLOCKED_DESCRIPTION = "Segment/subscription pairs waiting for ancestors to drain, "
+            + "summed across subscriptions served by this broker.";
     private static final String REBALANCE_DESCRIPTION = "Consumer assignment recomputations.";
     private static final AttributeKey<String> CONSUMER_STATE =
             AttributeKey.stringKey("pulsar.scalable_topic.consumer.state");

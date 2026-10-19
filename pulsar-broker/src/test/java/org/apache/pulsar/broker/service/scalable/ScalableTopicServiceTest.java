@@ -594,6 +594,28 @@ public class ScalableTopicServiceTest {
     }
 
     @Test
+    public void testMetricsInitializationFailureDoesNotPreventConsumerCoordination() throws Exception {
+        when(pulsar.getOpenTelemetry().getMeter())
+                .thenThrow(new IllegalArgumentException("Injected metrics initialization failure"));
+        ScalableTopicService withoutMetrics = new ScalableTopicService(brokerService, resources, coordinationService);
+        try {
+            withoutMetrics.start();
+            TopicName topic = scalableTopic("metrics-unavailable");
+            withoutMetrics.createScalableTopic(topic, 1).get();
+            ConsumerAssignment assignment = withoutMetrics.registerConsumer(topic, "checkpoint", "one", 1,
+                    ScalableConsumerType.CHECKPOINT, mock(TransportCnx.class)).get();
+            assertEquals(assignment.assignedSegments().size(), 1);
+            assertTrue(withoutMetrics.getOrCreateController(topic).get().isLeader());
+            assertEquals(withoutMetrics.consumerStats(), new SubscriptionCoordinator.ConsumerStats(1, 0, 0, 0));
+            // The healthy service's existing registration and counters must remain untouched.
+            assertEquals(CollectorRegistry.defaultRegistry.getSampleValue("pulsar_scalable_topic_rebalance_total",
+                    new String[]{"cluster", "rebalance_reason"}, new String[]{clusterName, "consumer_join"}), 0.0);
+        } finally {
+            withoutMetrics.close();
+        }
+    }
+
+    @Test
     public void testConsumerMetricsAggregateLeadersAndRetainCountersAfterRelease() throws Exception {
         TopicName first = scalableTopic("metrics-first");
         TopicName second = scalableTopic("metrics-second");

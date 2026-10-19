@@ -34,6 +34,7 @@ import io.prometheus.client.Gauge;
 import io.prometheus.client.Histogram;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -503,6 +504,12 @@ public class ScalableTopicConsumerMetricsTest {
             assertThat(point.getValue()).isEqualTo(expectedConsumers.get(state));
             assertThat(sample(registry, "consumer_count", "consumer_state", state)).isEqualTo(point.getValue());
         });
+        String blockedDescription = "Segment/subscription pairs waiting for ancestors to drain, "
+                + "summed across subscriptions served by this broker.";
+        assertThat(data.get(ScalableTopicConsumerMetrics.BLOCKED_COUNT).getDescription()).isEqualTo(blockedDescription);
+        assertThat(Collections.list(registry.metricFamilySamples()))
+                .filteredOn(family -> family.name.equals("pulsar_scalable_topic_segment_blocked_count"))
+                .singleElement().satisfies(family -> assertThat(family.help).isEqualTo(blockedDescription));
         var blocked = data.get(ScalableTopicConsumerMetrics.BLOCKED_COUNT).getLongSumData();
         assertThat(blocked.isMonotonic()).isFalse();
         assertThat(blocked.getPoints()).singleElement().satisfies(point -> {

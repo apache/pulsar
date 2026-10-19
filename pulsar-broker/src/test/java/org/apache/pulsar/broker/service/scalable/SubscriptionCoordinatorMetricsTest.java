@@ -22,8 +22,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -44,6 +47,7 @@ import org.apache.pulsar.broker.service.scalable.SubscriptionCoordinator.Rebalan
 import org.apache.pulsar.common.naming.TopicName;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class SubscriptionCoordinatorMetricsTest {
@@ -263,6 +267,52 @@ public class SubscriptionCoordinatorMetricsTest {
         verify(remaining).sendScalableConsumerAssignment(anyLong(), any());
         assertThat(rebalances).containsExactly(RebalanceReason.CONSUMER_JOIN,
                 RebalanceReason.CONSUMER_JOIN, RebalanceReason.CONSUMER_EVICT);
+    }
+
+    @DataProvider
+    public Object[][] reconnectDuringEvictionScenarios() {
+        return new Object[][]{{true, false}, {true, true}, {false, false}, {false, true}};
+    }
+
+    @Test(dataProvider = "reconnectDuringEvictionScenarios")
+    public void testReconnectDuringEvictionOnlyUpdatesNotifiedConsumer(
+            boolean checkpoint, boolean reconnectAssignee) {
+        SubscriptionCoordinator coordinator = coordinator(initialLayout(1), !checkpoint);
+        if (checkpoint) {
+            coordinator.markCheckpointGroup();
+        }
+        register(coordinator, "c1", 1);
+        TransportCnx c2 = mock(TransportCnx.class);
+        TransportCnx c3 = mock(TransportCnx.class);
+        coordinator.registerConsumer("c2", 2, c2).join();
+        coordinator.registerConsumer("c3", 3, c3).join();
+        clearInvocations(c2, c3);
+        CompletableFuture<Void> deletion = new CompletableFuture<>();
+        when(resources.unregisterConsumerAsync(any(), anyString(), anyString())).thenReturn(deletion);
+        coordinator.onConsumerDisconnect("c1");
+        Runnable expiry = scheduled.get(scheduled.size() - 1);
+        String reconnectName = reconnectAssignee ? "c2" : "c3";
+        TransportCnx reconnected = reconnectAssignee ? c2 : c3;
+        TransportCnx peer = reconnectAssignee ? c3 : c2;
+        coordinator.onConsumerDisconnect(reconnectName);
+        expiry.run();
+        assertStats(coordinator, 0, 1, 1, 0);
+
+        coordinator.registerConsumer(reconnectName, 33, reconnected).join();
+
+        // c2's newly computed assignment must not count as active unless c2 itself was notified.
+        assertStats(coordinator, reconnectAssignee ? 1 : 0, reconnectAssignee ? 1 : 2, 0, 0);
+        verify(peer, never()).sendScalableConsumerAssignment(anyLong(), any());
+        verify(reconnected).sendScalableConsumerAssignment(eq(33L),
+                argThat(update -> update.getSegmentsCount() == (reconnectAssignee ? 1 : 0)));
+        assertThat(rebalances).containsExactly(RebalanceReason.CONSUMER_JOIN,
+                RebalanceReason.CONSUMER_JOIN, RebalanceReason.CONSUMER_JOIN);
+        deletion.complete(null);
+        assertStats(coordinator, 1, 1, 0, 0);
+        verify(peer).sendScalableConsumerAssignment(anyLong(),
+                argThat(update -> update.getSegmentsCount() == (reconnectAssignee ? 0 : 1)));
+        assertThat(rebalances).containsExactly(RebalanceReason.CONSUMER_JOIN,
+                RebalanceReason.CONSUMER_JOIN, RebalanceReason.CONSUMER_JOIN, RebalanceReason.CONSUMER_EVICT);
     }
 
     @Test
