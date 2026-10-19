@@ -1355,7 +1355,6 @@ public class ScalableTopicController {
         private final String operation;
         private final String trigger;
         private final long startedNanos = System.nanoTime();
-        private final long operationTerm;
         private final boolean startedAsLeader;
         private long sealedNanos;
         private boolean committed;
@@ -1365,10 +1364,7 @@ public class ScalableTopicController {
         private LayoutOperation(String operation, String trigger) {
             this.operation = operation;
             this.trigger = trigger;
-            synchronized (ScalableTopicController.this) {
-                operationTerm = term;
-                startedAsLeader = isLeader();
-            }
+            startedAsLeader = isLeader();
         }
 
         private void sealed() {
@@ -1379,15 +1375,16 @@ public class ScalableTopicController {
 
         private void committed() {
             committed = true;
-            if (sealedNanos != 0 && isCurrentTerm(operationTerm)) {
+            if (startedAsLeader && sealedNanos != 0) {
                 metrics.recordSeal(operation, elapsedSeconds(sealedNanos));
             }
         }
 
         private <T> CompletableFuture<T> track(Supplier<CompletableFuture<T>> action) {
             return FutureUtil.supplySafely(action).whenComplete((__, ex) -> {
-                // A deposed controller contributes nothing to its successor's term.
-                if (!startedAsLeader || !isCurrentTerm(operationTerm)) {
+                // Outcomes belong to the broker that started the operation, even after leadership changes.
+                // Requests rejected before starting as leader still contribute nothing.
+                if (!startedAsLeader) {
                     return;
                 }
                 if ("prune".equals(operation) && committed && !layoutChanged) {
