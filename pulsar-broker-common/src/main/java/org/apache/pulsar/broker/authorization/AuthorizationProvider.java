@@ -353,10 +353,14 @@ public interface AuthorizationProvider extends Closeable {
      * existed. A provider overrides it to restrict which roles may trigger topic auto-creation, for example by
      * checking {@link NamespaceOperation#CREATE_TOPIC}.
      *
-     * <p>It is called whenever the settings would create a missing topic, on some paths before the broker knows
-     * whether the topic exists, so it must not assume the topic is missing and should be cheap. A refusal only
-     * prevents creating a missing topic. The broker's own clients, such as geo-replication and system topics,
-     * go through it too with their role, so a provider should keep allowing super users.
+     * <p>It is only called when the settings would create the topic from nothing: not for a topic the broker
+     * re-materializes from existing metadata (a partition of an existing partitioned topic, an active segment of a
+     * scalable topic), nor for system topics, and only once the broker found that the topic does not exist, in this
+     * cluster or, for partitioned-topic metadata, in a remote one. The exception is an HTTP request for a
+     * non-persistent topic, whose existence the broker does not check there, so it must not assume the topic is
+     * missing. It should be cheap. A refusal only prevents creating a missing topic, and a future that completes
+     * exceptionally fails the client request. The broker's own clients, such as geo-replication, go through it too
+     * with their role, so a provider should keep allowing super users.
      *
      * @param topic topic name
      * @param role role name

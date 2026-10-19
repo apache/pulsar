@@ -481,12 +481,11 @@ public abstract class AdminResource extends PulsarWebResource {
         // producer/consumer
         return validateTopicOperationAsync(topicName, TopicOperation.LOOKUP)
                 .thenCompose(__ -> validateGlobalNamespaceOwnershipAsync(topicName.getNamespaceObject()))
-                .thenCompose(__ -> checkAllowAutoCreation
-                        ? isAllowAutoTopicCreationAsync(topicName) : CompletableFuture.completedFuture(false))
-                .thenCompose(allowAutoCreation -> {
-                    if (allowAutoCreation) {
+                .thenCompose(__ -> {
+                    if (checkAllowAutoCreation) {
                         return pulsar().getBrokerService()
-                                .fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName);
+                                .fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName,
+                                        newTopicCheck(topicName));
                     } else {
                         return pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName);
                     }

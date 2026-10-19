@@ -28,16 +28,21 @@ import lombok.Cleanup;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.namespace.TopicExistsInfo;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.AuthorizationProducerConsumerTest.ClientAuthentication;
 import org.apache.pulsar.client.api.AuthorizationProducerConsumerTest.TestAuthenticationProvider;
 import org.apache.pulsar.client.api.AuthorizationProducerConsumerTest.TestAuthorizationProvider;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -52,9 +57,14 @@ public class TopicAutoCreationAuthorizationTest extends ProducerConsumerBase {
     private static final String CREATOR_ROLE = "creator";
     private static final String USER_ROLE = "user";
     private static final String NAMESPACE = "my-property/my-ns";
+    /** A namespace whose auto topic creation creates partitioned topics. */
+    private static final String PARTITIONED_NAMESPACE = "my-property/partitioned-ns";
+    private static final int DEFAULT_PARTITIONS = 2;
 
-    private TopicType autoCreationType = TopicType.NON_PARTITIONED;
     private PulsarAdmin superAdmin;
+
+    /** Topics whose name contains it make the auto-creation check fail, as if the provider's backend were down. */
+    private static final String PROVIDER_FAILURE = "provider-failure";
 
     /**
      * Lets both roles produce, consume and look up, but only {@link #CREATOR_ROLE} trigger topic auto-creation.
@@ -73,6 +83,9 @@ public class TopicAutoCreationAuthorizationTest extends ProducerConsumerBase {
         @Override
         public CompletableFuture<Boolean> allowTopicAutoCreationAsync(TopicName topic, String role,
                                                                       AuthenticationDataSource authData) {
+            if (topic.toString().contains(PROVIDER_FAILURE)) {
+                return CompletableFuture.failedFuture(new IllegalStateException("Authorization backend is down"));
+            }
             return CompletableFuture.completedFuture(CREATOR_ROLE.equals(role));
         }
     }
@@ -86,7 +99,7 @@ public class TopicAutoCreationAuthorizationTest extends ProducerConsumerBase {
         conf.setAuthenticationProviders(Set.of(TestAuthenticationProvider.class.getName()));
         conf.setAuthorizationProvider(AutoCreationAuthorizationProvider.class.getName());
         conf.setAllowAutoTopicCreation(true);
-        conf.setAllowAutoTopicCreationType(autoCreationType);
+        conf.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
         conf.setTopicLevelPoliciesEnabled(false);
         conf.setClusterName("test");
         super.init();
@@ -97,6 +110,15 @@ public class TopicAutoCreationAuthorizationTest extends ProducerConsumerBase {
         superAdmin.tenants().createTenant("my-property",
                 new TenantInfoImpl(Sets.newHashSet(), Sets.newHashSet("test")));
         superAdmin.namespaces().createNamespace(NAMESPACE, Sets.newHashSet("test"));
+        // Set at creation: the test authorization provider supports no namespace policy operations.
+        Policies partitionedPolicies = new Policies();
+        partitionedPolicies.replication_clusters = Sets.newHashSet("test");
+        partitionedPolicies.autoTopicCreationOverride = AutoTopicCreationOverride.builder()
+                .allowAutoTopicCreation(true)
+                .topicType(TopicType.PARTITIONED.toString())
+                .defaultNumPartitions(DEFAULT_PARTITIONS)
+                .build();
+        superAdmin.namespaces().createNamespace(PARTITIONED_NAMESPACE, partitionedPolicies);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -107,6 +129,15 @@ public class TopicAutoCreationAuthorizationTest extends ProducerConsumerBase {
             superAdmin = null;
         }
         super.internalCleanup();
+    }
+
+    @DataProvider
+    public Object[][] lookupTransports() {
+        return new Object[][]{{"binary"}, {"http"}};
+    }
+
+    private String serviceUrl(String lookupTransport) {
+        return "http".equals(lookupTransport) ? brokerUrl.toString() : pulsar.getBrokerServiceUrl();
     }
 
     private PulsarClient newClient(String role, String serviceUrl) throws PulsarClientException {
@@ -134,7 +165,8 @@ public class TopicAutoCreationAuthorizationTest extends ProducerConsumerBase {
         PulsarClient creatorClient = newClient(CREATOR_ROLE, pulsar.getBrokerServiceUrl());
 
         assertThatThrownBy(() -> userClient.newProducer().topic(topic).create())
-                .as("a producer of a role that may not create topics").isInstanceOf(PulsarClientException.class);
+                .as("a producer of a role that may not create topics")
+                .isInstanceOf(PulsarClientException.TopicDoesNotExistException.class);
         assertThat(topicExists(topic)).as("topic created by a refused producer").isFalse();
 
         creatorClient.newProducer().topic(topic).create().close();
@@ -179,28 +211,78 @@ public class TopicAutoCreationAuthorizationTest extends ProducerConsumerBase {
         assertThat(topicExists(topic)).as("topic created by an allowed HTTP lookup").isTrue();
     }
 
-    @Test(timeOut = 60000)
-    public void testPartitionedAutoCreationFollowsAuthorization() throws Exception {
-        cleanup();
-        autoCreationType = TopicType.PARTITIONED;
-        try {
-            setup();
-            String topic = "persistent://" + NAMESPACE + "/partitioned-auto-creation";
-            @Cleanup
-            PulsarClient userClient = newClient(USER_ROLE, pulsar.getBrokerServiceUrl());
-            @Cleanup
-            PulsarClient creatorClient = newClient(CREATOR_ROLE, pulsar.getBrokerServiceUrl());
+    @Test(dataProvider = "lookupTransports", timeOut = 60000)
+    public void testPartitionedAutoCreationFollowsAuthorization(String lookupTransport) throws Exception {
+        String topic = "persistent://" + PARTITIONED_NAMESPACE + "/partitioned-auto-creation-" + lookupTransport;
+        @Cleanup
+        PulsarClient userClient = newClient(USER_ROLE, serviceUrl(lookupTransport));
+        @Cleanup
+        PulsarClient creatorClient = newClient(CREATOR_ROLE, serviceUrl(lookupTransport));
 
-            assertThatThrownBy(() -> userClient.newProducer().topic(topic).create())
-                    .as("a producer of a role that may not create partitioned topics")
-                    .isInstanceOf(PulsarClientException.class);
-            assertThat(topicExists(topic)).as("partitioned topic created by a refused producer").isFalse();
+        assertThatThrownBy(() -> userClient.newProducer().topic(topic).create())
+                .as("a producer of a role that may not create partitioned topics")
+                .isInstanceOf(PulsarClientException.class);
+        assertThat(topicExists(topic)).as("partitioned topic created by a refused producer").isFalse();
 
-            creatorClient.newProducer().topic(topic).create().close();
-            assertThat(pulsar.getBrokerService().fetchPartitionedTopicMetadataAsync(TopicName.get(topic)).get()
-                    .partitions).as("partitions of the auto-created topic").isEqualTo(conf.getDefaultNumPartitions());
-        } finally {
-            autoCreationType = TopicType.NON_PARTITIONED;
+        creatorClient.newProducer().topic(topic).create().close();
+        assertThat(pulsar.getBrokerService().fetchPartitionedTopicMetadataAsync(TopicName.get(topic)).get()
+                .partitions).as("partitions of the auto-created topic").isEqualTo(DEFAULT_PARTITIONS);
+    }
+
+    /**
+     * The partitions of a partitioned topic an admin created are not new topics: a role that may not trigger
+     * auto-creation still gets them created when they are missing, e.g. after inactive-topic deletion removed them.
+     */
+    @Test(dataProvider = "lookupTransports", timeOut = 60000)
+    public void testMissingPartitionsOfExistingPartitionedTopicAreCreated(String lookupTransport) throws Exception {
+        String topic = "persistent://" + NAMESPACE + "/existing-partitioned-" + lookupTransport;
+        // Only the partitioned-topic metadata, without its partitions, as if they had all been deleted.
+        pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+                .createPartitionedTopicAsync(TopicName.get(topic), new PartitionedTopicMetadata(DEFAULT_PARTITIONS))
+                .get();
+        @Cleanup
+        PulsarClient userClient = newClient(USER_ROLE, serviceUrl(lookupTransport));
+
+        userClient.newProducer().topic(topic).create().close();
+        userClient.newConsumer().topic(topic).subscriptionName("sub").subscribe().close();
+        for (int i = 0; i < DEFAULT_PARTITIONS; i++) {
+            String partition = TopicName.get(topic).getPartition(i).toString();
+            assertThat(topicExists(partition)).as("partition %s created for its existing partitioned topic", i)
+                    .isTrue();
         }
+    }
+
+    @Test(timeOut = 60000)
+    public void testAdminCreateSubscriptionAutoCreationFollowsAuthorization() throws Exception {
+        String topic = "persistent://" + NAMESPACE + "/admin-subscription-auto-creation";
+        @Cleanup
+        PulsarAdmin userAdmin = PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
+                .authentication(new ClientAuthentication(USER_ROLE)).build();
+        @Cleanup
+        PulsarAdmin creatorAdmin = PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
+                .authentication(new ClientAuthentication(CREATOR_ROLE)).build();
+
+        assertThatThrownBy(() -> userAdmin.topics().createSubscription(topic, "sub", MessageId.latest))
+                .as("a subscription created over the admin API by a role that may not create topics")
+                .isInstanceOf(PulsarAdminException.class);
+        assertThat(topicExists(topic)).as("topic created by a refused admin subscription").isFalse();
+
+        creatorAdmin.topics().createSubscription(topic, "sub", MessageId.latest);
+        assertThat(topicExists(topic)).as("topic created by an allowed admin subscription").isTrue();
+    }
+
+    /**
+     * Using a topic that exists does not depend on the auto-creation check, even when it fails.
+     */
+    @Test(dataProvider = "lookupTransports", timeOut = 60000)
+    public void testExistingTopicDoesNotDependOnAutoCreationCheck(String lookupTransport) throws Exception {
+        String topic = "persistent://" + NAMESPACE + "/" + PROVIDER_FAILURE + "-existing-" + lookupTransport;
+        // Created in the metadata, as the admin API does: the test authorization provider lets no admin do it.
+        pulsar.getPulsarResources().getTopicResources().createPersistentTopicAsync(TopicName.get(topic)).get();
+        @Cleanup
+        PulsarClient userClient = newClient(USER_ROLE, serviceUrl(lookupTransport));
+
+        userClient.newProducer().topic(topic).create().close();
+        userClient.newConsumer().topic(topic).subscriptionName("sub").subscribe().close();
     }
 }

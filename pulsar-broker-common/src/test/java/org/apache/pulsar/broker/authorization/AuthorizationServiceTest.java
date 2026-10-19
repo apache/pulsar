@@ -218,8 +218,10 @@ public class AuthorizationServiceTest {
 
     @Test
     public void testTopicAutoCreationAllowedByDefault() throws Exception {
-        AuthorizationProvider provider = mock(AuthorizationProvider.class, CALLS_REAL_METHODS);
-        assertTrue(provider.allowTopicAutoCreationAsync(TopicName.get("topic"), "any-role", null).get());
+        // The default provider does not override the check, so this runs the interface's default method.
+        AuthorizationProvider provider = new PulsarAuthorizationProvider();
+        assertThat(provider.allowTopicAutoCreationAsync(TopicName.get("topic"), "any-role", null).get())
+                .as("auto-creation allowed by the default implementation").isTrue();
     }
 
     @Test(dataProvider = "roles")
