@@ -142,6 +142,8 @@ public class ScalableTopicControllerFailoverTest {
         ScalableTopicController follower = broker2.newController();
         follower.initialize().get();
         assertThat(follower.isLeader()).as("broker 2, following broker 1").isFalse();
+        assertThat(leader.consumerStats()).isEqualTo(new SubscriptionCoordinator.ConsumerStats(1, 0, 0, 0));
+        assertThat(follower.consumerStats()).isEqualTo(SubscriptionCoordinator.ConsumerStats.EMPTY);
         // The layout changes after the follower loaded it.
         leader.splitSegment(1).get();
 
@@ -149,6 +151,8 @@ public class ScalableTopicControllerFailoverTest {
 
         Awaitility.await().untilAsserted(() -> assertThat(follower.isLeader())
                 .as("broker 2, whose election took the controller lock over").isTrue());
+        assertThat(leader.consumerStats()).isEqualTo(SubscriptionCoordinator.ConsumerStats.EMPTY);
+        assertThat(follower.consumerStats()).isEqualTo(new SubscriptionCoordinator.ConsumerStats(0, 0, 1, 0));
         assertThat(follower.getLayout().get().getAllSegments())
                 .as("segments of the layout the new leader serves")
                 .hasSize(SEGMENTS + 2);

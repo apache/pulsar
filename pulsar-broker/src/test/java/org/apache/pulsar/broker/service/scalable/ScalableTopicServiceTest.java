@@ -36,6 +36,7 @@ import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import io.opentelemetry.api.OpenTelemetry;
 import io.prometheus.client.CollectorRegistry;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -43,6 +44,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
@@ -57,6 +59,7 @@ import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.resources.SubscriptionType;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.TransportCnx;
+import org.apache.pulsar.broker.stats.PulsarBrokerOpenTelemetry;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.ScalableTopics;
 import org.apache.pulsar.client.admin.Topics;
@@ -102,6 +105,7 @@ public class ScalableTopicServiceTest {
     private ScalableTopics scalableTopicsAdmin;
 
     private ScalableTopicService service;
+    private String clusterName;
 
     @BeforeMethod
     public void setUp() throws Exception {
@@ -119,7 +123,15 @@ public class ScalableTopicServiceTest {
         scalableTopicsAdmin = mock(ScalableTopics.class);
 
         when(brokerService.getPulsar()).thenReturn(pulsar);
-        when(pulsar.getConfiguration()).thenReturn(new ServiceConfiguration());
+        ServiceConfiguration config = new ServiceConfiguration();
+        // Other tests can keep the shared collector alive, retaining this cluster's counters
+        // after teardown. Use a distinct label per test instead of assuming a fresh registry.
+        clusterName = "scalable-topic-service-test-" + UUID.randomUUID();
+        config.setClusterName(clusterName);
+        when(pulsar.getConfiguration()).thenReturn(config);
+        PulsarBrokerOpenTelemetry telemetry = mock(PulsarBrokerOpenTelemetry.class);
+        when(telemetry.getMeter()).thenReturn(OpenTelemetry.noop().getMeter("test"));
+        when(pulsar.getOpenTelemetry()).thenReturn(telemetry);
         when(brokerService.getTopicIfExists(anyString()))
                 .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
         when(brokerService.deleteSchema(any(TopicName.class)))
@@ -237,14 +249,14 @@ public class ScalableTopicServiceTest {
         }
     }
 
-    private static Double prometheusValue(String suffix) {
+    private Double prometheusValue(String suffix) {
         return CollectorRegistry.defaultRegistry.getSampleValue("pulsar_scalable_topic_" + suffix,
-                new String[]{"cluster"}, new String[]{""});
+                new String[]{"cluster"}, new String[]{clusterName});
     }
 
-    private static Double prometheusSegments(String state) {
+    private Double prometheusSegments(String state) {
         return CollectorRegistry.defaultRegistry.getSampleValue("pulsar_scalable_topic_segment_count",
-                new String[]{"cluster", "segment_state"}, new String[]{"", state});
+                new String[]{"cluster", "segment_state"}, new String[]{clusterName, state});
     }
 
     // --- createScalableTopic ---
@@ -654,6 +666,83 @@ public class ScalableTopicServiceTest {
         assertNotSame(c1, c2);
         assertEquals(c1.getTopicName(), tn1);
         assertEquals(c2.getTopicName(), tn2);
+    }
+
+    @Test
+    public void testMetricsInitializationFailureDoesNotPreventConsumerCoordination() throws Exception {
+        when(pulsar.getOpenTelemetry().getMeter())
+                .thenThrow(new IllegalArgumentException("Injected metrics initialization failure"));
+        ScalableTopicService withoutMetrics = new ScalableTopicService(brokerService, resources, coordinationService);
+        try {
+            withoutMetrics.start();
+            TopicName topic = scalableTopic("metrics-unavailable");
+            withoutMetrics.createScalableTopic(topic, 1).get();
+            ConsumerAssignment assignment = withoutMetrics.registerConsumer(topic, "checkpoint", "one", 1,
+                    ScalableConsumerType.CHECKPOINT, mock(TransportCnx.class)).get();
+            assertEquals(assignment.assignedSegments().size(), 1);
+            assertTrue(withoutMetrics.getOrCreateController(topic).get().isLeader());
+            assertEquals(withoutMetrics.consumerStats(), new SubscriptionCoordinator.ConsumerStats(1, 0, 0, 0));
+            // The healthy service's existing registration and counters must remain untouched.
+            assertEquals(CollectorRegistry.defaultRegistry.getSampleValue("pulsar_scalable_topic_rebalance_total",
+                    new String[]{"cluster", "rebalance_reason"}, new String[]{clusterName, "consumer_join"}), 0.0);
+        } finally {
+            withoutMetrics.close();
+        }
+    }
+
+    @Test
+    public void testConsumerMetricsAggregateLeadersAndRetainCountersAfterRelease() throws Exception {
+        TopicName first = scalableTopic("metrics-first");
+        TopicName second = scalableTopic("metrics-second");
+        service.createScalableTopic(first, 1).get();
+        service.createScalableTopic(second, 1).get();
+        service.registerConsumer(first, "stream", "one", 1, ScalableConsumerType.STREAM,
+                mock(TransportCnx.class)).get();
+        service.registerConsumer(second, "checkpoint", "two", 2, ScalableConsumerType.CHECKPOINT,
+                mock(TransportCnx.class)).get();
+        assertEquals(service.consumerStats(), new SubscriptionCoordinator.ConsumerStats(2, 0, 0, 0));
+        service.onConsumerDisconnect(first, "stream", "one");
+        assertEquals(service.consumerStats(), new SubscriptionCoordinator.ConsumerStats(1, 0, 1, 0));
+        service.releaseController(first).get();
+        assertEquals(service.consumerStats(), new SubscriptionCoordinator.ConsumerStats(1, 0, 0, 0));
+        service.releaseController(second).get();
+        assertEquals(service.consumerStats(), SubscriptionCoordinator.ConsumerStats.EMPTY);
+        assertEquals(CollectorRegistry.defaultRegistry.getSampleValue("pulsar_scalable_topic_rebalance_total",
+                new String[]{"cluster", "rebalance_reason"}, new String[]{clusterName, "consumer_join"}), 2.0);
+        service.start(); // Idempotent: must not reset counters or register another collector.
+        assertEquals(CollectorRegistry.defaultRegistry.getSampleValue("pulsar_scalable_topic_rebalance_total",
+                new String[]{"cluster", "rebalance_reason"}, new String[]{clusterName, "consumer_join"}), 2.0);
+    }
+
+    @Test
+    public void testClosingMetricsDoesNotReleaseControllersOrConsumerSessions() throws Exception {
+        TopicName topic = scalableTopic("metrics-only-cleanup");
+        service.createScalableTopic(topic, 1).get();
+        ScalableTopicController controller = service.getOrCreateController(topic).get();
+        service.registerConsumer(topic, "checkpoint", "one", 1, ScalableConsumerType.CHECKPOINT,
+                mock(TransportCnx.class)).get();
+        service.closeMetrics();
+        assertTrue(controller.isLeader());
+        assertEquals(resources.listConsumersAsync(topic, "checkpoint").get(), List.of("one"));
+        assertEquals(service.consumerStats(), new SubscriptionCoordinator.ConsumerStats(1, 0, 0, 0));
+        assertEquals(CollectorRegistry.defaultRegistry.getSampleValue("pulsar_scalable_topic_consumer_count",
+                new String[]{"cluster", "consumer_state"}, new String[]{clusterName, "active"}), null);
+        service.registerConsumer(topic, "checkpoint", "two", 2, ScalableConsumerType.CHECKPOINT,
+                mock(TransportCnx.class)).get();
+        assertEquals(service.consumerStats(), new SubscriptionCoordinator.ConsumerStats(1, 1, 0, 0));
+    }
+
+    @Test
+    public void testMetricCollectionDoesNotAcquireControllerMonitor() throws Exception {
+        TopicName topic = scalableTopic("metrics-no-controller-lock");
+        service.createScalableTopic(topic, 1).get();
+        ScalableTopicController controller = service.getOrCreateController(topic).get();
+        service.registerConsumer(topic, "checkpoint", "one", 1, ScalableConsumerType.CHECKPOINT,
+                mock(TransportCnx.class)).get();
+        synchronized (controller) {
+            assertEquals(CompletableFuture.supplyAsync(service::consumerStats, scheduler)
+                    .get(5, TimeUnit.SECONDS), new SubscriptionCoordinator.ConsumerStats(1, 0, 0, 0));
+        }
     }
 
     /**

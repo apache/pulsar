@@ -21,9 +21,13 @@ package org.apache.pulsar.broker.service.scalable;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.data.Offset.offset;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.spy;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.Meter;
+import io.opentelemetry.api.metrics.ObservableMeasurement;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
@@ -49,7 +53,8 @@ public class ScalableTopicControllerMetricsTest {
     private static final String PROM_PREFIX = "pulsar_scalable_topic_";
     private static final String ATTRIBUTE_PREFIX = "pulsar.scalable_topic.";
     private static final String CLUSTER = "test-cluster";
-    private static final ScalableTopicControllerMetrics.Counts EMPTY = new ScalableTopicControllerMetrics.Counts(0, 0, 0);
+    private static final ScalableTopicControllerMetrics.Counts EMPTY =
+            new ScalableTopicControllerMetrics.Counts(0, 0, 0);
 
     private InMemoryMetricReader reader;
     private SdkMeterProvider sdk;
@@ -193,6 +198,80 @@ public class ScalableTopicControllerMetricsTest {
         }
     }
 
+    @DataProvider
+    public Object[][] callbackFailureRegistryLayouts() {
+        return new Object[][]{{true}, {false}};
+    }
+
+    @Test(dataProvider = "callbackFailureRegistryLayouts")
+    public void testFailedCallbackSetupRollsBackOnlyFailedProvider(boolean healthyProviderPresent) {
+        var failingReader = InMemoryMetricReader.create();
+        AtomicInteger failedReads = new AtomicInteger();
+        String failedCluster = "failed-cluster";
+        AtomicReference<ScalableTopicControllerMetrics.Counts> healthyCounts =
+                new AtomicReference<>(new ScalableTopicControllerMetrics.Counts(1, 2, 3));
+        try (var failingSdk = SdkMeterProvider.builder().registerMetricReader(failingReader).build();
+             var healthy = healthyProviderPresent
+                     ? new ScalableTopicControllerMetrics(meter, CLUSTER, healthyCounts::get, registry) : null) {
+            Meter failingMeter = spy(failingSdk.get("failed-callback-setup"));
+            IllegalArgumentException failure = new IllegalArgumentException("Injected callback setup failure");
+            doThrow(failure).doCallRealMethod().when(failingMeter).batchCallback(
+                    any(Runnable.class), any(ObservableMeasurement.class), any(ObservableMeasurement[].class));
+            if (healthy != null) {
+                healthy.recordBlocked("max_segments");
+                healthy.recordTakeover(0.005, true);
+            }
+            assertThatThrownBy(() -> new ScalableTopicControllerMetrics(failingMeter, failedCluster, () -> {
+                failedReads.incrementAndGet();
+                return new ScalableTopicControllerMetrics.Counts(9, 9, 9);
+            }, registry)).isSameAs(failure);
+            assertThat(registry.getSampleValue(PROM_PREFIX + "controller_count",
+                    new String[]{"cluster"}, new String[]{failedCluster})).isNull();
+            if (healthy != null) {
+                assertGauges(reader.collectAllMetrics(), Collections.list(registry.metricFamilySamples()), 1, 2, 3);
+                assertCounterParity(reader.collectAllMetrics(), Collections.list(registry.metricFamilySamples()),
+                        "auto_scale.blocked.count", "auto_scale_blocked_total", 1);
+                assertHistogramParity(reader.collectAllMetrics(), Collections.list(registry.metricFamilySamples()),
+                        "controller.takeover.duration", "controller_takeover_duration_seconds", 1, 0.005);
+            } else {
+                assertThat(Collections.list(registry.metricFamilySamples())).isEmpty();
+                assertThat(reader.collectAllMetrics()).extracting(MetricData::getName)
+                        .doesNotContain(OTEL_PREFIX + "controller.count");
+            }
+            assertThat(failingReader.collectAllMetrics()).extracting(MetricData::getName)
+                    .doesNotContain(OTEL_PREFIX + "controller.count", OTEL_PREFIX + "segment.count",
+                            OTEL_PREFIX + "layout.operation.count", OTEL_PREFIX + "auto_scale.blocked.count");
+            assertThat(failedReads).hasValue(0);
+
+            // Retry on the same Meter and registry must create a usable callback, without the failed owner.
+            try (var retry = new ScalableTopicControllerMetrics(failingMeter, failedCluster,
+                    () -> new ScalableTopicControllerMetrics.Counts(4, 5, 6), registry)) {
+                assertThat(registry.getSampleValue(PROM_PREFIX + "controller_count",
+                        new String[]{"cluster"}, new String[]{failedCluster})).isEqualTo(4.0);
+                assertThat(metric(failingReader.collectAllMetrics(), "controller.count")
+                        .getLongSumData().getPoints()).singleElement()
+                        .satisfies(point -> assertThat(point.getValue()).isEqualTo(4));
+            }
+            assertThat(registry.getSampleValue(PROM_PREFIX + "controller_count",
+                    new String[]{"cluster"}, new String[]{failedCluster})).isNull();
+            assertThat(failingReader.collectAllMetrics()).extracting(MetricData::getName)
+                    .doesNotContain(OTEL_PREFIX + "controller.count", OTEL_PREFIX + "segment.count",
+                            OTEL_PREFIX + "layout.operation.count", OTEL_PREFIX + "auto_scale.blocked.count");
+            assertThat(failedReads).hasValue(0);
+            if (healthy != null) {
+                healthyCounts.set(new ScalableTopicControllerMetrics.Counts(7, 8, 9));
+                healthy.recordBlocked("max_segments");
+                assertGauges(reader.collectAllMetrics(), Collections.list(registry.metricFamilySamples()), 7, 8, 9);
+                assertCounterParity(reader.collectAllMetrics(), Collections.list(registry.metricFamilySamples()),
+                        "auto_scale.blocked.count", "auto_scale_blocked_total", 2);
+            }
+        }
+        assertThat(Collections.list(registry.metricFamilySamples())).isEmpty();
+        assertThat(reader.collectAllMetrics()).extracting(MetricData::getName)
+                .doesNotContain(OTEL_PREFIX + "controller.count", OTEL_PREFIX + "segment.count",
+                        OTEL_PREFIX + "layout.operation.count", OTEL_PREFIX + "auto_scale.blocked.count");
+    }
+
     @Test
     public void testRecreatedServiceKeepsHistogramParity() {
         try (var first = new ScalableTopicControllerMetrics(meter, CLUSTER, () -> EMPTY, registry)) {
@@ -214,7 +293,8 @@ public class ScalableTopicControllerMetricsTest {
         var otherReader = InMemoryMetricReader.create();
         try (var otherSdk = SdkMeterProvider.builder().registerMetricReader(otherReader).build();
              var first = new ScalableTopicControllerMetrics(meter, CLUSTER, () -> EMPTY, registry);
-             var second = new ScalableTopicControllerMetrics(otherSdk.get("other-broker"), CLUSTER, () -> EMPTY, registry)) {
+             var second = new ScalableTopicControllerMetrics(otherSdk.get("other-broker"), CLUSTER,
+                     () -> EMPTY, registry)) {
             first.recordTakeover(0.005, true);
             second.recordTakeover(0.01, true);
             var before = Collections.list(registry.metricFamilySamples());
@@ -348,7 +428,8 @@ public class ScalableTopicControllerMetricsTest {
             assertHistogramState(registry, residentCluster, 1, 0.005);
             for (int attempt = 0; attempt < 2; attempt++) {
                 try (var transientMetrics =
-                             new ScalableTopicControllerMetrics(disabled, transientCluster, () -> EMPTY, transientRegistry)) {
+                             new ScalableTopicControllerMetrics(disabled, transientCluster,
+                                     () -> EMPTY, transientRegistry)) {
                     recordHistograms(transientMetrics, 0.01);
                     boolean aggregate = sameCluster && sameRegistry;
                     assertHistogramState(registry, residentCluster, aggregate ? 2 : 1, aggregate ? 0.015 : 0.005);
@@ -468,7 +549,8 @@ public class ScalableTopicControllerMetricsTest {
         long totalCount = 0;
         double totalSum = 0;
         for (var point : metric.getHistogramData().getPoints()) {
-            assertThat(point.getBoundaries()).containsExactlyElementsOf(ScalableTopicControllerMetrics.DURATION_BUCKETS);
+            assertThat(point.getBoundaries())
+                    .containsExactlyElementsOf(ScalableTopicControllerMetrics.DURATION_BUCKETS);
             Map<String, String> labels = labels(point.getAttributes());
             assertThat(sample(prometheus, prometheusName + "_count", labels)).isEqualTo(point.getCount());
             assertThat(sample(prometheus, prometheusName + "_sum", labels)).isEqualTo(point.getSum());

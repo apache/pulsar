@@ -187,8 +187,21 @@ public final class ScalableTopicControllerMetrics implements AutoCloseable {
             }
             existing.providers.add(this);
         }
-        synchronized (CALLBACKS) {
-            CALLBACKS.computeIfAbsent(meter, MeterCallbacks::new).providers.add(this);
+        try {
+            synchronized (CALLBACKS) {
+                CALLBACKS.computeIfAbsent(meter, MeterCallbacks::new).providers.add(this);
+            }
+        } catch (RuntimeException e) {
+            // Callback setup failed after publishing this provider: remove only its registry ownership.
+            synchronized (COLLECTORS) {
+                RegistryCollector collector = COLLECTORS.get(registry);
+                collector.providers.remove(this);
+                if (collector.providers.isEmpty()) {
+                    registry.unregister(collector);
+                    COLLECTORS.remove(registry);
+                }
+            }
+            throw e;
         }
     }
 

@@ -297,6 +297,10 @@ public class PerformanceLauncher implements Callable<Integer> {
         if (offloadSettings != null) {
             offloadSettings.checkTopics(workload.path("topics").path("prefix").textValue());
         }
+        // The launcher creates partitioned topics in its own cluster only, and offloading's seeks read each topic
+        if (workload.path("topics").path("partitions").asInt(0) > 0 && (remote != null || offloadSettings != null)) {
+            throw new IllegalArgumentException("topics.partitions doesn't support cluster.remote or offload");
+        }
         String remoteClusterName = ClusterSettings.remoteClusterName(clusterName);
         ObjectNode remoteWorkload = null;
         if (remote != null) {
@@ -424,6 +428,11 @@ public class PerformanceLauncher implements Callable<Integer> {
         Map<String, String> applicationsEnv = ClusterSettings.env(loader.mapper(),
                 workload.path("applications").path("env"), "workloads.iotTelemetry.applications.env");
         IotScenario iotScenario = loader.mapper().treeToValue(workload, IotScenario.class);
+        // The gateways hand the final sequences over in the first cluster's coordination directory only
+        if (remote != null && iotScenario.handsOverFinalSequences()) {
+            throw new IllegalArgumentException("applications.mode compactedReaders or latestState and"
+                    + " behaviors.processingFailures don't support cluster.remote");
+        }
         // The launcher's topic admin requests go through a proxy, which forwards each to the broker that owns the
         // topic: a broker redirects them to the owner's name in the cluster's network, which the launcher's host
         // can't resolve. Only offloading and the late applications' join preparation send them, which the random
@@ -568,6 +577,9 @@ public class PerformanceLauncher implements Callable<Integer> {
             if (offloadSettings != null) {
                 setOffloadPolicies(cluster, offloadSettings);
             }
+            if (iotScenario.topics().partitioned()) {
+                createPartitionedTopics(cluster, iotScenario);
+            }
             if (metrics) {
                 String composeFile = System.getProperty("performance.metrics.composeFile");
                 metricsCollection = MetricsCollection.start(cluster, composeFile != null ? Path.of(composeFile) : null,
@@ -612,12 +624,12 @@ public class PerformanceLauncher implements Callable<Integer> {
                 status(String.format(Locale.ROOT, "Started the remote applications in %.0f s",
                         (System.nanoTime() - remoteApplicationsStart) / 1e9));
             }
-            topicStatsSampler = startTopicStatsSampler(cluster, workload, runOutput, remoteCluster != null,
+            topicStatsSampler = startTopicStatsSampler(cluster, iotScenario, runOutput, remoteCluster != null,
                     TopicStatsSampler.FILE_NAME);
             if (remoteCluster != null) {
                 // The remote subscriptions' backlog tells messages that the remote topics lack from messages that the
                 // remote applications didn't receive
-                remoteTopicStatsSampler = startTopicStatsSampler(remoteCluster, workload, runOutput, false,
+                remoteTopicStatsSampler = startTopicStatsSampler(remoteCluster, iotScenario, runOutput, false,
                         REMOTE_TOPIC_STATS);
             }
             if (sendsTopicRequests) {
@@ -738,6 +750,7 @@ public class PerformanceLauncher implements Callable<Integer> {
             workloadFinished = ZonedDateTime.now().truncatedTo(ChronoUnit.SECONDS);
             status("Every application has received every message; verifying the device sequences");
             verifyStates(runOutput, runOutput.resolve(APPLICATIONS_DIRECTORY), workload, applications);
+            verifyDrained(topicStatsSampler, iotScenario);
             if (remoteWorkload != null) {
                 verifyStates(runOutput, remoteApplicationsOutput, remoteWorkload, remoteApplications);
                 status("Every remote application has received every replicated message, in order");
@@ -1092,6 +1105,32 @@ public class PerformanceLauncher implements Callable<Integer> {
                 offload.deletionLagMillis()));
     }
 
+    /**
+     * Creates the workload's topics as partitioned topics, before the workloads start, since a producer would create
+     * a non-partitioned topic.
+     */
+    private static void createPartitionedTopics(PulsarCluster cluster, IotScenario scenario)
+            throws PulsarClientException, PulsarAdminException {
+        try (PulsarAdmin admin = PulsarAdmin.builder()
+                .serviceHttpUrl(cluster.getHttpServiceUrl())
+                .build()) {
+            for (String topic : scenario.topicNames()) {
+                try {
+                    admin.topics().createPartitionedTopic(topic, scenario.topics().partitions());
+                } catch (PulsarAdminException.ConflictException e) {
+                    // a cluster that a previous run left has the topic, which must have the same partitions
+                    int partitions = admin.topics().getPartitionedTopicMetadata(topic).partitions;
+                    if (partitions != scenario.topics().partitions()) {
+                        throw new IllegalStateException("The topic " + topic + " exists with " + partitions
+                                + " partitions, not " + scenario.topics().partitions());
+                    }
+                }
+            }
+        }
+        status(String.format(Locale.ROOT, "Created %d partitioned topic(s) of %d partitions",
+                scenario.topics().count(), scenario.topics().partitions()));
+    }
+
     // The version that a broker reports, or empty when it doesn't answer; it names a release such as latest, which
     // the whole cluster runs
     private static String brokerVersion(PulsarCluster cluster) {
@@ -1200,11 +1239,10 @@ public class PerformanceLauncher implements Callable<Integer> {
      * Starts sampling the workload topics' stats for the run report. Sampling is an observation, so a failure to
      * start it is reported and the run goes on without it.
      */
-    private static TopicStatsSampler startTopicStatsSampler(PulsarCluster cluster, JsonNode workload,
+    private static TopicStatsSampler startTopicStatsSampler(PulsarCluster cluster, IotScenario scenario,
                                                             Path runOutput, boolean replicated, String fileName) {
-        String prefix = workload.path("topics").path("prefix").textValue();
-        List<String> topics = IntStream.range(0, workload.path("topics").path("count").intValue())
-                .mapToObj(topic -> prefix + topic).toList();
+        // A partitioned topic's stats are its partitions'
+        List<String> topics = scenario.statsTopicNames();
         try {
             // Each broker, by its name in the cluster's network, which Docker names the container with a leading slash
             Map<String, String> brokerHttpUrls = new LinkedHashMap<>();
@@ -2074,6 +2112,10 @@ public class PerformanceLauncher implements Callable<Integer> {
      */
     private static void verifyStates(Path output, Path applicationsDirectory, JsonNode workload, int applications)
             throws Exception {
+        if ("latestState".equals(workload.path("applications").path("mode").asText())) {
+            // the applications check each device's latest state, whose last message may have expired, themselves
+            return;
+        }
         long[] produced = readState(output.resolve("gateways/gateways-state.bin"));
         JsonNode skipMessages = workload.path("applications").path("skipMessages");
         JsonNode resetToMillis = workload.path("applications").path("resetToMillis");
@@ -2090,6 +2132,29 @@ public class PerformanceLauncher implements Callable<Integer> {
                         + " did not receive every device sequence");
             }
         }
+    }
+
+    /**
+     * With mode latestState, checks that the applications' subscriptions have no backlog once the applications have
+     * finished. An application completes when no message has arrived for a while, which a dispatch that stopped would
+     * look like too, while the messages that expired or were evicted have left the backlog.
+     */
+    private static void verifyDrained(TopicStatsSampler sampler, IotScenario scenario) throws Exception {
+        if (!IotScenario.Applications.LATEST_STATE_MODE.equals(scenario.applications().mode())) {
+            return;
+        }
+        if (sampler == null) {
+            throw new IllegalStateException("The applications' subscriptions can't be checked for a backlog, since"
+                    + " the topic stats sampling is off");
+        }
+        List<String> subscriptions = IntStream.range(0, scenario.applications().count())
+                .mapToObj(scenario::subscriptionName).toList();
+        long backlog = sampler.backlog(subscriptions);
+        if (backlog > 0) {
+            throw new IllegalStateException(String.format(Locale.ROOT, "The applications' subscriptions have a"
+                    + " backlog of %,d message(s) after the applications finished", backlog));
+        }
+        status("The applications' subscriptions have no backlog left");
     }
 
     static boolean statesMatch(long[] produced, long[] consumed, boolean skipped) {

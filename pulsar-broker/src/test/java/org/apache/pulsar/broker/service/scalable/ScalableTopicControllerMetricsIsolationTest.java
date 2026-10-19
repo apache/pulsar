@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service.scalable;
 import static org.assertj.core.api.Assertions.assertThat;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.Meter;
+import io.opentelemetry.api.metrics.MeterProvider;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
@@ -37,7 +38,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
+import org.apache.pulsar.broker.service.scalable.ScalableTopicMetrics.RequestType;
+import org.apache.pulsar.broker.service.scalable.ScalableTopicMetrics.WatchType;
 import org.apache.pulsar.broker.stats.BrokerOperabilityMetrics;
 import org.apache.pulsar.broker.stats.OpenTelemetryTopicStats;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGeneratorUtils;
@@ -48,8 +52,18 @@ import org.testng.annotations.Test;
 public class ScalableTopicControllerMetricsIsolationTest {
     private static final String PREFIX = "pulsar_metrics_isolation_";
     private static final String OTEL_PREFIX = "pulsar.broker.scalable_topic.";
+    private static final Set<String> CONTROLLER_METRICS = Set.of(
+            OTEL_PREFIX + "controller.count", OTEL_PREFIX + "controller.takeover.duration",
+            OTEL_PREFIX + "segment.count", OTEL_PREFIX + "layout.operation.count",
+            OTEL_PREFIX + "layout.operation.duration", OTEL_PREFIX + "layout.seal.duration",
+            OTEL_PREFIX + "auto_scale.blocked.count");
+    private static final String REQUEST_DURATION = "pulsar_scalable_topic_request_duration_seconds";
+    private static final String WATCH_SESSIONS = "pulsar_scalable_topic_watch_session_count";
+    private static final String WATCH_UPDATES = "pulsar_scalable_topic_watch_update";
+    private static final Set<String> SESSION_METRICS = Set.of(REQUEST_DURATION, WATCH_SESSIONS, WATCH_UPDATES);
     private static final String CLUSTER = "metrics-isolation";
-    private static final ScalableTopicControllerMetrics.Counts COUNTS = new ScalableTopicControllerMetrics.Counts(1, 2, 3);
+    private static final ScalableTopicControllerMetrics.Counts COUNTS =
+            new ScalableTopicControllerMetrics.Counts(1, 2, 3);
 
     @DataProvider
     public Object[][] registries() {
@@ -120,7 +134,8 @@ public class ScalableTopicControllerMetricsIsolationTest {
                 Map<String, Object> before = existingOpenTelemetry(reader.collectAllMetrics());
                 assertThat(before).hasSize(3);
                 Map<String, Object> updated;
-                try (var added = new ScalableTopicControllerMetrics(meter, CLUSTER, () -> COUNTS, new CollectorRegistry())) {
+                try (var added = new ScalableTopicControllerMetrics(
+                        meter, CLUSTER, () -> COUNTS, new CollectorRegistry())) {
                     recordAllMetrics(added);
                     assertThat(existingOpenTelemetry(reader.collectAllMetrics())).isEqualTo(before);
                     assertThat(existingOpenTelemetry(reader.collectAllMetrics())).isEqualTo(before);
@@ -131,14 +146,127 @@ public class ScalableTopicControllerMetricsIsolationTest {
                     assertThat(updated).isNotEqualTo(before);
                 }
                 assertThat(existingOpenTelemetry(reader.collectAllMetrics())).isEqualTo(updated);
-                try (var replacement =
-                             new ScalableTopicControllerMetrics(meter, CLUSTER, () -> COUNTS, new CollectorRegistry())) {
+                try (var replacement = new ScalableTopicControllerMetrics(
+                        meter, CLUSTER, () -> COUNTS, new CollectorRegistry())) {
                     recordAllMetrics(replacement);
                     assertThat(existingOpenTelemetry(reader.collectAllMetrics())).isEqualTo(updated);
                 }
                 assertThat(existingOpenTelemetry(reader.collectAllMetrics())).isEqualTo(updated);
             }
         }
+    }
+
+    @DataProvider
+    public Object[][] sessionMetricsModes() {
+        return new Object[][]{
+                {true, new CollectorRegistry()}, {true, CollectorRegistry.defaultRegistry},
+                {false, new CollectorRegistry()}, {false, CollectorRegistry.defaultRegistry}
+        };
+    }
+
+    @Test(dataProvider = "sessionMetricsModes")
+    public void testUpstreamSessionMetricsSurviveControllerLifecycle(boolean telemetryEnabled,
+                                                                   CollectorRegistry registry) {
+        var reader = InMemoryMetricReader.create();
+        try (var sdk = SdkMeterProvider.builder().registerMetricReader(reader).build()) {
+            Meter meter = telemetryEnabled ? sdk.get("shared-broker-meter")
+                    : MeterProvider.noop().get("shared-broker-meter");
+            try (var sessions = new ScalableTopicMetrics(meter, CLUSTER, registry)) {
+                for (RequestType type : RequestType.values()) {
+                    sessions.startRequest(type).success();
+                    sessions.startRequest(type).failure();
+                }
+                sessions.sessionOpened(WatchType.TOPIC);
+                sessions.sessionOpened(WatchType.TOPIC);
+                sessions.sessionClosed(WatchType.TOPIC);
+                sessions.sessionOpened(WatchType.NAMESPACE);
+                sessions.recordWatchUpdate(true);
+                sessions.recordWatchUpdate(true);
+                sessions.recordWatchUpdate(false);
+                SessionMetricsSnapshot before = sessionMetricsSnapshot(registry, reader);
+                assertThat(before.prometheus()).extracting(family -> family.name)
+                        .containsExactlyInAnyOrderElementsOf(SESSION_METRICS);
+                assertThat(before.prometheus()).filteredOn(family -> family.name.equals(REQUEST_DURATION))
+                        .singleElement().satisfies(family -> assertThat(family.samples)
+                                .filteredOn(sample -> sample.name.equals(REQUEST_DURATION + "_count"))
+                                .hasSize(8).allSatisfy(sample -> {
+                                    assertThat(sample.value).isEqualTo(1);
+                                    assertThat(sample.labelNames)
+                                            .containsExactly("cluster", "request_type", "operation_status");
+                                }));
+                assertThat(registry.getSampleValue(WATCH_SESSIONS,
+                        new String[]{"cluster", "watch_type"}, new String[]{CLUSTER, "topic"})).isEqualTo(1);
+                assertThat(registry.getSampleValue(WATCH_SESSIONS,
+                        new String[]{"cluster", "watch_type"}, new String[]{CLUSTER, "namespace"})).isEqualTo(1);
+                assertThat(registry.getSampleValue(WATCH_UPDATES + "_total",
+                        new String[]{"cluster", "operation_status"}, new String[]{CLUSTER, "success"})).isEqualTo(2);
+                assertThat(registry.getSampleValue(WATCH_UPDATES + "_total",
+                        new String[]{"cluster", "operation_status"}, new String[]{CLUSTER, "failure"})).isEqualTo(1);
+                if (telemetryEnabled) {
+                    assertThat(before.openTelemetry()).containsOnlyKeys(
+                            ScalableTopicMetrics.REQUEST_DURATION_METRIC_NAME,
+                            ScalableTopicMetrics.WATCH_SESSION_COUNT_METRIC_NAME,
+                            ScalableTopicMetrics.WATCH_UPDATE_COUNT_METRIC_NAME);
+                    assertThat(reader.collectAllMetrics()).anySatisfy(metric -> {
+                        assertThat(metric.getName()).isEqualTo(ScalableTopicMetrics.REQUEST_DURATION_METRIC_NAME);
+                        assertThat(metric.getHistogramData().getPoints()).hasSize(8).allSatisfy(point -> {
+                            assertThat(point.getCount()).isEqualTo(1);
+                            assertThat(point.getBoundaries()).containsExactly(
+                                    0.001, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1.0, 5.0, 30.0);
+                        });
+                    });
+                } else {
+                    assertThat(before.openTelemetry()).isEmpty();
+                }
+                SessionMetricsSnapshot updated;
+                try (var added = new ScalableTopicControllerMetrics(meter, CLUSTER, () -> COUNTS, registry)) {
+                    assertThat(sessionMetricsSnapshot(registry, reader)).isEqualTo(before);
+                    recordAllMetrics(added);
+                    assertThat(sessionMetricsSnapshot(registry, reader)).isEqualTo(before);
+                    assertThat(sessionMetricsSnapshot(registry, reader)).isEqualTo(before);
+                    // Actual upstream instruments must still record while controller instruments are present.
+                    sessions.startRequest(RequestType.LOOKUP).success();
+                    sessions.startRequest(RequestType.WATCH_TOPICS).failure();
+                    sessions.sessionOpened(WatchType.TOPIC);
+                    sessions.sessionClosed(WatchType.NAMESPACE);
+                    sessions.recordWatchUpdate(true);
+                    sessions.recordWatchUpdate(false);
+                    updated = sessionMetricsSnapshot(registry, reader);
+                    assertThat(updated.prometheus()).isNotEqualTo(before.prometheus());
+                    if (telemetryEnabled) {
+                        assertThat(updated.openTelemetry()).isNotEqualTo(before.openTelemetry());
+                    }
+                    recordAllMetrics(added);
+                    assertThat(sessionMetricsSnapshot(registry, reader)).isEqualTo(updated);
+                }
+                assertThat(sessionMetricsSnapshot(registry, reader)).isEqualTo(updated);
+                try (var replacement = new ScalableTopicControllerMetrics(meter, CLUSTER, () -> COUNTS, registry)) {
+                    recordAllMetrics(replacement);
+                    assertThat(sessionMetricsSnapshot(registry, reader)).isEqualTo(updated);
+                    assertThat(sessionMetricsSnapshot(registry, reader)).isEqualTo(updated);
+                }
+                assertThat(sessionMetricsSnapshot(registry, reader)).isEqualTo(updated);
+                sessions.sessionClosed(WatchType.TOPIC);
+                sessions.startRequest(RequestType.UNSUBSCRIBE).success();
+                sessions.recordWatchUpdate(false);
+                SessionMetricsSnapshot after = sessionMetricsSnapshot(registry, reader);
+                assertThat(after.prometheus()).isNotEqualTo(updated.prometheus());
+                if (telemetryEnabled) {
+                    assertThat(after.openTelemetry()).isNotEqualTo(updated.openTelemetry());
+                }
+            }
+            assertThat(Collections.list(registry.metricFamilySamples())).extracting(family -> family.name)
+                    .doesNotContainAnyElementsOf(SESSION_METRICS);
+        }
+    }
+
+    private record SessionMetricsSnapshot(List<MetricFamilySamples> prometheus, Map<String, Object> openTelemetry) { }
+
+    private static SessionMetricsSnapshot sessionMetricsSnapshot(CollectorRegistry registry,
+                                                                 InMemoryMetricReader reader) {
+        return new SessionMetricsSnapshot(Collections.list(registry.metricFamilySamples()).stream()
+                .filter(family -> SESSION_METRICS.contains(family.name)).toList(),
+                existingOpenTelemetry(reader.collectAllMetrics()));
     }
 
     @DataProvider
@@ -203,11 +331,14 @@ public class ScalableTopicControllerMetricsIsolationTest {
                 .filter(metric -> metric.name.startsWith(PREFIX)).toList();
     }
 
-    /** Ignore collection timestamps, but preserve descriptors, start times, labels, values and histogram buckets. */
+    /**
+     * Exclude only controller/layout instruments, not upstream request/watch instruments sharing their prefix.
+     * Ignore collection timestamps, but preserve descriptors, start times, labels, values and histogram buckets.
+     */
     private static Map<String, Object> existingOpenTelemetry(Collection<MetricData> metrics) {
         Map<String, Object> result = new HashMap<>();
         for (MetricData metric : metrics) {
-            if (metric.getName().startsWith(OTEL_PREFIX)) {
+            if (CONTROLLER_METRICS.contains(metric.getName())) {
                 continue;
             }
             Object data = switch (metric.getType()) {
