@@ -178,16 +178,23 @@ public class Murmur3_32Hash implements Hash {
      * change.
      */
     public static int makeHash(ByteBuf buffer) {
-        int index = buffer.readerIndex();
+        int start = buffer.readerIndex();
         int len = buffer.readableBytes();
-        int end = index + len;
+        int chunksEnd = start + chunksLength(len);
         int h1 = instance.seed;
-        for (; index + CHUNK_SIZE <= end; index += CHUNK_SIZE) {
-            h1 = instance.mixH1(h1, instance.mixK1(buffer.getIntLE(index)));
+        for (int i = start; i < chunksEnd; i += CHUNK_SIZE) {
+            h1 = instance.mixH1(h1, instance.mixK1(buffer.getIntLE(i)));
         }
         int k1 = 0;
-        for (int shift = 0; index < end; index++, shift += 8) {
-            k1 |= buffer.getUnsignedByte(index) << shift;
+        int remaining = len - (chunksEnd - start);
+        if (remaining > 0) {
+            k1 = buffer.getUnsignedByte(chunksEnd);
+            if (remaining > 1) {
+                k1 |= buffer.getUnsignedByte(chunksEnd + 1) << 8;
+                if (remaining > 2) {
+                    k1 |= buffer.getUnsignedByte(chunksEnd + 2) << 16;
+                }
+            }
         }
         return instance.finish(h1, k1, len) & Integer.MAX_VALUE;
     }
@@ -276,21 +283,18 @@ public class Murmur3_32Hash implements Hash {
     @VisibleForTesting
     static int hashLatin1(byte[] latin1) {
         int len = latin1.length;
+        int chunksEnd = chunksLength(len);
         int h1 = instance.seed;
-        int i = 0;
-        for (; i + CHUNK_SIZE <= len; i += CHUNK_SIZE) {
+        for (int i = 0; i < chunksEnd; i += CHUNK_SIZE) {
             int k1 = (int) INT_LE.get(latin1, i);
             if ((k1 & 0x80808080) != 0) {
                 return hashLatin1Encoding(latin1, i, h1);
             }
             h1 = instance.mixH1(h1, instance.mixK1(k1));
         }
-        int k1 = 0;
-        for (int shift = 0; i < len; i++, shift += 8) {
-            k1 |= (latin1[i] & 0xff) << shift;
-        }
+        int k1 = remainingBytes(latin1, chunksEnd);
         if ((k1 & 0x80808080) != 0) {
-            return hashLatin1Encoding(latin1, len - len % CHUNK_SIZE, h1);
+            return hashLatin1Encoding(latin1, chunksEnd, h1);
         }
         return instance.finish(h1, k1, len);
     }
@@ -383,16 +387,34 @@ public class Murmur3_32Hash implements Hash {
 
     private int makeHash0(byte[] bytes) {
         int len = bytes.length;
+        int chunksEnd = chunksLength(len);
         int h1 = seed;
-        int i = 0;
-        for (; i + CHUNK_SIZE <= len; i += CHUNK_SIZE) {
+        for (int i = 0; i < chunksEnd; i += CHUNK_SIZE) {
             h1 = mixH1(h1, mixK1((int) INT_LE.get(bytes, i)));
         }
+        return finish(h1, remainingBytes(bytes, chunksEnd), len);
+    }
+
+    // The length of the whole chunks of len bytes. A loop up to it, rather than while i + CHUNK_SIZE <= len, which
+    // could overflow, is a counted loop for the JIT: without a safepoint poll in each iteration, and unrolled
+    private static int chunksLength(int len) {
+        return len & -CHUNK_SIZE;
+    }
+
+    // The 0 to 3 bytes from chunksEnd to the array's end, the first in the lowest byte
+    private static int remainingBytes(byte[] bytes, int chunksEnd) {
+        int remaining = bytes.length - chunksEnd;
         int k1 = 0;
-        for (int shift = 0; i < len; i++, shift += 8) {
-            k1 |= (bytes[i] & 0xff) << shift;
+        if (remaining > 0) {
+            k1 = bytes[chunksEnd] & 0xff;
+            if (remaining > 1) {
+                k1 |= (bytes[chunksEnd + 1] & 0xff) << 8;
+                if (remaining > 2) {
+                    k1 |= (bytes[chunksEnd + 2] & 0xff) << 16;
+                }
+            }
         }
-        return finish(h1, k1, len);
+        return k1;
     }
 
     private int fmix(int h) {
