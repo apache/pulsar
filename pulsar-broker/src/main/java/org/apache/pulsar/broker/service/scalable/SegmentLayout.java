@@ -337,8 +337,8 @@ public class SegmentLayout {
 
     /**
      * Convert back to metadata for persistence, carrying over the non-layout fields
-     * (properties, per-topic auto-scale policy) from the record being replaced. Layout
-     * mutations must never silently drop fields they don't model.
+     * (properties, per-topic auto-scale policy, deleted mark) from the record being replaced.
+     * Layout mutations must never silently drop fields they don't model.
      */
     public ScalableTopicMetadata toMetadata(ScalableTopicMetadata original) {
         return ScalableTopicMetadata.builder()
@@ -347,6 +347,7 @@ public class SegmentLayout {
                 .segments(new LinkedHashMap<>(allSegments))
                 .properties(original.getProperties())
                 .autoScalePolicy(original.getAutoScalePolicy())
+                .deleted(original.isDeleted())
                 .build();
     }
 

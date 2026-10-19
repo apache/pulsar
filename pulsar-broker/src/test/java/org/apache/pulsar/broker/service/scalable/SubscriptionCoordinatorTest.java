@@ -19,8 +19,13 @@
 package org.apache.pulsar.broker.service.scalable;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -36,6 +41,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.TransportCnx;
@@ -473,6 +479,42 @@ public class SubscriptionCoordinatorTest {
     }
 
     @Test
+    public void testClosedCoordinatorNeitherRegistersNorPushes() {
+        TransportCnx cnx1 = mock(TransportCnx.class);
+        coordinator.registerConsumer("consumer-1", 1L, cnx1).join();
+        CompletableFuture<Void> persisted = new CompletableFuture<>();
+        when(resources.registerConsumerAsync(any(), anyString(), eq("consumer-2"))).thenReturn(persisted);
+        TransportCnx cnx2 = mock(TransportCnx.class);
+        CompletableFuture<Map<ConsumerSession, ConsumerAssignment>> inFlight =
+                coordinator.registerConsumer("consumer-2", 2L, cnx2);
+
+        // The controller stops serving as the leader while consumer-2 registers.
+        coordinator.close();
+        clearInvocations(cnx1);
+        persisted.complete(null);
+        coordinator.onLayoutChange(initialLayout.splitSegment(0, System.currentTimeMillis()));
+
+        assertTrue(inFlight.isCompletedExceptionally(), "the registration completing after close must fail");
+        assertTrue(coordinator.registerConsumer("consumer-3", 3L, mock(TransportCnx.class))
+                .isCompletedExceptionally(), "a registration after close must fail");
+        verify(cnx1, never()).sendScalableConsumerAssignment(anyLong(), any());
+        verify(cnx2, never()).sendScalableConsumerAssignment(anyLong(), any());
+    }
+
+    @Test
+    public void testClosedCoordinatorDoesNotEvictExpiredSession() {
+        coordinator.registerConsumer("consumer-1", 1L, mock(TransportCnx.class)).join();
+        coordinator.onConsumerDisconnect("consumer-1");
+
+        // The controller stops serving as the leader: the session is the next leader's to restore.
+        coordinator.close();
+
+        // Past the 200ms grace period, the persisted registration must still be there.
+        Awaitility.await().during(1, TimeUnit.SECONDS).atMost(2, TimeUnit.SECONDS).untilAsserted(() ->
+                verify(resources, never()).unregisterConsumerAsync(topicName, "test-sub", "consumer-1"));
+    }
+
+    @Test
     public void testRestoreConsumersInstallsDisconnectedSessions() {
         Map<ConsumerSession, ConsumerAssignment> assignments =
                 coordinator.restoreConsumers(List.of("consumer-1", "consumer-2"));
@@ -627,6 +669,25 @@ public class SubscriptionCoordinatorTest {
         // Once marked as a checkpoint group, the subscription gets whole segments only.
         coordinator.markCheckpointGroup();
         assertFalse(coordinator.canShareSegmentsByEntryBucket());
+    }
+
+    @Test
+    public void testLegacySegmentIsAssignedTheTopicItWraps() throws Exception {
+        // A regular-to-scalable migration (PIP-475) keeps the old topic as a sealed legacy parent, which
+        // has no segment:// topic of its own.
+        SubscriptionCoordinator c = new SubscriptionCoordinator("test-sub", topicName,
+                SegmentLayout.fromMetadata(ScalableTopicController.createMigratedMetadata(
+                        TopicName.get("persistent://tenant/ns/my-topic"), 0, 1)),
+                resources, scheduler, Duration.ofMillis(200));
+
+        ConsumerAssignment assignment = findByName(
+                c.registerConsumer("consumer-1", 1L, mock(TransportCnx.class)).get(), "consumer-1");
+
+        assertEquals(assignment.assignedSegments().stream().collect(Collectors.toMap(
+                        ConsumerAssignment.AssignedSegment::segmentId,
+                        ConsumerAssignment.AssignedSegment::underlyingTopicName)),
+                Map.of(0L, "persistent://tenant/ns/my-topic",
+                        1L, "segment://tenant/ns/my-topic/0000-ffff-1"));
     }
 
     private SubscriptionCoordinator bucketedCoordinator() {

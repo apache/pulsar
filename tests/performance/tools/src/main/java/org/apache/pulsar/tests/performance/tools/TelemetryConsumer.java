@@ -20,14 +20,15 @@ package org.apache.pulsar.tests.performance.tools;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
@@ -44,25 +45,30 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientSharedResources;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
-import org.apache.pulsar.client.api.SubscriptionType;
 import picocli.CommandLine.Command;
 
 /**
- * Runs every application of the scenario in this JVM, as the gateways run in one. An application is a Key_Shared
- * subscription of its own on every topic, consumed through its pods, each a Pulsar client with a consumer of the
- * subscription; the applications differ only in their subscription. Every pod's client shares one set of client
- * resources, the event loop and the thread pools, sized by {@code applications.client}.
+ * Runs every application of the scenario in this JVM, as the gateways run in one. An application is a subscription
+ * of its own on every topic, of the type {@code applications.subscriptionType}, consumed through its pods, each a
+ * Pulsar client with a consumer of the subscription; the applications differ only in their subscription. Every pod's
+ * client shares one set of client resources, the event loop and the thread pools, sized by
+ * {@code applications.client}.
  *
- * <p>Each application checks its own delivery and ordering, and writes its outputs into a directory named after its
- * subscription in {@code --output}, as the run report names it. The progress stream sums the applications' counts.
+ * <p>Each application checks its own delivery and, unless its subscription is Shared, ordering, and writes its outputs
+ * into a directory named after its subscription in {@code --output}, as the run report names it. The progress stream
+ * sums the applications' counts.
  *
  * <p>An application with {@code applications.joinSeconds} after the measurement's start creates its subscription at
  * startup, so that the backlog builds up from the start, and opens its pods when it joins. It records when it joined
  * and when it caught up: when it first received a measured message within {@code applications.caughtUpLatencyMillis}
- * of its publishing.
+ * of its publishing. When the launcher prepares the join, by moving the late applications' subscriptions forward with
+ * {@code applications.skipMessages} or unloading the topics with {@code applications.unloadBeforeJoin}, the late
+ * applications wait for it at their join time; one that skips messages expects every message but those, each
+ * device's from the first one it receives.
  */
 @Command(name = "iot-consume", description = "Run the IoT applications, each consuming and validating its own "
         + "subscription")
@@ -247,7 +253,9 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
         line.put("duplicates", duplicates);
         line.put("orderingViolations", orderingViolations);
         line.put("invalidMessages", invalidMessages);
-        line.put("messageCount", Math.multiplyExact(scenario.messageCount(), (long) applications.size()));
+        // without the messages that the applications skip, which they don't receive
+        line.put("messageCount", applications.stream()
+                .mapToLong(Application::expectedMessagesSoFar).sum());
     }
 
     /** An application: its subscription, the pods that consume it, and the checks of what it received. */
@@ -256,6 +264,9 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
         private final int index;
         private final Path output;
         private final DeviceSequenceTracker tracker;
+        // The messages that the application receives; -1 until the launcher tells them, for an application that
+        // resets its subscription
+        private volatile long expectedMessages;
         private final HdrLatencyRecorder receiveLatency;
         private final AtomicLong firstMeasurementReceiptEpochMs = new AtomicLong();
         private final AtomicLong lastMeasurementReceiptEpochMs = new AtomicLong();
@@ -269,6 +280,7 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
         private final AtomicBoolean stopping = new AtomicBoolean();
         private final AtomicReference<Throwable> restartFailure = new AtomicReference<>();
         private volatile Thread restarter;
+        private volatile Thread pauser;
         private int nextWarmupRound = 1;
         private volatile boolean finished;
 
@@ -276,11 +288,20 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
             this.scenario = scenario;
             this.index = index;
             this.output = output;
-            tracker = new DeviceSequenceTracker(scenario.deviceCount());
+            tracker = new DeviceSequenceTracker(scenario.deviceCount(), scenario.startsAtFirstSequence(index),
+                    scenario.keepsDeviceOrder());
+            // Unknown until the launcher has reset the subscription, which it tells with the prepared join
+            expectedMessages = scenario.resetToMillis(index) >= 0 ? -1 : scenario.expectedMessageCount(index);
             catchUp = new CatchUpTracker(scenario.topicCount(), scenario.applications().caughtUpLatencyMillis());
             pods = new ArrayList<>(scenario.podsPerApplication());
             receiveLatency = new HdrLatencyRecorder(output.resolve("application-latency.hdr"),
                     PerformanceTool.MAX_LATENCY_MICROS);
+        }
+
+        /** The messages that the application expects, or all of them while it doesn't know yet. */
+        long expectedMessagesSoFar() {
+            long expected = expectedMessages;
+            return expected >= 0 ? expected : scenario.messageCount();
         }
 
         HdrLatencyRecorder receiveLatency() {
@@ -303,7 +324,7 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
                 client.newConsumer(Schema.BYTES)
                         .topics(scenario.topicNames())
                         .subscriptionName(scenario.subscriptionName(index))
-                        .subscriptionType(SubscriptionType.Key_Shared)
+                        .subscriptionType(scenario.subscriptionType())
                         .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                         .subscribe()
                         .close();
@@ -329,6 +350,19 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
                     if (waitMillis > 0) {
                         Thread.sleep(waitMillis);
                     }
+                    if (scenario.preparesJoin()) {
+                        // the launcher skips the late applications' messages and unloads the topics first
+                        Map<Integer, Long> expected = JoinPreparedMarker.await(coordinationDirectory, runId,
+                                deadlineNanos);
+                        if (scenario.resetToMillis(index) >= 0) {
+                            Long messages = expected.get(index);
+                            if (messages == null) {
+                                throw new IllegalStateException("The launcher didn't tell the messages that"
+                                        + " application " + index + " expects after resetting its subscription");
+                            }
+                            expectedMessages = messages;
+                        }
+                    }
                     // when it starts to open its pods, so the catch-up includes connecting them
                     long joinEpochMs = System.currentTimeMillis();
                     catchUp.joined(joinEpochMs);
@@ -337,9 +371,9 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
                     startRestarts(sharedResources);
                 } catch (InterruptedException interrupted) {
                     Thread.currentThread().interrupt();
-                } catch (TimeoutException measurementDidNotStart) {
+                } catch (TimeoutException notStarted) {
                     // the receive loop's timeout reports the run as failed and writes the applications' summaries
-                    System.out.println("JOIN application=" + index + " didn't join: the measurement didn't start");
+                    System.out.println("JOIN application=" + index + " didn't join: " + notStarted.getMessage());
                 } catch (Throwable error) {
                     joinFailure.compareAndSet(null, error);
                 }
@@ -376,6 +410,11 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
                 restarter = thread;
                 thread.start();
             }
+            if (scenario.behaviors().podPauses().enabled() && !stopping.get()) {
+                Thread thread = new Thread(this::pausePods, "iot-client-pauser-" + index);
+                pauser = thread;
+                thread.start();
+            }
         }
 
         void checkRestarts() {
@@ -394,7 +433,7 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
         }
 
         boolean receivedEveryMessage() {
-            return tracker.uniqueMessages() >= scenario.messageCount();
+            return expectedMessages >= 0 && tracker.uniqueMessages() >= expectedMessages;
         }
 
         /**
@@ -412,6 +451,8 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
             Files.writeString(output.resolve("application-summary.json"), "{\n"
                     + "  \"applicationIndex\": " + index + ",\n"
                     + "  \"uniqueMessages\": " + summary.uniqueMessages() + ",\n"
+                    + "  \"skippedMessages\": " + (scenario.messageCount() - expectedMessagesSoFar())
+                    + ",\n"
                     + "  \"duplicates\": " + summary.duplicates() + ",\n"
                     + "  \"redeliveredDuplicates\": " + summary.redeliveredDuplicates() + ",\n"
                     + "  \"republishedDuplicates\": " + summary.republishedDuplicates() + ",\n"
@@ -428,7 +469,8 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
                     + "  \"messagesWhenCaughtUp\": " + catchUp.messagesWhenCaughtUp() + "\n}\n");
             closePods();
             finished = true;
-            return summary.valid() && summary.uniqueMessages() == scenario.messageCount();
+            // with skipped messages, the count tells a lost message from a skipped one
+            return summary.valid() && expectedMessages >= 0 && summary.uniqueMessages() == expectedMessages;
         }
 
         /** Closes the application's pods, when it hasn't finished, such as after a failure. */
@@ -437,6 +479,7 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
             // so that they don't open pods after they're closed, or use the shared resources after they are
             interruptAndAwait(joiner);
             interruptAndAwait(restarter);
+            interruptAndAwait(pauser);
             closePods();
         }
 
@@ -444,6 +487,7 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
             stopping.set(true);
             interruptAndAwait(joiner);
             interruptAndAwait(restarter);
+            interruptAndAwait(pauser);
         }
 
         /**
@@ -494,16 +538,14 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
                         .topics(scenario.topicNames())
                         .subscriptionName(scenario.subscriptionName(index))
                         .consumerName("iot-application-" + index + "-pod-" + podIndex)
-                        .subscriptionType(SubscriptionType.Key_Shared)
+                        .subscriptionType(scenario.subscriptionType())
                         .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                         .messageListener((currentConsumer, message) -> {
                             long receivedEpochMs = System.currentTimeMillis();
                             listenersInFlight.incrementAndGet();
                             try {
                                 TelemetryMessage.Decoded decoded = TelemetryMessage.decode(message.getData());
-                                byte[] key = message.getKeyBytes();
-                                if (key == null || key.length != Long.BYTES
-                                        || ByteBuffer.wrap(key).getLong() != decoded.deviceId()) {
+                                if (!TelemetryMessage.hasKey(message, decoded.deviceId(), scenario.stringKeys())) {
                                     throw new IllegalArgumentException(
                                             "Telemetry key does not match payload device ID");
                                 }
@@ -563,6 +605,36 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
                 }
             }
         }
+
+        // Pauses random pods' consumers for the pause's time every interval, and resumes them then, also when the
+        // pauses stop. A pod that a restart replaces meanwhile is resumed, closed, harmlessly.
+        private void pausePods() {
+            IotScenario.PodPauses podPauses = scenario.behaviors().podPauses();
+            int pauseCount = Math.max(1, (int) Math.ceil(scenario.podsPerApplication() * podPauses.fraction()));
+            List<Consumer<byte[]>> paused = new ArrayList<>(pauseCount);
+            try {
+                while (!stopping.get()) {
+                    Thread.sleep(TimeUnit.SECONDS.toMillis(podPauses.intervalSeconds()) - podPauses.pauseMillis());
+                    synchronized (pods) {
+                        List<ClientAndConsumer> candidates = new ArrayList<>(pods);
+                        Collections.shuffle(candidates);
+                        for (ClientAndConsumer pod : candidates.subList(0, Math.min(pauseCount, candidates.size()))) {
+                            pod.consumer().pause();
+                            paused.add(pod.consumer());
+                        }
+                    }
+                    Thread.sleep(podPauses.pauseMillis());
+                    paused.forEach(Consumer::resume);
+                    paused.clear();
+                }
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+            } catch (RuntimeException error) {
+                restartFailure.compareAndSet(null, error);
+            } finally {
+                paused.forEach(Consumer::resume);
+            }
+        }
     }
 
     private record ClientAndConsumer(PulsarClient client, Consumer<byte[]> consumer) implements AutoCloseable {
@@ -575,14 +647,27 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
             }
         }
 
-        /** Closes the consumer, then the client, also when closing the consumer failed. */
+        /**
+         * Closes the consumer, then the client, also when closing the consumer failed. A pod that a restart closed and
+         * couldn't replace, as when the application stops during the restart, is already closed, which isn't a
+         * failure.
+         */
         CompletableFuture<Void> closeAsync() {
-            return consumer.closeAsync().handle((ignored, consumerFailure) -> consumerFailure)
-                    .thenCompose(consumerFailure -> client.closeAsync().thenRun(() -> {
-                        if (consumerFailure != null) {
-                            throw new CompletionException(consumerFailure);
-                        }
-                    }));
+            return consumer.closeAsync().handle((ignored, consumerFailure) -> unlessAlreadyClosed(consumerFailure))
+                    .thenCompose(consumerFailure -> client.closeAsync()
+                            .exceptionallyCompose(failure -> unlessAlreadyClosed(failure) == null
+                                    ? CompletableFuture.completedFuture(null) : CompletableFuture.failedFuture(failure))
+                            .thenRun(() -> {
+                                if (consumerFailure != null) {
+                                    throw new CompletionException(consumerFailure);
+                                }
+                            }));
+        }
+
+        private static Throwable unlessAlreadyClosed(Throwable failure) {
+            Throwable cause = failure instanceof CompletionException && failure.getCause() != null
+                    ? failure.getCause() : failure;
+            return cause instanceof PulsarClientException.AlreadyClosedException ? null : failure;
         }
     }
 }

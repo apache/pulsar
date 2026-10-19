@@ -23,6 +23,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.DateTimeException;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -35,6 +39,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.HdrHistogram.Histogram;
 
@@ -54,13 +60,38 @@ public final class RunReport {
     static final String LATENCY_CHART = "latency";
     static final String THROUGHPUT_CHART = "throughput";
     static final String BACKLOG_CHART = "backlog";
+    static final String REPLAY_CHART = "replay";
     static final String TEMPERATURE_CHART = "host-temperature";
     static final String FREQUENCY_CHART = "host-frequency";
     public static final String RESOLVED_CONFIG = "resolved-config.yaml";
     /** The broker's topic stats sampled during a run, one row per topic, subscription and sample. */
     public static final String TOPIC_STATS_FILE = "topic-stats.csv";
     public static final String TOPIC_STATS_HEADER =
-            "epochMillis,topic,subscription,msgBacklog,msgInCounter,msgOutCounter";
+            "epochMillis,topic,subscription,msgBacklog,msgInCounter,msgOutCounter,msgInReplay";
+    /**
+     * With offloading, each topic's ledgers and how many of them the brokers had offloaded, when the late applications
+     * joined (phase {@code join}) and at the run's end (phase {@code end}).
+     */
+    public static final String OFFLOAD_STATUS_FILE = "offload-status.csv";
+    public static final String OFFLOAD_STATUS_HEADER =
+            "epochMillis,phase,topic,ledgers,offloadedLedgers,offloadedBytes,entries";
+    /** With offloading, the storage's log, with every request when {@code offload.logRequests} is set. */
+    public static final String OFFLOAD_STORAGE_LOG_FILE = "offload-storage.log.txt";
+    /** The line that ends a container's log that the launcher cut short, as it does when reading it takes too long. */
+    public static final String CUT_SHORT_LOG_LINE = "[The log was cut short: reading it took longer than 5 minutes]";
+    /**
+     * How long each action that prepared the late applications' join took: skipping messages, resetting a
+     * subscription by timestamp, or unloading a topic.
+     */
+    public static final String JOIN_PREPARATION_FILE = "join-preparation.csv";
+    public static final String JOIN_PREPARATION_HEADER =
+            "startEpochMillis,endEpochMillis,action,subscription,topic,argument,durationMillis";
+    /**
+     * The launcher's seeks to random publish times after the workloads ({@code offload.seeks}), and how long each took.
+     */
+    public static final String SEEKS_FILE = "seeks.csv";
+    public static final String SEEKS_HEADER =
+            "seek,startEpochMillis,endEpochMillis,topic,publishTime,resetMicros,peekMicros,position";
     /**
      * The host's thermal state sampled during a run, one row per second: temperatures in °C, frequencies in MHz, the
      * thermal throttle counters since boot (summed over the cores, and over the packages) and the fastest fan in rpm.
@@ -309,9 +340,18 @@ public final class RunReport {
                 seconds.stream().mapToDouble(Double::doubleValue).toArray(), cut);
     }
 
-    /** The sampled topic stats of a run: one row per sample round. */
+    /**
+     * The sampled topic stats of a run: one row per sample round, by subscription summed over the topics.
+     *
+     * @param replay the entries in each subscription's replay queue, a batch counting once, empty for files sampled
+     *               before they were
+     */
     record Samples(long[] epochMillis, double[] published, Map<String, double[]> dispatched,
-                   Map<String, double[]> backlog) {
+                   Map<String, double[]> backlog, Map<String, double[]> replay) {
+        Samples(long[] epochMillis, double[] published, Map<String, double[]> dispatched,
+                Map<String, double[]> backlog) {
+            this(epochMillis, published, dispatched, backlog, Map.of());
+        }
     }
 
     private RunReport() {
@@ -347,6 +387,11 @@ public final class RunReport {
         Path stats = runDirectory.resolve(TOPIC_STATS_FILE);
         Samples samples = Files.isRegularFile(stats) ? readSamples(stats) : null;
         appendCatchUp(report, run.workload(), consumers, samples, measurementStart, measurementEnd);
+        StorageRequests storageRequests = StorageRequests.read(runDirectory.resolve(OFFLOAD_STORAGE_LOG_FILE),
+                measurementStart);
+        appendOffloadStatus(report, runDirectory.resolve(OFFLOAD_STATUS_FILE), storageRequests);
+        appendJoinPreparation(report, runDirectory.resolve(JOIN_PREPARATION_FILE), storageRequests);
+        appendSeeks(report, runDirectory.resolve(SEEKS_FILE), storageRequests);
         appendLatency(report, runDirectory, run, consumerHistograms, measurementStart);
         appendRemoteApplications(report, runDirectory, run.workload(), mapper);
         if (samples != null) {
@@ -398,15 +443,14 @@ public final class RunReport {
                         + workload.path("topics").path("count").asInt() + " topic(s)"))
                 .append(row("Applications", workload.path("applications").path("count").asInt() + " × "
                         + workload.path("applications").path("podsPerApplication").asInt()
-                        + " pods, Key_Shared"))
+                        + " pods, " + workload.path("applications").path("subscriptionType").asText("Key_Shared")))
                 .append(row("Messages", String.format(Locale.ROOT, "%,d measured, %,d warmup",
                         messageCount(producer, "measurementMessages",
                                 workload.path("measurement").path("messages").asLong()),
                         messageCount(producer, "warmupMessages", workload.path("warmup").path("messages").asLong()
                                 * Math.max(1, workload.path("warmup").path("rounds").asInt())))))
                 .append(row("Payload", workload.path("payload").path("size").asInt() + " bytes, batching "
-                        + (workload.path("gateways").path("producer").path("batchingEnabled").asBoolean()
-                        ? "on" : "off")))
+                        + batching(workload.path("gateways").path("producer"))))
                 .append(row("Rate limit", workload.path("rate").asLong() > 0
                         ? String.format(Locale.ROOT, "%,d msg/s", workload.path("rate").asLong()) : "none"));
         if (host != null) {
@@ -752,9 +796,17 @@ public final class RunReport {
                 .append(" ms of its publishing; the time includes opening its pods. Its catch-up rate is the messages"
                         + " that it received until then, warmup included, per second since it joined; for an"
                         + " application that didn't catch up, it is the rate until its last message. The backlog is"
-                        + " the sampled topic stats' last sample before the application joined.\n\n"
-                        + "| Application | Joined | Backlog when it joined | Caught up after | Catch-up rate"
-                        + " | Received its last message after |\n|---|---:|---:|---:|---:|---:|\n");
+                        + " the sampled topic stats' last sample before the application joined, in entries, so that a"
+                        + " batch counts once.");
+        boolean skipped = late.stream().anyMatch(consumer -> consumer.path("skippedMessages").asLong() > 0);
+        if (skipped) {
+            report.append(" Skipped are the messages that the application didn't receive: its subscription was moved"
+                    + " forward past them before it joined (`applications.skipMessages`), so its backlog when it"
+                    + " joined may include them.");
+        }
+        report.append("\n\n| Application | Joined | Backlog when it joined |").append(skipped ? " Skipped |" : "")
+                .append(" Caught up after | Catch-up rate | Received its last message after |\n|---|---:|---:|")
+                .append(skipped ? "---:|" : "").append("---:|---:|---:|\n");
         for (JsonNode consumer : late) {
             String application = applicationName(workload, consumer.path("applicationIndex").asInt());
             long joined = consumer.path("joinEpochMs").asLong();
@@ -782,10 +834,251 @@ public final class RunReport {
                 rate = lastReceived > joined ? String.format(Locale.ROOT, "%,.0f msg/s until its last message",
                         consumer.path("uniqueMessages").asLong() * 1000.0 / (lastReceived - joined)) : "–";
             }
-            report.append(String.format(Locale.ROOT, "| `%s` | %.1f s | %s | %s | %s | %s |%n", application,
-                    (joined - measurementStart) / 1000.0, backlog, caughtUpAfter, rate,
+            report.append(String.format(Locale.ROOT, "| `%s` | %.1f s | %s |%s %s | %s | %s |%n", application,
+                    (joined - measurementStart) / 1000.0, backlog, skipped ? String.format(Locale.ROOT, " %,d |",
+                            consumer.path("skippedMessages").asLong()) : "", caughtUpAfter, rate,
                     lastReceived > joined ? String.format(Locale.ROOT, "%.1f s", (lastReceived - joined) / 1000.0)
                             : "–"));
+        }
+    }
+
+    /**
+     * With offloading ({@code offload}), the topics' ledgers and how many of them the brokers had offloaded when the
+     * late applications joined and at the run's end, summed over the topics.
+     */
+    static void appendOffloadStatus(StringBuilder report, Path status, StorageRequests storageRequests)
+            throws IOException {
+        if (!Files.isRegularFile(status)) {
+            return;
+        }
+        // phase -> ledgers, offloaded ledgers, offloaded bytes, entries
+        Map<String, long[]> phases = new LinkedHashMap<>();
+        Map<String, Integer> topics = new LinkedHashMap<>();
+        List<String> lines = Files.readAllLines(status);
+        for (String line : lines.subList(Math.min(1, lines.size()), lines.size())) {
+            String[] fields = line.split(",");
+            if (fields.length != 7) {
+                continue;
+            }
+            long[] sums = phases.computeIfAbsent(fields[1], ignored -> new long[4]);
+            for (int i = 0; i < 4; i++) {
+                sums[i] += Long.parseLong(fields[3 + i]);
+            }
+            topics.merge(fields[1], 1, Integer::sum);
+        }
+        if (phases.isEmpty()) {
+            return;
+        }
+        report.append("\n## Offloading\n\nThe topics' ledgers, from their internal stats, and how many the brokers had"
+                + " offloaded to the tiered storage: when the late applications joined, and at the run's end. Their"
+                + " sums over the topics; `" + OFFLOAD_STATUS_FILE + "` has each topic's.\n\n"
+                + "| When | Topics | Ledgers | Offloaded ledgers | Offloaded | Entries |\n"
+                + "|---|---:|---:|---:|---:|---:|\n");
+        phases.forEach((phase, sums) -> report.append(String.format(Locale.ROOT, "| %s | %,d | %,d | %,d | %,.1f MB"
+                        + " | %,d |%n", phase.equals("join") ? "The late applications joined"
+                        : phase.equals("end") ? "The run's end" : phase, topics.get(phase), sums[0], sums[1],
+                sums[2] / (1024.0 * 1024.0), sums[3])));
+        if (storageRequests != null && !storageRequests.reads().isEmpty()) {
+            report.append(String.format(Locale.ROOT, "%nThe storage served %,d reads of objects, %,.1f MB in ranged"
+                    + " reads, from its request log (`offload.logRequests`)%s.%n", storageRequests.reads().size(),
+                    storageRequests.rangeBytes(Long.MIN_VALUE, Long.MAX_VALUE) / (1024.0 * 1024.0),
+                    storageRequests.cutShort() ? ", at least: the launcher cut the log short, so it has only the"
+                            + " earlier requests" : ""));
+        }
+    }
+
+    /**
+     * The actions that prepared the late applications' join ({@code applications.skipMessages},
+     * {@code applications.resetToMillis}, {@code applications.unloadBeforeJoin}) and how long each took, and with the
+     * storage's request log, the reads of offloaded data during the resets.
+     */
+    static void appendJoinPreparation(StringBuilder report, Path preparation, StorageRequests storageRequests)
+            throws IOException {
+        if (!Files.isRegularFile(preparation)) {
+            return;
+        }
+        List<String> lines = Files.readAllLines(preparation);
+        List<String[]> actions = new ArrayList<>();
+        for (String line : lines.subList(Math.min(1, lines.size()), lines.size())) {
+            String[] fields = line.split(",", -1);
+            if (fields.length == 7) {
+                actions.add(fields);
+            }
+        }
+        if (actions.isEmpty()) {
+            return;
+        }
+        report.append("\n## Join preparation\n\nWhat the launcher did before the late applications joined, and how long"
+                + " each took. A reset moves the subscription to the publish time this many milliseconds after the"
+                + " measurement's start, which searches the topic's ledgers by timestamp.\n\n"
+                + "| Action | Subscription | Topic | Argument | Took |\n|---|---|---|---:|---:|\n");
+        long resetStart = Long.MAX_VALUE;
+        long resetEnd = Long.MIN_VALUE;
+        for (String[] action : actions) {
+            report.append(String.format(Locale.ROOT, "| %s | %s | `%s` | %s | %,d ms |%n", action[2],
+                    action[3].isEmpty() ? "–" : "`" + action[3] + "`", action[4],
+                    action[2].equals("unload") ? "–" : String.format(Locale.ROOT, "%,d", Long.parseLong(action[5])),
+                    Long.parseLong(action[6])));
+            if (action[2].equals("reset")) {
+                resetStart = Math.min(resetStart, Long.parseLong(action[0]));
+                resetEnd = Math.max(resetEnd, Long.parseLong(action[1]));
+            }
+        }
+        if (resetStart <= resetEnd && storageRequests != null && !storageRequests.reads().isEmpty()) {
+            long reads = storageRequests.reads(resetStart, resetEnd);
+            report.append(String.format(Locale.ROOT, "%nDuring the resets, the storage served %,d reads of objects,"
+                    + " %,.1f MB in ranged reads.%n", reads,
+                    storageRequests.rangeBytes(resetStart, resetEnd) / (1024.0 * 1024.0)));
+        }
+    }
+
+    /**
+     * The launcher's seeks to random publish times ({@code offload.seeks}): how long a reset by timestamp, and reading
+     * the message at its position, took, and with the storage's request log the reads of offloaded data that they made.
+     */
+    static void appendSeeks(StringBuilder report, Path seeks, StorageRequests storageRequests) throws IOException {
+        if (!Files.isRegularFile(seeks)) {
+            return;
+        }
+        List<String> lines = Files.readAllLines(seeks);
+        List<Long> resets = new ArrayList<>();
+        List<Long> peeks = new ArrayList<>();
+        long first = Long.MAX_VALUE;
+        long last = Long.MIN_VALUE;
+        for (String line : lines.subList(Math.min(1, lines.size()), lines.size())) {
+            String[] fields = line.split(",", -1);
+            if (fields.length != 8) {
+                continue;
+            }
+            first = Math.min(first, Long.parseLong(fields[1]));
+            last = Math.max(last, Long.parseLong(fields[2]));
+            resets.add(Long.parseLong(fields[5]));
+            long peek = Long.parseLong(fields[6]);
+            if (peek >= 0) {
+                peeks.add(peek);
+            }
+        }
+        if (resets.isEmpty()) {
+            return;
+        }
+        report.append(String.format(Locale.ROOT, "%n## Seeks%n%nThe launcher's %,d seeks to random publish times after"
+                + " the workloads, in %.1f s: each a reset of a subscription by timestamp, which searches the topic's"
+                + " ledgers, offloaded or not, by publish time%s. `%s` has each one.%n%n"
+                + "| | Seeks | p50 | p90 | p99 | Max | Mean |%n|---|---:|---:|---:|---:|---:|---:|%n",
+                resets.size(), (last - first) / 1000.0,
+                peeks.isEmpty() ? "" : ", and a read of the message at the new position", SEEKS_FILE));
+        appendLatencyRow(report, "Reset by timestamp", resets);
+        if (!peeks.isEmpty()) {
+            appendLatencyRow(report, "Read of the message", peeks);
+        }
+        if (storageRequests != null && !storageRequests.reads().isEmpty()) {
+            long reads = storageRequests.reads(first, last);
+            report.append(String.format(Locale.ROOT, "%nDuring the seeks, the storage served %,d reads of objects,"
+                    + " %.2f per seek, %,.1f MB in ranged reads.%n", reads, (double) reads / resets.size(),
+                    storageRequests.rangeBytes(first, last) / (1024.0 * 1024.0)));
+        }
+    }
+
+    private static void appendLatencyRow(StringBuilder report, String name, List<Long> micros) {
+        List<Long> sorted = new ArrayList<>(micros);
+        sorted.sort(null);
+        double mean = sorted.stream().mapToLong(Long::longValue).average().orElse(0);
+        report.append(String.format(Locale.ROOT, "| %s | %,d | %s | %s | %s | %s | %s |%n", name, sorted.size(),
+                microsAsMillis(percentile(sorted, 0.5)), microsAsMillis(percentile(sorted, 0.9)),
+                microsAsMillis(percentile(sorted, 0.99)), microsAsMillis(sorted.get(sorted.size() - 1)),
+                microsAsMillis(Math.round(mean))));
+    }
+
+    // The nearest-rank percentile of sorted values
+    private static long percentile(List<Long> sorted, double quantile) {
+        int rank = (int) Math.ceil(quantile * sorted.size());
+        return sorted.get(Math.max(0, Math.min(sorted.size() - 1, rank - 1)));
+    }
+
+    private static String microsAsMillis(long micros) {
+        return String.format(Locale.ROOT, "%,.1f ms", micros / 1000.0);
+    }
+
+    /**
+     * The reads of objects that the offload storage served, from its request log: SeaweedFS's level 4 log, in UTC, with
+     * an access line for each request and a line with the range of each ranged read. The lines of a request aren't
+     * correlated, so the ranges' bytes are counted by their own times.
+     *
+     * @param reads the times of the reads of objects, in epoch milliseconds
+     * @param ranges the times of the ranged reads, in epoch milliseconds, and their ranges' bytes
+     * @param cutShort whether the launcher cut the log short, so that it has fewer requests than the storage served
+     */
+    record StorageRequests(List<Long> reads, List<long[]> ranges, boolean cutShort) {
+        // I1013 11:22:55.724973 stats.go:42 "performance" GET "/pulsar/object" 206 4.378522ms
+        private static final Pattern ACCESS = Pattern.compile("^I(\\d\\d)(\\d\\d)"
+                + " (\\d\\d):(\\d\\d):(\\d\\d)\\.(\\d{3})\\d* +stats\\.go:\\d+\\]?"
+                + " \"[^\"]*\" GET \"/[^/\"]+/[^\"]+\" (\\d+) ");
+        // I1013 11:22:55.720111 s3api_object_handlers.go:981 streamFromVolumeServers: ..., isRange=true, ..., size=N
+        private static final Pattern RANGE = Pattern.compile("^I(\\d\\d)(\\d\\d)"
+                + " (\\d\\d):(\\d\\d):(\\d\\d)\\.(\\d{3})\\d* .*isRange=true, offset=\\d+, size=(\\d+)");
+
+        /**
+         * The requests of the log, or null without a log. Its times have no year: each takes the year that puts it
+         * nearest {@code referenceEpochMs}, such as the measurement's start, so that a run across a new year counts
+         * right.
+         */
+        static StorageRequests read(Path log, long referenceEpochMs) throws IOException {
+            if (!Files.isRegularFile(log)) {
+                return null;
+            }
+            long reference = referenceEpochMs > 0 ? referenceEpochMs : System.currentTimeMillis();
+            List<Long> reads = new ArrayList<>();
+            List<long[]> ranges = new ArrayList<>();
+            boolean cutShort = false;
+            try (Stream<String> lines = Files.lines(log)) {
+                for (String line : (Iterable<String>) lines::iterator) {
+                    if (line.equals(CUT_SHORT_LOG_LINE)) {
+                        cutShort = true;
+                        continue;
+                    }
+                    Matcher range = RANGE.matcher(line);
+                    if (range.find()) {
+                        ranges.add(new long[] {epochMs(range, reference), Long.parseLong(range.group(7))});
+                        continue;
+                    }
+                    Matcher access = ACCESS.matcher(line);
+                    if (access.find() && access.group(7).startsWith("2")) {
+                        reads.add(epochMs(access, reference));
+                    }
+                }
+            }
+            return new StorageRequests(reads, ranges, cutShort);
+        }
+
+        // The month, day, time and milliseconds of the match, in the year nearest the reference
+        private static long epochMs(Matcher match, long reference) {
+            int referenceYear = Instant.ofEpochMilli(reference).atZone(ZoneOffset.UTC).getYear();
+            long nearest = Long.MIN_VALUE;
+            for (int year = referenceYear - 1; year <= referenceYear + 1; year++) {
+                long epochMs;
+                try {
+                    epochMs = LocalDateTime.of(year, Integer.parseInt(match.group(1)),
+                            Integer.parseInt(match.group(2)), Integer.parseInt(match.group(3)),
+                            Integer.parseInt(match.group(4)), Integer.parseInt(match.group(5)))
+                            .toInstant(ZoneOffset.UTC).toEpochMilli() + Integer.parseInt(match.group(6));
+                } catch (DateTimeException e) {
+                    // February 29 of a year that hasn't one
+                    continue;
+                }
+                if (nearest == Long.MIN_VALUE || Math.abs(epochMs - reference) < Math.abs(nearest - reference)) {
+                    nearest = epochMs;
+                }
+            }
+            return nearest;
+        }
+
+        long reads(long fromEpochMs, long toEpochMs) {
+            return reads.stream().filter(time -> time >= fromEpochMs && time <= toEpochMs).count();
+        }
+
+        long rangeBytes(long fromEpochMs, long toEpochMs) {
+            return ranges.stream().filter(range -> range[0] >= fromEpochMs && range[0] <= toEpochMs)
+                    .mapToLong(range -> range[1]).sum();
         }
     }
 
@@ -868,9 +1161,11 @@ public final class RunReport {
                 totalDispatched[round] += rates[round];
             }
         }
-        report.append("\n## Backlog and rates\n\nSampled once per second from the broker's topic stats; the rates are"
-                + " per-second deltas of its message counters, and a sampled maximum is not the exact peak"
-                + " between samples. The rates are those of the whole seconds within the measurement (0 to ")
+        report.append("\n## Backlog and rates\n\nSampled from the broker's topic stats once per second, or every"
+                + " topics / 100 seconds with more than 100 topics; the rates are the deltas of its message counters"
+                + " per second between samples, and a sampled maximum is not the exact peak between samples."
+                + " The backlogs are in entries, as the broker counts them: a batch counts once, however many"
+                + " messages it has. The rates are those of the whole seconds within the measurement (0 to ")
                 .append(String.format(Locale.ROOT, "%.1f", finished))
                 .append(" s), leaving out its first and last second, where the gateways start and finish. The")
                 .append(" [sampled topic stats](").append(TOPIC_STATS_FILE).append(") are a CSV file.\n\n")
@@ -918,10 +1213,51 @@ public final class RunReport {
         List<TimeSeriesRenderer.Series> backlog = samples.backlog().entrySet().stream()
                 .map(entry -> new TimeSeriesRenderer.Series(entry.getKey(), timeline.select(entry.getValue())))
                 .toList();
-        TimeSeriesRenderer.render(runDirectory.resolve(BACKLOG_CHART), "Backlog", "Messages in the backlog",
+        TimeSeriesRenderer.render(runDirectory.resolve(BACKLOG_CHART), "Backlog", "Entries in the backlog",
                 timeline.seconds(), backlog, finished, timeline.cut(), footer);
         report.append("\n![Throughput over time](").append(THROUGHPUT_CHART).append(".svg)\n\n![Backlog over time](")
                 .append(BACKLOG_CHART).append(".svg)\n");
+        appendReplay(report, runDirectory, samples, seconds, finished, timeline, footer);
+    }
+
+    // The replay queues, of the subscriptions that had entries in replay during the measurement, such as the
+    // Key_Shared entries held back for a consumer without permits and the entries of a closed consumer. The broker
+    // counts the replay queue's positions, entries, so that a batch counts once
+    private static void appendReplay(StringBuilder report, Path runDirectory, Samples samples, double[] seconds,
+                                     double finished, ChartTimeline timeline, String footer) throws IOException {
+        StringBuilder rows = new StringBuilder();
+        List<TimeSeriesRenderer.Series> series = new ArrayList<>();
+        for (Map.Entry<String, double[]> entry : samples.replay().entrySet()) {
+            double[] window = new double[seconds.length];
+            int count = 0;
+            for (int round = 0; round < seconds.length; round++) {
+                if (seconds[round] >= 0 && seconds[round] <= finished && !Double.isNaN(entry.getValue()[round])) {
+                    window[count++] = entry.getValue()[round];
+                }
+            }
+            double[] sorted = Arrays.copyOf(window, count);
+            Arrays.sort(sorted);
+            if (count == 0 || sorted[count - 1] == 0) {
+                continue;
+            }
+            double mean = Arrays.stream(sorted).average().orElse(0);
+            rows.append(String.format(Locale.ROOT, "| `%s` | %,.0f | %,.0f | %,.0f |%n", entry.getKey(), mean,
+                    sorted[count / 2], sorted[count - 1]));
+            series.add(new TimeSeriesRenderer.Series(entry.getKey(), timeline.select(entry.getValue())));
+        }
+        if (series.isEmpty()) {
+            return;
+        }
+        TimeSeriesRenderer.render(runDirectory.resolve(REPLAY_CHART), "Replay queue", "Entries in replay",
+                timeline.seconds(), series, finished, timeline.cut(), footer);
+        report.append("\nThe entries in each subscription's replay queue, summed over its topics, sampled during the")
+                .append(" measurement: the entries that the broker holds back to dispatch again, such as a closed")
+                .append(" consumer's unacknowledged entries and, with Key_Shared, the entries of the keys whose")
+                .append(" consumer has no permits. Like the backlog, it is in entries, as is the look-ahead limit")
+                .append(" (`keySharedLookAheadMsgInReplayThresholdPerConsumer`).\n\n")
+                .append("| Subscription | Mean | Median | Sampled maximum |\n")
+                .append("|---|---:|---:|---:|\n").append(rows)
+                .append("\n![Replay queue over time](").append(REPLAY_CHART).append(".svg)\n");
     }
 
     private static void appendHost(StringBuilder report, Path runDirectory, HostSamples samples, HostSummary host,
@@ -1217,6 +1553,15 @@ public final class RunReport {
         return producer.has(field) ? producer.path(field).asLong() : configured;
     }
 
+    /** Whether the gateways batch, with the batching delay when the scenario sets one. */
+    static String batching(JsonNode producerSettings) {
+        if (!producerSettings.path("batchingEnabled").asBoolean()) {
+            return "off";
+        }
+        JsonNode delay = producerSettings.path("batchingMaxPublishDelayMillis");
+        return delay.isNumber() ? "on, " + delay.asInt() + " ms delay" : "on";
+    }
+
     /**
      * Reads {@code topic-stats.csv} into per-round published and dispatched rates and backlogs. The dispatched rates
      * and the backlogs are those of each subscription, summed over its topics: an application consumes all of its
@@ -1228,13 +1573,15 @@ public final class RunReport {
         TreeMap<Long, Map<String, Long>> inCounters = new TreeMap<>();
         TreeMap<Long, Map<List<String>, long[]>> subscriptions = new TreeMap<>();
         List<String> lines = Files.readAllLines(csv);
+        // a file sampled before the replay column existed has none
+        boolean hasReplay = !lines.isEmpty() && lines.get(0).split(",").length > 6;
         for (String line : lines.subList(1, lines.size())) {
             String[] fields = line.split(",");
             long epoch = Long.parseLong(fields[0]);
             inCounters.computeIfAbsent(epoch, e -> new LinkedHashMap<>()).put(fields[1], Long.parseLong(fields[4]));
             subscriptions.computeIfAbsent(epoch, e -> new HashMap<>())
                     .put(List.of(fields[1], fields[2]), new long[] {Long.parseLong(fields[3]),
-                            Long.parseLong(fields[5])});
+                            Long.parseLong(fields[5]), fields.length > 6 ? Long.parseLong(fields[6]) : 0});
         }
         long[] epochs = inCounters.keySet().stream().mapToLong(Long::longValue).toArray();
         int rounds = epochs.length;
@@ -1242,11 +1589,16 @@ public final class RunReport {
         Arrays.fill(published, Double.NaN);
         Map<String, double[]> dispatched = new TreeMap<>();
         Map<String, double[]> backlog = new TreeMap<>();
+        Map<String, double[]> replay = new TreeMap<>();
         for (int round = 0; round < rounds; round++) {
             Map<List<String>, long[]> current = subscriptions.get(epochs[round]);
             for (Map.Entry<List<String>, long[]> entry : current.entrySet()) {
                 double[] values = backlog.computeIfAbsent(entry.getKey().get(1), k -> nanArray(rounds));
                 values[round] = (Double.isNaN(values[round]) ? 0 : values[round]) + entry.getValue()[0];
+                if (hasReplay) {
+                    double[] inReplay = replay.computeIfAbsent(entry.getKey().get(1), k -> nanArray(rounds));
+                    inReplay[round] = (Double.isNaN(inReplay[round]) ? 0 : inReplay[round]) + entry.getValue()[2];
+                }
                 dispatched.computeIfAbsent(entry.getKey().get(1), k -> nanArray(rounds));
             }
             if (round == 0) {
@@ -1283,7 +1635,7 @@ public final class RunReport {
                 }
             }
         }
-        return new Samples(epochs, published, dispatched, backlog);
+        return new Samples(epochs, published, dispatched, backlog, replay);
     }
 
     private static double[] nanArray(int length) {

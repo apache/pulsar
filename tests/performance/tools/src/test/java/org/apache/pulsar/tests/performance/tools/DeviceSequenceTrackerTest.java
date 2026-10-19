@@ -19,6 +19,7 @@
 package org.apache.pulsar.tests.performance.tools;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import java.io.DataInputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -38,6 +39,24 @@ public class DeviceSequenceTrackerTest {
     }
 
     @Test
+    public void startsAtEachDevicesFirstSequenceAfterSkippedMessages() {
+        DeviceSequenceTracker tracker = new DeviceSequenceTracker(3, true, true);
+        tracker.received(0, 5);
+        tracker.received(0, 6);
+        tracker.received(1, 0);
+        tracker.received(1, 1);
+        // a gap after the first message is still a violation
+        tracker.received(2, 3);
+        tracker.received(2, 5);
+
+        assertThat(tracker.uniqueMessages()).isEqualTo(6);
+        assertThat(tracker.summary().orderingViolations()).isEqualTo(1);
+        // an earlier sequence than the first is a duplicate
+        tracker.received(0, 4);
+        assertThat(tracker.summary().duplicates()).isEqualTo(1);
+    }
+
+    @Test
     public void rejectsGapAndInvalidDevice() {
         DeviceSequenceTracker tracker = new DeviceSequenceTracker(1);
         tracker.received(0, 1);
@@ -50,6 +69,58 @@ public class DeviceSequenceTrackerTest {
         assertThat(tracker.summary().uniqueMessages()).isEqualTo(2);
         assertThat(tracker.summary().invalidMessages()).isEqualTo(1);
         assertThat(tracker.summary().valid()).isFalse();
+    }
+
+    @Test
+    public void acceptsAnyOrderWithoutTheOrderingCheck() throws Exception {
+        // A Shared subscription delivers a device's messages in any order
+        DeviceSequenceTracker tracker = new DeviceSequenceTracker(1, false, false);
+        tracker.received(0, 2);
+        tracker.received(0, 0);
+        tracker.received(0, 2);
+        tracker.received(0, 1);
+        tracker.received(0, 1);
+
+        assertThat(tracker.summary()).isEqualTo(new DeviceSequenceTracker.Summary(3, 2, 0, 0, 0, 0));
+        assertThat(tracker.summary().valid()).isTrue();
+        Path samples = Files.createTempFile("ordering-violations", ".txt");
+        try {
+            tracker.writeViolationSamples(samples);
+            assertThat(Files.readAllLines(samples)).isEmpty();
+        } finally {
+            Files.deleteIfExists(samples);
+        }
+    }
+
+    @Test
+    public void persistsTheContiguousPrefixWithoutTheOrderingCheck() throws Exception {
+        // The persisted state is each device's next expected sequence, which the launcher compares with the gateways'
+        // sequences to find lost messages: a gap that stays open keeps it at the gap
+        DeviceSequenceTracker tracker = new DeviceSequenceTracker(2, false, false);
+        tracker.received(0, 2);
+        tracker.received(0, 0);
+        tracker.received(1, 1);
+        assertThat(readState(tracker)).containsExactly(1, 0);
+        tracker.received(0, 1);
+        tracker.received(1, 0);
+        assertThat(readState(tracker)).containsExactly(3, 2);
+    }
+
+    private static long[] readState(DeviceSequenceTracker tracker) throws Exception {
+        Path state = Files.createTempFile("device-sequences", ".bin");
+        try {
+            tracker.writeState(state);
+            try (var input = new DataInputStream(Files.newInputStream(state))) {
+                input.readInt();
+                long[] nextExpected = new long[input.readInt()];
+                for (int i = 0; i < nextExpected.length; i++) {
+                    nextExpected[i] = input.readLong();
+                }
+                return nextExpected;
+            }
+        } finally {
+            Files.deleteIfExists(state);
+        }
     }
 
     @Test

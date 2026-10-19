@@ -277,7 +277,7 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
             Thread.currentThread().interrupt();
             throw new PulsarClientException("Close interrupted", e);
         } catch (ExecutionException e) {
-            throw new PulsarClientException(e.getCause());
+            throw V5ExceptionMappings.toV5Exception(e);
         }
     }
 
@@ -319,7 +319,8 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
                             : CompletableFuture.completedFuture(null)));
         }
         return CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new))
-                .whenComplete((__, ___) -> segmentReaders.clear());
+                .whenComplete((__, ___) -> segmentReaders.clear())
+                .exceptionallyCompose(V5ExceptionMappings::failWithV5Exception);
     }
 
     // --- Assignment change handling ---

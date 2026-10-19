@@ -114,6 +114,9 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
         conf.setBrokerDeleteInactivePartitionedTopicMetadataEnabled(true);
         conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
+        // A single admin client connection per broker: before the fix for #24879, the per-partition deletes
+        // queued behind the broker's own delete-partitioned-topic request and the metadata was never deleted
+        conf.getProperties().put("brokerClient_connectionsPerBroker", 1);
         super.baseSetup();
 
         final String topic = "persistent://prop/ns-abc/testDeleteWhenNoSubscriptions";
@@ -634,6 +637,23 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(()->{
             assertFalse(conf.isBrokerDeleteInactiveTopicsEnabled());
         });
+    }
+
+    @Test
+    public void testEnableBrokerDeleteInactiveTopicsDynamically() throws Exception {
+        conf.setBrokerDeleteInactiveTopicsEnabled(false);
+        conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
+        conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
+        conf.setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(1);
+        super.baseSetup();
+
+        // Loaded while deletion is disabled, so the topic itself must pick up the change.
+        final String topic = "persistent://prop/ns-abc/testEnableBrokerDeleteInactiveTopicsDynamically";
+        pulsarClient.newProducer().topic(topic).create().close();
+        assertTrue(pulsar.getBrokerService().getTopicReference(topic).isPresent());
+
+        admin.brokers().updateDynamicConfiguration("brokerDeleteInactiveTopicsEnabled", "true");
+        Awaitility.await().untilAsserted(() -> assertFalse(admin.topics().getList("prop/ns-abc").contains(topic)));
     }
 
     @Test

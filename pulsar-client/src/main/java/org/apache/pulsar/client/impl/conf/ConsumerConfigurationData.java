@@ -453,10 +453,27 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     }
 
     public ConsumerConfigurationData<T> clone() {
+        ConsumerConfigurationData<T> c = shallowClone();
+        c.topicNames = Sets.newTreeSet(this.topicNames);
+        return c;
+    }
+
+    /**
+     * Clones the configuration for one topic: the clone's topic names are only {@code topicName}. A multi-topic
+     * consumer creates a consumer of each of its topics with such a clone, without copying the names of all the
+     * other topics into each of them.
+     */
+    public ConsumerConfigurationData<T> cloneForTopic(String topicName) {
+        ConsumerConfigurationData<T> c = shallowClone();
+        c.topicNames = new TreeSet<>();
+        c.topicNames.add(topicName);
+        return c;
+    }
+
+    private ConsumerConfigurationData<T> shallowClone() {
         try {
             @SuppressWarnings("unchecked")
             ConsumerConfigurationData<T> c = (ConsumerConfigurationData<T>) super.clone();
-            c.topicNames = Sets.newTreeSet(this.topicNames);
             c.properties = new TreeMap<>(this.properties);
             return c;
         } catch (CloneNotSupportedException e) {

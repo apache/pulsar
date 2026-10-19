@@ -1896,7 +1896,8 @@ public class PulsarClientImpl implements PulsarClient {
                     blockingAuthExecutor());
         } else {
             lookupService = new BinaryProtoLookupService(this, url, conf.getListenerName(), conf.isUseTls(),
-                    this.scheduledExecutorProvider.getExecutor(), this.lookupExecutorProvider.getExecutor());
+                    (ScheduledExecutorService) this.scheduledExecutorProvider.getExecutor(),
+                    this.lookupExecutorProvider.getExecutor());
         }
         return new InProgressDeduplicationDecoratorLookupService(lookupService,
                 () -> getConfiguration().getLookupProperties());
