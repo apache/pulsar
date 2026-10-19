@@ -309,9 +309,11 @@ public class RunReportTest {
             // sub-0 carries a warmup backlog before the measurement, which its maximum leaves out
             csv.append(epoch).append(",persistent://public/default/t-0,sub-0,")
                     .append(round == 0 ? 900_000 : in[round] - out0[round])
-                    .append(',').append(in[round]).append(',').append(out0[round]).append('\n');
+                    .append(',').append(in[round]).append(',').append(out0[round]).append(",0\n");
+            // sub-1 holds entries in replay while it stalls
             csv.append(epoch).append(",persistent://public/default/t-0,sub-1,").append(in[round] - out1[round])
-                    .append(',').append(in[round]).append(',').append(out1[round]).append('\n');
+                    .append(',').append(in[round]).append(',').append(out1[round]).append(',')
+                    .append(round == 3 ? 4000 : 0).append('\n');
         }
         Files.writeString(run.resolve(RunReport.TOPIC_STATS_FILE), csv);
         Files.writeString(run.resolve("scenario.yaml"), "extends: base.yaml\n");
@@ -427,6 +429,10 @@ public class RunReportTest {
         assertThat(report).contains("| Dispatched msg/s, all subscriptions | 250,000 | 100,000 |");
         assertThat(report).contains("| `sub-1` | 100,000 | 2 s | 50,000 |");
         assertThat(report).contains("| `sub-0` | 0 | 0 s | 0 |");
+        // Only sub-1 had entries in replay, sampled at most 4,000
+        assertThat(report).containsPattern("\\| `sub-1` \\| [0-9,]+ \\| 0 \\| 4,000 \\|\n");
+        assertThat(report).contains("](replay.svg)");
+        assertThat(run.resolve("replay.svg")).isRegularFile();
         // The report shows the SVG charts; each also has a PNG beside it
         for (String chart : new String[] {"latency-percentiles.svg", "latency-timeline.svg", "throughput.svg",
                 "backlog.svg"}) {
@@ -760,6 +766,20 @@ public class RunReportTest {
         assertThat(samples.published()[2]).isEqualTo(80.0);
         assertThat(samples.dispatched().get("s")[2]).isEqualTo(110.0);
         assertThat(samples.backlog().get("s")[1]).isEqualTo(50.0);
+    }
+
+    @Test
+    public void readsTheReplayQueuesWhenSampled() throws IOException {
+        Files.writeString(run.resolve(RunReport.TOPIC_STATS_FILE), RunReport.TOPIC_STATS_HEADER + "\n"
+                + "1000,t-0,a,0,0,0,5\n1000,t-1,a,0,0,0,7\n2000,t-0,a,0,10,10,0\n2000,t-1,a,0,10,10,1\n");
+
+        assertThat(RunReport.readSamples(run.resolve(RunReport.TOPIC_STATS_FILE)).replay().get("a"))
+                .containsExactly(12.0, 1.0);
+
+        // a file sampled before the replay column existed
+        Files.writeString(run.resolve(RunReport.TOPIC_STATS_FILE),
+                "epochMillis,topic,subscription,msgBacklog,msgInCounter,msgOutCounter\n1000,t,s,0,0,0\n");
+        assertThat(RunReport.readSamples(run.resolve(RunReport.TOPIC_STATS_FILE)).replay()).isEmpty();
     }
 
     @Test

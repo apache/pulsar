@@ -234,6 +234,53 @@ public class IotScenarioTest {
     }
 
     @Test
+    public void validatesThePodPauses() {
+        assertThat(withBehaviors(null).behaviors().podPauses().enabled()).isFalse();
+        assertThat(withBehaviors(new IotScenario.Behaviors(null, new IotScenario.PodPauses(15, 0.1, 5000)))
+                .behaviors().podPauses().enabled()).isTrue();
+        assertThatThrownBy(() -> withBehaviors(new IotScenario.Behaviors(null,
+                new IotScenario.PodPauses(5, 0.1, 5000))))
+                .hasMessageContaining("behaviors.podPauses.pauseMillis must be shorter than intervalSeconds");
+        assertThatThrownBy(() -> withBehaviors(new IotScenario.Behaviors(null,
+                new IotScenario.PodPauses(15, 1.5, 5000))))
+                .hasMessageContaining("fraction must be from 0 to 1");
+        // a scenario file with restarts only has no pauses
+        IotScenario.Behaviors fromYaml = new YamlScenarioLoader().mapper().convertValue(
+                Map.of("podRestarts", Map.of("intervalSeconds", 30, "fraction", 0.1)), IotScenario.Behaviors.class);
+        assertThat(withBehaviors(fromYaml).behaviors().podPauses().enabled()).isFalse();
+    }
+
+    private static IotScenario withBehaviors(IotScenario.Behaviors behaviors) {
+        return new IotScenario("pulsar://localhost:6650", new IotScenario.Warmup(0, 0, 1, 0),
+                new IotScenario.Measurement(120, 1_000), 0, new IotScenario.Payload(64),
+                new IotScenario.Devices(1_000),
+                new IotScenario.Gateways(10, new IotScenario.Producer(2, 2, 100, true, true, null), null),
+                new IotScenario.Topics(2, "persistent://public/default/iot-"),
+                new IotScenario.Applications(1, 2, "app-", new IotScenario.Client(2, 2), null), behaviors, 300);
+    }
+
+    @Test
+    public void choosesTheKeyType() {
+        assertThat(withDevices(new IotScenario.Devices(1_000)).stringKeys()).isFalse();
+        assertThat(withDevices(new IotScenario.Devices(1_000, "bytes")).stringKeys()).isFalse();
+        assertThat(withDevices(new IotScenario.Devices(1_000, "string")).stringKeys()).isTrue();
+        assertThatThrownBy(() -> withDevices(new IotScenario.Devices(1_000, "long")))
+                .hasMessageContaining("devices.keyType must be one of [bytes, string], not long");
+        // a scenario file without the setting keeps binary keys
+        IotScenario.Devices fromYaml = new YamlScenarioLoader().mapper().convertValue(Map.of("count", 1_000),
+                IotScenario.Devices.class);
+        assertThat(withDevices(fromYaml).stringKeys()).isFalse();
+    }
+
+    private static IotScenario withDevices(IotScenario.Devices devices) {
+        return new IotScenario("pulsar://localhost:6650", new IotScenario.Warmup(0, 0, 1, 0),
+                new IotScenario.Measurement(120, 1_000), 0, new IotScenario.Payload(64), devices,
+                new IotScenario.Gateways(10, new IotScenario.Producer(2, 2, 100, true, true, null), null),
+                new IotScenario.Topics(2, "persistent://public/default/iot-"),
+                new IotScenario.Applications(1, 2, "app-", new IotScenario.Client(2, 2), null), null, 300);
+    }
+
+    @Test
     public void rejectsInvalidJoinSettings() {
         assertThatThrownBy(() -> scenario(new IotScenario.Applications(3, 2, "app-", new IotScenario.Client(2, 2),
                 null, List.of(0, 20), null))).hasMessageContaining("a value for each of the 3 applications");

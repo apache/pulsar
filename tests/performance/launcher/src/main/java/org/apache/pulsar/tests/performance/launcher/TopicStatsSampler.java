@@ -45,10 +45,10 @@ import org.apache.pulsar.tests.performance.report.RunReport;
 
 /**
  * Samples the workload topics' stats once per second, or less often with many topics, into {@code topic-stats.csv}:
- * each subscription's backlog, the
- * topic's published-message counter and the subscription's dispatched-message counter. The report derives
- * per-second publish and dispatch rates from the counter deltas, because the broker's own rates refresh only once
- * per stats interval, and the sampled maximum backlog, which is not the exact peak between samples.
+ * each subscription's backlog, the topic's published-message counter, the subscription's dispatched-message counter
+ * and the entries in its replay queue. The report derives per-second publish and dispatch rates from the counter
+ * deltas, because the broker's own rates refresh only once per stats interval, and the sampled maximum backlog, which
+ * is not the exact peak between samples.
  *
  * <p>One sample is one REST call per topic, all topics in parallel, that reads the broker's in-memory counters and its
  * estimated backlog (the default, not the precise backlog that scans the ledger), without the stats of the topic's
@@ -212,7 +212,8 @@ final class TopicStatsSampler implements AutoCloseable {
                     rows.append(',').append(topic).append(',').append(subscription.getKey()).append(',')
                             .append(subscription.getValue().getMsgBacklog()).append(',')
                             .append(stats.getMsgInCounter()).append(',')
-                            .append(subscription.getValue().getMsgOutCounter()).append('\n');
+                            .append(subscription.getValue().getMsgOutCounter()).append(',')
+                            .append(subscription.getValue().getMsgInReplay()).append('\n');
                 }
                 if (replicationWriter != null) {
                     for (Map.Entry<String, ? extends ReplicatorStats> replicator : stats.getReplication().entrySet()) {
