@@ -89,6 +89,8 @@ public class ScalableTopicStats {
     @NoArgsConstructor
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class AutoScaleStats {
+        /** Effective policy, absent when it could not be collected. */
+        @JsonInclude(JsonInclude.Include.NON_NULL)
         private AutoScalePolicyOverride policy;
 
         /**
@@ -122,7 +124,12 @@ public class ScalableTopicStats {
         private String trigger;
         /** Source segments operated on. */
         private List<Long> segmentIds = new ArrayList<>();
-        /** success, failure or partial (sources sealed or layout pruned before failure). */
+        /**
+         * success, failure or partial. A split, merge or rebucket is partial only when a source
+         * was sealed but the layout was not committed; a prune is partial when the layout was
+         * pruned but backing storage remains. Errors after a split/merge/rebucket layout commit
+         * (for example during refresh or notification) are failures, not partial layout changes.
+         */
         private String status;
         /** Completion time (ISO-8601). */
         private String at;
@@ -152,7 +159,11 @@ public class ScalableTopicStats {
         /** Current layout epoch, incremented on every split, merge, rebucket or prune. */
         private long epoch;
 
-        /** Last operation in this controller leadership term; absent before any operation. */
+        /**
+         * Latest completed operation in this controller leadership term, including automatic prune.
+         * Later operations replace earlier outcomes, including failures; this is not failure history.
+         * Absent before any operation completes.
+         */
         @JsonInclude(JsonInclude.Include.NON_NULL)
         private LayoutOperationStats lastOperation;
 
@@ -198,7 +209,10 @@ public class ScalableTopicStats {
         @JsonInclude(JsonInclude.Include.NON_NULL)
         private SegmentLoadStats load;
 
-        /** Whether the backing topic is terminated; null when its stats could not be collected. */
+        /**
+         * Whether the backing topic is terminated; absent when stats could not be collected
+         * or an older owning broker did not report termination state.
+         */
         @JsonInclude(JsonInclude.Include.NON_NULL)
         private Boolean terminated;
 

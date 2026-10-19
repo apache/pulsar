@@ -43,8 +43,9 @@ public class SegmentTopicStats {
     /** Broker currently serving the segment. */
     private String ownerBroker;
 
-    /** Whether the segment's backing topic is terminated (sealed). */
-    private boolean terminated;
+    /** Whether the backing topic is terminated (sealed), absent when an older broker did not report it. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private Boolean terminated;
 
     /** Rate of messages published on the segment (msg/s). */
     private double msgRateIn;

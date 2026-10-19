@@ -40,18 +40,18 @@ public final class SegmentTopicStatsBuilder {
     private SegmentTopicStatsBuilder() {
     }
 
-    /** Converts topic stats without backing-topic state, defaulting termination to {@code false}. */
+    /** Converts topic stats without backing-topic state, leaving termination unknown. */
     public static SegmentTopicStats fromTopicStats(TopicStats ts) {
-        return fromTopicStats(ts, false);
+        return fromTopicStats(ts, null);
     }
 
     /** Converts topic stats without dispatcher capabilities; bucket handoffs default to zero. */
-    public static SegmentTopicStats fromTopicStats(TopicStats ts, boolean terminated) {
+    public static SegmentTopicStats fromTopicStats(TopicStats ts, Boolean terminated) {
         return fromTopicStats(ts, terminated, Map.of());
     }
 
     /** Converts topic stats with the actual subscriptions of the segment's backing topic. */
-    public static SegmentTopicStats fromTopicStats(TopicStats ts, boolean terminated,
+    public static SegmentTopicStats fromTopicStats(TopicStats ts, Boolean terminated,
                                                   Map<String, ? extends Subscription> subscriptions) {
         SegmentTopicStats stats = new SegmentTopicStats();
         stats.setOwnerBroker(ts.getOwnerBroker());

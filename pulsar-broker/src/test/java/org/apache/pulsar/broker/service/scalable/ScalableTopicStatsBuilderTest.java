@@ -22,6 +22,8 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +34,7 @@ import org.apache.pulsar.common.policies.data.ScalableSubscriptionType;
 import org.apache.pulsar.common.policies.data.ScalableTopicStats;
 import org.apache.pulsar.common.policies.data.SegmentTopicStats;
 import org.apache.pulsar.common.util.DateFormatter;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.annotations.Test;
 
 /**
@@ -131,6 +134,43 @@ public class ScalableTopicStatsBuilderTest {
         assertEquals(stats.getBacklogSize(), 2_000L);
         assertTrue(stats.getProducers().isEmpty());
         assertTrue(stats.getSubscriptions().isEmpty());
+    }
+
+    @Test
+    public void testOlderSegmentStatsPreserveUnknownTermination() throws Exception {
+        ObjectMapper mapper = ObjectMapperFactory.getMapper().getObjectMapper();
+        SegmentTopicStats older = mapper.readValue(
+                "{\"ownerBroker\":\"older-broker\",\"msgRateIn\":1.5}", SegmentTopicStats.class);
+        SegmentTopicStats roundTrip = mapper.readValue(mapper.writeValueAsString(older), SegmentTopicStats.class);
+        ScalableTopicStats stats = ScalableTopicStatsBuilder.build(
+                TOPIC, splitLayout(), Map.of(1L, roundTrip), Map.of(), Map.of());
+
+        assertNull(stats.getLayout().getSegments().get(1L).getTerminated(),
+                "an older broker's omitted field does not prove the segment is writable");
+        assertEquals(stats.getLayout().getSegments().get(1L).getOwnerBroker(), "older-broker");
+        assertEquals(stats.getMsgRateIn(), 1.5, "unknown termination must not drop available segment stats");
+        JsonNode json = mapper.valueToTree(stats);
+        assertFalse(json.get("layout").get("segments").get("1").has("terminated"));
+        assertFalse(mapper.valueToTree(older).has("terminated"));
+        assertNull(mapper.readValue(mapper.writeValueAsString(stats), ScalableTopicStats.class)
+                .getLayout().getSegments().get(1L).getTerminated());
+    }
+
+    @Test
+    public void testExplicitSegmentTerminationSurvivesRoundTripAndAggregation() throws Exception {
+        ObjectMapper mapper = ObjectMapperFactory.getMapper().getObjectMapper();
+        for (boolean terminated : List.of(false, true)) {
+            SegmentTopicStats segment = mapper.readValue(
+                    "{\"ownerBroker\":\"new-broker\",\"terminated\":" + terminated + "}", SegmentTopicStats.class);
+            SegmentTopicStats roundTrip = mapper.readValue(mapper.writeValueAsString(segment), SegmentTopicStats.class);
+            ScalableTopicStats stats = ScalableTopicStatsBuilder.build(
+                    TOPIC, splitLayout(), Map.of(1L, roundTrip), Map.of(), Map.of());
+
+            assertEquals(stats.getLayout().getSegments().get(1L).getTerminated(), Boolean.valueOf(terminated));
+            JsonNode json = mapper.valueToTree(stats);
+            assertEquals(json.get("layout").get("segments").get("1").get("terminated").booleanValue(), terminated);
+            assertEquals(mapper.valueToTree(roundTrip).get("terminated").booleanValue(), terminated);
+        }
     }
 
     @Test

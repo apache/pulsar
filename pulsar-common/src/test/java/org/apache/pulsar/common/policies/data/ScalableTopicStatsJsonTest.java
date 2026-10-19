@@ -146,10 +146,11 @@ public class ScalableTopicStatsJsonTest {
 
         JsonNode json = toJson(stats);
 
-        assertEquals(keys(json), Set.of("ownerBroker", "terminated", "msgRateIn", "byteRateIn",
+        assertEquals(keys(json), Set.of("ownerBroker", "msgRateIn", "byteRateIn",
                 "msgRateOut", "byteRateOut", "averageMsgSize", "storageSize", "backlogSize", "offloadedStorageSize",
                 "oldestBacklogMessageAgeSeconds", "waitingPublishers", "producers", "subscriptions"));
         assertFalse(json.has("topicCreationTime"), "an unknown creation time is omitted, not null");
+        assertFalse(json.has("terminated"), "unknown termination is omitted, not reported as false");
         assertEquals(keys(json.get("producers").get(0)),
                 Set.of("producerName", "msgRateIn", "byteRateIn", "averageMsgSize"));
         JsonNode s = json.get("subscriptions").get("s");
@@ -162,11 +163,33 @@ public class ScalableTopicStatsJsonTest {
     }
 
     @Test
+    public void testSegmentTerminationTriStateJson() throws Exception {
+        for (Boolean terminated : new Boolean[]{null, Boolean.FALSE, Boolean.TRUE}) {
+            SegmentTopicStats stats = new SegmentTopicStats();
+            stats.setTerminated(terminated);
+            JsonNode json = toJson(stats);
+            if (terminated == null) {
+                assertFalse(json.has("terminated"), "unknown termination must be omitted");
+                assertFalse(new ObjectMapper().valueToTree(stats).has("terminated"),
+                        "field annotation must omit unknown state independently of mapper defaults");
+            } else {
+                assertEquals(json.get("terminated").booleanValue(), terminated.booleanValue());
+            }
+            SegmentTopicStats roundTrip = MAPPER.readValue(MAPPER.writeValueAsString(stats), SegmentTopicStats.class);
+            assertEquals(roundTrip.getTerminated(), terminated, "round trip preserves all three termination states");
+        }
+        assertNull(MAPPER.readValue("{}", SegmentTopicStats.class).getTerminated(),
+                "responses from older brokers do not establish a termination state");
+        assertNull(MAPPER.readValue("{\"terminated\":null}", SegmentTopicStats.class).getTerminated());
+    }
+
+    @Test
     public void testDiagnosticsRoundTripAndOptionalFields() throws Exception {
         ScalableTopicStats stats = new ScalableTopicStats();
         JsonNode empty = toJson(stats);
         assertFalse(empty.has("controllerBroker"));
         assertFalse(empty.get("layout").has("lastOperation"));
+        assertFalse(empty.get("autoScale").has("policy"), "an unavailable policy is omitted, not null");
         assertFalse(empty.get("autoScale").has("blockedReason"));
         assertFalse(empty.get("autoScale").has("lastSplitAt"));
 

@@ -189,7 +189,7 @@ public class SegmentTopicStatsBuilderTest {
         Subscription subscription = mock(Subscription.class);
         when(subscription.getDispatcher()).thenReturn(mock(PersistentEntryBucketDispatcherMultipleConsumers.class));
         SegmentTopicStats stats = SegmentTopicStatsBuilder.fromTopicStats(ts, terminated, Map.of("sub", subscription));
-        assertThat(stats.isTerminated()).as("backing-topic termination state").isEqualTo(terminated);
+        assertThat(stats.getTerminated()).as("backing-topic termination state").isEqualTo(terminated);
         assertThat(stats.getSubscriptions().get("sub").getDrainingBuckets())
                 .as("actual entry-bucket dispatcher normalizes drains to buckets").isEqualTo(drainingBuckets);
 
@@ -232,15 +232,20 @@ public class SegmentTopicStatsBuilderTest {
     }
 
     @Test
-    public void testLegacyStatsDefaultTerminationAndDrainingBuckets() throws Exception {
+    public void testLegacyStatsPreserveUnknownTerminationAndDefaultDrainingBuckets() throws Exception {
         SegmentTopicStats stats = SegmentTopicStatsBuilder.fromTopicStats(topicStats());
-        assertThat(stats.isTerminated()).as("conversion without backing-topic state remains compatible").isFalse();
+        assertThat(stats.getTerminated()).as("conversion without backing-topic state remains unknown").isNull();
         assertThat(stats.getSubscriptions().get("sub").getDrainingBuckets()).isZero();
 
-        SegmentTopicStats restored = ObjectMapperFactory.getMapper().reader().readValue(
+        ObjectMapper mapper = ObjectMapperFactory.getMapper().getObjectMapper();
+        assertThat(mapper.valueToTree(stats).has("terminated")).isFalse();
+        SegmentTopicStats restored = mapper.readValue(
                 "{\"subscriptions\":{\"sub\":{}}}", SegmentTopicStats.class);
-        assertThat(restored.isTerminated()).as("older segment JSON defaults to unterminated").isFalse();
+        assertThat(restored.getTerminated()).as("older segment JSON does not establish termination state").isNull();
         assertThat(restored.getSubscriptions().get("sub").getDrainingBuckets()).isZero();
+        assertThat(mapper.valueToTree(restored).has("terminated")).isFalse();
+        assertThat(SegmentTopicStatsBuilder.fromTopicStats(topicStats(), null).getTerminated()).isNull();
+        assertThat(SegmentTopicStatsBuilder.fromTopicStats(topicStats(), null, Map.of()).getTerminated()).isNull();
     }
 
     @Test

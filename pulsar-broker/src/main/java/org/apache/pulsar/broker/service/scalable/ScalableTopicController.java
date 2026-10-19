@@ -1783,7 +1783,11 @@ public class ScalableTopicController {
         }
         ServiceConfiguration config = brokerConfig();
         CompletableFuture<ResolvedAutoScalePolicy> policy = config == null
-                ? CompletableFuture.completedFuture(null) : resolveAutoScaleConfig(config);
+                ? CompletableFuture.completedFuture(null)
+                : FutureUtil.supplySafely(() -> resolveAutoScaleConfig(config)).exceptionally(ex -> {
+                    log.debug().exceptionMessage(ex).log("Failed to collect auto-scale policy for stats");
+                    return null;
+                });
         return FutureUtil.waitForAll(futures).thenCombine(policy, (__, resolved) -> {
             ScalableTopicStats stats = ScalableTopicStatsBuilder.build(topicName, layout, segmentStats,
                     persistedTypes, streamConsumers, blockedSegments, checkpointGroups);

@@ -20,7 +20,6 @@ package org.apache.pulsar.client.api.v5;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
@@ -310,12 +309,12 @@ public class V5ScalableTopicStatsTest extends V5ClientBaseTest {
         // The sealed (terminated) parent is still a real topic with stats of its own.
         SegmentTopicStats parentStats = admin.scalableTopics().getSegmentStats(topic, 0L);
         assertNotNull(parentStats.getOwnerBroker());
-        assertTrue(parentStats.isTerminated());
+        assertEquals(parentStats.getTerminated(), Boolean.TRUE);
         assertEquals(parent.getTerminated(), Boolean.TRUE);
         assertNotNull(parent.getSealedAt());
         assertNotNull(left.getCreatedAt());
         assertEquals(left.getTerminated(), Boolean.FALSE);
-        assertFalse(admin.scalableTopics().getSegmentStats(topic, 1L).isTerminated());
+        assertEquals(admin.scalableTopics().getSegmentStats(topic, 1L).getTerminated(), Boolean.FALSE);
     }
 
     @Test

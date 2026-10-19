@@ -122,7 +122,7 @@ public final class ScalableTopicStatsBuilder {
             SegmentTopicStats ts = segmentStats.get(segment.segmentId());
             if (ts != null) {
                 node.setOwnerBroker(ts.getOwnerBroker());
-                node.setTerminated(ts.isTerminated());
+                node.setTerminated(ts.getTerminated());
                 stats.setMsgRateIn(stats.getMsgRateIn() + ts.getMsgRateIn());
                 stats.setByteRateIn(stats.getByteRateIn() + ts.getByteRateIn());
                 stats.setMsgRateOut(stats.getMsgRateOut() + ts.getMsgRateOut());

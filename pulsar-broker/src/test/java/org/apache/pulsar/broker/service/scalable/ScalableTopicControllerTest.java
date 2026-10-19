@@ -26,7 +26,9 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -88,6 +90,7 @@ import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
 import org.apache.pulsar.metadata.impl.LocalMemoryMetadataStore;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -765,6 +768,62 @@ public class ScalableTopicControllerTest {
         assertEquals(stats.getMsgRateIn(), 1.5, "only the healthy segment contributes to the aggregates");
     }
 
+    @DataProvider
+    public Object[][] policyReadFailures() {
+        return new Object[][]{{true}, {false}};
+    }
+
+    @Test(dataProvider = "policyReadFailures")
+    public void testGetStatsToleratesPolicyReadFailure(boolean namespaceFailure) throws Exception {
+        installGcMocks(-1);
+        ServiceConfiguration config = new ServiceConfiguration();
+        config.setScalableTopicAutoScaleEnabled(true);
+        when(pulsar.getConfig()).thenReturn(config);
+        controller.close().get();
+        resources = spy(resources);
+        controller = newController(topicName);
+        controller.initialize().get();
+        controller.createSubscription("stats-sub", SubscriptionType.QUEUE).get();
+        resources.reportSegmentLoadAsync(topicName, 0, new SegmentLoadStats(11, 22, 33, 44)).get();
+        var namespaces = pulsar.getPulsarResources().getNamespaceResources();
+        var namespacePolicies = namespaces.getPoliciesAsync(topicName.getNamespaceObject()).get();
+        var metadata = resources.getScalableTopicMetadataAsync(topicName).get();
+        IllegalStateException readFailure = new IllegalStateException("policy read failed");
+        if (namespaceFailure) {
+            when(namespaces.getPoliciesAsync(topicName.getNamespaceObject()))
+                    .thenReturn(CompletableFuture.failedFuture(readFailure));
+        } else {
+            doReturn(CompletableFuture.failedFuture(readFailure))
+                    .when(resources).getScalableTopicMetadataAsync(topicName);
+        }
+        clearInvocations(scalableTopics);
+
+        ScalableTopicStats stats = controller.getStats().get(10, TimeUnit.SECONDS);
+        assertThat(stats.getAutoScale().getPolicy()).as("optional policy read failure omits only the policy").isNull();
+        assertThat(stats.getControllerBroker()).isEqualTo(BROKER_ID);
+        assertThat(stats.getLayout().getSegments()).hasSize(INITIAL_SEGMENTS);
+        assertThat(stats.getMsgRateIn()).isEqualTo(1.5 * INITIAL_SEGMENTS);
+        assertThat(stats.getSubscriptions()).containsKey("stats-sub");
+        assertThat(stats.getLayout().getSegments().get(0L).getLoad().getMsgRateIn()).isEqualTo(11);
+        verify(scalableTopics, times(INITIAL_SEGMENTS)).getSegmentStatsAsync(eq(topicName.toString()), anyLong());
+
+        // Best-effort policy collection belongs only to stats, not the evaluator's operational path.
+        assertThatThrownBy(() -> controller.evaluateAutoScaleForTest().get(10, TimeUnit.SECONDS))
+                .hasCause(readFailure);
+        verify(scalableTopics, never()).terminateSegmentAsync(anyString());
+        verify(scalableTopics, never()).createSegmentAsync(anyString(), any());
+
+        if (namespaceFailure) {
+            when(namespaces.getPoliciesAsync(topicName.getNamespaceObject()))
+                    .thenReturn(CompletableFuture.completedFuture(namespacePolicies));
+        } else {
+            doReturn(CompletableFuture.completedFuture(metadata))
+                    .when(resources).getScalableTopicMetadataAsync(topicName);
+        }
+        assertThat(controller.getStats().get(10, TimeUnit.SECONDS).getAutoScale().getPolicy())
+                .as("policy collection recovers on the next request").isNotNull();
+    }
+
     // --- createInitialMetadata ---
 
     @Test
@@ -1208,6 +1267,90 @@ public class ScalableTopicControllerTest {
         assertThat(stats.getAutoScale().getLastSplitAt()).isNull();
         assertThat(stats.getLayout().getSegments().get(0L).isActive()).isTrue();
         verify(scalableTopics).terminateSegmentAsync(anyString());
+    }
+
+    @DataProvider
+    public Object[][] postCommitFailurePhases() {
+        return new Object[][]{
+                {"split", false}, {"split", true},
+                {"merge", false}, {"merge", true},
+                {"rebucket", false}, {"rebucket", true}
+        };
+    }
+
+    @Test(dataProvider = "postCommitFailurePhases")
+    public void testCommittedLayoutFailuresAreNotPartial(String operation, boolean notificationFailure)
+            throws Exception {
+        controller.close().get();
+        resources = spy(resources);
+        controller = newController(topicName);
+        controller.initialize().get();
+        TransportCnx cnx = mock(TransportCnx.class);
+        controller.registerConsumer("stats-sub", "consumer", 1L, ScalableConsumerType.STREAM, cnx).get();
+        IllegalStateException operationFailure = new IllegalStateException(
+                notificationFailure ? "notification failed" : "layout refresh failed");
+        if (notificationFailure) {
+            doThrow(operationFailure).when(cnx).sendScalableConsumerAssignment(eq(1L), any());
+        } else {
+            doReturn(CompletableFuture.failedFuture(operationFailure))
+                    .when(resources).getScalableTopicMetadataAsync(topicName, true);
+        }
+
+        CompletableFuture<SegmentLayout> change = switch (operation) {
+            case "split" -> controller.splitSegment(0);
+            case "merge" -> controller.mergeSegments(0, 1);
+            case "rebucket" -> controller.rebucketSegment(0, 8);
+            default -> throw new IllegalArgumentException("Unknown operation " + operation);
+        };
+        assertThatThrownBy(() -> change.get(10, TimeUnit.SECONDS)).hasCause(operationFailure);
+        assertThat(resources.getScalableTopicMetadataAsync(topicName).get().orElseThrow().getEpoch())
+                .as("the layout commit succeeded before the injected error").isEqualTo(1);
+        ScalableTopicStats stats = controller.getStats().get();
+        assertOperation(stats, operation, "manual", "failure",
+                "merge".equals(operation) ? List.of(0L, 1L) : List.of(0L));
+        assertThat(stats.getLayout().getLastOperation().getError()).contains(operationFailure.getMessage());
+        assertThat(stats.getLayout().getEpoch()).isEqualTo(notificationFailure ? 1L : 0L);
+    }
+
+    @DataProvider
+    public Object[][] splitFailurePhases() {
+        return new Object[][]{{false}, {true}};
+    }
+
+    @Test(dataProvider = "splitFailurePhases")
+    public void testSuccessfulPruneReplacesEarlierSplitFailure(boolean afterSeal) throws Exception {
+        installGcMocks(0);
+        AdjustableClock clock = new AdjustableClock(1_700_000_000_000L);
+        controller.close().get();
+        resources = spy(resources);
+        controller = newControllerWithClock(topicName, clock, Duration.ofHours(1));
+        controller.initialize().get();
+        controller.splitSegment(0).get(); // An older sealed segment is available for the next GC tick.
+        IllegalStateException splitFailure = new IllegalStateException("split failed");
+        if (afterSeal) {
+            doReturn(CompletableFuture.failedFuture(splitFailure))
+                    .when(resources).updateScalableTopicAsync(eq(topicName), any());
+        } else {
+            when(scalableTopics.createSegmentAsync(anyString(), any()))
+                    .thenReturn(CompletableFuture.failedFuture(splitFailure));
+        }
+        assertThatThrownBy(() -> controller.splitSegment(1).get()).hasCause(splitFailure);
+        assertOperation(controller.getStats().get(), "split", "manual",
+                afterSeal ? "partial" : "failure", List.of(1L));
+        if (afterSeal) {
+            doCallRealMethod().when(resources).updateScalableTopicAsync(eq(topicName), any());
+        }
+        clock.set(clock.millis() + 1000);
+        controller.runGcTickAsync().get();
+
+        ScalableTopicStats stats = controller.getStats().get();
+        assertOperation(stats, "prune", "auto", "success", List.of(0L));
+        assertThat(stats.getLayout().getLastOperation().getError()).isNull();
+        assertThat(stats.getLayout().getSegments()).doesNotContainKey(0L);
+        controller.runGcTickAsync().get();
+        assertThat(controller.getStats().get().getLayout().getLastOperation())
+                .as("an empty GC tick is not another layout operation")
+                .isEqualTo(stats.getLayout().getLastOperation());
     }
 
     @Test
