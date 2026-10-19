@@ -23,9 +23,12 @@ import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import io.netty.buffer.ByteBuf;
@@ -33,15 +36,20 @@ import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.opentelemetry.api.OpenTelemetry;
 import io.prometheus.client.CollectorRegistry;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.scalable.ConsumerAssignment;
 import org.apache.pulsar.broker.service.scalable.ConsumerSession;
+import org.apache.pulsar.broker.service.scalable.DagWatchSession;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicMetrics;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicService;
+import org.apache.pulsar.broker.service.scalable.ScalableTopicsWatcherSession;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.ScalableConsumerType;
@@ -60,9 +68,13 @@ public class ScalableTopicRequestMetricsTest {
     private CollectorRegistry registry;
     private ScalableTopicMetrics metrics;
     private ServiceConfiguration config;
+    private final List<DagWatchSession> dagSessions = new ArrayList<>();
+    private final List<ScalableTopicsWatcherSession> namespaceSessions = new ArrayList<>();
 
     @BeforeMethod
     public void setup() throws Exception {
+        dagSessions.clear();
+        namespaceSessions.clear();
         config = new ServiceConfiguration();
         config.setClusterName("test");
         config.setBrokerShutdownTimeoutMs(0L);
@@ -87,6 +99,8 @@ public class ScalableTopicRequestMetricsTest {
         if (channel != null) {
             channel.finishAndReleaseAll();
         }
+        dagSessions.forEach(DagWatchSession::close);
+        namespaceSessions.forEach(ScalableTopicsWatcherSession::close);
         if (metrics != null) {
             metrics.close();
         }
@@ -136,7 +150,10 @@ public class ScalableTopicRequestMetricsTest {
     }
 
     @Test
-    public void authorizationCompletingAfterDisconnectDoesNotLeakWatch() {
+    public void metricsPreserveLookupStartAfterLateAuthorization() {
+        var resources = spyScalableResources();
+        doReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata(0)))
+                .when(brokerService).fetchPartitionedTopicMetadataAsync(any());
         var authorization = mock(AuthorizationService.class);
         when(brokerService.isAuthorizationEnabled()).thenReturn(true);
         when(brokerService.getAuthorizationService()).thenReturn(authorization);
@@ -144,16 +161,19 @@ public class ScalableTopicRequestMetricsTest {
         when(authorization.allowTopicOperationAsync(any(), any(), any(), any(), any(), any()))
                 .thenReturn(allowed);
         connect();
-        channel.writeInbound(Commands.newScalableTopicLookup(1, "topic://public/default/t"));
+        channel.writeInbound(Commands.newScalableTopicLookup(1, "persistent://public/default/t"));
         channel.close();
         allowed.complete(true);
+        // Authorization still runs its original continuation, even after disconnect.
+        verify(resources).registerPathListener(any());
+        verify(resources, never()).deregisterPathListener(any());
         channel.runPendingTasks();
         assertRequestCount("lookup", "failure", 1);
         assertSessions("topic", 0);
     }
 
     @Test
-    public void subscribeAuthorizationCompletingAfterDisconnectDoesNotRegister() {
+    public void metricsPreserveSubscribeRegistrationAfterLateAuthorization() {
         var authorization = mock(AuthorizationService.class);
         when(brokerService.isAuthorizationEnabled()).thenReturn(true);
         when(brokerService.getAuthorizationService()).thenReturn(authorization);
@@ -162,19 +182,23 @@ public class ScalableTopicRequestMetricsTest {
                 .thenReturn(allowed);
         var service = mock(ScalableTopicService.class);
         when(brokerService.getScalableTopicService()).thenReturn(service);
+        when(service.registerConsumer(any(), anyString(), anyString(), anyLong(), any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(new ConsumerAssignment(1, List.of())));
         connect();
         channel.writeInbound(Commands.newScalableTopicSubscribe(1, "topic://public/default/t", "sub", "c", 1,
                 ScalableConsumerType.STREAM));
         channel.close();
         allowed.complete(true);
+        // The metrics observer must not introduce an authorization executor hop or skip registration.
+        verify(service).registerConsumer(any(), anyString(), anyString(), anyLong(), any(), any());
         channel.runPendingTasks();
         assertRequestCount("subscribe", "failure", 1);
         assertRequestCount("subscribe", "success", 0);
-        verify(service, never()).registerConsumer(any(), anyString(), anyString(), anyLong(), any(), any());
     }
 
     @Test
     public void lookupReplacementCloseAndDisconnect() {
+        var resources = spyScalableResources();
         doReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata(0)))
                 .when(brokerService).fetchPartitionedTopicMetadataAsync(any());
         connect();
@@ -183,12 +207,15 @@ public class ScalableTopicRequestMetricsTest {
             assertThat(readResponse().getScalableTopicUpdate().hasError()).isFalse();
             assertSessions("topic", 1);
         }
+        verify(resources, times(2)).registerPathListener(any());
+        verify(resources, never()).deregisterPathListener(any());
         assertRequestCount("lookup", "success", 2);
         assertThat(sample("pulsar_scalable_topic_watch_update_total",
                 new String[]{"cluster", "operation_status"}, new String[]{"test", "success"})).isZero();
         channel.writeInbound(Commands.newScalableTopicClose(1));
         channel.writeInbound(Commands.newScalableTopicClose(1));
         assertSessions("topic", 0);
+        verify(resources, times(1)).deregisterPathListener(any());
         channel.writeInbound(Commands.newScalableTopicLookup(2, "persistent://public/default/t"));
         readResponse();
         assertSessions("topic", 1);
@@ -198,16 +225,20 @@ public class ScalableTopicRequestMetricsTest {
 
     @Test
     public void namespaceReplacementAndDisconnect() {
+        var resources = spyScalableResources();
         connect();
         for (int i = 0; i < 2; i++) {
             channel.writeInbound(Commands.newWatchScalableTopics(1, "public/default", null, null));
             assertThat(readResponse().getWatchScalableTopicsUpdate().hasError()).isFalse();
             assertSessions("namespace", 1);
         }
+        verify(resources, times(2)).registerNamespaceListener(any());
+        verify(resources, never()).deregisterNamespaceListener(any());
         assertRequestCount("watch_topics", "success", 2);
         channel.writeInbound(Commands.newWatchScalableTopicsClose(1));
         channel.writeInbound(Commands.newWatchScalableTopicsClose(1));
         assertSessions("namespace", 0);
+        verify(resources, times(1)).deregisterNamespaceListener(any());
         channel.writeInbound(Commands.newWatchScalableTopics(2, "public/default", null, null));
         readResponse();
         channel.close();
@@ -264,6 +295,22 @@ public class ScalableTopicRequestMetricsTest {
         }
         assertRequestCount("unsubscribe", "failure", 1);
         assertRequestCount("unsubscribe", "success", 2);
+    }
+
+    private ScalableTopicResources spyScalableResources() {
+        var resources = spy(context.getPulsarService().getPulsarResources().getScalableTopicResources());
+        var pulsarResources = mock(PulsarResources.class);
+        when(pulsarResources.getScalableTopicResources()).thenReturn(resources);
+        doReturn(pulsarResources).when(context.getPulsarService()).getPulsarResources();
+        doAnswer(invocation -> {
+            dagSessions.add(invocation.getArgument(0));
+            return invocation.callRealMethod();
+        }).when(resources).registerPathListener(any());
+        doAnswer(invocation -> {
+            namespaceSessions.add(invocation.getArgument(0));
+            return invocation.callRealMethod();
+        }).when(resources).registerNamespaceListener(any());
+        return resources;
     }
 
     private void assertRequestCount(String type, String status, double expected) {

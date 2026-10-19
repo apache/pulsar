@@ -19,8 +19,10 @@
 package org.apache.pulsar.broker.service.scalable;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -116,22 +118,26 @@ public class DagWatchSessionMetricsTest {
         session.pushInitialResponse(started.get(10, TimeUnit.SECONDS));
 
         verify(metrics).sessionClosed(ScalableTopicMetrics.WatchType.TOPIC);
+        verify(resources, times(2)).deregisterPathListener(session);
         verify(request).failure();
         verify(request, never()).success();
         verify(ctx, never()).writeAndFlush(any());
     }
 
     @Test
-    public void closeBeforeStartDoesNotRegisterListener() {
+    public void closeBeforeStartRetainsOriginalRegistrationBehavior() {
         session.close();
-        assertThat(session.start()).isCompletedExceptionally();
-        verify(resources, never()).registerPathListener(any());
+        CompletableFuture<ScalableTopicLayoutResponse> started = session.start();
+        initialRead.complete(Optional.of(ScalableTopicMetadata.builder().build()));
+        assertThat(started).isCompleted();
+        verify(resources).registerPathListener(session);
+        verify(resources).deregisterPathListener(session);
         verify(metrics).sessionClosed(ScalableTopicMetrics.WatchType.TOPIC);
         verify(request).failure();
     }
 
     @Test
-    public void closeRacingRegistrationRemovesLateListener() {
+    public void closeRacingRegistrationRetainsOriginalLateListenerBehavior() {
         Set<ScalableTopicResources.MetadataPathListener> listeners = new HashSet<>();
         doAnswer(invocation -> {
             session.close(); // The close wins before the registration becomes visible.
@@ -143,17 +149,23 @@ public class DagWatchSessionMetricsTest {
             return null;
         }).when(resources).deregisterPathListener(session);
 
-        assertThat(session.start()).isCompletedExceptionally();
-        assertThat(listeners).as("late registration is removed").isEmpty();
+        CompletableFuture<ScalableTopicLayoutResponse> started = session.start();
+        assertThat(started).isNotDone();
+        assertThat(listeners).as("metrics must not repair the pre-existing late-registration leak")
+                .containsExactly(session);
+        verify(resources).deregisterPathListener(session);
         verify(metrics).sessionClosed(ScalableTopicMetrics.WatchType.TOPIC);
         verify(request).failure();
     }
 
     @Test
-    public void failedStartClosesSessionAndFailsRequest() {
+    public void failedStartDoesNotCloseSessionOrCompleteRequest() {
         CompletableFuture<ScalableTopicLayoutResponse> started = session.start();
         initialRead.completeExceptionally(new IllegalStateException("Metadata unavailable"));
         assertThat(started).isCompletedExceptionally();
+        verify(resources, never()).deregisterPathListener(any());
+        verify(metrics, never()).sessionClosed(any());
+        verifyNoInteractions(request);
         session.close();
         verify(metrics).sessionClosed(ScalableTopicMetrics.WatchType.TOPIC);
         verify(resources).deregisterPathListener(session);
@@ -178,9 +190,14 @@ public class DagWatchSessionMetricsTest {
     }
 
     @Test
-    public void failedInitialWriteFailsRequestAndClosesSession() {
+    public void failedInitialWriteFailsRequestWithoutClosingSession() {
         session.pushInitialResponse(RESPONSE);
         writes.remove().setFailure(new IllegalStateException("Write failed"));
+        verify(resources, never()).deregisterPathListener(any());
+        verify(metrics, never()).sessionClosed(any());
+        session.pushUpdate(RESPONSE);
+        writes.remove().setSuccess();
+        verify(ctx, times(2)).writeAndFlush(any());
         session.close();
         verify(request).failure();
         verify(request, never()).success();
@@ -263,8 +280,80 @@ public class DagWatchSessionMetricsTest {
     public void synchronousLayoutBuildFailureCountsAsFailedUpdate() {
         ScalableTopicMetadata invalid = mock(ScalableTopicMetadata.class);
         when(invalid.getSegments()).thenThrow(new IllegalStateException("Invalid layout"));
-        session.onMetadataChanged(invalid);
+        assertThatThrownBy(() -> session.onMetadataChanged(invalid))
+                .isInstanceOf(IllegalStateException.class).hasMessage("Invalid layout");
         verify(metrics).recordWatchUpdate(false);
         verify(ctx, never()).writeAndFlush(any());
     }
+
+    @Test
+    public void metricOnlyStopDoesNotCloseSessionOrStopItsWork() {
+        session.stopMetricsTracking();
+        session.stopMetricsTracking();
+        verify(metrics).sessionClosed(ScalableTopicMetrics.WatchType.TOPIC);
+        verify(resources, never()).deregisterPathListener(any());
+        verifyNoInteractions(request);
+
+        CompletableFuture<ScalableTopicLayoutResponse> started = session.start();
+        initialRead.complete(Optional.of(ScalableTopicMetadata.builder().build()));
+        session.pushInitialResponse(started.getNow(null));
+        writes.remove().setSuccess();
+        session.onMetadataChanged(ScalableTopicMetadata.builder().build());
+        writes.remove().setSuccess();
+        session.onNotification(new Notification(NotificationType.Modified, "/topics/tenant/ns/topic"));
+        writes.remove().setSuccess();
+        verify(ctx, times(3)).writeAndFlush(any());
+        verify(store, times(3)).get(any());
+        verify(resources, times(2)).getScalableTopicMetadataAsync(TOPIC, true);
+        verify(resources, never()).deregisterPathListener(any());
+        verify(request).success();
+        verify(request, never()).failure();
+        verify(metrics, never()).recordWatchUpdate(true);
+        verify(metrics, never()).recordWatchUpdate(false);
+
+        session.close();
+        session.close();
+        verify(resources, times(2)).deregisterPathListener(session);
+        verify(metrics).sessionClosed(ScalableTopicMetrics.WatchType.TOPIC);
+    }
+
+    @Test
+    public void synchronousStartFailurePropagatesWithoutLifecycleChanges() {
+        IllegalStateException failure = new IllegalStateException("Registration failed");
+        doThrow(failure).when(resources).registerPathListener(session);
+        assertThatThrownBy(session::start).isSameAs(failure);
+        verify(metrics, never()).sessionClosed(any());
+        verify(resources, never()).deregisterPathListener(any());
+        verifyNoInteractions(request);
+    }
+
+    @Test
+    public void synchronousNotificationReadFailurePropagatesAfterRecording() {
+        IllegalStateException failure = new IllegalStateException("Read failed");
+        when(resources.getScalableTopicMetadataAsync(TOPIC, true)).thenThrow(failure);
+        assertThatThrownBy(() -> session.onNotification(
+                new Notification(NotificationType.Modified, "/topics/tenant/ns/topic"))).isSameAs(failure);
+        verify(metrics).recordWatchUpdate(false);
+        verify(metrics, never()).sessionClosed(any());
+        verify(resources, never()).deregisterPathListener(any());
+        verifyNoInteractions(request);
+    }
+
+    @Test
+    public void synchronousPushFailurePropagatesWithoutClosingSession() {
+        IllegalStateException failure = new IllegalStateException("Write failed");
+        doAnswer(invocation -> {
+            ByteBuf frame = invocation.getArgument(0);
+            frame.release();
+            throw failure;
+        }).when(ctx).writeAndFlush(any());
+        assertThatThrownBy(() -> session.pushInitialResponse(RESPONSE)).isSameAs(failure);
+        verify(request).failure();
+        verify(metrics, never()).sessionClosed(any());
+        verify(resources, never()).deregisterPathListener(any());
+        assertThatThrownBy(() -> session.pushUpdate(RESPONSE)).isSameAs(failure);
+        verify(ctx, times(2)).writeAndFlush(any());
+        verify(metrics).recordWatchUpdate(false);
+    }
+
 }

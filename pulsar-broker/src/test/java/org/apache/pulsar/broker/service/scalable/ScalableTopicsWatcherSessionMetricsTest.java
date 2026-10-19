@@ -19,10 +19,12 @@
 package org.apache.pulsar.broker.service.scalable;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -133,17 +135,20 @@ public class ScalableTopicsWatcherSessionMetricsTest {
     }
 
     @Test
-    public void closeBeforeStartDoesNotRegisterListener() {
+    public void closeBeforeStartRetainsOriginalRegistrationBehavior() {
         createSession(null);
         session.close();
-        assertThat(session.start()).isCompletedExceptionally();
-        verify(resources, never()).registerNamespaceListener(any());
+        CompletableFuture<Void> started = session.start();
+        initialListing.complete(List.of());
+        assertThat(started).isCompleted();
+        verify(resources).registerNamespaceListener(session);
+        verify(resources).deregisterNamespaceListener(session);
         verify(metrics).sessionClosed(ScalableTopicMetrics.WatchType.NAMESPACE);
         verify(request).failure();
     }
 
     @Test
-    public void closeRacingRegistrationRemovesLateListener() {
+    public void closeRacingRegistrationRetainsOriginalLateListenerBehavior() {
         createSession(null);
         Set<ScalableTopicResources.NamespaceListener> listeners = new HashSet<>();
         doAnswer(invocation -> {
@@ -156,18 +161,24 @@ public class ScalableTopicsWatcherSessionMetricsTest {
             return null;
         }).when(resources).deregisterNamespaceListener(session);
 
-        assertThat(session.start()).isCompletedExceptionally();
-        assertThat(listeners).as("late registration is removed").isEmpty();
+        CompletableFuture<Void> started = session.start();
+        assertThat(started).isNotDone();
+        assertThat(listeners).as("metrics must not repair the pre-existing late-registration leak")
+                .containsExactly(session);
+        verify(resources).deregisterNamespaceListener(session);
         verify(metrics).sessionClosed(ScalableTopicMetrics.WatchType.NAMESPACE);
         verify(request).failure();
     }
 
     @Test
-    public void failedStartClosesSessionAndFailsRequest() {
+    public void failedStartDoesNotCloseSessionOrCompleteRequest() {
         createSession(null);
         CompletableFuture<Void> started = session.start();
         initialListing.completeExceptionally(new IllegalStateException("Listing failed"));
         assertThat(started).isCompletedExceptionally();
+        verify(metrics, never()).sessionClosed(any());
+        verify(resources, never()).deregisterNamespaceListener(any());
+        verifyNoInteractions(request);
         session.close();
         verify(metrics).sessionClosed(ScalableTopicMetrics.WatchType.NAMESPACE);
         verify(resources).deregisterNamespaceListener(session);
@@ -189,11 +200,17 @@ public class ScalableTopicsWatcherSessionMetricsTest {
     }
 
     @Test
-    public void failedSnapshotWriteFailsRequestAndClosesSession() {
+    public void failedSnapshotWriteFailsRequestWithoutClosingSession() {
         createSession(null);
         session.start();
         initialListing.complete(List.of());
         writes.remove().setFailure(new IllegalStateException("Write failed"));
+        verify(metrics, never()).sessionClosed(any());
+        verify(resources, never()).deregisterNamespaceListener(any());
+        session.onNotification(new Notification(NotificationType.Created, "/topics/tenant/ns/topic"));
+        scheduled.remove().run();
+        writes.remove().setSuccess();
+        verify(ctx, times(2)).writeAndFlush(any());
         session.close();
         verify(request).failure();
         verify(request, never()).success();
@@ -242,4 +259,62 @@ public class ScalableTopicsWatcherSessionMetricsTest {
         verify(request, never()).failure();
         verify(metrics, never()).recordWatchUpdate(anyBoolean());
     }
+
+    @Test
+    public void metricOnlyStopDoesNotCloseSessionOrStopItsWork() {
+        createSession(null);
+        session.stopMetricsTracking();
+        session.stopMetricsTracking();
+        verify(metrics).sessionClosed(ScalableTopicMetrics.WatchType.NAMESPACE);
+        verify(resources, never()).deregisterNamespaceListener(any());
+        verifyNoInteractions(request);
+
+        session.start();
+        initialListing.complete(List.of());
+        writes.remove().setSuccess();
+        session.onNotification(new Notification(NotificationType.Created, "/topics/tenant/ns/topic"));
+        scheduled.remove().run();
+        writes.remove().setSuccess();
+        verify(ctx, times(2)).writeAndFlush(any());
+        verify(resources).registerNamespaceListener(session);
+        verify(resources).getScalableTopicMetadataAsync(any(), anyBoolean());
+        verify(resources, never()).deregisterNamespaceListener(any());
+        verify(request).success();
+        verify(request, never()).failure();
+        verify(metrics, never()).recordWatchUpdate(anyBoolean());
+
+        session.close();
+        session.close();
+        verify(resources).deregisterNamespaceListener(session);
+        verify(metrics).sessionClosed(ScalableTopicMetrics.WatchType.NAMESPACE);
+    }
+
+    @Test
+    public void synchronousStartFailurePropagatesWithoutLifecycleChanges() {
+        createSession(null);
+        IllegalStateException failure = new IllegalStateException("Registration failed");
+        doThrow(failure).when(resources).registerNamespaceListener(session);
+        assertThatThrownBy(session::start).isSameAs(failure);
+        verify(metrics, never()).sessionClosed(any());
+        verify(resources, never()).deregisterNamespaceListener(any());
+        verifyNoInteractions(request);
+    }
+
+    @Test
+    public void synchronousSnapshotWriteFailureDoesNotCloseSession() {
+        createSession(null);
+        IllegalStateException failure = new IllegalStateException("Write failed");
+        doAnswer(invocation -> {
+            ByteBuf frame = invocation.getArgument(0);
+            frame.release();
+            throw failure;
+        }).when(ctx).writeAndFlush(any());
+        CompletableFuture<Void> started = session.start();
+        initialListing.complete(List.of());
+        assertThat(started).isCompletedExceptionally();
+        verify(metrics, never()).sessionClosed(any());
+        verify(resources, never()).deregisterNamespaceListener(any());
+        verifyNoInteractions(request);
+    }
+
 }

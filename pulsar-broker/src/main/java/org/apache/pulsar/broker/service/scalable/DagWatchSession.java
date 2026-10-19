@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service.scalable;
 
 import io.github.merlimat.slog.Logger;
-import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelFuture;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -81,7 +80,8 @@ public class DagWatchSession implements ScalableTopicResources.MetadataPathListe
     /** When false, a {@code topic://} lookup of a non-existent scalable topic must not auto-create
      *  it (set by namespace consumers so a deleted topic isn't resurrected on a per-topic reconnect). */
     private final boolean createIfMissing;
-    private final AtomicBoolean closed = new AtomicBoolean();
+    private volatile boolean closed = false;
+    private final AtomicBoolean metricsTrackingStopped = new AtomicBoolean();
     private final AtomicBoolean initialResponseCompleted = new AtomicBoolean();
     private final AtomicBoolean layoutWritten = new AtomicBoolean();
     private final ScalableTopicMetrics metrics;
@@ -143,17 +143,6 @@ public class DagWatchSession implements ScalableTopicResources.MetadataPathListe
      * synthetic layout will be transparently replaced with the real DAG.
      */
     public CompletableFuture<ScalableTopicLayoutResponse> start() {
-        return FutureUtil.supplySafely(this::startAsync).whenComplete((response, error) -> {
-            if (error != null) {
-                close();
-            }
-        });
-    }
-
-    private CompletableFuture<ScalableTopicLayoutResponse> startAsync() {
-        if (closed.get()) {
-            return CompletableFuture.failedFuture(new IllegalStateException("Watch session is closed"));
-        }
         // A specific partition (persistent://t/n/x-partition-K) is not a valid
         // scalable-topic lookup target — the synthetic layout models the whole
         // partitioned topic. Reject it up front rather than producing a layout that
@@ -167,12 +156,6 @@ public class DagWatchSession implements ScalableTopicResources.MetadataPathListe
         // Register through the resources-level fan-out so close() can deregister us
         // and we don't accumulate stale store-level listeners over time.
         resources.registerPathListener(this);
-        // close() can run between the first closed check and registration. Remove the
-        // late registration as well, without invoking resource callbacks under a lock.
-        if (closed.get()) {
-            resources.deregisterPathListener(this);
-            return CompletableFuture.failedFuture(new IllegalStateException("Watch session is closed"));
-        }
 
         return resources.getScalableTopicMetadataAsync(topicName, true)
                 .thenCompose(optMd -> {
@@ -312,7 +295,7 @@ public class DagWatchSession implements ScalableTopicResources.MetadataPathListe
      */
     @Override
     public void onNotification(Notification notification) {
-        if (closed.get()) {
+        if (closed) {
             return;
         }
         if (!metadataPath.equals(notification.getPath())) {
@@ -322,30 +305,41 @@ public class DagWatchSession implements ScalableTopicResources.MetadataPathListe
             return;
         }
         // Metadata changed — reload and push update
-        FutureUtil.supplySafely(() -> resources.getScalableTopicMetadataAsync(topicName, true))
-                .whenComplete((optMd, error) -> {
-                    if (error != null) {
-                        recordWatchUpdate(false);
-                    } else {
-                        optMd.ifPresent(this::onMetadataChanged);
-                    }
-                });
+        CompletableFuture<Optional<ScalableTopicMetadata>> metadata;
+        try {
+            metadata = resources.getScalableTopicMetadataAsync(topicName, true);
+        } catch (RuntimeException e) {
+            recordWatchUpdate(false);
+            throw e;
+        }
+        metadata.whenComplete((ignored, error) -> {
+            if (error != null) {
+                recordWatchUpdate(false);
+            }
+        });
+        metadata.thenAccept(optMd -> optMd.ifPresent(this::onMetadataChanged));
     }
 
     /**
      * Called when the metadata store watch fires (metadata changed).
      */
     public void onMetadataChanged(ScalableTopicMetadata newMetadata) {
-        if (closed.get()) {
+        if (closed) {
             return;
         }
-        FutureUtil.supplySafely(() -> buildResponse(newMetadata)).whenComplete((response, error) -> {
+        CompletableFuture<ScalableTopicLayoutResponse> response;
+        try {
+            response = buildResponse(newMetadata);
+        } catch (RuntimeException e) {
+            recordWatchUpdate(false);
+            throw e;
+        }
+        response.whenComplete((ignored, error) -> {
             if (error != null) {
                 recordWatchUpdate(false);
-            } else {
-                pushUpdate(response);
             }
         });
+        response.thenAccept(this::pushUpdate);
     }
 
     /**
@@ -364,26 +358,20 @@ public class DagWatchSession implements ScalableTopicResources.MetadataPathListe
     }
 
     private void pushResponse(ScalableTopicLayoutResponse response, boolean initial) {
-        if (closed.get()) {
+        if (closed) {
             return;
         }
         try {
             ScalableTopicDAG dag = buildDagProto(response);
-            log.debug().attr("epoch", response.epoch()).log("Pushing DAG update");
+            log.info().attr("epoch", response.epoch()).log("Pushing DAG update");
             // Always report the canonical topic://... identity so clients that looked up
             // via persistent://... or short-form know the resolved name.
-            ByteBuf command = Commands.newScalableTopicUpdate(sessionId, resolvedTopicName, dag);
-            ChannelFuture write;
-            try {
-                write = cnx.ctx().writeAndFlush(command);
-            } catch (RuntimeException e) {
-                command.release();
-                throw e;
-            }
+            ChannelFuture write = cnx.ctx().writeAndFlush(Commands.newScalableTopicUpdate(
+                    sessionId, resolvedTopicName, dag));
             write.addListener(future -> responseWritten(initial, future.isSuccess()));
         } catch (RuntimeException e) {
             responseWritten(initial, false);
-            log.debug().exceptionMessage(e).log("Failed to push DAG update");
+            throw e;
         }
     }
 
@@ -392,17 +380,13 @@ public class DagWatchSession implements ScalableTopicResources.MetadataPathListe
         // on the first layout actually written, regardless of which read built it.
         boolean firstResponse = layoutWritten.compareAndSet(false, true) && request != null;
         completeInitialRequest(success);
-        if (initial || firstResponse) {
-            if (!success) {
-                close();
-            }
-        } else {
+        if (!initial && !firstResponse) {
             recordWatchUpdate(success);
         }
     }
 
     private void recordWatchUpdate(boolean success) {
-        if (metrics != null) {
+        if (metrics != null && !metricsTrackingStopped.get()) {
             metrics.recordWatchUpdate(success);
         }
     }
@@ -476,17 +460,20 @@ public class DagWatchSession implements ScalableTopicResources.MetadataPathListe
     }
 
     public void close() {
-        if (!closed.compareAndSet(false, true)) {
-            return;
-        }
+        closed = true;
         completeInitialRequest(false);
-        if (metrics != null) {
-            metrics.sessionClosed(ScalableTopicMetrics.WatchType.TOPIC);
-        }
+        stopMetricsTracking();
         // Drop ourselves from the resources' fan-out so the per-event dispatch skips
         // us — no listener leak, no per-notification dispatch tax across the broker's
         // lifetime.
         resources.deregisterPathListener(this);
+    }
+
+    /** Stops counting this session without changing its lifecycle or request completion. */
+    public void stopMetricsTracking() {
+        if (metricsTrackingStopped.compareAndSet(false, true) && metrics != null) {
+            metrics.sessionClosed(ScalableTopicMetrics.WatchType.TOPIC);
+        }
     }
 
     /**

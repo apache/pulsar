@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service.scalable;
 
 import io.github.merlimat.slog.Logger;
-import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelFuture;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -43,7 +42,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.util.Codec;
-import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 
@@ -125,6 +123,7 @@ public class ScalableTopicsWatcherSession implements ScalableTopicResources.Name
     private final AtomicBoolean closed = new AtomicBoolean();
     private final AtomicBoolean snapshotEmitted = new AtomicBoolean();
     private final AtomicBoolean initialResponseCompleted = new AtomicBoolean();
+    private final AtomicBoolean metricsTrackingStopped = new AtomicBoolean();
     private final ScalableTopicMetrics metrics;
     private final ScalableTopicMetrics.Request request;
 
@@ -186,26 +185,10 @@ public class ScalableTopicsWatcherSession implements ScalableTopicResources.Name
      * listener.
      */
     public CompletableFuture<Void> start() {
-        return FutureUtil.supplySafely(this::startAsync).whenComplete((ignored, error) -> {
-            if (error != null) {
-                close();
-            }
-        });
-    }
-
-    private CompletableFuture<Void> startAsync() {
-        if (closed.get()) {
-            return CompletableFuture.failedFuture(new IllegalStateException("Watch session is closed"));
-        }
         // Register BEFORE computing the initial set, so that no event is lost. An event that
         // arrives before the listing completes may or may not be reflected in it: it is only
         // recorded in changedDuringListing, and settled once the listing is in place.
         resources.registerNamespaceListener(this);
-        // A concurrent close may have deregistered before registration completed.
-        if (closed.get()) {
-            resources.deregisterNamespaceListener(this);
-            return CompletableFuture.failedFuture(new IllegalStateException("Watch session is closed"));
-        }
 
         return resources.findScalableTopicsByPropertiesAsync(namespace, propertyFilters)
                 .thenAccept(listedTopics -> {
@@ -246,20 +229,8 @@ public class ScalableTopicsWatcherSession implements ScalableTopicResources.Name
     }
 
     private void pushSnapshot(List<String> topics) {
-        ByteBuf command = Commands.newWatchScalableTopicsSnapshot(watchId, topics);
-        ChannelFuture write;
-        try {
-            write = cnx.ctx().writeAndFlush(command);
-        } catch (RuntimeException e) {
-            command.release();
-            throw e;
-        }
-        write.addListener(future -> {
-            completeInitialRequest(future.isSuccess());
-            if (!future.isSuccess()) {
-                close();
-            }
-        });
+        ChannelFuture write = cnx.ctx().writeAndFlush(Commands.newWatchScalableTopicsSnapshot(watchId, topics));
+        write.addListener(future -> completeInitialRequest(future.isSuccess()));
     }
 
     private void completeInitialRequest(boolean success) {
@@ -429,9 +400,14 @@ public class ScalableTopicsWatcherSession implements ScalableTopicResources.Name
             return;
         }
         completeInitialRequest(false);
-        if (metrics != null) {
+        stopMetricsTracking();
+        resources.deregisterNamespaceListener(this);
+    }
+
+    /** Stops counting this session without changing its lifecycle or request completion. */
+    public void stopMetricsTracking() {
+        if (metricsTrackingStopped.compareAndSet(false, true) && metrics != null) {
             metrics.sessionClosed(ScalableTopicMetrics.WatchType.NAMESPACE);
         }
-        resources.deregisterNamespaceListener(this);
     }
 }

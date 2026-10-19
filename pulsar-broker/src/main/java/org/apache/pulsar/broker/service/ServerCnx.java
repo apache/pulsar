@@ -885,7 +885,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
 
         isTopicOperationAllowed(topicName, TopicOperation.LOOKUP, authenticationData, originalAuthData)
-                .thenAcceptAsync(isAuthorized -> {
+                .thenAccept(isAuthorized -> {
                     if (!isAuthorized) {
                         final String msg = "Client is not authorized to ScalableTopicLookup";
                         log.warn()
@@ -897,16 +897,17 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 ServerError.AuthorizationError, msg));
                         return;
                     }
-                    if (!isActive) {
-                        request.failure();
-                        return;
-                    }
                     // Create a DagWatchSession that will send the initial layout and watch for changes
                     var session = new DagWatchSession(
                             sessionId, topicName, this, resources, service, createIfMissing, request);
+                    // Account for the map-owned watch without changing replacement/cleanup behavior.
                     var previous = dagWatchSessions.put(sessionId, session);
                     if (previous != null) {
-                        previous.close();
+                        previous.stopMetricsTracking();
+                    }
+                    if (!isActive) {
+                        session.stopMetricsTracking();
+                        request.failure();
                     }
 
                     session.start()
@@ -915,7 +916,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
                                 log.warn().attr("topic", topicName).exception(cause)
                                         .log("ScalableTopicLookup failed");
-                                dagWatchSessions.remove(sessionId, session);
+                                var removed = dagWatchSessions.remove(sessionId);
+                                if (removed != null) {
+                                    removed.stopMetricsTracking();
+                                }
                                 session.close();
                                 request.failure();
                                 ctx.executor().execute(() ->
@@ -924,7 +928,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 );
                                 return null;
                             });
-                }, ctx.executor())
+                })
                 .exceptionally(ex -> {
                     logAuthException(remoteAddress, "scalable-topic-lookup", getPrincipal(),
                             Optional.of(topicName), ex);
@@ -1004,7 +1008,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
 
         isNamespaceOperationAllowed(namespaceName, NamespaceOperation.GET_TOPICS)
-                .thenAcceptAsync(isAuthorized -> {
+                .thenAccept(isAuthorized -> {
                     if (!isAuthorized) {
                         final String msg = "Client is not authorized to WatchScalableTopics";
                         log.warn().attr("principal", getPrincipal()).attr("namespace", namespaceName)
@@ -1014,23 +1018,27 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 ServerError.AuthorizationError, msg));
                         return;
                     }
-                    if (!isActive) {
-                        request.failure();
-                        return;
-                    }
                     var session = new ScalableTopicsWatcherSession(watchId, namespaceName, propertyFilters,
                                     clientHash, this, resources, service.getPulsar().getExecutor(),
                                     service.getScalableTopicMetrics(), request);
+                    // Account for the map-owned watch without changing replacement/cleanup behavior.
                     var previous = scalableTopicsWatchers.put(watchId, session);
                     if (previous != null) {
-                        previous.close();
+                        previous.stopMetricsTracking();
+                    }
+                    if (!isActive) {
+                        session.stopMetricsTracking();
+                        request.failure();
                     }
 
                     session.start().exceptionally(ex -> {
                         Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
                         log.warn().attr("namespace", namespaceName).exception(cause)
                                 .log("WatchScalableTopics failed");
-                        scalableTopicsWatchers.remove(watchId, session);
+                        var removed = scalableTopicsWatchers.remove(watchId);
+                        if (removed != null) {
+                            removed.stopMetricsTracking();
+                        }
                         request.failure();
                         session.close();
                         ctx.executor().execute(() -> ctx.writeAndFlush(
@@ -1038,7 +1046,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                         ServerError.UnknownError, cause.getMessage())));
                         return null;
                     });
-                }, ctx.executor())
+                })
                 .exceptionally(ex -> {
                     logNamespaceNameAuthException(remoteAddress, "watch-scalable-topics",
                             getPrincipal(), Optional.of(namespaceName), ex);
@@ -1255,7 +1263,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
 
         isTopicOperationAllowed(topicName, subscription, TopicOperation.CONSUME)
-                .thenAcceptAsync(isAuthorized -> {
+                .thenAccept(isAuthorized -> {
                     if (!isAuthorized) {
                         final String msg = "Client is not authorized to ScalableTopicSubscribe";
                         log.warn()
@@ -1270,7 +1278,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     }
                     if (!isActive) {
                         request.failure();
-                        return;
                     }
                     // Record the registration BEFORE starting it, carrying its future: an
                     // unsubscribe (or the channelInactive sweep) arriving mid-registration
@@ -1314,7 +1321,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                     ConsumerSession.toProto(assignment));
                         }
                     }, ctx.executor());
-                }, ctx.executor())
+                })
                 .exceptionally(ex -> {
                     logAuthException(remoteAddress, "scalable-topic-subscribe", getPrincipal(),
                             Optional.of(topicName), ex);
