@@ -150,7 +150,10 @@ public class SegmentTopicStats {
         /** Messages delivered but not yet acknowledged. */
         private long unackedMessages;
 
-        /** Entry buckets withheld from their new owner until the previous owner acknowledges in-flight messages. */
+        /**
+         * Entry buckets withheld until the previous owner acknowledges in-flight messages.
+         * Zero for dispatchers that do not use entry buckets, including classic Key_Shared subscriptions.
+         */
         private int drainingBuckets;
 
         /** Age in seconds of the oldest unacknowledged message, or -1 when unknown. */

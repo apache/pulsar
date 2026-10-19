@@ -1851,7 +1851,8 @@ public class ScalableTopicController {
                                             .asyncGetStats(ScalableTopicService.SEGMENT_STATS_OPTIONS)
                                             .thenApply(stats -> SegmentTopicStatsBuilder.fromTopicStats(stats,
                                                     optTopic.get() instanceof PersistentTopic persistentTopic
-                                                            && persistentTopic.getManagedLedger().isTerminated())));
+                                                            && persistentTopic.getManagedLedger().isTerminated(),
+                                                    optTopic.get().getSubscriptions())));
                 });
     }
 

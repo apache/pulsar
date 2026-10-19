@@ -20,6 +20,8 @@ package org.apache.pulsar.broker.service.scalable;
 
 import static org.apache.pulsar.broker.service.scalable.ScalableTopicStatsBuilder.round;
 import java.util.Map;
+import org.apache.pulsar.broker.service.Subscription;
+import org.apache.pulsar.broker.service.persistent.PersistentEntryBucketDispatcherMultipleConsumers;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.apache.pulsar.common.policies.data.SegmentTopicStats;
@@ -43,8 +45,14 @@ public final class SegmentTopicStatsBuilder {
         return fromTopicStats(ts, false);
     }
 
-    /** Converts topic stats with the termination state of the segment's backing topic. */
+    /** Converts topic stats without dispatcher capabilities; bucket handoffs default to zero. */
     public static SegmentTopicStats fromTopicStats(TopicStats ts, boolean terminated) {
+        return fromTopicStats(ts, terminated, Map.of());
+    }
+
+    /** Converts topic stats with the actual subscriptions of the segment's backing topic. */
+    public static SegmentTopicStats fromTopicStats(TopicStats ts, boolean terminated,
+                                                  Map<String, ? extends Subscription> subscriptions) {
         SegmentTopicStats stats = new SegmentTopicStats();
         stats.setOwnerBroker(ts.getOwnerBroker());
         stats.setTerminated(terminated);
@@ -74,12 +82,15 @@ public final class SegmentTopicStatsBuilder {
         }
 
         for (Map.Entry<String, ? extends SubscriptionStats> entry : ts.getSubscriptions().entrySet()) {
-            stats.getSubscriptions().put(entry.getKey(), subscription(entry.getValue()));
+            Subscription backingSubscription = subscriptions.get(entry.getKey());
+            boolean entryBucketDispatch = backingSubscription != null
+                    && backingSubscription.getDispatcher() instanceof PersistentEntryBucketDispatcherMultipleConsumers;
+            stats.getSubscriptions().put(entry.getKey(), subscription(entry.getValue(), entryBucketDispatch));
         }
         return stats;
     }
 
-    private static SegmentTopicStats.SubscriptionStats subscription(SubscriptionStats ss) {
+    private static SegmentTopicStats.SubscriptionStats subscription(SubscriptionStats ss, boolean entryBucketDispatch) {
         SegmentTopicStats.SubscriptionStats sub = new SegmentTopicStats.SubscriptionStats();
         sub.setType(ss.getType());
         sub.setMsgRateOut(round(ss.getMsgRateOut()));
@@ -89,7 +100,9 @@ public final class SegmentTopicStatsBuilder {
         sub.setMsgBacklog(ss.getMsgBacklog());
         sub.setBacklogSize(ss.getBacklogSize());
         sub.setUnackedMessages(ss.getUnackedMessages());
-        sub.setDrainingBuckets(ss.getDrainingHashesCount());
+        // Classic AUTO_SPLIT tracks individual key hashes, including on force-migrated
+        // legacy segments. Only the entry-bucket dispatcher normalizes these to buckets.
+        sub.setDrainingBuckets(entryBucketDispatch ? ss.getDrainingHashesCount() : 0);
         sub.setOldestBacklogMessageAgeSeconds(ss.getOldestBacklogMessageAgeSeconds());
         sub.setBlockedSubscriptionOnUnackedMsgs(ss.isBlockedSubscriptionOnUnackedMsgs());
         sub.setLastConsumedTime(date(ss.getLastConsumedTimestamp()));

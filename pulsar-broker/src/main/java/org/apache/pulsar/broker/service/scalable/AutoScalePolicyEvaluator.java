@@ -104,6 +104,14 @@ public final class AutoScalePolicyEvaluator {
         if (!(merge instanceof AutoScaleDecision.NoAction)) {
             return merge;
         }
+        // Whole-segment readers need physical segments independently of STREAM bucket capacity.
+        // Only diagnose this after all action passes, so it cannot suppress a selected operation.
+        int nonBucketSharingConsumers = streamConsumerCount.entrySet().stream()
+                .filter(e -> !bucketSharingSubscriptions.contains(e.getKey()))
+                .mapToInt(Map.Entry::getValue).max().orElse(0);
+        if (active.size() >= config.maxSegments() && nonBucketSharingConsumers > active.size()) {
+            return new AutoScaleDecision.NoAction("max_segments");
+        }
         for (AutoScaleDecision candidate : List.of(consumerScale, split, merge)) {
             if (candidate instanceof AutoScaleDecision.NoAction none && none.blockedReason() != null) {
                 return none;
@@ -174,8 +182,7 @@ public final class AutoScalePolicyEvaluator {
         }
         if (bucketConsumers <= capacity) {
             // The existing buckets already absorb the surplus (broker-side fan-out).
-            return atSegmentCap && consumers > segments && bucketConsumers < consumers
-                    ? new AutoScaleDecision.NoAction("max_segments") : AutoScaleDecision.NONE;
+            return AutoScaleDecision.NONE;
         }
         if (withinCooldown(nowMs, lastRebucketAtMs, config.rebucketCooldown().toMillis())) {
             return AutoScaleDecision.NONE;

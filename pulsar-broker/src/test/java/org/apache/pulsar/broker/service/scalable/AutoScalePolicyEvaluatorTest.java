@@ -570,6 +570,57 @@ public class AutoScalePolicyEvaluatorTest {
     }
 
     @Test
+    public void testMixedConsumerGroupsReportIndependentSegmentCapDemand() {
+        SegmentLayout layout = initialLayout(2); // Four entry buckets, but only two physical segments.
+        AutoScaleConfig config = baseConfig().maxSegments(2).build();
+        List<Map<Long, SegmentLoadSample>> samples = List.of(Map.of(), Map.of(0L, cold(0), 1L, cold(0)));
+        for (Map<Long, SegmentLoadSample> load : samples) {
+            for (int streamConsumers : List.of(3, 4)) {
+                AutoScaleDecision decision = decide(layout, load,
+                        Map.of("stream", streamConsumers, "checkpoint", 3), Set.of("stream"), config);
+                assertThat(decision)
+                        .as("CHECKPOINT segment demand must not be masked by %s STREAM consumers", streamConsumers)
+                        .isEqualTo(new AutoScaleDecision.NoAction("max_segments"));
+            }
+            assertThat(decide(layout, load, Map.of("stream", 4, "checkpoint", 2, "checkpoint2", 2),
+                    Set.of("stream"), config))
+                    .as("whole-segment demand uses the per-group maximum, not the sum")
+                    .isEqualTo(AutoScaleDecision.NONE);
+        }
+        Map<String, Integer> demand = Map.of("stream", 5, "checkpoint", 3);
+        assertThat(decide(layout, Map.of(), demand, Set.of("stream"),
+                config.toBuilder().maxEntryBucketsPerSegment(2).build()))
+                .as("an exhausted bucket ceiling does not hide the independent physical segment cap")
+                .isEqualTo(new AutoScaleDecision.NoAction("max_segments"));
+        assertThat(AutoScalePolicyEvaluator.decide(layout, Map.of(), demand, Set.of("stream"),
+                config, NOW, NO_PRIOR, NO_PRIOR, NOW))
+                .as("a rebucket cooldown does not hide the independent physical segment cap")
+                .isEqualTo(new AutoScaleDecision.NoAction("max_segments"));
+    }
+
+    @Test
+    public void testMixedConsumerDiagnosticsPreserveSelectedActions() {
+        SegmentLayout layout = initialLayout(2);
+        Map<String, Integer> consumers = Map.of("stream", 5, "checkpoint", 3);
+        assertThat(decide(layout, Map.of(), consumers, Set.of("stream"),
+                baseConfig().maxSegments(2).build()))
+                .as("physical segment cap diagnostics must not suppress a selected rebucket")
+                .isEqualTo(new AutoScaleDecision.Rebucket(List.of(0L, 1L), 4, "at-max-segments"));
+        assertThat(decide(layout, Map.of(0L, sample(2_000, 0, 0, 0, old())),
+                consumers, Set.of("stream"), baseConfig().build()))
+                .as("diagnostics must not change a selected consumer-driven split")
+                .isEqualTo(new AutoScaleDecision.Split(0L, "consumer-count"));
+        AutoScaleDecision merged = decide(layout, Map.of(0L, cold(old()), 1L, cold(old())),
+                Map.of("stream", 4, "checkpoint", 3), Set.of("stream"),
+                baseConfig().maxSegments(2).build());
+        assertThat(merged).as("diagnostics must not change a selected capacity-preserving merge")
+                .isInstanceOf(AutoScaleDecision.Merge.class);
+        AutoScaleDecision.Merge merge = (AutoScaleDecision.Merge) merged;
+        assertThat(Set.of(merge.segmentId1(), merge.segmentId2())).isEqualTo(Set.of(0L, 1L));
+        assertThat(merge.reason()).isEqualTo("cold");
+    }
+
+    @Test
     public void testSingleSlotSelectedSegmentReportsUnsplittable() {
         SegmentLayout layout = initialLayout(1);
         long id = 0;
