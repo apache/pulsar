@@ -99,6 +99,16 @@ Pulsar relies heavily on `CompletableFuture`; prefer it over `ListenableFuture` 
   - **`org.apache.pulsar.common.semaphore.AsyncSemaphoreImpl`** — a non-blocking semaphore with a
     per-operation cost that queues callers instead of failing when the limit is reached. Preferred over
     `ConcurrencyReducer` for request-driven cases that need a timeout on permit acquisition.
+- **A task given to `CompletableFuture.delayedExecutor()` cannot be taken back.** It sits in the JDK's
+  delayer queue until its delay elapses and keeps everything its lambda captured (`this`, readers,
+  maps) reachable until then; cancelling a future built on it (`runAsync(task, delayedExecutor(...))`)
+  only skips the run. A `ScheduledExecutorService` with `setRemoveOnCancelPolicy(true)` does drop a
+  cancelled task, but a task queued there is discarded without notice by `shutdownNow()`, so neither
+  is right for every timer. When using the delayer: check a stop flag when the task runs, keep the
+  delay or the captured state small, and when the retention matters (a closed object with a large
+  state behind a long delay), capture a reference that the stop can clear instead of the object
+  itself. See the tail-read retry in `AbstractTableViewImpl` and the discussion in
+  [#26672](https://github.com/apache/pulsar/pull/26672).
 
 ## Testing conventions
 
