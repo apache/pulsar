@@ -39,6 +39,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicMetrics.RequestType;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicMetrics.WatchType;
@@ -164,14 +165,72 @@ public class ScalableTopicControllerMetricsIsolationTest {
         };
     }
 
+    @DataProvider
+    public Object[][] residentSessionMetricsModes() {
+        return new Object[][]{{true}, {false}};
+    }
+
+    @Test(dataProvider = "residentSessionMetricsModes")
+    public void testCoexistenceWithResidentSessionProvider(boolean telemetryEnabled) {
+        CollectorRegistry registry = CollectorRegistry.defaultRegistry;
+        String residentCluster = "resident-session-" + UUID.randomUUID();
+        var reader = InMemoryMetricReader.create();
+        try (var sdk = SdkMeterProvider.builder().registerMetricReader(reader).build()) {
+            Meter meter = telemetryEnabled ? sdk.get("resident-broker") : MeterProvider.noop().get("resident-broker");
+            try (var resident = new ScalableTopicMetrics(meter, residentCluster, registry)) {
+                resident.sessionOpened(WatchType.TOPIC);
+                resident.recordWatchUpdate(true);
+                AtomicLong successfulUpdates = new AtomicLong(1);
+                Runnable residentActivity = () -> {
+                    resident.startRequest(RequestType.LOOKUP).success();
+                    resident.recordWatchUpdate(true);
+                    successfulUpdates.incrementAndGet();
+                };
+                for (int attempt = 0; attempt < 2; attempt++) {
+                    assertSessionMetricsSurviveControllerLifecycle(telemetryEnabled, registry, residentActivity);
+                    assertThat(registry.getSampleValue(WATCH_SESSIONS, new String[]{"cluster", "watch_type"},
+                            new String[]{residentCluster, "topic"})).isEqualTo(1);
+                    assertThat(registry.getSampleValue(WATCH_UPDATES + "_total",
+                            new String[]{"cluster", "operation_status"}, new String[]{residentCluster, "success"}))
+                            .isEqualTo((double) successfulUpdates.get());
+                    assertThat(Collections.list(registry.metricFamilySamples())).extracting(family -> family.name)
+                            .containsAll(SESSION_METRICS);
+                    if (telemetryEnabled) {
+                        assertThat(reader.collectAllMetrics()).anySatisfy(metric -> {
+                            assertThat(metric.getName()).isEqualTo(ScalableTopicMetrics.WATCH_UPDATE_COUNT_METRIC_NAME);
+                            assertThat(metric.getLongSumData().getPoints()).filteredOn(point -> point.getAttributes()
+                                            .equals(Attributes.builder()
+                                                    .put("pulsar.scalable_topic.operation.status", "success").build()))
+                                    .singleElement().satisfies(point ->
+                                            assertThat(point.getValue()).isEqualTo(successfulUpdates.get()));
+                        });
+                        assertThat(reader.collectAllMetrics()).anySatisfy(metric -> {
+                            assertThat(metric.getName()).isEqualTo(ScalableTopicMetrics.REQUEST_DURATION_METRIC_NAME);
+                            assertThat(metric.getHistogramData().getPoints()).singleElement().satisfies(point ->
+                                    assertThat(point.getCount()).isEqualTo(successfulUpdates.get() - 1));
+                        });
+                    } else {
+                        assertThat(reader.collectAllMetrics()).isEmpty();
+                    }
+                }
+            }
+        }
+    }
+
     @Test(dataProvider = "sessionMetricsModes")
     public void testUpstreamSessionMetricsSurviveControllerLifecycle(boolean telemetryEnabled,
                                                                    CollectorRegistry registry) {
+        assertSessionMetricsSurviveControllerLifecycle(telemetryEnabled, registry, () -> { });
+    }
+
+    private void assertSessionMetricsSurviveControllerLifecycle(boolean telemetryEnabled, CollectorRegistry registry,
+                                                              Runnable residentActivity) {
+        String cluster = "session-isolation-" + UUID.randomUUID();
         var reader = InMemoryMetricReader.create();
         try (var sdk = SdkMeterProvider.builder().registerMetricReader(reader).build()) {
             Meter meter = telemetryEnabled ? sdk.get("shared-broker-meter")
                     : MeterProvider.noop().get("shared-broker-meter");
-            try (var sessions = new ScalableTopicMetrics(meter, CLUSTER, registry)) {
+            try (var sessions = new ScalableTopicMetrics(meter, cluster, registry)) {
                 for (RequestType type : RequestType.values()) {
                     sessions.startRequest(type).success();
                     sessions.startRequest(type).failure();
@@ -183,7 +242,7 @@ public class ScalableTopicControllerMetricsIsolationTest {
                 sessions.recordWatchUpdate(true);
                 sessions.recordWatchUpdate(true);
                 sessions.recordWatchUpdate(false);
-                SessionMetricsSnapshot before = sessionMetricsSnapshot(registry, reader);
+                SessionMetricsSnapshot before = sessionMetricsSnapshot(registry, reader, cluster);
                 assertThat(before.prometheus()).extracting(family -> family.name)
                         .containsExactlyInAnyOrderElementsOf(SESSION_METRICS);
                 assertThat(before.prometheus()).filteredOn(family -> family.name.equals(REQUEST_DURATION))
@@ -195,13 +254,13 @@ public class ScalableTopicControllerMetricsIsolationTest {
                                             .containsExactly("cluster", "request_type", "operation_status");
                                 }));
                 assertThat(registry.getSampleValue(WATCH_SESSIONS,
-                        new String[]{"cluster", "watch_type"}, new String[]{CLUSTER, "topic"})).isEqualTo(1);
+                        new String[]{"cluster", "watch_type"}, new String[]{cluster, "topic"})).isEqualTo(1);
                 assertThat(registry.getSampleValue(WATCH_SESSIONS,
-                        new String[]{"cluster", "watch_type"}, new String[]{CLUSTER, "namespace"})).isEqualTo(1);
+                        new String[]{"cluster", "watch_type"}, new String[]{cluster, "namespace"})).isEqualTo(1);
                 assertThat(registry.getSampleValue(WATCH_UPDATES + "_total",
-                        new String[]{"cluster", "operation_status"}, new String[]{CLUSTER, "success"})).isEqualTo(2);
+                        new String[]{"cluster", "operation_status"}, new String[]{cluster, "success"})).isEqualTo(2);
                 assertThat(registry.getSampleValue(WATCH_UPDATES + "_total",
-                        new String[]{"cluster", "operation_status"}, new String[]{CLUSTER, "failure"})).isEqualTo(1);
+                        new String[]{"cluster", "operation_status"}, new String[]{cluster, "failure"})).isEqualTo(1);
                 if (telemetryEnabled) {
                     assertThat(before.openTelemetry()).containsOnlyKeys(
                             ScalableTopicMetrics.REQUEST_DURATION_METRIC_NAME,
@@ -219,11 +278,12 @@ public class ScalableTopicControllerMetricsIsolationTest {
                     assertThat(before.openTelemetry()).isEmpty();
                 }
                 SessionMetricsSnapshot updated;
-                try (var added = new ScalableTopicControllerMetrics(meter, CLUSTER, () -> COUNTS, registry)) {
-                    assertThat(sessionMetricsSnapshot(registry, reader)).isEqualTo(before);
+                residentActivity.run();
+                try (var added = new ScalableTopicControllerMetrics(meter, cluster, () -> COUNTS, registry)) {
+                    assertThat(sessionMetricsSnapshot(registry, reader, cluster)).isEqualTo(before);
                     recordAllMetrics(added);
-                    assertThat(sessionMetricsSnapshot(registry, reader)).isEqualTo(before);
-                    assertThat(sessionMetricsSnapshot(registry, reader)).isEqualTo(before);
+                    assertThat(sessionMetricsSnapshot(registry, reader, cluster)).isEqualTo(before);
+                    assertThat(sessionMetricsSnapshot(registry, reader, cluster)).isEqualTo(before);
                     // Actual upstream instruments must still record while controller instruments are present.
                     sessions.startRequest(RequestType.LOOKUP).success();
                     sessions.startRequest(RequestType.WATCH_TOPICS).failure();
@@ -231,42 +291,57 @@ public class ScalableTopicControllerMetricsIsolationTest {
                     sessions.sessionClosed(WatchType.NAMESPACE);
                     sessions.recordWatchUpdate(true);
                     sessions.recordWatchUpdate(false);
-                    updated = sessionMetricsSnapshot(registry, reader);
+                    updated = sessionMetricsSnapshot(registry, reader, cluster);
                     assertThat(updated.prometheus()).isNotEqualTo(before.prometheus());
                     if (telemetryEnabled) {
                         assertThat(updated.openTelemetry()).isNotEqualTo(before.openTelemetry());
                     }
+                    residentActivity.run();
                     recordAllMetrics(added);
-                    assertThat(sessionMetricsSnapshot(registry, reader)).isEqualTo(updated);
+                    assertThat(sessionMetricsSnapshot(registry, reader, cluster)).isEqualTo(updated);
                 }
-                assertThat(sessionMetricsSnapshot(registry, reader)).isEqualTo(updated);
-                try (var replacement = new ScalableTopicControllerMetrics(meter, CLUSTER, () -> COUNTS, registry)) {
+                residentActivity.run();
+                assertThat(sessionMetricsSnapshot(registry, reader, cluster)).isEqualTo(updated);
+                try (var replacement = new ScalableTopicControllerMetrics(meter, cluster, () -> COUNTS, registry)) {
+                    residentActivity.run();
                     recordAllMetrics(replacement);
-                    assertThat(sessionMetricsSnapshot(registry, reader)).isEqualTo(updated);
-                    assertThat(sessionMetricsSnapshot(registry, reader)).isEqualTo(updated);
+                    assertThat(sessionMetricsSnapshot(registry, reader, cluster)).isEqualTo(updated);
+                    assertThat(sessionMetricsSnapshot(registry, reader, cluster)).isEqualTo(updated);
                 }
-                assertThat(sessionMetricsSnapshot(registry, reader)).isEqualTo(updated);
+                assertThat(sessionMetricsSnapshot(registry, reader, cluster)).isEqualTo(updated);
                 sessions.sessionClosed(WatchType.TOPIC);
                 sessions.startRequest(RequestType.UNSUBSCRIBE).success();
                 sessions.recordWatchUpdate(false);
-                SessionMetricsSnapshot after = sessionMetricsSnapshot(registry, reader);
+                SessionMetricsSnapshot after = sessionMetricsSnapshot(registry, reader, cluster);
                 assertThat(after.prometheus()).isNotEqualTo(updated.prometheus());
                 if (telemetryEnabled) {
                     assertThat(after.openTelemetry()).isNotEqualTo(updated.openTelemetry());
                 }
             }
-            assertThat(Collections.list(registry.metricFamilySamples())).extracting(family -> family.name)
-                    .doesNotContainAnyElementsOf(SESSION_METRICS);
+            // Other brokers may keep the shared collector and these families registered.
+            assertThat(sessionPrometheusSnapshot(registry, cluster)).isEmpty();
         }
     }
 
     private record SessionMetricsSnapshot(List<MetricFamilySamples> prometheus, Map<String, Object> openTelemetry) { }
 
     private static SessionMetricsSnapshot sessionMetricsSnapshot(CollectorRegistry registry,
-                                                                 InMemoryMetricReader reader) {
-        return new SessionMetricsSnapshot(Collections.list(registry.metricFamilySamples()).stream()
-                .filter(family -> SESSION_METRICS.contains(family.name)).toList(),
+                                                                 InMemoryMetricReader reader, String cluster) {
+        // The SDK reader belongs to this fixture; only the Prometheus registry is shared with other brokers.
+        return new SessionMetricsSnapshot(sessionPrometheusSnapshot(registry, cluster),
                 existingOpenTelemetry(reader.collectAllMetrics()));
+    }
+
+    private static List<MetricFamilySamples> sessionPrometheusSnapshot(CollectorRegistry registry, String cluster) {
+        return Collections.list(registry.metricFamilySamples()).stream()
+                .filter(family -> SESSION_METRICS.contains(family.name))
+                .map(family -> new MetricFamilySamples(family.name, family.unit, family.type, family.help,
+                        family.samples.stream().filter(sample -> {
+                            int index = sample.labelNames.indexOf("cluster");
+                            return index >= 0 && cluster.equals(sample.labelValues.get(index));
+                        }).toList()))
+                .filter(family -> !family.samples.isEmpty())
+                .toList();
     }
 
     @DataProvider
