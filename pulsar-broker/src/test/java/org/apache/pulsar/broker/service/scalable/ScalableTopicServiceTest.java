@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.scalable;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -33,6 +34,7 @@ import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import io.prometheus.client.CollectorRegistry;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -169,6 +171,39 @@ public class ScalableTopicServiceTest {
 
     private TopicName scalableTopic(String name) {
         return TopicName.get("topic://tenant/ns/" + name);
+    }
+
+    @Test
+    public void testBrokerMetricsAggregateAndReleaseControllers() throws Exception {
+        TopicName first = scalableTopic("metrics-first");
+        TopicName second = scalableTopic("metrics-second");
+        service.createScalableTopic(first, 2).get();
+        service.createScalableTopic(second, 3).get();
+        ScalableTopicController leader = service.getOrCreateController(first).get();
+        service.getOrCreateController(second).get();
+        assertThat(prometheusValue("controller_count")).isEqualTo(2.0);
+        assertThat(prometheusSegments("active")).isEqualTo(5.0);
+        assertThat(prometheusSegments("sealed")).isZero();
+
+        leader.splitSegment(0).get();
+        assertThat(prometheusSegments("active")).isEqualTo(6.0);
+        assertThat(prometheusSegments("sealed")).isEqualTo(1.0);
+        service.releaseController(first).get();
+        assertThat(prometheusValue("controller_count")).isEqualTo(1.0);
+        assertThat(prometheusSegments("active")).isEqualTo(3.0);
+        assertThat(prometheusSegments("sealed")).isZero();
+        service.closeAsync().get();
+        assertThat(prometheusValue("controller_count")).isNull();
+    }
+
+    private static Double prometheusValue(String suffix) {
+        return CollectorRegistry.defaultRegistry.getSampleValue("pulsar_scalable_topic_" + suffix,
+                new String[]{"cluster"}, new String[]{""});
+    }
+
+    private static Double prometheusSegments(String state) {
+        return CollectorRegistry.defaultRegistry.getSampleValue("pulsar_scalable_topic_segment_count",
+                new String[]{"cluster", "segment_state"}, new String[]{"", state});
     }
 
     // --- createScalableTopic ---

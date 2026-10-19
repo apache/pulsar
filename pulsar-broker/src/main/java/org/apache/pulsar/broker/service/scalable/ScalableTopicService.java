@@ -18,9 +18,11 @@
  */
 package org.apache.pulsar.broker.service.scalable;
 
+import io.opentelemetry.api.OpenTelemetry;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.CustomLog;
@@ -67,6 +69,7 @@ public class ScalableTopicService {
     private final BrokerService brokerService;
     private final ScalableTopicResources resources;
     private final CoordinationService coordinationService;
+    private final ScalableTopicMetrics metrics;
 
     /**
      * Active controllers for topics this broker coordinates. The value is a future so
@@ -82,6 +85,28 @@ public class ScalableTopicService {
         this.brokerService = brokerService;
         this.resources = resources;
         this.coordinationService = coordinationService;
+        var pulsar = brokerService.getPulsar();
+        var telemetry = pulsar.getOpenTelemetry();
+        var config = pulsar.getConfiguration();
+        this.metrics = new ScalableTopicMetrics(telemetry != null ? telemetry.getMeter()
+                : OpenTelemetry.noop().getMeter(ScalableTopicService.class.getName()),
+                config != null ? Objects.toString(config.getClusterName(), "") : "", this::metricCounts);
+    }
+
+    private ScalableTopicMetrics.Counts metricCounts() {
+        long leaders = 0;
+        long active = 0;
+        long sealed = 0;
+        for (CompletableFuture<ScalableTopicController> future : controllers.values()) {
+            if (!future.isDone() || future.isCompletedExceptionally()) {
+                continue;
+            }
+            ScalableTopicMetrics.Counts counts = future.join().metricCounts();
+            leaders += counts.controllers();
+            active += counts.active();
+            sealed += counts.sealed();
+        }
+        return new ScalableTopicMetrics.Counts(leaders, active, sealed);
     }
 
     // --- Lifecycle ---
@@ -91,6 +116,10 @@ public class ScalableTopicService {
     }
 
     public void close() {
+        closeAsync().join();
+    }
+
+    public CompletableFuture<Void> closeAsync() {
         log.info().attr("controllerCount", controllers.size())
                 .log("Closing ScalableTopicService, releasing controllers");
         List<CompletableFuture<Void>> closeFutures = controllers.values().stream()
@@ -101,8 +130,10 @@ public class ScalableTopicService {
                             return null;
                         }))
                 .toList();
-        FutureUtil.waitForAll(closeFutures).join();
-        controllers.clear();
+        return FutureUtil.waitForAll(closeFutures).whenComplete((__, ex) -> {
+            controllers.clear();
+            metrics.close();
+        });
     }
 
     // --- Controller management ---
@@ -128,6 +159,7 @@ public class ScalableTopicService {
     private CompletableFuture<ScalableTopicController> newController(String key, TopicName topic) {
         ScalableTopicController controller = new ScalableTopicController(
                 topic, resources, brokerService, coordinationService);
+        controller.setMetrics(metrics);
         CompletableFuture<ScalableTopicController> future = new CompletableFuture<>();
         // Released once its topic is deleted: the admin delete stops the controller on the
         // broker serving it, not the ones other brokers hold for the topic. Closed before it is

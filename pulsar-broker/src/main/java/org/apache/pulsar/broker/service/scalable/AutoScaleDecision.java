@@ -18,14 +18,16 @@
  */
 package org.apache.pulsar.broker.service.scalable;
 
+import java.util.List;
+
 /**
- * The outcome of one {@link AutoScalePolicyEvaluator} evaluation (PIP-483): split one
- * segment, merge two adjacent segments, or do nothing. Each non-{@link NoAction} variant
- * carries a short {@code reason} string used for logging and metrics.
+ * The outcome of one {@link AutoScalePolicyEvaluator} evaluation (PIP-483): split, merge,
+ * rebucket, or do nothing. Actions and blocked evaluations carry a short {@code reason}
+ * string used for logging and metrics.
  */
 public sealed interface AutoScaleDecision
         permits AutoScaleDecision.Split, AutoScaleDecision.Merge, AutoScaleDecision.Rebucket,
-                AutoScaleDecision.NoAction {
+                AutoScaleDecision.Blocked, AutoScaleDecision.NoAction {
 
     /** Split {@code segmentId} at its midpoint. */
     record Split(long segmentId, String reason) implements AutoScaleDecision {
@@ -41,11 +43,20 @@ public sealed interface AutoScaleDecision
      * instead of a split. One decision carries the whole batch so a multi-segment topic
      * converges to a uniform bucketing in a single evaluation, not one segment per cooldown.
      */
-    record Rebucket(java.util.List<Long> segmentIds, int newBucketCount, String reason)
+    record Rebucket(List<Long> segmentIds, int newBucketCount, String reason)
             implements AutoScaleDecision {
     }
 
-    /** No action this evaluation. */
+    /**
+     * Eligible demand could not be served by any action. The evaluator emits
+     * {@code max_segments}, {@code max_entry_buckets}, {@code max_dag_depth}, or
+     * {@code unsplittable}; policy resolution may report {@code invalid_policy} separately.
+     * Cooldowns alone never produce a blocked decision.
+     */
+    record Blocked(String reason) implements AutoScaleDecision {
+    }
+
+    /** No action this evaluation, without eligible demand blocked by a hard limit. */
     record NoAction() implements AutoScaleDecision {
     }
 

@@ -44,6 +44,9 @@ import org.apache.pulsar.common.scalable.SegmentLoadStats;
  *       consumer that owns a bucket today, since the rebucket lane cannot grow past the
  *       ceiling to win the capacity back.</li>
  * </ol>
+ * A single-slot segment is skipped when choosing a split. A hard limit is reported as
+ * {@link AutoScaleDecision.Blocked} only for otherwise-eligible demand, after all lanes
+ * have had a chance to act; cooldowns do not themselves count as blocked evaluations.
  */
 public final class AutoScalePolicyEvaluator {
 
@@ -90,17 +93,26 @@ public final class AutoScalePolicyEvaluator {
         AutoScaleDecision consumerScale = tryConsumerScale(active, loadBySegment,
                 streamConsumerCount, bucketSharingSubscriptions, config, nowMs, lastSplitAtMs,
                 lastRebucketAtMs);
-        if (!(consumerScale instanceof AutoScaleDecision.NoAction)) {
+        if (isAction(consumerScale)) {
             return consumerScale;
         }
 
         AutoScaleDecision split = trySplit(active, loadBySegment, config, nowMs, lastSplitAtMs);
-        if (!(split instanceof AutoScaleDecision.NoAction)) {
+        if (isAction(split)) {
             return split;
         }
 
-        return tryMerge(active, layout, loadBySegment, streamConsumerCount, config, nowMs,
-                lastMergeAtMs);
+        AutoScaleDecision merge = tryMerge(active, layout, loadBySegment, streamConsumerCount,
+                config, nowMs, lastMergeAtMs);
+        if (isAction(merge)) {
+            return merge;
+        }
+        // A blocked candidate must not suppress a valid action in another lane. If none can
+        // act, report the first blocked lane in the same priority order as the actions.
+        if (consumerScale instanceof AutoScaleDecision.Blocked) {
+            return consumerScale;
+        }
+        return split instanceof AutoScaleDecision.Blocked ? split : merge;
     }
 
     // --- Consumer-driven scale-up: segments vs entry-buckets (PIP-486) ---
@@ -109,13 +121,13 @@ public final class AutoScalePolicyEvaluator {
      * Serve surplus consumers (a subscription with more consumers than active segments) by
      * adding capacity on one of two axes:
      * <ul>
-     *   <li><b>Split</b> when traffic justifies a physical segment: the busiest segment's
-     *       inbound rate is at or above {@code splitVsRebucketMinMsgRateIn} and the topic is
-     *       under {@code maxSegments} — today's "segments first" behavior.</li>
-     *   <li><b>Rebucket-up</b> otherwise (a low-throughput topic, or the topic is at the
-     *       segment cap): if the existing entry-bucket capacity cannot absorb the surplus,
-     *       roll the smallest-bucketed segment over to the smallest power of two that lets
-     *       every consumer own a bucket, capped at {@code maxEntryBucketsPerSegment}.
+     *   <li><b>Split</b> when traffic justifies a physical segment: the busiest splittable
+     *       segment's inbound rate is at or above {@code splitVsRebucketMinMsgRateIn} and the
+     *       topic is under {@code maxSegments} — today's "segments first" behavior.</li>
+     *   <li><b>Rebucket-up</b> otherwise (a low-throughput topic, an unsplittable hot spot, or
+     *       the topic is at the segment cap): if the existing entry-bucket capacity cannot
+     *       absorb the surplus, roll under-target segments over to a common power-of-two
+     *       bucket count sized to the consumers, capped at {@code maxEntryBucketsPerSegment}.
      *       Raising is fast (one rollover sized to the surplus); lowering is deliberately
      *       not automated here — spiky consumer counts must not flap the bucketing. Only
      *       bucket-sharing subscriptions count here: a checkpoint group's members each read
@@ -139,20 +151,38 @@ public final class AutoScalePolicyEvaluator {
             return AutoScaleDecision.NONE;
         }
 
-        SegmentInfo busiest = busiestByMsgRateIn(active, loadBySegment);
+        SegmentInfo busiest = busiestByMsgRateIn(active, loadBySegment, false);
         if (busiest == null) {
             return AutoScaleDecision.NONE;
         }
         boolean atSegmentCap = segments >= config.maxSegments();
         boolean belowSplitFloor = statsOf(busiest.segmentId(), loadBySegment).msgRateIn()
                 < config.splitVsRebucketMinMsgRateIn();
+        boolean splitCoolingDown = withinCooldown(nowMs, lastSplitAtMs, config.splitCooldown().toMillis());
+        AutoScaleDecision blocked = AutoScaleDecision.NONE;
 
         if (!atSegmentCap && !belowSplitFloor) {
-            // Traffic justifies a physical segment.
-            if (withinCooldown(nowMs, lastSplitAtMs, config.splitCooldown().toMillis())) {
+            // Traffic justifies a physical segment, but a single-slot hot spot cannot split.
+            if (splitCoolingDown) {
                 return AutoScaleDecision.NONE;
             }
-            return new AutoScaleDecision.Split(busiest.segmentId(), "consumer-count");
+            SegmentInfo splittable = busiestByMsgRateIn(active, loadBySegment, true);
+            if (splittable != null && statsOf(splittable.segmentId(), loadBySegment).msgRateIn()
+                    >= config.splitVsRebucketMinMsgRateIn()) {
+                return new AutoScaleDecision.Split(splittable.segmentId(), "consumer-count");
+            }
+            blocked = new AutoScaleDecision.Blocked("unsplittable");
+        } else if (atSegmentCap && !belowSplitFloor && !splitCoolingDown) {
+            // Whole-segment readers cannot use buckets as an alternative to another segment.
+            int wholeSegmentConsumers = streamConsumerCount.entrySet().stream()
+                    .filter(e -> !bucketSharingSubscriptions.contains(e.getKey()))
+                    .mapToInt(Map.Entry::getValue).max().orElse(0);
+            if (wholeSegmentConsumers > segments) {
+                SegmentInfo splittable = busiestByMsgRateIn(active, loadBySegment, true);
+                boolean eligible = splittable != null && statsOf(splittable.segmentId(), loadBySegment).msgRateIn()
+                        >= config.splitVsRebucketMinMsgRateIn();
+                blocked = new AutoScaleDecision.Blocked(eligible ? "max_segments" : "unsplittable");
+            }
         }
 
         // Bucket lane: absorb the bucket-sharing subscriptions' surplus with entry-buckets.
@@ -165,10 +195,10 @@ public final class AutoScalePolicyEvaluator {
         }
         if (bucketConsumers <= capacity) {
             // The existing buckets already absorb the surplus (broker-side fan-out).
-            return AutoScaleDecision.NONE;
+            return blocked;
         }
         if (withinCooldown(nowMs, lastRebucketAtMs, config.rebucketCooldown().toMillis())) {
-            return AutoScaleDecision.NONE;
+            return blocked;
         }
         // One shot: bring every segment below the common per-segment target up to it in a
         // single decision, so the topic converges to a uniform bucketing in one evaluation —
@@ -183,7 +213,7 @@ public final class AutoScalePolicyEvaluator {
         }
         if (below.isEmpty()) {
             // Bucket capacity is maxed out; the remaining surplus stays idle.
-            return AutoScaleDecision.NONE;
+            return new AutoScaleDecision.Blocked("max_entry_buckets");
         }
         below.sort(Long::compareTo);
         return new AutoScaleDecision.Rebucket(below, target,
@@ -199,9 +229,6 @@ public final class AutoScalePolicyEvaluator {
             long nowMs,
             long lastSplitAtMs) {
 
-        if (active.size() >= config.maxSegments()) {
-            return AutoScaleDecision.NONE;
-        }
         if (withinCooldown(nowMs, lastSplitAtMs, config.splitCooldown().toMillis())) {
             return AutoScaleDecision.NONE;
         }
@@ -211,6 +238,7 @@ public final class AutoScalePolicyEvaluator {
         SegmentInfo hottest = null;
         double hottestScore = 1.0; // strictly over threshold means a per-metric ratio > 1.0
         String hottestReason = null;
+        boolean unsplittable = false;
         for (SegmentInfo segment : active) {
             SegmentLoadStats stats = statsOf(segment.segmentId(), loadBySegment);
             double score = 0.0;
@@ -228,17 +256,25 @@ public final class AutoScalePolicyEvaluator {
                     reason = reasons[i];
                 }
             }
-            if (score > 1.0 && score > hottestScore) {
-                hottestScore = score;
-                hottest = segment;
-                hottestReason = reason;
+            if (score > 1.0) {
+                if (segment.hashRange().size() < 2) {
+                    unsplittable = true;
+                    continue;
+                }
+                if (score > hottestScore) {
+                    hottestScore = score;
+                    hottest = segment;
+                    hottestReason = reason;
+                }
             }
         }
         if (hottest != null) {
-            return new AutoScaleDecision.Split(hottest.segmentId(), hottestReason);
+            return active.size() >= config.maxSegments()
+                    ? new AutoScaleDecision.Blocked("max_segments")
+                    : new AutoScaleDecision.Split(hottest.segmentId(), hottestReason);
         }
 
-        return AutoScaleDecision.NONE;
+        return unsplittable ? new AutoScaleDecision.Blocked("unsplittable") : AutoScaleDecision.NONE;
     }
 
     // --- Merge pass ---
@@ -278,6 +314,7 @@ public final class AutoScalePolicyEvaluator {
         long usedParallelism = Math.min(consumers, totalCapacity);
 
         AutoScaleDecision.Merge coldest = null;
+        AutoScaleDecision blocked = AutoScaleDecision.NONE;
         double coldestCombined = Double.MAX_VALUE;
         for (int i = 0; i < active.size(); i++) {
             for (int j = i + 1; j < active.size(); j++) {
@@ -286,17 +323,21 @@ public final class AutoScalePolicyEvaluator {
                 if (!a.hashRange().isAdjacentTo(b.hashRange())) {
                     continue;
                 }
+                if (!coldEnough(a.segmentId(), loadBySegment, config, nowMs, mergeWindowMs)
+                        || !coldEnough(b.segmentId(), loadBySegment, config, nowMs, mergeWindowMs)) {
+                    continue;
+                }
                 if (layout.mergeDepth(a.segmentId()) >= config.maxDagDepth()
                         || layout.mergeDepth(b.segmentId()) >= config.maxDagDepth()) {
+                    blocked = new AutoScaleDecision.Blocked("max_dag_depth");
                     continue;
                 }
                 long pairCapacity = (long) a.bucketCount() + b.bucketCount();
                 long mergedCapacity = Math.min(pairCapacity, config.maxEntryBucketsPerSegment());
                 if (totalCapacity - pairCapacity + mergedCapacity < usedParallelism) {
-                    continue;
-                }
-                if (!coldEnough(a.segmentId(), loadBySegment, config, nowMs, mergeWindowMs)
-                        || !coldEnough(b.segmentId(), loadBySegment, config, nowMs, mergeWindowMs)) {
+                    if (!(blocked instanceof AutoScaleDecision.Blocked)) {
+                        blocked = new AutoScaleDecision.Blocked("max_entry_buckets");
+                    }
                     continue;
                 }
                 double combined = combinedRate(a.segmentId(), loadBySegment)
@@ -307,7 +348,7 @@ public final class AutoScalePolicyEvaluator {
                 }
             }
         }
-        return coldest != null ? coldest : AutoScaleDecision.NONE;
+        return coldest != null ? coldest : blocked;
     }
 
     /**
@@ -338,6 +379,12 @@ public final class AutoScalePolicyEvaluator {
 
     // --- Helpers ---
 
+    private static boolean isAction(AutoScaleDecision decision) {
+        return decision instanceof AutoScaleDecision.Split
+                || decision instanceof AutoScaleDecision.Rebucket
+                || decision instanceof AutoScaleDecision.Merge;
+    }
+
     private static boolean withinCooldown(long nowMs, long lastAtMs, long cooldownMs) {
         return lastAtMs != Long.MIN_VALUE && nowMs - lastAtMs < cooldownMs;
     }
@@ -364,10 +411,14 @@ public final class AutoScalePolicyEvaluator {
     }
 
     private static SegmentInfo busiestByMsgRateIn(List<SegmentInfo> active,
-                                                  Map<Long, SegmentLoadSample> load) {
+                                                  Map<Long, SegmentLoadSample> load,
+                                                  boolean splittableOnly) {
         SegmentInfo best = null;
         double bestRate = -1.0;
         for (SegmentInfo segment : active) {
+            if (splittableOnly && segment.hashRange().size() < 2) {
+                continue;
+            }
             double rate = statsOf(segment.segmentId(), load).msgRateIn();
             // Tie-break deterministically on segment id so the choice is stable across ticks.
             if (rate > bestRate || (rate == bestRate && best != null

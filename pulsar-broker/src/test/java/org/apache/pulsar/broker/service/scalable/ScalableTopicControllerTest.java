@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.scalable;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -27,6 +28,7 @@ import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -107,6 +109,7 @@ public class ScalableTopicControllerTest {
 
     private TopicName topicName;
     private ScalableTopicController controller;
+    private ScalableTopicMetrics metrics;
 
     @BeforeMethod
     public void setUp() throws Exception {
@@ -160,6 +163,7 @@ public class ScalableTopicControllerTest {
         when(scalableTopics.getSegmentStatsAsync(anyString(), anyLong()))
                 .thenAnswer(inv -> CompletableFuture.completedFuture(segmentTopicStats()));
 
+        metrics = mock(ScalableTopicMetrics.class);
         controller = newController(topicName);
     }
 
@@ -188,14 +192,136 @@ public class ScalableTopicControllerTest {
     }
 
     private ScalableTopicController newController(TopicName tn) {
-        return new ScalableTopicController(tn, resources, brokerService, coordinationService);
+        ScalableTopicController result = new ScalableTopicController(tn, resources, brokerService,
+                coordinationService);
+        result.setMetrics(metrics);
+        return result;
     }
 
     private ScalableTopicController newControllerWithClock(TopicName tn,
                                                            java.time.Clock clock,
                                                            java.time.Duration gcInterval) {
-        return new ScalableTopicController(tn, resources, brokerService, coordinationService,
+        ScalableTopicController result = new ScalableTopicController(tn, resources, brokerService, coordinationService,
                 clock, gcInterval);
+        result.setMetrics(metrics);
+        return result;
+    }
+
+    @Test
+    public void testLayoutMetricsAndLeaderCounts() throws Exception {
+        assertEquals(controller.metricCounts(), new ScalableTopicMetrics.Counts(0, 0, 0));
+        controller.initialize().get();
+        verify(metrics).recordTakeover(anyDouble(), eq(true));
+        assertEquals(controller.metricCounts(), new ScalableTopicMetrics.Counts(1, 4, 0));
+
+        controller.splitSegment(0).get();
+        verify(metrics).recordOperation(eq("split"), eq("manual"), eq("success"), anyDouble());
+        verify(metrics).recordSeal(eq("split"), anyDouble());
+        assertEquals(controller.metricCounts(), new ScalableTopicMetrics.Counts(1, 5, 1));
+
+        controller.mergeSegments(1, 2).get();
+        verify(metrics).recordOperation(eq("merge"), eq("manual"), eq("success"), anyDouble());
+        verify(metrics).recordSeal(eq("merge"), anyDouble());
+        controller.rebucketSegment(3, 2).get();
+        verify(metrics).recordOperation(eq("rebucket"), eq("manual"), eq("success"), anyDouble());
+        verify(metrics).recordSeal(eq("rebucket"), anyDouble());
+        controller.close().get();
+        assertEquals(controller.metricCounts(), new ScalableTopicMetrics.Counts(0, 0, 0));
+    }
+
+    @Test
+    public void testLayoutMetricFailureBeforeSealing() throws Exception {
+        controller.initialize().get();
+        when(scalableTopics.createSegmentAsync(anyString(), any()))
+                .thenReturn(CompletableFuture.failedFuture(new IllegalStateException("create failed")));
+        assertThrows(ExecutionException.class, () -> controller.splitSegment(0).get());
+        verify(metrics).recordOperation(eq("split"), eq("manual"), eq("failure"), anyDouble());
+        verify(metrics, never()).recordSeal(anyString(), anyDouble());
+    }
+
+    @Test
+    public void testLayoutMetricPartialAfterSealBeforeCommit() throws Exception {
+        controller.close().get();
+        resources = spy(resources);
+        controller = newController(topicName);
+        controller.initialize().get();
+        doReturn(CompletableFuture.failedFuture(new IllegalStateException("CAS failed")))
+                .when(resources).updateScalableTopicAsync(eq(topicName), any());
+
+        assertThrows(ExecutionException.class, () -> controller.splitSegment(0).get());
+        verify(scalableTopics).terminateSegmentAsync(anyString());
+        verify(metrics).recordOperation(eq("split"), eq("manual"), eq("partial"), anyDouble());
+        verify(metrics, never()).recordSeal(anyString(), anyDouble());
+        assertEquals(controller.metricCounts(), new ScalableTopicMetrics.Counts(1, 4, 0));
+    }
+
+    @Test
+    public void testFailedTakeoverMetric() throws Exception {
+        controller.close().get();
+        resources = spy(resources);
+        controller = newController(topicName);
+        doReturn(CompletableFuture.failedFuture(new IllegalStateException("takeover failed")))
+                .when(resources).listSubscriptionsAsync(topicName);
+        assertThrows(ExecutionException.class, () -> controller.initialize().get());
+        verify(metrics).recordTakeover(anyDouble(), eq(false));
+        assertEquals(controller.metricCounts(), new ScalableTopicMetrics.Counts(0, 0, 0));
+    }
+
+    @Test
+    public void testPruneMetricStorageDeleteFailureIsPartial() throws Exception {
+        installGcMocks(0);
+        controller.initialize().get();
+        controller.splitSegment(0).get();
+        when(scalableTopics.deleteSegmentAsync(anyString(), anyBoolean()))
+                .thenReturn(CompletableFuture.failedFuture(new IllegalStateException("storage failed")));
+        controller.runGcTickAsync().get();
+        verify(metrics).recordOperation(eq("prune"), eq("auto"), eq("partial"), anyDouble());
+        assertFalse(controller.getLayout().get().getAllSegments().containsKey(0L));
+    }
+
+    @Test
+    public void testPruneLoadCleanupFailureIsNotPartial() throws Exception {
+        installGcMocks(0);
+        controller.close().get();
+        resources = spy(resources);
+        controller = newController(topicName);
+        controller.initialize().get();
+        controller.splitSegment(0).get();
+        doReturn(CompletableFuture.failedFuture(new IllegalStateException("load cleanup failed")))
+                .when(resources).deleteSegmentLoadAsync(topicName, 0);
+        assertThrows(ExecutionException.class, () -> controller.runGcTickAsync().get());
+        verify(scalableTopics).deleteSegmentAsync(anyString(), anyBoolean());
+        verify(metrics).recordOperation(eq("prune"), eq("auto"), eq("failure"), anyDouble());
+        verify(metrics, never()).recordOperation(eq("prune"), eq("auto"), eq("partial"), anyDouble());
+    }
+
+    @Test
+    public void testOverlappingGcTicksCountOnlyLayoutChanges() throws Exception {
+        installGcMocks(0);
+        controller.close().get();
+        resources = spy(resources);
+        controller = newController(topicName);
+        controller.initialize().get();
+        controller.splitSegment(0).get();
+        CompletableFuture<List<String>> subscriptions = new CompletableFuture<>();
+        doReturn(subscriptions).when(resources).listSubscriptionsAsync(topicName);
+        CompletableFuture<Void> first = controller.runGcTickAsync();
+        CompletableFuture<Void> second = controller.runGcTickAsync();
+        // Both ticks captured the same layout, and reach their CAS only after this completes.
+        subscriptions.complete(List.of());
+        CompletableFuture.allOf(first, second).get();
+        verify(metrics).recordOperation(eq("prune"), eq("auto"), eq("success"), anyDouble());
+    }
+
+    @Test
+    public void testMergeSecondSealFailureIsPartial() throws Exception {
+        controller.initialize().get();
+        when(scalableTopics.terminateSegmentAsync(anyString()))
+                .thenReturn(CompletableFuture.completedFuture(null))
+                .thenReturn(CompletableFuture.failedFuture(new IllegalStateException("second seal failed")));
+        assertThrows(ExecutionException.class, () -> controller.mergeSegments(0, 1).get());
+        verify(metrics).recordOperation(eq("merge"), eq("manual"), eq("partial"), anyDouble());
+        verify(metrics, never()).recordSeal(anyString(), anyDouble());
     }
 
     // --- initialize() ---
@@ -425,8 +551,8 @@ public class ScalableTopicControllerTest {
     public void testWriteOperationThrowsWhenNotLeader() {
         // Controller not initialized → not leader.
         assertFalse(controller.isLeader());
-        assertThrows(IllegalStateException.class, () -> controller.splitSegment(0));
-        assertThrows(IllegalStateException.class, () -> controller.mergeSegments(0, 1));
+        assertThrows(ExecutionException.class, () -> controller.splitSegment(0).get());
+        assertThrows(ExecutionException.class, () -> controller.mergeSegments(0, 1).get());
         assertThrows(IllegalStateException.class,
                 () -> controller.createSubscription("sub", SubscriptionType.STREAM));
         assertThrows(IllegalStateException.class, () -> controller.deleteSubscription("sub"));
@@ -994,6 +1120,7 @@ public class ScalableTopicControllerTest {
                 "tick past retention must prune the sealed segment");
         // Backing topic delete was issued via the segment-aware admin call.
         verify(scalableTopics).deleteSegmentAsync(anyString(), anyBoolean());
+        verify(metrics).recordOperation(eq("prune"), eq("auto"), eq("success"), anyDouble());
         // The pruned segment's load record is deleted along with it.
         assertFalse(resources.getSegmentLoadAsync(topicName, 0).get().isPresent(),
                 "prune must delete the segment's load record");
