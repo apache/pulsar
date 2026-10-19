@@ -41,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
@@ -101,6 +102,7 @@ public class ScalableTopicServiceTest {
     private ScalableTopics scalableTopicsAdmin;
 
     private ScalableTopicService service;
+    private String clusterName;
 
     @BeforeMethod
     public void setUp() throws Exception {
@@ -119,7 +121,10 @@ public class ScalableTopicServiceTest {
 
         when(brokerService.getPulsar()).thenReturn(pulsar);
         ServiceConfiguration config = new ServiceConfiguration();
-        config.setClusterName("test");
+        // Other tests can keep the shared collector alive, retaining this cluster's counters
+        // after teardown. Use a distinct label per test instead of assuming a fresh registry.
+        clusterName = "scalable-topic-service-test-" + UUID.randomUUID();
+        config.setClusterName(clusterName);
         when(pulsar.getConfiguration()).thenReturn(config);
         PulsarBrokerOpenTelemetry telemetry = mock(PulsarBrokerOpenTelemetry.class);
         when(telemetry.getMeter()).thenReturn(OpenTelemetry.noop().getMeter("test"));
@@ -606,10 +611,10 @@ public class ScalableTopicServiceTest {
         service.releaseController(second).get();
         assertEquals(service.consumerStats(), SubscriptionCoordinator.ConsumerStats.EMPTY);
         assertEquals(CollectorRegistry.defaultRegistry.getSampleValue("pulsar_scalable_topic_rebalance_total",
-                new String[]{"cluster", "rebalance_reason"}, new String[]{"test", "consumer_join"}), 2.0);
+                new String[]{"cluster", "rebalance_reason"}, new String[]{clusterName, "consumer_join"}), 2.0);
         service.start(); // Idempotent: must not reset counters or register another collector.
         assertEquals(CollectorRegistry.defaultRegistry.getSampleValue("pulsar_scalable_topic_rebalance_total",
-                new String[]{"cluster", "rebalance_reason"}, new String[]{"test", "consumer_join"}), 2.0);
+                new String[]{"cluster", "rebalance_reason"}, new String[]{clusterName, "consumer_join"}), 2.0);
     }
 
     @Test
@@ -624,7 +629,7 @@ public class ScalableTopicServiceTest {
         assertEquals(resources.listConsumersAsync(topic, "checkpoint").get(), List.of("one"));
         assertEquals(service.consumerStats(), new SubscriptionCoordinator.ConsumerStats(1, 0, 0, 0));
         assertEquals(CollectorRegistry.defaultRegistry.getSampleValue("pulsar_scalable_topic_consumer_count",
-                new String[]{"cluster", "consumer_state"}, new String[]{"test", "active"}), null);
+                new String[]{"cluster", "consumer_state"}, new String[]{clusterName, "active"}), null);
         service.registerConsumer(topic, "checkpoint", "two", 2, ScalableConsumerType.CHECKPOINT,
                 mock(TransportCnx.class)).get();
         assertEquals(service.consumerStats(), new SubscriptionCoordinator.ConsumerStats(1, 1, 0, 0));
