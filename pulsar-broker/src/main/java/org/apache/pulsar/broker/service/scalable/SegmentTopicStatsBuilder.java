@@ -38,9 +38,16 @@ public final class SegmentTopicStatsBuilder {
     private SegmentTopicStatsBuilder() {
     }
 
+    /** Converts topic stats without backing-topic state, defaulting termination to {@code false}. */
     public static SegmentTopicStats fromTopicStats(TopicStats ts) {
+        return fromTopicStats(ts, false);
+    }
+
+    /** Converts topic stats with the termination state of the segment's backing topic. */
+    public static SegmentTopicStats fromTopicStats(TopicStats ts, boolean terminated) {
         SegmentTopicStats stats = new SegmentTopicStats();
         stats.setOwnerBroker(ts.getOwnerBroker());
+        stats.setTerminated(terminated);
         stats.setMsgRateIn(round(ts.getMsgRateIn()));
         stats.setByteRateIn(round(ts.getMsgThroughputIn()));
         stats.setMsgRateOut(round(ts.getMsgRateOut()));
@@ -82,6 +89,7 @@ public final class SegmentTopicStatsBuilder {
         sub.setMsgBacklog(ss.getMsgBacklog());
         sub.setBacklogSize(ss.getBacklogSize());
         sub.setUnackedMessages(ss.getUnackedMessages());
+        sub.setDrainingBuckets(ss.getDrainingHashesCount());
         sub.setOldestBacklogMessageAgeSeconds(ss.getOldestBacklogMessageAgeSeconds());
         sub.setBlockedSubscriptionOnUnackedMsgs(ss.isBlockedSubscriptionOnUnackedMsgs());
         sub.setLastConsumedTime(date(ss.getLastConsumedTimestamp()));

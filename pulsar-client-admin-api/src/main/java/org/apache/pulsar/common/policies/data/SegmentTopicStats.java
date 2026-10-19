@@ -43,6 +43,9 @@ public class SegmentTopicStats {
     /** Broker currently serving the segment. */
     private String ownerBroker;
 
+    /** Whether the segment's backing topic is terminated (sealed). */
+    private boolean terminated;
+
     /** Rate of messages published on the segment (msg/s). */
     private double msgRateIn;
 
@@ -146,6 +149,9 @@ public class SegmentTopicStats {
 
         /** Messages delivered but not yet acknowledged. */
         private long unackedMessages;
+
+        /** Entry buckets withheld from their new owner until the previous owner acknowledges in-flight messages. */
+        private int drainingBuckets;
 
         /** Age in seconds of the oldest unacknowledged message, or -1 when unknown. */
         private long oldestBacklogMessageAgeSeconds;

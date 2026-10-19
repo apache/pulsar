@@ -18,9 +18,12 @@
  */
 package org.apache.pulsar.broker.service.scalable;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Set;
 import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.common.policies.data.SegmentTopicStats;
@@ -29,6 +32,8 @@ import org.apache.pulsar.common.policies.data.stats.PublisherStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.util.DateFormatter;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -163,6 +168,43 @@ public class SegmentTopicStatsBuilderTest {
         assertEquals(consumer.getClientVersion(), "Pulsar-Java-v5.0.0-SNAPSHOT");
         assertEquals(consumer.getLastAckedTime(), DateFormatter.format(LAST_ACTIVITY));
         assertNull(consumer.getLastConsumedTime());
+    }
+
+    @DataProvider
+    public Object[][] terminationAndDrainingBuckets() {
+        return new Object[][]{{false, 0}, {true, 7}};
+    }
+
+    @Test(dataProvider = "terminationAndDrainingBuckets")
+    public void testTerminationAndDrainingBuckets(boolean terminated, int drainingBuckets) throws Exception {
+        TopicStatsImpl ts = topicStats();
+        ts.subscriptions.get("sub").drainingHashesCount = drainingBuckets;
+
+        SegmentTopicStats stats = SegmentTopicStatsBuilder.fromTopicStats(ts, terminated);
+        assertThat(stats.isTerminated()).as("backing-topic termination state").isEqualTo(terminated);
+        assertThat(stats.getSubscriptions().get("sub").getDrainingBuckets())
+                .as("classic draining hashes become entry-bucket handoffs").isEqualTo(drainingBuckets);
+
+        ObjectMapper mapper = ObjectMapperFactory.getMapper().getObjectMapper();
+        JsonNode json = mapper.valueToTree(stats);
+        assertThat(json.get("terminated").booleanValue()).isEqualTo(terminated);
+        JsonNode subscriptionJson = json.get("subscriptions").get("sub");
+        assertThat(subscriptionJson.get("drainingBuckets").intValue()).isEqualTo(drainingBuckets);
+        assertThat(subscriptionJson.has("drainingHashesCount")).isFalse();
+        SegmentTopicStats restored = mapper.treeToValue(json, SegmentTopicStats.class);
+        assertThat(restored).as("JSON round trip preserves segment stats").isEqualTo(stats);
+    }
+
+    @Test
+    public void testLegacyStatsDefaultTerminationAndDrainingBuckets() throws Exception {
+        SegmentTopicStats stats = SegmentTopicStatsBuilder.fromTopicStats(topicStats());
+        assertThat(stats.isTerminated()).as("conversion without backing-topic state remains compatible").isFalse();
+        assertThat(stats.getSubscriptions().get("sub").getDrainingBuckets()).isZero();
+
+        SegmentTopicStats restored = ObjectMapperFactory.getMapper().reader().readValue(
+                "{\"subscriptions\":{\"sub\":{}}}", SegmentTopicStats.class);
+        assertThat(restored.isTerminated()).as("older segment JSON defaults to unterminated").isFalse();
+        assertThat(restored.getSubscriptions().get("sub").getDrainingBuckets()).isZero();
     }
 
     @Test

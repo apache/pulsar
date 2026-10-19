@@ -99,8 +99,17 @@ public final class AutoScalePolicyEvaluator {
             return split;
         }
 
-        return tryMerge(active, layout, loadBySegment, streamConsumerCount, config, nowMs,
+        AutoScaleDecision merge = tryMerge(active, layout, loadBySegment, streamConsumerCount, config, nowMs,
                 lastMergeAtMs);
+        if (!(merge instanceof AutoScaleDecision.NoAction)) {
+            return merge;
+        }
+        for (AutoScaleDecision candidate : List.of(consumerScale, split, merge)) {
+            if (candidate instanceof AutoScaleDecision.NoAction none && none.blockedReason() != null) {
+                return none;
+            }
+        }
+        return AutoScaleDecision.NONE;
     }
 
     // --- Consumer-driven scale-up: segments vs entry-buckets (PIP-486) ---
@@ -152,7 +161,8 @@ public final class AutoScalePolicyEvaluator {
             if (withinCooldown(nowMs, lastSplitAtMs, config.splitCooldown().toMillis())) {
                 return AutoScaleDecision.NONE;
             }
-            return new AutoScaleDecision.Split(busiest.segmentId(), "consumer-count");
+            return !isSplittable(busiest) ? new AutoScaleDecision.NoAction("unsplittable")
+                    : new AutoScaleDecision.Split(busiest.segmentId(), "consumer-count");
         }
 
         // Bucket lane: absorb the bucket-sharing subscriptions' surplus with entry-buckets.
@@ -165,7 +175,8 @@ public final class AutoScalePolicyEvaluator {
         }
         if (bucketConsumers <= capacity) {
             // The existing buckets already absorb the surplus (broker-side fan-out).
-            return AutoScaleDecision.NONE;
+            return atSegmentCap && consumers > segments && bucketConsumers < consumers
+                    ? new AutoScaleDecision.NoAction("max_segments") : AutoScaleDecision.NONE;
         }
         if (withinCooldown(nowMs, lastRebucketAtMs, config.rebucketCooldown().toMillis())) {
             return AutoScaleDecision.NONE;
@@ -183,7 +194,7 @@ public final class AutoScalePolicyEvaluator {
         }
         if (below.isEmpty()) {
             // Bucket capacity is maxed out; the remaining surplus stays idle.
-            return AutoScaleDecision.NONE;
+            return new AutoScaleDecision.NoAction("max_entry_buckets");
         }
         below.sort(Long::compareTo);
         return new AutoScaleDecision.Rebucket(below, target,
@@ -199,9 +210,6 @@ public final class AutoScalePolicyEvaluator {
             long nowMs,
             long lastSplitAtMs) {
 
-        if (active.size() >= config.maxSegments()) {
-            return AutoScaleDecision.NONE;
-        }
         if (withinCooldown(nowMs, lastSplitAtMs, config.splitCooldown().toMillis())) {
             return AutoScaleDecision.NONE;
         }
@@ -235,7 +243,12 @@ public final class AutoScalePolicyEvaluator {
             }
         }
         if (hottest != null) {
-            return new AutoScaleDecision.Split(hottest.segmentId(), hottestReason);
+            if (!isSplittable(hottest)) {
+                return new AutoScaleDecision.NoAction("unsplittable");
+            }
+            return active.size() >= config.maxSegments()
+                    ? new AutoScaleDecision.NoAction("max_segments")
+                    : new AutoScaleDecision.Split(hottest.segmentId(), hottestReason);
         }
 
         return AutoScaleDecision.NONE;
@@ -279,6 +292,7 @@ public final class AutoScalePolicyEvaluator {
 
         AutoScaleDecision.Merge coldest = null;
         double coldestCombined = Double.MAX_VALUE;
+        String blockedReason = null;
         for (int i = 0; i < active.size(); i++) {
             for (int j = i + 1; j < active.size(); j++) {
                 SegmentInfo a = active.get(i);
@@ -286,17 +300,19 @@ public final class AutoScalePolicyEvaluator {
                 if (!a.hashRange().isAdjacentTo(b.hashRange())) {
                     continue;
                 }
+                if (!coldEnough(a.segmentId(), loadBySegment, config, nowMs, mergeWindowMs)
+                        || !coldEnough(b.segmentId(), loadBySegment, config, nowMs, mergeWindowMs)) {
+                    continue;
+                }
                 if (layout.mergeDepth(a.segmentId()) >= config.maxDagDepth()
                         || layout.mergeDepth(b.segmentId()) >= config.maxDagDepth()) {
+                    blockedReason = "max_dag_depth";
                     continue;
                 }
                 long pairCapacity = (long) a.bucketCount() + b.bucketCount();
                 long mergedCapacity = Math.min(pairCapacity, config.maxEntryBucketsPerSegment());
                 if (totalCapacity - pairCapacity + mergedCapacity < usedParallelism) {
-                    continue;
-                }
-                if (!coldEnough(a.segmentId(), loadBySegment, config, nowMs, mergeWindowMs)
-                        || !coldEnough(b.segmentId(), loadBySegment, config, nowMs, mergeWindowMs)) {
+                    blockedReason = "max_entry_buckets";
                     continue;
                 }
                 double combined = combinedRate(a.segmentId(), loadBySegment)
@@ -307,7 +323,8 @@ public final class AutoScalePolicyEvaluator {
                 }
             }
         }
-        return coldest != null ? coldest : AutoScaleDecision.NONE;
+        return coldest != null ? coldest : blockedReason == null ? AutoScaleDecision.NONE
+                : new AutoScaleDecision.NoAction(blockedReason);
     }
 
     /**
@@ -337,6 +354,10 @@ public final class AutoScalePolicyEvaluator {
     }
 
     // --- Helpers ---
+
+    private static boolean isSplittable(SegmentInfo segment) {
+        return segment.hashRange().start() < segment.hashRange().end();
+    }
 
     private static boolean withinCooldown(long nowMs, long lastAtMs, long cooldownMs) {
         return lastAtMs != Long.MIN_VALUE && nowMs - lastAtMs < cooldownMs;

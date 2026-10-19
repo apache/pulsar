@@ -19,7 +19,9 @@
 package org.apache.pulsar.client.api.v5;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import java.time.Duration;
@@ -66,6 +68,11 @@ public class V5ScalableTopicStatsTest extends V5ClientBaseTest {
 
         ScalableTopicStats stats = admin.scalableTopics().getStats(topic);
 
+        assertNotNull(stats.getControllerBroker());
+        assertNotNull(stats.getAutoScale().getPolicy());
+        assertNull(stats.getAutoScale().getBlockedReason());
+        assertNull(stats.getLayout().getLastOperation());
+
         // --- Segment DAG: two active root segments tiling the hash space ---
         ScalableTopicStats.LayoutStats layout = stats.getLayout();
         assertEquals(layout.getEpoch(), 0);
@@ -75,6 +82,9 @@ public class V5ScalableTopicStatsTest extends V5ClientBaseTest {
             assertTrue(segment.getParentIds().isEmpty());
             assertTrue(segment.getChildIds().isEmpty());
             assertTrue(segment.getEntryBuckets() >= 1);
+            assertNotNull(segment.getCreatedAt());
+            assertNull(segment.getSealedAt());
+            assertEquals(segment.getTerminated(), Boolean.FALSE);
             assertNotNull(segment.getOwnerBroker(), "segment stats must have been collected from its owner");
         }
         // The segment name carries the hash range and the segment ID.
@@ -95,6 +105,7 @@ public class V5ScalableTopicStatsTest extends V5ClientBaseTest {
         assertEquals(sub.getType(), ScalableSubscriptionType.QUEUE);
         assertEquals(sub.getMsgBacklog(), n);
         assertEquals(sub.getSegments().keySet(), Set.of(0L, 1L));
+        assertTrue(sub.getUncoveredSegmentIds().isEmpty());
         long perSegment = sub.getSegments().values().stream()
                 .mapToLong(ScalableTopicStats.SegmentSubscriptionStats::getMsgBacklog).sum();
         assertEquals(perSegment, n);
@@ -199,7 +210,14 @@ public class V5ScalableTopicStatsTest extends V5ClientBaseTest {
         String topic = newScalableTopic(1);
         admin.scalableTopics().splitSegment(topic, 0L);
 
-        ScalableTopicStats.LayoutStats layout = admin.scalableTopics().getStats(topic).getLayout();
+        ScalableTopicStats stats = admin.scalableTopics().getStats(topic);
+        ScalableTopicStats.LayoutStats layout = stats.getLayout();
+        assertNotNull(stats.getAutoScale().getLastSplitAt());
+        assertEquals(layout.getLastOperation().getOperation(), "split");
+        assertEquals(layout.getLastOperation().getTrigger(), "manual");
+        assertEquals(layout.getLastOperation().getStatus(), "success");
+        assertEquals(layout.getLastOperation().getSegmentIds(), List.of(0L));
+        assertNull(layout.getLastOperation().getError());
         assertEquals(layout.getEpoch(), 1);
         assertEquals(layout.getSegments().keySet(), Set.of(0L, 1L, 2L));
 
@@ -220,6 +238,12 @@ public class V5ScalableTopicStatsTest extends V5ClientBaseTest {
         // The sealed (terminated) parent is still a real topic with stats of its own.
         SegmentTopicStats parentStats = admin.scalableTopics().getSegmentStats(topic, 0L);
         assertNotNull(parentStats.getOwnerBroker());
+        assertTrue(parentStats.isTerminated());
+        assertEquals(parent.getTerminated(), Boolean.TRUE);
+        assertNotNull(parent.getSealedAt());
+        assertNotNull(left.getCreatedAt());
+        assertEquals(left.getTerminated(), Boolean.FALSE);
+        assertFalse(admin.scalableTopics().getSegmentStats(topic, 1L).isTerminated());
     }
 
     @Test

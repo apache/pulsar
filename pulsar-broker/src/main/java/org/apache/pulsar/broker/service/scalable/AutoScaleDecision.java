@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.service.scalable;
 
+import java.util.List;
+
 /**
  * The outcome of one {@link AutoScalePolicyEvaluator} evaluation (PIP-483): split one
  * segment, merge two adjacent segments, or do nothing. Each non-{@link NoAction} variant
@@ -41,12 +43,15 @@ public sealed interface AutoScaleDecision
      * instead of a split. One decision carries the whole batch so a multi-segment topic
      * converges to a uniform bucketing in a single evaluation, not one segment per cooldown.
      */
-    record Rebucket(java.util.List<Long> segmentIds, int newBucketCount, String reason)
+    record Rebucket(List<Long> segmentIds, int newBucketCount, String reason)
             implements AutoScaleDecision {
     }
 
-    /** No action this evaluation. */
-    record NoAction() implements AutoScaleDecision {
+    /** No action this evaluation; a reason is present only when demand hit a hard limit. */
+    record NoAction(String blockedReason) implements AutoScaleDecision {
+        public NoAction() {
+            this(null);
+        }
     }
 
     NoAction NONE = new NoAction();

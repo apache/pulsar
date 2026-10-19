@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.scalable;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import java.time.Duration;
@@ -549,4 +550,46 @@ public class AutoScalePolicyEvaluatorTest {
         assertTrue(a.hashRange().isAdjacentTo(b.hashRange()),
                 "merged pair must be hash-range adjacent");
     }
+    @Test
+    public void testBlockedReasonsRequireDemandAndExcludeCooldowns() {
+        SegmentLayout layout = initialLayout(2);
+        Map<Long, SegmentLoadSample> hot = Map.of(0L, sample(SPLIT_MSG_IN + 1, 0, 0, 0, old()));
+        assertThat(decide(layout, hot, Map.of(), baseConfig().maxSegments(2).build()))
+                .isEqualTo(new AutoScaleDecision.NoAction("max_segments"));
+        assertThat(decide(layout, Map.of(), Map.of(), baseConfig().maxSegments(2).build()))
+                .isEqualTo(AutoScaleDecision.NONE);
+        assertThat(AutoScalePolicyEvaluator.decide(layout, hot, Map.of(), Set.of(),
+                baseConfig().maxSegments(2).build(), NOW, NOW, NO_PRIOR, NO_PRIOR))
+                .isEqualTo(AutoScaleDecision.NONE);
+        assertThat(decide(layout, Map.of(), Map.of("stream", 20),
+                baseConfig().maxSegments(2).maxEntryBucketsPerSegment(2).build()))
+                .isEqualTo(new AutoScaleDecision.NoAction("max_entry_buckets"));
+        assertThat(decide(layout, Map.of(0L, cold(old()), 1L, cold(old())), Map.of(),
+                baseConfig().maxDagDepth(0).build()))
+                .isEqualTo(new AutoScaleDecision.NoAction("max_dag_depth"));
+    }
+
+    @Test
+    public void testSingleSlotSelectedSegmentReportsUnsplittable() {
+        SegmentLayout layout = initialLayout(1);
+        long id = 0;
+        while (layout.getActiveSegments().get(id).hashRange().size() > 1) {
+            long child = layout.getNextSegmentId();
+            layout = layout.splitSegment(id, NOW);
+            id = child;
+        }
+        long splittable = layout.getActiveSegments().values().stream()
+                .filter(segment -> segment.hashRange().size() > 1)
+                .mapToLong(SegmentInfo::segmentId).min().orElseThrow();
+        Map<Long, SegmentLoadSample> hot = Map.of(id, sample(1_000_000, 0, 0, 0, old()),
+                splittable, sample(SPLIT_MSG_IN + 1, 0, 0, 0, old()));
+        assertThat(decide(layout, hot, Map.of(), baseConfig().build()))
+                .isEqualTo(new AutoScaleDecision.NoAction("unsplittable"));
+        assertThat(decide(layout, Map.of(id, hot.get(id)), Map.of(), baseConfig().build()))
+                .isEqualTo(new AutoScaleDecision.NoAction("unsplittable"));
+        AutoScaleDecision consumer = decide(layout, hot, Map.of("checkpoint", 100), Set.of(),
+                baseConfig().build());
+        assertThat(consumer).isEqualTo(new AutoScaleDecision.NoAction("unsplittable"));
+    }
+
 }

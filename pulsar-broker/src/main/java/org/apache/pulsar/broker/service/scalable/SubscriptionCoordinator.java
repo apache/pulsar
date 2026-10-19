@@ -409,6 +409,27 @@ public class SubscriptionCoordinator {
         sessions.values().forEach(ConsumerSession::cancelGraceTimer);
     }
 
+    /** Segments withheld specifically for ancestor ordering, not already-drained segments. */
+    synchronized Set<Long> getBlockedSegmentIds() {
+        if (drainChecker == null || checkpointGroup) {
+            return Set.of();
+        }
+        Set<Long> blocked = new HashSet<>();
+        for (SegmentInfo segment : currentLayout.getAllSegments().values()) {
+            if (!segment.isActive() && drainedSegmentIds.contains(segment.segmentId())) {
+                continue;
+            }
+            if (!ancestorsDrained(segment, currentLayout)) {
+                blocked.add(segment.segmentId());
+            }
+        }
+        return Set.copyOf(blocked);
+    }
+
+    synchronized boolean isCheckpointGroup() {
+        return checkpointGroup;
+    }
+
     // --- Drain tracking ---
 
     /**
@@ -435,6 +456,10 @@ public class SubscriptionCoordinator {
         if (!segment.isActive() && drainedSegmentIds.contains(segment.segmentId())) {
             return false;
         }
+        return ancestorsDrained(segment, layout);
+    }
+
+    private boolean ancestorsDrained(SegmentInfo segment, SegmentLayout layout) {
         Map<Long, SegmentInfo> segments = layout.getAllSegments();
         Set<Long> visited = new HashSet<>();
         Deque<Long> ancestors = new ArrayDeque<>(segment.parentIds());

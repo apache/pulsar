@@ -56,6 +56,7 @@ import lombok.CustomLog;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.scalable.AutoScaleConfig;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicController;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicService;
@@ -957,7 +958,9 @@ public class ScalableTopics extends AdminResource {
                                             "Segment topic not found: " + backingTopic);
                                 }
                                 return optTopic.get().asyncGetStats(ScalableTopicService.SEGMENT_STATS_OPTIONS)
-                                        .thenApply(SegmentTopicStatsBuilder::fromTopicStats);
+                                        .thenApply(stats -> SegmentTopicStatsBuilder.fromTopicStats(stats,
+                                                optTopic.get() instanceof PersistentTopic persistentTopic
+                                                        && persistentTopic.getManagedLedger().isTerminated()));
                             });
                 })
                 .thenAccept(asyncResponse::resume)

@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.service.scalable;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -27,6 +29,7 @@ import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -37,6 +40,7 @@ import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -51,6 +55,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.ConsumerRegistration;
 import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
@@ -67,11 +72,13 @@ import org.apache.pulsar.client.admin.ScalableTopics;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.common.api.proto.ScalableConsumerType;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
 import org.apache.pulsar.common.policies.data.ScalableSubscriptionType;
 import org.apache.pulsar.common.policies.data.ScalableTopicStats;
 import org.apache.pulsar.common.policies.data.SegmentTopicStats;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.scalable.SegmentInfo;
+import org.apache.pulsar.common.scalable.SegmentLoadStats;
 import org.apache.pulsar.common.scalable.SegmentTopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -1137,6 +1144,171 @@ public class ScalableTopicControllerTest {
         // Backing-topic delete succeeds (segment-aware admin call).
         when(scalableTopics.deleteSegmentAsync(anyString(), anyBoolean()))
                 .thenReturn(CompletableFuture.completedFuture(null));
+    }
+
+    @Test
+    public void testStatsExposeLatestLoadAndManualOperationCooldowns() throws Exception {
+        long now = 1_700_000_000_000L;
+        AdjustableClock clock = new AdjustableClock(now);
+        controller.close().get();
+        controller = newControllerWithClock(topicName, clock, Duration.ofHours(1));
+        controller.initialize().get();
+        assertThat(controller.getStats().get().getLayout().getLastOperation()).isNull();
+        resources.reportSegmentLoadAsync(topicName, 0, new SegmentLoadStats(11, 22, 33, 44)).get();
+        long modified = resources.getSegmentLoadAsync(topicName, 0).get().orElseThrow()
+                .getStat().getModificationTimestamp();
+        clock.set(modified + 2250);
+        ScalableTopicStats stats = controller.getStats().get();
+        assertThat(stats.getControllerBroker()).isEqualTo(BROKER_ID);
+        ScalableTopicStats.SegmentLoadStats load = stats.getLayout().getSegments().get(0L).getLoad();
+        assertThat(load.getMsgRateIn()).isEqualTo(11);
+        assertThat(load.getByteRateIn()).isEqualTo(22);
+        assertThat(load.getMsgRateOut()).isEqualTo(33);
+        assertThat(load.getByteRateOut()).isEqualTo(44);
+        assertThat(load.getAgeSeconds()).isEqualTo(2.25);
+        assertThat(stats.getLayout().getSegments().get(1L).getLoad()).isNull();
+        clock.set(now);
+        controller.splitSegment(0).get();
+        stats = controller.getStats().get();
+        assertThat(stats.getAutoScale().getLastSplitAt()).isEqualTo(Instant.ofEpochMilli(now).toString());
+        assertOperation(stats, "split", "manual", "success", List.of(0L));
+        // A caller mutating its snapshot cannot change the leader's retained operation.
+        stats.getLayout().getLastOperation().getSegmentIds().clear();
+        assertThat(controller.getStats().get().getLayout().getLastOperation().getSegmentIds()).containsExactly(0L);
+        controller.rebucketSegment(1, 8).get();
+        stats = controller.getStats().get();
+        assertThat(stats.getAutoScale().getLastRebucketAt()).isEqualTo(Instant.ofEpochMilli(now).toString());
+        assertOperation(stats, "rebucket", "manual", "success", List.of(1L));
+        controller.mergeSegments(2, 3).get();
+        stats = controller.getStats().get();
+        assertThat(stats.getAutoScale().getLastMergeAt()).isEqualTo(Instant.ofEpochMilli(now).toString());
+        assertOperation(stats, "merge", "manual", "success", List.of(2L, 3L));
+        controller.close().get();
+        controller = newControllerWithClock(topicName, clock, Duration.ofHours(1));
+        controller.initialize().get();
+        ScalableTopicStats recovered = controller.getStats().get();
+        assertThat(recovered.getLayout().getLastOperation()).isNull();
+        assertThat(recovered.getAutoScale().getLastSplitAt()).isEqualTo(stats.getAutoScale().getLastSplitAt());
+        assertThat(recovered.getAutoScale().getLastMergeAt()).isEqualTo(stats.getAutoScale().getLastMergeAt());
+        assertThat(recovered.getAutoScale().getLastRebucketAt()).isEqualTo(stats.getAutoScale().getLastRebucketAt());
+    }
+
+    @Test
+    public void testSplitMetadataFailureAfterSealIsPartial() throws Exception {
+        controller.close().get();
+        resources = spy(resources);
+        controller = newController(topicName);
+        controller.initialize().get();
+        doReturn(CompletableFuture.failedFuture(new IllegalStateException("layout commit failed")))
+                .when(resources).updateScalableTopicAsync(eq(topicName), any());
+        assertThatThrownBy(() -> controller.splitSegment(0).get()).hasCauseInstanceOf(IllegalStateException.class);
+        ScalableTopicStats stats = controller.getStats().get();
+        assertOperation(stats, "split", "manual", "partial", List.of(0L));
+        assertThat(stats.getLayout().getLastOperation().getError()).contains("layout commit failed");
+        assertThat(stats.getAutoScale().getLastSplitAt()).isNull();
+        assertThat(stats.getLayout().getSegments().get(0L).isActive()).isTrue();
+        verify(scalableTopics).terminateSegmentAsync(anyString());
+    }
+
+    @Test
+    public void testStatsRecordFailureAndPartiallySealedMerge() throws Exception {
+        controller.initialize().get();
+        when(scalableTopics.createSegmentAsync(anyString(), any()))
+                .thenReturn(CompletableFuture.failedFuture(new IllegalStateException("create failed")));
+        assertThatThrownBy(() -> controller.splitSegment(0).get()).hasCauseInstanceOf(IllegalStateException.class);
+        ScalableTopicStats stats = controller.getStats().get();
+        assertOperation(stats, "split", "manual", "failure", List.of(0L));
+        assertThat(stats.getLayout().getLastOperation().getError()).contains("create failed");
+        assertThat(stats.getAutoScale().getLastSplitAt()).isNull();
+        when(scalableTopics.createSegmentAsync(anyString(), any()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+        when(scalableTopics.terminateSegmentAsync(anyString()))
+                .thenReturn(CompletableFuture.completedFuture(null))
+                .thenReturn(CompletableFuture.failedFuture(new IllegalStateException("second seal failed")));
+        assertThatThrownBy(() -> controller.mergeSegments(0, 1).get()).hasCauseInstanceOf(IllegalStateException.class);
+        stats = controller.getStats().get();
+        assertOperation(stats, "merge", "manual", "partial", List.of(0L, 1L));
+        assertThat(stats.getLayout().getLastOperation().getError()).contains("second seal failed");
+        assertThat(stats.getAutoScale().getLastMergeAt()).isNull();
+    }
+
+    @Test
+    public void testPruneStorageFailureIsVisibleWithoutChangingGcResult() throws Exception {
+        installGcMocks(0);
+        AdjustableClock clock = new AdjustableClock(1_700_000_000_000L);
+        controller.close().get();
+        controller = newControllerWithClock(topicName, clock, Duration.ofHours(1));
+        controller.initialize().get();
+        controller.splitSegment(0).get();
+        when(scalableTopics.deleteSegmentAsync(anyString(), anyBoolean()))
+                .thenReturn(CompletableFuture.failedFuture(new IllegalStateException("delete failed")));
+        clock.set(clock.millis() + 1000);
+        controller.runGcTickAsync().get();
+        ScalableTopicStats stats = controller.getStats().get();
+        assertOperation(stats, "prune", "auto", "partial", List.of(0L));
+        assertThat(stats.getLayout().getLastOperation().getError()).contains("delete failed");
+        assertThat(stats.getLayout().getSegments()).doesNotContainKey(0L);
+    }
+
+    @Test
+    public void testPruneLoadCleanupFailureIsNotStoragePartial() throws Exception {
+        installGcMocks(0);
+        AdjustableClock clock = new AdjustableClock(1_700_000_000_000L);
+        controller.close().get();
+        resources = spy(resources);
+        controller = newControllerWithClock(topicName, clock, Duration.ofHours(1));
+        controller.initialize().get();
+        controller.splitSegment(0).get();
+        doReturn(CompletableFuture.failedFuture(new IllegalStateException("load cleanup failed")))
+                .when(resources).deleteSegmentLoadAsync(topicName, 0);
+        clock.set(clock.millis() + 1000);
+        assertThatThrownBy(() -> controller.runGcTickAsync().get()).hasCauseInstanceOf(IllegalStateException.class);
+        ScalableTopicStats stats = controller.getStats().get();
+        assertOperation(stats, "prune", "auto", "failure", List.of(0L));
+        assertThat(stats.getLayout().getLastOperation().getError()).contains("load cleanup failed");
+        verify(scalableTopics).deleteSegmentAsync(anyString(), anyBoolean());
+    }
+
+    @Test
+    public void testEffectivePolicyAndBlockedReasonInStats() throws Exception {
+        installGcMocks(-1);
+        ServiceConfiguration config = new ServiceConfiguration();
+        config.setScalableTopicAutoScaleEnabled(true);
+        config.setScalableTopicMaxSegments(INITIAL_SEGMENTS);
+        when(pulsar.getConfig()).thenReturn(config);
+        resources.updateScalableTopicAsync(topicName, md -> {
+            md.setAutoScalePolicy(AutoScalePolicyOverride.builder().splitMsgRateInThreshold(12345.0).build());
+            return md;
+        }).get();
+        controller.initialize().get();
+        resources.reportSegmentLoadAsync(topicName, 0, new SegmentLoadStats(20000, 0, 0, 0)).get();
+        controller.evaluateAutoScaleForTest().get();
+        ScalableTopicStats stats = controller.getStats().get();
+        assertThat(stats.getAutoScale().getPolicy().getEnabled()).isTrue();
+        assertThat(stats.getAutoScale().getPolicy().getMaxSegments()).isEqualTo(INITIAL_SEGMENTS);
+        assertThat(stats.getAutoScale().getPolicy().getSplitMsgRateInThreshold()).isEqualTo(12345.0);
+        assertThat(stats.getAutoScale().getBlockedReason()).isEqualTo("max_segments");
+        config.setScalableTopicMaxSegments(INITIAL_SEGMENTS + 1);
+        controller.evaluateAutoScaleForTest().get();
+        stats = controller.getStats().get();
+        assertThat(stats.getAutoScale().getBlockedReason()).isNull();
+        assertOperation(stats, "split", "auto", "success", List.of(0L));
+        config.setScalableTopicMaxSegments(0);
+        controller.evaluateAutoScaleForTest().get();
+        stats = controller.getStats().get();
+        assertThat(stats.getAutoScale().getBlockedReason()).isEqualTo("invalid_policy");
+        assertThat(stats.getAutoScale().getPolicy().getMaxSegments()).isZero();
+    }
+
+    private static void assertOperation(ScalableTopicStats stats, String operation, String trigger,
+                                        String status, List<Long> segmentIds) {
+        ScalableTopicStats.LayoutOperationStats last = stats.getLayout().getLastOperation();
+        assertThat(last).isNotNull();
+        assertThat(last.getOperation()).isEqualTo(operation);
+        assertThat(last.getTrigger()).isEqualTo(trigger);
+        assertThat(last.getStatus()).isEqualTo(status);
+        assertThat(last.getSegmentIds()).containsExactlyElementsOf(segmentIds);
+        assertThat(Instant.parse(last.getAt())).isNotNull();
     }
 
     // --- ConsumerRegistration record sanity ---
