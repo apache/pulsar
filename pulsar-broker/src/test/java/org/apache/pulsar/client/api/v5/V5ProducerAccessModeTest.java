@@ -18,9 +18,14 @@
  */
 package org.apache.pulsar.client.api.v5;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.expectThrows;
 import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.v5.config.ProducerAccessMode;
 import org.apache.pulsar.client.api.v5.schema.Schema;
@@ -121,5 +126,32 @@ public class V5ProducerAccessModeTest extends V5ClientBaseTest {
         Producer<String> second = secondFuture.get(10, java.util.concurrent.TimeUnit.SECONDS);
         MessageId id = second.newMessage().value("after-takeover").send();
         assertNotNull(id);
+    }
+
+    @Test
+    public void testClosingClientWithWaitingExclusiveProducerCompletes() throws Exception {
+        String topic = newScalableTopic(1);
+
+        @Cleanup
+        Producer<String> incumbent = v5Client.newProducer(Schema.string())
+                .topic(topic)
+                .accessMode(ProducerAccessMode.EXCLUSIVE)
+                .create();
+
+        // Another client waits for exclusive access, which it never gets: closing that client must
+        // not wait for it.
+        PulsarClient waitingClient = newV5Client();
+        CompletableFuture<Producer<String>> waiting = waitingClient.newProducer(Schema.string())
+                .topic(topic)
+                .accessMode(ProducerAccessMode.WAIT_FOR_EXCLUSIVE)
+                .createAsync();
+        Thread.sleep(500);
+        assertFalse(waiting.isDone(), "WAIT_FOR_EXCLUSIVE create() must wait while another producer holds the claim");
+
+        waitingClient.closeAsync().get(10, TimeUnit.SECONDS);
+        assertThatThrownBy(() -> waiting.get(10, TimeUnit.SECONDS)).isInstanceOf(ExecutionException.class);
+
+        // The incumbent keeps its claim.
+        assertNotNull(incumbent.newMessage().value("still-exclusive").send());
     }
 }
