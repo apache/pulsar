@@ -1568,11 +1568,15 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private CompletableFuture<Void> lookupOrCreatePartitionMetadata(TopicName topicName, long requestId) {
         Supplier<CompletableFuture<Boolean>> newTopicCheck = newTopicCheck(topicName);
         AtomicBoolean creationRefused = new AtomicBoolean();
+        AtomicBoolean creationCheckFailed = new AtomicBoolean();
         return FutureUtil.supplySafely(() ->
                         unsafeGetPartitionedTopicMetadataAsync(getBrokerService().pulsar(), topicName,
-                                () -> newTopicCheck.get().thenApply(isAllowed -> {
-                                    creationRefused.set(!isAllowed);
-                                    return isAllowed;
+                                () -> FutureUtil.supplySafely(newTopicCheck).whenComplete((isAllowed, checkEx) -> {
+                                    if (checkEx != null) {
+                                        creationCheckFailed.set(true);
+                                    } else {
+                                        creationRefused.set(!isAllowed);
+                                    }
                                 })))
                 .handle((metadata, ex) -> {
                     if (ex == null) {
@@ -1587,6 +1591,15 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         return null;
                     }
                     Throwable actEx = FutureUtil.unwrapCompletionException(ex);
+                    if (creationCheckFailed.get()) {
+                        // As when checking a topic operation fails.
+                        logAuthException(remoteAddress, "partition-metadata", getPrincipal(), Optional.of(topicName),
+                                actEx);
+                        commandSender.sendPartitionMetadataResponse(ServerError.AuthorizationError,
+                                "Exception occurred while checking whether the client may auto-create the topic",
+                                requestId);
+                        return null;
+                    }
                     if (actEx instanceof PulsarClientException) {
                         log.warn()
                                 .attr("role", getRole())

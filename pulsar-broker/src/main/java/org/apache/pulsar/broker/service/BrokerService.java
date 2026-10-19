@@ -1274,10 +1274,16 @@ public class BrokerService implements Closeable {
                 // A non-persistent topic only exists while it is loaded; trying to load it would report a failure
                 // to topic event listeners.
                 : CompletableFuture.completedFuture(getTopicReference(topicName.toString()));
-        return existingTopic.thenCompose(optTopic -> optTopic.isPresent()
-                ? CompletableFuture.completedFuture(optTopic)
-                : isAllowAutoTopicCreationAsync(topicName, newTopicCheck)
-                        .thenCompose(isAllowed -> getTopic(topicName.toString(), isAllowed)));
+        return existingTopic.thenCompose(optTopic -> {
+            if (optTopic.isPresent()) {
+                return CompletableFuture.completedFuture(optTopic);
+            }
+            // A load that found the topic missing removes its empty future from the cache asynchronously; remove it
+            // now so that creating the topic does not get that future back.
+            topics.remove(topicName.toString(), existingTopic);
+            return isAllowAutoTopicCreationAsync(topicName, newTopicCheck)
+                    .thenCompose(isAllowed -> getTopic(topicName.toString(), isAllowed));
+        });
     }
 
     public CompletableFuture<Optional<Topic>> getTopic(final String topic, boolean createIfMissing,

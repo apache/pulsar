@@ -21,6 +21,10 @@ package org.apache.pulsar.client.api;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.google.common.collect.Sets;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -32,6 +36,8 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.AuthorizationProducerConsumerTest.ClientAuthentication;
 import org.apache.pulsar.client.api.AuthorizationProducerConsumerTest.TestAuthenticationProvider;
 import org.apache.pulsar.client.api.AuthorizationProducerConsumerTest.TestAuthorizationProvider;
+import org.apache.pulsar.client.api.v5.schema.Schema;
+import org.apache.pulsar.client.impl.auth.v5.V5AuthenticationLoader;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
@@ -56,6 +62,7 @@ public class TopicAutoCreationAuthorizationTest extends ProducerConsumerBase {
 
     private static final String CREATOR_ROLE = "creator";
     private static final String USER_ROLE = "user";
+    private static final String PROXY_ROLE = "proxy";
     private static final String NAMESPACE = "my-property/my-ns";
     /** A namespace whose auto topic creation creates partitioned topics. */
     private static final String PARTITIONED_NAMESPACE = "my-property/partitioned-ns";
@@ -67,11 +74,12 @@ public class TopicAutoCreationAuthorizationTest extends ProducerConsumerBase {
     private static final String PROVIDER_FAILURE = "provider-failure";
 
     /**
-     * Lets both roles produce, consume and look up, but only {@link #CREATOR_ROLE} trigger topic auto-creation.
+     * Lets the client roles and the proxy produce, consume and look up, but only {@link #CREATOR_ROLE} and the proxy
+     * trigger topic auto-creation.
      */
     public static class AutoCreationAuthorizationProvider extends TestAuthorizationProvider {
 
-        private static final Set<String> CLIENT_ROLES = Set.of(CREATOR_ROLE, USER_ROLE);
+        private static final Set<String> CLIENT_ROLES = Set.of(CREATOR_ROLE, USER_ROLE, PROXY_ROLE);
 
         @Override
         public CompletableFuture<Boolean> allowTopicOperationAsync(TopicName topic, String role,
@@ -86,7 +94,7 @@ public class TopicAutoCreationAuthorizationTest extends ProducerConsumerBase {
             if (topic.toString().contains(PROVIDER_FAILURE)) {
                 return CompletableFuture.failedFuture(new IllegalStateException("Authorization backend is down"));
             }
-            return CompletableFuture.completedFuture(CREATOR_ROLE.equals(role));
+            return CompletableFuture.completedFuture(CREATOR_ROLE.equals(role) || PROXY_ROLE.equals(role));
         }
     }
 
@@ -96,6 +104,7 @@ public class TopicAutoCreationAuthorizationTest extends ProducerConsumerBase {
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(true);
         conf.setSuperUserRoles(Set.of("superUser"));
+        conf.setProxyRoles(Set.of(PROXY_ROLE));
         conf.setAuthenticationProviders(Set.of(TestAuthenticationProvider.class.getName()));
         conf.setAuthorizationProvider(AutoCreationAuthorizationProvider.class.getName());
         conf.setAllowAutoTopicCreation(true);
@@ -284,5 +293,63 @@ public class TopicAutoCreationAuthorizationTest extends ProducerConsumerBase {
 
         userClient.newProducer().topic(topic).create().close();
         userClient.newConsumer().topic(topic).subscriptionName("sub").subscribe().close();
+    }
+
+    /**
+     * A proxied HTTP lookup is refused when the original principal may not create the topic, although the proxy
+     * may.
+     */
+    @Test(timeOut = 60000)
+    public void testProxiedHttpLookupAutoCreationFollowsOriginalPrincipal() throws Exception {
+        URI lookupUri = URI.create(brokerUrl.toString().replaceAll("/$", "")
+                + "/lookup/v2/topic/persistent/" + NAMESPACE + "/proxied-http-lookup");
+        HttpClient httpClient = HttpClient.newHttpClient();
+
+        assertThat(proxiedLookupStatus(httpClient, lookupUri, USER_ROLE))
+                .as("status of a proxied lookup for a role that may not create topics").isEqualTo(404);
+        assertThat(proxiedLookupStatus(httpClient, lookupUri, CREATOR_ROLE))
+                .as("status of a proxied lookup for a role that may create topics").isEqualTo(200);
+    }
+
+    private static int proxiedLookupStatus(HttpClient httpClient, URI lookupUri, String originalPrincipal)
+            throws Exception {
+        HttpRequest request = HttpRequest.newBuilder(lookupUri)
+                .header("user", PROXY_ROLE)
+                .header("X-Original-Principal", originalPrincipal)
+                .GET()
+                .build();
+        return httpClient.send(request, HttpResponse.BodyHandlers.discarding()).statusCode();
+    }
+
+    /**
+     * Auto-creating a scalable topic on lookup ({@code DagWatchSession}) follows the authorization provider too.
+     */
+    @Test(timeOut = 60000)
+    public void testScalableTopicAutoCreationFollowsAuthorization() throws Exception {
+        String topic = "topic://" + NAMESPACE + "/scalable-auto-creation";
+        @Cleanup
+        org.apache.pulsar.client.api.v5.PulsarClient userClient = newV5Client(USER_ROLE);
+        @Cleanup
+        org.apache.pulsar.client.api.v5.PulsarClient creatorClient = newV5Client(CREATOR_ROLE);
+
+        assertThatThrownBy(() -> userClient.newProducer(Schema.string()).topic(topic).create())
+                .as("a producer of a role that may not create scalable topics")
+                .isInstanceOf(org.apache.pulsar.client.api.v5.PulsarClientException.NotFoundException.class);
+        assertThat(scalableTopicExists(topic)).as("scalable topic created by a refused producer").isFalse();
+
+        creatorClient.newProducer(Schema.string()).topic(topic).create().close();
+        assertThat(scalableTopicExists(topic)).as("scalable topic created by an allowed producer").isTrue();
+    }
+
+    private org.apache.pulsar.client.api.v5.PulsarClient newV5Client(String role) throws Exception {
+        return org.apache.pulsar.client.api.v5.PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .authentication(V5AuthenticationLoader.forStartedV4Plugin(new ClientAuthentication(role)))
+                .build();
+    }
+
+    private boolean scalableTopicExists(String topic) throws Exception {
+        return pulsar.getPulsarResources().getScalableTopicResources()
+                .getScalableTopicMetadataAsync(TopicName.get(topic)).get().isPresent();
     }
 }
