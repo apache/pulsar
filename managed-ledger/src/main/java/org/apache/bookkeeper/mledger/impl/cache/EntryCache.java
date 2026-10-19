@@ -109,6 +109,17 @@ public interface EntryCache {
     void asyncReadEntry(ReadHandle lh, Position position, ReadEntryCallback callback, Object ctx);
 
     /**
+     * Whether the cache has the entry, without reading it.
+     *
+     * @param position
+     *            the entry's position
+     * @return whether the cache has the entry; false when the cache keeps no entries
+     */
+    default boolean hasEntry(Position position) {
+        return false;
+    }
+
+    /**
      * Get the total size in bytes of all the entries stored in this cache.
      *
      * @return the size of the entry cache

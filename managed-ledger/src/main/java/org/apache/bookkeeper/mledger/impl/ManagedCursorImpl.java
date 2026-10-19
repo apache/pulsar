@@ -1975,8 +1975,21 @@ public class ManagedCursorImpl implements ManagedCursor {
      * between them, which releases the entries in between, and the other positions one at a time. A dispatcher's
      * replay positions are often close: a consumer's pending entries, or the entries of the keys of a consumer that
      * had no permits. Each wanted entry, or its failure, reaches the callback as a single-entry read's would.
+     *
+     * <p>The positions whose entries are cached are read one at a time, from the cache: the entries in between may
+     * not be cached, since the cache drops an entry once the cursors that read it have, and a range read would wait
+     * for them to be read from storage.
      */
-    private void readReplayPositions(List<Position> positions, ReadEntryCallback cb, Object ctx) {
+    private void readReplayPositions(List<Position> replayPositions, ReadEntryCallback cb, Object ctx) {
+        // the positions to read from storage
+        List<Position> positions = new ArrayList<>(replayPositions.size());
+        for (Position position : replayPositions) {
+            if (ledger.entryCache.hasEntry(position)) {
+                ledger.asyncReadEntry(position, cb, ctx);
+            } else {
+                positions.add(position);
+            }
+        }
         positions.sort(null);
         long averageEntrySize = Math.max(1, ledger.getTotalSize() / Math.max(1, ledger.getNumberOfEntries()));
         long maxEntries = Math.min(REPLAY_RANGE_MAX_ENTRIES, REPLAY_RANGE_MAX_BYTES / averageEntrySize);

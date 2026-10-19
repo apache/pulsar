@@ -685,6 +685,11 @@ public class RangeEntryCacheImpl implements EntryCache {
     }
 
     @Override
+    public boolean hasEntry(Position position) {
+        return entries.exists(position);
+    }
+
+    @Override
     public long getSize() {
         return entries.getSize();
     }

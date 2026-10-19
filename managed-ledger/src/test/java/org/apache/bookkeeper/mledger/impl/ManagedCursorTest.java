@@ -3917,9 +3917,20 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void testReplayEntriesReadsRunsOfClosePositionsTogether() throws Exception {
+        replayRunsOfClosePositions("test_replay_runs", false);
+    }
+
+    @Test(timeOut = 20000)
+    void testReplayEntriesReadsCachedPositionsAndRunsOfTheOthers() throws Exception {
+        replayRunsOfClosePositions("test_replay_runs_partly_cached", true);
+    }
+
+    // Replays runs of close positions whose entries aren't cached, or of which every other one is cached, which are
+    // read one at a time
+    private void replayRunsOfClosePositions(String name, boolean cacheEveryOther) throws Exception {
         ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig());
         config.setMaxEntriesPerLedger(300);
-        ManagedLedger ledger = factory.open("test_replay_runs", config);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(name, config);
         ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
         List<Position> added = new ArrayList<>();
         for (int i = 0; i < 600; i++) {
@@ -3934,6 +3945,32 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         positions.add(added.get(300));
         positions.add(added.get(450));
         positions.add(added.get(461));
+        // the replay reads the entries from storage, unless they're cached
+        ledger.entryCache.clear();
+        if (cacheEveryOther) {
+            int i = 0;
+            for (Position position : positions) {
+                if (i++ % 2 == 0) {
+                    CompletableFuture<Entry> read = new CompletableFuture<>();
+                    ledger.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
+                        @Override
+                        public void readEntryComplete(Entry entry, Object ctx) {
+                            read.complete(entry);
+                        }
+
+                        @Override
+                        public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                            read.completeExceptionally(exception);
+                        }
+                    }, null);
+                    Entry entry = read.get(10, TimeUnit.SECONDS);
+                    ledger.entryCache.insert(entry);
+                    entry.release();
+                    assertTrue(ledger.entryCache.hasEntry(position));
+                }
+            }
+        }
+        assertFalse(ledger.entryCache.hasEntry(added.get(1)));
 
         CompletableFuture<List<Entry>> replayed = new CompletableFuture<>();
         cursor.asyncReplayEntries(positions, new AsyncCallbacks.ReadEntriesCallback() {
