@@ -687,6 +687,8 @@ public class MessageDuplicationTest extends BrokerTestBase {
         String topicName = "persistent://prop/ns-abc/" + UUID.randomUUID();
         String producerName = "snapshot-producer";
         int snapshotInterval = conf.getBrokerDeduplicationEntriesInterval();
+        // Keep the initial publish below the entry threshold so the interval-triggered snapshot can be paused.
+        // After re-enabling, the next two publishes trigger an entry-count snapshot.
         conf.setBrokerDeduplicationEntriesInterval(2);
         try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName)
                 .producerName(producerName).enableBatching(false).create()) {
@@ -712,6 +714,7 @@ public class MessageDuplicationTest extends BrokerTestBase {
                             || !topicName.equals(event.getContextData().getValue("topic"))) {
                         return;
                     }
+                    // These messages come from MessageDeduplication.takeSnapshot(Position); keep the matchers in sync.
                     String message = event.getMessage().getFormattedMessage();
                     if (message.equals("Taking snapshot of sequence ids map")
                             && pauseSnapshot.compareAndSet(true, false)) {
