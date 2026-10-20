@@ -56,7 +56,7 @@ public class BrokerStats extends BrokerStatsBase {
     }
 
     @GET
-    @Path("/brokers/{broker}/topics")
+    @Path("/brokers/{brokerId}/topics")
     @Operation(summary = "Get all the topic stats by namespace of the given broker",
             description = "Redirects to the given broker when it is not the one serving the request")
     @ApiResponses(value = {
@@ -67,8 +67,8 @@ public class BrokerStats extends BrokerStatsBase {
             @ApiResponse(responseCode = "307", description = "Redirect to the given broker"),
             @ApiResponse(responseCode = "403", description = "Don't have admin permission"),
             @ApiResponse(responseCode = "404", description = "Broker not found") })
-    public StreamingOutput getTopics2(@PathParam("broker") String broker) throws Exception {
-        validateSuperUserAccessAndRedirect(broker);
+    public StreamingOutput getTopics2(@PathParam("brokerId") String brokerId) throws Exception {
+        validateSuperUserAccessAndRedirect(brokerId);
         return super.getTopics2();
     }
 

@@ -207,7 +207,7 @@ public class PulsarAdminToolTest {
         brokerStats.run(split("allocator-stats default"));
         verify(mockBrokerStats).getAllocatorStats("default", null);
 
-        brokerStats.run(split("load-report --broker host:8080"));
+        brokerStats.run(split("load-report --broker-id host:8080"));
         verify(mockBrokerStats).getLoadReport("host:8080");
         brokerStats.run(split("allocator-stats default -b host:8080"));
         verify(mockBrokerStats).getAllocatorStats("default", "host:8080");
@@ -1014,7 +1014,7 @@ public class PulsarAdminToolTest {
         nsIsolationPoliciesCmd.run(split("brokers use"));
         verify(mockClusters).getBrokersWithNamespaceIsolationPolicy("use");
 
-        nsIsolationPoliciesCmd.run(split("broker use --broker my-broker"));
+        nsIsolationPoliciesCmd.run(split("broker use --broker-id my-broker"));
         verify(mockClusters).getBrokerWithNamespaceIsolationPolicy("use", "my-broker");
     }
 

@@ -41,16 +41,16 @@ public class CmdBrokerStats extends CmdBase {
 
     @Command(description = "dump metrics for Monitoring")
     private class CmdMonitoringMetrics extends CliCommand {
-        @Option(names = {"-b", "--broker"}, description = "Broker id (from `brokers list`) to get the stats of;"
+        @Option(names = {"-b", "--broker-id"}, description = "Broker id (from `brokers list`) to get the stats of;"
                 + " defaults to the connected broker", required = false)
-        private String broker;
+        private String brokerId;
 
         @Option(names = {"-i", "--indent"}, description = "Indent JSON output", required = false)
         private boolean indent = false;
 
         @Override
         void run() throws Exception {
-            String s = getAdmin().brokerStats().getMetrics(broker);
+            String s = getAdmin().brokerStats().getMetrics(brokerId);
             JsonArray metrics = new Gson().fromJson(s, JsonArray.class);
 
             try (Writer out = new OutputStreamWriter(System.out, StandardCharsets.UTF_8);
@@ -73,16 +73,16 @@ public class CmdBrokerStats extends CmdBase {
 
     @Command(description = "dump mbean stats")
     private class CmdDumpMBeans extends CliCommand {
-        @Option(names = {"-b", "--broker"}, description = "Broker id (from `brokers list`) to get the stats of;"
+        @Option(names = {"-b", "--broker-id"}, description = "Broker id (from `brokers list`) to get the stats of;"
                 + " defaults to the connected broker", required = false)
-        private String broker;
+        private String brokerId;
 
         @Option(names = {"-i", "--indent"}, description = "Indent JSON output", required = false)
         private boolean indent = false;
 
         @Override
         void run() throws Exception {
-            String s = getAdmin().brokerStats().getMBeans(broker);
+            String s = getAdmin().brokerStats().getMBeans(brokerId);
             JsonArray result = new Gson().fromJson(s, JsonArray.class);
             try (Writer out = new OutputStreamWriter(System.out, StandardCharsets.UTF_8);
                  JsonWriter jsonWriter = new JsonWriter(out)) {
@@ -98,28 +98,28 @@ public class CmdBrokerStats extends CmdBase {
 
     @Command(description = "dump broker load-report")
     private class CmdLoadReport extends CliCommand {
-        @Option(names = {"-b", "--broker"}, description = "Broker id (from `brokers list`) to get the stats of;"
+        @Option(names = {"-b", "--broker-id"}, description = "Broker id (from `brokers list`) to get the stats of;"
                 + " defaults to the connected broker", required = false)
-        private String broker;
+        private String brokerId;
 
         @Override
         void run() throws Exception {
-            print(getAdmin().brokerStats().getLoadReport(broker));
+            print(getAdmin().brokerStats().getLoadReport(brokerId));
         }
     }
 
     @Command(description = "dump topics stats")
     private class CmdTopics extends CliCommand {
-        @Option(names = {"-b", "--broker"}, description = "Broker id (from `brokers list`) to get the stats of;"
+        @Option(names = {"-b", "--broker-id"}, description = "Broker id (from `brokers list`) to get the stats of;"
                 + " defaults to the connected broker", required = false)
-        private String broker;
+        private String brokerId;
 
         @Option(names = {"-i", "--indent"}, description = "Indent JSON output", required = false)
         private boolean indent = false;
 
         @Override
         void run() throws Exception {
-            String s = getAdmin().brokerStats().getTopics(broker);
+            String s = getAdmin().brokerStats().getTopics(brokerId);
             JsonObject result = new Gson().fromJson(s, JsonObject.class);
             try (Writer out = new OutputStreamWriter(System.out, StandardCharsets.UTF_8);
                  JsonWriter jsonWriter = new JsonWriter(out)) {
@@ -138,13 +138,13 @@ public class CmdBrokerStats extends CmdBase {
         @Parameters(description = "allocator-name", arity = "1")
         private String allocatorName;
 
-        @Option(names = {"-b", "--broker"}, description = "Broker id (from `brokers list`) to get the stats of;"
+        @Option(names = {"-b", "--broker-id"}, description = "Broker id (from `brokers list`) to get the stats of;"
                 + " defaults to the connected broker", required = false)
-        private String broker;
+        private String brokerId;
 
         @Override
         void run() throws Exception {
-            AllocatorStats stats = getAdmin().brokerStats().getAllocatorStats(allocatorName, broker);
+            AllocatorStats stats = getAdmin().brokerStats().getAllocatorStats(allocatorName, brokerId);
             ObjectMapper mapper = ObjectMapperFactory.create();
             ObjectWriter writer = mapper.writerWithDefaultPrettyPrinter();
             try (Writer out = new OutputStreamWriter(System.out, StandardCharsets.UTF_8)) {
