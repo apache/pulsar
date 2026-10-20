@@ -42,6 +42,7 @@ import io.netty.handler.flush.FlushConsolidationHandler;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.util.CharsetUtil;
+import java.net.Inet6Address;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.Map;
@@ -225,8 +226,10 @@ public class DirectProxyHandler {
                 InetSocketAddress proxyAddress = (InetSocketAddress) inboundChannel.localAddress();
                 String destinationAddress = proxyAddress.getAddress().getHostAddress();
                 int destinationPort = proxyAddress.getPort();
+                HAProxyProxiedProtocol protocol = clientAddress.getAddress() instanceof Inet6Address
+                        ? HAProxyProxiedProtocol.TCP6 : HAProxyProxiedProtocol.TCP4;
                 HAProxyMessage msg = new HAProxyMessage(HAProxyProtocolVersion.V1, HAProxyCommand.PROXY,
-                        HAProxyProxiedProtocol.TCP4, sourceAddress, destinationAddress, sourcePort,
+                        protocol, sourceAddress, destinationAddress, sourcePort,
                         destinationPort);
                 final ByteBuf encodedMsg = encodeProxyProtocolMessage(msg);
                 writeAndFlush(encodedMsg);
@@ -238,6 +241,9 @@ public class DirectProxyHandler {
 
 
     private ByteBuf encodeProxyProtocolMessage(HAProxyMessage msg) {
+        if (msg.proxiedProtocol() == HAProxyProxiedProtocol.UNKNOWN) {
+            return Unpooled.copiedBuffer("PROXY UNKNOWN\r\n", CharsetUtil.US_ASCII);
+        }
         // Max length of v1 version proxy protocol message is 108
         ByteBuf out = Unpooled.buffer(108);
         out.writeBytes(TEXT_PREFIX);
