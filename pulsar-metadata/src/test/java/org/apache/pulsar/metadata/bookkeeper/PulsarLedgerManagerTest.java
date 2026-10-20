@@ -69,6 +69,7 @@ public class PulsarLedgerManagerTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "createConflicts", timeOut = 30000)
     public void testCreationConflictPreservesCause(Throwable failure, Throwable cause) throws Exception {
         MetadataStore store = mock(MetadataStore.class);
+        doReturn((Runnable) () -> { }).when(store).registerCancellableListener(any());
         doReturn(CompletableFuture.failedFuture(failure)).when(store)
                 .put(anyString(), any(byte[].class), eq(Optional.of(-1L)));
         try (var manager = new PulsarLedgerManager(store, "/ledgers")) {
@@ -93,6 +94,7 @@ public class PulsarLedgerManagerTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "nonConflictFailures", timeOut = 30000)
     public void testOtherCreationFailuresAreNotLedgerConflicts(Throwable failure, Throwable cause) throws Exception {
         MetadataStore store = mock(MetadataStore.class);
+        doReturn((Runnable) () -> { }).when(store).registerCancellableListener(any());
         doReturn(CompletableFuture.failedFuture(failure)).when(store)
                 .put(anyString(), any(byte[].class), eq(Optional.of(-1L)));
         try (var manager = new PulsarLedgerManager(store, "/ledgers")) {

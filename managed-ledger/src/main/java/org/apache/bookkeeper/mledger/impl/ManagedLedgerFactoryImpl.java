@@ -118,6 +118,7 @@ import org.apache.pulsar.metadata.api.extended.SessionEvent;
 @CustomLog
 public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     private final MetaStore store;
+    private final Runnable cancelSessionListener;
     private final BookkeeperFactoryForCustomEnsemblePlacementPolicy bookkeeperFactory;
     private final boolean isBookkeeperManaged;
     private final ManagedLedgerFactoryConfig config;
@@ -269,7 +270,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 evictionTaskInterval, evictionTaskInterval, TimeUnit.MILLISECONDS);
         closed = false;
 
-        metadataStore.registerSessionListener(this::handleMetadataStoreNotification);
+        cancelSessionListener = metadataStore.registerCancellableSessionListener(this::handleMetadataStoreNotification);
 
         openTelemetryCacheStats = new OpenTelemetryManagedLedgerCacheStats(openTelemetry, this);
         openTelemetryManagedLedgerStats = new OpenTelemetryManagedLedgerStats(openTelemetry, this);
@@ -717,6 +718,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 .thenCompose(__ -> closeLedgersFuture)
                 .whenCompleteAsync((__, ___) -> {
                     //wait for tasks in scheduledExecutor executed.
+                    cancelSessionListener.run();
+                    store.close();
                     openTelemetryManagedCursorStats.close();
                     openTelemetryManagedLedgerStats.close();
                     openTelemetryCacheStats.close();

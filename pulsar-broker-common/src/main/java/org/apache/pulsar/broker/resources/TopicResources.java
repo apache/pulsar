@@ -46,12 +46,22 @@ public class TopicResources {
     private final MetadataStoreExtended store;
 
     private final Map<TopicListener, Pattern> topicListeners;
+    private final Runnable cancelListener;
+    private final Runnable cancelSessionListener;
 
     public TopicResources(MetadataStoreExtended store) {
         this.store = store;
         topicListeners = new ConcurrentHashMap<>();
-        store.registerListener(this::handleNotification);
-        store.registerSessionListener(this::handleSessionEvent);
+        cancelListener = store.registerCancellableListener(this::handleNotification);
+        cancelSessionListener = store.registerCancellableSessionListener(this::handleSessionEvent);
+    }
+
+    /**
+     * Unregister the listeners of the metadata store, so that the topic listeners are no longer notified.
+     */
+    public void close() {
+        cancelListener.run();
+        cancelSessionListener.run();
     }
 
     /***

@@ -57,6 +57,7 @@ public class PulsarLedgerManager implements LedgerManager {
 
     private final String ledgerRootPath;
     private final MetadataStore store;
+    private final Runnable cancelListener;
     private final MetadataCache<LedgerMetadata> cache;
     private final LedgerMetadataSerDe serde;
 
@@ -88,7 +89,7 @@ public class PulsarLedgerManager implements LedgerManager {
             }
         });
 
-        store.registerListener(this::handleDataNotification);
+        cancelListener = store.registerCancellableListener(this::handleDataNotification);
     }
 
     private static Throwable mapToBkException(Throwable ex) {
@@ -390,6 +391,7 @@ public class PulsarLedgerManager implements LedgerManager {
 
     @Override
     public void close() throws IOException {
+        cancelListener.run();
         scheduler.shutdownNow();
         try {
             scheduler.awaitTermination(10, TimeUnit.SECONDS);
