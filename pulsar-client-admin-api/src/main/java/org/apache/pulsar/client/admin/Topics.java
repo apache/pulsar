@@ -40,6 +40,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
@@ -1244,6 +1245,40 @@ public interface Topics {
      * @return a future that can be used to track when the internal topic statistics are returned
      */
     CompletableFuture<PersistentTopicInternalStats> getInternalStatsAsync(String topic);
+
+    /**
+     * Get the internal stats for the cursor of a subscription.
+     * <p/>
+     * Access the internal state of the cursor, such as the mark-delete positions, the individually
+     * deleted messages and the state of the in-flight persistence.
+     *
+     * @param topic
+     *            topic name
+     * @param subName
+     *            subscription name
+     * @return the cursor statistics
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Topic or subscription does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    ManagedLedgerInternalStats.CursorStats getCursorInternalStats(String topic, String subName)
+            throws PulsarAdminException;
+
+    /**
+     * Get the internal stats for the cursor of a subscription asynchronously.
+     *
+     * @param topic
+     *            topic name
+     * @param subName
+     *            subscription name
+     * @return a future that can be used to track when the cursor statistics are returned
+     */
+    CompletableFuture<ManagedLedgerInternalStats.CursorStats> getCursorInternalStatsAsync(
+            String topic, String subName);
 
     /**
      * Get a JSON representation of the topic metadata stored in ZooKeeper.

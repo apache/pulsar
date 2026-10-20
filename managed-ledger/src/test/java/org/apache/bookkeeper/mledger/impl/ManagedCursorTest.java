@@ -136,6 +136,7 @@ import org.apache.commons.collections4.iterators.EmptyIterator;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.IntRange;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
@@ -422,6 +423,43 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ManagedCursorImpl cursorRecovered = (ManagedCursorImpl) ml.openCursor(cursorName);
         assertThat(cursorRecovered.getPersistentMarkDeletedPosition()).isGreaterThanOrEqualTo(lastEntry);
         assertThat(cursorRecovered.getMarkDeletedPosition()).isGreaterThan(lastEntry);
+
+        // cleanup.
+        ml.delete();
+    }
+
+    @Test
+    void testGetCursorStats() throws Exception {
+        final String mlName = "ml_test_get_cursor_stats";
+        final ManagedLedgerConfig mlConfig = defaultConfig();
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(mlName, mlConfig);
+
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ml.openCursor("c1");
+        Position position0 = null;
+        Position position2 = null;
+        for (int i = 0; i < 3; i++) {
+            Position position = ml.addEntry(("entry-" + i).getBytes(Encoding));
+            if (i == 0) {
+                position0 = position;
+            } else if (i == 2) {
+                position2 = position;
+            }
+        }
+
+        // Mark-delete the first entry and individually delete the last one, leaving a hole in between.
+        cursor.markDelete(position0);
+        cursor.delete(position2);
+
+        Position finalPosition0 = position0;
+        Position finalPosition2 = position2;
+        Awaitility.await().untilAsserted(() -> {
+            ManagedLedgerInternalStats.CursorStats stats = cursor.getCursorStats();
+            assertEquals(stats.markDeletePosition, finalPosition0.toString());
+            assertEquals(stats.readPosition, finalPosition0.getNext().toString());
+            assertEquals(stats.state, "Open");
+            assertEquals(stats.totalNonContiguousDeletedMessagesRange, 1);
+            assertTrue(stats.individuallyDeletedMessages.contains(finalPosition2.toString()));
+        });
 
         // cleanup.
         ml.delete();

@@ -85,6 +85,7 @@ import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.NonPersistentPartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
@@ -699,6 +700,21 @@ public class TopicsImpl extends BaseResource implements Topics {
         WebTarget path = topicPath(tn, "internalStats");
         path = path.queryParam("metadata", metadata);
         return asyncGetRequest(path, new FutureCallback<PersistentTopicInternalStats>(){});
+    }
+
+    @Override
+    public ManagedLedgerInternalStats.CursorStats getCursorInternalStats(String topic, String subName)
+            throws PulsarAdminException {
+        return sync(() -> getCursorInternalStatsAsync(topic, subName));
+    }
+
+    @Override
+    public CompletableFuture<ManagedLedgerInternalStats.CursorStats> getCursorInternalStatsAsync(
+            String topic, String subName) {
+        TopicName tn = validateTopic(topic);
+        String encodedSubName = Codec.encode(subName);
+        WebTarget path = topicPath(tn, "subscription", encodedSubName, "internalStats");
+        return asyncGetRequest(path, new FutureCallback<ManagedLedgerInternalStats.CursorStats>(){});
     }
 
     @Override

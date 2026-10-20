@@ -78,6 +78,7 @@ import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -1668,6 +1669,54 @@ public class PersistentTopics extends PersistentTopicsBase {
         } catch (Exception e) {
             asyncResponse.resume(new RestException(e));
         }
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/internalStats")
+    @Operation(summary = "Get the internal stats for the cursor of a subscription on the topic.")
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Get the internal stats for the cursor of the subscription.",
+                    content = @Content(schema =
+                            @Schema(implementation = ManagedLedgerInternalStats.CursorStats.class))),
+            @ApiResponse(responseCode = "307",
+                    description = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(responseCode = "401",
+                    description = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission"),
+            @ApiResponse(responseCode = "404", description = "Namespace, topic or subscription does not exist"),
+            @ApiResponse(responseCode = "412", description = "Topic name is not valid"),
+            @ApiResponse(responseCode = "500", description = "Internal server error"),
+            @ApiResponse(responseCode = "503", description = "Failed to validate global cluster configuration") })
+    public void getCursorInternalStats(
+            @Suspended final AsyncResponse asyncResponse,
+            @Parameter(description = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @Parameter(description = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @Parameter(description = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @Parameter(description = "Specify the subscription name", required = true)
+            @PathParam("subName") String encodedSubName,
+            @Parameter(description = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        String subName = decode(encodedSubName);
+        internalGetCursorInternalStatsAsync(authoritative, subName)
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    // If the exception is not redirect exception we need to log it.
+                    if (isNot307And404Exception(ex)) {
+                        log.error()
+                                .attr("topic", topicName)
+                                .attr("subscription", subName)
+                                .exception(ex)
+                                .log("Failed to get cursor internal stats");
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @DELETE
