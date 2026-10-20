@@ -78,6 +78,16 @@ public class ConsumerTest {
     }
 
     @Test
+    public void testUpdateAvgMessagesPerEntry() {
+        assertEquals(consumer.getAvgMessagesPerEntry(), 0);
+        consumer.updateAvgMessagesPerEntry(10, 1);
+        assertEquals(consumer.getAvgMessagesPerEntry(), 10);
+        consumer.updateAvgMessagesPerEntry(20, 1);
+        // Exponential moving average: 10 * 0.9 + 20 * 0.1 = 11
+        assertEquals(consumer.getAvgMessagesPerEntry(), 11);
+    }
+
+    @Test
     public void testGetMsgOutCounter() {
         stats.msgOutCounter = 1L;
         consumer.updateStats(stats);

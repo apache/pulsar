@@ -165,8 +165,8 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         }
     }
 
-    private synchronized void readEntriesComplete(List<Entry> entries, Consumer readConsumer, long epoch,
-                                                  long readOpEpoch, Position originalLedgerReadPosition) {
+    synchronized void readEntriesComplete(List<Entry> entries, Consumer readConsumer, long epoch,
+                                          long readOpEpoch, Position originalLedgerReadPosition) {
         if (readOpEpoch != this.readOpEpoch) {
             // Stale completion: this read was disowned by a redeliver-driven cursor rewind + re-arm
             // (internalRedeliverUnacknowledgedMessages) that already issued a newer read. Clearing
@@ -206,6 +206,10 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         readFailureBackoff.reduceToHalf();
 
         Consumer currentConsumer = getActiveConsumer();
+
+        if (currentConsumer != null && currentConsumer.getAvgMessagesPerEntry() <= 0) {
+            initConsumerAvgMessagesPerEntry(entries, currentConsumer);
+        }
 
         if (isKeyHashRangeFiltered) {
             Iterator<Entry> iterator = entries.iterator();
