@@ -524,6 +524,79 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
         }
     }
 
+    @Test
+    public void testBatchedSkipReadFirstRangeQueuesForPermitsWithoutBeingOvertaken() throws Exception {
+        final int entrySize = 100;
+        final long permitsPerEntry = entrySize + RangeEntryCacheImpl.BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
+        ManagedLedgerFactoryConfig factoryConfig = new ManagedLedgerFactoryConfig();
+        factoryConfig.setMaxCacheSize(0);
+        factoryConfig.setManagedLedgerMaxReadsInFlightSize(3 * permitsPerEntry);
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConfig);
+        try {
+            ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("batched_skip_read_first_range_queues",
+                    defaultConfig());
+            for (int i = 0; i < 6; i++) {
+                ml.addEntry(new byte[entrySize]);
+            }
+            InflightReadsLimiter limiter = ((RangeEntryCacheManagerImpl) factory.getEntryCacheManager())
+                    .getInflightReadsLimiter();
+            long totalCapacity = limiter.getRemainingBytes();
+            ManagedCursorImpl cursor = (ManagedCursorImpl) ml.openCursor("c1", InitialPosition.Earliest);
+
+            // Hold the permits of one entry so that two entries' worth remain: the first range [1, 3] of
+            // the batched read below has to queue for its permits, while its second range [5] would fit.
+            HoldingReadEntriesCallback holdingCallback = new HoldingReadEntriesCallback();
+            ml.entryCache.asyncReadEntry(ml.currentLedger, 0, 0, NO_MAX_SIZE_LIMIT, () -> 0, holdingCallback,
+                    new Object());
+            List<Entry> heldEntries = holdingCallback.entries.join();
+            Assert.assertEquals(limiter.getRemainingBytes(), totalCapacity - permitsPerEntry);
+
+            Object readCtx = new Object();
+            CountDownLatch latch = new CountDownLatch(1);
+            AtomicReference<Object> receivedCtx = new AtomicReference<>();
+            List<Entry> delivered = new ArrayList<>();
+            AtomicReference<ManagedLedgerException> failure = new AtomicReference<>();
+            cursor.asyncReadEntriesWithSkip(6, NO_MAX_SIZE_LIMIT, new AsyncCallbacks.ReadEntriesCallback() {
+                @Override
+                public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                    delivered.addAll(entries);
+                    receivedCtx.set(ctx);
+                    latch.countDown();
+                }
+
+                @Override
+                public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                    failure.set(exception);
+                    receivedCtx.set(ctx);
+                    latch.countDown();
+                }
+            }, readCtx, PositionFactory.LATEST,
+                    position -> position.getEntryId() == 0 || position.getEntryId() == 4);
+
+            // The first range queues for its permits instead of failing fast, so the read stays pending
+            // while the permits are held. The second range must not take the permits the queued first
+            // range is waiting for: those would only be released once the batch is delivered, which in
+            // turn waits for the first range, so the read would stall until the acquire timeout.
+            Assert.assertFalse(latch.await(500, TimeUnit.MILLISECONDS));
+            Assert.assertEquals(limiter.getRemainingBytes(), totalCapacity - permitsPerEntry);
+
+            heldEntries.forEach(Entry::release);
+            Assert.assertTrue(latch.await(10, TimeUnit.SECONDS),
+                    "the queued first range must be served once the held permits are released");
+            Assert.assertEquals(receivedCtx.get(), readCtx);
+            Assert.assertNull(failure.get());
+            Assert.assertEquals(delivered.size(), 3);
+            for (int i = 0; i < delivered.size(); i++) {
+                Assert.assertEquals(delivered.get(i).getEntryId(), i + 1);
+            }
+            Assert.assertEquals(cursor.getReadPosition().getEntryId(), 4);
+            delivered.forEach(Entry::release);
+            Awaitility.await().untilAsserted(() -> Assert.assertEquals(limiter.getRemainingBytes(), totalCapacity));
+        } finally {
+            factory.shutdown();
+        }
+    }
+
     @DataProvider
     public Object[][] readMissingCases() {
         return new Object[][]{

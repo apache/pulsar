@@ -6071,7 +6071,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                 })
                 .when(ledger)
                 .asyncReadEntry(Mockito.any(ReadHandle.class), Mockito.anyLong(),
-                        Mockito.anyLong(), Mockito.anyLong(), Mockito.any(), Mockito.any(), Mockito.any());
+                        Mockito.anyLong(), Mockito.anyLong(), Mockito.any(), Mockito.any(), Mockito.any(),
+                        Mockito.anyBoolean());
         // Reads with a single contiguous range take the sequential read overload instead of the
         // batched one, record those reads as well.
         Mockito.doAnswer(inv -> {

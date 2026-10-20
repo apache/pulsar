@@ -95,9 +95,10 @@ public interface EntryCache {
     /**
      * Range-read variant that never queue-waits for inflight-reads-limiter permits: when the permits
      * are not immediately available, the callback fails synchronously with
-     * {@link org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException}. Used by
-     * batched skip-read range reads, whose batch may itself hold the permits a queued acquire would
-     * wait for. The default implementation falls back to queueing behavior.
+     * {@link org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException}. Used for
+     * the later ranges of a batched skip-read, whose batch may itself hold the permits a queued acquire
+     * would wait for; the first range of a batch queues for its permits like a regular read does. The
+     * default implementation falls back to queueing behavior.
      *
      * @param failFastWhenThrottled
      *            whether to fail the read fast when the permits are not immediately available

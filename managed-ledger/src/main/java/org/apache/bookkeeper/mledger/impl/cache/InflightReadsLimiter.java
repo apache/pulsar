@@ -183,12 +183,17 @@ public class InflightReadsLimiter implements AutoCloseable {
     }
 
     /**
-     * Non-queueing acquire for reads that must not wait for permits (batched skip-read range reads:
-     * the permits they would wait for can be held by the same batch's buffered entries). Returns a
-     * successful handle when the permits are immediately available (or when the request exceeds the
-     * limiter size while it is completely idle, matching {@link #acquire}), and {@link Optional#empty()}
-     * when the acquire would queue — the caller is expected to fail the read with
-     * {@link org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException}.
+     * Non-queueing acquire for reads that must not wait for permits (the later ranges of a batched
+     * skip-read: the permits they would wait for can be held by the same batch's buffered entries).
+     * Returns a successful handle when the permits are immediately available (or when the request
+     * exceeds the limiter size while it is completely idle, matching {@link #acquire}), and
+     * {@link Optional#empty()} when the acquire would queue — the caller is expected to fail the read
+     * with {@link ManagedLedgerException.TooManyRequestsException}.
+     * <p>
+     * Unlike {@link #acquire}, this never grants permits while other acquires are queued, even if the
+     * permits requested are available: the caller would otherwise overtake the queued acquires. For a
+     * batched skip-read whose first range is queued, that would let a later range of the batch take
+     * permits the first range then waits for, while the batch waits for the first range.
      */
     public Optional<Handle> tryAcquire(long permits) {
         if (isDisabled()) {
@@ -198,6 +203,9 @@ public class InflightReadsLimiter implements AutoCloseable {
     }
 
     private synchronized Optional<Handle> internalTryAcquire(long permits) {
+        if (!queuedHandles.isEmpty()) {
+            return Optional.empty();
+        }
         return tryImmediateAcquire(permits, "Acquired permits without queueing");
     }
 

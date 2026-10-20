@@ -6457,7 +6457,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             return null;
         }).when(ledger).asyncReadEntry(Mockito.any(ReadHandle.class), Mockito.anyLong(),
                 Mockito.anyLong(), Mockito.anyLong(), Mockito.any(), Mockito.any(ReadEntriesCallback.class),
-                Mockito.any());
+                Mockito.any(), Mockito.anyBoolean());
 
         cursor.asyncReadEntriesWithSkip(10, -1, new ReadEntriesCallback() {
             @Override
@@ -6946,6 +6946,50 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testReadEntriesFromDifferentLedgersWithDeletedLedgerEnds() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(5);
+        config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testReadEntriesWithDeletedLedgerEnds", config);
+        ledger = Mockito.spy(ledger);
+
+        AtomicInteger counter = new AtomicInteger();
+        Mockito.doAnswer(inv -> {
+            counter.incrementAndGet();
+            return inv.callRealMethod();
+        }).when(ledger).asyncReadEntries(Mockito.any());
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor");
+
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < 12; i++) {
+            positions.add(ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding)));
+        }
+        // Individually delete the last entry of each closed ledger, so that every scan window ends on a
+        // deleted position and the read position is advanced through the deleted-range branch of
+        // getNextAvailablePosition.
+        Set<Position> ledgerEnds = new HashSet<>();
+        for (int i = 0; i < positions.size() - 1; i++) {
+            if (positions.get(i).getLedgerId() != positions.get(i + 1).getLedgerId()) {
+                ledgerEnds.add(positions.get(i));
+            }
+        }
+        assertEquals(ledgerEnds.size(), 2);
+        cursor.delete(ledgerEnds);
+
+        RecordingReadEntriesCallback recording = new RecordingReadEntriesCallback();
+        cursor.asyncReadEntries(100, -1, recording, null, PositionFactory.LATEST);
+
+        assertTrue(recording.await());
+        assertEquals(recording.failure.get(), null);
+        assertEquals(recording.entries.size(), 10);
+        // One read per ledger: the deleted ledger ends are hopped over without an extra read round-trip.
+        assertEquals(counter.get(), 3);
+        assertEquals(cursor.getReadPosition(), positions.get(positions.size() - 1).getNext());
+    }
+
+    @Test
     public void testReadEntriesFromOneSameLedgerWithSkipCondition() throws Exception {
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         @Cleanup
@@ -7018,7 +7062,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             return inv.callRealMethod();
         }).when(ledger).asyncReadEntry(Mockito.any(ReadHandle.class), Mockito.anyLong(),
                 Mockito.anyLong(), Mockito.anyLong(), Mockito.any(), Mockito.any(ReadEntriesCallback.class),
-                Mockito.any());
+                Mockito.any(), Mockito.anyBoolean());
 
         // First read: 6 ranges exist in the window ([1],[3],[5],[7],[9],[11]) but only the first 4 may be
         // submitted. The truncated window no longer reaches the last confirmed entry, so the read does

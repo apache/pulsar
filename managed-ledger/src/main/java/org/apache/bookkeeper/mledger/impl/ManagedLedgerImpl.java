@@ -2709,13 +2709,21 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         final Object readCtx = opReadEntry.ctx;
         BatchReadEntriesCallback callback =
                 new BatchReadEntriesCallback(ranges, expectedCount, opReadEntry, lastReadPosition, readCtx);
-        for (LongLongPair range : ranges) {
+        for (int i = 0; i < ranges.size(); i++) {
             if (callback.shouldStopSubmission()) {
                 break;
             }
+            LongLongPair range = ranges.get(i);
             callback.onRangeSubmitted();
+            // The first range acquires its inflight-read permits the way a regular read does, queueing
+            // for them under limiter pressure: no entry of this batch exists yet, so it cannot wait on
+            // permits held by its own batch. The later ranges must not queue: the entries already read
+            // by this batch hold their permits until the batched read has been delivered and the
+            // entries deallocated, so a later range queueing for them would wait on its own batch.
+            // Those ranges fail fast instead and the batch delivers the prefix read so far.
+            boolean failFastWhenThrottled = i > 0;
             asyncReadEntry(ledger, range.leftLong(), range.rightLong(), maxSizeBytes, expectedReadCount,
-                    callback, readCtx);
+                    callback, readCtx, failFastWhenThrottled);
         }
         callback.submissionFinished();
     }
@@ -3044,15 +3052,21 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      * Read a single range of a batched skip-read. Takes the read budget and expected read count as
      * parameters instead of reading them from an OpReadEntry, since the OpReadEntry may get recycled
      * concurrently once a previously submitted range read fails.
+     *
+     * @param failFastWhenThrottled fail the range read with {@link TooManyRequestsException} when the
+     *                              inflight-read permits are not immediately available, instead of
+     *                              queueing for them
      */
     protected void asyncReadEntry(ReadHandle ledger, long firstEntry, long lastEntry, long maxSizeBytes,
-                                  IntSupplier expectedReadCount, ReadEntriesCallback callback, Object ctx) {
+                                  IntSupplier expectedReadCount, ReadEntriesCallback callback, Object ctx,
+                                  boolean failFastWhenThrottled) {
         ReadEntryCallbackWrapper readCallback = config.getReadEntryTimeoutSeconds() > 0
                 ? ReadEntryCallbackWrapper.create(this, ledger.getId(), firstEntry, callback, ctx,
                         timeoutAtNanos(config.getReadEntryTimeoutSeconds()))
                 : null;
         readEntryWithTimeout(readCallback, () -> entryCache.asyncReadEntry(ledger, firstEntry, lastEntry,
-                maxSizeBytes, expectedReadCount, readCallback != null ? readCallback : callback, ctx, true));
+                maxSizeBytes, expectedReadCount, readCallback != null ? readCallback : callback, ctx,
+                failFastWhenThrottled));
     }
 
     /**
