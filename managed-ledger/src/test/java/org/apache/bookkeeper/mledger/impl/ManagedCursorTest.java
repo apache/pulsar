@@ -3917,12 +3917,17 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void testReplayEntriesReadsRunsOfClosePositionsTogether() throws Exception {
-        replayRunsOfClosePositions("test_replay_runs", false);
+        replayRunsOfClosePositions("test_replay_runs", false, true);
     }
 
     @Test(timeOut = 20000)
     void testReplayEntriesReadsCachedPositionsAndRunsOfTheOthers() throws Exception {
-        replayRunsOfClosePositions("test_replay_runs_partly_cached", true);
+        replayRunsOfClosePositions("test_replay_runs_partly_cached", true, true);
+    }
+
+    @Test(timeOut = 20000)
+    void testReplayEntriesReadsRunsOfClosePositionsWithReadPositionBasedEviction() throws Exception {
+        replayRunsOfClosePositions("test_replay_runs_read_position_eviction", false, false);
     }
 
     @Test
@@ -3951,9 +3956,13 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     }
 
     // Replays runs of close positions whose entries aren't cached, or of which every third one is cached, which is read
-    // from the cache, with some entries in between the others cached too, which their range reads take from the cache
-    private void replayRunsOfClosePositions(String name, boolean partlyCached) throws Exception {
+    // from the cache, with some entries in between the others cached too, which their range reads take from the cache.
+    // With the expected read count based eviction, it checks the expected read counts too, which the read position
+    // based eviction doesn't use: it can evict a replayed entry once the cursor's read position has passed it.
+    private void replayRunsOfClosePositions(String name, boolean partlyCached, boolean evictionByExpectedReadCount)
+            throws Exception {
         ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig());
+        config.setCacheEvictionByExpectedReadCount(evictionByExpectedReadCount);
         config.setMaxEntriesPerLedger(300);
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(name, config);
         ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
@@ -4027,7 +4036,14 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(entries.stream().map(Entry::getPosition).toList(), new ArrayList<>(positions));
         for (Entry entry : entries) {
             assertEquals(new String(entry.getData(), Encoding), "entry-" + added.indexOf(entry.getPosition()));
-            assertEquals(entry.getReadCountHandler().getExpectedReadCount(), 1);
+        }
+        if (!evictionByExpectedReadCount) {
+            entries.forEach(Entry::release);
+            return;
+        }
+        for (Entry entry : entries) {
+            assertEquals(entry.getReadCountHandler().getExpectedReadCount(), 1,
+                    "expected read count of " + entry.getPosition());
         }
         // the dispatcher adds the position 8 to the replay queue again, and releases the entries
         entries.get(1).getReadCountHandler().incrementExpectedReadCount();
@@ -4082,9 +4098,10 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void testReadsOfAnInactiveCursorAreNotCached() throws Exception {
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("test_inactive_cursor_reads",
-                initManagedLedgerConfig(defaultConfig()));
-        ledger.openCursor("active");
+        ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig());
+        config.setCacheEvictionByExpectedReadCount(true);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("test_inactive_cursor_reads", config);
+        ManagedCursorImpl active = (ManagedCursorImpl) ledger.openCursor("active");
         ManagedCursorImpl inactive = (ManagedCursorImpl) ledger.openCursor("inactive");
         List<Position> added = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
@@ -4092,7 +4109,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         }
         ledger.entryCache.clear();
         inactive.setInactive();
-        // an inactive cursor's reads aren't cached
+        // an active cursor's reads are cached with an expected read, and an inactive cursor's aren't cached
+        assertEquals(active.getNumberOfCursorsAtSamePositionOrBefore(), 1);
         assertEquals(inactive.getNumberOfCursorsAtSamePositionOrBefore(), EntryImpl.NO_EXPECTED_READ_COUNT);
 
         List<Entry> entries = inactive.readEntries(10);
