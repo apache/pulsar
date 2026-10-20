@@ -302,7 +302,10 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
             }
         } else {
             updateLatency();
+            ManagedLedgerImpl ml = this.ml;
+            // Recycles this op
             completeAdd(lastEntry, ctx);
+            ml.failAddsQueuedAfterTermination();
         }
     }
 
