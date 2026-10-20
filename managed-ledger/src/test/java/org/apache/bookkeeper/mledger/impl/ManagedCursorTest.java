@@ -3938,17 +3938,67 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         }
         positions.add(PositionFactory.create(2, 0));
         // small entries: the positions in a ledger at most 8 entries apart
-        assertEquals(runEntryIds(ManagedCursorImpl.replayRuns(positions, 100)),
+        assertEquals(runEntryIds(ManagedCursorImpl.replayRuns(positions, 100, Long.MAX_VALUE)),
                 List.of(List.of(0L, 2L, 4L, 12L), List.of(30L), List.of(600L, 601L), List.of(0L)));
         // 100 KiB entries: one entry in between fits the 192 KiB gap, and 10 entries the 1 MiB span
-        assertEquals(runEntryIds(ManagedCursorImpl.replayRuns(positions, 100 * 1024)),
+        assertEquals(runEntryIds(ManagedCursorImpl.replayRuns(positions, 100 * 1024, Long.MAX_VALUE)),
                 List.of(List.of(0L, 2L, 4L), List.of(12L), List.of(30L), List.of(600L, 601L), List.of(0L)));
         assertEquals(runEntryIds(ManagedCursorImpl.replayRuns(List.of(PositionFactory.create(1, 0),
-                PositionFactory.create(1, 3)), 100 * 1024)), List.of(List.of(0L), List.of(3L)));
+                PositionFactory.create(1, 3)), 100 * 1024, Long.MAX_VALUE)), List.of(List.of(0L), List.of(3L)));
         // entries larger than the gap: only adjacent positions are read together
-        assertEquals(runEntryIds(ManagedCursorImpl.replayRuns(positions, 200 * 1024)),
+        assertEquals(runEntryIds(ManagedCursorImpl.replayRuns(positions, 200 * 1024, Long.MAX_VALUE)),
                 List.of(List.of(0L), List.of(2L), List.of(4L), List.of(12L), List.of(30L), List.of(600L, 601L),
                         List.of(0L)));
+        // a replay's runs take at most the given entries in between in all; adjacent positions still make a run
+        assertEquals(runEntryIds(ManagedCursorImpl.replayRuns(positions, 100, 8)),
+                List.of(List.of(0L, 2L, 4L), List.of(12L), List.of(30L), List.of(600L, 601L), List.of(0L)));
+    }
+
+    // A range read holds its permits on the inflight reads limiter until its wanted entries are released, which the
+    // replay keeps until its other reads complete. With a limit that the wanted entries' own reads fit, the replay's
+    // runs of 16 KiB entries, 8 entries apart, would take more than the limit together, and the last one would time
+    // out waiting for permits, if the entries in between weren't bounded by the limiter's bytes that the wanted
+    // entries leave.
+    @Test
+    void testReplayRangeReadsFitTheInflightReadsLimit() throws Exception {
+        ManagedLedgerFactoryConfig factoryConfig = new ManagedLedgerFactoryConfig();
+        factoryConfig.setMaxCacheSize(0);
+        factoryConfig.setManagedLedgerMaxReadsInFlightSize(5 * 1024 * 1024);
+        factoryConfig.setManagedLedgerMaxReadsInFlightPermitsAcquireTimeoutMillis(500);
+        ManagedLedgerFactoryImpl limitedFactory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConfig);
+        try {
+            ManagedLedgerImpl ledger = (ManagedLedgerImpl) limitedFactory.open("test_replay_inflight_limit",
+                    defaultConfig());
+            ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+            byte[] data = new byte[16 * 1024];
+            Set<Position> positions = new TreeSet<>();
+            for (int i = 0; i <= 376; i++) {
+                Position position = ledger.addEntry(data);
+                if (i % 8 == 0) {
+                    positions.add(position);
+                }
+            }
+            CompletableFuture<List<Entry>> replayed = new CompletableFuture<>();
+            cursor.asyncReplayEntries(positions, new AsyncCallbacks.ReadEntriesCallback() {
+                @Override
+                public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                    replayed.complete(entries);
+                }
+
+                @Override
+                public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                    replayed.completeExceptionally(exception);
+                }
+            }, null);
+            List<Entry> entries = replayed.get(10, TimeUnit.SECONDS);
+            try {
+                assertEquals(entries.stream().map(Entry::getPosition).sorted().toList(), List.copyOf(positions));
+            } finally {
+                entries.forEach(Entry::release);
+            }
+        } finally {
+            limitedFactory.shutdown();
+        }
     }
 
     private static List<List<Long>> runEntryIds(List<List<Position>> runs) {

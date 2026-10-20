@@ -97,6 +97,7 @@ import org.apache.bookkeeper.mledger.PositionBound;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.ScanOutcome;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
+import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl;
 import org.apache.bookkeeper.mledger.proto.BatchedEntryDeletionIndexInfo;
 import org.apache.bookkeeper.mledger.proto.LongListMap;
 import org.apache.bookkeeper.mledger.proto.LongProperty;
@@ -2022,7 +2023,17 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
         positions.sort(null);
         long averageEntrySize = Math.max(1, ledger.getTotalSize() / Math.max(1, ledger.getNumberOfEntries()));
-        for (List<Position> run : replayRuns(positions, averageEntrySize)) {
+        // A range read holds its permits on the inflight reads limiter until its wanted entries are released, which
+        // the callback may keep until the replay's other reads complete. So that the replay's reads can take their
+        // permits together whenever the wanted entries' own reads could, the entries in between take at most the
+        // limiter's bytes that the wanted entries leave, by the estimated entry size that the limiter uses
+        long maxReadsInFlightSize = ledger.getFactory().getConfig().getManagedLedgerMaxReadsInFlightSize();
+        long maxGapEntries = maxReadsInFlightSize > 0
+                ? Math.max(0, maxReadsInFlightSize
+                / (averageEntrySize + RangeEntryCacheImpl.BOOKKEEPER_READ_OVERHEAD_PER_ENTRY)
+                - replayPositions.size())
+                : Long.MAX_VALUE;
+        for (List<Position> run : replayRuns(positions, averageEntrySize, maxGapEntries)) {
             if (run.size() == 1) {
                 ledger.asyncReadEntry(run.get(0), REPLAYED_ENTRY_EXPECTED_READ_COUNT, singleReadCallback, ctx);
             } else {
@@ -2035,13 +2046,15 @@ public class ManagedCursorImpl implements ManagedCursor {
      * The runs of the sorted positions that one range read each takes: positions in a ledger at most
      * {@link #REPLAY_RANGE_MAX_GAP} entries apart, whose entries in between take at most
      * {@link #REPLAY_RANGE_MAX_GAP_BYTES}, spanning at most {@link #REPLAY_RANGE_MAX_ENTRIES} entries and
-     * {@link #REPLAY_RANGE_MAX_BYTES}, by the average entry size. A position can be a run of its own.
+     * {@link #REPLAY_RANGE_MAX_BYTES}, by the average entry size. The runs take at most {@code maxGapEntries} entries
+     * in between in all. A position can be a run of its own.
      */
     @VisibleForTesting
-    static List<List<Position>> replayRuns(List<Position> positions, long averageEntrySize) {
+    static List<List<Position>> replayRuns(List<Position> positions, long averageEntrySize, long maxGapEntries) {
         long maxEntries = Math.min(REPLAY_RANGE_MAX_ENTRIES, REPLAY_RANGE_MAX_BYTES / averageEntrySize);
         long maxGap = Math.min(REPLAY_RANGE_MAX_GAP, 1 + REPLAY_RANGE_MAX_GAP_BYTES / averageEntrySize);
         List<List<Position>> runs = new ArrayList<>();
+        long gapEntries = 0;
         int start = 0;
         while (start < positions.size()) {
             Position first = positions.get(start);
@@ -2049,11 +2062,14 @@ public class ManagedCursorImpl implements ManagedCursor {
             while (end < positions.size()) {
                 Position next = positions.get(end);
                 Position previous = positions.get(end - 1);
+                long entriesInBetween = next.getEntryId() - previous.getEntryId() - 1;
                 if (next.getLedgerId() != first.getLedgerId()
                         || next.getEntryId() - previous.getEntryId() > maxGap
-                        || next.getEntryId() - first.getEntryId() >= maxEntries) {
+                        || next.getEntryId() - first.getEntryId() >= maxEntries
+                        || gapEntries + entriesInBetween > maxGapEntries) {
                     break;
                 }
+                gapEntries += entriesInBetween;
                 end++;
             }
             runs.add(positions.subList(start, end));
