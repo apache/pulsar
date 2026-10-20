@@ -1621,6 +1621,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return CompletableFuture.completedFuture(null);
     }
 
+    /**
+     * Deletes the non-durable cursor before removing its subscription entry. An unexpected cursor deletion failure
+     * leaves the expected subscription mapped, preventing another subscription with the same name from being admitted
+     * while the cursor may still exist. A missing ledger or cursor is treated as already deleted.
+     */
     CompletableFuture<Void> removeNonDurableSubscription(String subscriptionName, PersistentSubscription expected) {
         return FutureUtil.supplySafely(() -> {
             CompletableFuture<Void> cursorDeleted = new CompletableFuture<>();

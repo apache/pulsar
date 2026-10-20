@@ -436,7 +436,7 @@ public class PersistentSubscription extends AbstractSubscription {
                             ? topic.removeSubscription(subName, this)
                             : topic.removeNonDurableSubscription(subName, this);
                     cleanup.exceptionally(error -> {
-                        log.warn().exception(error).log("Failed to remove non durable cursor");
+                        log.warn().exception(error).log("Failed to retire non-durable subscription");
                         return null;
                     });
                 }, topic.getBrokerService().pulsar().getExecutor());

@@ -26,6 +26,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -69,6 +70,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionBound;
 import org.apache.bookkeeper.mledger.PositionFactory;
@@ -111,6 +113,7 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
 import org.apache.pulsar.utils.TestLogAppender;
 import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
@@ -1077,6 +1080,92 @@ public class PersistentTopicTest extends BrokerTestBase {
         listenerCaptor.getValue().onUpdate(livePolicies);
 
         assertEquals(persistentTopic.receivedUpdates, Collections.singletonList(livePolicies));
+    }
+
+    @Test
+    public void testRemoveSubscriptionKeepsReplacementWithSameName() throws Exception {
+        ManagedLedger ledger = mock(ManagedLedger.class);
+        doReturn(new ManagedLedgerConfig()).when(ledger).getConfig();
+        doReturn(Collections.emptyMap()).when(ledger).getProperties();
+        PersistentTopic topic = new PersistentTopic(
+                "persistent://prop/ns-abc/testRemoveSubscription-" + UUID.randomUUID(), ledger,
+                pulsar.getBrokerService());
+        String subscriptionName = "shared-subscription";
+        PersistentSubscription expected = mock(PersistentSubscription.class);
+        PersistentSubscription replacement = mock(PersistentSubscription.class);
+        doReturn(CompletableFuture.completedFuture(new SubscriptionStatsImpl()))
+                .when(expected).getStatsAsync(any());
+        doReturn(CompletableFuture.completedFuture(new SubscriptionStatsImpl()))
+                .when(replacement).getStatsAsync(any());
+        topic.getSubscriptions().put(subscriptionName, replacement);
+
+        topic.removeSubscription(subscriptionName, expected).get(3, TimeUnit.SECONDS);
+
+        assertThat(topic.getSubscriptions().get(subscriptionName)).isSameAs(replacement);
+    }
+
+    @Test
+    public void testAsyncNonDurableCursorDeleteFailureKeepsSubscriptionMapped() throws Exception {
+        ManagedLedger ledger = mock(ManagedLedger.class);
+        doReturn(new ManagedLedgerConfig()).when(ledger).getConfig();
+        doReturn(Collections.emptyMap()).when(ledger).getProperties();
+        PersistentTopic topic = new PersistentTopic(
+                "persistent://prop/ns-abc/testAsyncCursorDeleteFailure-" + UUID.randomUUID(), ledger,
+                pulsar.getBrokerService());
+        String subscriptionName = "shared-subscription";
+        PersistentSubscription expected = mock(PersistentSubscription.class);
+        ManagedCursor cursor = mock(ManagedCursor.class);
+        doReturn(cursor).when(expected).getCursor();
+        doReturn(subscriptionName).when(cursor).getName();
+        doReturn(CompletableFuture.completedFuture(new SubscriptionStatsImpl()))
+                .when(expected).getStatsAsync(any());
+        topic.getSubscriptions().put(subscriptionName, expected);
+        ManagedLedgerException failure = new ManagedLedgerException("cursor deletion failed");
+        doAnswer(invocation -> {
+            AsyncCallbacks.DeleteCursorCallback callback = invocation.getArgument(1);
+            callback.deleteCursorFailed(failure, null);
+            return null;
+        }).when(ledger).asyncDeleteCursor(any(), any(), any());
+
+        ExecutionException thrown = null;
+        try {
+            topic.removeNonDurableSubscription(subscriptionName, expected).get(3, TimeUnit.SECONDS);
+        } catch (ExecutionException exception) {
+            thrown = exception;
+        }
+        assertThat(thrown).isNotNull();
+        assertThat(thrown.getCause()).isSameAs(failure);
+        assertThat(topic.getSubscriptions().get(subscriptionName)).isSameAs(expected);
+    }
+
+    @Test
+    public void testSynchronousNonDurableCursorDeleteFailureKeepsSubscriptionMapped() throws Exception {
+        ManagedLedger ledger = mock(ManagedLedger.class);
+        doReturn(new ManagedLedgerConfig()).when(ledger).getConfig();
+        doReturn(Collections.emptyMap()).when(ledger).getProperties();
+        PersistentTopic topic = new PersistentTopic(
+                "persistent://prop/ns-abc/testSyncCursorDeleteFailure-" + UUID.randomUUID(), ledger,
+                pulsar.getBrokerService());
+        String subscriptionName = "shared-subscription";
+        PersistentSubscription expected = mock(PersistentSubscription.class);
+        ManagedCursor cursor = mock(ManagedCursor.class);
+        doReturn(cursor).when(expected).getCursor();
+        doReturn(subscriptionName).when(cursor).getName();
+        doReturn(CompletableFuture.completedFuture(new SubscriptionStatsImpl()))
+                .when(expected).getStatsAsync(any());
+        topic.getSubscriptions().put(subscriptionName, expected);
+        IllegalStateException failure = new IllegalStateException("cursor deletion failed synchronously");
+        doThrow(failure).when(ledger).asyncDeleteCursor(any(), any(), any());
+
+        ExecutionException thrown = null;
+        try {
+            topic.removeNonDurableSubscription(subscriptionName, expected).get(3, TimeUnit.SECONDS);
+        } catch (ExecutionException exception) {
+            thrown = exception;
+        }
+        assertThat(thrown).isNotNull();
+        assertThat(thrown.getCause()).isSameAs(failure);
+        assertThat(topic.getSubscriptions().get(subscriptionName)).isSameAs(expected);
     }
 
     @Test
