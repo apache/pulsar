@@ -91,6 +91,7 @@ public class PulsarLedgerAuditorManager implements LedgerAuditorManager {
                     }
                 }
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 throw new RuntimeException(e);
             }
         }

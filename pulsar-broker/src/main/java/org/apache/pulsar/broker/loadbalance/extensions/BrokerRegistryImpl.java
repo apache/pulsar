@@ -118,6 +118,9 @@ public class BrokerRegistryImpl implements BrokerRegistry {
         try {
             this.registerAsync().get(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
         } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
             throw PulsarServerException.from(e);
         }
     }
@@ -187,6 +190,9 @@ public class BrokerRegistryImpl implements BrokerRegistry {
                     throw MetadataStoreException.unwrap(e);
                 }
             } catch (InterruptedException | TimeoutException e) {
+                if (e instanceof InterruptedException) {
+                    Thread.currentThread().interrupt();
+                }
                 throw MetadataStoreException.unwrap(e);
             } finally {
                 state.set(State.Started);

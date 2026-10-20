@@ -937,6 +937,9 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         try {
             return asyncGetStats(getPreciseBacklog, subscriptionBacklogSize, getPreciseBacklog).get();
         } catch (InterruptedException | ExecutionException e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
             log.error().exception(e).log("Fail to get stats");
             return null;
         }
@@ -947,6 +950,9 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         try {
             return asyncGetStats(getStatsOptions).get();
         } catch (InterruptedException | ExecutionException e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
             log.error().exception(e).log("Fail to get stats");
             return null;
         }

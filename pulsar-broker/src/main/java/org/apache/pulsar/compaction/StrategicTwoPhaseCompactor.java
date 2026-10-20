@@ -320,6 +320,7 @@ public class StrategicTwoPhaseCompactor extends PublishingOrderCompactor {
         try {
             Thread.sleep(100);
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
         while (!reader.isConnected()) {
             long now = System.currentTimeMillis();
@@ -336,6 +337,7 @@ public class StrategicTwoPhaseCompactor extends PublishingOrderCompactor {
             try {
                 Thread.sleep(100);
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 log.warn().exception(e).log("The thread got interrupted while waiting. continuing");
             }
         }
@@ -435,6 +437,7 @@ public class StrategicTwoPhaseCompactor extends PublishingOrderCompactor {
                         try {
                             outstanding.acquire(MAX_OUTSTANDING);
                         } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
                             promise.completeExceptionally(e);
                             return;
                         }

@@ -709,6 +709,9 @@ public class NonPersistentTopics extends PersistentTopics {
         } catch (ExecutionException e) {
             throw new RestException(e.getCause());
         } catch (InterruptedException | TimeoutException e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
             throw new RestException(e);
         }
     }

@@ -325,6 +325,9 @@ public class TransferShedder implements NamespaceUnloadStrategy {
             availableBrokers = context.brokerRegistry().getAvailableBrokerLookupDataAsync()
                     .get(context.brokerConfiguration().getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
         } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
             counter.update(Failure, Unknown);
             log.warn().exception(e).log("Failed to fetch available brokers. Stop unloading");
             return decisionCache;
@@ -753,6 +756,9 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                         .get(context.brokerConfiguration().getMetadataStoreOperationTimeoutSeconds(),
                                 TimeUnit.SECONDS);
             } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                if (e instanceof InterruptedException) {
+                    Thread.currentThread().interrupt();
+                }
                 log.error().attr("filter", filter.getClass().getName()).exception(e)
                         .log("Failed to filter brokers with filter");
                 return false;

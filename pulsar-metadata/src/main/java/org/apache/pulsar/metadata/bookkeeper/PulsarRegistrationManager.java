@@ -125,6 +125,9 @@ public class PulsarRegistrationManager implements RegistrationManager {
                     .orElseThrow(
                             () -> new BookieException.MetadataStoreException("BookKeeper cluster not initialized"));
         } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
             throw new BookieException.MetadataStoreException("Failed to get cluster instance id", e);
         }
     }
