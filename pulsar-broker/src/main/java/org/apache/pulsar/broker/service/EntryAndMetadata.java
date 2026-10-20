@@ -37,6 +37,9 @@ public class EntryAndMetadata implements Entry {
     @Nullable
     private final MessageMetadata metadata;
     int stickyKeyHash = STICKY_KEY_HASH_NOT_INITIALIZED;
+    // The wrapper belongs to one dispatch batch, even when its metadata is shared across subscriptions.
+    @Getter
+    private boolean ownedByDispatcher = true;
 
     private EntryAndMetadata(final Entry entry, @Nullable final MessageMetadata metadata) {
         this.entry = entry;
@@ -88,6 +91,7 @@ public class EntryAndMetadata implements Entry {
 
     @Override
     public byte[] getDataAndRelease() {
+        ownedByDispatcher = false;
         return entry.getDataAndRelease();
     }
 
@@ -118,7 +122,13 @@ public class EntryAndMetadata implements Entry {
 
     @Override
     public boolean release() {
+        ownedByDispatcher = false;
         return entry.release();
+    }
+
+    /** Mark a successful handoff to Consumer.sendMessages, which releases the entry asynchronously. */
+    public void transferToConsumer() {
+        ownedByDispatcher = false;
     }
 
     /**

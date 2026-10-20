@@ -91,6 +91,18 @@ import org.testng.annotations.Test;
 public class SharedDispatcherPermitAccountingTest extends SharedPulsarBaseTest {
     private EmbeddedChannel channel;
 
+    public static final class PermitAssertions {
+        private PermitAssertions() {
+        }
+
+        public static void assertAvailablePermitsConsistent(PersistentDispatcherMultipleConsumers dispatcher) {
+            synchronized (dispatcher) {
+                assertThat(dispatcher.totalAvailablePermits).isEqualTo(dispatcher.getConsumers().stream()
+                        .mapToInt(Consumer::getAvailablePermitsForDispatcherRemoval).sum());
+            }
+        }
+    }
+
     @BeforeMethod(alwaysRun = true)
     public void createPromiseChannel() {
         channel = new EmbeddedChannel();

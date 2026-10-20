@@ -183,6 +183,12 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     }
 
     @Override
+    protected synchronized void onDispatchAborted(ReadType readType) {
+        // Consume the queued dispatch and its read together, preserving additions needed by other reads.
+        takeReplayAdditionsDuringRead(readType);
+    }
+
+    @Override
     protected synchronized void onReadEnded(ReadType readType) {
         if (readType == ReadType.Replay) {
             replayReadEnded();
@@ -384,8 +390,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     protected synchronized boolean trySendMessagesToConsumers(ReadType readType, List<Entry> entries) {
         Int2ObjectOpenHashMap<NavigableSet<Position>> replayAdditions = takeReplayAdditionsDuringRead(readType);
         lastNumberOfEntriesProcessed = 0;
-        long totalMessagesSent = 0;
-        long totalBytesSent = 0;
         long totalEntries = 0;
         long totalEntriesProcessed = 0;
         int entriesCount = entries.size();
@@ -456,15 +460,15 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
             EntryBatchSizes batchSizes = EntryBatchSizes.get(entriesForConsumer.size());
             EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entriesForConsumer.size());
-            totalEntries += filterEntriesForConsumer(entriesForConsumer, batchSizes, sendMessageInfo,
+            int dispatchedEntries = filterEntriesForDispatch(null, 0, entriesForConsumer, batchSizes, sendMessageInfo,
                     batchIndexesAcks, cursor, readType == ReadType.Replay, consumer);
+            totalEntries += dispatchedEntries;
             totalEntriesProcessed += entriesForConsumer.size();
             // read before sendMessages: it hands batchIndexesAcks to the consumer's event loop, which recycles it
             int totalAckedIndexCount = batchIndexesAcks.getTotalAckedIndexCount();
-            consumer.sendMessages(entriesForConsumer, batchSizes, batchIndexesAcks,
-                    sendMessageInfo.getTotalMessages(),
-                    sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
-                    getRedeliveryTracker()).addListener(future -> {
+            var writeFuture = sendMessagesToConsumer(consumer, entriesForConsumer, batchSizes, batchIndexesAcks,
+                    sendMessageInfo);
+            writeFuture.addListener(future -> {
                 // One blocked socket must not hold up consumers whose writes have completed.
                 // The conflated read loop rechecks writability and permits before selecting a consumer.
                 readMoreEntriesAsync();
@@ -472,15 +476,12 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
             TOTAL_AVAILABLE_PERMITS_UPDATER.getAndAdd(this,
                     -(sendMessageInfo.getTotalMessages() - totalAckedIndexCount));
-            totalMessagesSent += sendMessageInfo.getTotalMessages();
-            totalBytesSent += sendMessageInfo.getTotalBytes();
+            acquirePermitsForDeliveredMessages(topic, cursor, dispatchedEntries,
+                    sendMessageInfo.getTotalMessages(), sendMessageInfo.getTotalBytes());
         }
 
 
         lastNumberOfEntriesProcessed = (int) totalEntriesProcessed;
-
-        // acquire message-dispatch permits for already delivered messages
-        acquirePermitsForDeliveredMessages(topic, cursor, totalEntries, totalMessagesSent, totalBytesSent);
 
         // trigger read more messages if necessary
         if (triggerLookAhead.booleanValue() && cursor.hasMoreEntries()) {

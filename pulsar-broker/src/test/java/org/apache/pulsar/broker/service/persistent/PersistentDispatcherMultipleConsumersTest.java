@@ -21,7 +21,12 @@ package org.apache.pulsar.broker.service.persistent;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.carrotsearch.hppc.ObjectSet;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.Unpooled;
+import io.prometheus.client.CollectorRegistry;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -34,6 +39,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import lombok.CustomLog;
+import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
@@ -44,21 +50,187 @@ import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @CustomLog
 @Test(groups = "broker-api")
 public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseTest {
+    @DataProvider(name = "readCallbackListModes")
+    public Object[][] readCallbackListModes() {
+        return new Object[][] {{false, false}, {false, true}, {true, false}, {true, true}};
+    }
+
+    @Test(dataProvider = "readCallbackListModes", timeOut = 30_000)
+    public void testReadCallbackAcceptsOtherListImplementations(boolean subscriptionThread, boolean immutable)
+            throws Exception {
+        boolean oldSubscriptionThread = getConfig().isDispatcherDispatchMessagesInSubscriptionThread();
+        getConfig().setDispatcherDispatchMessagesInSubscriptionThread(subscriptionThread);
+        try {
+            PersistentSubscription subscription = createSubscriptionWithBacklog();
+            List<Entry> entries = subscription.getCursor().readEntries(3);
+            List<ByteBuf> buffers = entries.stream().map(Entry::getDataBuffer).toList();
+            List<Entry> callbackEntries = immutable ? List.copyOf(entries) : new LinkedList<>(entries);
+            PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(
+                    (PersistentTopic) subscription.getTopic(), subscription.getCursor(), subscription);
+            try {
+                // With no consumers, normal dispatch releases the entries and schedules replay.
+                // An unsupported list mutation would instead schedule a dispatch-failure retry.
+                dispatcher.readEntriesComplete(callbackEntries, PersistentDispatcherMultipleConsumers.ReadType.Normal);
+                Awaitility.await().until(() -> !dispatcher.isSendInProgress());
+                assertThat(dispatcher.isDispatchRetryPending()).isFalse();
+                assertThat(dispatcher.getNumberOfMessagesInReplay()).isEqualTo(3);
+                assertThat(callbackEntries).containsExactlyElementsOf(entries);
+            } finally {
+                dispatcher.close(false, Optional.empty()).get(5, TimeUnit.SECONDS);
+                admin.topics().unload(subscription.getTopic().getName());
+            }
+            buffers.forEach(buffer -> assertThat(buffer.refCnt()).isZero());
+        } finally {
+            getConfig().setDispatcherDispatchMessagesInSubscriptionThread(oldSubscriptionThread);
+        }
+    }
+
+    @Test(dataProvider = "routingFailureModes", timeOut = 30_000)
+    public void testMetadataFailureDuringWrappingReplaysWholeRead(boolean subscriptionThread) throws Exception {
+        boolean oldSubscriptionThread = getConfig().isDispatcherDispatchMessagesInSubscriptionThread();
+        getConfig().setDispatcherDispatchMessagesInSubscriptionThread(subscriptionThread);
+        Double sample = CollectorRegistry.defaultRegistry.getSampleValue("pulsar_broker_pending_bytes_to_dispatch");
+        double pendingBytes = sample == null ? 0 : sample;
+        try {
+            PersistentSubscription subscription = createSubscriptionWithBacklog();
+            List<Entry> entries = subscription.getCursor().readEntries(3);
+            List<ByteBuf> buffers = entries.stream().map(Entry::getDataBuffer).toList();
+            Entry failingEntry = Mockito.spy(entries.get(1));
+            ownedMocks.add(failingEntry);
+            Mockito.doThrow(new IllegalStateException("metadata lookup failed"))
+                    .when(failingEntry).getMessageMetadata();
+            entries.set(1, failingEntry);
+            PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(
+                    (PersistentTopic) subscription.getTopic(), subscription.getCursor(), subscription);
+            try {
+                // Fail between the wrapped prefix and raw suffix of a real cursor read.
+                dispatcher.readEntriesComplete(entries, PersistentDispatcherMultipleConsumers.ReadType.Normal);
+                Awaitility.await().untilAsserted(() -> {
+                    assertThat(dispatcher.getNumberOfMessagesInReplay()).isEqualTo(3);
+                    assertThat(dispatcher.isSendInProgress()).isFalse();
+                    assertThat(CollectorRegistry.defaultRegistry
+                            .getSampleValue("pulsar_broker_pending_bytes_to_dispatch")).isEqualTo(pendingBytes);
+                });
+                Mockito.verify(failingEntry).release();
+            } finally {
+                dispatcher.close(false, Optional.empty()).get(5, TimeUnit.SECONDS);
+                admin.topics().unload(subscription.getTopic().getName());
+            }
+            buffers.forEach(buffer -> assertThat(buffer.refCnt()).isZero());
+        } finally {
+            getConfig().setDispatcherDispatchMessagesInSubscriptionThread(oldSubscriptionThread);
+        }
+    }
+
+    private PersistentSubscription createSubscriptionWithBacklog() throws Exception {
+        String topicName = newTopicName();
+        admin.topics().createNonPartitionedTopic(topicName);
+        admin.topics().createSubscription(topicName, "sub", MessageId.earliest);
+        try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName)
+                .enableBatching(false).create()) {
+            for (int i = 0; i < 3; i++) {
+                producer.newMessage().key("key").value("m" + i).send();
+            }
+        }
+        PersistentTopic topic = (PersistentTopic) getTopic(topicName, false).join().orElseThrow();
+        return topic.getSubscription("sub");
+    }
+
+    @DataProvider(name = "routingFailureModes")
+    public Object[][] routingFailureModes() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "routingFailureModes", timeOut = 30_000)
+    public void testRoutingFailureRetriesWithBackoff(boolean subscriptionThread) throws Exception {
+        boolean oldSubscriptionThread = getConfig().isDispatcherDispatchMessagesInSubscriptionThread();
+        int oldInitialBackoff = getConfig().getDispatcherReadFailureBackoffInitialTimeInMs();
+        int oldMaxBackoff = getConfig().getDispatcherReadFailureBackoffMaxTimeInMs();
+        getConfig().setDispatcherDispatchMessagesInSubscriptionThread(subscriptionThread);
+        getConfig().setDispatcherReadFailureBackoffInitialTimeInMs(2000);
+        getConfig().setDispatcherReadFailureBackoffMaxTimeInMs(2000);
+        Double sample = CollectorRegistry.defaultRegistry.getSampleValue("pulsar_broker_pending_bytes_to_dispatch");
+        double pendingBytes = sample == null ? 0 : sample;
+        try {
+            String topicName = newTopicName();
+            admin.topics().createNonPartitionedTopic(topicName);
+            admin.topics().createSubscription(topicName, "sub", MessageId.earliest);
+            PersistentTopic topic = (PersistentTopic) getTopic(topicName, false).join().orElseThrow();
+            // The stored metadata is structurally valid, but its base64 key is invalid. The real
+            // Key_Shared routing path fails in Commands.resolveStickyKey after the cursor completes its read.
+            MessageMetadata metadata = new MessageMetadata().setProducerName("bad-key-producer")
+                    .setSequenceId(0).setPublishTime(System.currentTimeMillis())
+                    .setPartitionKey("%").setPartitionKeyB64Encoded(true);
+            ByteBuf entry = Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c,
+                    metadata, Unpooled.EMPTY_BUFFER);
+            try {
+                topic.getManagedLedger().addEntry(ByteBufUtil.getBytes(entry));
+            } finally {
+                entry.release();
+            }
+            try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName)
+                    .enableBatching(false).create()) {
+                producer.newMessage().key("good-key").value("good").send();
+            }
+            PersistentSubscription subscription = topic.getSubscription("sub");
+            try (Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+                    .subscriptionName("sub").subscriptionType(SubscriptionType.Key_Shared).subscribe()) {
+                PersistentDispatcherMultipleConsumers dispatcher =
+                        (PersistentDispatcherMultipleConsumers) subscription.getDispatcher();
+                Awaitility.await().untilAsserted(() -> {
+                    assertThat(dispatcher.isDispatchRetryPending()).isTrue();
+                    assertThat(dispatcher.getNumberOfMessagesInReplay()).isEqualTo(2);
+                    assertThat(CollectorRegistry.defaultRegistry
+                            .getSampleValue("pulsar_broker_pending_bytes_to_dispatch")).isEqualTo(pendingBytes);
+                });
+                synchronized (dispatcher) {
+                    assertThat(dispatcher.isDispatchRetryPending()).isTrue();
+                    long readCount = dispatcher.getReadMoreEntriesCallCount();
+                    // The retry timer cannot acquire the dispatcher monitor during these notifications.
+                    for (int i = 0; i < 100; i++) {
+                        dispatcher.readMoreEntries();
+                    }
+                    assertThat(dispatcher.getReadMoreEntriesCallCount()).isEqualTo(readCount);
+                    assertThat(dispatcher.isHavePendingReplayRead()).isFalse();
+                }
+                // An operator removes the poison entry; recovery must resume without reconnecting the client.
+                admin.topics().skipMessages(topicName, "sub", 1);
+                Message<String> message = consumer.receive(5, TimeUnit.SECONDS);
+                assertThat(message).isNotNull();
+                assertThat(message.getValue()).isEqualTo("good");
+                consumer.acknowledge(message);
+                Awaitility.await().untilAsserted(() -> {
+                    assertThat(subscription.getCursor().getNumberOfEntriesInBacklog(false)).isZero();
+                    assertThat(CollectorRegistry.defaultRegistry
+                            .getSampleValue("pulsar_broker_pending_bytes_to_dispatch")).isEqualTo(pendingBytes);
+                });
+            }
+        } finally {
+            getConfig().setDispatcherDispatchMessagesInSubscriptionThread(oldSubscriptionThread);
+            getConfig().setDispatcherReadFailureBackoffInitialTimeInMs(oldInitialBackoff);
+            getConfig().setDispatcherReadFailureBackoffMaxTimeInMs(oldMaxBackoff);
+        }
+    }
+
     // Concurrent mock calls only run on executors that the test shuts down and joins.
     private final List<Object> ownedMocks = new ArrayList<>();
 
