@@ -338,6 +338,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             AtomicReferenceFieldUpdater.newUpdater(ManagedLedgerImpl.class, State.class, "state");
     protected volatile State state = null;
     private volatile boolean migrated = false;
+    // Set when the factory abandons the initialization, so that it stops before its next step
+    private volatile boolean initializationAbandoned = false;
 
     @Getter
     private final OrderedScheduler scheduledExecutor;
@@ -464,6 +466,28 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
+    /**
+     * Abandons the initialization of this instance, because it timed out or the factory is shut down. The
+     * initialization fails before its next step, instead of fencing the ledgers or updating the metadata of an
+     * instance that a retried open initializes.
+     */
+    void abandonInitialization() {
+        initializationAbandoned = true;
+    }
+
+    /**
+     * Fails the initialization if it has been abandoned.
+     *
+     * @return true if the initialization was abandoned and failed
+     */
+    protected boolean failInitializationIfAbandoned(ManagedLedgerInitializeLedgerCallback callback) {
+        if (!initializationAbandoned) {
+            return false;
+        }
+        callback.initializeFailed(new ManagedLedgerException("Managed ledger initialization was abandoned"));
+        return true;
+    }
+
     synchronized void initialize(final ManagedLedgerInitializeLedgerCallback callback, final Object ctx) {
         log.info().attr("lazyCursorRecovery", config.isLazyCursorRecovery())
                 .attr("triggerOffloadOnTopicLoad", config.isTriggerOffloadOnTopicLoad())
@@ -474,6 +498,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 new MetaStoreCallback<ManagedLedgerInfo>() {
             @Override
             public void operationComplete(ManagedLedgerInfo mlInfo, Stat stat) {
+                if (failInitializationIfAbandoned(callback)) {
+                    return;
+                }
                 ledgersStat = stat;
                 if (mlInfo.hasTerminatedPosition()) {
                     state = State.Terminated;
@@ -628,6 +655,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     protected synchronized void initializeBookKeeper(final ManagedLedgerInitializeLedgerCallback callback) {
+        if (failInitializationIfAbandoned(callback)) {
+            return;
+        }
         log.debug().attr("ledgers", ledgers).log("Initializing bookkeeper");
 
         // Calculate total entries and size
@@ -725,6 +755,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     protected void initializeCursors(final ManagedLedgerInitializeLedgerCallback callback) {
+        if (failInitializationIfAbandoned(callback)) {
+            return;
+        }
         log.debug("Initializing cursors");
         store.getCursors(name, new MetaStoreCallback<List<String>>() {
             @Override
