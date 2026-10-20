@@ -813,6 +813,36 @@ public class TopicListServiceTest {
     }
 
     @Test
+    public void testDuplicateWatchRequestGetsNonRetriableErrorWhenTopicListIsLargerThanMemoryLimit()
+            throws Exception {
+        TopicListService.TopicListWatcher watcher =
+                createWatcher(Collections.singletonList("persistent://tenant/ns/topic1"));
+        // start an update that doesn't complete yet
+        topicListFuture = new CompletableFuture<>();
+        assertThat(watcher.prepareUpdateTopics(null)).isTrue();
+        topicListService.updateTopicListWatcher(watcher);
+
+        // a duplicate watch request waits for the ongoing update
+        lookupSemaphore.acquire();
+        topicListService.handleWatchTopicList(
+                NamespaceName.get("tenant/ns"),
+                13,
+                8,
+                "persistent://tenant/ns/topic\\d",
+                topicsPatternImplementation, null,
+                lookupSemaphore);
+
+        // the estimated size of the topic list is larger than the 1_000_000 bytes heap memory limit
+        topicListFuture.complete(List.of("persistent://tenant/ns/topic1" + "x".repeat(1_000_000)));
+
+        // the waiting request gets the non-retriable error of the update, not the error of closing the watcher
+        verify(pulsarCommandSender, timeout(2000L))
+                .sendErrorResponse(eq(8L), eq(ServerError.NotAllowedError), anyString());
+        Awaitility.await().untilAsserted(() -> assertThat(lookupSemaphore.availablePermits()).isEqualTo(1));
+        assertThat(topicListService.getWatcherFuture(13)).isNull();
+    }
+
+    @Test
     public void testFailedWatcherUpdateIsRetried() throws Exception {
         TopicListService.TopicListWatcher watcher =
                 createWatcher(Collections.singletonList("persistent://tenant/ns/topic1"));
@@ -1093,6 +1123,28 @@ public class TopicListServiceTest {
         Awaitility.await().untilAsserted(() -> assertThat(lookupSemaphore.availablePermits()).isEqualTo(1));
         assertThat(topicListService.getWatcherFuture(13)).isNull();
         verify(topicResources, timeout(2000L)).deregisterPersistentTopicListener(createdWatcher.get());
+    }
+
+    @Test
+    public void testTopicChangesAreSentAfterPendingSuccessResponse() throws Exception {
+        TopicListService.TopicListWatcher watcher =
+                createWatcher(Collections.singletonList("persistent://tenant/ns/topic1"));
+        // the success response of a watch request that waited for an update is being sent
+        watcher.successResponseSendingStarted();
+        assertThat(watcher.prepareUpdateTopics(null)).isTrue();
+        // completing the update doesn't send the queued topic changes before the success response
+        watcher.updateTopics(Collections.singletonList("persistent://tenant/ns/topic1"));
+
+        notificationConsumer.accept(
+                new Notification(NotificationType.Created, "/managed-ledgers/tenant/ns/persistent/topic2"));
+        Thread.sleep(500);
+        verify(pulsarCommandSender, never())
+                .sendWatchTopicListUpdate(anyLong(), any(), any(), anyString(), any(), any());
+
+        // the topic change is sent after the success response has been sent
+        watcher.successResponseSendingCompleted();
+        verify(pulsarCommandSender, timeout(2000L))
+                .sendWatchTopicListUpdate(anyLong(), any(), any(), anyString(), any(), any());
     }
 
     @Test

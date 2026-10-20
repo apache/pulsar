@@ -83,6 +83,8 @@ public class TopicListService {
         private final Executor executor;
         private volatile boolean closed = false;
         private boolean sendingInProgress;
+        // the number of watch request success responses being sent, topic changes are sent after them
+        private int pendingSuccessResponses;
         private final BlockingDeque<Runnable> sendTopicListUpdateTasks;
         @Getter(onMethod_ = @VisibleForTesting)
         private boolean updatingTopics;
@@ -177,6 +179,10 @@ public class TopicListService {
                 // would be sent with the hash of the partially rebuilt matching topics.
                 return;
             }
+            if (pendingSuccessResponses > 0) {
+                // the last success response to complete calls this again, topic changes are sent after it
+                return;
+            }
             // Execute the next task
             Runnable task = sendTopicListUpdateTasks.poll();
             if (task != null) {
@@ -206,6 +212,23 @@ public class TopicListService {
         /**
          * Completes the requests waiting for the ongoing update with the given failure. The update continues.
          */
+        /**
+         * Called before sending the success response of a watch request. Topic changes are queued until
+         * {@link #successResponseSendingCompleted()} has been called for each success response, so that they are
+         * sent after it.
+         */
+        synchronized void successResponseSendingStarted() {
+            pendingSuccessResponses++;
+            sendingInProgress = true;
+        }
+
+        synchronized void successResponseSendingCompleted() {
+            if (pendingSuccessResponses > 0) {
+                pendingSuccessResponses--;
+            }
+            sendingCompleted();
+        }
+
         void failUpdateCallbacks(Throwable failure) {
             List<BiConsumer<Collection<String>, Throwable>> pendingCallbacks;
             synchronized (this) {
@@ -506,12 +529,14 @@ public class TopicListService {
                             .attr("namespace", namespaceName)
                             .attr("requestId", requestId)
                             .log("Received WatchTopicList");
+                    watcher.successResponseSendingStarted();
                     sendTopicListSuccessWithPermitAcquiringRetries(watcherId, requestId, topicList, hash,
-                            watcher::sendingCompleted, failure -> {
+                            watcher::successResponseSendingCompleted, failure -> {
                                 if (!isCancellation(failure)) {
                                     // the watcher can't be used without the success response
                                     deleteTopicListWatcher(watcherId);
                                 }
+                                watcher.successResponseSendingCompleted();
                                 // the request is waiting for a response unless the connection was closed
                                 if (connection.isActive()) {
                                     connection.getCommandSender().sendErrorResponse(requestId,
@@ -766,6 +791,9 @@ public class TopicListService {
                             .exceptionMessage(unwrappedException)
                             .log("Closing topic list watcher since the topic list is larger than the topic list "
                                     + "memory limit");
+                    // fail the requests waiting for the update with this failure before closing the watcher fails
+                    // them with a watcher closed error, so that they get a non-retriable error response
+                    watcher.failUpdateCallbacks(unwrappedException);
                     deleteTopicListWatcher(watcherId);
                     future.completeExceptionally(unwrappedException);
                 } else {

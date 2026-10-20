@@ -49,6 +49,28 @@ import org.jspecify.annotations.Nullable;
  * A response can combine several listings, each of them holds its own permits until the response completes.
  */
 public final class TopicListResponseMemoryLimiter {
+
+    /**
+     * The 503 response of a topic listing that was cancelled while it was waiting for permits, for example since
+     * the response had already completed.
+     */
+    static final class RequestCancelledException extends RestException {
+        private static final long serialVersionUID = 1L;
+
+        RequestCancelledException() {
+            super(Status.SERVICE_UNAVAILABLE, "Request was cancelled");
+        }
+    }
+
+    /**
+     * Checks whether a topic listing failed since it was cancelled while it was waiting for permits.
+     *
+     * @param ex the failure, possibly wrapped in a {@link CompletionException}
+     * @return true if the request was cancelled
+     */
+    public static boolean isRequestCancelled(Throwable ex) {
+        return FutureUtil.unwrapCompletionException(ex) instanceof RequestCancelledException;
+    }
     private TopicListResponseMemoryLimiter() {
     }
 
@@ -217,7 +239,7 @@ public final class TopicListResponseMemoryLimiter {
         }
 
         private static CompletionException cancelled() {
-            return new CompletionException(new RestException(Status.SERVICE_UNAVAILABLE, "Request was cancelled"));
+            return new CompletionException(new RequestCancelledException());
         }
 
         /**

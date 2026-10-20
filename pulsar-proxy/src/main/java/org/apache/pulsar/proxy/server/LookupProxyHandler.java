@@ -421,7 +421,7 @@ public class LookupProxyHandler {
                                             if (!isTopicListRequestCancelled(t2,
                                                     "Failed to acquire actual heap memory permits for "
                                                             + "GetTopicsOfNamespace")) {
-                                                writeTopicListPermitsError(clientRequestId, t2, "heap");
+                                                writeTopicListPermitsError(clientRequestId, t2, true, "heap");
                                             }
                                             return CompletableFuture.completedFuture(null);
                                         });
@@ -433,7 +433,7 @@ public class LookupProxyHandler {
                         listSizeHolder.resetIfInitializing();
                         if (!isTopicListRequestCancelled(t,
                                 "Failed to acquire initial heap memory permits for GetTopicsOfNamespace")) {
-                            writeTopicListPermitsError(clientRequestId, t, "heap");
+                            writeTopicListPermitsError(clientRequestId, t, listSizeHolder.isMeasured(), "heap");
                         }
                         return CompletableFuture.completedFuture(null);
                     }).exceptionally(ex -> {
@@ -453,7 +453,7 @@ public class LookupProxyHandler {
                 isCancelled, responseCommand, t -> {
                     if (!isTopicListRequestCancelled(t,
                             "Failed to acquire actual direct memory permits for GetTopicsOfNamespace")) {
-                        writeTopicListPermitsError(clientRequestId, t, "direct");
+                        writeTopicListPermitsError(clientRequestId, t, true, "direct");
                     }
                     return CompletableFuture.completedFuture(null);
                 });
@@ -461,12 +461,13 @@ public class LookupProxyHandler {
 
     /**
      * Responds to a GetTopicsOfNamespace request that couldn't acquire topic list memory permits. A topic list that
-     * is larger than the limit gets a non-retriable error, since a retry fails the same way until the list is
-     * measured again. A permit timeout or a full queue gets {@link ServerError#TooManyRequests}, which the client
-     * retries.
+     * has been measured to be larger than the limit gets a non-retriable error, since a retry fails the same way
+     * until the list is measured again. A permit timeout or a full queue, or an estimate larger than the limit for
+     * a topic list that hasn't been measured, gets {@link ServerError#TooManyRequests}, which the client retries.
      */
-    private void writeTopicListPermitsError(long clientRequestId, Throwable t, String memoryType) {
-        if (AsyncDualMemoryLimiterUtil.isPermitAcquireLimitExceeded(t)) {
+    private void writeTopicListPermitsError(long clientRequestId, Throwable t, boolean topicListMeasured,
+                                            String memoryType) {
+        if (topicListMeasured && AsyncDualMemoryLimiterUtil.isPermitAcquireLimitExceeded(t)) {
             writeAndFlush(Commands.newError(clientRequestId, ServerError.NotAllowedError,
                     "Failed since the topic list is larger than the topic list " + memoryType + " memory limit"));
         } else {

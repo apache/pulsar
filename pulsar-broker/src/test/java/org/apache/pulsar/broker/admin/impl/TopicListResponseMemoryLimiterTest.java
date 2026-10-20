@@ -28,6 +28,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import jakarta.ws.rs.container.AsyncResponse;
 import jakarta.ws.rs.container.CompletionCallback;
+import jakarta.ws.rs.core.Response;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -209,6 +210,11 @@ public class TopicListResponseMemoryLimiterTest {
         assertThat(result).failsWithin(Duration.ofSeconds(5));
         assertThat(listingCalls).hasValue(0);
         verify(mockedLimiter, times(1)).release(permit);
+        // the cancellation is recognized as the limiter's own 503, unlike other 503 responses
+        Throwable failure = result.handle((__, t) -> t).join();
+        assertThat(TopicListResponseMemoryLimiter.isRequestCancelled(failure)).isTrue();
+        assertThat(TopicListResponseMemoryLimiter.isRequestCancelled(
+                new RestException(Response.Status.SERVICE_UNAVAILABLE, "not ready"))).isFalse();
     }
 
     @Test

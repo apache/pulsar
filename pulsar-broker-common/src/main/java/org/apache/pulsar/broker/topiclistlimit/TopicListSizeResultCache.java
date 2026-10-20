@@ -204,6 +204,8 @@ public class TopicListSizeResultCache {
         private volatile long nextRemeasureNanos;
         // the earliest time when the topic list is measured again even if the limiter is busy
         private volatile long nextForcedRemeasureNanos;
+        // whether the topic list of this listing has been measured
+        private volatile boolean measured;
 
         public ResultHolder() {
             this(OversizedRemeasurePolicy.UNLIMITED, 0);
@@ -273,6 +275,7 @@ public class TopicListSizeResultCache {
          * @param actualSize the actual size of the topic list
          */
         public void updateSize(long actualSize) {
+            measured = true;
             if (actualSize > sizeLimit) {
                 // the topic list can be measured again after the interval
                 long now = System.nanoTime();
@@ -307,6 +310,17 @@ public class TopicListSizeResultCache {
             if (currentFuture != null && !currentFuture.isDone()) {
                 currentFuture.complete(initialEstimate);
             }
+        }
+
+        /**
+         * Returns true when the topic list of this listing has been measured. A listing with a new set of properties
+         * starts from the estimate of the same listing without properties, which can be larger than the limit
+         * although its own topic list hasn't been measured yet.
+         *
+         * @return true if the topic list has been measured
+         */
+        public boolean isMeasured() {
+            return measured;
         }
 
         /**

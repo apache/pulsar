@@ -45,6 +45,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.admin.impl.TopicListResponseMemoryLimiter;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.namespace.TopicExistsInfo;
@@ -1029,9 +1030,9 @@ public abstract class AdminResource extends PulsarWebResource {
         if (!(realCause instanceof WebApplicationException webApplicationException)) {
             return false;
         }
-        int status = webApplicationException.getResponse().getStatus();
-        return status == Status.TOO_MANY_REQUESTS.getStatusCode()
-                || status == Status.SERVICE_UNAVAILABLE.getStatusCode();
+        // other 503 responses, such as a bundle owner that isn't ready, are logged as errors
+        return webApplicationException.getResponse().getStatus() == Status.TOO_MANY_REQUESTS.getStatusCode()
+                || TopicListResponseMemoryLimiter.isRequestCancelled(realCause);
     }
 
     protected static boolean is4xxRestException(Throwable ex) {

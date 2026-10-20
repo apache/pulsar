@@ -3693,7 +3693,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                                     "Failed to acquire direct memory permits for "
                                                                             + "GetTopicsOfNamespace")) {
                                                                 sendTopicListPermitsErrorResponse(requestId, ex,
-                                                                        "direct",
+                                                                        true, "direct",
                                                                         "Cannot acquire permits for direct memory");
                                                             }
                                                             return CompletableFuture.completedFuture(null);
@@ -3702,8 +3702,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                 if (!isTopicListRequestCancelled(t,
                                                         "Failed to acquire heap memory permits for "
                                                                 + "GetTopicsOfNamespace")) {
-                                                    sendTopicListPermitsErrorResponse(requestId, t, "heap",
-                                                            "Failed due to heap memory limit exceeded");
+                                                    sendTopicListPermitsErrorResponse(requestId, t, true,
+                                                            "heap", "Failed due to heap memory limit exceeded");
                                                 }
                                                 return CompletableFuture.completedFuture(null);
                                             });
@@ -3724,7 +3724,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         listSizeHolder.resetIfInitializing();
                         if (!isTopicListRequestCancelled(t,
                                 "Failed to acquire initial heap memory permits for GetTopicsOfNamespace")) {
-                            sendTopicListPermitsErrorResponse(requestId, t, "heap",
+                            sendTopicListPermitsErrorResponse(requestId, t, listSizeHolder.isMeasured(), "heap",
                                     "Failed due to heap memory limit exceeded");
                         }
                         lookupSemaphore.release();
@@ -3735,13 +3735,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     /**
      * Responds to a GetTopicsOfNamespace request that couldn't acquire topic list memory permits. A topic list that
-     * is larger than the limit gets a non-retriable error, since a retry fails the same way until the list is
-     * measured again. A permit timeout or a full queue gets {@link ServerError#TooManyRequests}, which the client
-     * retries.
+     * has been measured to be larger than the limit gets a non-retriable error, since a retry fails the same way
+     * until the list is measured again. A permit timeout or a full queue, or an estimate larger than the limit for
+     * a topic list that hasn't been measured, gets {@link ServerError#TooManyRequests}, which the client retries.
      */
-    private void sendTopicListPermitsErrorResponse(long requestId, Throwable t, String memoryType,
-                                                   String tooManyRequestsMessage) {
-        if (AsyncDualMemoryLimiterUtil.isPermitAcquireLimitExceeded(t)) {
+    private void sendTopicListPermitsErrorResponse(long requestId, Throwable t, boolean topicListMeasured,
+                                                   String memoryType, String tooManyRequestsMessage) {
+        if (topicListMeasured && AsyncDualMemoryLimiterUtil.isPermitAcquireLimitExceeded(t)) {
             commandSender.sendErrorResponse(requestId, ServerError.NotAllowedError,
                     "Failed since the topic list is larger than the topic list " + memoryType + " memory limit");
         } else {

@@ -5001,13 +5001,48 @@ public class ServerCnxTest {
             for (long requestId = 1; requestId <= 3; requestId++) {
                 channel.writeInbound(Commands.newGetTopicsOfNamespaceRequest(
                         "use/ns-abc", requestId, CommandGetTopicsOfNamespace.Mode.ALL, null, null, null));
-                // the request is rejected instead of being left without a response
+                // the request is rejected instead of being left without a response. The topic list hasn't been
+                // measured, so the error is retriable.
                 CommandError error = (CommandError) getResponse();
                 assertEquals(error.getRequestId(), requestId);
-                assertEquals(error.getError(), ServerError.NotAllowedError);
+                assertEquals(error.getError(), ServerError.TooManyRequests);
                 // the lookup permit is released
                 assertEquals(lookupSemaphore.availablePermits(), initialPermits);
             }
+        } finally {
+            channel.finish();
+            limiter.close();
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void testGetTopicsOfNamespaceWithNewPropertiesAndOversizedEstimateIsRetriable() throws Exception {
+        long topicListSize = TopicListMemoryLimiter.estimateTopicListSize(topics);
+        AsyncDualMemoryLimiterImpl limiter =
+                new AsyncDualMemoryLimiterImpl(topicListSize - 1, 10, 1000, 1_000_000, 10, 1000);
+        try {
+            doReturn(limiter).when(brokerService).getMaxTopicListInFlightLimiter();
+            // the limiter is never idle, so an oversized estimate isn't measured again within the test
+            doReturn(new TopicListSizeResultCache(topicListSize - 1, () -> false))
+                    .when(brokerService).getTopicListSizeResultCache();
+            resetChannel();
+            setChannelConnected();
+            clearInvocations(namespaceService);
+            // the listing without properties is measured to be larger than the limit
+            channel.writeInbound(Commands.newGetTopicsOfNamespaceRequest(
+                    "use/ns-abc", 1, CommandGetTopicsOfNamespace.Mode.ALL, null, null, null));
+            CommandError error = (CommandError) getResponse();
+            assertEquals(error.getRequestId(), 1);
+            assertEquals(error.getError(), ServerError.NotAllowedError);
+
+            // a listing with new properties starts from that estimate, but its own topic list hasn't been measured,
+            // so it gets a retriable error
+            channel.writeInbound(Commands.newGetTopicsOfNamespaceRequest(
+                    "use/ns-abc", 2, CommandGetTopicsOfNamespace.Mode.ALL, null, null, Map.of("label", "x")));
+            error = (CommandError) getResponse();
+            assertEquals(error.getRequestId(), 2);
+            assertEquals(error.getError(), ServerError.TooManyRequests);
+            verify(namespaceService, times(1)).getListOfUserTopicsByProperties(any(), any(), any());
         } finally {
             channel.finish();
             limiter.close();
