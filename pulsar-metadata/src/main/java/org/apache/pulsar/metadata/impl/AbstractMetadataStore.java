@@ -139,7 +139,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                 .numThreads(numSerDesThreads)
                 .name(namePrefix + "-worker")
                 .build();
-        registerListener(this);
+        registerCancellableListener(this);
 
         long childrenCacheMaxSizeBytes = getChildrenCacheMaxSizeBytes();
 
@@ -417,10 +417,30 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     @Override
     public void registerListener(Consumer<Notification> listener) {
+        registerCancellableListener(listener);
+    }
+
+    @Override
+    public Runnable registerCancellableListener(Consumer<Notification> listener) {
         // If the metadata store is closed, do nothing here.
-        if (!isClosed()) {
-            listeners.add(listener);
+        if (isClosed()) {
+            return () -> { };
         }
+        return addCancellable(listeners, listener);
+    }
+
+    /**
+     * Add a listener and return a callback that removes it. The callback removes the listener once even if it's run
+     * more than once, so that it doesn't remove another registration of the same listener instance.
+     */
+    private static <T> Runnable addCancellable(CopyOnWriteArrayList<T> listenerList, T listener) {
+        listenerList.add(listener);
+        AtomicBoolean cancelled = new AtomicBoolean();
+        return () -> {
+            if (cancelled.compareAndSet(false, true)) {
+                listenerList.remove(listener);
+            }
+        };
     }
 
     protected CompletableFuture<Void> receivedNotification(Notification notification) {
@@ -939,7 +959,12 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     @Override
     public void registerSessionListener(Consumer<SessionEvent> listener) {
-        sessionListeners.add(listener);
+        registerCancellableSessionListener(listener);
+    }
+
+    @Override
+    public Runnable registerCancellableSessionListener(Consumer<SessionEvent> listener) {
+        return addCancellable(sessionListeners, listener);
     }
 
     protected void receivedSessionEvent(SessionEvent event) {
@@ -984,6 +1009,16 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         MoreExecutors.shutdownAndAwaitTermination(schedulerExecutor, 10, TimeUnit.SECONDS);
         MoreExecutors.shutdownAndAwaitTermination(eventExecutor, 10, TimeUnit.SECONDS);
         this.metadataStoreStats.close();
+    }
+
+    @VisibleForTesting
+    public int getListenerCount() {
+        return listeners.size();
+    }
+
+    @VisibleForTesting
+    public int getSessionListenerCount() {
+        return sessionListeners.size();
     }
 
     @VisibleForTesting

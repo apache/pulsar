@@ -120,6 +120,28 @@ public interface MetadataStoreExtended extends MetadataStore {
     /**
      * Register a session listener that will get notified of changes in status of the current session.
      *
+     * <p>Components that don't live as long as the store must run the returned callback when they are closed, so
+     * that the store stops notifying them and doesn't keep them reachable. Running the callback more than once has
+     * no further effect.
+     *
+     * <p>The default implementation registers the listener with {@link #registerSessionListener(Consumer)} and
+     * returns a callback that does nothing, for implementations that can't unregister a listener. Implementations
+     * should override it.
+     *
+     * @param listener
+     *            the session listener
+     * @return a callback that unregisters the listener
+     */
+    default Runnable registerCancellableSessionListener(Consumer<SessionEvent> listener) {
+        registerSessionListener(listener);
+        return () -> { };
+    }
+
+    /**
+     * Register a session listener that will get notified of changes in status of the current session, for as long
+     * as the store lives. Components that don't live as long as the store use
+     * {@link #registerCancellableSessionListener(Consumer)} instead.
+     *
      * @param listener
      *            the session listener
      */

@@ -24,6 +24,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
@@ -165,7 +166,12 @@ public class FaultInjectionMetadataStore implements MetadataStoreExtended {
 
     @Override
     public void registerListener(Consumer<Notification> listener) {
-        store.registerListener(listener);
+        registerCancellableListener(listener);
+    }
+
+    @Override
+    public Runnable registerCancellableListener(Consumer<Notification> listener) {
+        return store.registerCancellableListener(listener);
     }
 
     @Override
@@ -198,8 +204,20 @@ public class FaultInjectionMetadataStore implements MetadataStoreExtended {
 
     @Override
     public void registerSessionListener(Consumer<SessionEvent> listener) {
-        store.registerSessionListener(listener);
+        registerCancellableSessionListener(listener);
+    }
+
+    @Override
+    public Runnable registerCancellableSessionListener(Consumer<SessionEvent> listener) {
+        Runnable cancelStoreSessionListener = store.registerCancellableSessionListener(listener);
         sessionListeners.add(listener);
+        AtomicBoolean cancelled = new AtomicBoolean();
+        return () -> {
+            if (cancelled.compareAndSet(false, true)) {
+                cancelStoreSessionListener.run();
+                sessionListeners.remove(listener);
+            }
+        };
     }
 
     @Override

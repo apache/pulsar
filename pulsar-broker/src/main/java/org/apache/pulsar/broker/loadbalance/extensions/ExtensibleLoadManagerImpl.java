@@ -821,6 +821,9 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
             return;
         }
         try {
+            if (antiAffinityGroupPolicyHelper != null) {
+                antiAffinityGroupPolicyHelper.close();
+            }
             stopLoadDataReportTasks();
             this.unloadScheduler.close();
             this.splitScheduler.close();

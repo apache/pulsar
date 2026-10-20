@@ -241,12 +241,33 @@ public interface MetadataStore extends AutoCloseable {
     }
 
     /**
-     * Register a listener that will be called on changes in the underlying store.
+     * Register a listener that will be called on changes in the underlying store, for as long as the store lives.
+     * Components that don't live as long as the store use {@link #registerCancellableListener(Consumer)} instead.
      *
      * @param listener
      *            a consumer of notifications
      */
     void registerListener(Consumer<Notification> listener);
+
+    /**
+     * Register a listener that will be called on changes in the underlying store.
+     *
+     * <p>Components that don't live as long as the store must run the returned callback when they are closed, so
+     * that the store stops notifying them and doesn't keep them reachable. Running the callback more than once has
+     * no further effect.
+     *
+     * <p>The default implementation registers the listener with {@link #registerListener(Consumer)} and returns a
+     * callback that does nothing, for implementations that can't unregister a listener. Implementations should
+     * override it.
+     *
+     * @param listener
+     *            a consumer of notifications
+     * @return a callback that unregisters the listener
+     */
+    default Runnable registerCancellableListener(Consumer<Notification> listener) {
+        registerListener(listener);
+        return () -> { };
+    }
 
     /**
      * Create a metadata cache specialized for a specific class.
