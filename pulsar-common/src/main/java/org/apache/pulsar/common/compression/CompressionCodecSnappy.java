@@ -88,24 +88,31 @@ public class CompressionCodecSnappy implements CompressionCodec {
 
     @Override
     public ByteBuf decode(ByteBuf encoded, int uncompressedLength) throws IOException {
-        ByteBuf uncompressed = PulsarByteBufAllocator.DEFAULT.buffer(uncompressedLength, uncompressedLength);
-
-        if (encoded.hasMemoryAddress() && uncompressed.hasMemoryAddress()) {
-            SnappyRawDecompressor.decompress(
-                    null,
-                    encoded.memoryAddress() + encoded.readerIndex(),
-                    encoded.memoryAddress() + encoded.writerIndex(),
-                    null, uncompressed.memoryAddress(),
-                    uncompressed.memoryAddress() + uncompressedLength);
-        } else {
-            ByteBuffer uncompressedNio = uncompressed.nioBuffer(0, uncompressedLength);
-            ByteBuffer encodedNio = encoded.nioBuffer(encoded.readerIndex(), encoded.readableBytes());
-
-            encodedNio = AirliftUtils.ensureAirliftSupported(encodedNio);
-            SNAPPY_DECOMPRESSOR.get().decompress(encodedNio, uncompressedNio);
+        if (uncompressedLength <= 0) {
+            throw new IOException("Invalid uncompressed length: " + uncompressedLength);
         }
+        ByteBuf uncompressed = PulsarByteBufAllocator.DEFAULT.buffer(uncompressedLength, uncompressedLength);
+        try {
+            if (encoded.hasMemoryAddress() && uncompressed.hasMemoryAddress()) {
+                SnappyRawDecompressor.decompress(
+                        null,
+                        encoded.memoryAddress() + encoded.readerIndex(),
+                        encoded.memoryAddress() + encoded.writerIndex(),
+                        null, uncompressed.memoryAddress(),
+                        uncompressed.memoryAddress() + uncompressedLength);
+            } else {
+                ByteBuffer uncompressedNio = uncompressed.nioBuffer(0, uncompressedLength);
+                ByteBuffer encodedNio = encoded.nioBuffer(encoded.readerIndex(), encoded.readableBytes());
 
-        uncompressed.writerIndex(uncompressedLength);
-        return uncompressed;
+                encodedNio = AirliftUtils.ensureAirliftSupported(encodedNio);
+                SNAPPY_DECOMPRESSOR.get().decompress(encodedNio, uncompressedNio);
+            }
+
+            uncompressed.writerIndex(uncompressedLength);
+            return uncompressed;
+        } catch (RuntimeException e) {
+            uncompressed.release();
+            throw e;
+        }
     }
 }

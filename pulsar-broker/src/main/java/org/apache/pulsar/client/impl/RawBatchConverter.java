@@ -67,6 +67,9 @@ public class RawBatchConverter {
         CompressionType compressionType = metadata.getCompression();
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(compressionType);
         int uncompressedSize = metadata.getUncompressedSize();
+        if (uncompressedSize <= 0) {
+            throw new IOException("Invalid uncompressedSize: " + uncompressedSize);
+        }
         ByteBuf uncompressedPayload = codec.decode(payload, uncompressedSize);
 
         List<MessageCompactionData> messageCompactionDataList = new ArrayList<>();
@@ -148,6 +151,9 @@ public class RawBatchConverter {
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(compressionType);
 
         int uncompressedSize = metadata.getUncompressedSize();
+        if (uncompressedSize <= 0) {
+            throw new IOException("Invalid uncompressedSize: " + uncompressedSize);
+        }
         ByteBuf uncompressedPayload = codec.decode(payload, uncompressedSize);
         try {
             int batchSize = metadata.getNumMessagesInBatch();

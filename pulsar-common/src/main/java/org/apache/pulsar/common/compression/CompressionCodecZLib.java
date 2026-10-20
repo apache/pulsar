@@ -96,6 +96,9 @@ public class CompressionCodecZLib implements CompressionCodec {
 
     @Override
     public ByteBuf decode(ByteBuf encoded, int uncompressedLength) throws IOException {
+        if (uncompressedLength <= 0) {
+            throw new IOException("Invalid uncompressed length: " + uncompressedLength);
+        }
         ByteBuf uncompressed = PulsarByteBufAllocator.DEFAULT.heapBuffer(uncompressedLength, uncompressedLength);
 
         int len = encoded.readableBytes();
@@ -119,12 +122,17 @@ public class CompressionCodecZLib implements CompressionCodec {
         try {
             resultLength = inflater.inflate(uncompressed.array(), uncompressed.arrayOffset(), uncompressedLength);
         } catch (DataFormatException e) {
+            uncompressed.release();
             throw new IOException(e);
         }
 
-        checkArgument(resultLength == uncompressedLength);
-
-        uncompressed.writerIndex(uncompressedLength);
-        return uncompressed;
+        try {
+            checkArgument(resultLength == uncompressedLength);
+            uncompressed.writerIndex(uncompressedLength);
+            return uncompressed;
+        } catch (RuntimeException e) {
+            uncompressed.release();
+            throw e;
+        }
     }
 }
