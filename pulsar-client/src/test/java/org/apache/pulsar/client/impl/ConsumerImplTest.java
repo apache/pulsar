@@ -61,6 +61,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
+import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerInterceptor;
 import org.apache.pulsar.client.api.Message;
@@ -699,6 +700,54 @@ public class ConsumerImplTest {
         }
         assertThat(consumer.getIncomingMessageSize()).isZero();
         assertThat(memoryLimitController.currentUsage()).isZero();
+    }
+
+    @Test(timeOut = 30000)
+    public void testBatchReceiveChecksAndDequeuesMessageAtomically() throws Exception {
+        // A batch receive checks whether the message at the head of the queue fits in the batch before dequeuing
+        // it. A concurrent clear of the queue (for example on reconnection) must not dequeue and release that
+        // message in between: the size of a released pooled message can't be read, since its payload is gone.
+        consumerConf = new ConsumerConfigurationData<>();
+        consumerConf.setBatchReceivePolicy(BatchReceivePolicy.builder()
+                .maxNumMessages(10).maxNumBytes(1024 * 1024).timeout(1, TimeUnit.SECONDS).build());
+        createConsumer(consumerConf);
+        ConsumerImpl<byte[]> consumer = this.consumer;
+        MessageImpl<byte[]> first = mockIncomingMessage(0);
+        MessageImpl<byte[]> second = mockIncomingMessage(1);
+        consumer.enqueueMessageAndCheckBatchReceive(first);
+        consumer.enqueueMessageAndCheckBatchReceive(second);
+
+        AtomicBoolean secondReleased = new AtomicBoolean();
+        doAnswer(invocation -> {
+            secondReleased.set(true);
+            return null;
+        }).when(second).release();
+        AtomicInteger clearedCount = new AtomicInteger();
+        Thread clearThread = new Thread(() -> clearedCount.set(consumer.clearIncomingMessages()));
+        AtomicBoolean clearStarted = new AtomicBoolean();
+        // the first size check of the second message clears the queue concurrently
+        when(second.size()).thenAnswer(invocation -> {
+            if (clearStarted.compareAndSet(false, true)) {
+                clearThread.start();
+                // the clear can't dequeue the message while the batch receive checks it
+                clearThread.join(500);
+            }
+            if (secondReleased.get()) {
+                throw new NullPointerException("payload of a released message");
+            }
+            return 100;
+        });
+
+        CompletableFuture<Messages<byte[]>> future = new CompletableFuture<>();
+        consumer.notifyPendingBatchReceivedCallBack(future);
+        clearThread.join();
+
+        assertThat(clearStarted).isTrue();
+        assertThat(future).isCompleted();
+        assertThat(future.join()).containsExactly(first, second);
+        assertThat(clearedCount.get()).isZero();
+        assertThat(secondReleased).isFalse();
+        assertThat(consumer.getIncomingMessageSize()).isZero();
     }
 
     @SuppressWarnings("unchecked")
