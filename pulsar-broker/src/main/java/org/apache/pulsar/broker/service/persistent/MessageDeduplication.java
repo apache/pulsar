@@ -636,6 +636,7 @@ public class MessageDeduplication {
 
         final var cursor = managedCursor;
         if (cursor == null) {
+            snapshotTaking.set(false);
             log.warn()
                     .attr("position", position)
                     .log("Cursor is null when taking snapshot for");
