@@ -51,7 +51,6 @@ import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.Option;
 import org.apache.pulsar.metadata.api.ScanConsumer;
 import org.apache.pulsar.metadata.api.Stat;
-import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 /**
  * Metadata store access for scalable topic metadata.
@@ -105,11 +104,10 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
      * Used by {@link DagWatchSession}-style subscribers that want events for one
      * specific topic.
      *
-     * <p>Hosted here — rather than letting each subscriber call
-     * {@code store.registerListener} directly — because {@code MetadataStore} has no
-     * {@code unregisterListener}: per-subscriber direct registration would leak a
-     * listener for the broker's lifetime every time a session ends, and every
-     * metadata notification would fan out to all stale listeners. Mirrors
+     * <p>Hosted here — rather than letting each subscriber register a listener with the
+     * store directly — so that the store has a single listener for all the subscribers,
+     * instead of every metadata notification fanning out to a listener per subscriber,
+     * whose registration every session would have to cancel when it ends. Mirrors
      * {@link TopicResources} for {@code TopicListener}.
      */
     private final Map<MetadataPathListener, String> pathListeners = new ConcurrentHashMap<>();
@@ -126,6 +124,8 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
     /** Broker-scoped observers sharing the existing metadata-store listener. */
     private final Set<Consumer<Notification>> metadataListeners = ConcurrentHashMap.newKeySet();
 
+    private final Runnable cancelListener;
+
     public ScalableTopicResources(MetadataStore store, int operationTimeoutSec) {
         super(store, ScalableTopicMetadata.class, operationTimeoutSec);
         this.subscriptionCache = store.getMetadataCache(SubscriptionMetadata.class);
@@ -134,11 +134,14 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
         // Single shared metadata-store listener fans out to per-path and
         // per-namespace subscribers and broker-scoped observers. Lifecycle goes through the
         // register / deregister methods below.
-        if (store instanceof MetadataStoreExtended ext) {
-            ext.registerListener(this::handleNotification);
-        } else {
-            store.registerListener(this::handleNotification);
-        }
+        cancelListener = store.registerCancellableListener(this::handleNotification);
+    }
+
+    /**
+     * Unregister the shared metadata-store listener, so that the subscribers are no longer notified.
+     */
+    public void close() {
+        cancelListener.run();
     }
 
     // --- Per-path metadata listeners ---

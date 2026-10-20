@@ -184,4 +184,10 @@ public interface MetaStore {
      * @return a future represents the result of the operation.
      */
     CompletableFuture<Map<String, String>> getManagedLedgerPropertiesAsync(String name);
+
+    /**
+     * Close the store: it stops following the changes of the metadata store. The metadata store isn't closed.
+     */
+    default void close() {
+    }
 }

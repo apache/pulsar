@@ -56,6 +56,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -329,6 +330,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private String brokerId;
     private final CompletableFuture<Void> readyForIncomingRequestsFuture = new CompletableFuture<>();
     private final List<Runnable> pendingTasksBeforeReadyForIncomingRequests = new ArrayList<>();
+    // The callbacks that unregister the listeners that this service registered with the metadata stores, which
+    // can be shared with other services, for example in tests
+    private final List<Runnable> metadataStoreListenerCleanups = new CopyOnWriteArrayList<>();
 
     public enum State {
         Init, Started, Closing, Closed
@@ -689,6 +693,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             offloadersCache.close();
 
+            unregisterMetadataStoreListeners();
+
             if (coordinationService != null) {
                 try {
                     coordinationService.close();
@@ -798,9 +804,19 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             } else {
                 pse = new PulsarServerException(e);
             }
+            // A failed shutdown step must not leave this service registered with the metadata stores
+            unregisterMetadataStoreListeners();
             return FutureUtil.failedFuture(pse);
         } finally {
             mutex.unlock();
+        }
+    }
+
+    private void unregisterMetadataStoreListeners() {
+        metadataStoreListenerCleanups.forEach(Runnable::run);
+        metadataStoreListenerCleanups.clear();
+        if (pulsarResources != null) {
+            pulsarResources.close();
         }
     }
 
@@ -937,7 +953,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                     : null;
             localMetadataStore = createLocalMetadataStore(localMetadataSynchronizer,
                     openTelemetry.getOpenTelemetryService().getOpenTelemetry());
-            localMetadataStore.registerSessionListener(this::handleMetadataSessionEvent);
+            metadataStoreListenerCleanups.add(
+                    localMetadataStore.registerCancellableSessionListener(this::handleMetadataSessionEvent));
 
             coordinationService = new CoordinationServiceImpl(localMetadataStore);
 
@@ -1222,7 +1239,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         PulsarResources pulsarResources = new PulsarResources(localMetadataStore, configurationMetadataStore,
                 config.getMetadataStoreOperationTimeoutSeconds(), getExecutor(), config.isScalableTopicsEnabled());
 
-        pulsarResources.getClusterResources().getStore().registerListener(this::handleDeleteCluster);
+        metadataStoreListenerCleanups.add(pulsarResources.getClusterResources().getStore()
+                .registerCancellableListener(this::handleDeleteCluster));
         return pulsarResources;
     }
 

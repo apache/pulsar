@@ -48,24 +48,31 @@ import org.apache.pulsar.metadata.api.NotificationType;
  *
  */
 @CustomLog
-public class ResourceGroupConfigListener implements Consumer<Notification> {
+public class ResourceGroupConfigListener implements Consumer<Notification>, AutoCloseable {
     private final ResourceGroupService rgService;
     private final PulsarService pulsarService;
     private final ResourceGroupResources rgResources;
-    private volatile ResourceGroupNamespaceConfigListener rgNamespaceConfigListener;
+    private final Runnable cancelListener;
+    // Guarded by this
+    private ResourceGroupNamespaceConfigListener rgNamespaceConfigListener;
+    // Guarded by this
+    private boolean closed;
 
     public ResourceGroupConfigListener(ResourceGroupService rgService, PulsarService pulsarService) {
         this.rgService = rgService;
         this.pulsarService = pulsarService;
         this.rgResources = pulsarService.getPulsarResources().getResourcegroupResources();
-        this.rgResources.getStore().registerListener(this);
+        cancelListener = this.rgResources.getStore().registerCancellableListener(this);
         execute(() -> loadAllResourceGroupsWithRetryAsync(0));
     }
 
     private void loadAllResourceGroupsWithRetryAsync(long retry) {
         loadAllResourceGroupsAsync().thenAccept(__ -> {
-            if (rgNamespaceConfigListener == null) {
-                rgNamespaceConfigListener = new ResourceGroupNamespaceConfigListener(rgService, pulsarService, this);
+            synchronized (this) {
+                if (rgNamespaceConfigListener == null && !closed) {
+                    rgNamespaceConfigListener =
+                            new ResourceGroupNamespaceConfigListener(rgService, pulsarService, this);
+                }
             }
         }).exceptionally(e -> {
             long nextRetry = retry + 1;
@@ -190,7 +197,19 @@ public class ResourceGroupConfigListener implements Consumer<Notification> {
     }
 
     @VisibleForTesting
-    ResourceGroupNamespaceConfigListener getRgNamespaceConfigListener() {
+    synchronized ResourceGroupNamespaceConfigListener getRgNamespaceConfigListener() {
         return rgNamespaceConfigListener;
+    }
+
+    /**
+     * Stop following the changes of the resource groups and of the namespaces in the metadata store.
+     */
+    @Override
+    public synchronized void close() {
+        closed = true;
+        cancelListener.run();
+        if (rgNamespaceConfigListener != null) {
+            rgNamespaceConfigListener.close();
+        }
     }
 }
