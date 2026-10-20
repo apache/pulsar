@@ -430,6 +430,11 @@ functionsDirectory: ./functions
 enableReferencingFunctionsDirectoryFiles: true
 # Regex patterns for enabling creation of functions by referencing packages in matching http/https urls
 additionalEnabledFunctionsUrlPatterns: []
+# The extraction directory of the nar package. Default is System.getProperty("java.io.tmpdir").
+# Outside of Kubernetes, OS cleanup of /tmp (for example, by systemd-tmpfiles) can delete extracted files while
+# the functions worker is running, which causes ClassNotFoundException or NoClassDefFoundError errors. In that case,
+# set this to a dedicated directory that isn't cleaned up automatically.
+# narExtractionDirectory: /path/to/extracted-nars
 
 # Enables extended validation for connector config with fine-grain annotation based validation
 # during submission. Classloading with either enableClassloadingOfExternalFiles or
