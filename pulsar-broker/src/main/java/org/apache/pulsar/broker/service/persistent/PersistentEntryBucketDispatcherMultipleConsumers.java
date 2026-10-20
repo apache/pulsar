@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.pulsar.broker.service.StickyKeyConsumerSelector.STICKY_KEY_HASH_NOT_SET;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -139,18 +140,21 @@ public class PersistentEntryBucketDispatcherMultipleConsumers
     protected int getStickyKeyHash(Entry entry) {
         if (entry instanceof EntryAndMetadata entryAndMetadata) {
             // Cached so pending acks, redelivery and draining all see the same canonical value.
-            return entryAndMetadata.getOrUpdateCachedStickyKeyHash(stickyKey -> {
-                var metadata = entryAndMetadata.getMetadata();
-                recordEntryBucketViolation(metadata);
-                if (metadata != null && metadata.hasEntryHashMin()) {
-                    // The producer stamped the entry's effective bucket range: route the whole
-                    // entry by its bucket.
-                    return bucketSelector.canonicalHashOf(metadata.getEntryHashMin());
-                }
-                // Unstamped (non-batched) entry: the key's low-16 Murmur hash is the same value
-                // the producer would have stamped, normalized to the same bucket.
-                return bucketSelector.makeStickyKeyHash(stickyKey);
-            });
+            int cachedStickyKeyHash = entryAndMetadata.getCachedStickyKeyHash();
+            if (cachedStickyKeyHash != STICKY_KEY_HASH_NOT_SET) {
+                return cachedStickyKeyHash;
+            }
+            var metadata = entryAndMetadata.getMetadata();
+            recordEntryBucketViolation(metadata);
+            if (metadata != null && metadata.hasEntryHashMin()) {
+                // The producer stamped the entry's effective bucket range: route the whole
+                // entry by its bucket.
+                return entryAndMetadata.getOrUpdateCachedStickyKeyHash(
+                        () -> bucketSelector.canonicalHashOf(metadata.getEntryHashMin()));
+            }
+            // Unstamped (non-batched) entry: the key's low-16 Murmur hash is the same value
+            // the producer would have stamped, normalized to the same bucket.
+            return entryAndMetadata.getOrUpdateCachedStickyKeyHash(bucketSelector);
         }
         MessageMetadata metadata = entry.getMessageMetadata();
         if (metadata == null) {
@@ -158,8 +162,8 @@ public class PersistentEntryBucketDispatcherMultipleConsumers
         }
         recordEntryBucketViolation(metadata);
         // Keep the raw-entry fallback key-based, including for stamped entries.
-        return bucketSelector.makeStickyKeyHash(metadata == null ? Commands.NONE_KEY
-                : Commands.resolveStickyKey(metadata));
+        return metadata == null ? bucketSelector.makeStickyKeyHash(Commands.NONE_KEY)
+                : bucketSelector.makeStickyKeyHashOfKeyHash(Commands.resolveStickyKeyHash(metadata));
     }
 
     private void recordEntryBucketViolation(MessageMetadata metadata) {

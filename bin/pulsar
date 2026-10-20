@@ -303,6 +303,8 @@ OPTS="$OPTS -Dorg.apache.pulsar.shade.io.netty.tryReflectionSetAccessible=true"
 OPTS="$OPTS --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/jdk.internal.misc=ALL-UNNAMED"
 # Required by LinuxInfoUtils
 OPTS="$OPTS --add-opens java.base/jdk.internal.platform=ALL-UNNAMED"
+# Lets Murmur3_32Hash hash a Key_Shared string key from the String's internal bytes, without encoding it
+OPTS="$OPTS --add-opens java.base/java.lang=ALL-UNNAMED"
 # Required by RocksDB java.lang.System::loadLibrary call
 OPTS="$OPTS --enable-native-access=ALL-UNNAMED"
 # These two settings work together to ensure the Pulsar process exits immediately and predictably
