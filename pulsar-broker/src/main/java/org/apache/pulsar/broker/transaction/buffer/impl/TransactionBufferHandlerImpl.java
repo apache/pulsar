@@ -162,7 +162,8 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
             } else {
                 Throwable cause = FutureUtil.unwrapCompletionException(ex);
                 if (cause instanceof PulsarClientException.ConnectException) {
-                    log.warn().attr("topic", op.topic).log("Client connection already closed");
+                    log.warn().attr("topic", op.topic).exceptionMessage(cause)
+                            .log("endTxn failed, connection closed");
                 } else {
                     log.error().attr("topic", op.topic).exception(cause).log("endTxn error topic");
                 }

@@ -671,6 +671,39 @@ public class ClientCnxTest {
         }
     }
 
+    /**
+     * Test that when the channel goes inactive before the handshake completes, the connection future
+     * fails with ConnectException rather than a plain PulsarClientException, so that callers which
+     * classify on ConnectException (e.g. retryable end-txn checks) see the specific type.
+     */
+    @Test
+    public void testChannelInactiveFailsConnectionFutureWithConnectException() throws Exception {
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false,
+                new DefaultThreadFactory("testChannelInactiveFailsConnectionFutureWithConnectException"));
+        try {
+            ClientConfigurationData conf = new ClientConfigurationData();
+            conf.setOperationTimeoutMs(10_000);
+            conf.setKeepAliveIntervalSeconds(0);
+            ClientCnx cnx = new ClientCnx(InstrumentProvider.NOOP, conf, eventLoop);
+            ChannelHandlerContext ctx = ClientTestFixtures.mockChannelHandlerContext();
+            cnx.channelActive(ctx);
+
+            // The CONNECT frame has been sent but no CONNECTED response received, so the future is pending
+            assertFalse(cnx.connectionFuture().isDone());
+
+            cnx.channelInactive(ctx);
+
+            try {
+                cnx.connectionFuture().get(2, TimeUnit.SECONDS);
+                fail("Connection future should have failed");
+            } catch (ExecutionException e) {
+                assertTrue(e.getCause() instanceof PulsarClientException.ConnectException);
+            }
+        } finally {
+            eventLoop.shutdownGracefully().sync();
+        }
+    }
+
     private void withConnection(String testName, Consumer<ClientCnx> test) {
         ThreadFactory threadFactory = new DefaultThreadFactory(testName);
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, threadFactory);
