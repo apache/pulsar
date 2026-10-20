@@ -1359,11 +1359,6 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         }
     }
 
-    protected void resetIncomingMessageSize() {
-        long oldSize = INCOMING_MESSAGES_SIZE_UPDATER.getAndSet(this, 0);
-        getMemoryLimitController().ifPresent(limiter -> limiter.releaseMemory(oldSize));
-    }
-
     protected void decreaseIncomingMessageSize(final Message<?> message) {
         INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this, -message.size());
         getMemoryLimitController().ifPresent(limiter -> limiter.releaseMemory(message.size()));
@@ -1382,11 +1377,33 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         return incomingMessages.size();
     }
 
-    protected void clearIncomingMessages() {
-        // release messages if they are pooled messages
-        incomingMessages.forEach(Message::release);
-        incomingMessages.clear();
-        resetIncomingMessageSize();
+    /**
+     * Remove and discard all messages in the incoming queue.
+     *
+     * <p>Messages are removed one at a time, so that a message enqueued or dequeued concurrently (which is
+     * possible for Shared and Key_Shared subscriptions, where {@link #incomingQueueLock} is a no-op lock) is
+     * either discarded here or left in the queue, but never released twice, left unreleased, or left with its
+     * size unaccounted for.
+     *
+     * @return the number of discarded messages
+     */
+    protected int clearIncomingMessages() {
+        int discarded = 0;
+        Message<T> message;
+        while ((message = incomingMessages.poll()) != null) {
+            discardIncomingMessage(message);
+            discarded++;
+        }
+        return discarded;
+    }
+
+    /**
+     * Discard a message that was removed from the incoming queue without being delivered to the application:
+     * give back its size to the incoming message size and the memory limit, and release it if it is pooled.
+     */
+    protected void discardIncomingMessage(Message<?> message) {
+        decreaseIncomingMessageSize(message);
+        message.release();
     }
 
     /**
