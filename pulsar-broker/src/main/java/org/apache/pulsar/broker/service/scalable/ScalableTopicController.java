@@ -22,6 +22,7 @@ import com.google.common.annotations.VisibleForTesting;
 import io.github.merlimat.slog.Logger;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -47,6 +48,7 @@ import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.TransportCnx;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.api.proto.ScalableConsumerType;
@@ -148,6 +150,26 @@ public class ScalableTopicController {
     /** Epoch millis of the last merge on this topic (manual or auto); MIN_VALUE if none. */
     private volatile long lastMergeAtMs = Long.MIN_VALUE;
     private volatile long lastRebucketAtMs = Long.MIN_VALUE;
+    private volatile String autoScaleBlockedReason;
+    private volatile LastLayoutOperation lastLayoutOperation;
+
+    private record LastLayoutOperation(String operation, String trigger, List<Long> segmentIds,
+                                       String status, String at, String error) {
+        ScalableTopicStats.LayoutOperationStats toStats() {
+            var stats = new ScalableTopicStats.LayoutOperationStats();
+            stats.setOperation(operation);
+            stats.setTrigger(trigger);
+            stats.setSegmentIds(new ArrayList<>(segmentIds));
+            stats.setStatus(status);
+            stats.setAt(at);
+            stats.setError(error);
+            return stats;
+        }
+    }
+
+    private record ResolvedAutoScalePolicy(AutoScaleConfig config, AutoScalePolicyOverride policy,
+                                           String blockedReason) {
+    }
 
     /**
      * {@link LeaderElectionState#Leading} while this controller serves as the leader, which starts once it
@@ -416,6 +438,8 @@ public class ScalableTopicController {
             }
             electionState = LeaderElectionState.Leading;
             term = ++this.term;
+            lastLayoutOperation = null;
+            autoScaleBlockedReason = null;
             takeoverStartedNanos = System.nanoTime();
             leadership = new CompletableFuture<>();
             takeOverBackoff.reset();
@@ -744,16 +768,27 @@ public class ScalableTopicController {
         }
         try {
             return resolveAutoScaleConfig(brokerConfig)
-                    .thenCompose(config -> {
+                    .thenCompose(resolved -> {
+                        AutoScaleConfig config = resolved.config();
+                        autoScaleBlockedReason = resolved.blockedReason();
+                        // Policy resolution is shared with stats; only evaluations count blocked decisions.
+                        if ("invalid_policy".equals(resolved.blockedReason()) && isLeader()) {
+                            metrics.recordBlocked("invalid_policy");
+                        }
                         if (!config.enabled()) {
                             return CompletableFuture.<Void>completedFuture(null);
                         }
                         Set<String> bucketSharing = bucketSharingSubscriptions();
                         return collectConsumerCounts()
-                                .thenCombine(collectLoadSamples(), (consumers, load) ->
-                                        AutoScalePolicyEvaluator.decide(currentLayout, load,
-                                                consumers, bucketSharing, config, clock.millis(),
-                                                lastSplitAtMs, lastMergeAtMs, lastRebucketAtMs))
+                                .thenCombine(collectLoadSamples(), (consumers, load) -> {
+                                    SegmentLayout layout = currentLayout;
+                                    AutoScaleDecision decision = AutoScalePolicyEvaluator.decide(layout, load,
+                                            consumers, bucketSharing, config, clock.millis(),
+                                            lastSplitAtMs, lastMergeAtMs, lastRebucketAtMs);
+                                    autoScaleBlockedReason = AutoScalePolicyEvaluator.blockedReasonForStats(
+                                            layout, decision, consumers, bucketSharing, config);
+                                    return decision;
+                                })
                                 .thenCompose(decision -> dispatch(decision, config, trigger));
                     })
                     .whenComplete((__, ex) -> {
@@ -786,7 +821,7 @@ public class ScalableTopicController {
      * evaluation until an operator fixes the overrides — rather than failing the evaluation
      * chain.
      */
-    private CompletableFuture<AutoScaleConfig> resolveAutoScaleConfig(
+    private CompletableFuture<ResolvedAutoScalePolicy> resolveAutoScaleConfig(
             ServiceConfiguration brokerConfig) {
         CompletableFuture<AutoScalePolicyOverride> namespaceOverride =
                 brokerService.getPulsar().getPulsarResources().getNamespaceResources()
@@ -798,12 +833,10 @@ public class ScalableTopicController {
                         .thenApply(opt -> opt.map(ScalableTopicMetadata::getAutoScalePolicy)
                                 .orElse(null));
         return namespaceOverride.thenCombine(topicOverride, (ns, topic) -> {
+            AutoScaleConfig effective = AutoScaleConfig.resolveUnvalidated(brokerConfig, ns, topic);
             try {
-                return AutoScaleConfig.resolve(brokerConfig, ns, topic);
+                return new ResolvedAutoScalePolicy(effective.validated(), effective.toPolicyOverride(), null);
             } catch (IllegalArgumentException e) {
-                if (isLeader()) {
-                    metrics.recordBlocked("invalid_policy");
-                }
                 log.warn().attr("reason", e.getMessage())
                         .log("Resolved auto split/merge policy is invalid; treating auto "
                                 + "split/merge as disabled for this topic until the namespace "
@@ -812,7 +845,8 @@ public class ScalableTopicController {
                 // the invalid part, re-validating here would just rethrow on every tick
                 // instead of the documented "treated as disabled". Only `enabled` is ever
                 // consulted on this object.
-                return AutoScaleConfig.disabledFallback(brokerConfig);
+                return new ResolvedAutoScalePolicy(AutoScaleConfig.disabledFallback(brokerConfig),
+                        effective.toPolicyOverride(), "invalid_policy");
             }
         });
     }
@@ -1201,7 +1235,7 @@ public class ScalableTopicController {
     }
 
     private CompletableFuture<SegmentLayout> splitSegment(long segmentId, String trigger) {
-        LayoutOperation operation = new LayoutOperation("split", trigger);
+        LayoutOperation operation = new LayoutOperation("split", trigger, List.of(segmentId));
         return operation.track(() -> splitSegment(segmentId, operation));
     }
 
@@ -1268,7 +1302,7 @@ public class ScalableTopicController {
     }
 
     private CompletableFuture<SegmentLayout> rebucketSegment(long segmentId, int newBucketCount, String trigger) {
-        LayoutOperation operation = new LayoutOperation("rebucket", trigger);
+        LayoutOperation operation = new LayoutOperation("rebucket", trigger, List.of(segmentId));
         return operation.track(() -> rebucketSegment(segmentId, newBucketCount, operation));
     }
 
@@ -1333,7 +1367,7 @@ public class ScalableTopicController {
     }
 
     private CompletableFuture<SegmentLayout> mergeSegments(long segmentId1, long segmentId2, String trigger) {
-        LayoutOperation operation = new LayoutOperation("merge", trigger);
+        LayoutOperation operation = new LayoutOperation("merge", trigger, List.of(segmentId1, segmentId2));
         return operation.track(() -> mergeSegments(segmentId1, segmentId2, operation));
     }
 
@@ -1390,17 +1424,24 @@ public class ScalableTopicController {
     private final class LayoutOperation {
         private final String operation;
         private final String trigger;
+        private final List<Long> segmentIds;
+        private final long operationTerm;
         private final long startedNanos = System.nanoTime();
         private final boolean startedAsLeader;
         private long sealedNanos;
         private boolean committed;
         private final AtomicInteger pendingStorageDeletes = new AtomicInteger();
         private boolean layoutChanged;
+        private volatile Throwable storageError;
 
-        private LayoutOperation(String operation, String trigger) {
+        private LayoutOperation(String operation, String trigger, List<Long> segmentIds) {
             this.operation = operation;
             this.trigger = trigger;
+            this.segmentIds = List.copyOf(segmentIds);
             startedAsLeader = isLeader();
+            synchronized (ScalableTopicController.this) {
+                operationTerm = term;
+            }
         }
 
         private void sealed() {
@@ -1431,6 +1472,15 @@ public class ScalableTopicController {
                         : sealedNanos != 0 && !committed;
                 String status = partial ? "partial" : ex == null ? "success" : "failure";
                 metrics.recordOperation(operation, trigger, status, elapsedSeconds(startedNanos));
+                Throwable error = ex != null ? FutureUtil.unwrapCompletionException(ex) : storageError;
+                LastLayoutOperation completed = new LastLayoutOperation(operation, trigger, segmentIds,
+                        status, clock.instant().toString(), error == null ? null : error.toString());
+                synchronized (ScalableTopicController.this) {
+                    // A completion from a previous leadership term is not this leader's history.
+                    if (operationTerm == term && isLeader() && !closed) {
+                        lastLayoutOperation = completed;
+                    }
+                }
             });
         }
     }
@@ -1761,6 +1811,10 @@ public class ScalableTopicController {
      * <p>STREAM consumer sessions (connected state, segment assignment) are the leader's
      * in-memory state, which is why the REST layer routes stats requests to the controller
      * leader.
+     *
+     * <p>The latest load records are read from metadata, not sampled by updating or resetting
+     * traffic rate meters. These on-demand reads retain normal metadata-store and cache metrics
+     * accounting, just like other admin reads.
      */
     public CompletableFuture<ScalableTopicStats> getStats() {
         SegmentLayout layout = this.currentLayout;
@@ -1806,6 +1860,8 @@ public class ScalableTopicController {
         }));
 
         Map<String, List<ScalableTopicStatsBuilder.StreamConsumer>> streamConsumers = new LinkedHashMap<>();
+        Map<String, Set<Long>> blockedSegments = new LinkedHashMap<>();
+        Set<String> checkpointGroups = new HashSet<>();
         subscriptions.forEach((subName, coordinator) -> {
             List<ScalableTopicStatsBuilder.StreamConsumer> consumers = new ArrayList<>();
             coordinator.currentAssignment().forEach((session, assignment) ->
@@ -1816,11 +1872,67 @@ public class ScalableTopicController {
                                     .map(ConsumerAssignment.AssignedSegment::segmentId)
                                     .toList())));
             streamConsumers.put(subName, consumers);
+            blockedSegments.put(subName, coordinator.getBlockedSegmentIds());
+            if (coordinator.isCheckpointGroup()) {
+                checkpointGroups.add(subName);
+            }
         });
 
-        return FutureUtil.waitForAll(futures)
-                .thenApply(__ -> ScalableTopicStatsBuilder.build(
-                        topicName, layout, segmentStats, persistedTypes, streamConsumers));
+        Map<Long, SegmentLoadSample> loadSamples = new ConcurrentHashMap<>();
+        for (long segmentId : layout.getAllSegments().keySet()) {
+            futures.add(resources.getSegmentLoadAsync(topicName, segmentId)
+                    .thenAccept(opt -> opt.ifPresent(result -> loadSamples.put(segmentId,
+                            new SegmentLoadSample(result.getValue(), result.getStat().getModificationTimestamp()))))
+                    .exceptionally(ex -> {
+                        log.debug().attr("segmentId", segmentId).exceptionMessage(ex)
+                                .log("Failed to collect segment load record for stats");
+                        return null;
+                    }));
+        }
+        ServiceConfiguration config = brokerConfig();
+        CompletableFuture<ResolvedAutoScalePolicy> policy = config == null
+                ? CompletableFuture.completedFuture(null)
+                : FutureUtil.supplySafely(() -> resolveAutoScaleConfig(config)).exceptionally(ex -> {
+                    log.debug().exceptionMessage(ex).log("Failed to collect auto-scale policy for stats");
+                    return null;
+                });
+        return FutureUtil.waitForAll(futures).thenCombine(policy, (__, resolved) -> {
+            ScalableTopicStats stats = ScalableTopicStatsBuilder.build(topicName, layout, segmentStats,
+                    persistedTypes, streamConsumers, blockedSegments, checkpointGroups);
+            stats.setControllerBroker(brokerService.getPulsar().getBrokerId());
+            var autoScale = new ScalableTopicStats.AutoScaleStats();
+            if (resolved != null) {
+                autoScale.setPolicy(resolved.policy());
+            }
+            autoScale.setBlockedReason(resolved != null && resolved.blockedReason() != null
+                    ? resolved.blockedReason() : autoScaleBlockedReason);
+            autoScale.setLastSplitAt(isoTimestamp(lastSplitAtMs));
+            autoScale.setLastMergeAt(isoTimestamp(lastMergeAtMs));
+            autoScale.setLastRebucketAt(isoTimestamp(lastRebucketAtMs));
+            stats.setAutoScale(autoScale);
+            LastLayoutOperation operation = lastLayoutOperation;
+            if (operation != null) {
+                stats.getLayout().setLastOperation(operation.toStats());
+            }
+            long nowMs = clock.millis();
+            loadSamples.forEach((segmentId, sample) -> {
+                ScalableTopicStats.LayoutSegment segment = stats.getLayout().getSegments().get(segmentId);
+                if (segment != null) {
+                    var load = new ScalableTopicStats.SegmentLoadStats();
+                    load.setMsgRateIn(sample.stats().msgRateIn());
+                    load.setByteRateIn(sample.stats().byteRateIn());
+                    load.setMsgRateOut(sample.stats().msgRateOut());
+                    load.setByteRateOut(sample.stats().byteRateOut());
+                    load.setAgeSeconds(Math.max(0, (nowMs - sample.modifiedAtMs()) / 1000.0));
+                    segment.setLoad(load);
+                }
+            });
+            return stats;
+        });
+    }
+
+    private static String isoTimestamp(long timestampMs) {
+        return timestampMs == Long.MIN_VALUE ? null : Instant.ofEpochMilli(timestampMs).toString();
     }
 
     /**
@@ -1849,7 +1961,10 @@ public class ScalableTopicController {
                                     ? CompletableFuture.<SegmentTopicStats>completedFuture(null)
                                     : optTopic.get()
                                             .asyncGetStats(ScalableTopicService.SEGMENT_STATS_OPTIONS)
-                                            .thenApply(SegmentTopicStatsBuilder::fromTopicStats));
+                                            .thenApply(stats -> SegmentTopicStatsBuilder.fromTopicStats(stats,
+                                                    optTopic.get() instanceof PersistentTopic persistentTopic
+                                                            && persistentTopic.getManagedLedger().isTerminated(),
+                                                    optTopic.get().getSubscriptions())));
                 });
     }
 
@@ -1969,7 +2084,8 @@ public class ScalableTopicController {
         if (!isLeader() || closed) {
             return CompletableFuture.completedFuture(null);
         }
-        LayoutOperation operation = new LayoutOperation("prune", "auto");
+        LayoutOperation operation = new LayoutOperation("prune", "auto",
+                drained.stream().map(SegmentInfo::segmentId).toList());
         operation.pendingStorageDeletes.set(drained.size());
         return operation.track(() -> pruneAllAsync(drained, operation));
     }
@@ -2072,6 +2188,7 @@ public class ScalableTopicController {
                             operation.pendingStorageDeletes.decrementAndGet();
                             return null;
                         }
+                        operation.storageError = cause;
                         log.warn().attr("segment", name).exceptionMessage(cause)
                                 .log("GC: failed to delete backing segment topic;"
                                         + " will retry on next tick");

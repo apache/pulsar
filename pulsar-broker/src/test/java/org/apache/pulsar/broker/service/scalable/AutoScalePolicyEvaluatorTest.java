@@ -799,4 +799,140 @@ public class AutoScalePolicyEvaluatorTest {
         assertTrue(a.hashRange().isAdjacentTo(b.hashRange()),
                 "merged pair must be hash-range adjacent");
     }
+
+    @Test
+    public void testStatsReuseUpstreamBlockedObservations() {
+        SegmentLayout layout = initialLayout(2);
+        AutoScaleConfig config = baseConfig().maxSegments(2).build();
+        Map<Long, SegmentLoadSample> hot = Map.of(0L, sample(SPLIT_MSG_IN + 1, 0, 0, 0, old()));
+        AutoScaleDecision split = decide(layout, hot, Map.of(), config);
+        assertThat(split).isEqualTo(new AutoScaleDecision.Blocked("max_segments"));
+        assertThat(AutoScalePolicyEvaluator.blockedReasonForStats(layout, split, Map.of(), Set.of(), config))
+                .isEqualTo("max_segments");
+
+        AutoScaleConfig bucketConfig = config.toBuilder().maxEntryBucketsPerSegment(2).build();
+        Map<String, Integer> consumers = Map.of("stream", 20);
+        AutoScaleDecision bucket = decide(layout, Map.of(), consumers, bucketConfig);
+        assertThat(bucket).isEqualTo(new AutoScaleDecision.Blocked("max_entry_buckets"));
+        assertThat(AutoScalePolicyEvaluator.blockedReasonForStats(
+                layout, bucket, consumers, Set.of("stream"), bucketConfig)).isEqualTo("max_entry_buckets");
+
+        AutoScaleConfig depthConfig = config.toBuilder().maxDagDepth(0).build();
+        AutoScaleDecision merge = decide(layout, Map.of(0L, cold(old()), 1L, cold(old())), Map.of(), depthConfig);
+        assertThat(merge).isEqualTo(new AutoScaleDecision.Blocked("max_dag_depth"));
+        assertThat(AutoScalePolicyEvaluator.blockedReasonForStats(layout, merge, Map.of(), Set.of(), depthConfig))
+                .isEqualTo("max_dag_depth");
+
+        AutoScaleDecision cooldown = AutoScalePolicyEvaluator.decide(layout, hot, Map.of(), Set.of(),
+                config, NOW, NOW, NO_PRIOR, NO_PRIOR);
+        assertThat(cooldown).isEqualTo(AutoScaleDecision.NONE);
+        assertThat(AutoScalePolicyEvaluator.blockedReasonForStats(layout, cooldown, Map.of(), Set.of(), config))
+                .isNull();
+        AutoScaleDecision idle = decide(layout, Map.of(), Map.of(), config);
+        assertThat(idle).isEqualTo(AutoScaleDecision.NONE);
+        assertThat(AutoScalePolicyEvaluator.blockedReasonForStats(layout, idle, Map.of(), Set.of(), config))
+                .isNull();
+    }
+
+    @Test
+    public void testMixedConsumerGroupsReportIndependentSegmentCapDemand() {
+        SegmentLayout layout = initialLayout(2); // Four entry buckets, but only two physical segments.
+        AutoScaleConfig config = baseConfig().maxSegments(2).build();
+        List<Map<Long, SegmentLoadSample>> samples = List.of(Map.of(), Map.of(0L, cold(0), 1L, cold(0)));
+        for (Map<Long, SegmentLoadSample> load : samples) {
+            for (int streamConsumers : List.of(3, 4)) {
+                Map<String, Integer> consumers = Map.of("stream", streamConsumers, "checkpoint", 3);
+                AutoScaleDecision decision = decide(layout, load, consumers, Set.of("stream"), config);
+                assertThat(decision).as("below-floor demand must retain upstream no-action metrics semantics")
+                        .isEqualTo(AutoScaleDecision.NONE);
+                assertThat(AutoScalePolicyEvaluator.blockedReasonForStats(
+                        layout, decision, consumers, Set.of("stream"), config))
+                        .as("CHECKPOINT stats must not be masked by %s STREAM consumers", streamConsumers)
+                        .isEqualTo("max_segments");
+            }
+            Map<String, Integer> consumers = Map.of("stream", 4, "checkpoint", 2, "checkpoint2", 2);
+            AutoScaleDecision decision = decide(layout, load, consumers, Set.of("stream"), config);
+            assertThat(decision).isEqualTo(AutoScaleDecision.NONE);
+            assertThat(AutoScalePolicyEvaluator.blockedReasonForStats(
+                    layout, decision, consumers, Set.of("stream"), config))
+                    .as("whole-segment demand uses the per-group maximum, not the sum").isNull();
+        }
+        Map<String, Integer> demand = Map.of("stream", 5, "checkpoint", 3);
+        AutoScaleConfig bucketConfig = config.toBuilder().maxEntryBucketsPerSegment(2).build();
+        AutoScaleDecision bucket = decide(layout, Map.of(), demand, Set.of("stream"), bucketConfig);
+        assertThat(bucket).as("upstream metrics retain the eligible bucket lane's reason")
+                .isEqualTo(new AutoScaleDecision.Blocked("max_entry_buckets"));
+        assertThat(AutoScalePolicyEvaluator.blockedReasonForStats(
+                layout, bucket, demand, Set.of("stream"), bucketConfig))
+                .as("an exhausted bucket ceiling does not hide independent physical segment demand in stats")
+                .isEqualTo("max_segments");
+        AutoScaleDecision cooldown = AutoScalePolicyEvaluator.decide(layout, Map.of(), demand, Set.of("stream"),
+                config, NOW, NOW, NO_PRIOR, NOW);
+        assertThat(cooldown).as("cooldowns still produce no blocked metrics").isEqualTo(AutoScaleDecision.NONE);
+        assertThat(AutoScalePolicyEvaluator.blockedReasonForStats(
+                layout, cooldown, demand, Set.of("stream"), config))
+                .as("cooldowns do not hide independent physical segment demand in stats")
+                .isEqualTo("max_segments");
+        AutoScaleConfig disabled = config.toBuilder().enabled(false).build();
+        AutoScaleDecision none = decide(layout, Map.of(), demand, Set.of("stream"), disabled);
+        assertThat(AutoScalePolicyEvaluator.blockedReasonForStats(
+                layout, none, demand, Set.of("stream"), disabled)).as("disabled policies are not blocked").isNull();
+        AutoScaleConfig underCap = config.toBuilder().maxSegments(3).build();
+        AutoScaleDecision under = decide(layout, Map.of(), Map.of("checkpoint", 3), Set.of(), underCap);
+        assertThat(AutoScalePolicyEvaluator.blockedReasonForStats(
+                layout, under, Map.of("checkpoint", 3), Set.of(), underCap))
+                .as("below-floor demand below the cap is not blocked").isNull();
+    }
+
+    @Test
+    public void testMixedConsumerDiagnosticsPreserveSelectedActions() {
+        SegmentLayout layout = initialLayout(2);
+        AutoScaleConfig config = baseConfig().maxSegments(2).build();
+        Map<String, Integer> consumers = Map.of("stream", 5, "checkpoint", 3);
+        AutoScaleDecision rebucket = decide(layout, Map.of(), consumers, Set.of("stream"), config);
+        assertThat(rebucket).as("physical segment cap diagnostics must not suppress a selected rebucket")
+                .isEqualTo(new AutoScaleDecision.Rebucket(List.of(0L, 1L), 4, "at-max-segments"));
+        assertThat(AutoScalePolicyEvaluator.blockedReasonForStats(
+                layout, rebucket, consumers, Set.of("stream"), config)).isNull();
+        AutoScaleConfig splitConfig = baseConfig().build();
+        AutoScaleDecision split = decide(layout, Map.of(0L, sample(2_000, 0, 0, 0, old())),
+                consumers, Set.of("stream"), splitConfig);
+        assertThat(split).as("diagnostics must not change a selected consumer-driven split")
+                .isEqualTo(new AutoScaleDecision.Split(0L, "consumer-count"));
+        assertThat(AutoScalePolicyEvaluator.blockedReasonForStats(
+                layout, split, consumers, Set.of("stream"), splitConfig)).isNull();
+        Map<String, Integer> mergeConsumers = Map.of("stream", 4, "checkpoint", 3);
+        AutoScaleDecision merged = decide(layout, Map.of(0L, cold(old()), 1L, cold(old())),
+                mergeConsumers, Set.of("stream"), config);
+        assertThat(merged).as("diagnostics must not change a selected capacity-preserving merge")
+                .isInstanceOf(AutoScaleDecision.Merge.class);
+        AutoScaleDecision.Merge merge = (AutoScaleDecision.Merge) merged;
+        assertThat(Set.of(merge.segmentId1(), merge.segmentId2())).isEqualTo(Set.of(0L, 1L));
+        assertThat(merge.reason()).isEqualTo("cold");
+        assertThat(AutoScalePolicyEvaluator.blockedReasonForStats(
+                layout, merged, mergeConsumers, Set.of("stream"), config)).isNull();
+    }
+
+    @Test
+    public void testSingleSlotSelectedSegmentReportsUnsplittable() {
+        SegmentLayout layout = singleSlotLayout();
+        AutoScaleConfig config = baseConfig().build();
+        Map<Long, SegmentLoadSample> hot = Map.of(0L, sample(1_000_000, 0, 0, 0, old()),
+                1L, sample(SPLIT_MSG_IN + 1, 0, 0, 0, old()));
+        AutoScaleDecision traffic = decide(layout, hot, Map.of(), config);
+        assertThat(traffic).isEqualTo(new AutoScaleDecision.Blocked("unsplittable"));
+        assertThat(AutoScalePolicyEvaluator.blockedReasonForStats(layout, traffic, Map.of(), Set.of(), config))
+                .isEqualTo("unsplittable");
+        assertThat(decide(layout, Map.of(0L, hot.get(0L)), Map.of(), config)).isEqualTo(traffic);
+        Map<String, Integer> consumers = Map.of("checkpoint", 100);
+        AutoScaleDecision consumer = decide(layout, hot, consumers, Set.of(), config);
+        assertThat(consumer).isEqualTo(new AutoScaleDecision.Blocked("unsplittable"));
+        assertThat(AutoScalePolicyEvaluator.blockedReasonForStats(layout, consumer, consumers, Set.of(), config))
+                .isEqualTo("unsplittable");
+
+        // Keep upstream's singleton skip, without falling through to a cold merge.
+        Map<Long, SegmentLoadSample> mixed = Map.of(0L, hot.get(0L), 1L, cold(old()), 2L, cold(old()));
+        assertThat(decide(layout, mixed, Map.of(), config)).isEqualTo(traffic);
+    }
+
 }

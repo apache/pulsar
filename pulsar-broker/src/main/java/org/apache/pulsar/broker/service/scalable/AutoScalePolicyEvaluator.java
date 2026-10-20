@@ -116,6 +116,30 @@ public final class AutoScalePolicyEvaluator {
         return split instanceof AutoScaleDecision.Blocked ? split : merge;
     }
 
+    /**
+     * Describe blocked capacity in the stats snapshot without changing the decision or metrics.
+     * Reuse the evaluator's blocked observation, except that whole-segment reader demand at
+     * the segment cap is visible in stats even below the split-rate floor or during cooldown.
+     */
+    static String blockedReasonForStats(SegmentLayout layout, AutoScaleDecision decision,
+                                        Map<String, Integer> streamConsumerCount,
+                                        Set<String> bucketSharingSubscriptions, AutoScaleConfig config) {
+        if (!config.enabled() || !(decision instanceof AutoScaleDecision.NoAction
+                || decision instanceof AutoScaleDecision.Blocked)) {
+            return null;
+        }
+        int segments = layout.getActiveSegments().size();
+        if (segments >= config.maxSegments()) {
+            int wholeSegmentConsumers = streamConsumerCount.entrySet().stream()
+                    .filter(e -> !bucketSharingSubscriptions.contains(e.getKey()))
+                    .mapToInt(Map.Entry::getValue).max().orElse(0);
+            if (wholeSegmentConsumers > segments) {
+                return "max_segments";
+            }
+        }
+        return decision instanceof AutoScaleDecision.Blocked blocked ? blocked.reason() : null;
+    }
+
     // --- Consumer-driven scale-up: segments vs entry-buckets (PIP-486) ---
 
     /**
