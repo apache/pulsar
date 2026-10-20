@@ -147,10 +147,12 @@ public class Namespaces extends NamespacesBase {
                 .thenApply(topics -> filterSystemTopic(topics, includeSystemTopic))
                 .thenAccept(response::resume)
                 .exceptionally(ex -> {
-                    log.error()
-                            .attr("namespace", namespaceName)
-                            .exception(ex)
-                            .log("Failed to get topics list for namespace");
+                    if (!isTopicListLimitRejection(ex)) {
+                        log.error()
+                                .attr("namespace", namespaceName)
+                                .exception(ex)
+                                .log("Failed to get topics list for namespace");
+                    }
                     resumeAsyncResponseExceptionally(response, ex);
                     return null;
                 });
