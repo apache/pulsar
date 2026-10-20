@@ -152,6 +152,59 @@ The ledger storage still writes every entry to the disk, and syncs its files eac
 When those syncs are what's slow, [disabling write barriers](../environment/README.md#disabling-write-barriers) makes
 them cheaper on a disk without power loss protection, at the risk of the host's file system.
 
+### TLS
+
+[`tls.yaml`](configs/tls.yaml) makes the gateways and the applications connect to the brokers with TLS, with
+`cluster.tls.enabled`, so that a run measures what TLS costs: the handshakes when the clients connect, and the
+encryption and decryption of every message, which the brokers' I/O threads (`pulsar-io`) and the clients' do.
+Compare a scenario with and without it, on the same image.
+
+The launcher creates a CA for each run and a certificate of the brokers that the CA signs, with the brokers' host and
+container names, and writes them into the run directory's `tls` directory, which the brokers and the workloads mount.
+The brokers open their TLS port, 6651, beside the plain one, and the workloads' service URL is
+`pulsar+ssl://<broker>:6651`. The clients trust the CA and verify the brokers' names, as Pulsar's clients do by
+default; they don't authenticate with certificates of their own. Only the workloads' connections use TLS: the proxy,
+geo-replication between the clusters, and the launcher's admin requests keep the plain ports, and the brokers' own
+connections to the bookies don't use TLS. With [a remote cluster](../docs/network-conditions.md#geo-replication), the
+remote applications connect to its brokers with TLS too.
+
+`cluster.tls.keyAlgorithm` sets the keys' algorithm: `RSA`, the default, 2048-bit RSA keys, or `EC`, ECDSA keys on the
+P-256 curve, whose handshakes cost the brokers less CPU. The brokers' `env` can add other TLS settings, such as
+`tlsProtocols` or `tlsCiphers`, or replace the launcher's.
+
+```bash
+./gradlew :tests:performance:launcher:run \
+  --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --extends configs/tls'
+```
+
+Handshakes cost most when clients connect often: the pods' restarts
+(`workloads.iotTelemetry.behaviors.podRestarts`), and network faults that reset connections, such as
+[`network/connection-resets`](network/connection-resets.yaml) and
+[`network/consumer-reconnect-storm`](network/consumer-reconnect-storm.yaml), make them reconnect during the
+measurement.
+
+### JWT authentication
+
+[`jwt.yaml`](configs/jwt.yaml) makes the brokers authenticate every client with a JSON Web Token, with
+`cluster.jwt.enabled`, so that a run measures what authentication costs, such as verifying the token of each
+connection that a client opens. It works with or without [TLS](#tls): `--extends configs/tls --extends configs/jwt`
+sends the tokens over TLS, as most deployments do.
+
+The launcher creates the keys and the tokens for each run, in the formats of `pulsar tokens`, as the Pulsar Helm
+chart's JWT secret job does, and writes them into the run directory's `jwt` directory, which the brokers and the
+workloads mount. The gateways and the applications authenticate as `iot-workload`. The brokers' own clients, such as
+geo-replication's, and the launcher's admin requests authenticate as `admin`, the brokers' super-user. The brokers
+authenticate the clients but don't authorize them: any authenticated client may produce and consume. The brokers'
+`/metrics` endpoint stays unauthenticated, as it is by default.
+
+`cluster.jwt.signatureAlgorithm` sets how the tokens are signed: `RS256`, the default, with a 2048-bit RSA key pair
+whose public key the brokers verify the tokens with, or `HS256`, with a secret key that the brokers share.
+
+```bash
+./gradlew :tests:performance:launcher:run \
+  --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --extends configs/tls --extends configs/jwt'
+```
+
 ## Scenarios for the legacy TestNG runner
 
 The scenarios of [the legacy TestNG profiling runner](../docs/legacy-testng-runner/README.md#scenario-files), which runs
