@@ -6059,12 +6059,11 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         verify(lastEntry, never()).release();
     }
 
-    @Test
-    public void testReadEntriesWithSkipDeletedEntries() throws Exception {
-        @Cleanup
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testReadEntriesWithSkipDeletedEntries",
-                initManagedLedgerConfig(defaultConfig()));
-        ledger = Mockito.spy(ledger);
+    /**
+     * Records the entry ids of every range read issued through the batched and the sequential
+     * {@code asyncReadEntry} overloads of the given spied ledger, delegating to the real reads.
+     */
+    private static List<Long> recordActualReadEntryIds(ManagedLedgerImpl ledger) {
         List<Long> actualReadEntryIds = new ArrayList<>();
         Mockito.doAnswer(inv -> {
                     long start = inv.getArgument(1);
@@ -6076,7 +6075,31 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                 })
                 .when(ledger)
                 .asyncReadEntry(Mockito.any(ReadHandle.class), Mockito.anyLong(),
-                        Mockito.anyLong(), Mockito.any(), Mockito.any());
+                        Mockito.anyLong(), Mockito.anyLong(), Mockito.any(), Mockito.any(), Mockito.any(),
+                        Mockito.anyBoolean());
+        // Reads with a single contiguous range take the sequential read overload instead of the
+        // batched one, record those reads as well.
+        Mockito.doAnswer(inv -> {
+                    long start = inv.getArgument(1);
+                    long end = inv.getArgument(2);
+                    for (long i = start; i <= end; i++) {
+                        actualReadEntryIds.add(i);
+                    }
+                    return inv.callRealMethod();
+                })
+                .when(ledger)
+                .asyncReadEntry(Mockito.any(ReadHandle.class), Mockito.anyLong(),
+                        Mockito.anyLong(), Mockito.any(OpReadEntry.class), Mockito.any());
+        return actualReadEntryIds;
+    }
+
+    @Test
+    public void testReadEntriesWithSkipDeletedEntries() throws Exception {
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testReadEntriesWithSkipDeletedEntries",
+                initManagedLedgerConfig(defaultConfig()));
+        ledger = Mockito.spy(ledger);
+        List<Long> actualReadEntryIds = recordActualReadEntryIds(ledger);
         @Cleanup
         ManagedCursor cursor = ledger.openCursor("c");
 
@@ -6172,18 +6195,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                         initManagedLedgerConfig(defaultConfig()));
         ledger = Mockito.spy(ledger);
 
-        List<Long> actualReadEntryIds = new ArrayList<>();
-        Mockito.doAnswer(inv -> {
-                    long start = inv.getArgument(1);
-                    long end = inv.getArgument(2);
-                    for (long i = start; i <= end; i++) {
-                        actualReadEntryIds.add(i);
-                    }
-                    return inv.callRealMethod();
-                })
-                .when(ledger)
-                .asyncReadEntry(Mockito.any(ReadHandle.class), Mockito.anyLong(),
-                        Mockito.anyLong(), Mockito.any(), Mockito.any());
+        List<Long> actualReadEntryIds = recordActualReadEntryIds(ledger);
         @Cleanup
         ManagedCursor cursor = ledger.openCursor("c");
 

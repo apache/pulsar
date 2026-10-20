@@ -133,6 +133,53 @@ public class InflightReadsLimiterTest {
     }
 
     @Test
+    public void testTryAcquire() throws Exception {
+        InflightReadsLimiter limiter =
+                new InflightReadsLimiter(100, ACQUIRE_QUEUE_SIZE, ACQUIRE_TIMEOUT_MILLIS,
+                        mock(ScheduledExecutorService.class), OpenTelemetry.noop());
+        Optional<InflightReadsLimiter.Handle> optionalHandle = limiter.tryAcquire(60);
+        assertThat(optionalHandle).isPresent();
+        assertThat(optionalHandle.get().success()).isTrue();
+        assertThat(optionalHandle.get().permits()).isEqualTo(60);
+        assertThat(limiter.getRemainingBytes()).isEqualTo(40);
+
+        // Not enough permits: the acquire fails instead of queueing and leaves the limiter untouched.
+        assertThat(limiter.tryAcquire(50)).isNotPresent();
+        assertThat(limiter.getRemainingBytes()).isEqualTo(40);
+
+        limiter.release(optionalHandle.get());
+        assertThat(limiter.getRemainingBytes()).isEqualTo(100);
+    }
+
+    @Test
+    public void testTryAcquireDoesNotOvertakeQueuedAcquires() throws Exception {
+        InflightReadsLimiter limiter =
+                new InflightReadsLimiter(100, ACQUIRE_QUEUE_SIZE, ACQUIRE_TIMEOUT_MILLIS,
+                        mock(ScheduledExecutorService.class), OpenTelemetry.noop());
+        InflightReadsLimiter.Handle handle = limiter.acquire(60, null).get();
+        assertThat(limiter.getRemainingBytes()).isEqualTo(40);
+
+        // 40 permits are available, but an acquire for 50 permits is already queued: a non-queueing
+        // acquire for the 40 permits must not overtake it.
+        AtomicReference<InflightReadsLimiter.Handle> queuedHandle = new AtomicReference<>();
+        assertThat(limiter.acquire(50, queuedHandle::set)).isNotPresent();
+        assertThat(limiter.tryAcquire(40)).isNotPresent();
+        assertThat(limiter.getRemainingBytes()).isEqualTo(40);
+
+        // Once the queued acquire has been served, the permits it left are granted without queueing.
+        limiter.release(handle);
+        assertThat(queuedHandle).hasValueSatisfying(h -> assertThat(h.success()).isTrue());
+        assertThat(limiter.getRemainingBytes()).isEqualTo(50);
+        Optional<InflightReadsLimiter.Handle> optionalHandle = limiter.tryAcquire(40);
+        assertThat(optionalHandle).isPresent();
+        assertThat(limiter.getRemainingBytes()).isEqualTo(10);
+
+        limiter.release(optionalHandle.get());
+        limiter.release(queuedHandle.get());
+        assertThat(limiter.getRemainingBytes()).isEqualTo(100);
+    }
+
+    @Test
     public void testAcquireTimeout() throws Exception {
         @Cleanup("shutdownNow")
         ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
