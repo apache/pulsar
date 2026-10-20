@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.api;
 
+import java.util.concurrent.RejectedExecutionException;
+
 /**
  * Interface for providing service to execute message listeners.
  */
@@ -36,6 +38,10 @@ public interface MessageListenerExecutor {
      * 2. The users should release resources(e.g. threads) of the executor after closing
      * the consumer to avoid leaks.
      * </p>
+     * <p>If a task cannot be accepted, throw {@link RejectedExecutionException} without executing or retaining
+     * the runnable. The consumer retains the message and retries submission with a delay, pausing subsequent
+     * listener submissions until it succeeds. Silently discarding a task prevents the consumer from recovering.
+     *
      * @param message  the message
      * @param runnable the runnable to execute, that is, the message listener task
      */
