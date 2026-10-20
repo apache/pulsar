@@ -987,6 +987,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             addOperation.failed(new ManagedLedgerFencedException());
             return;
         } else if (state == State.Terminated) {
+            if (!pendingAddEntries.isEmpty()) {
+                // Adds still in flight to the ledger being closed may yet succeed: fail this one after them, so that
+                // a writer never sees an add rejected before the earlier ones are confirmed. A producer drops the
+                // receipts that arrive after a rejection, and fails the messages they are for.
+                pendingAddEntries.add(addOperation);
+                return;
+            }
             addOperation.failed(new ManagedLedgerTerminatedException("Managed ledger was already terminated"));
             return;
         } else if (state == State.Closed) {
@@ -1705,7 +1712,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 log.info().attr("lastConfirmedEntry", lastConfirmedEntry).log("Terminated managed ledger");
                 // The final ledger was closed outside a rollover, so offload it from here
                 maybeOffloadInBackground(AUTOMATIC_OFFLOAD_TRIGGER);
-                callback.terminateComplete(lastConfirmedEntry, ctx);
+                // Complete on the managed ledger executor, after the adds confirmed before the close, which complete
+                // there too: the caller may disconnect the writers, which must not miss the confirmation of an add
+                Position terminatedPosition = lastConfirmedEntry;
+                try {
+                    executor.execute(() -> callback.terminateComplete(terminatedPosition, ctx));
+                } catch (RejectedExecutionException e) {
+                    callback.terminateComplete(terminatedPosition, ctx);
+                }
             }
 
             @Override
@@ -2411,6 +2425,28 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         OpAddEntry op;
         while ((op = pendingAddEntries.poll()) != null) {
             op.failed(e);
+        }
+    }
+
+    /**
+     * Fails the adds that arrived after the managed ledger was terminated, once the adds that were in flight ahead of
+     * them have completed (see {@link #internalAsyncAddEntry}). Those are the adds at the head of the queue that were
+     * never initiated. Runs on the managed ledger executor, after an add completed. A managed ledger fenced since then
+     * fails them as fenced instead; closing it fails them along with the other pending adds.
+     */
+    void failAddsQueuedAfterTermination() {
+        State state = STATE_UPDATER.get(this);
+        if (state != State.Terminated && !state.isFenced()) {
+            return;
+        }
+        synchronized (this) {
+            OpAddEntry op;
+            while ((op = pendingAddEntries.peek()) != null && op.state == OpAddEntry.State.OPEN) {
+                pendingAddEntries.poll();
+                op.failed(state == State.Terminated
+                        ? new ManagedLedgerTerminatedException("Managed ledger was already terminated")
+                        : new ManagedLedgerFencedException());
+            }
         }
     }
 
