@@ -21,6 +21,7 @@ package org.apache.pulsar.common.semaphore;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -145,6 +146,14 @@ public class AsyncDualMemoryLimiterImpl implements AsyncDualMemoryLimiter, AutoC
      */
     protected void recordDirectWaitTime(long waitTimeNanos) {
 
+    }
+
+    /**
+     * Returns the executor that completes the requests that had to wait for permits. Continuations that would
+     * otherwise run one after another on a single thread can be moved to this executor.
+     */
+    public Executor getCompletionExecutor() {
+        return completionExecutor;
     }
 
     @Override

@@ -30,6 +30,7 @@ import jakarta.ws.rs.container.AsyncResponse;
 import jakarta.ws.rs.container.CompletionCallback;
 import jakarta.ws.rs.core.Response;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -114,6 +115,36 @@ public class TopicListResponseMemoryLimiterTest {
 
         completeResponse(null);
         assertThat(acquiredHeapPermits()).isZero();
+    }
+
+    @Test
+    public void testRequestsWaitingForTheSizeEstimateContinueOnTheCompletionExecutor() {
+        // the first request lists the topics without a size estimate, the concurrent requests wait for its estimate
+        CompletableFuture<List<String>> firstListing = new CompletableFuture<>();
+        CompletableFuture<List<String>> first = listTopics(() -> firstListing);
+        List<CompletableFuture<String>> listingThreads = new ArrayList<>();
+        List<CompletableFuture<List<String>>> waiting = new ArrayList<>();
+        for (int i = 0; i < 3; i++) {
+            CompletableFuture<String> listingThread = new CompletableFuture<>();
+            listingThreads.add(listingThread);
+            waiting.add(listTopics(() -> {
+                listingThread.complete(Thread.currentThread().getName());
+                return CompletableFuture.completedFuture(TOPICS);
+            }));
+        }
+
+        // completing the first listing, here on the test thread, completes the size estimate
+        firstListing.complete(TOPICS);
+
+        assertThat(first).succeedsWithin(Duration.ofSeconds(5)).isEqualTo(TOPICS);
+        String testThread = Thread.currentThread().getName();
+        for (int i = 0; i < waiting.size(); i++) {
+            assertThat(waiting.get(i)).succeedsWithin(Duration.ofSeconds(5)).isEqualTo(TOPICS);
+            // the waiting requests don't continue one after another on the thread that completed the estimate
+            assertThat(listingThreads.get(i)).isCompleted();
+            assertThat(listingThreads.get(i).join()).isNotEqualTo(testThread)
+                    .startsWith("async-dual-memory-limiter-completion");
+        }
     }
 
     @Test
