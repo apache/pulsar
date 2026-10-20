@@ -34,6 +34,7 @@ import org.apache.pulsar.broker.topiclistlimit.TopicListing;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter.AsyncDualMemoryLimiterPermit;
+import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterImpl;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterUtil;
 import org.apache.pulsar.common.semaphore.AsyncSemaphore;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -117,10 +118,17 @@ public final class TopicListResponseMemoryLimiter {
             Function<CollectedT, CompletableFuture<List<String>>> topicsSupplier) {
         TopicListSizeResultCache sizeCache = brokerService.getTopicListSizeResultCache();
         TopicListSizeResultCache.ResultHolder listSizeHolder = sizeCache.getTopicListSize(listing, properties);
-        ResponsePermits permits =
-                new ResponsePermits(brokerService.getMaxTopicListInFlightLimiter(), response, listSizeHolder);
+        AsyncDualMemoryLimiterImpl limiter = brokerService.getMaxTopicListInFlightLimiter();
+        ResponsePermits permits = new ResponsePermits(limiter, response, listSizeHolder);
         response.register(permits);
-        return listSizeHolder.getSizeAsync()
+        CompletableFuture<Long> sizeFuture = listSizeHolder.getSizeAsync();
+        if (!sizeFuture.isDone()) {
+            // The concurrent requests of a listing without a size estimate wait for the first request's estimate.
+            // When it completes, on a metadata store thread, their continuations would run one after another on
+            // that thread, so continue on the limiter's completion executor instead.
+            sizeFuture = sizeFuture.thenApplyAsync(Function.identity(), limiter.getCompletionExecutor());
+        }
+        return sizeFuture
                 .thenCompose(initialSize -> {
                     if (initialSize > sizeCache.getSizeLimit()) {
                         // the permits can't be granted, skip collecting
