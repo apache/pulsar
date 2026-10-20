@@ -823,8 +823,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         boolean dispatchStarted = false;
         List<Entry> ownedEntries = entries;
         try {
-            ownedEntries = new ArrayList<>(entries);
-            // Keep the ownership list intact: trimming, grouping and filters mutate the working list.
+            // Normal and replay reads hand off a plain ArrayList that the read operation does not reuse.
+            // Retain a mutable copy for other list implementations, including immutable callback inputs.
+            if (ownedEntries.getClass() != ArrayList.class) {
+                ownedEntries = new ArrayList<>(ownedEntries);
+            }
             for (int i = 0; i < ownedEntries.size(); i++) {
                 ownedEntries.set(i, EntryAndMetadata.create(ownedEntries.get(i)));
             }
@@ -835,9 +838,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 replayAndReleaseEntries(ownedEntries);
                 return;
             }
-            List<Entry> entriesForDispatch = new ArrayList<>(ownedEntries);
             dispatchStarted = true;
-            triggerReadingMore = sendMessagesToConsumers(readType, entriesForDispatch,
+            triggerReadingMore = sendMessagesToConsumers(readType, ownedEntries,
                     needAcquireSendInProgress);
         } catch (ConsumerSendException e) {
             if (e.getCause() instanceof SendMessageTaskRejectedException) {
@@ -1059,8 +1061,12 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
      * @return true if you want to trigger a new read.
      * This method is overridden by other classes, please take a look to other implementations
      * if you need to change it.
+     * The input list retains every entry for exception recovery. Implementations that modify its
+     * structure or replace its elements must first create a working copy.
      */
-    protected synchronized boolean trySendMessagesToConsumers(ReadType readType, List<Entry> entries) {
+    protected synchronized boolean trySendMessagesToConsumers(ReadType readType, List<Entry> ownedEntries) {
+        // Trimming and filtering through consumer sublists must preserve the complete ownership list.
+        List<Entry> entries = new ArrayList<>(ownedEntries);
         if (needTrimAckedMessages()) {
             cursor.trimDeletedEntries(entries);
         }

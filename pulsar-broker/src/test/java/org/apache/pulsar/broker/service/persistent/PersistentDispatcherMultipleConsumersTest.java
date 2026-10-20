@@ -26,7 +26,9 @@ import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import io.prometheus.client.CollectorRegistry;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -36,6 +38,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import lombok.CustomLog;
+import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.pulsar.broker.service.Dispatcher;
@@ -60,6 +63,92 @@ import org.testng.annotations.Test;
 @CustomLog
 @Test(groups = "broker-api")
 public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseTest {
+    @DataProvider(name = "readCallbackListModes")
+    public Object[][] readCallbackListModes() {
+        return new Object[][] {{false, false}, {false, true}, {true, false}, {true, true}};
+    }
+
+    @Test(dataProvider = "readCallbackListModes", timeOut = 30_000)
+    public void testReadCallbackAcceptsOtherListImplementations(boolean subscriptionThread, boolean immutable)
+            throws Exception {
+        boolean oldSubscriptionThread = getConfig().isDispatcherDispatchMessagesInSubscriptionThread();
+        getConfig().setDispatcherDispatchMessagesInSubscriptionThread(subscriptionThread);
+        try {
+            PersistentSubscription subscription = createSubscriptionWithBacklog();
+            List<Entry> entries = subscription.getCursor().readEntries(3);
+            List<ByteBuf> buffers = entries.stream().map(Entry::getDataBuffer).toList();
+            List<Entry> callbackEntries = immutable ? List.copyOf(entries) : new LinkedList<>(entries);
+            PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(
+                    (PersistentTopic) subscription.getTopic(), subscription.getCursor(), subscription);
+            try {
+                // With no consumers, normal dispatch releases the entries and schedules replay.
+                // An unsupported list mutation would instead schedule a dispatch-failure retry.
+                dispatcher.readEntriesComplete(callbackEntries, PersistentDispatcherMultipleConsumers.ReadType.Normal);
+                Awaitility.await().until(() -> !dispatcher.isSendInProgress());
+                assertThat(dispatcher.isDispatchRetryPending()).isFalse();
+                assertThat(dispatcher.getNumberOfMessagesInReplay()).isEqualTo(3);
+                assertThat(callbackEntries).containsExactlyElementsOf(entries);
+            } finally {
+                dispatcher.close(false, Optional.empty()).get(5, TimeUnit.SECONDS);
+                admin.topics().unload(subscription.getTopic().getName());
+            }
+            buffers.forEach(buffer -> assertThat(buffer.refCnt()).isZero());
+        } finally {
+            getConfig().setDispatcherDispatchMessagesInSubscriptionThread(oldSubscriptionThread);
+        }
+    }
+
+    @Test(dataProvider = "routingFailureModes", timeOut = 30_000)
+    public void testMetadataFailureDuringWrappingReplaysWholeRead(boolean subscriptionThread) throws Exception {
+        boolean oldSubscriptionThread = getConfig().isDispatcherDispatchMessagesInSubscriptionThread();
+        getConfig().setDispatcherDispatchMessagesInSubscriptionThread(subscriptionThread);
+        Double sample = CollectorRegistry.defaultRegistry.getSampleValue("pulsar_broker_pending_bytes_to_dispatch");
+        double pendingBytes = sample == null ? 0 : sample;
+        try {
+            PersistentSubscription subscription = createSubscriptionWithBacklog();
+            List<Entry> entries = subscription.getCursor().readEntries(3);
+            List<ByteBuf> buffers = entries.stream().map(Entry::getDataBuffer).toList();
+            Entry failingEntry = Mockito.spy(entries.get(1));
+            ownedMocks.add(failingEntry);
+            Mockito.doThrow(new IllegalStateException("metadata lookup failed"))
+                    .when(failingEntry).getMessageMetadata();
+            entries.set(1, failingEntry);
+            PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(
+                    (PersistentTopic) subscription.getTopic(), subscription.getCursor(), subscription);
+            try {
+                // Fail between the wrapped prefix and raw suffix of a real cursor read.
+                dispatcher.readEntriesComplete(entries, PersistentDispatcherMultipleConsumers.ReadType.Normal);
+                Awaitility.await().untilAsserted(() -> {
+                    assertThat(dispatcher.getNumberOfMessagesInReplay()).isEqualTo(3);
+                    assertThat(dispatcher.isSendInProgress()).isFalse();
+                    assertThat(CollectorRegistry.defaultRegistry
+                            .getSampleValue("pulsar_broker_pending_bytes_to_dispatch")).isEqualTo(pendingBytes);
+                });
+                Mockito.verify(failingEntry).release();
+            } finally {
+                dispatcher.close(false, Optional.empty()).get(5, TimeUnit.SECONDS);
+                admin.topics().unload(subscription.getTopic().getName());
+            }
+            buffers.forEach(buffer -> assertThat(buffer.refCnt()).isZero());
+        } finally {
+            getConfig().setDispatcherDispatchMessagesInSubscriptionThread(oldSubscriptionThread);
+        }
+    }
+
+    private PersistentSubscription createSubscriptionWithBacklog() throws Exception {
+        String topicName = newTopicName();
+        admin.topics().createNonPartitionedTopic(topicName);
+        admin.topics().createSubscription(topicName, "sub", MessageId.earliest);
+        try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName)
+                .enableBatching(false).create()) {
+            for (int i = 0; i < 3; i++) {
+                producer.newMessage().key("key").value("m" + i).send();
+            }
+        }
+        PersistentTopic topic = (PersistentTopic) getTopic(topicName, false).join().orElseThrow();
+        return topic.getSubscription("sub");
+    }
+
     @DataProvider(name = "routingFailureModes")
     public Object[][] routingFailureModes() {
         return new Object[][] {{false}, {true}};
