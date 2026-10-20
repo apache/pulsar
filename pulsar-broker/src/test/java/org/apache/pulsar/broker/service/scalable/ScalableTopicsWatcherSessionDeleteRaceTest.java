@@ -25,7 +25,10 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.DefaultChannelPromise;
+import io.netty.util.concurrent.ImmediateEventExecutor;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -93,14 +96,14 @@ public class ScalableTopicsWatcherSessionDeleteRaceTest {
         // Registered after the resources' own listener, and notifications reach the listeners
         // one at a time in registration order: once this one sees a notification, the session
         // has handled it.
-        store.registerListener(handledNotifications::add);
+        store.registerCancellableListener(handledNotifications::add);
 
         cnx = mock(ServerCnx.class);
         ctx = mock(ChannelHandlerContext.class);
         when(cnx.ctx()).thenReturn(ctx);
         when(ctx.writeAndFlush(any())).thenAnswer(invocation -> {
             applyFrame(invocation.getArgument(0));
-            return null;
+            return new DefaultChannelPromise(mock(Channel.class), ImmediateEventExecutor.INSTANCE).setSuccess();
         });
         scheduler = mock(ScheduledExecutorService.class);
         when(scheduler.schedule(any(Runnable.class), anyLong(), any(TimeUnit.class))).thenAnswer(invocation -> {

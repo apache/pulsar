@@ -54,12 +54,15 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.admin.impl.TopicListResponseMemoryLimiter;
 import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.scalable.AutoScaleConfig;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicController;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicService;
 import org.apache.pulsar.broker.service.scalable.SegmentTopicStatsBuilder;
+import org.apache.pulsar.broker.topiclistlimit.TopicListing;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -121,14 +124,19 @@ public class ScalableTopics extends AdminResource {
         validateNamespaceName(tenant, namespace);
         Map<String, String> propertyFilters = parseKeyValuePairs(properties);
         validateNamespaceOperationAsync(namespaceName, NamespaceOperation.GET_TOPICS)
-                .thenCompose(__ -> propertyFilters.isEmpty()
-                        ? resources().listScalableTopicsAsync(namespaceName)
-                        : resources().findScalableTopicsByPropertiesAsync(
-                                namespaceName, propertyFilters))
+                .thenCompose(__ -> TopicListResponseMemoryLimiter.listTopics(pulsar().getBrokerService(),
+                        asyncResponse,
+                        TopicListing.scalableTopics(namespaceName.toString()), propertyFilters,
+                        () -> propertyFilters.isEmpty()
+                                ? resources().listScalableTopicsAsync(namespaceName)
+                                : resources().findScalableTopicsByPropertiesAsync(
+                                        namespaceName, propertyFilters)))
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
-                    log.error().attr("clientAppId", clientAppId()).attr("namespace", namespaceName)
-                            .exception(ex).log("Failed to list scalable topics");
+                    if (!isTopicListLimitRejection(ex)) {
+                        log.error().attr("clientAppId", clientAppId()).attr("namespace", namespaceName)
+                                .exception(ex).log("Failed to list scalable topics");
+                    }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -957,7 +965,10 @@ public class ScalableTopics extends AdminResource {
                                             "Segment topic not found: " + backingTopic);
                                 }
                                 return optTopic.get().asyncGetStats(ScalableTopicService.SEGMENT_STATS_OPTIONS)
-                                        .thenApply(SegmentTopicStatsBuilder::fromTopicStats);
+                                        .thenApply(stats -> SegmentTopicStatsBuilder.fromTopicStats(stats,
+                                                optTopic.get() instanceof PersistentTopic persistentTopic
+                                                        && persistentTopic.getManagedLedger().isTerminated(),
+                                                optTopic.get().getSubscriptions()));
                             });
                 })
                 .thenAccept(asyncResponse::resume)

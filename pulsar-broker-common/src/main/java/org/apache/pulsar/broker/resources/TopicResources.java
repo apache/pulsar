@@ -1,3 +1,4 @@
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -52,6 +53,8 @@ public class TopicResources {
     private final Map<TopicListener, ListenerRegistration> topicListeners;
     private final Map<String, Set<TopicListener>> topicListenersByNamespace;
     private final Object listenerRegistrationLock = new Object();
+    private final Runnable cancelListener;
+    private final Runnable cancelSessionListener;
 
     private record ListenerRegistration(TopicListener listener, String namespace) {
     }
@@ -60,8 +63,16 @@ public class TopicResources {
         this.store = store;
         topicListeners = new ConcurrentHashMap<>();
         topicListenersByNamespace = new ConcurrentHashMap<>();
-        store.registerListener(this::handleNotification);
-        store.registerSessionListener(this::handleSessionEvent);
+        cancelListener = store.registerCancellableListener(this::handleNotification);
+        cancelSessionListener = store.registerCancellableSessionListener(this::handleSessionEvent);
+    }
+
+    /**
+     * Unregister the listeners of the metadata store, so that the topic listeners are no longer notified.
+     */
+    public void close() {
+        cancelListener.run();
+        cancelSessionListener.run();
     }
 
     /***

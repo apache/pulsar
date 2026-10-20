@@ -135,10 +135,10 @@ public class PersistentTopics extends PersistentTopicsBase {
             @Parameter(description = "properties for customized topic listing plugin, format: k1=v1,k2=v2")
             @QueryParam("properties") String propertiesStr) {
         validateNamespaceName(tenant, namespace);
-        internalGetListAsync(Optional.ofNullable(bundle), parseProperties(propertiesStr))
+        internalGetListAsync(asyncResponse, Optional.ofNullable(bundle), parseProperties(propertiesStr))
             .thenAccept(topicList -> asyncResponse.resume(filterSystemTopic(topicList, includeSystemTopic)))
             .exceptionally(ex -> {
-                if (isNot307And404Exception(ex)) {
+                if (isNot307And404Exception(ex) && !isTopicListLimitRejection(ex)) {
                     log.error()
                             .attr("namespace", namespaceName)
                             .exception(ex)
@@ -172,11 +172,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             @Parameter(description = "Include system topic")
             @QueryParam("includeSystemTopic") boolean includeSystemTopic) {
         validateNamespaceName(tenant, namespace);
-        internalGetPartitionedTopicListAsync()
+        internalGetPartitionedTopicListAsync(asyncResponse)
                 .thenAccept(partitionedTopicList -> asyncResponse.resume(
                         filterSystemTopic(partitionedTopicList, includeSystemTopic)))
                 .exceptionally(ex -> {
-                    if (isNot307And404Exception(ex)) {
+                    if (isNot307And404Exception(ex) && !isTopicListLimitRejection(ex)) {
                         log.error()
                                 .attr("namespace", namespaceName)
                                 .exception(ex)
