@@ -107,7 +107,7 @@ Pulsar relies heavily on `CompletableFuture`; prefer it over `ListenableFuture` 
   so neither is right for every timer. When using the delayer: check a stop flag when the task runs,
   keep the delay or the captured state small, and when the retention matters (a closed object with a
   large state behind a long delay), capture a reference that the stop can clear instead of the object
-  itself. See the tail-read retry in `AbstractTableViewImpl` for an example.
+  itself.
 
 ## Testing conventions
 
