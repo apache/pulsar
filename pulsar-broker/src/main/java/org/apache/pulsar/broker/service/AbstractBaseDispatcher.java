@@ -425,7 +425,13 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
         // update messagesToRead according to available dispatch rate limit.
         int availablePermitsOnMsg = (int) rateLimiter.getAvailableDispatchRateLimitOnMsg();
         if (availablePermitsOnMsg >= 0) {
-            readLimits.setLeft(Math.min(readLimits.getLeft(), availablePermitsOnMsg));
+            int maxEntriesByRateLimit = availablePermitsOnMsg;
+            if (!dispatchThrottlingOnBatchMessageEnabled) {
+                maxEntriesByRateLimit = availablePermitsOnMsg > 0
+                        ? Math.max(1, availablePermitsOnMsg / Math.max(1, getAvgMessagesPerEntry()))
+                        : 0;
+            }
+            readLimits.setLeft(Math.min(readLimits.getLeft(), maxEntriesByRateLimit));
         }
         long availablePermitsOnByte = rateLimiter.getAvailableDispatchRateLimitOnByte();
         if (availablePermitsOnByte >= 0) {
@@ -461,6 +467,18 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
             return false;
         }
         return true;
+    }
+
+    protected int getAvgMessagesPerEntry() {
+        List<Consumer> consumers = getConsumers();
+        if (consumers != null && !consumers.isEmpty()) {
+            for (Consumer consumer : consumers) {
+                if (consumer != null && consumer.getAvgMessagesPerEntry() > 0) {
+                    return consumer.getAvgMessagesPerEntry();
+                }
+            }
+        }
+        return 1;
     }
 
     protected byte[] peekStickyKey(Entry entry) {

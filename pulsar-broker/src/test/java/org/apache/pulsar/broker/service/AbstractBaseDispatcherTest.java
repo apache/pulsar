@@ -75,6 +75,48 @@ public class AbstractBaseDispatcherTest {
     }
 
     @Test
+    public void testApplyRateLimitsToMessagesAndBytesToReadWithBatchedMessages() {
+        DispatchRateLimiter rateLimiter = mock(DispatchRateLimiter.class);
+        when(rateLimiter.getAvailableDispatchRateLimitOnMsg()).thenReturn(50L);
+        when(rateLimiter.getAvailableDispatchRateLimitOnByte()).thenReturn(-1L);
+
+        PersistentTopic topicMock = mock(PersistentTopic.class);
+        when(topicMock.isSystemTopic()).thenReturn(true);
+        when(this.subscriptionMock.getTopic()).thenReturn(topicMock);
+        when(topicMock.getBrokerDispatchRateLimiter()).thenReturn(Optional.empty());
+        when(topicMock.getDispatchRateLimiter()).thenReturn(Optional.empty());
+
+        AbstractBaseDispatcherTestHelper dispatcher =
+                new AbstractBaseDispatcherTestHelper(this.subscriptionMock, this.svcConfig, rateLimiter);
+
+        // 1. Without batching (no consumers / avgMessagesPerEntry = 1): 50 permits allow 50 entries
+        org.apache.commons.lang3.tuple.Pair<Integer, Long> limitsNoBatching =
+                dispatcher.applyRateLimitsToMessagesAndBytesToRead(100, 1000L);
+        assertEquals(limitsNoBatching.getLeft().intValue(), 50);
+
+        // 2. With batching (consumer reports avgMessagesPerEntry = 10): 50 message permits must scale to 50 / 10 = 5 entries
+        Consumer consumer = mock(Consumer.class);
+        when(consumer.getAvgMessagesPerEntry()).thenReturn(10);
+        dispatcher.setConsumers(List.of(consumer));
+
+        org.apache.commons.lang3.tuple.Pair<Integer, Long> limitsWithBatching =
+                dispatcher.applyRateLimitsToMessagesAndBytesToRead(100, 1000L);
+        assertEquals(limitsWithBatching.getLeft().intValue(), 5);
+
+        // 3. Sub-batch budget (positive permits < avgMessagesPerEntry): allows at least 1 entry for forward progress
+        when(rateLimiter.getAvailableDispatchRateLimitOnMsg()).thenReturn(5L);
+        org.apache.commons.lang3.tuple.Pair<Integer, Long> limitsSubBatch =
+                dispatcher.applyRateLimitsToMessagesAndBytesToRead(100, 1000L);
+        assertEquals(limitsSubBatch.getLeft().intValue(), 1);
+
+        // 4. Exhausted permits (0 permits): defers reading (-1)
+        when(rateLimiter.getAvailableDispatchRateLimitOnMsg()).thenReturn(0L);
+        org.apache.commons.lang3.tuple.Pair<Integer, Long> limitsExhausted =
+                dispatcher.applyRateLimitsToMessagesAndBytesToRead(100, 1000L);
+        assertEquals(limitsExhausted.getLeft().intValue(), -1);
+    }
+
+    @Test
     public void testFilterEntriesForConsumerOfNullElement() {
         List<Entry> entries = new ArrayList<>();
         entries.add(null);
@@ -367,9 +409,15 @@ public class AbstractBaseDispatcherTest {
             return false;
         }
 
+        private List<Consumer> consumers;
+
+        public void setConsumers(List<Consumer> consumers) {
+            this.consumers = consumers;
+        }
+
         @Override
         public List<Consumer> getConsumers() {
-            return null;
+            return consumers;
         }
 
         @Override
