@@ -691,9 +691,18 @@ public class PersistentTopicsBase extends AdminResource {
                         // However, when checkAllowAutoCreation is true, the client will create the topic if
                         // it doesn't exist. In this case, `partitions == 0` means the automatically created topic
                         // is a non-partitioned topic so we shouldn't check if the topic exists.
-                        return pulsar().getBrokerService().isAllowAutoTopicCreationAsync(topicName)
-                                .thenCompose(brokerAllowAutoTopicCreation -> {
-                            if (checkAllowAutoCreation && brokerAllowAutoTopicCreation) {
+                        if (!checkAllowAutoCreation) {
+                            return internalCheckNonPartitionedTopicExists(topicName).thenApply(__ -> metadata);
+                        }
+                        // Only ask whether this client may create the topic when it does not exist. The existence of
+                        // a non-persistent topic is not checked, as that may need a request to its owner broker.
+                        return (topicName.isPersistent()
+                                ? pulsar().getNamespaceService().checkNonPartitionedTopicExists(topicName)
+                                : CompletableFuture.completedFuture(false))
+                                .thenCompose(exists -> exists ? CompletableFuture.completedFuture(true)
+                                        : isAllowAutoTopicCreationAsync(topicName))
+                                .thenCompose(allowAutoTopicCreation -> {
+                            if (allowAutoTopicCreation) {
                                 // Whether it exists or not, auto create a non-partitioned topic by client.
                                 return CompletableFuture.completedFuture(metadata);
                             } else {
@@ -2612,9 +2621,8 @@ public class PersistentTopicsBase extends AdminResource {
 
         validateTopicOwnershipAsync(topicName, authoritative)
                 .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.SUBSCRIBE, subscriptionName))
-                .thenCompose(__ -> pulsar().getBrokerService().isAllowAutoTopicCreationAsync(topicName))
-                .thenCompose(isAllowAutoTopicCreation -> pulsar().getBrokerService()
-                        .getTopic(topicName.toString(), isAllowAutoTopicCreation))
+                .thenCompose(__ -> pulsar().getBrokerService()
+                        .getTopicCreatingIfAllowed(topicName, newTopicCheck(topicName)))
                 .thenApply(optTopic -> {
                     if (optTopic.isPresent()) {
                         return optTopic.get();
@@ -4789,8 +4797,10 @@ public class PersistentTopicsBase extends AdminResource {
         authorizationFuture.thenCompose(__ ->
                         checkLocalOrGetPeerReplicationCluster(pulsar, topicName.getNamespaceObject(),
                                 SystemTopicNames.isSystemTopic(topicName)))
-                .thenCompose(res ->
-                        pulsar.getBrokerService().fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName))
+                .thenCompose(res -> pulsar.getBrokerService().fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(
+                        topicName, () -> pulsar.getBrokerService().getAuthorizationService()
+                                .allowTopicAutoCreationAsync(topicName, originalPrincipal, clientAppId,
+                                        originalAuthenticationData, authenticationData)))
                 .thenAccept(metadata -> {
                         log.debug()
                                 .attr("topic", topicName)
@@ -4810,6 +4820,17 @@ public class PersistentTopicsBase extends AdminResource {
      */
     public static CompletableFuture<PartitionedTopicMetadata> unsafeGetPartitionedTopicMetadataAsync(
         PulsarService pulsar, TopicName topicName) {
+        return unsafeGetPartitionedTopicMetadataAsync(pulsar, topicName,
+                () -> CompletableFuture.completedFuture(true));
+    }
+
+    /**
+     * Like {@link #unsafeGetPartitionedTopicMetadataAsync(PulsarService, TopicName)}, but auto-creating a topic from
+     * nothing is also subject to {@code newTopicCheck}, see
+     * {@code BrokerService#fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(TopicName, Supplier)}.
+     */
+    public static CompletableFuture<PartitionedTopicMetadata> unsafeGetPartitionedTopicMetadataAsync(
+        PulsarService pulsar, TopicName topicName, Supplier<CompletableFuture<Boolean>> newTopicCheck) {
         CompletableFuture<PartitionedTopicMetadata> metadataFuture = new CompletableFuture<>();
 
         // validates global-namespace contains local/peer cluster: if peer/local cluster present then lookup can
@@ -4821,7 +4842,7 @@ public class PersistentTopicsBase extends AdminResource {
         // If we don't do this, it can prevent namespace deletion due to inaccessible readers.
         checkLocalOrGetPeerReplicationCluster(pulsar, topicName.getNamespaceObject(), isSystemTopic(topicName))
             .thenCompose(res -> pulsar.getBrokerService()
-                .fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName))
+                .fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName, newTopicCheck))
             .thenAccept(metadata -> {
                     LOG.debug()
                             .attr("topic", topicName)
