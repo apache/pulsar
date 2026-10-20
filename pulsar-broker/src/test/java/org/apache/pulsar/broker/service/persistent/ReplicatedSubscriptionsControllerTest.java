@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -44,8 +45,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
+import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.core.LogEvent;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.qos.MonotonicClock;
@@ -54,17 +60,121 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Replicator;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.stats.OpenTelemetryReplicatedSubscriptionStats;
+import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.MarkerType;
+import org.apache.pulsar.common.api.proto.MarkersMessageIdData;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
+import org.apache.pulsar.utils.TestLogAppender;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-replication")
 public class ReplicatedSubscriptionsControllerTest {
+
+    @Test
+    public void testReplicatedSubscriptionUpdateAckFailureIsLogged() throws Exception {
+        PersistentTopic topic = mockTopicForUpdates();
+        PersistentSubscription subscription = mockSubscription(PositionFactory.create(1, 0),
+                new ManagedLedgerException("Invalid mark deleted position"));
+        when(topic.getSubscription("sub")).thenReturn(subscription);
+
+        @Cleanup
+        TestLogAppender logAppender = TestLogAppender.create(ReplicatedSubscriptionsController.class);
+        receiveUpdate(topic, 1, 2);
+
+        assertThat(warnings(logAppender, "Failed to update replicated subscription")).hasSize(1);
+    }
+
+    @Test
+    public void testReplicatedSubscriptionUpdateBehindMarkDeleteIsNotLoggedAsWarning() throws Exception {
+        // Local consumers already acknowledged past the replicated position, so the cumulative ack is rejected.
+        PersistentTopic topic = mockTopicForUpdates();
+        PersistentSubscription subscription = mockSubscription(PositionFactory.create(1, 5),
+                new ManagedLedgerException("Mark deleting an already mark-deleted position"));
+        when(topic.getSubscription("sub")).thenReturn(subscription);
+
+        @Cleanup
+        TestLogAppender logAppender = TestLogAppender.create(ReplicatedSubscriptionsController.class);
+        receiveUpdate(topic, 1, 2);
+
+        verify(subscription).acknowledgeMessageAsync(any(), eq(AckType.Cumulative), any());
+        assertThat(warnings(logAppender, "Failed to update replicated subscription")).isEmpty();
+    }
+
+    @Test
+    public void testReplicatedSubscriptionUpdateCreatedSubscriptionAckFailureIsLogged() throws Exception {
+        PersistentTopic topic = mockTopicForUpdates();
+        PersistentSubscription createdSubscription = mockSubscription(PositionFactory.create(1, -1),
+                new ManagedLedgerException("Invalid mark deleted position"));
+        when(topic.getSubscription("sub")).thenReturn(null);
+        when(topic.createSubscription(eq("sub"), eq(InitialPosition.Earliest), eq(true), any()))
+                .thenReturn(CompletableFuture.completedFuture(createdSubscription));
+
+        @Cleanup
+        TestLogAppender logAppender = TestLogAppender.create(ReplicatedSubscriptionsController.class);
+        receiveUpdate(topic, 1, 2);
+
+        verify(topic).createSubscription(eq("sub"), eq(InitialPosition.Earliest), eq(true), any());
+        assertThat(warnings(logAppender, "Failed to update replicated subscription")).hasSize(1);
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private static PersistentTopic mockTopicForUpdates() {
+        PulsarService pulsar = mock(PulsarService.class);
+        ScheduledExecutorService executor = mock(ScheduledExecutorService.class);
+        ServiceConfiguration config = new ServiceConfiguration();
+        config.setEnableReplicatedSubscriptions(true);
+        BrokerService brokerService = mock(BrokerService.class);
+        PersistentTopic topic = mock(PersistentTopic.class);
+
+        when(brokerService.pulsar()).thenReturn(pulsar);
+        when(brokerService.getPulsar()).thenReturn(pulsar);
+        when(pulsar.getExecutor()).thenReturn(executor);
+        when(pulsar.getConfiguration()).thenReturn(config);
+        when(pulsar.getOpenTelemetryReplicatedSubscriptionStats())
+                .thenReturn(mock(OpenTelemetryReplicatedSubscriptionStats.class));
+        when(executor.scheduleAtFixedRate(any(Runnable.class), anyLong(), anyLong(), any(TimeUnit.class)))
+                .thenReturn(mock(ScheduledFuture.class));
+        when(topic.getName()).thenReturn("persistent://public/default/t1");
+        when(topic.getBrokerService()).thenReturn(brokerService);
+        return topic;
+    }
+
+    private static PersistentSubscription mockSubscription(Position markDeletePosition, Exception ackFailure) {
+        PersistentSubscription subscription = mock(PersistentSubscription.class);
+        ManagedCursor cursor = mock(ManagedCursor.class);
+        when(cursor.getMarkDeletedPosition()).thenReturn(markDeletePosition);
+        when(subscription.getCursor()).thenReturn(cursor);
+        when(subscription.acknowledgeMessageAsync(any(), eq(AckType.Cumulative), any()))
+                .thenReturn(CompletableFuture.failedFuture(ackFailure));
+        return subscription;
+    }
+
+    private static void receiveUpdate(PersistentTopic topic, long ledgerId, long entryId) {
+        ReplicatedSubscriptionsController controller = new ReplicatedSubscriptionsController(topic, "local");
+        ByteBuf marker = Markers.newReplicatedSubscriptionsUpdate("sub",
+                Map.of("local", new MarkersMessageIdData().setLedgerId(ledgerId).setEntryId(entryId)));
+        try {
+            Commands.skipMessageMetadata(marker);
+            controller.receivedReplicatedSubscriptionMarker(PositionFactory.create(3, 4),
+                    MarkerType.REPLICATED_SUBSCRIPTION_UPDATE_VALUE, marker);
+        } finally {
+            marker.release();
+            controller.close();
+        }
+    }
+
+    private static List<LogEvent> warnings(TestLogAppender logAppender, String message) {
+        return logAppender.getEvents().stream()
+                .filter(event -> event.getLevel() == Level.WARN
+                        && event.getMessage().getFormattedMessage().contains(message))
+                .toList();
+    }
 
     @Test
     @SuppressWarnings("unchecked")

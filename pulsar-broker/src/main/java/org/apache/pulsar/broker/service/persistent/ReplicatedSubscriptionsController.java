@@ -53,6 +53,7 @@ import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshotRequest
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshotResponse;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsUpdate;
 import org.apache.pulsar.common.protocol.Markers;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 
 /**
@@ -219,7 +220,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
 
         PersistentSubscription sub = topic.getSubscription(update.getSubscriptionName());
         if (sub != null) {
-            sub.acknowledgeMessageAsync(Collections.singletonList(pos), AckType.Cumulative, Collections.emptyMap());
+            acknowledgeSubscriptionUpdate(update.getSubscriptionName(), sub, pos);
         } else {
             // Subscription doesn't exist. We need to force the creation of the subscription in this cluster.
             log.info()
@@ -229,11 +230,43 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
                     .log("Creating subscription at: after receiving update from replicated subscription");
             topic.createSubscription(update.getSubscriptionName(), InitialPosition.Earliest,
                             true /* replicateSubscriptionState */, Collections.emptyMap())
-                    .thenAccept(subscriptionCreated -> {
-                        subscriptionCreated.acknowledgeMessageAsync(Collections.singletonList(pos),
-                                AckType.Cumulative, Collections.emptyMap());
+                    .thenAccept(subscriptionCreated -> acknowledgeSubscriptionUpdate(update.getSubscriptionName(),
+                            (PersistentSubscription) subscriptionCreated, pos))
+                    .exceptionally(e -> {
+                        log.warn()
+                                .attr("subscriptionName", update.getSubscriptionName())
+                                .attr("pos", pos)
+                                .exceptionMessage(FutureUtil.unwrapCompletionException(e))
+                                .log("Failed to create replicated subscription");
+                        return null;
                     });
         }
+    }
+
+    private CompletableFuture<Void> acknowledgeSubscriptionUpdate(String subscriptionName,
+                                                                  PersistentSubscription sub, Position pos) {
+        return sub.acknowledgeMessageAsync(Collections.singletonList(pos), AckType.Cumulative, Collections.emptyMap())
+                .whenComplete((__, e) -> {
+                    if (e == null) {
+                        return;
+                    }
+                    Position markDeletePosition = sub.getCursor().getMarkDeletedPosition();
+                    if (pos.compareTo(markDeletePosition) <= 0) {
+                        // Local consumers already acknowledged past the replicated position: nothing to update
+                        log.debug()
+                                .attr("subscriptionName", subscriptionName)
+                                .attr("pos", pos)
+                                .attr("markDeletePosition", markDeletePosition)
+                                .log("Ignoring replicated subscription update behind the mark-delete position");
+                    } else {
+                        log.warn()
+                                .attr("subscriptionName", subscriptionName)
+                                .attr("pos", pos)
+                                .attr("markDeletePosition", markDeletePosition)
+                                .exceptionMessage(FutureUtil.unwrapCompletionException(e))
+                                .log("Failed to update replicated subscription");
+                    }
+                });
     }
 
     private void startNewSnapshot() {

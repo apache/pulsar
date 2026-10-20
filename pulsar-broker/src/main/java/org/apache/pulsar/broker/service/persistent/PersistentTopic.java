@@ -79,6 +79,7 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerAlreadyClosedException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedByAnotherWriterException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerTerminatedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetadataNotFoundException;
@@ -217,6 +218,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private static final Logger LOG = Logger.get(PersistentTopic.class);
     protected final Logger log;
+
+    // Whether a write showed that another broker took the topic over, which is reported once
+    private final AtomicBoolean ownershipTakeoverReported = new AtomicBoolean();
 
     // Managed ledger associated with the topic
     protected final ManagedLedger ledger;
@@ -818,6 +822,19 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
 
         if (exception instanceof ManagedLedgerFencedException) {
+            if (exception instanceof ManagedLedgerFencedByAnotherWriterException
+                    && brokerService.getTopicReference(topic).orElse(null) == this
+                    && ownershipTakeoverReported.compareAndSet(false, true)) {
+                // Only the loaded instance of the topic reports: an instance that an unload already replaced, whose
+                // write failure is reported late, belongs to an older ownership generation of the bundle.
+                // Another broker fenced the ledger after this broker lost its metadata session: it took the topic's
+                // bundle over, so stop serving the bundle instead of answering lookups for it with this broker
+                try {
+                    brokerService.getPulsar().getNamespaceService().handleOwnershipTakenOver(TopicName.get(topic));
+                } catch (RuntimeException e) {
+                    log.warn().exception(e).log("Failed to stop serving the bundle that another broker took over");
+                }
+            }
             // If the managed ledger has been fenced, we cannot continue using it. We need to close and reopen
             close();
             callback.completed(new TopicFencedException(exception.getMessage()), -1, -1);
@@ -4653,6 +4670,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 MessageId messageId = new MessageIdImpl(lastPosition.getLedgerId(), lastPosition.getEntryId(), -1);
 
                 log.info().attr("messageId", messageId).log("Topic terminated at");
+                brokerService.onTopicTerminated(PersistentTopic.this);
                 future.complete(messageId);
             }
 

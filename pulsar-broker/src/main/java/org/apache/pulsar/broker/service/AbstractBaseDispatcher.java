@@ -52,6 +52,7 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
+import org.apache.pulsar.common.util.Murmur3_32Hash;
 import org.apache.pulsar.compaction.Compactor;
 import org.jspecify.annotations.Nullable;
 
@@ -477,6 +478,26 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
             return Commands.NONE_KEY;
         }
         return Commands.resolveStickyKey(metadata);
+    }
+
+    /**
+     * {@link Murmur3_32Hash#makeHash(byte[])} of {@link #peekStickyKey(Entry)}, which hashes the key where it is in the
+     * entry's metadata, as {@link Commands#resolveStickyKeyHash(MessageMetadata)} does.
+     */
+    protected int peekStickyKeyHash(Entry entry) {
+        MessageMetadata metadata;
+        if (entry instanceof EntryAndMetadata entryAndMetadata) {
+            metadata = entryAndMetadata.getMetadata();
+        } else {
+            metadata = entry.getMessageMetadata();
+            if (metadata == null) {
+                metadata = Commands.peekMessageMetadata(entry.getDataBuffer(), subscription.toString(), -1);
+            }
+        }
+        if (metadata == null) {
+            return Murmur3_32Hash.getInstance().makeHash(Commands.NONE_KEY);
+        }
+        return Commands.resolveStickyKeyHash(metadata);
     }
 
     protected String getSubscriptionName() {
