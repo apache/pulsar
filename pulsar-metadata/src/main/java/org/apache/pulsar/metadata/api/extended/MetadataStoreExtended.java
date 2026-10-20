@@ -33,6 +33,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.Option;
 import org.apache.pulsar.metadata.api.Stat;
+import org.apache.pulsar.metadata.impl.ListenerRegistrationWarnings;
 import org.apache.pulsar.metadata.impl.MetadataStoreFactoryImpl;
 
 /**
@@ -126,16 +127,17 @@ public interface MetadataStoreExtended extends MetadataStore {
      *
      * <p>Implementations must override this method. The default implementation is only there for the
      * implementations that were written for the deprecated {@link #registerSessionListener(Consumer)}: it registers
-     * the listener with that method and returns a callback that can't unregister it.
+     * the listener with that method and returns a callback that can't unregister it. Since the default
+     * implementations of the two methods call each other, an implementation that overrides neither fails with a
+     * {@link StackOverflowError} when a session listener is registered.
      *
      * @param listener
      *            the session listener
      * @return a callback that unregisters the listener
      */
     default Runnable registerCancellableSessionListener(Consumer<SessionEvent> listener) {
-        LOG.warn().attr("store", getClass().getName())
-                .log("The MetadataStoreExtended implementation doesn't implement registerCancellableSessionListener, "
-                        + "the session listener can't be unregistered");
+        ListenerRegistrationWarnings.cancellableMethodNotImplemented(getClass(),
+                "MetadataStoreExtended.registerCancellableSessionListener");
         registerSessionListener(listener);
         return () -> { };
     }
@@ -151,9 +153,8 @@ public interface MetadataStoreExtended extends MetadataStore {
      */
     @Deprecated
     default void registerSessionListener(Consumer<SessionEvent> listener) {
-        LOG.warn().attr("store", getClass().getName())
-                .log("MetadataStoreExtended.registerSessionListener is deprecated and the session listener can't be "
-                        + "unregistered, use registerCancellableSessionListener instead");
+        ListenerRegistrationWarnings.deprecatedMethodCalled("MetadataStoreExtended.registerSessionListener",
+                "registerCancellableSessionListener");
         registerCancellableSessionListener(listener);
     }
 

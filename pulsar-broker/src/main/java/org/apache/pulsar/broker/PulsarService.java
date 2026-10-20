@@ -693,11 +693,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             offloadersCache.close();
 
-            metadataStoreListenerCleanups.forEach(Runnable::run);
-            metadataStoreListenerCleanups.clear();
-            if (pulsarResources != null) {
-                pulsarResources.close();
-            }
+            unregisterMetadataStoreListeners();
 
             if (coordinationService != null) {
                 try {
@@ -808,9 +804,19 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             } else {
                 pse = new PulsarServerException(e);
             }
+            // A failed shutdown step must not leave this service registered with the metadata stores
+            unregisterMetadataStoreListeners();
             return FutureUtil.failedFuture(pse);
         } finally {
             mutex.unlock();
+        }
+    }
+
+    private void unregisterMetadataStoreListeners() {
+        metadataStoreListenerCleanups.forEach(Runnable::run);
+        metadataStoreListenerCleanups.clear();
+        if (pulsarResources != null) {
+            pulsarResources.close();
         }
     }
 

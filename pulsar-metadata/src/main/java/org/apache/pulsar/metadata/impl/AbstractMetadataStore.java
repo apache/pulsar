@@ -427,8 +427,8 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     }
 
     /**
-     * Add a listener and return a callback that removes it. The callback removes the listener once even if it's run
-     * more than once, so that it doesn't remove another registration of the same listener instance.
+     * Add a listener and return a callback that removes one registration of it. The callback removes it once even if
+     * it's run more than once, so that it doesn't also remove another registration of the same listener instance.
      */
     private static <T> Runnable addCancellable(CopyOnWriteArrayList<T> listenerList, T listener) {
         listenerList.add(listener);

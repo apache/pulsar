@@ -65,8 +65,9 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
     public static final String METADATA_STORE_INSTANCE = "METADATA_STORE_INSTANCE";
     /**
      * The configuration property of a {@code Consumer<Runnable>} that receives the callback that unregisters the
-     * listener of the metadata store passed with {@link #METADATA_STORE_INSTANCE}. The owner of the BookKeeper client
-     * runs it when the client is closed, since the BookKeeper client doesn't close its DNS resolver.
+     * listener of the metadata store passed with {@link #METADATA_STORE_INSTANCE}. The factory that created the
+     * BookKeeper client runs it when the factory is closed, since the BookKeeper client doesn't close its DNS
+     * resolver.
      */
     public static final String METADATA_STORE_LISTENER_CLEANUP = "METADATA_STORE_LISTENER_CLEANUP";
 

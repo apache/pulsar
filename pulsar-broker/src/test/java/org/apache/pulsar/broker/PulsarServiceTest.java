@@ -42,6 +42,9 @@ import lombok.CustomLog;
 import org.apache.logging.log4j.Level;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateMetadataStoreTableViewImpl;
+import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.OwnershipCache;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -384,8 +387,13 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
-    public void testCloseUnregistersMetadataStoreListeners() throws Exception {
+    @DataProvider
+    public Object[][] loadManagers() {
+        return new Object[][] {{ModularLoadManagerImpl.class.getName()}, {ExtensibleLoadManagerImpl.class.getName()}};
+    }
+
+    @Test(dataProvider = "loadManagers")
+    public void testCloseUnregistersMetadataStoreListeners(String loadManagerClassName) throws Exception {
         // Like the tests that restart brokers on a shared metadata store: the brokers that are closed must not
         // stay registered with the store
         @Cleanup
@@ -397,6 +405,12 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
             PulsarTestContext context = PulsarTestContext.builder()
                     .localMetadataStore(store)
                     .configurationMetadataStore(store)
+                    .configCustomizer(config -> {
+                        config.setLoadManagerClassName(loadManagerClassName);
+                        // The tableview that is kept in the metadata store, which the store must not keep reachable
+                        config.setLoadManagerServiceUnitStateTableViewClassName(
+                                ServiceUnitStateMetadataStoreTableViewImpl.class.getName());
+                    })
                     .build();
             assertThat(store.getListenerCount()).as("listeners of a running broker").isGreaterThan(listenerCount);
             context.close();

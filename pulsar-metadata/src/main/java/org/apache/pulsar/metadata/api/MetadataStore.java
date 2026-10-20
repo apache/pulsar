@@ -30,6 +30,7 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
+import org.apache.pulsar.metadata.impl.ListenerRegistrationWarnings;
 
 /**
  * Metadata store client interface.
@@ -251,9 +252,8 @@ public interface MetadataStore extends AutoCloseable {
      */
     @Deprecated
     default void registerListener(Consumer<Notification> listener) {
-        LOG.warn().attr("store", getClass().getName())
-                .log("MetadataStore.registerListener is deprecated and the listener can't be unregistered, "
-                        + "use registerCancellableListener instead");
+        ListenerRegistrationWarnings.deprecatedMethodCalled("MetadataStore.registerListener",
+                "registerCancellableListener");
         registerCancellableListener(listener);
     }
 
@@ -266,16 +266,17 @@ public interface MetadataStore extends AutoCloseable {
      *
      * <p>Implementations must override this method. The default implementation is only there for the
      * implementations that were written for the deprecated {@link #registerListener(Consumer)}: it registers the
-     * listener with that method and returns a callback that can't unregister it.
+     * listener with that method and returns a callback that can't unregister it. Since the default implementations
+     * of the two methods call each other, an implementation that overrides neither fails with a
+     * {@link StackOverflowError} when a listener is registered.
      *
      * @param listener
      *            a consumer of notifications
      * @return a callback that unregisters the listener
      */
     default Runnable registerCancellableListener(Consumer<Notification> listener) {
-        LOG.warn().attr("store", getClass().getName())
-                .log("The MetadataStore implementation doesn't implement registerCancellableListener, "
-                        + "the listener can't be unregistered");
+        ListenerRegistrationWarnings.cancellableMethodNotImplemented(getClass(),
+                "MetadataStore.registerCancellableListener");
         registerListener(listener);
         return () -> { };
     }

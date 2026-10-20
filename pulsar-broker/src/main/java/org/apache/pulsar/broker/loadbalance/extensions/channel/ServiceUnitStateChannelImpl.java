@@ -358,7 +358,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             if (debug) {
                 log.info("Successfully started the channel tableview.");
             }
-            cancelSessionListener();
+            unregisterSessionListener();
             cancelSessionListener =
                     pulsar.getLocalMetadataStore().registerCancellableSessionListener(this::handleMetadataSessionEvent);
             if (debug) {
@@ -402,7 +402,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         return pulsar.getAdminClient();
     }
 
-    private void cancelSessionListener() {
+    private void unregisterSessionListener() {
         if (cancelSessionListener != null) {
             cancelSessionListener.run();
             cancelSessionListener = null;
@@ -414,7 +414,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         channelState = Closed;
         try {
             leaderElectionService = null;
-            cancelSessionListener();
+            unregisterSessionListener();
 
             if (tableview != null) {
                 tableview.close();
