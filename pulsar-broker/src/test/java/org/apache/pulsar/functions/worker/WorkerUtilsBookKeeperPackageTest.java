@@ -49,17 +49,15 @@ public class WorkerUtilsBookKeeperPackageTest {
     private LocalBookkeeperEnsemble bkEnsemble;
     private Namespace dlogNamespace;
 
-    private static final int NUM_BOOKIES = 3;
-
     @BeforeClass
     void setup() throws Exception {
-        bkEnsemble = new LocalBookkeeperEnsemble(NUM_BOOKIES, 0);
+        bkEnsemble = new LocalBookkeeperEnsemble(1, 0);
         bkEnsemble.start();
         InternalConfigurationData internalConf = new InternalConfigurationData(
                 "127.0.0.1:" + bkEnsemble.getZookeeperPort(), null, "/ledgers", null, null);
         URI dlogUri = WorkerUtils.initializeDlogNamespace(internalConf);
         WorkerConfig workerConfig = new WorkerConfig();
-        workerConfig.setNumFunctionPackageReplicas(NUM_BOOKIES);
+        workerConfig.setNumFunctionPackageReplicas(1);
         dlogNamespace = NamespaceBuilder.newBuilder()
                 .conf(WorkerUtils.getDlogConf(workerConfig))
                 .clientId("function-worker-test")
