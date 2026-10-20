@@ -3938,20 +3938,31 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         }
         positions.add(PositionFactory.create(2, 0));
         // small entries: the positions in a ledger at most 8 entries apart
-        assertEquals(runEntryIds(ManagedCursorImpl.replayRuns(positions, 100, Long.MAX_VALUE)),
+        assertEquals(runEntryIds(ManagedCursorImpl.replayRuns(positions, 100, ledgerId -> 100, Long.MAX_VALUE)),
                 List.of(List.of(0L, 2L, 4L, 12L), List.of(30L), List.of(600L, 601L), List.of(0L)));
         // 100 KiB entries: one entry in between fits the 192 KiB gap, and 10 entries the 1 MiB span
-        assertEquals(runEntryIds(ManagedCursorImpl.replayRuns(positions, 100 * 1024, Long.MAX_VALUE)),
+        assertEquals(runEntryIds(ManagedCursorImpl.replayRuns(positions, 100 * 1024, ledgerId -> 100 * 1024,
+                        Long.MAX_VALUE)),
                 List.of(List.of(0L, 2L, 4L), List.of(12L), List.of(30L), List.of(600L, 601L), List.of(0L)));
         assertEquals(runEntryIds(ManagedCursorImpl.replayRuns(List.of(PositionFactory.create(1, 0),
-                PositionFactory.create(1, 3)), 100 * 1024, Long.MAX_VALUE)), List.of(List.of(0L), List.of(3L)));
+                        PositionFactory.create(1, 3)), 100 * 1024, ledgerId -> 100 * 1024, Long.MAX_VALUE)),
+                List.of(List.of(0L), List.of(3L)));
         // entries larger than the gap: only adjacent positions are read together
-        assertEquals(runEntryIds(ManagedCursorImpl.replayRuns(positions, 200 * 1024, Long.MAX_VALUE)),
+        assertEquals(runEntryIds(ManagedCursorImpl.replayRuns(positions, 200 * 1024, ledgerId -> 200 * 1024,
+                        Long.MAX_VALUE)),
                 List.of(List.of(0L), List.of(2L), List.of(4L), List.of(12L), List.of(30L), List.of(600L, 601L),
                         List.of(0L)));
-        // a replay's runs take at most the given entries in between in all; adjacent positions still make a run
-        assertEquals(runEntryIds(ManagedCursorImpl.replayRuns(positions, 100, 8)),
+        // a replay's runs take at most the given bytes of entries in between in all, by the estimated entry size of
+        // their ledger; adjacent positions still make a run
+        assertEquals(runEntryIds(ManagedCursorImpl.replayRuns(positions, 100, ledgerId -> 100, 800)),
                 List.of(List.of(0L, 2L, 4L), List.of(12L), List.of(30L), List.of(600L, 601L), List.of(0L)));
+        assertEquals(runEntryIds(ManagedCursorImpl.replayRuns(positions, 100, ledgerId -> ledgerId == 1 ? 1000 : 100,
+                        8000)),
+                List.of(List.of(0L, 2L, 4L), List.of(12L), List.of(30L), List.of(600L, 601L), List.of(0L)));
+        // without an estimate, no entries in between
+        assertEquals(runEntryIds(ManagedCursorImpl.replayRuns(positions, 100, ledgerId -> -1, Long.MAX_VALUE)),
+                List.of(List.of(0L), List.of(2L), List.of(4L), List.of(12L), List.of(30L), List.of(600L, 601L),
+                        List.of(0L)));
     }
 
     // A range read holds its permits on the inflight reads limiter until its wanted entries are released, which the
@@ -3961,14 +3972,27 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     // entries leave.
     @Test
     void testReplayRangeReadsFitTheInflightReadsLimit() throws Exception {
+        replayUnderInflightReadsLimit("test_replay_inflight_limit", false);
+    }
+
+    // The same, with a ledger of small entries after the ledger of the replayed 16 KiB entries, which makes the
+    // managed ledger's average entry size smaller than the replayed ledger's: the limiter acquires the permits by the
+    // replayed ledger's own entry size.
+    @Test
+    void testReplayRangeReadsFitTheInflightReadsLimitWithLedgersOfDifferentEntrySizes() throws Exception {
+        replayUnderInflightReadsLimit("test_replay_inflight_limit_mixed", true);
+    }
+
+    private void replayUnderInflightReadsLimit(String name, boolean smallEntriesInTheNextLedger) throws Exception {
         ManagedLedgerFactoryConfig factoryConfig = new ManagedLedgerFactoryConfig();
         factoryConfig.setMaxCacheSize(0);
         factoryConfig.setManagedLedgerMaxReadsInFlightSize(5 * 1024 * 1024);
         factoryConfig.setManagedLedgerMaxReadsInFlightPermitsAcquireTimeoutMillis(500);
         ManagedLedgerFactoryImpl limitedFactory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConfig);
         try {
-            ManagedLedgerImpl ledger = (ManagedLedgerImpl) limitedFactory.open("test_replay_inflight_limit",
-                    defaultConfig());
+            ManagedLedgerConfig config = defaultConfig();
+            config.setMaxEntriesPerLedger(377);
+            ManagedLedgerImpl ledger = (ManagedLedgerImpl) limitedFactory.open(name, config);
             ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
             byte[] data = new byte[16 * 1024];
             Set<Position> positions = new TreeSet<>();
@@ -3977,6 +4001,12 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                 if (i % 8 == 0) {
                     positions.add(position);
                 }
+            }
+            if (smallEntriesInTheNextLedger) {
+                for (int i = 0; i <= 376; i++) {
+                    ledger.addEntry(new byte[128]);
+                }
+                assertEquals(ledger.getLedgersInfo().size(), 2);
             }
             CompletableFuture<List<Entry>> replayed = new CompletableFuture<>();
             cursor.asyncReplayEntries(positions, new AsyncCallbacks.ReadEntriesCallback() {

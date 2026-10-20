@@ -130,6 +130,7 @@ import org.apache.bookkeeper.mledger.WaitingEntryCallBack;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCache;
+import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.mledger.offload.OffloadUtils;
 import org.apache.bookkeeper.mledger.proto.KeyValue;
@@ -2553,6 +2554,33 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
         LedgerInfo info = ledgers.get(ledgerId);
         return info == null || !info.hasOffloadContext() || !info.getOffloadContext().isComplete();
+    }
+
+    /**
+     * The size of an entry of the given ledger that the inflight reads limiter acquires a read's permits with: the
+     * ledger's length per entry, as its read handle has them, with {@link
+     * RangeEntryCacheImpl#BOOKKEEPER_READ_OVERHEAD_PER_ENTRY}. It's negative when the ledger has no entries or isn't
+     * known, for which the entry caches' estimates differ.
+     */
+    long getEstimatedReadEntrySize(long ledgerId) {
+        LedgerHandle currentLedger = this.currentLedger;
+        long length;
+        long entries;
+        if (isReadFromCurrentLedger(currentLedger, ledgerId)) {
+            length = currentLedger.getLength();
+            entries = currentLedger.getLastAddConfirmed() + 1;
+        } else {
+            LedgerInfo info = ledgers.get(ledgerId);
+            if (info == null) {
+                return -1;
+            }
+            length = info.getSize();
+            entries = info.getEntries();
+        }
+        if (length <= 0 || entries <= 0) {
+            return -1;
+        }
+        return Math.max(1, length / entries) + RangeEntryCacheImpl.BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
     }
 
     CompletableFuture<ReadHandle> getLedgerHandle(long ledgerId) {
