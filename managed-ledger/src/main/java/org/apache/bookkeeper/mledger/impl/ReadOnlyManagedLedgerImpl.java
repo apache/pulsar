@@ -18,15 +18,18 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Range;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import lombok.CustomLog;
 import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoundException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetadataNotFoundException;
@@ -41,6 +44,8 @@ import org.apache.pulsar.metadata.api.Stat;
 
 @CustomLog
 public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
+
+    private volatile boolean closingOrClosed;
 
     public ReadOnlyManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
                                      ManagedLedgerConfig config, OrderedScheduler scheduledExecutor,
@@ -154,6 +159,34 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
         }
 
         return new ReadOnlyCursorImpl(bookKeeper, this, startPosition, "read-only-cursor");
+    }
+
+    @Override
+    public void asyncClose(AsyncCallbacks.CloseCallback callback, Object ctx) {
+        closingOrClosed = true;
+        // There is no current write handle, so the parent's write-close callback cannot release this cache.
+        ledgerCache.forEach((ledgerId, readHandle) -> invalidateReadHandle(ledgerId));
+        super.asyncClose(callback, ctx);
+    }
+
+    @Override
+    CompletableFuture<ReadHandle> getLedgerHandle(long ledgerId) {
+        if (closingOrClosed) {
+            return CompletableFuture.failedFuture(new ManagedLedgerAlreadyClosedException("Managed ledger is closed"));
+        }
+        CompletableFuture<ReadHandle> handle = super.getLedgerHandle(ledgerId);
+        // Close may have drained the cache before this open inserted its future. Invalidation also
+        // closes the handle if the open completes after close, without blocking either operation.
+        if (closingOrClosed) {
+            invalidateReadHandle(ledgerId);
+            return CompletableFuture.failedFuture(new ManagedLedgerAlreadyClosedException("Managed ledger is closed"));
+        }
+        return handle;
+    }
+
+    @VisibleForTesting
+    boolean isClosingOrClosed() {
+        return closingOrClosed;
     }
 
     @Override
