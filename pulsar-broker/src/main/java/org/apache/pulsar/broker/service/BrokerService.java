@@ -378,6 +378,8 @@ public class BrokerService implements Closeable {
 
     private final TopicEventsDispatcher topicEventsDispatcher = new TopicEventsDispatcher();
     private volatile boolean unloaded = false;
+    // set when the broker starts shutting down, so that topic loads waiting for a permit are failed
+    private volatile boolean pendingTopicLoadsRejected = false;
 
     // semaphore for limiting the concurrency of ledger deletion at broker level,
     // thus all managed ledgers sharing the same semaphore
@@ -1234,6 +1236,9 @@ public class BrokerService implements Closeable {
         if (unloaded) {
             return;
         }
+        // unloading a bundle waits for the topic futures cached for it, including the ones of the topic loads that
+        // wait for a permit, which could otherwise only complete when the topic load times out
+        rejectPendingTopicLoads();
         try {
             log.info("Unloading namespace-bundles...");
             // make broker-node unavailable from the cluster
@@ -2190,6 +2195,10 @@ public class BrokerService implements Closeable {
                     } else {
                         pendingTopicLoadingQueue.add(ImmutablePair.of(context, queueTrace));
                         log.debug().attr("topic", topic).log("topic-loading for added into pending queue");
+                        if (pendingTopicLoadsRejected) {
+                            // the broker started shutting down concurrently, after the queue had been drained
+                            failPendingTopicLoads();
+                        }
                     }
                 }).exceptionally(ex -> {
                     failTopicFuture(topic, topicFuture, ex);
@@ -2387,6 +2396,17 @@ public class BrokerService implements Closeable {
             // took the bundle over from, must not open, and so recover, the new owner's ledger.
             context.trace(TopicLoadingTracePoints.OWNERSHIP_BEFORE_OPEN_ML, checkTopicNsOwnership(topic))
                     .thenRun(() -> {
+                if (topicFuture.isDone()) {
+                    // The load has timed out: opening, and so recovering, the managed ledger now would only be
+                    // followed by closing it again. The timed-out future stays cached until the pending load
+                    // actions finish, so remove it here to let a new load start.
+                    log.debug()
+                            .attr("topic", topic)
+                            .attr("latency", context.getSnapshot().description())
+                            .log("Skip opening the managed ledger since the topic load has already completed");
+                    pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
+                    return;
+                }
                 final LatencyTracer.TracePoint openMlTracePoint = context.startTrace(TopicLoadingTracePoints.OPEN_ML);
                 managedLedgerFactory.asyncOpen(topicName.getPersistenceNamingEncoding(), managedLedgerConfig,
                         new OpenLedgerCallback() {
@@ -4116,14 +4136,16 @@ public class BrokerService implements Closeable {
      * permit if it was successful to acquire it.
      */
     private void createPendingLoadTopic() {
-        Pair<TopicLoadingContext, LatencyTracer.TracePoint> contextAndPointPair = pendingTopicLoadingQueue.poll();
+        if (pendingTopicLoadsRejected) {
+            failPendingTopicLoads();
+            return;
+        }
+        Pair<TopicLoadingContext, LatencyTracer.TracePoint> contextAndPointPair = pollPendingTopicLoad();
         if (contextAndPointPair == null) {
             return;
         }
 
         TopicLoadingContext topicLoadingContext = contextAndPointPair.getLeft();
-        LatencyTracer.TracePoint queuedPoint = contextAndPointPair.getRight();
-        topicLoadingContext.finishTrace(queuedPoint, null);
         final String topic = topicLoadingContext.getTopicName().toString();
         // ServiceUnitNotReadyException is classified as bundle_unloading when the topic future completes.
         topicLoadingContext.trace(TopicLoadingTracePoints.OWNERSHIP, checkTopicNsOwnership(topic)).thenRun(() -> {
@@ -4147,6 +4169,54 @@ public class BrokerService implements Closeable {
             inactivityMonitor.schedule(this::createPendingLoadTopic, 100, MILLISECONDS);
             return null;
         });
+    }
+
+    /**
+     * Polls the next pending topic load whose topic future is not yet completed. A load that timed out while
+     * it was queued is dropped instead of being started: its timed-out future would otherwise stay cached until
+     * the managed ledger had been opened and closed again.
+     */
+    private Pair<TopicLoadingContext, LatencyTracer.TracePoint> pollPendingTopicLoad() {
+        Pair<TopicLoadingContext, LatencyTracer.TracePoint> contextAndPointPair;
+        while ((contextAndPointPair = pendingTopicLoadingQueue.poll()) != null) {
+            TopicLoadingContext topicLoadingContext = contextAndPointPair.getLeft();
+            topicLoadingContext.finishTrace(contextAndPointPair.getRight(), null);
+            CompletableFuture<Optional<Topic>> topicFuture = topicLoadingContext.getTopicFuture();
+            if (!topicFuture.isDone()) {
+                return contextAndPointPair;
+            }
+            String topic = topicLoadingContext.getTopicName().toString();
+            log.debug()
+                    .attr("topic", topic)
+                    .log("Skip loading the pending topic since its topic load has already completed");
+            pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
+        }
+        return null;
+    }
+
+    /**
+     * Fails the pending topic loads, and the ones queued later, when the broker is shutting down, so that they
+     * don't wait for the topic load timeout and clients can look the topics up again.
+     */
+    private void rejectPendingTopicLoads() {
+        pendingTopicLoadsRejected = true;
+        failPendingTopicLoads();
+    }
+
+    private void failPendingTopicLoads() {
+        Pair<TopicLoadingContext, LatencyTracer.TracePoint> contextAndPointPair;
+        while ((contextAndPointPair = pendingTopicLoadingQueue.poll()) != null) {
+            TopicLoadingContext topicLoadingContext = contextAndPointPair.getLeft();
+            topicLoadingContext.finishTrace(contextAndPointPair.getRight(), null);
+            String topic = topicLoadingContext.getTopicName().toString();
+            CompletableFuture<Optional<Topic>> topicFuture = topicLoadingContext.getTopicFuture();
+            topicFuture.completeExceptionally(new ServiceUnitNotReadyException("Broker is shutting down"));
+            try {
+                pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
+            } catch (RejectedExecutionException e) {
+                // the broker has already been closed
+            }
+        }
     }
 
     public CompletableFuture<PartitionedTopicMetadata> fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(
