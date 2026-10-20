@@ -123,10 +123,10 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Include system topic")
             @QueryParam("includeSystemTopic") boolean includeSystemTopic) {
         validateNamespaceName(tenant, namespace);
-        internalGetListAsync(Optional.ofNullable(bundle))
+        internalGetListAsync(asyncResponse, Optional.ofNullable(bundle))
             .thenAccept(topicList -> asyncResponse.resume(filterSystemTopic(topicList, includeSystemTopic)))
             .exceptionally(ex -> {
-                if (isNot307And404Exception(ex)) {
+                if (isNot307And404Exception(ex) && !isTopicListLimitRejection(ex)) {
                     log.error("[{}] Failed to get topic list {}", clientAppId(), namespaceName, ex);
                 }
                 resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -153,11 +153,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Include system topic")
             @QueryParam("includeSystemTopic") boolean includeSystemTopic) {
         validateNamespaceName(tenant, namespace);
-        internalGetPartitionedTopicListAsync()
+        internalGetPartitionedTopicListAsync(asyncResponse)
                 .thenAccept(partitionedTopicList -> asyncResponse.resume(
                         filterSystemTopic(partitionedTopicList, includeSystemTopic)))
                 .exceptionally(ex -> {
-                    if (isNot307And404Exception(ex)) {
+                    if (isNot307And404Exception(ex) && !isTopicListLimitRejection(ex)) {
                         log.error("[{}] Failed to get partitioned topic list {}", clientAppId(), namespaceName, ex);
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);

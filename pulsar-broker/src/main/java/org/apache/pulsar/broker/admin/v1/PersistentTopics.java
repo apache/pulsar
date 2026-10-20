@@ -76,10 +76,10 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Specify the bundle name", required = false)
             @QueryParam("bundle") String bundle) {
         validateNamespaceName(property, cluster, namespace);
-        internalGetListAsync(Optional.ofNullable(bundle))
+        internalGetListAsync(asyncResponse, Optional.ofNullable(bundle))
             .thenAccept(asyncResponse::resume)
             .exceptionally(ex -> {
-                if (!isRedirectException(ex)) {
+                if (!isRedirectException(ex) && !isTopicListLimitRejection(ex)) {
                     log.error("[{}] Failed to get topic list {}", clientAppId(), namespaceName, ex);
                 }
                 resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -100,10 +100,10 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace) {
         validateNamespaceName(property, cluster, namespace);
-        internalGetPartitionedTopicListAsync()
+        internalGetPartitionedTopicListAsync(asyncResponse)
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
-                    if (!isRedirectException(ex)) {
+                    if (!isRedirectException(ex) && !isTopicListLimitRejection(ex)) {
                         log.error("[{}] Failed to get partitioned topic list {}", clientAppId(), namespaceName, ex);
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
