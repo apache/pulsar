@@ -437,6 +437,15 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testWebSocketServiceSharesBrokerConfigurationStore() throws Exception {
+        // Only the broker's own (here mocked) client reaches the configuration store, as with a TLS store set up
+        // through configurationStoreConfigPath; a WebSocket service opening its own client fails the startup.
+        conf.setWebSocketServiceEnabled(true);
+        setup();
+        assertThat(pulsar.getWebSocketService()).as("embedded WebSocket service").isNotNull();
+    }
+
+    @Test
     public void testMetadataSerDesThreads() throws Exception {
         final var numSerDesThreads = 5;
         final var config = new ServiceConfiguration();
