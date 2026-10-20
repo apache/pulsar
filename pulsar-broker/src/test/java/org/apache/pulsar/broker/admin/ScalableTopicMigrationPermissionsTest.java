@@ -19,14 +19,21 @@
 package org.apache.pulsar.broker.admin;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doCallRealMethod;
 import io.jsonwebtoken.Jwts;
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.v5.Message;
 import org.apache.pulsar.client.api.v5.Producer;
 import org.apache.pulsar.client.api.v5.PulsarClient;
@@ -36,6 +43,7 @@ import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.v5.schema.Schema;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.mockito.invocation.InvocationOnMock;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -184,5 +192,65 @@ public class ScalableTopicMigrationPermissionsTest extends AuthZTest {
         assertThat(superUserAdmin.scalableTopics().getPermissions("topic://" + name))
                 .containsEntry(CLIENT_ROLE, Set.of(AuthAction.consume))
                 .doesNotContainKeys(PARTITION_ROLE, NAMESPACE_ROLE);
+    }
+
+    /**
+     * A migration holds the creation lock of the scalable topic from its check that the topic doesn't exist to its
+     * creation, so a creation of the same topic can't get in between and receive the permissions the migration
+     * grants: it's refused while the migration is about to copy them.
+     */
+    @Test
+    public void testCreationIsRefusedWhileAMigrationCopiesPermissions() throws Exception {
+        String name = NAMESPACE + "/" + UUID.randomUUID();
+        superUserAdmin.topics().createNonPartitionedTopic("persistent://" + name);
+        superUserAdmin.topics().grantPermission("persistent://" + name, CLIENT_ROLE, Set.of(AuthAction.produce));
+
+        CompletableFuture<Void> copyStarted = new CompletableFuture<>();
+        CompletableFuture<Void> resumeCopy = new CompletableFuture<>();
+        doAnswer(invocation -> {
+            copyStarted.complete(null);
+            return resumeCopy.thenCompose(__ -> callRealMethod(invocation));
+        }).when(authorizationService).copyPermissionsAsync(any(), any());
+        try {
+            CompletableFuture<Void> migration = superUserAdmin.scalableTopics().migrateToScalableAsync(name, false);
+            copyStarted.get(30, TimeUnit.SECONDS);
+
+            assertThatThrownBy(() -> superUserAdmin.scalableTopics().createScalableTopic("topic://" + name, 1))
+                    .isInstanceOf(PulsarAdminException.ConflictException.class);
+
+            resumeCopy.complete(null);
+            migration.get(30, TimeUnit.SECONDS);
+        } finally {
+            resumeCopy.complete(null);
+            doCallRealMethod().when(authorizationService).copyPermissionsAsync(any(), any());
+        }
+
+        // The scalable topic is the migrated one, with the permissions of the regular topic.
+        assertThat(superUserAdmin.scalableTopics().getMetadata("topic://" + name).getSegments().values())
+                .anyMatch(segment -> segment.getLegacyTopicName() != null);
+        assertThat(superUserAdmin.scalableTopics().getPermissions("topic://" + name))
+                .containsEntry(CLIENT_ROLE, Set.of(AuthAction.produce));
+    }
+
+    /** A migration that finds the scalable topic already created fails, and grants nothing on it. */
+    @Test
+    public void testMigrationToAnExistingScalableTopicGrantsNothingOnIt() throws Exception {
+        String name = NAMESPACE + "/" + UUID.randomUUID();
+        superUserAdmin.topics().createNonPartitionedTopic("persistent://" + name);
+        superUserAdmin.topics().grantPermission("persistent://" + name, CLIENT_ROLE, Set.of(AuthAction.produce));
+        superUserAdmin.scalableTopics().createScalableTopic("topic://" + name, 1);
+
+        assertThatThrownBy(() -> superUserAdmin.scalableTopics().migrateToScalable(name, false))
+                .isInstanceOf(PulsarAdminException.ConflictException.class);
+        assertThat(superUserAdmin.scalableTopics().getPermissions("topic://" + name)).doesNotContainKey(CLIENT_ROLE);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static CompletableFuture<Void> callRealMethod(InvocationOnMock invocation) {
+        try {
+            return (CompletableFuture<Void>) invocation.callRealMethod();
+        } catch (Throwable t) {
+            return CompletableFuture.failedFuture(t);
+        }
     }
 }

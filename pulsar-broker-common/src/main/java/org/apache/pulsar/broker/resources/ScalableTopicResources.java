@@ -25,10 +25,14 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.CustomLog;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -43,7 +47,9 @@ import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
+import org.apache.pulsar.metadata.api.Option;
 import org.apache.pulsar.metadata.api.ScanConsumer;
+import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 /**
@@ -59,12 +65,19 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
  *       {@link SubscriptionMetadata}</li>
  *   <li>{@code /topics/{tenant}/{namespace}/{encodedTopicName}/subscriptions/{subscription}
  *       /consumers/{consumerName}} — {@link ConsumerRegistration} (durable session entry)</li>
+ *   <li>{@code /topic-creation-locks/{tenant}/{namespace}/{encodedTopicName}} — creation lock
+ *       (ephemeral), held while the topic is created or a regular topic is migrated to it; outside
+ *       the topic's path, so taking it doesn't create the topic's node</li>
  * </ul>
  */
 @CustomLog
 public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata> {
 
     private static final String SCALABLE_TOPIC_PATH = "/topics";
+    private static final String CREATION_LOCK_PATH = "/topic-creation-locks";
+    /** Attempts to take a creation lock, waiting 10 ms, 20 ms, 40 ms... in between: about 1.3 s in all. */
+    private static final int CREATION_LOCK_ATTEMPTS = 8;
+    private static final long CREATION_LOCK_FIRST_RETRY_DELAY_MS = 10;
     private static final String SUBSCRIPTIONS_SEGMENT = "subscriptions";
     private static final String CONSUMERS_SEGMENT = "consumers";
     private static final String SEGMENTS_SEGMENT = "segments";
@@ -243,6 +256,51 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
 
     public CompletableFuture<Void> createScalableTopicAsync(TopicName tn, ScalableTopicMetadata metadata) {
         return getCache().create(topicPath(tn), metadata, PROPERTY_INDEX_EXTRACTOR);
+    }
+
+    /**
+     * Run {@code action} while holding the creation lock of the scalable topic {@code tn}.
+     *
+     * <p>Creating a scalable topic and migrating a regular topic to it take this lock, so they exclude each other,
+     * on every broker: a migration checks that the scalable topic doesn't exist, grants the regular topic's
+     * permissions on it and creates it, with no creation of the same topic in between that would get those
+     * permissions. A lock held by another creation or migration is retried for about a second, which covers a
+     * concurrent creation, as it holds the lock only while it writes the topic's metadata. Then this fails with
+     * {@link MetadataStoreException.LockBusyException}, without running {@code action}.
+     *
+     * <p>The lock is an ephemeral record, so a broker that goes away while holding it doesn't keep it.
+     */
+    public <T> CompletableFuture<T> runWithCreationLock(TopicName tn, Supplier<CompletableFuture<T>> action) {
+        String path = joinPath(CREATION_LOCK_PATH, tn.getNamespace(), tn.getEncodedLocalName());
+        return acquireCreationLock(path, 1).thenCompose(lock -> {
+            CompletableFuture<T> result = FutureUtil.supplySafely(action);
+            return result.handle((__, ___) -> null)
+                    .thenCompose(__ -> getStore().delete(path, Optional.of(lock.getVersion())))
+                    .exceptionally(ex -> {
+                        // It goes away with the broker's metadata session anyway.
+                        log.warn().attr("path", path).exceptionMessage(ex).log("Failed to release a creation lock");
+                        return null;
+                    })
+                    .thenCompose(__ -> result);
+        });
+    }
+
+    private CompletableFuture<Stat> acquireCreationLock(String path, int attempt) {
+        return getStore().put(path, new byte[0], Optional.of(-1L), Set.of(Option.Ephemeral.INSTANCE))
+                .exceptionallyCompose(ex -> {
+                    if (!(FutureUtil.unwrapCompletionException(ex)
+                            instanceof MetadataStoreException.BadVersionException)) {
+                        return CompletableFuture.failedFuture(ex);
+                    }
+                    if (attempt == CREATION_LOCK_ATTEMPTS) {
+                        return CompletableFuture.failedFuture(new MetadataStoreException.LockBusyException(
+                                "Another creation or migration of the scalable topic is in progress: " + path));
+                    }
+                    Executor delayed = CompletableFuture.delayedExecutor(
+                            CREATION_LOCK_FIRST_RETRY_DELAY_MS << (attempt - 1), TimeUnit.MILLISECONDS);
+                    return CompletableFuture.supplyAsync(() -> null, delayed)
+                            .thenCompose(__ -> acquireCreationLock(path, attempt + 1));
+                });
     }
 
     public CompletableFuture<Optional<ScalableTopicMetadata>> getScalableTopicMetadataAsync(TopicName tn) {

@@ -168,7 +168,8 @@ public class ScalableTopics extends AdminResource {
             @ApiResponse(responseCode = "401",
                     description = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(responseCode = "403", description = "Don't have admin permission on the namespace"),
-            @ApiResponse(responseCode = "409", description = "Scalable topic already exists"),
+            @ApiResponse(responseCode = "409", description = "Scalable topic already exists, or is being created "
+                    + "or migrated to"),
             @ApiResponse(responseCode = "412", description = "Invalid configuration"),
             @ApiResponse(responseCode = "500", description = "Internal server error")})
     public void createScalableTopic(
@@ -200,7 +201,9 @@ public class ScalableTopics extends AdminResource {
                             pulsar().getConfiguration().getScalableTopicEntryBucketBudget(),
                             pulsar().getConfiguration().getScalableTopicEntryBucketMaxPerSegment(),
                             props);
-                    return resources().createScalableTopicAsync(tn, metadata)
+                    // The creation lock keeps the creation from interleaving with a migration of the
+                    // regular topic of the same name.
+                    return resources().runWithCreationLock(tn, () -> resources().createScalableTopicAsync(tn, metadata))
                             .thenCompose(ignored -> createInitialSegmentTopicsAsync(tn, metadata));
                 })
                 .thenAccept(__ -> {
@@ -214,6 +217,9 @@ public class ScalableTopics extends AdminResource {
                     if (cause instanceof MetadataStoreException.AlreadyExistsException) {
                         asyncResponse.resume(new RestException(Response.Status.CONFLICT,
                                 "Scalable topic already exists: " + tn));
+                    } else if (cause instanceof MetadataStoreException.LockBusyException) {
+                        asyncResponse.resume(new RestException(Response.Status.CONFLICT,
+                                "A migration or another creation of the scalable topic is in progress: " + tn));
                     } else {
                         log.error().attr("clientAppId", clientAppId()).attr("topic", tn)
                                 .exception(ex).log("Failed to create scalable topic");
@@ -264,8 +270,8 @@ public class ScalableTopics extends AdminResource {
                     description = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(responseCode = "403", description = "Don't have produce permission on the topic"),
             @ApiResponse(responseCode = "404", description = "Topic doesn't exist"),
-            @ApiResponse(responseCode = "409", description = "Already a scalable topic, or legacy v4 clients are "
-                    + "still connected and force was not set"),
+            @ApiResponse(responseCode = "409", description = "Already a scalable topic, being created as one, or "
+                    + "legacy v4 clients are still connected and force was not set"),
             @ApiResponse(responseCode = "500", description = "Internal server error")})
     public void migrateToScalable(
             @Suspended final AsyncResponse asyncResponse,
@@ -297,6 +303,10 @@ public class ScalableTopics extends AdminResource {
                     if (cause instanceof MetadataStoreException.AlreadyExistsException) {
                         asyncResponse.resume(new RestException(Response.Status.CONFLICT,
                                 "Topic is already scalable: " + scalableName));
+                    } else if (cause instanceof MetadataStoreException.LockBusyException) {
+                        asyncResponse.resume(new RestException(Response.Status.CONFLICT,
+                                "A creation of the scalable topic, or another migration, is in progress: "
+                                        + scalableName));
                     } else {
                         log.error().attr("clientAppId", clientAppId()).attr("topic", scalableName)
                                 .exception(ex).log("Failed to migrate topic to scalable");
@@ -309,6 +319,9 @@ public class ScalableTopics extends AdminResource {
     /**
      * Orchestrate a regular-to-scalable migration:
      * <ol>
+     *   <li>take the creation lock of the scalable topic, so no creation of the same topic, on any
+     *       broker, can interleave with the steps up to the commit (see
+     *       {@link ScalableTopicResources#runWithCreationLock});</li>
      *   <li>reject if scalable metadata already exists;</li>
      *   <li>resolve the source topic's existence + partition count;</li>
      *   <li>unless {@code force}, reject if any legacy v4 client is still connected;</li>
@@ -318,14 +331,27 @@ public class ScalableTopics extends AdminResource {
      *       roles allowed on it keep their access through the new segments;</li>
      *   <li>atomically write the scalable metadata (the commit point — connected V5 lookup
      *       sessions transition from the synthetic layout to the real DAG via the metadata
-     *       watch);</li>
+     *       watch), and release the lock;</li>
      *   <li>terminate the old topics so no further v4 writes can land — they become the
      *       drainable sealed parent segments.</li>
      * </ol>
      */
     private CompletableFuture<Void> doMigrateToScalableAsync(TopicName scalableName,
                                                              TopicName persistentBase, boolean force) {
-        return resources().getScalableTopicMetadataAsync(scalableName).thenCompose(existing -> {
+        return resources().runWithCreationLock(scalableName,
+                        () -> createMigratedScalableTopicAsync(scalableName, persistentBase, force))
+                .thenCompose(partitions -> terminateLegacyTopicsAsync(persistentBase, partitions));
+    }
+
+    /**
+     * The steps of {@link #doMigrateToScalableAsync} that run under the creation lock of the scalable
+     * topic, up to its creation. Completes with the partition count of the regular topic.
+     */
+    private CompletableFuture<Integer> createMigratedScalableTopicAsync(TopicName scalableName,
+                                                                       TopicName persistentBase, boolean force) {
+        // Read the store, not the cache, which may miss a creation completed on another broker
+        // just before the lock was taken.
+        return resources().getScalableTopicMetadataAsync(scalableName, true).thenCompose(existing -> {
             if (existing.isPresent()) {
                 throw new RestException(Response.Status.CONFLICT,
                         "Topic is already scalable: " + scalableName);
@@ -357,7 +383,7 @@ public class ScalableTopics extends AdminResource {
             return createMigratedChildTopicsAsync(scalableName, metadata)
                     .thenCompose(__ -> getAuthorizationService().copyPermissionsAsync(persistentBase, scalableName))
                     .thenCompose(__ -> resources().createScalableTopicAsync(scalableName, metadata))
-                    .thenCompose(__ -> terminateLegacyTopicsAsync(persistentBase, partitions));
+                    .thenApply(__ -> partitions);
         });
     }
 
