@@ -123,6 +123,7 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
     private final String replicasCheckCtimePath;
 
     private final MetadataStoreExtended store;
+    private final Runnable cancelListener;
 
     private final List<BookkeeperInternalCallbacks.GenericCallback<Void>> replicationEnabledCallbacks =
             new ArrayList<>();
@@ -166,7 +167,7 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
         replicasCheckCtimePath = basePath + '/' + BookKeeperConstants.REPLICAS_CHECK_CTIME;
 
         this.store = store;
-        store.registerListener(this::handleNotification);
+        cancelListener = store.registerCancellableListener(this::handleNotification);
 
         checkLayout();
     }
@@ -780,6 +781,7 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
     @VisibleForTesting
     void close(long timeout, TimeUnit timeoutUnit) throws ReplicationException.UnavailableException {
         log.debug("close()");
+        cancelListener.run();
         notificationCallbackExecutor.shutdownNow();
 
         Map<Long, Lock> locks = Map.copyOf(heldLocks);
