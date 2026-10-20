@@ -34,6 +34,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import com.google.common.collect.ForwardingConcurrentMap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.EventLoopGroup;
@@ -205,43 +206,60 @@ public class MessageDuplicationTest extends BrokerTestBase {
     }
 
     @Test
-    public void testAnEntryRemovedDuringAnUpdateIsPutBackUnlessANewerOneWasPut() {
-        // a purge removes the entry after the update looked it up, before the update checks that it's still there
-        ConcurrentMap<String, MessageDeduplication.PersistedSequenceId> purged = new ConcurrentHashMap<>() {
-            private boolean removed;
+    public void testAPurgeRacingAnUpdateOrdersAfterIt() {
+        // the purge runs between the update's lookup and its write, or after the update
+        for (boolean purgeDuringUpdate : new boolean[] {true, false}) {
+            PulsarService pulsarService = mock(PulsarService.class);
+            ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
+            serviceConfiguration.setBrokerDeduplicationEntriesInterval(BROKER_DEDUPLICATION_ENTRIES_INTERVAL);
+            serviceConfiguration.setBrokerDeduplicationMaxNumberOfProducers(BROKER_DEDUPLICATION_MAX_NUMBER_PRODUCERS);
+            serviceConfiguration.setReplicatorPrefix(REPLICATOR_PREFIX);
+            serviceConfiguration.setBrokerDeduplicationProducerInactivityTimeoutMinutes(1);
+            doReturn(serviceConfiguration).when(pulsarService).getConfiguration();
+            MessageDeduplication messageDeduplication = spyWithClassAndConstructorArgs(MessageDeduplication.class,
+                    pulsarService, mock(PersistentTopic.class), mock(ManagedLedger.class));
+            doReturn(true).when(messageDeduplication).isEnabled();
+            doReturn(mock(ManagedCursor.class)).when(messageDeduplication).getManagedCursor();
 
-            @Override
-            public MessageDeduplication.PersistedSequenceId get(Object key) {
-                MessageDeduplication.PersistedSequenceId value = super.get(key);
-                if (!removed) {
-                    removed = true;
-                    super.remove(key);
-                }
-                return value;
+            // the producer has persisted up to 4 and publishes 5, then expires while 5 is being persisted
+            String producerName = "producer";
+            messageDeduplication.setHighestSequencedPersisted(producerName, 4);
+            assertEquals(messageDeduplication.isDuplicate(getPublishContext(producerName, 5), null),
+                    MessageDeduplication.MessageDupStatus.NotDup);
+            messageDeduplication.producerRemoved(producerName);
+            messageDeduplication.getInactiveProducers().put(producerName, System.currentTimeMillis() - 120_000);
+            ConcurrentMap<String, MessageDeduplication.PersistedSequenceId> purgedOnLookup =
+                    new ForwardingConcurrentMap<>() {
+                        @Override
+                        protected ConcurrentMap<String, MessageDeduplication.PersistedSequenceId> delegate() {
+                            return messageDeduplication.highestSequencedPersisted;
+                        }
+
+                        @Override
+                        public MessageDeduplication.PersistedSequenceId get(Object key) {
+                            MessageDeduplication.PersistedSequenceId value = super.get(key);
+                            messageDeduplication.purgeInactiveProducers();
+                            return value;
+                        }
+                    };
+            if (purgeDuringUpdate) {
+                MessageDeduplication.setHighestSequencedPersisted(purgedOnLookup, producerName, 5);
+            } else {
+                messageDeduplication.setHighestSequencedPersisted(producerName, 5);
+                messageDeduplication.purgeInactiveProducers();
             }
-        };
-        purged.put("producer", new MessageDeduplication.PersistedSequenceId(1));
-        MessageDeduplication.setHighestSequencedPersisted(purged, "producer", 2);
-        assertEquals(purged.get("producer").value, 2L);
+            assertFalse(messageDeduplication.highestSequencedPersisted.containsKey(producerName));
+            assertFalse(messageDeduplication.highestSequencedPushed.containsKey(producerName));
 
-        // the same, with a later update putting a newer entry before the check, which is kept
-        ConcurrentMap<String, MessageDeduplication.PersistedSequenceId> replaced = new ConcurrentHashMap<>() {
-            private boolean replacedOnce;
-
-            @Override
-            public MessageDeduplication.PersistedSequenceId get(Object key) {
-                MessageDeduplication.PersistedSequenceId value = super.get(key);
-                if (!replacedOnce) {
-                    replacedOnce = true;
-                    super.remove(key);
-                    super.put((String) key, new MessageDeduplication.PersistedSequenceId(3));
-                }
-                return value;
-            }
-        };
-        replaced.put("producer", new MessageDeduplication.PersistedSequenceId(1));
-        MessageDeduplication.setHighestSequencedPersisted(replaced, "producer", 2);
-        assertEquals(replaced.get("producer").value, 3L);
+            // a producer with the same name restarts at 0: a retry before 0 is persisted isn't a known duplicate
+            assertEquals(messageDeduplication.isDuplicate(getPublishContext(producerName, 0), null),
+                    MessageDeduplication.MessageDupStatus.NotDup);
+            assertEquals(messageDeduplication.isDuplicate(getPublishContext(producerName, 0), null),
+                    MessageDeduplication.MessageDupStatus.Unknown);
+            messageDeduplication.setHighestSequencedPersisted(producerName, 0);
+            assertEquals(messageDeduplication.isDuplicate(getPublishContext(producerName, 0), null),
+                    MessageDeduplication.MessageDupStatus.Dup);
+        }
     }
 
     @Test

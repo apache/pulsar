@@ -120,7 +120,8 @@ public class MessageDeduplication {
     /**
      * The highest sequence ID persisted for a producer. The topic's managed-ledger thread records it for every
      * persisted message, so the value is updated in place: replacing the map's entry would lock a bin of the map and
-     * box the value for every message.
+     * box the value for every message. See {@link #setHighestSequencedPersisted(String, long)} for how an update
+     * orders with a removal of the entry.
      */
     static final class PersistedSequenceId {
         volatile long value;
@@ -733,6 +734,11 @@ public class MessageDeduplication {
 
     /**
      * Records the highest sequence ID persisted for a producer, updating its entry in place.
+     *
+     * <p>A purge of inactive producers or a clear that removes the entry after the lookup orders after the update:
+     * the update's value is removed with the entry, as a put of the value before the removal would have been. The
+     * entry isn't put back, so a removal that has completed stays in effect, and a producer that reuses the name
+     * doesn't inherit a sequence ID it hasn't persisted.
      */
     void setHighestSequencedPersisted(String producerName, long sequenceId) {
         setHighestSequencedPersisted(highestSequencedPersisted, producerName, sequenceId);
@@ -743,14 +749,8 @@ public class MessageDeduplication {
         PersistedSequenceId persisted = highestSequencedPersisted.get(producerName);
         if (persisted == null) {
             highestSequencedPersisted.put(producerName, new PersistedSequenceId(sequenceId));
-            return;
-        }
-        persisted.value = sequenceId;
-        // A purge of inactive producers or a clear can remove the entry meanwhile, for example when an expired
-        // producer reconnects during a purge. The entry is then put back, as a put of the value would, unless a later
-        // update has already put a newer one.
-        if (highestSequencedPersisted.get(producerName) != persisted) {
-            highestSequencedPersisted.putIfAbsent(producerName, new PersistedSequenceId(sequenceId));
+        } else {
+            persisted.value = sequenceId;
         }
     }
 
