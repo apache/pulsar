@@ -344,7 +344,10 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "The directory where nar Extraction happens"
+            doc = "The directory where nar packages are extracted. Default is java.io.tmpdir. Outside of Kubernetes,"
+                + " OS cleanup of /tmp (for example, by systemd-tmpfiles) can delete extracted files while the proxy is"
+                + " running, which causes ClassNotFoundException or NoClassDefFoundError errors. In that case, set"
+                + " this to a dedicated directory that isn't cleaned up automatically."
     )
     private String narExtractionDirectory = NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR;
 
