@@ -387,6 +387,10 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
             this.serviceUnitStateChannel.listen(splitManager);
             this.leaderElectionService.start();
 
+            if (this.antiAffinityGroupPolicyHelper != null) {
+                // Left by a start that failed or was closed before it completed
+                this.antiAffinityGroupPolicyHelper.close();
+            }
             this.antiAffinityGroupPolicyHelper =
                     new AntiAffinityGroupPolicyHelper(pulsar, serviceUnitStateChannel);
             antiAffinityGroupPolicyHelper.listenFailureDomainUpdate();
@@ -477,6 +481,9 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
     }
 
     private void failStarting(Throwable throwable) {
+        if (this.antiAffinityGroupPolicyHelper != null) {
+            this.antiAffinityGroupPolicyHelper.close();
+        }
         if (this.brokerRegistry != null) {
             try {
                 brokerRegistry.close();
@@ -818,9 +825,20 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
     @Override
     public void close() throws PulsarServerException {
         if (state.get() == State.INIT) {
+            // The start may have registered metadata store listeners before it failed or before the broker was
+            // ready for incoming requests
+            if (antiAffinityGroupPolicyHelper != null) {
+                antiAffinityGroupPolicyHelper.close();
+            }
+            if (brokerRegistry != null) {
+                brokerRegistry.close();
+            }
             return;
         }
         try {
+            if (antiAffinityGroupPolicyHelper != null) {
+                antiAffinityGroupPolicyHelper.close();
+            }
             stopLoadDataReportTasks();
             this.unloadScheduler.close();
             this.splitScheduler.close();

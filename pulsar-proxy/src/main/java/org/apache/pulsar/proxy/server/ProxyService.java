@@ -538,6 +538,9 @@ public class ProxyService implements Closeable {
         }
         resetMetricsServlet();
 
+        if (pulsarResources != null) {
+            pulsarResources.close();
+        }
         if (localMetadataStore != null) {
             try {
                 localMetadataStore.close();

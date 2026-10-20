@@ -124,8 +124,8 @@ public class TopicListServiceTest {
         MetadataStoreExtended metadataStore = mock(MetadataStoreExtended.class);
         doAnswer(invocationOnMock -> {
             listenerRef.set(invocationOnMock.getArgument(0));
-            return null;
-        }).when(metadataStore).registerListener(any());
+            return (Runnable) () -> { };
+        }).when(metadataStore).registerCancellableListener(any());
         topicResources = spy(new TopicResources(metadataStore));
         notificationConsumer = listenerRef.get();
 

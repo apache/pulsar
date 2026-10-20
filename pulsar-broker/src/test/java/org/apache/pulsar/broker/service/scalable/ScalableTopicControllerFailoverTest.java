@@ -411,7 +411,7 @@ public class ScalableTopicControllerFailoverTest {
 
         String lockPath = broker1.resources.controllerLockPath(topic);
         List<NotificationType> lockEvents = new CopyOnWriteArrayList<>();
-        broker1.store.registerListener(notification -> {
+        broker1.store.registerCancellableListener(notification -> {
             if (notification.getPath().equals(lockPath)) {
                 lockEvents.add(notification.getType());
             }
@@ -510,7 +510,7 @@ public class ScalableTopicControllerFailoverTest {
         released.initialize().get();
         released.close().get();
         BlockingQueue<SessionEvent> sessionEvents = new LinkedBlockingQueue<>();
-        broker1.store.registerSessionListener(sessionEvents::add);
+        broker1.store.registerCancellableSessionListener(sessionEvents::add);
 
         zks.stop();
         zks.start();

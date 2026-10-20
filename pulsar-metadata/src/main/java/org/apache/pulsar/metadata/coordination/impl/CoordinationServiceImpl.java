@@ -62,7 +62,8 @@ public class CoordinationServiceImpl implements CoordinationService {
     // The leader elections that are not closed, by path, to which the store notifications and session
     // events are dispatched. A closed election is removed, and added back if it's re-opened.
     private final Map<String, LeaderElectionImpl<?>> leaderElections = new ConcurrentHashMap<>();
-    private boolean leaderElectionListenersRegistered;
+    private Runnable cancelLeaderElectionListener;
+    private Runnable cancelLeaderElectionSessionListener;
 
     private final ScheduledExecutorService executor;
 
@@ -95,6 +96,7 @@ public class CoordinationServiceImpl implements CoordinationService {
             throw MetadataStoreException.unwrap(ce);
         } finally {
             executor.shutdownNow();
+            unregisterLeaderElectionListeners();
         }
     }
 
@@ -174,18 +176,27 @@ public class CoordinationServiceImpl implements CoordinationService {
     }
 
     /**
-     * Register the store listener and the session listener of the elections, once: the store can't unregister
-     * a listener, so the elections share them, and they dispatch to the elections that are not closed. The store
-     * calls its listeners in registration order, so every election sees a notification where the first election
-     * was created: after the listeners registered before it, like the one of the broker's metadata resources, and
-     * before the ones registered after it. That's why they are registered with the first election, rather than
-     * when this service is created.
+     * Register the store listener and the session listener of the elections, once: the elections share them, they
+     * dispatch to the elections that are not closed, and they are unregistered when this service is closed. The
+     * store calls its listeners in registration order, so every election sees a notification where the first
+     * election was created: after the listeners registered before it, like the one of the broker's metadata
+     * resources, and before the ones registered after it. That's why they are registered with the first election,
+     * rather than when this service is created.
      */
     private synchronized void registerLeaderElectionListeners() {
-        if (!leaderElectionListenersRegistered) {
-            store.registerListener(this::handleLeaderElectionNotification);
-            store.registerSessionListener(this::handleLeaderElectionSessionEvent);
-            leaderElectionListenersRegistered = true;
+        if (cancelLeaderElectionListener == null) {
+            cancelLeaderElectionListener = store.registerCancellableListener(this::handleLeaderElectionNotification);
+            cancelLeaderElectionSessionListener =
+                    store.registerCancellableSessionListener(this::handleLeaderElectionSessionEvent);
+        }
+    }
+
+    private synchronized void unregisterLeaderElectionListeners() {
+        if (cancelLeaderElectionListener != null) {
+            cancelLeaderElectionListener.run();
+            cancelLeaderElectionSessionListener.run();
+            cancelLeaderElectionListener = null;
+            cancelLeaderElectionSessionListener = null;
         }
     }
 
