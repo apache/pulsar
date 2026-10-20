@@ -376,10 +376,7 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
          * consumer, so that it keeps the backlog until the application joins.
          */
         void createSubscription(PulsarClientSharedResources sharedResources) throws Exception {
-            try (PulsarClient client = PulsarClient.builder()
-                    .serviceUrl(scenario.serviceUrl())
-                    .sharedResources(sharedResources)
-                    .build()) {
+            try (PulsarClient client = SharedClientResources.clientBuilder(scenario, sharedResources).build()) {
                 client.newConsumer(Schema.BYTES)
                         .topics(scenario.topicNames())
                         .subscriptionName(scenario.subscriptionName(index))
@@ -814,10 +811,7 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
             if (scenario.applications().readsCompacted()) {
                 return createReaderPod(sharedResources, restart);
             }
-            PulsarClient client = PulsarClient.builder()
-                    .serviceUrl(scenario.serviceUrl())
-                    .sharedResources(sharedResources)
-                    .build();
+            PulsarClient client = SharedClientResources.clientBuilder(scenario, sharedResources).build();
             try {
                 ConsumerBuilder<byte[]> builder = client.newConsumer(Schema.BYTES);
                 if (scenario.topics().subscribedByPattern()) {
@@ -982,10 +976,7 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
          * attempt: they count as received, once, and those that weren't to fail every attempt are unexpected.
          */
         private ClientAndConsumer createDeadLetterPod(PulsarClientSharedResources sharedResources) throws Exception {
-            PulsarClient client = PulsarClient.builder()
-                    .serviceUrl(scenario.serviceUrl())
-                    .sharedResources(sharedResources)
-                    .build();
+            PulsarClient client = SharedClientResources.clientBuilder(scenario, sharedResources).build();
             IotScenario.ProcessingFailures failures = scenario.behaviors().processingFailures();
             try {
                 Consumer<byte[]> consumer = client.newConsumer(Schema.BYTES)
@@ -1030,10 +1021,7 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
          */
         private ClientAndConsumer createReaderPod(PulsarClientSharedResources sharedResources, boolean restart)
                 throws Exception {
-            PulsarClient client = PulsarClient.builder()
-                    .serviceUrl(scenario.serviceUrl())
-                    .sharedResources(sharedResources)
-                    .build();
+            PulsarClient client = SharedClientResources.clientBuilder(scenario, sharedResources).build();
             LatestValueTracker state = new LatestValueTracker(scenario.deviceCount());
             long startEpochMs = System.currentTimeMillis();
             // A restarted pod has read the compacted state and the backlog when it receives a message published

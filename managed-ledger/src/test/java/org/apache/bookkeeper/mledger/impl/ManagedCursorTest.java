@@ -86,6 +86,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -4092,6 +4093,74 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         e = c1.getNthEntry(1, IndividualDeletedEntries.Exclude);
         assertNull(e);
+    }
+
+    @DataProvider(name = "skipOrGetNthEntry")
+    public static Object[][] skipOrGetNthEntry() {
+        return new Object[][] {{true}, {false}};
+    }
+
+    /**
+     * An acknowledgment that moves the mark-delete position over the individually deleted entries must not land
+     * between reading the mark-delete position and counting the individually deleted entries. Otherwise the
+     * deleted entries counted from the old state get skipped again from the new mark-delete position, and entries
+     * that were never acknowledged get skipped.
+     */
+    @Test(timeOut = 20000, dataProvider = "skipOrGetNthEntry")
+    void testPositionAfterNIsComputedFromConsistentCursorState(boolean skip) throws Exception {
+        ManagedLedgerImpl ledger = spy((ManagedLedgerImpl) factory.open(
+                "testPositionAfterNIsComputedFromConsistentCursorState-" + skip,
+                initManagedLedgerConfig(defaultConfig())));
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            positions.add(ledger.addEntry(("entry-" + i).getBytes(Encoding)));
+        }
+        cursor.delete(positions.get(1));
+        cursor.delete(positions.get(2));
+
+        // While the position after N is being computed, acknowledge entry 0 from another thread. That moves the
+        // mark-delete position to entry 2 and removes the individually deleted range (0, 2].
+        ReentrantReadWriteLock cursorLock = (ReentrantReadWriteLock) cursor.lock;
+        Thread callerThread = Thread.currentThread();
+        AtomicBoolean armed = new AtomicBoolean(true);
+        AtomicReference<Thread> ackThread = new AtomicReference<>();
+        AtomicReference<Throwable> ackFailure = new AtomicReference<>();
+        AtomicBoolean ackBlockedByCursorLock = new AtomicBoolean();
+        doAnswer(invocation -> {
+            if (Thread.currentThread() == callerThread && armed.compareAndSet(true, false)) {
+                Thread thread = new Thread(() -> {
+                    try {
+                        cursor.delete(positions.get(0));
+                    } catch (Throwable t) {
+                        ackFailure.set(t);
+                    }
+                }, "concurrent-ack");
+                ackThread.set(thread);
+                thread.start();
+                Awaitility.await().until(() -> cursorLock.hasQueuedThread(thread) || !thread.isAlive());
+                ackBlockedByCursorLock.set(cursorLock.hasQueuedThread(thread));
+            }
+            return invocation.callRealMethod();
+        }).when(ledger).getPositionAfterN(any(), anyLong(), any());
+
+        // skip or read the 2nd entry that isn't individually deleted: entry 3
+        if (skip) {
+            cursor.skipEntries(2, IndividualDeletedEntries.Exclude);
+        } else {
+            Entry entry = cursor.getNthEntry(2, IndividualDeletedEntries.Exclude);
+            assertNotNull(entry);
+            assertEquals(entry.getPosition(), positions.get(3));
+            entry.release();
+        }
+        assertNotNull(ackThread.get());
+        ackThread.get().join();
+        assertNull(ackFailure.get());
+
+        assertTrue(ackBlockedByCursorLock.get(),
+                "the acknowledgment should wait until the position after N has been computed");
+        assertEquals(cursor.getMarkDeletedPosition(), positions.get(skip ? 3 : 2));
+        assertEquals(cursor.getNumberOfEntries(), skip ? 6 : 7);
     }
 
     @Test(timeOut = 20000)
