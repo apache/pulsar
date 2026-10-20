@@ -96,17 +96,18 @@ final class JoinPreparation implements AutoCloseable {
      * Starts preparing the join, when the scenario prepares it, in the background, and with {@code offloads} records
      * the offload status when the late applications join; the launcher records it at the run's end too.
      */
-    static JoinPreparation start(String adminUrl, IotScenario scenario, boolean offloads, Path runOutput,
-                                 Path coordinationDirectory, String runId, Consumer<String> status) throws IOException {
+    static JoinPreparation start(String adminUrl, String adminToken, IotScenario scenario, boolean offloads,
+                                 Path runOutput, Path coordinationDirectory, String runId, Consumer<String> status)
+            throws IOException {
         if (offloads) {
             Files.writeString(runOutput.resolve(RunReport.OFFLOAD_STATUS_FILE),
                     RunReport.OFFLOAD_STATUS_HEADER + "\n");
         }
-        JoinPreparation preparation = new JoinPreparation(adminTopicOperations(PulsarAdmin.builder()
-                .serviceHttpUrl(adminUrl)
-                .connectionTimeout(10, TimeUnit.SECONDS)
-                .readTimeout(2, TimeUnit.MINUTES)
-                .build()), scenario, runOutput, status);
+        JoinPreparation preparation = new JoinPreparation(adminTopicOperations(
+                JwtSettings.adminBuilder(adminUrl, adminToken)
+                        .connectionTimeout(10, TimeUnit.SECONDS)
+                        .readTimeout(2, TimeUnit.MINUTES)
+                        .build()), scenario, runOutput, status);
         // At the earliest late join: preparing it, and with offloading the offload status then
         if (scenario.preparesJoin() || offloads && scenario.hasLateApplications()) {
             long deadlineNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos(scenario.timeoutSeconds());

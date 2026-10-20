@@ -119,10 +119,7 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
                 scenario.gateways().producer().ioThreads(), scenario.gateways().producer().listenerThreads());
         try {
             for (int gateway = 0; gateway < scenario.gatewayCount(); gateway++) {
-                clients.add(PulsarClient.builder()
-                        .serviceUrl(scenario.serviceUrl())
-                        .sharedResources(sharedResources)
-                        .build());
+                clients.add(SharedClientResources.clientBuilder(scenario, sharedResources).build());
             }
             if (scenario.gateways().producer().precreate()) {
                 precreateProducers(scenario, clients, producers);

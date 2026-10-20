@@ -47,7 +47,11 @@ dependencies {
     implementation(libs.hdrHistogram)
     // Samples topic backlog and message counters during a run for the run report
     implementation(project(":pulsar-client-admin-original"))
+    // Creates each TLS run's CA and broker certificates, see TlsSettings
+    implementation(libs.bcpkix.jdk18on)
     jonoffcpuAgent(libs.tooling.jonoffcpu.agent)
+    // Checks that the brokers' token provider accepts the tokens that JwtSettings creates
+    testImplementation(project(":pulsar-broker-common"))
 }
 
 // The launcher already needs a recent JDK at run time (JfrCut uses the JDK 19+ recording writer), and the report
