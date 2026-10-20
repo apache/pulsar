@@ -256,7 +256,7 @@ public class DualMetadataStoreTest extends BaseMetadataStoreTest {
         CountDownLatch sessionLostLatch = new CountDownLatch(1);
         AtomicReference<SessionEvent> receivedEvent = new AtomicReference<>();
 
-        dualStore.registerSessionListener(event -> {
+        dualStore.registerCancellableSessionListener(event -> {
             receivedEvent.set(event);
             if (event == SessionEvent.SessionLost) {
                 sessionLostLatch.countDown();
@@ -290,7 +290,7 @@ public class DualMetadataStoreTest extends BaseMetadataStoreTest {
         CountDownLatch sessionReestablishedLatch = new CountDownLatch(1);
         List<SessionEvent> receivedEvents = new ArrayList<>();
 
-        dualStore.registerSessionListener(event -> {
+        dualStore.registerCancellableSessionListener(event -> {
             receivedEvents.add(event);
             if (event == SessionEvent.SessionReestablished) {
                 sessionReestablishedLatch.countDown();
@@ -377,7 +377,7 @@ public class DualMetadataStoreTest extends BaseMetadataStoreTest {
         CountDownLatch sessionReestablishedLatch = new CountDownLatch(1);
         List<SessionEvent> receivedEvents = new ArrayList<>();
 
-        dualStore.registerSessionListener(event -> {
+        dualStore.registerCancellableSessionListener(event -> {
             receivedEvents.add(event);
             if (event == SessionEvent.SessionReestablished) {
                 sessionReestablishedLatch.countDown();

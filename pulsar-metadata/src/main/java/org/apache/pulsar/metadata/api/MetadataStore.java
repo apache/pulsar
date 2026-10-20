@@ -241,30 +241,41 @@ public interface MetadataStore extends AutoCloseable {
     }
 
     /**
-     * Register a listener that will be called on changes in the underlying store, for as long as the store lives.
-     * Components that don't live as long as the store use {@link #registerCancellableListener(Consumer)} instead.
+     * Register a listener that will be called on changes in the underlying store.
      *
      * @param listener
      *            a consumer of notifications
+     * @deprecated use {@link #registerCancellableListener(Consumer)}, and run the returned callback when the
+     *             listener is no longer needed. Implementations implement
+     *             {@link #registerCancellableListener(Consumer)} instead of this method.
      */
-    void registerListener(Consumer<Notification> listener);
+    @Deprecated
+    default void registerListener(Consumer<Notification> listener) {
+        LOG.warn().attr("store", getClass().getName())
+                .log("MetadataStore.registerListener is deprecated and the listener can't be unregistered, "
+                        + "use registerCancellableListener instead");
+        registerCancellableListener(listener);
+    }
 
     /**
      * Register a listener that will be called on changes in the underlying store.
      *
-     * <p>Components that don't live as long as the store must run the returned callback when they are closed, so
-     * that the store stops notifying them and doesn't keep them reachable. Running the callback more than once has
-     * no further effect.
+     * <p>The caller must run the returned callback when the listener is no longer needed, at the latest when the
+     * component that registered it is closed, so that the store stops notifying it and doesn't keep it reachable.
+     * Running the callback more than once has no further effect.
      *
-     * <p>The default implementation registers the listener with {@link #registerListener(Consumer)} and returns a
-     * callback that does nothing, for implementations that can't unregister a listener. Implementations should
-     * override it.
+     * <p>Implementations must override this method. The default implementation is only there for the
+     * implementations that were written for the deprecated {@link #registerListener(Consumer)}: it registers the
+     * listener with that method and returns a callback that can't unregister it.
      *
      * @param listener
      *            a consumer of notifications
      * @return a callback that unregisters the listener
      */
     default Runnable registerCancellableListener(Consumer<Notification> listener) {
+        LOG.warn().attr("store", getClass().getName())
+                .log("The MetadataStore implementation doesn't implement registerCancellableListener, "
+                        + "the listener can't be unregistered");
         registerListener(listener);
         return () -> { };
     }

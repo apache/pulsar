@@ -165,11 +165,6 @@ public class FaultInjectionMetadataStore implements MetadataStoreExtended {
     }
 
     @Override
-    public void registerListener(Consumer<Notification> listener) {
-        registerCancellableListener(listener);
-    }
-
-    @Override
     public Runnable registerCancellableListener(Consumer<Notification> listener) {
         return store.registerCancellableListener(listener);
     }
@@ -200,11 +195,6 @@ public class FaultInjectionMetadataStore implements MetadataStoreExtended {
                     + metadataCache.getClass().getName() + " not supported by FaultInjectionMetadataStore");
         }
         return metadataCache;
-    }
-
-    @Override
-    public void registerSessionListener(Consumer<SessionEvent> listener) {
-        registerCancellableSessionListener(listener);
     }
 
     @Override

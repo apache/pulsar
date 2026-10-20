@@ -87,6 +87,8 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     private final CopyOnWriteArrayList<Consumer<Notification>> listeners = new CopyOnWriteArrayList<>();
     private final CopyOnWriteArrayList<Consumer<SessionEvent>> sessionListeners = new CopyOnWriteArrayList<>();
+    // Unregisters this store from its own notifications, which it uses to invalidate its caches
+    private final Runnable cancelCacheInvalidationListener;
     protected final String metadataStoreName;
     private final OrderedExecutor serDesExecutor;
     @Getter
@@ -139,7 +141,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                 .numThreads(numSerDesThreads)
                 .name(namePrefix + "-worker")
                 .build();
-        registerCancellableListener(this);
+        cancelCacheInvalidationListener = registerCancellableListener(this);
 
         long childrenCacheMaxSizeBytes = getChildrenCacheMaxSizeBytes();
 
@@ -413,11 +415,6 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
             return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
         }
         return existsCache.get(path);
-    }
-
-    @Override
-    public void registerListener(Consumer<Notification> listener) {
-        registerCancellableListener(listener);
     }
 
     @Override
@@ -958,11 +955,6 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     }
 
     @Override
-    public void registerSessionListener(Consumer<SessionEvent> listener) {
-        registerCancellableSessionListener(listener);
-    }
-
-    @Override
     public Runnable registerCancellableSessionListener(Consumer<SessionEvent> listener) {
         return addCancellable(sessionListeners, listener);
     }
@@ -1005,6 +997,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     @Override
     public void close() throws Exception {
+        cancelCacheInvalidationListener.run();
         MoreExecutors.shutdownAndAwaitTermination(serDesExecutor, 10, TimeUnit.SECONDS);
         MoreExecutors.shutdownAndAwaitTermination(schedulerExecutor, 10, TimeUnit.SECONDS);
         MoreExecutors.shutdownAndAwaitTermination(eventExecutor, 10, TimeUnit.SECONDS);

@@ -120,32 +120,42 @@ public interface MetadataStoreExtended extends MetadataStore {
     /**
      * Register a session listener that will get notified of changes in status of the current session.
      *
-     * <p>Components that don't live as long as the store must run the returned callback when they are closed, so
-     * that the store stops notifying them and doesn't keep them reachable. Running the callback more than once has
-     * no further effect.
+     * <p>The caller must run the returned callback when the listener is no longer needed, at the latest when the
+     * component that registered it is closed, so that the store stops notifying it and doesn't keep it reachable.
+     * Running the callback more than once has no further effect.
      *
-     * <p>The default implementation registers the listener with {@link #registerSessionListener(Consumer)} and
-     * returns a callback that does nothing, for implementations that can't unregister a listener. Implementations
-     * should override it.
+     * <p>Implementations must override this method. The default implementation is only there for the
+     * implementations that were written for the deprecated {@link #registerSessionListener(Consumer)}: it registers
+     * the listener with that method and returns a callback that can't unregister it.
      *
      * @param listener
      *            the session listener
      * @return a callback that unregisters the listener
      */
     default Runnable registerCancellableSessionListener(Consumer<SessionEvent> listener) {
+        LOG.warn().attr("store", getClass().getName())
+                .log("The MetadataStoreExtended implementation doesn't implement registerCancellableSessionListener, "
+                        + "the session listener can't be unregistered");
         registerSessionListener(listener);
         return () -> { };
     }
 
     /**
-     * Register a session listener that will get notified of changes in status of the current session, for as long
-     * as the store lives. Components that don't live as long as the store use
-     * {@link #registerCancellableSessionListener(Consumer)} instead.
+     * Register a session listener that will get notified of changes in status of the current session.
      *
      * @param listener
      *            the session listener
+     * @deprecated use {@link #registerCancellableSessionListener(Consumer)}, and run the returned callback when the
+     *             listener is no longer needed. Implementations implement
+     *             {@link #registerCancellableSessionListener(Consumer)} instead of this method.
      */
-    void registerSessionListener(Consumer<SessionEvent> listener);
+    @Deprecated
+    default void registerSessionListener(Consumer<SessionEvent> listener) {
+        LOG.warn().attr("store", getClass().getName())
+                .log("MetadataStoreExtended.registerSessionListener is deprecated and the session listener can't be "
+                        + "unregistered, use registerCancellableSessionListener instead");
+        registerCancellableSessionListener(listener);
+    }
 
     /**
      * Get {@link MetadataEventSynchronizer} to notify and synchronize metadata events.

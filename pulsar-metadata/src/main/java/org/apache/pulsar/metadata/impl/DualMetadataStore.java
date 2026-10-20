@@ -95,6 +95,7 @@ public class DualMetadataStore implements MetadataStoreExtended {
     }
 
     private final ScheduledExecutorService executor;
+    private final Runnable cancelMigrationEventsListener;
 
     private final MetadataCache<MigrationState> migrationStateCache;
 
@@ -175,7 +176,7 @@ public class DualMetadataStore implements MetadataStoreExtended {
         registerAsParticipant();
 
         // Watch for migration events
-        watchForMigrationEvents();
+        cancelMigrationEventsListener = watchForMigrationEvents();
 
         if (migrationState.getPhase() == MigrationPhase.PREPARATION
                 || migrationState.getPhase() == MigrationPhase.COPYING) {
@@ -215,9 +216,9 @@ public class DualMetadataStore implements MetadataStoreExtended {
         }
     }
 
-    private void watchForMigrationEvents() {
+    private Runnable watchForMigrationEvents() {
         // Register listener for migration-related paths
-        sourceStore.registerCancellableListener(notification -> {
+        return sourceStore.registerCancellableListener(notification -> {
             if (!MigrationState.MIGRATION_FLAG_PATH.equals(notification.getPath())) {
                 return;
             }
@@ -593,11 +594,6 @@ public class DualMetadataStore implements MetadataStoreExtended {
     }
 
     @Override
-    public void registerListener(Consumer<Notification> listener) {
-        registerCancellableListener(listener);
-    }
-
-    @Override
     public Runnable registerCancellableListener(Consumer<Notification> listener) {
         return switch (migrationState.getPhase()) {
             case NOT_STARTED, PREPARATION, COPYING, FAILED -> {
@@ -609,11 +605,6 @@ public class DualMetadataStore implements MetadataStoreExtended {
 
             case COMPLETED -> targetStore.registerCancellableListener(listener);
         };
-    }
-
-    @Override
-    public void registerSessionListener(Consumer<SessionEvent> listener) {
-        registerCancellableSessionListener(listener);
     }
 
     @Override
@@ -671,6 +662,7 @@ public class DualMetadataStore implements MetadataStoreExtended {
     @Override
     public void close() throws Exception {
         log.info("Closing DualMetadataStore");
+        cancelMigrationEventsListener.run();
 
         // Close target store first (if exists)
         if (targetStore != null) {

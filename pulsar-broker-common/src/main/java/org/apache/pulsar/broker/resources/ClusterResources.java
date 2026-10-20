@@ -230,13 +230,6 @@ public class ClusterResources extends BaseResources<ClusterData> {
                 }
             });
         }
-
-        /**
-         * Register a listener of the changes of the failure domains, for as long as the store lives.
-         */
-        public void registerListener(Consumer<Notification> listener) {
-            registerCancellableListener(listener);
-        }
     }
 
     public static class ClusterPoliciesResources extends BaseResources<ClusterPoliciesImpl> {
