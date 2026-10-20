@@ -18,10 +18,19 @@
  */
 package org.apache.pulsar.broker.service.scalable;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Map;
 import java.util.Set;
+import org.apache.pulsar.broker.service.Subscription;
+import org.apache.pulsar.broker.service.persistent.PersistentEntryBucketDispatcherMultipleConsumers;
+import org.apache.pulsar.broker.service.persistent.PersistentStickyKeyDispatcherMultipleConsumers;
 import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.common.policies.data.SegmentTopicStats;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
@@ -29,6 +38,8 @@ import org.apache.pulsar.common.policies.data.stats.PublisherStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.util.DateFormatter;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -163,6 +174,78 @@ public class SegmentTopicStatsBuilderTest {
         assertEquals(consumer.getClientVersion(), "Pulsar-Java-v5.0.0-SNAPSHOT");
         assertEquals(consumer.getLastAckedTime(), DateFormatter.format(LAST_ACTIVITY));
         assertNull(consumer.getLastConsumedTime());
+    }
+
+    @DataProvider
+    public Object[][] terminationAndDrainingBuckets() {
+        return new Object[][]{{false, 0}, {true, 7}};
+    }
+
+    @Test(dataProvider = "terminationAndDrainingBuckets")
+    public void testTerminationAndDrainingBuckets(boolean terminated, int drainingBuckets) throws Exception {
+        TopicStatsImpl ts = topicStats();
+        ts.subscriptions.get("sub").drainingHashesCount = drainingBuckets;
+
+        Subscription subscription = mock(Subscription.class);
+        when(subscription.getDispatcher()).thenReturn(mock(PersistentEntryBucketDispatcherMultipleConsumers.class));
+        SegmentTopicStats stats = SegmentTopicStatsBuilder.fromTopicStats(ts, terminated, Map.of("sub", subscription));
+        assertThat(stats.getTerminated()).as("backing-topic termination state").isEqualTo(terminated);
+        assertThat(stats.getSubscriptions().get("sub").getDrainingBuckets())
+                .as("actual entry-bucket dispatcher normalizes drains to buckets").isEqualTo(drainingBuckets);
+
+        ObjectMapper mapper = ObjectMapperFactory.getMapper().getObjectMapper();
+        JsonNode json = mapper.valueToTree(stats);
+        assertThat(json.get("terminated").booleanValue()).isEqualTo(terminated);
+        JsonNode subscriptionJson = json.get("subscriptions").get("sub");
+        assertThat(subscriptionJson.get("drainingBuckets").intValue()).isEqualTo(drainingBuckets);
+        assertThat(subscriptionJson.has("drainingHashesCount")).isFalse();
+        SegmentTopicStats restored = mapper.treeToValue(json, SegmentTopicStats.class);
+        assertThat(restored).as("JSON round trip preserves segment stats").isEqualTo(stats);
+    }
+
+    @Test
+    public void testUnknownDispatcherDoesNotTreatClassicHashDrainsAsBuckets() {
+        TopicStatsImpl ts = topicStats();
+        ts.subscriptions.get("sub").drainingHashesCount = 7;
+
+        assertThat(SegmentTopicStatsBuilder.fromTopicStats(ts, false)
+                .getSubscriptions().get("sub").getDrainingBuckets())
+                .as("Key_Shared alone does not establish entry-bucket dispatch")
+                .isZero();
+    }
+
+    @Test
+    public void testClassicKeySharedDispatcherDoesNotReportBuckets() {
+        TopicStatsImpl ts = topicStats();
+        ts.subscriptions.get("sub").drainingHashesCount = 7;
+        Subscription subscription = mock(Subscription.class);
+        when(subscription.getDispatcher()).thenReturn(mock(PersistentStickyKeyDispatcherMultipleConsumers.class));
+
+        assertThat(SegmentTopicStatsBuilder.fromTopicStats(ts, true, Map.of("sub", subscription))
+                .getSubscriptions().get("sub").getDrainingBuckets())
+                .as("a migrated classic AUTO_SPLIT dispatcher drains keys, not buckets")
+                .isZero();
+        assertThat(ts.subscriptions.get("sub").drainingHashesCount)
+                .as("conversion must not mutate classic stats").isEqualTo(7);
+        assertThat(SegmentTopicStatsBuilder.fromTopicStats(ts).getSubscriptions().get("sub").getDrainingBuckets())
+                .as("the legacy overload has no capability information").isZero();
+    }
+
+    @Test
+    public void testLegacyStatsPreserveUnknownTerminationAndDefaultDrainingBuckets() throws Exception {
+        SegmentTopicStats stats = SegmentTopicStatsBuilder.fromTopicStats(topicStats());
+        assertThat(stats.getTerminated()).as("conversion without backing-topic state remains unknown").isNull();
+        assertThat(stats.getSubscriptions().get("sub").getDrainingBuckets()).isZero();
+
+        ObjectMapper mapper = ObjectMapperFactory.getMapper().getObjectMapper();
+        assertThat(mapper.valueToTree(stats).has("terminated")).isFalse();
+        SegmentTopicStats restored = mapper.readValue(
+                "{\"subscriptions\":{\"sub\":{}}}", SegmentTopicStats.class);
+        assertThat(restored.getTerminated()).as("older segment JSON does not establish termination state").isNull();
+        assertThat(restored.getSubscriptions().get("sub").getDrainingBuckets()).isZero();
+        assertThat(mapper.valueToTree(restored).has("terminated")).isFalse();
+        assertThat(SegmentTopicStatsBuilder.fromTopicStats(topicStats(), null).getTerminated()).isNull();
+        assertThat(SegmentTopicStatsBuilder.fromTopicStats(topicStats(), null, Map.of()).getTerminated()).isNull();
     }
 
     @Test
