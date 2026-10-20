@@ -33,6 +33,7 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.ForwardingConcurrentMap;
 import io.netty.buffer.ByteBuf;
@@ -189,10 +190,13 @@ public class MessageDuplicationTest extends BrokerTestBase {
         for (int i = 0; i < 15; i++) {
             messageDeduplication.setHighestSequencedPersisted("producer" + i, i);
         }
+        MessageDeduplication.PersistedSequenceId persisted =
+                messageDeduplication.highestSequencedPersisted.get("producer0");
         // updated in place
         for (int i = 0; i < 15; i++) {
             messageDeduplication.setHighestSequencedPersisted("producer" + i, 100 + i);
         }
+        assertSame(messageDeduplication.highestSequencedPersisted.get("producer0"), persisted);
         Map<String, Long> snapshot = messageDeduplication.snapshotPersistedSequenceIds();
         assertEquals(snapshot.size(), BROKER_DEDUPLICATION_MAX_NUMBER_PRODUCERS);
         snapshot.forEach((producerName, sequenceId) ->
@@ -263,7 +267,7 @@ public class MessageDuplicationTest extends BrokerTestBase {
     }
 
     @Test
-    public void testRecordingAPurgedProducerAddsItBack() {
+    public void testRecordingARemovedProducerAddsANewEntry() {
         MessageDeduplication messageDeduplication = messageDeduplication(BROKER_DEDUPLICATION_MAX_NUMBER_PRODUCERS);
         messageDeduplication.setHighestSequencedPersisted("producer", 1);
         MessageDeduplication.PersistedSequenceId persisted =

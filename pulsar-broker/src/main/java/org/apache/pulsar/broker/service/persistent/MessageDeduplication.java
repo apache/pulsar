@@ -23,9 +23,9 @@ import static org.apache.bookkeeper.mledger.util.ManagedLedgerUtils.openCursor;
 import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_IS_REPL_MARKER;
 import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_REPL_SOURCE_POSITION;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Maps;
 import io.github.merlimat.slog.Logger;
 import io.netty.buffer.ByteBuf;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -118,10 +118,10 @@ public class MessageDeduplication {
     final ConcurrentMap<String, PersistedSequenceId> highestSequencedPersisted = new ConcurrentHashMap<>();
 
     /**
-     * The highest sequence ID persisted for a producer. The topic's managed-ledger thread records it for every
-     * persisted message, so the value is updated in place: replacing the map's entry would lock a bin of the map and
-     * box the value for every message. See {@link #setHighestSequencedPersisted(String, long)} for how an update
-     * orders with a removal of the entry.
+     * The highest sequence ID persisted for a producer. It's recorded for every persisted message, normally on the
+     * topic's managed-ledger thread, so the value is updated in place: replacing the map's entry would lock a bin of
+     * the map and box the value for every message. See {@link #setHighestSequencedPersisted(String, long)} for how an
+     * update orders with a removal of the entry.
      */
     static final class PersistedSequenceId {
         volatile long value;
@@ -722,8 +722,8 @@ public class MessageDeduplication {
      * properties. The properties don't need an order, so the producers' names aren't sorted.
      */
     Map<String, Long> snapshotPersistedSequenceIds() {
-        Map<String, Long> snapshot = new HashMap<>(
-                Math.max(0, Math.min(highestSequencedPersisted.size(), maxNumberOfProducers)) * 4 / 3 + 1);
+        Map<String, Long> snapshot = Maps.newHashMapWithExpectedSize(
+                Math.max(0, Math.min(highestSequencedPersisted.size(), maxNumberOfProducers)));
         highestSequencedPersisted.forEach((producerName, persisted) -> {
             if (snapshot.size() < maxNumberOfProducers) {
                 snapshot.put(producerName, persisted.value);
@@ -744,6 +744,7 @@ public class MessageDeduplication {
         setHighestSequencedPersisted(highestSequencedPersisted, producerName, sequenceId);
     }
 
+    @VisibleForTesting
     static void setHighestSequencedPersisted(ConcurrentMap<String, PersistedSequenceId> highestSequencedPersisted,
                                              String producerName, long sequenceId) {
         PersistedSequenceId persisted = highestSequencedPersisted.get(producerName);
