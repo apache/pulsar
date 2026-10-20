@@ -195,6 +195,18 @@ public class AsyncDualMemoryLimiterUtil {
                 instanceof AsyncSemaphore.PermitAcquireCancelledException;
     }
 
+    /**
+     * Checks whether the permit request failed because more permits were requested than the limit. Unlike a permit
+     * timeout or a full queue, retrying such a request fails the same way.
+     *
+     * @param throwable the failure, possibly wrapped in a {@link java.util.concurrent.CompletionException}
+     * @return true if the request was larger than the limit
+     */
+    public static boolean isPermitAcquireLimitExceeded(Throwable throwable) {
+        return FutureUtil.unwrapCompletionException(throwable)
+                instanceof AsyncSemaphore.PermitAcquireLimitExceededException;
+    }
+
     private static AsyncSemaphore.PermitAcquireCancelledException newCancelledException() {
         return new AsyncSemaphore.PermitAcquireCancelledException("Request was cancelled before permits were used");
     }

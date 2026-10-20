@@ -57,6 +57,7 @@ import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter;
+import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterUtil;
 import org.apache.pulsar.common.semaphore.AsyncSemaphore;
 import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.topics.TopicsPattern;
@@ -513,14 +514,8 @@ public class TopicListService {
                                 }
                                 // the request is waiting for a response unless the connection was closed
                                 if (connection.isActive()) {
-                                    ServerError error =
-                                            failure instanceof AsyncSemaphore.PermitAcquireLimitExceededException
-                                                    ? ServerError.TooManyRequests
-                                                    : BrokerServiceException.getClientErrorCode(
-                                                            new BrokerServiceException.ServerMetadataException(
-                                                                    failure));
-                                    connection.getCommandSender().sendErrorResponse(requestId, error,
-                                            failure.getMessage());
+                                    connection.getCommandSender().sendErrorResponse(requestId,
+                                            getWatchTopicListErrorCode(failure), failure.getMessage());
                                 }
                             });
                     lookupSemaphore.release();
@@ -534,8 +529,7 @@ public class TopicListService {
                                 .exceptionMessage(ex)
                                 .log("Error WatchTopicList");
                         connection.getCommandSender().sendErrorResponse(requestId,
-                                BrokerServiceException.getClientErrorCode(
-                                        new BrokerServiceException.ServerMetadataException(ex)), ex.getMessage());
+                                getWatchTopicListErrorCode(ex), ex.getMessage());
                     } else {
                         // the connection was closed, there's no client to respond to
                         log.debug()
@@ -937,6 +931,18 @@ public class TopicListService {
                     TimeUnit.MILLISECONDS);
             return future;
         };
+    }
+
+    /**
+     * Maps a failure of a watch request to the error response. A topic list or a response that is larger than the
+     * topic list memory limit gets a non-retriable error, since a retry fails the same way until the topic list is
+     * measured again.
+     */
+    private static ServerError getWatchTopicListErrorCode(Throwable failure) {
+        if (AsyncDualMemoryLimiterUtil.isPermitAcquireLimitExceeded(failure)) {
+            return ServerError.NotAllowedError;
+        }
+        return BrokerServiceException.getClientErrorCode(new BrokerServiceException.ServerMetadataException(failure));
     }
 
     private static AsyncSemaphore.PermitAcquireCancelledException newWatcherClosedException(long watcherId) {

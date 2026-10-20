@@ -919,7 +919,7 @@ public class TopicListServiceTest {
 
         Awaitility.await().untilAsserted(() -> assertThat(topicListService.getWatcherFuture(13)).isNull());
         verify(pulsarCommandSender, timeout(2000L))
-                .sendErrorResponse(eq(7L), eq(ServerError.TooManyRequests), anyString());
+                .sendErrorResponse(eq(7L), eq(ServerError.NotAllowedError), anyString());
         // the success response isn't retried
         verify(pulsarCommandSender, times(1))
                 .sendWatchTopicListSuccess(anyLong(), anyLong(), anyString(), any(), any(), any());

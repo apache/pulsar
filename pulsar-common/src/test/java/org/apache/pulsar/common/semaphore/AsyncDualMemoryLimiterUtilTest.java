@@ -37,6 +37,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.concurrent.GenericFutureListener;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -743,6 +744,20 @@ public class AsyncDualMemoryLimiterUtilTest {
         assertThat(result).succeedsWithin(Duration.ofSeconds(1));
         verify(ctx, never()).writeAndFlush(any());
         assertThat(capturedError.get()).isInstanceOf(PermitAcquireLimitExceededException.class);
+    }
+
+    @Test
+    public void testIsPermitAcquireLimitExceeded() {
+        PermitAcquireLimitExceededException limitExceeded =
+                new PermitAcquireLimitExceededException("larger than the limit", new IllegalArgumentException());
+        assertThat(AsyncDualMemoryLimiterUtil.isPermitAcquireLimitExceeded(limitExceeded)).isTrue();
+        assertThat(AsyncDualMemoryLimiterUtil.isPermitAcquireLimitExceeded(new CompletionException(limitExceeded)))
+                .isTrue();
+        // a permit timeout or a full queue can succeed when retried
+        assertThat(AsyncDualMemoryLimiterUtil.isPermitAcquireLimitExceeded(
+                new AsyncSemaphore.PermitAcquireTimeoutException("timeout"))).isFalse();
+        assertThat(AsyncDualMemoryLimiterUtil.isPermitAcquireLimitExceeded(
+                new AsyncSemaphore.PermitAcquireQueueFullException("queue full"))).isFalse();
     }
 
     private BaseCommand createTestCommand() {

@@ -5004,11 +5004,37 @@ public class ServerCnxTest {
                 // the request is rejected instead of being left without a response
                 CommandError error = (CommandError) getResponse();
                 assertEquals(error.getRequestId(), requestId);
-                assertEquals(error.getError(), ServerError.TooManyRequests);
+                assertEquals(error.getError(), ServerError.NotAllowedError);
                 // the lookup permit is released
                 assertEquals(lookupSemaphore.availablePermits(), initialPermits);
             }
         } finally {
+            channel.finish();
+            limiter.close();
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void testGetTopicsOfNamespacePermitTimeoutIsRetriable() throws Exception {
+        long heapMemoryLimit = 1_000_000;
+        // the heap memory limit fits the topic list, but all of it is held by another request
+        AsyncDualMemoryLimiterImpl limiter =
+                new AsyncDualMemoryLimiterImpl(heapMemoryLimit, 10, 100, 1_000_000, 10, 1000);
+        AsyncDualMemoryLimiter.AsyncDualMemoryLimiterPermit heldPermit = limiter.acquire(heapMemoryLimit,
+                AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY, () -> false).get(10, TimeUnit.SECONDS);
+        try {
+            doReturn(limiter).when(brokerService).getMaxTopicListInFlightLimiter();
+            doReturn(new TopicListSizeResultCache()).when(brokerService).getTopicListSizeResultCache();
+            resetChannel();
+            setChannelConnected();
+            channel.writeInbound(Commands.newGetTopicsOfNamespaceRequest(
+                    "use/ns-abc", 1, CommandGetTopicsOfNamespace.Mode.ALL, null, null, null));
+            // a permit timeout gets an error that the client retries, unlike a topic list larger than the limit
+            CommandError error = (CommandError) getResponse();
+            assertEquals(error.getRequestId(), 1);
+            assertEquals(error.getError(), ServerError.TooManyRequests);
+        } finally {
+            limiter.release(heldPermit);
             channel.finish();
             limiter.close();
         }
@@ -5035,7 +5061,7 @@ public class ServerCnxTest {
                         "use/ns-abc", requestId, CommandGetTopicsOfNamespace.Mode.ALL, null, null, null));
                 CommandError error = (CommandError) getResponse();
                 assertEquals(error.getRequestId(), requestId);
-                assertEquals(error.getError(), ServerError.TooManyRequests);
+                assertEquals(error.getError(), ServerError.NotAllowedError);
                 assertEquals(lookupSemaphore.availablePermits(), initialPermits);
             }
             // only the first request listed the topics, the later requests failed without listing them
