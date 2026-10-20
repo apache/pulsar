@@ -1278,12 +1278,22 @@ public class BrokerService implements Closeable {
             if (optTopic.isPresent()) {
                 return CompletableFuture.completedFuture(optTopic);
             }
-            // A load that found the topic missing removes its empty future from the cache asynchronously; remove it
-            // now so that creating the topic does not get that future back.
-            topics.remove(topicName.toString(), existingTopic);
+            evictMissingTopicFuture(topicName.toString());
             return isAllowAutoTopicCreationAsync(topicName, newTopicCheck)
                     .thenCompose(isAllowed -> getTopic(topicName.toString(), isAllowed));
         });
+    }
+
+    /**
+     * Removes the future cached for the topic when it is a completed load that found the topic missing. A load removes
+     * that future from the cache asynchronously, so creating the topic right after could otherwise get it back. The
+     * cached future may come from another load than the caller's, when two of them raced.
+     */
+    private void evictMissingTopicFuture(String topic) {
+        CompletableFuture<Optional<Topic>> cached = topics.get(topic);
+        if (cached != null && cached.isDone() && !cached.isCompletedExceptionally() && cached.join().isEmpty()) {
+            topics.remove(topic, cached);
+        }
     }
 
     public CompletableFuture<Optional<Topic>> getTopic(final String topic, boolean createIfMissing,

@@ -25,10 +25,13 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import org.apache.pulsar.broker.authentication.AuthenticationDataForwarded;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.namespace.TopicExistsInfo;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -81,6 +84,9 @@ public class TopicAutoCreationAuthorizationTest extends ProducerConsumerBase {
 
         private static final Set<String> CLIENT_ROLES = Set.of(CREATOR_ROLE, USER_ROLE, PROXY_ROLE);
 
+        /** The auth data each role was last checked with by {@link #allowTopicAutoCreationAsync}. */
+        static final Map<String, AuthenticationDataSource> AUTO_CREATION_AUTH_DATA = new ConcurrentHashMap<>();
+
         @Override
         public CompletableFuture<Boolean> allowTopicOperationAsync(TopicName topic, String role,
                                                                    TopicOperation operation,
@@ -91,6 +97,9 @@ public class TopicAutoCreationAuthorizationTest extends ProducerConsumerBase {
         @Override
         public CompletableFuture<Boolean> allowTopicAutoCreationAsync(TopicName topic, String role,
                                                                       AuthenticationDataSource authData) {
+            if (authData != null) {
+                AUTO_CREATION_AUTH_DATA.put(role, authData);
+            }
             if (topic.toString().contains(PROVIDER_FAILURE)) {
                 return CompletableFuture.failedFuture(new IllegalStateException("Authorization backend is down"));
             }
@@ -304,9 +313,18 @@ public class TopicAutoCreationAuthorizationTest extends ProducerConsumerBase {
         URI lookupUri = URI.create(brokerUrl.toString().replaceAll("/$", "")
                 + "/lookup/v2/topic/persistent/" + NAMESPACE + "/proxied-http-lookup");
         HttpClient httpClient = HttpClient.newHttpClient();
+        AutoCreationAuthorizationProvider.AUTO_CREATION_AUTH_DATA.clear();
 
         assertThat(proxiedLookupStatus(httpClient, lookupUri, USER_ROLE))
                 .as("status of a proxied lookup for a role that may not create topics").isEqualTo(404);
+        // The original principal is checked with its own auth data, not with the proxy's credentials.
+        assertThat(AutoCreationAuthorizationProvider.AUTO_CREATION_AUTH_DATA.get(USER_ROLE))
+                .as("auth data the original principal was checked with")
+                .isInstanceOf(AuthenticationDataForwarded.class);
+        assertThat(AutoCreationAuthorizationProvider.AUTO_CREATION_AUTH_DATA.get(PROXY_ROLE))
+                .as("auth data the proxy was checked with")
+                .isNotNull()
+                .isNotInstanceOf(AuthenticationDataForwarded.class);
         assertThat(proxiedLookupStatus(httpClient, lookupUri, CREATOR_ROLE))
                 .as("status of a proxied lookup for a role that may create topics").isEqualTo(200);
     }
