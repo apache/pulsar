@@ -473,7 +473,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     @Override
     public final CompletableFuture<Void> delete(String path, Optional<Long> expectedVersion, Set<Option> opts) {
-        log.info().attr("path", path).attr("expectedVersion", expectedVersion).log("Deleting path");
+        log.debug().attr("path", path).attr("expectedVersion", expectedVersion).log("Deleting path");
         if (isClosed()) {
             return alreadyClosedFailedFuture();
         }
@@ -518,7 +518,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
             }
 
             metadataCaches.forEach(c -> c.invalidate(path));
-            log.info().attr("path", path).attr("expectedVersion", expectedVersion).log("Deleted path");
+            log.debug().attr("path", path).attr("expectedVersion", expectedVersion).log("Deleted path");
         });
     }
 

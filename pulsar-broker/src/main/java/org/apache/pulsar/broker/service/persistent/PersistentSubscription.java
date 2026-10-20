@@ -380,6 +380,10 @@ public class PersistentSubscription extends AbstractSubscription {
         msgOutFromRemovedConsumer.add(stats.msgOutCounter);
 
         if (dispatcher != null && dispatcher.getConsumers().isEmpty()) {
+            // The consumers that a fenced subscription disconnects, when it is closed or reset, are expected back
+            if (IS_FENCED_UPDATER.get(this) == FALSE) {
+                cursor.markIdle();
+            }
             deactivateCursor();
             // Remove the cursor from the waiting cursors list.
             // For durable cursors, we should *not* cancel the pending read with cursor.cancelPendingReadRequest.
@@ -1470,7 +1474,9 @@ public class PersistentSubscription extends AbstractSubscription {
 
         Dispatcher dispatcher = this.dispatcher;
         if (dispatcher != null) {
-            Map<Consumer, List<Range>> consumerKeyHashRanges = getType() == SubType.Key_Shared
+            // Only the consumers' stats show the key hash ranges, which take a pass over the selector's hash ring
+            Map<Consumer, List<Range>> consumerKeyHashRanges =
+                    getType() == SubType.Key_Shared && !getStatsOptions.isExcludeConsumers()
                     ? ((StickyKeyDispatcher) dispatcher).getConsumerKeyHashRanges() : null;
             dispatcher.getConsumers().forEach(consumer -> {
                 ConsumerStatsImpl consumerStats = consumer.getStats();

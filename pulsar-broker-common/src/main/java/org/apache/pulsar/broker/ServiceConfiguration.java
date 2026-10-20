@@ -2635,7 +2635,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
             (int) (DirectMemoryUtils.jvmMaxDirectMemory() / 5 / (1024 * 1024)));
 
     @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Whether we should make a copy of the entry payloads when "
-            + "inserting in cache")
+            + "inserting in cache. Without a copy, a cached entry keeps the buffer that it was received in allocated\n"
+            + "while it stays in the cache. That is a buffer of the Netty connection that the entry arrived on, from\n"
+            + "a client or from a bookie, such as a receive buffer or one that the TLS handler or the frame decoder\n"
+            + "allocated, and it can be much larger than the entry. The cache size limit counts only\n"
+            + "the entry's own size, so size-based eviction doesn't bound that memory, and\n"
+            + "managedLedgerCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes extends how long it\n"
+            + "stays allocated.")
     private boolean managedLedgerCacheCopyEntries = false;
 
     @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Maximum buffer size in MB for bytes read from storage"
@@ -2695,7 +2701,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "- Consumers temporarily falling behind the tail\n"
             + "Entries with remaining expected reads will have their TTL extended up to this many times\n"
             + "before being eligible for eviction. The TTL will be extended by\n"
-            + "managedLedgerCacheEvictionTimeThresholdMillis each time.\n"
+            + "managedLedgerCacheEvictionTimeThresholdMillis each time. When the cache needs memory, size-based\n"
+            + "eviction overrides this protection after requeuing an entry at most once per eviction pass. Both this\n"
+            + "protection and the one of managedLedgerCacheEvictionExtendTTLOfRecentlyAccessed apply only in a\n"
+            + "pass's first cycle through the cache's entries; after it, the pass removes entries in their order in\n"
+            + "the queue. Entries added while a pass is running are past its first cycle, so that pass doesn't\n"
+            + "requeue them.\n"
+            + "Without managedLedgerCacheCopyEntries, a cached entry keeps the larger buffer that it was received in\n"
+            + "allocated while its time to live is extended, so consider enabling copying before raising this value.\n"
             + "Default is 5.")
     private int managedLedgerCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes = 5;
 
