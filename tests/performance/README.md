@@ -110,6 +110,10 @@ the run report are written for the IoT domain.
 [The IoT telemetry scenario](scenarios/docs/iot-telemetry.md) describes the workload's settings and the maintained
 scenarios in detail.
 
+For isolated disk-full/read-only, journal I/O-error and stalled-write regressions, see
+[Storage-failure checks](docs/storage-failures.md). The opt-in `storageCheck` task checks publish failure,
+ensemble replacement and confirmed-message recovery on disposable volumes; it is not a performance measurement.
+
 ## Before you start
 
 - **A host with Docker**: the cluster and the workloads run in Linux containers, so the tests run on Linux and on

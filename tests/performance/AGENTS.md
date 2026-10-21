@@ -597,3 +597,7 @@ personal fork or another fork.
   them on small containers and needs a Docker engine that runs privileged containers. The unit tests check the
   settings, the `tc` commands, and the impairments' state machine on a fake host (`NetworkImpairmentsTest`), without
   Docker.
+- After changing the isolated storage-failure helpers, run
+  `./gradlew :tests:performance:launcher:storageCheck --tests StorageFailureCheck -PtestRetryCount=0`.
+  [Storage-failure checks](docs/storage-failures.md) documents the disposable mounts, FUSE prerequisites,
+  safety boundaries and evidence. This opt-in task starts a small cluster; ordinary launcher tests do not.

@@ -70,8 +70,8 @@ tasks.named<Test>("test") {
     inputs.dir(layout.projectDirectory.dir("../scenarios"))
         .withPropertyName("scenarios")
         .withPathSensitivity(PathSensitivity.RELATIVE)
-    // It needs a Docker engine that runs privileged containers; networkCheck runs it
-    exclude("**/NetworkImpairmentsCheck*")
+    // Real fault checks need Docker; the opt-in networkCheck and storageCheck tasks run them.
+    exclude("**/NetworkImpairmentsCheck*", "**/StorageFailureCheck*")
 }
 
 // Checks the network impairments on small containers, with ping and iperf3, see docs/network-conditions.md
@@ -86,6 +86,27 @@ val networkCheck by tasks.registering(Test::class) {
     testLogging {
         events("passed", "failed", "skipped")
         showStandardStreams = true
+    }
+}
+
+// Real filesystem faults and end-to-end recovery, isolated from the Docker-free unit tests.
+tasks.register<Test>("storageCheck") {
+    description = "Check isolated bookie disk-full, read-only, I/O error and journal stall recovery"
+    group = "verification"
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    useTestNG()
+    include("**/StorageFailureCheck*")
+    maxParallelForks = 1
+    outputs.upToDateWhen { false }
+    // The fixture derives a fault-only image from the regular test image. It never changes the shared image.
+    dependsOn(":tests:java-test-image:dockerBuild")
+    environment("PULSAR_TEST_IMAGE_NAME",
+        "${providers.gradleProperty("docker.organization").getOrElse("apachepulsar")}/java-test-image:"
+            + providers.gradleProperty("docker.tag").getOrElse("latest"))
+    systemProperty("storage.check.output", layout.buildDirectory.dir("storage-check").get().asFile.absolutePath)
+    testLogging {
+        events("passed", "failed", "skipped")
     }
 }
 
