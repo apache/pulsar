@@ -674,7 +674,9 @@ class PythonInstance(object):
     action is always forwarded: the proto3 enum default (FAIL) equals the client default, so an
     unset action keeps today's behavior while DISCARD and CONSUME now reach the client. The
     producer-only value (SEND) is not meaningful for a consumer and falls back to FAIL, like
-    the compression mapping treats values without a consumer equivalent.
+    the compression mapping treats values without a consumer equivalent. The Java runtime
+    rejects SEND instead (CryptoUtils.getConsumerCryptoFailureAction throws); the Python
+    runtime keeps the function running on the client default rather than fail at startup.
     """
     if not consumer_conf.HasField("cryptoSpec"):
       return {}

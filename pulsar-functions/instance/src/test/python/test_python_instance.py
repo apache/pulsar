@@ -680,3 +680,24 @@ class TestConsumerCryptoFailureAction(unittest.TestCase):
     args = instance.get_crypto_failure_action_args(consumer_conf)
     self.assertIsInstance(args, dict)
     self.assertEqual(["crypto_failure_action"], list(args.keys()))
+
+  def test_action_reaches_subscribe_on_the_input_specs_paths(self):
+    # The helper returning the right dict is only half of it: setup_consumers() has to pass it to
+    # Client.subscribe(), on the plain and the regex inputSpecs paths alike.
+    def discard(regex):
+      def configure(details):
+        topic = "persistent://public/default/.*" if regex else "persistent://public/default/in"
+        details.source.inputSpecs[topic].cryptoSpec.consumerCryptoFailureAction = \
+          Function_pb2.CryptoSpec.FailureAction.Value("DISCARD")
+      return configure
+
+    subscribe_args = TestConsumerSubscribeArgs()
+    for regex in (False, True):
+      with self.subTest(regex=regex):
+        kwargs = subscribe_args._subscribe_kwargs(via_input_specs=True, regex=regex,
+                                                  configure=discard(regex))
+        self.assertEqual(pulsar.ConsumerCryptoFailureAction.DISCARD, kwargs["crypto_failure_action"])
+
+  def test_action_is_not_passed_to_subscribe_without_a_crypto_spec(self):
+    kwargs = TestConsumerSubscribeArgs()._subscribe_kwargs(via_input_specs=True)
+    self.assertNotIn("crypto_failure_action", kwargs)
