@@ -214,7 +214,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
             assertNotNull(messageDeduplication.highestSequencedPushed);
             long seqId = messageDeduplication.getLastPublishedSequenceId(producerName);
             assertEquals(seqId, maxSeq);
-            assertEquals(messageDeduplication.highestSequencedPersisted.get(producerName).longValue(), maxSeq);
+            assertEquals(messageDeduplication.getHighestSequencedPersisted(producerName).longValue(), maxSeq);
             assertEquals(messageDeduplication.highestSequencedPushed.get(producerName).longValue(), maxSeq);
         }).get();
     }
@@ -266,7 +266,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         countDownLatch.await();
         PersistentTopic persistentTopic =
                 (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
-        long seqId = persistentTopic.getMessageDeduplication().highestSequencedPersisted.get(producerName);
+        long seqId = persistentTopic.getMessageDeduplication().getHighestSequencedPersisted(producerName);
         Position position = persistentTopic.getMessageDeduplication().getManagedCursor()
                 .getManagedLedger().getLastConfirmedEntry();
         assertEquals(seqId, msgNum - 1);
@@ -375,7 +375,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         countDownLatch.await();
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
                 .getTopicIfExists(topicName).get().get();
-        long seqId = persistentTopic.getMessageDeduplication().highestSequencedPersisted.get(producerName);
+        long seqId = persistentTopic.getMessageDeduplication().getHighestSequencedPersisted(producerName);
         Position position = persistentTopic.getMessageDeduplication().getManagedCursor().getManagedLedger()
                 .getLastConfirmedEntry();
         assertEquals(seqId, msgNum - 1);
@@ -457,7 +457,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         countDownLatch.await();
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
                 .getTopicIfExists(topicName).get().get();
-        long seqId = persistentTopic.getMessageDeduplication().highestSequencedPersisted.get(producerName);
+        long seqId = persistentTopic.getMessageDeduplication().getHighestSequencedPersisted(producerName);
         Position position = persistentTopic.getMessageDeduplication().getManagedCursor()
                 .getManagedLedger().getLastConfirmedEntry();
         assertEquals(seqId, msgNum - 1);
@@ -514,7 +514,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         ManagedCursor managedCursor = persistentTopic.getMessageDeduplication().getManagedCursor();
         Position markDeletedPosition = managedCursor.getMarkDeletedPosition();
 
-        long seqId = persistentTopic.getMessageDeduplication().highestSequencedPersisted.get(producerName);
+        long seqId = persistentTopic.getMessageDeduplication().getHighestSequencedPersisted(producerName);
         Position position = persistentTopic.getMessageDeduplication().getManagedCursor()
                 .getManagedLedger().getLastConfirmedEntry();
         assertEquals(seqId, msgNum - 1);

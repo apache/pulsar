@@ -63,7 +63,7 @@ public class RangeCacheEvictionBenchmark {
     public void setup() throws Exception {
         entries = new ArrayList<>(numberOfEntries);
         for (int i = 0; i < numberOfEntries; i++) {
-            EntryImpl entry = EntryImpl.create(0, i, new byte[0], useRequeuing ? 1 : 0);
+            EntryImpl entry = EntryImpl.create(0, i, new byte[0], useRequeuing ? 1 : EntryImpl.NO_EXPECTED_READ_COUNT);
             entries.add(entry);
         }
     }

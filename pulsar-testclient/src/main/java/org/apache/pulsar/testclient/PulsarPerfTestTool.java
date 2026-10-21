@@ -20,6 +20,7 @@ package org.apache.pulsar.testclient;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import com.google.common.annotations.VisibleForTesting;
 import java.io.FileInputStream;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -43,7 +44,10 @@ public class PulsarPerfTestTool {
         commandMap = new HashMap<>();
     }
 
-    private String[] initCommander(String[] args) throws Exception {
+    @VisibleForTesting
+    String[] initCommander(String[] args) throws Exception {
+        // produce, consume, transaction and read pick the v4 or the V5 client from the topic domain
+        // (topic:// means V5), and --client-api overrides that choice.
         commandMap.put("produce", PerformanceProducer.class);
         commandMap.put("consume", PerformanceConsumer.class);
         commandMap.put("transaction", PerformanceTransaction.class);

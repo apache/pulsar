@@ -203,6 +203,8 @@ include("pulsar-broker-fastutil-minimized")
 // Tier 10 — shaded client modules (in core-modules)
 include("pulsar-client-shaded")
 include("pulsar-client-all")
+include("pulsar-client-v5-all")
+include("pulsar-client-v5-shaded")
 include("pulsar-client-admin-shaded")
 
 // Tier 11 — distribution (server is in core-modules)
@@ -260,6 +262,16 @@ project(":tests:latest-version-image").projectDir = file("tests/docker-images/la
 
 include("tests:integration")
 project(":tests:integration").projectDir = file("tests/integration")
+include("tests:performance:common")
+project(":tests:performance:common").projectDir = file("tests/performance/common")
+include("tests:performance:tools")
+project(":tests:performance:tools").projectDir = file("tests/performance/tools")
+include("tests:performance:report-tool")
+project(":tests:performance:report-tool").projectDir = file("tests/performance/report-tool")
+include("tests:performance:launcher")
+project(":tests:performance:launcher").projectDir = file("tests/performance/launcher")
+include("tests:performance:metrics")
+project(":tests:performance:metrics").projectDir = file("tests/performance/metrics")
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Shade test modules
@@ -267,9 +279,15 @@ project(":tests:integration").projectDir = file("tests/integration")
 
 include("tests:pulsar-client-shade-test")
 project(":tests:pulsar-client-shade-test").projectDir = file("tests/pulsar-client-shade-test")
+include("tests:pulsar-client-admin-v5-test")
+include("tests:pulsar-client-v5-shade-test")
+include("tests:pulsar-client-v5-all-test")
 include("tests:pulsar-client-admin-shade-test")
 project(":tests:pulsar-client-admin-shade-test").projectDir = file("tests/pulsar-client-admin-shade-test")
 include("tests:pulsar-client-all-shade-test")
 project(":tests:pulsar-client-all-shade-test").projectDir = file("tests/pulsar-client-all-shade-test")
 include("tests:pulsar-client-native-image")
 project(":tests:pulsar-client-native-image").projectDir = file("tests/pulsar-client-native-image")
+
+// Compile and run consumer/API compatibility checks on the minimum supported client JDK.
+include("tests:pulsar-client-java-compatibility")

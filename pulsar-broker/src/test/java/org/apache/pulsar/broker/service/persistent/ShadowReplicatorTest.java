@@ -63,6 +63,7 @@ public class ShadowReplicatorTest extends BrokerTestBase {
     @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
+        conf.setEnableShadowTopics(true);
         super.baseSetup();
         admin.tenants().createTenant("prop1",
                 new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("test")));
@@ -180,6 +181,7 @@ public class ShadowReplicatorTest extends BrokerTestBase {
                         entry.getPosition(), entries.size(), replicator.getReplicatorId());
         inFlightTask.setEntries(entries);
         Assert.assertTrue(replicator.replicateEntries(entries, inFlightTask));
+        inFlightTask.setSubmissionComplete(true);
 
         Awaitility.await().untilAsserted(() -> {
             Assert.assertTrue(inFlightTask.isDone());

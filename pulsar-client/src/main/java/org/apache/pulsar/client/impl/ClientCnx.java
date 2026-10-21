@@ -866,7 +866,7 @@ public class ClientCnx extends PulsarHandler {
                 producer.printWarnLogWhenCanNotDetermineDeduplication(ctx.channel(), sequenceId, highestSequenceId);
             }
 
-        } else {
+        } else if (producer != null) {
                 log.debug().attr("producerId", producerId)
                         .attr("producerName", producer.getProducerName())
                         .attr("sequenceId", sequenceId).attr("highestSequenceId", highestSequenceId)
@@ -1753,7 +1753,7 @@ public class ClientCnx extends PulsarHandler {
         if (cmd.hasError()) {
             CompletableFuture<? extends Object> requestFuture = pendingRequests.get(requestId);
             if (requestFuture != null && removePendingRequest(requestId, requestFuture)) {
-                requestFuture.completeExceptionally(new PulsarClientException(
+                requestFuture.completeExceptionally(getPulsarClientException(cmd.getError(),
                         "Scalable topic subscribe failed: " + cmd.getError()
                                 + (cmd.hasMessage() ? " - " + cmd.getMessage() : "")));
             }

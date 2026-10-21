@@ -18,31 +18,30 @@
  */
 package org.apache.pulsar.client.cli;
 
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.RateLimiter;
 import java.io.IOException;
 import java.net.URI;
-import java.time.Duration;
 import java.util.Base64;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+import org.apache.pulsar.cli.ClientApi;
+import org.apache.pulsar.cli.ClientApiOptionGroups;
+import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
-import org.apache.pulsar.client.api.v5.Message;
-import org.apache.pulsar.client.api.v5.PulsarClient;
-import org.apache.pulsar.client.api.v5.QueueConsumer;
-import org.apache.pulsar.client.api.v5.QueueConsumerBuilder;
-import org.apache.pulsar.client.api.v5.auth.ConsumerCryptoFailureAction;
-import org.apache.pulsar.client.api.v5.config.ConsumerEncryptionPolicy;
-import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
-import org.apache.pulsar.client.api.v5.schema.Schema;
+import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.v5.PulsarClientBuilder;
 import org.apache.pulsar.common.naming.TopicName;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
 import picocli.CommandLine;
+import picocli.CommandLine.ArgGroup;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Option;
@@ -50,17 +49,22 @@ import picocli.CommandLine.Parameters;
 import picocli.CommandLine.Spec;
 
 /**
- * pulsar-client consume command implementation.
+ * The {@code pulsar-client consume} command: the CLI options, the argument validation and the
+ * WebSocket consuming path (which speaks HTTP and has no client generation of its own). Consuming
+ * over the binary protocol is delegated to {@link ConsumeV5} or {@link ConsumeV4}, picked from the
+ * topic domain or {@code --client-api}.
  */
-@Command(description = "Consume messages from a specified topic")
+@Command(name = "consume", description = {"Consume messages from a specified topic", "",
+        AbstractCmd.CLIENT_API_DESCRIPTION},
+        sortOptions = false, optionListHeading = "%nCommon options:%n")
 public class CmdConsume extends AbstractCmdConsume {
 
     /**
-     * v4-compatible subscription-type flag. This version of pulsar-client consumes through a V5
-     * {@link QueueConsumer} for all types, since it is the only consumer that works against both
-     * regular and scalable topics (the ordered StreamConsumer requires a scalable-topic
-     * controller). Exclusive / Failover therefore get work-queue (Shared-style) semantics and log
-     * a warning rather than preserving single-reader ordering.
+     * Subscription-type flag, with the v4 names. The v4 client maps it straight onto
+     * {@code org.apache.pulsar.client.api.SubscriptionType}; the V5 client consumes through a
+     * {@code QueueConsumer} for all types, since it is the only consumer that works against both
+     * regular and scalable topics, so Exclusive / Failover get work-queue (Shared-style) semantics
+     * there and log a warning.
      */
     public enum SubscriptionType {
         Exclusive,
@@ -69,91 +73,127 @@ public class CmdConsume extends AbstractCmdConsume {
         Key_Shared
     }
 
-    /** v4-compatible subscription-mode flag. Only honored by the WebSocket path; the V5 binary
-     *  consumer is always durable, so NonDurable logs a warning. */
+    /**
+     * Subscription-mode flag, with the v4 names. The V5 binary consumer is always durable, so
+     * {@code NonDurable} logs a warning there; the v4 client honors it.
+     */
     public enum SubscriptionMode {
         Durable,
         NonDurable
     }
 
     @Parameters(description = "TopicName", arity = "1")
-    private String topic;
+    protected String topic;
+
+    @Option(names = ClientApi.OPTION_NAME, description = ClientApi.OPTION_DESCRIPTION)
+    protected ClientApi clientApi;
 
     @Option(names = { "-t", "--subscription-type" }, description = "Subscription type.")
-    private SubscriptionType subscriptionType = SubscriptionType.Exclusive;
+    protected SubscriptionType subscriptionType = SubscriptionType.Exclusive;
 
     @Option(names = { "-m", "--subscription-mode" }, description = "Subscription mode.")
-    private SubscriptionMode subscriptionMode = SubscriptionMode.Durable;
-
-    @Option(names = { "-p", "--subscription-position" }, description = "Subscription position.")
-    private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.LATEST;
+    protected SubscriptionMode subscriptionMode = SubscriptionMode.Durable;
 
     @Option(names = { "-s", "--subscription-name" }, required = true, description = "Subscription name.")
-    private String subscriptionName;
+    protected String subscriptionName;
+
+    @Option(names = { "-p", "--subscription-position" }, description = "Subscription position.")
+    protected SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Latest;
 
     @Option(names = { "-n",
             "--num-messages" }, description = "Number of messages to consume, 0 means to consume forever.")
-    private int numMessagesToConsume = 1;
+    protected int numMessagesToConsume = 1;
 
     @Option(names = { "--hex" }, description = "Display binary messages in hex.")
-    private boolean displayHex = false;
+    protected boolean displayHex = false;
 
     @Option(names = { "--hide-content" }, description = "Do not write the message to console.")
-    private boolean hideContent = false;
+    protected boolean hideContent = false;
 
     @Option(names = { "-r", "--rate" }, description = "Rate (in msg/sec) at which to consume, "
             + "value 0 means to consume messages as fast as possible.")
-    private double consumeRate = 0;
+    protected double consumeRate = 0;
 
-    @Option(names = { "--regex" }, description = "Indicate the topic name is a regex pattern")
-    private boolean isRegex = false;
+    @Option(names = { "--regex" }, description = "Indicate the topic name is a regex pattern. With the V5 client "
+            + "the pattern's tenant/namespace is subscribed to as a whole (namespace subscription).")
+    protected boolean isRegex = false;
 
     @Option(names = {"-q", "--queue-size"}, description = "Consumer receiver queue size.")
-    private int receiverQueueSize = 0;
-
-    @Option(names = { "-mc", "--max_chunked_msg" }, description = "Max pending chunk messages")
-    private int maxPendingChunkedMessage = 0;
-
-    @Option(names = { "-ac",
-            "--auto_ack_chunk_q_full" }, description = "Auto ack for oldest message on queue is full")
-    private boolean autoAckOldestChunkedMessageOnQueueFull = false;
+    protected int receiverQueueSize = 0;
 
     @Option(names = { "-ekv",
             "--encryption-key-value" }, description = "The URI of private key to decrypt payload, for example "
-                    + "file:///path/to/private.key or data:application/x-pem-file;base64,*****")
-    private String encKeyValue;
+                    + "file:///path/to/private.key or data:application/x-pem-file;base64,***** (data: URIs "
+                    + "require the v4 client)")
+    protected String encKeyValue;
+
+    @Option(names = { "-ca", "--crypto-failure-action" }, description = "Crypto Failure Action")
+    protected ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
 
     @Option(names = { "-st", "--schema-type"},
             description = "Set a schema type on the consumer, it can be 'bytes' or 'auto_consume'")
-    private String schemaType = "bytes";
-
-    @Option(names = { "-pm", "--pool-messages" }, description = "Use the pooled message", arity = "1")
-    private boolean poolMessages = true;
-
-    @Option(names = {"-rs", "--replicated" }, description = "Whether the subscription status should be replicated")
-    private boolean replicateSubscriptionState = false;
-
-    @Option(names = { "-ca", "--crypto-failure-action" }, description = "Crypto Failure Action")
-    private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
+    protected String schemaType = "bytes";
 
     @Option(names = { "-mp", "--print-metadata" }, description = "Message metadata")
-    private boolean printMetadata = false;
+    protected boolean printMetadata = false;
 
     @Option(names = { "-etp", "--end-timestamp" }, description = "End timestamp for consuming messages")
-    private long endTimestamp = Long.MAX_VALUE;
+    protected long endTimestamp = Long.MAX_VALUE;
+
+    @ArgGroup(exclusive = false, validate = false, order = 1, heading = ClientApiOptionGroups.V4_HEADING)
+    protected V4Options v4 = new V4Options();
+
+    /** Options that only the v4 client supports. */
+    public static class V4Options implements ClientApiOptionGroups.V4ClientOptions {
+        @Option(names = { "-stp", "--start-timestamp" }, description = "Start timestamp for consuming messages")
+        protected long startTimestamp = 0L;
+
+        @Option(names = { "-mc", "--max_chunked_msg" }, description = "Max pending chunk messages")
+        protected int maxPendingChunkedMessage = 0;
+
+        @Option(names = { "-ac",
+                "--auto_ack_chunk_q_full" }, description = "Auto ack for oldest message on queue is full")
+        protected boolean autoAckOldestChunkedMessageOnQueueFull = false;
+
+        @Option(names = { "-pm", "--pool-messages" }, description = "Use the pooled message", arity = "1")
+        protected boolean poolMessages = true;
+
+        // The V5 consumers do not offer replicated subscriptions (#26679).
+        @Option(names = {"-rs", "--replicated" }, description = "Whether the subscription status should be replicated")
+        protected boolean replicateSubscriptionState = false;
+    }
+
+    private PulsarClientBuilder clientBuilder;
+    private Supplier<ClientBuilder> v4ClientBuilder;
+
+    @Spec
+    protected CommandSpec commandSpec;
 
     public CmdConsume() {
-        // Do nothing
         super();
     }
 
-    @Spec
-    private CommandSpec commandSpec;
+    /**
+     * Set the V5 client configuration, and the settings shared by both clients.
+     */
+    public void updateConfig(PulsarClientBuilder clientBuilder, Authentication authentication, String serviceURL) {
+        this.clientBuilder = clientBuilder;
+        updateSharedConfig(authentication, serviceURL);
+    }
+
+    /**
+     * Set the v4 client configuration. The builder is supplied lazily so that constructing it —
+     * which validates the service URL and parses the whole {@code client.conf} — only happens when
+     * the v4 client is actually used, not on every {@code pulsar-client} invocation.
+     */
+    public void updateV4Config(Supplier<ClientBuilder> clientBuilder) {
+        this.v4ClientBuilder = clientBuilder;
+    }
 
     /**
      * Run the consume command.
      *
-     * @return 0 for success, < 0 otherwise
+     * @return 0 for success, &lt; 0 otherwise
      */
     public int run() throws IOException {
         if (this.subscriptionName == null || this.subscriptionName.isEmpty()) {
@@ -167,128 +207,34 @@ public class CmdConsume extends AbstractCmdConsume {
             throw new CommandLine.ParameterException(commandSpec.commandLine(),
                     "end timestamp should be positive.");
         }
+        ClientApi resolvedClientApi = resolveClientApi(commandSpec, clientApi, topic, serviceURL);
+        if (resolvedClientApi == ClientApi.V4) {
+            validateTimestampRange();
+        } else {
+            validateV5EncryptionKeyUri(commandSpec, encKeyValue);
+        }
 
-        if (this.serviceURL.startsWith("ws")) {
+        if (isWebSocketUrl(this.serviceURL)) {
             return consumeFromWebSocket(topic);
+        }
+        LOG.info("Using the {} for topic {}", resolvedClientApi.displayName(), topic);
+        if (resolvedClientApi == ClientApi.V5) {
+            return new ConsumeV5(this, clientBuilder).consume(topic);
         } else {
-            return consume(topic);
+            return new ConsumeV4(this, v4ClientBuilder.get()).consume(topic);
         }
     }
 
-    private int consume(String topic) {
-        int numMessagesConsumed = 0;
-        int returnCode = 0;
-
-        final Schema<?> schema;
-        if ("auto_consume".equals(schemaType)) {
-            schema = Schema.autoConsume();
-        } else if ("bytes".equals(schemaType)) {
-            schema = Schema.bytes();
-        } else {
-            throw new IllegalArgumentException("schema type must be 'bytes' or 'auto_consume'");
+    @VisibleForTesting
+    void validateTimestampRange() {
+        if (v4.startTimestamp < 0) {
+            throw new CommandLine.ParameterException(commandSpec.commandLine(),
+                    "start timestamp should be positive.");
         }
-        if (!poolMessages) {
-            LOG.info("--pool-messages has no effect on this version of pulsar-client.");
+        if (this.endTimestamp < v4.startTimestamp) {
+            throw new CommandLine.ParameterException(commandSpec.commandLine(),
+                    "end timestamp should be greater than start timestamp.");
         }
-        if (subscriptionMode == SubscriptionMode.NonDurable) {
-            LOG.warn("--subscription-mode NonDurable is not supported by this version of pulsar-client; "
-                    + "a durable subscription is used instead.");
-        }
-        if (subscriptionType == SubscriptionType.Exclusive || subscriptionType == SubscriptionType.Failover) {
-            // The V5 StreamConsumer (ordered, single-reader) requires a scalable-topic subscription
-            // controller, which regular topics do not have; only the QueueConsumer works against
-            // both regular and scalable topics. So all subscription types use a QueueConsumer here
-            // and Exclusive/Failover get work-queue (Shared-style) semantics rather than ordered.
-            LOG.warn("--subscription-type {} : this version of pulsar-client consumes via a work-queue "
-                    + "(Shared-style) subscription; exclusive/failover ordering is not preserved.",
-                    subscriptionType);
-        }
-        if (maxPendingChunkedMessage > 0 || autoAckOldestChunkedMessageOnQueueFull) {
-            LOG.warn("Chunked-message knobs (--max_chunked_msg / --auto_ack_chunk_q_full) have no effect "
-                    + "on this version of pulsar-client.");
-        }
-
-        try (PulsarClient client = clientBuilder.build()) {
-            RateLimiter limiter = (this.consumeRate > 0) ? RateLimiter.create(this.consumeRate) : null;
-            QueueConsumerBuilder<?> builder = client.newQueueConsumer(schema)
-                    .subscriptionName(this.subscriptionName)
-                    .subscriptionInitialPosition(subscriptionInitialPosition)
-                    .replicateSubscriptionState(replicateSubscriptionState);
-            if (this.receiverQueueSize > 0) {
-                builder.receiverQueueSize(this.receiverQueueSize);
-            }
-            if (isNotBlank(this.encKeyValue)) {
-                builder.encryptionPolicy(buildConsumerEncryptionPolicy());
-            }
-            applyTopicSelection(builder::topic, builder::namespace);
-
-            try (QueueConsumer<?> consumer = builder.subscribe()) {
-                while (this.numMessagesToConsume == 0 || numMessagesConsumed < this.numMessagesToConsume) {
-                    if (limiter != null) {
-                        limiter.acquire();
-                    }
-                    Message<?> msg = consumer.receive(Duration.ofSeconds(5));
-                    if (msg == null) {
-                        LOG.debug("No message to consume after waiting for 5 seconds.");
-                    } else {
-                        if (msg.publishTime().toEpochMilli() > endTimestamp) {
-                            break;
-                        }
-                        numMessagesConsumed += 1;
-                        if (!hideContent) {
-                            System.out.println(MESSAGE_BOUNDARY);
-                            System.out.println(this.interpretMessage(msg, displayHex, printMetadata));
-                        } else if (numMessagesConsumed % 1000 == 0) {
-                            System.out.println("Received " + numMessagesConsumed + " messages");
-                        }
-                        consumer.acknowledge(msg.id());
-                    }
-                }
-            }
-        } catch (Exception e) {
-            LOG.error("Error while consuming messages");
-            LOG.error(e.getMessage(), e);
-            returnCode = -1;
-        } finally {
-            LOG.info("{} messages successfully consumed", numMessagesConsumed);
-        }
-
-        return returnCode;
-    }
-
-    /**
-     * Apply the topic argument to the consumer. A plain topic uses {@code topic(...)}; a
-     * {@code --regex} pattern is mapped to a namespace subscription over the pattern's
-     * {@code tenant/namespace} (V5 has no topic-regex; namespace subscriptions follow the
-     * namespace live).
-     */
-    private void applyTopicSelection(java.util.function.Consumer<String> topicFn,
-                                     java.util.function.Consumer<String> namespaceFn) {
-        if (isRegex) {
-            namespaceFn.accept(namespaceFromPattern(topic));
-        } else {
-            topicFn.accept(topic);
-        }
-    }
-
-    static String namespaceFromPattern(String pattern) {
-        // Strip an optional persistent:// / non-persistent:// domain prefix, then take the first
-        // two path segments as tenant/namespace.
-        String rest = pattern;
-        int scheme = rest.indexOf("://");
-        if (scheme >= 0) {
-            rest = rest.substring(scheme + 3);
-        }
-        String[] parts = rest.split("/");
-        if (parts.length < 2) {
-            throw new IllegalArgumentException("Cannot derive a tenant/namespace from --regex pattern '"
-                    + pattern + "'. Use a fully-qualified pattern, e.g. persistent://tenant/namespace/.*");
-        }
-        return parts[0] + "/" + parts[1];
-    }
-
-    private ConsumerEncryptionPolicy buildConsumerEncryptionPolicy() {
-        return buildFileDecryptionPolicy(this.encKeyValue, cryptoFailureAction);
     }
 
     @VisibleForTesting
@@ -390,5 +336,4 @@ public class CmdConsume extends AbstractCmdConsume {
         }
         return returnCode;
     }
-
 }

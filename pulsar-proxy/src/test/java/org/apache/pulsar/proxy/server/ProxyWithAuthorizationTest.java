@@ -182,6 +182,8 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         super.doInitConf();
         // enable tls and auth&auth at broker
         conf.setAuthenticationEnabled(true);
+        // TLS client certificates are authenticated at the proxy and cannot be forwarded to the broker.
+        conf.setAuthenticateOriginalAuthData(false);
         conf.setAuthorizationEnabled(true);
         conf.setTopicLevelPoliciesEnabled(false);
         conf.setProxyRoles(Collections.singleton("Proxy"));

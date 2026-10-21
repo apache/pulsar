@@ -27,13 +27,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/empty"
-
 	"github.com/apache/pulsar-client-go/pulsar"
-
 	log "github.com/apache/pulsar/pulsar-function-go/logutil"
 	pb "github.com/apache/pulsar/pulsar-function-go/pb"
 	prometheus_client "github.com/prometheus/client_model/go"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type goInstance struct {
@@ -648,9 +646,9 @@ func (gi *goInstance) getAndResetMetrics() *pb.MetricsData {
 	return metricsData
 }
 
-func (gi *goInstance) resetMetrics() *empty.Empty {
+func (gi *goInstance) resetMetrics() *emptypb.Empty {
 	gi.stats.reset()
-	return &empty.Empty{}
+	return &emptypb.Empty{}
 }
 
 // This method is used to get the required metrics for Prometheus.
@@ -727,11 +725,12 @@ func (gi *goInstance) getAvgProcessLatency() float32 {
 	return float32(*sum) / float32(*count)
 }
 
-func (gi *goInstance) getLastInvocation() float32 {
+func (gi *goInstance) getLastInvocation() float64 {
 	metric := gi.getMatchingMetricFromRegistry(PulsarFunctionMetricsPrefix + LastInvocation)
 	// "pulsar_function_" + "last_invocation", GaugeVec.
+	// float64, as a float32 would round an epoch-millis timestamp to ~2 minutes.
 	val := metric.GetGauge().Value
-	return float32(*val)
+	return *val
 }
 
 func (gi *goInstance) getTotalProcessedSuccessfully1min() float32 {
