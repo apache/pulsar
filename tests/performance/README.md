@@ -32,13 +32,48 @@ flame graphs of the broker and the clients: both where threads use CPU and where
 command line and writes its results to files, so that experiments can be automated, including tuning by AI agents,
 which [`AGENTS.md`](AGENTS.md) guides.
 
-The framework isn't currently used for automated regression testing: no CI job runs the scenarios, and no run is
-checked against a baseline automatically. A person or an agent compares revisions, as
-[Compare two revisions](#5-compare-two-revisions) describes. A future improvement is to evolve the framework into an
-automated regression test suite, which would prevent performance regressions by checking changes against a baseline,
-and set the new baseline when a change improves performance.
+A small [nightly fault suite](#ci-fault-regressions) enforces delivery correctness in CI. Performance results aren't
+checked against a baseline automatically: a person or an agent compares revisions, as
+[Compare two revisions](#5-compare-two-revisions) describes. Automated performance-baseline comparisons remain future
+work; the fault suite isn't a throughput or latency benchmark.
 
 For the performance of a single class or method, use [the JMH microbenchmarks](../../microbench/README.md) instead.
+
+## CI fault regressions
+
+The required **Pulsar CI checks completed** gate includes five fault scenarios on the JDK 21 nightly schedule
+(`0 6 * * *`, UTC): `broker-isolation`, `metadata-takeover`, `bookie-partition`, `silent-client-disconnect` and
+`geo-partition`. A manual **Pulsar CI** workflow run also runs them, including in forks. Each scenario has its own
+20-minute job timeout and uses [`iot-telemetry-ci.yaml`](scenarios/iot-telemetry-ci.yaml): 1,000 devices, two gateways,
+two applications with two pods each, and 200 messages/s. Fault overlays retain their original timing and failover
+quorums; the longest workload timeout is 360 seconds. Low-memory JVM heap/direct-memory ceilings total about 8 GB in
+the failover topology, excluding native-memory and host headroom. Metrics and perf-event collection are disabled:
+these are correctness tests, not measurements.
+
+A workload error, missing messages, ordering violation, invalid message, failed/missed injection or failed network
+cleanup fails the job, with no ignored failures or automatic test retries. Consumer duplicates remain allowed under the
+framework's at-least-once delivery contract; these jobs do not by themselves prove exactly-once persistence or a
+recovery-time SLA.
+The existing required gate rejects failed, cancelled or unexpectedly skipped fault jobs.
+
+Changes to the launcher, common scenario loader, scenarios, test image or CI wiring also require
+`:tests:performance:launcher:networkCheck`, which exercises real injection and cleanup on small privileged Docker
+containers. It also runs with the nightly suite and manual workflow runs. Ordinary launcher unit tests still exclude
+these Docker checks.
+
+Reproduce a nightly scenario locally (Docker with privileged-container support required):
+
+```bash
+./gradlew :tests:performance:launcher:run \
+  -Pperformance.keepLauncherLog -Pperformance.metrics=false -Pperformance.perfStat=false \
+  --args='--scenario tests/performance/scenarios/iot-telemetry-ci.yaml --extends network/broker-isolation'
+```
+
+CI retains every fault run's directory and container logs for seven days, including partial outputs on failure:
+resolved configuration, console and launcher logs, network events, workload summaries and sequence diagnostics.
+Failed `networkCheck` runs retain their injection artifacts under `tests/performance/launcher/build/network-check`,
+plus the TestNG results and Gradle reports. Find these under the workflow's **Artifacts**, even when no run report
+could be generated. Scheduled runs remain disabled in forks by the existing CI precondition.
 
 ## How the tests work
 
