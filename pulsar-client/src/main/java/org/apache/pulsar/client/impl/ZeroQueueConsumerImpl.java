@@ -97,7 +97,8 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
             synchronized (ZeroQueueConsumerImpl.this) {
                 pendingReceives.add(result);
                 cancellationHandler.setCancelAction(() -> pendingReceives.remove(result));
-                if (isConnected()) {
+                // Cancellation or timeout may have completed the future before registration.
+                if (!result.isDone() && isConnected()) {
                     increaseAvailablePermits(cnx());
                 }
             }
