@@ -1013,6 +1013,12 @@ public class PulsarClientImpl implements PulsarClient {
                         Optional.empty());
             }
             producers.add(producer);
+            // The creation can fail before this line runs, from the event loop, and then the failure has already
+            // tried to remove the producer. Keep a producer that was never created out of the client.
+            producerCreatedFuture.exceptionally(ex -> {
+                cleanupProducer(producer);
+                return null;
+            });
         }).exceptionally(ex -> {
             log.warn().attr("topic", topic).exceptionMessage(ex).log("Failed to get partitioned topic metadata");
             producerCreatedFuture.completeExceptionally(ex);

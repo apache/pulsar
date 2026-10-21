@@ -281,6 +281,14 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                                         String.format("The producer %s of the topic %s "
                                                         + "adds the public key cipher was failed",
                                                 producerName, topic)));
+                        // The creation has failed, so close the producer as the other creation failures do.
+                        // Otherwise it stays in the client and keeps the connection it is about to open, which
+                        // registers it on the broker and then reconnects it as if it had been created.
+                        closeAsync().exceptionally(closeEx -> {
+                            log.warn().exceptionMessage(closeEx)
+                                    .log("Failed to close the producer whose public key cipher could not be added");
+                            return null;
+                        });
                     }
                 }
             }), 0L, 4L, TimeUnit.HOURS);
