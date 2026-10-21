@@ -26,14 +26,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.CustomLog;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -50,7 +52,6 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.Option;
 import org.apache.pulsar.metadata.api.ScanConsumer;
-import org.apache.pulsar.metadata.api.Stat;
 
 /**
  * Metadata store access for scalable topic metadata.
@@ -65,8 +66,9 @@ import org.apache.pulsar.metadata.api.Stat;
  *       {@link SubscriptionMetadata}</li>
  *   <li>{@code /topics/{tenant}/{namespace}/{encodedTopicName}/subscriptions/{subscription}
  *       /consumers/{consumerName}} — {@link ConsumerRegistration} (durable session entry)</li>
- *   <li>{@code /topic-creation-locks/{tenant}/{namespace}/{encodedTopicName}} — creation lock
- *       (ephemeral), held while the topic is created or a regular topic is migrated to it; outside
+ *   <li>{@code /topic-creation-locks/{tenant}/{namespace}/{encodedTopicName}:{token}} — one
+ *       ephemeral record per acquisition of the topic's creation lock, held while the topic is
+ *       created or a regular topic is migrated to it (see {@link #runWithCreationLock}); outside
  *       the topic's path, so taking it doesn't create the topic's node</li>
  * </ul>
  */
@@ -75,8 +77,8 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
 
     private static final String SCALABLE_TOPIC_PATH = "/topics";
     private static final String CREATION_LOCK_PATH = "/topic-creation-locks";
-    /** Attempts to take a creation lock, waiting 10 ms, 20 ms, 40 ms... in between: about 1.3 s in all. */
-    private static final int CREATION_LOCK_ATTEMPTS = 8;
+    /** Attempts to take a creation lock, waiting 10-20 ms, 20-40 ms, 40-80 ms... in between: about a second. */
+    private static final int CREATION_LOCK_ATTEMPTS = 7;
     private static final long CREATION_LOCK_FIRST_RETRY_DELAY_MS = 10;
     private static final String SUBSCRIPTIONS_SEGMENT = "subscriptions";
     private static final String CONSUMERS_SEGMENT = "consumers";
@@ -299,6 +301,16 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
         return getCache().create(topicPath(tn), metadata, PROPERTY_INDEX_EXTRACTOR);
     }
 
+    /** The creation lock of a scalable topic, while {@link #runWithCreationLock} holds it. */
+    public interface CreationLock {
+        /**
+         * Complete normally if the lock is still held, or fail with {@link MetadataStoreException.LockBusyException}.
+         * An action checks it before each change the lock guards: a broker whose metadata session expired lost the
+         * lock, which another broker may have taken since.
+         */
+        CompletableFuture<Void> checkHeld();
+    }
+
     /**
      * Run {@code action} while holding the creation lock of the scalable topic {@code tn}.
      *
@@ -309,38 +321,78 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
      * concurrent creation, as it holds the lock only while it writes the topic's metadata. Then this fails with
      * {@link MetadataStoreException.LockBusyException}, without running {@code action}.
      *
-     * <p>The lock is an ephemeral record, so a broker that goes away while holding it doesn't keep it.
+     * <p>Each acquisition creates an ephemeral record of its own, named after the topic and a random token, and
+     * holds the lock if no other record of the topic exists then. So a broker that goes away doesn't keep the lock;
+     * releasing it deletes that record only, never the one of an acquisition made after this broker's metadata
+     * session expired; and a create that the store retried after its response was lost finds its own record.
      */
-    public <T> CompletableFuture<T> runWithCreationLock(TopicName tn, Supplier<CompletableFuture<T>> action) {
-        String path = joinPath(CREATION_LOCK_PATH, tn.getNamespace(), tn.getEncodedLocalName());
-        return acquireCreationLock(path, 1).thenCompose(lock -> {
-            CompletableFuture<T> result = FutureUtil.supplySafely(action);
-            return result.handle((__, ___) -> null)
-                    .thenCompose(__ -> getStore().delete(path, Optional.of(lock.getVersion())))
-                    .exceptionally(ex -> {
-                        // It goes away with the broker's metadata session anyway.
-                        log.warn().attr("path", path).exceptionMessage(ex).log("Failed to release a creation lock");
-                        return null;
-                    })
-                    .thenCompose(__ -> result);
+    public <T> CompletableFuture<T> runWithCreationLock(TopicName tn,
+                                                        Function<CreationLock, CompletableFuture<T>> action) {
+        String lockDir = joinPath(CREATION_LOCK_PATH, tn.getNamespace());
+        String prefix = tn.getEncodedLocalName() + ":";
+        String name = prefix + UUID.randomUUID();
+        String path = joinPath(lockDir, name);
+        CreationLock lock = () -> getStore().get(path).thenAccept(record -> {
+            if (record.isEmpty() || !record.get().getStat().isCreatedBySelf()) {
+                throw new CompletionException(new MetadataStoreException.LockBusyException(
+                        "Lost the creation lock of " + tn));
+            }
+        });
+        return acquireCreationLock(lockDir, prefix, name, 1).thenCompose(__ -> {
+            CompletableFuture<T> result = FutureUtil.supplySafely(() -> action.apply(lock));
+            return result.handle((___, ____) -> null)
+                    .thenCompose(___ -> releaseCreationLock(path))
+                    .thenCompose(___ -> result);
         });
     }
 
-    private CompletableFuture<Stat> acquireCreationLock(String path, int attempt) {
+    private CompletableFuture<Void> acquireCreationLock(String lockDir, String prefix, String name, int attempt) {
+        String path = joinPath(lockDir, name);
         return getStore().put(path, new byte[0], Optional.of(-1L), Set.of(Option.Ephemeral.INSTANCE))
+                .<Void>thenApply(__ -> null)
                 .exceptionallyCompose(ex -> {
+                    if (FutureUtil.unwrapCompletionException(ex)
+                            instanceof MetadataStoreException.BadVersionException) {
+                        // The record exists: the store retried a create of this acquisition whose response was
+                        // lost. No other acquisition uses this name.
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    // Delete the record, in case it was created anyway.
+                    return releaseCreationLock(path).thenCompose(__ -> CompletableFuture.failedFuture(ex));
+                })
+                // Read the store, not the cache, which may miss the record of a concurrent acquisition.
+                .thenCompose(__ -> getStore().getChildrenFromStore(lockDir))
+                .thenCompose(records -> {
+                    if (records.stream().noneMatch(record -> record.startsWith(prefix) && !record.equals(name))) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    // Another acquisition holds the lock, or is taking it: of two acquisitions, the second one to
+                    // create its record sees the other one, and the first one may. Back off and retry.
+                    return releaseCreationLock(path).thenCompose(__ -> {
+                        if (attempt == CREATION_LOCK_ATTEMPTS) {
+                            return CompletableFuture.failedFuture(new MetadataStoreException.LockBusyException(
+                                    "Another creation or migration of the scalable topic is in progress: " + path));
+                        }
+                        // With jitter, so two acquisitions that see each other don't keep retrying together.
+                        long delayMs = CREATION_LOCK_FIRST_RETRY_DELAY_MS << (attempt - 1);
+                        Executor delayed = CompletableFuture.delayedExecutor(
+                                delayMs + ThreadLocalRandom.current().nextLong(delayMs), TimeUnit.MILLISECONDS);
+                        return CompletableFuture.supplyAsync(() -> null, delayed)
+                                .thenCompose(___ -> acquireCreationLock(lockDir, prefix, name, attempt + 1));
+                    });
+                });
+    }
+
+    /** Delete the record of an acquisition, if it's there. It's named after the acquisition, so it's no other's. */
+    private CompletableFuture<Void> releaseCreationLock(String path) {
+        return getStore().delete(path, Optional.empty())
+                .exceptionally(ex -> {
                     if (!(FutureUtil.unwrapCompletionException(ex)
-                            instanceof MetadataStoreException.BadVersionException)) {
-                        return CompletableFuture.failedFuture(ex);
+                            instanceof MetadataStoreException.NotFoundException)) {
+                        // It goes away with the broker's metadata session anyway.
+                        log.warn().attr("path", path).exceptionMessage(ex).log("Failed to release a creation lock");
                     }
-                    if (attempt == CREATION_LOCK_ATTEMPTS) {
-                        return CompletableFuture.failedFuture(new MetadataStoreException.LockBusyException(
-                                "Another creation or migration of the scalable topic is in progress: " + path));
-                    }
-                    Executor delayed = CompletableFuture.delayedExecutor(
-                            CREATION_LOCK_FIRST_RETRY_DELAY_MS << (attempt - 1), TimeUnit.MILLISECONDS);
-                    return CompletableFuture.supplyAsync(() -> null, delayed)
-                            .thenCompose(__ -> acquireCreationLock(path, attempt + 1));
+                    return null;
                 });
     }
 

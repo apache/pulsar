@@ -211,7 +211,8 @@ public class ScalableTopics extends AdminResource {
                             props);
                     // The creation lock keeps the creation from interleaving with a migration of the
                     // regular topic of the same name.
-                    return resources().runWithCreationLock(tn, () -> resources().createScalableTopicAsync(tn, metadata))
+                    return resources().runWithCreationLock(tn,
+                                    lock -> resources().createScalableTopicAsync(tn, metadata))
                             .thenCompose(ignored -> createInitialSegmentTopicsAsync(tn, metadata));
                 })
                 .thenAccept(__ -> {
@@ -347,7 +348,7 @@ public class ScalableTopics extends AdminResource {
     private CompletableFuture<Void> doMigrateToScalableAsync(TopicName scalableName,
                                                              TopicName persistentBase, boolean force) {
         return resources().runWithCreationLock(scalableName,
-                        () -> createMigratedScalableTopicAsync(scalableName, persistentBase, force))
+                        lock -> createMigratedScalableTopicAsync(scalableName, persistentBase, force, lock))
                 .thenCompose(partitions -> terminateLegacyTopicsAsync(persistentBase, partitions));
     }
 
@@ -356,7 +357,8 @@ public class ScalableTopics extends AdminResource {
      * topic, up to its creation. Completes with the partition count of the regular topic.
      */
     private CompletableFuture<Integer> createMigratedScalableTopicAsync(TopicName scalableName,
-                                                                       TopicName persistentBase, boolean force) {
+                                                                       TopicName persistentBase, boolean force,
+                                                                       ScalableTopicResources.CreationLock lock) {
         // Read the store, not the cache, which may miss a creation completed on another broker
         // just before the lock was taken.
         return resources().getScalableTopicMetadataAsync(scalableName, true).thenCompose(existing -> {
@@ -388,8 +390,12 @@ public class ScalableTopics extends AdminResource {
             // clients that follow the layout change are then authorized on the new segments as soon as
             // they see them. Namespace permissions apply to both topics already. Those of a single
             // partition are not copied: the new segments mix its data with the other partitions' data.
+            // Both steps check that the creation lock is still held first: a broker that lost it, as when
+            // its metadata session expired during the steps above, must not make them.
             return createMigratedChildTopicsAsync(scalableName, metadata)
+                    .thenCompose(__ -> lock.checkHeld())
                     .thenCompose(__ -> getAuthorizationService().copyPermissionsAsync(persistentBase, scalableName))
+                    .thenCompose(__ -> lock.checkHeld())
                     .thenCompose(__ -> resources().createScalableTopicAsync(scalableName, metadata))
                     .thenApply(__ -> partitions);
         });

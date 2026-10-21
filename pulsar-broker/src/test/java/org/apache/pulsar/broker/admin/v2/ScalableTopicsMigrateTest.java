@@ -27,11 +27,12 @@ import static org.testng.Assert.assertEquals;
 import jakarta.ws.rs.container.AsyncResponse;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Supplier;
+import java.util.function.Function;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
+import org.apache.pulsar.broker.resources.ScalableTopicResources.CreationLock;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.mockito.ArgumentCaptor;
@@ -98,10 +99,10 @@ public class ScalableTopicsMigrateTest {
         when(pulsar.getPulsarResources()).thenReturn(pulsarResources);
         when(pulsarResources.getScalableTopicResources()).thenReturn(scalableResources);
         when(pulsar.getNamespaceService()).thenReturn(namespaceService);
-        // The creation lock is free: run the migration steps it guards.
+        // The creation lock is free: run the migration steps it guards, with the lock held throughout.
         when(scalableResources.runWithCreationLock(any(TopicName.class), any())).thenAnswer(invocation -> {
-            Supplier<CompletableFuture<Object>> action = invocation.getArgument(1);
-            return action.get();
+            Function<CreationLock, CompletableFuture<Object>> action = invocation.getArgument(1);
+            return action.apply(() -> CompletableFuture.completedFuture(null));
         });
         when(scalableResources.getScalableTopicMetadataAsync(any(TopicName.class), eq(true)))
                 .thenReturn(CompletableFuture.completedFuture(Optional.empty()));

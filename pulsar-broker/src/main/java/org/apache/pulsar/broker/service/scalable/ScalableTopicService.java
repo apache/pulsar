@@ -298,7 +298,7 @@ public class ScalableTopicService {
         // eager materialization here is a happy-path latency optimization, not a correctness
         // requirement. The creation lock keeps it from interleaving with a migration of the
         // regular topic of the same name (see ScalableTopicResources#runWithCreationLock).
-        return resources.runWithCreationLock(topic, () -> resources.createScalableTopicAsync(topic, metadata))
+        return resources.runWithCreationLock(topic, __ -> resources.createScalableTopicAsync(topic, metadata))
                 .thenCompose(__ -> {
                     List<CompletableFuture<Void>> segmentFutures =
                             metadata.getSegments().values().stream()
