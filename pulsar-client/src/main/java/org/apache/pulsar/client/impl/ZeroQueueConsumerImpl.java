@@ -110,8 +110,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
         // Just being cautious
         if (incomingMessages.size() > 0) {
             log.error("The incoming message queue should never be greater than 0 when Queue size is 0");
-            incomingMessages.forEach(Message::release);
-            incomingMessages.clear();
+            clearIncomingMessages();
         }
 
         Message<T> message;
@@ -125,6 +124,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
             }
             do {
                 message = incomingMessages.take();
+                decreaseIncomingMessageSize(message);
                 lastDequeuedMessageId = message.getMessageId();
                 ClientCnx msgCnx = ((MessageImpl<?>) message).getCnx();
                 // synchronized need to prevent race between connectionOpened and the check "msgCnx == cnx()"
@@ -136,6 +136,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
                         break;
                     }
                 }
+                message.release();
             } while (true);
 
             stats.updateNumMsgsReceived(message);
@@ -147,7 +148,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
             // Finally blocked is invoked in case the block on incomingMessages is interrupted
             waitingOnReceiveForZeroQueueSize = false;
             // Clearing the queue in case there was a race with messageReceived
-            incomingMessages.clear();
+            clearIncomingMessages();
         }
     }
 

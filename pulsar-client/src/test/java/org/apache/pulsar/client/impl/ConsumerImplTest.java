@@ -24,6 +24,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -31,6 +32,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -47,15 +49,19 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
+import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerInterceptor;
 import org.apache.pulsar.client.api.Message;
@@ -67,6 +73,8 @@ import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionMode;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.TopicConsumerConfigurationData;
@@ -567,6 +575,187 @@ public class ConsumerImplTest {
         consumer.connectionOpened(clientCnx).join();
 
         verify(connectionPool).releaseConnection(clientCnx);
+    }
+
+    @DataProvider
+    public static Object[][] subscriptionModes() {
+        return new Object[][]{{SubscriptionMode.Durable}, {SubscriptionMode.NonDurable}};
+    }
+
+    @Test(dataProvider = "subscriptionModes")
+    public void testClearReceiverQueueDiscardsQueuedMessages(SubscriptionMode subscriptionMode) {
+        // On reconnection, clearReceiverQueue() used to return early for Durable subscriptions without releasing
+        // the drained messages.
+        consumerConf = new ConsumerConfigurationData<>();
+        consumerConf.setSubscriptionMode(subscriptionMode);
+        // a Durable subscription on a non-persistent topic is turned into a NonDurable one
+        createConsumer(consumerConf, "persistent://tenant/ns1/my-topic");
+        List<MessageImpl<byte[]>> messages = new ArrayList<>();
+        for (int i = 0; i < 3; i++) {
+            MessageImpl<byte[]> message = mockIncomingMessage(i);
+            messages.add(message);
+            consumer.enqueueMessageAndCheckBatchReceive(message);
+        }
+        assertThat(consumer.getIncomingMessageSize()).isEqualTo(300);
+
+        consumer.clearReceiverQueue(true);
+
+        assertThat(consumer.getTotalIncomingMessages()).isZero();
+        assertThat(consumer.getIncomingMessageSize()).isZero();
+        for (MessageImpl<byte[]> message : messages) {
+            verify(message).release();
+        }
+    }
+
+    @Test
+    public void testMessageEnqueuedAfterCloseIsDiscarded() {
+        consumerConf = new ConsumerConfigurationData<>();
+        consumerConf.setAutoScaledReceiverQueueSizeEnabled(true);
+        createConsumer(consumerConf);
+        MemoryLimitController memoryLimitController = new MemoryLimitController(Long.MAX_VALUE);
+        when(consumer.client.getMemoryLimitController()).thenReturn(memoryLimitController);
+        // not connected, so the consumer is closed and its incoming queue terminated synchronously
+        consumer.closeAsync();
+
+        MessageImpl<byte[]> message = mockIncomingMessage(0);
+        consumer.enqueueMessageAndCheckBatchReceive(message);
+
+        verify(message).release();
+        assertThat(consumer.getTotalIncomingMessages()).isZero();
+        assertThat(consumer.getIncomingMessageSize()).isZero();
+        assertThat(memoryLimitController.currentUsage()).isZero();
+    }
+
+    @Test(timeOut = 30000)
+    public void testClearIncomingMessagesConcurrentWithEnqueueAndReceive() throws Exception {
+        // Shared and Key_Shared subscriptions use a no-op incomingQueueLock, so clearIncomingMessages() (called by
+        // redeliverUnacknowledgedMessages()) runs concurrently with messages being enqueued by the IO thread and
+        // received by the application. Every message must be released exactly once and the incoming message size
+        // and the memory limit usage must go back to zero.
+        consumerConf = new ConsumerConfigurationData<>();
+        consumerConf.setSubscriptionType(SubscriptionType.Shared);
+        consumerConf.setAutoScaledReceiverQueueSizeEnabled(true);
+        createConsumer(consumerConf);
+        ConsumerImpl<byte[]> consumer = this.consumer;
+        MemoryLimitController memoryLimitController = new MemoryLimitController(Long.MAX_VALUE);
+        when(consumer.client.getMemoryLimitController()).thenReturn(memoryLimitController);
+
+        int numMessages = 20000;
+        AtomicIntegerArray releaseCounts = new AtomicIntegerArray(numMessages);
+        List<MessageImpl<byte[]>> messages = new ArrayList<>(numMessages);
+        for (int i = 0; i < numMessages; i++) {
+            int index = i;
+            MessageImpl<byte[]> message = mock(MessageImpl.class, withSettings().stubOnly());
+            when(message.size()).thenReturn(100);
+            doAnswer(invocation -> releaseCounts.incrementAndGet(index)).when(message).release();
+            messages.add(message);
+        }
+
+        AtomicBoolean enqueueDone = new AtomicBoolean();
+        AtomicInteger discardedCount = new AtomicInteger();
+        CyclicBarrier startBarrier = new CyclicBarrier(3);
+        Thread enqueueThread = new Thread(() -> {
+            try {
+                startBarrier.await();
+                messages.forEach(consumer::enqueueMessageAndCheckBatchReceive);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            } finally {
+                enqueueDone.set(true);
+            }
+        });
+        Thread receiveThread = new Thread(() -> {
+            try {
+                startBarrier.await();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+            while (!enqueueDone.get()) {
+                Message<byte[]> message = consumer.incomingMessages.poll();
+                if (message != null) {
+                    // what messageProcessed() and the application do for a received message
+                    consumer.discardIncomingMessage(message);
+                    discardedCount.incrementAndGet();
+                }
+            }
+        });
+        enqueueThread.start();
+        receiveThread.start();
+        try {
+            startBarrier.await(10, TimeUnit.SECONDS);
+            while (!enqueueDone.get()) {
+                discardedCount.addAndGet(consumer.clearIncomingMessages());
+            }
+        } finally {
+            enqueueDone.set(true);
+            enqueueThread.join();
+            receiveThread.join();
+        }
+        discardedCount.addAndGet(consumer.clearIncomingMessages());
+
+        // the returned counts are used for the permits sent back to the broker
+        assertThat(discardedCount.get()).isEqualTo(numMessages);
+        for (int i = 0; i < numMessages; i++) {
+            assertThat(releaseCounts.get(i)).as("release count of message %d", i).isEqualTo(1);
+        }
+        assertThat(consumer.getIncomingMessageSize()).isZero();
+        assertThat(memoryLimitController.currentUsage()).isZero();
+    }
+
+    @Test(timeOut = 30000)
+    public void testBatchReceiveChecksAndDequeuesMessageAtomically() throws Exception {
+        // A batch receive checks whether the message at the head of the queue fits in the batch before dequeuing
+        // it. A concurrent clear of the queue (for example on reconnection) must not dequeue and release that
+        // message in between: the size of a released pooled message can't be read, since its payload is gone.
+        consumerConf = new ConsumerConfigurationData<>();
+        consumerConf.setBatchReceivePolicy(BatchReceivePolicy.builder()
+                .maxNumMessages(10).maxNumBytes(1024 * 1024).timeout(1, TimeUnit.SECONDS).build());
+        createConsumer(consumerConf);
+        ConsumerImpl<byte[]> consumer = this.consumer;
+        MessageImpl<byte[]> first = mockIncomingMessage(0);
+        MessageImpl<byte[]> second = mockIncomingMessage(1);
+        consumer.enqueueMessageAndCheckBatchReceive(first);
+        consumer.enqueueMessageAndCheckBatchReceive(second);
+
+        AtomicBoolean secondReleased = new AtomicBoolean();
+        doAnswer(invocation -> {
+            secondReleased.set(true);
+            return null;
+        }).when(second).release();
+        AtomicInteger clearedCount = new AtomicInteger();
+        Thread clearThread = new Thread(() -> clearedCount.set(consumer.clearIncomingMessages()));
+        AtomicBoolean clearStarted = new AtomicBoolean();
+        // the first size check of the second message clears the queue concurrently
+        when(second.size()).thenAnswer(invocation -> {
+            if (clearStarted.compareAndSet(false, true)) {
+                clearThread.start();
+                // the clear can't dequeue the message while the batch receive checks it
+                clearThread.join(500);
+            }
+            if (secondReleased.get()) {
+                throw new NullPointerException("payload of a released message");
+            }
+            return 100;
+        });
+
+        CompletableFuture<Messages<byte[]>> future = new CompletableFuture<>();
+        consumer.notifyPendingBatchReceivedCallBack(future);
+        clearThread.join();
+
+        assertThat(clearStarted).isTrue();
+        assertThat(future).isCompleted();
+        assertThat(future.join()).containsExactly(first, second);
+        assertThat(clearedCount.get()).isZero();
+        assertThat(secondReleased).isFalse();
+        assertThat(consumer.getIncomingMessageSize()).isZero();
+    }
+
+    @SuppressWarnings("unchecked")
+    private static MessageImpl<byte[]> mockIncomingMessage(long entryId) {
+        MessageImpl<byte[]> message = mock(MessageImpl.class);
+        when(message.size()).thenReturn(100);
+        when(message.getMessageId()).thenReturn(new MessageIdImpl(1, entryId, -1));
+        return message;
     }
 
     @Test
