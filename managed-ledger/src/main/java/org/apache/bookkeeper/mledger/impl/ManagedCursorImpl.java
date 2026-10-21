@@ -309,6 +309,9 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     protected final ArrayDeque<MarkDeleteEntry> pendingMarkDeleteOps = new ArrayDeque<>();
+    // The mark-delete entry of a cursor reset, from its submission until the reset completes. Guarded by
+    // pendingMarkDeleteOps
+    private MarkDeleteEntry resetMarkDeleteEntry;
     private static final AtomicIntegerFieldUpdater<ManagedCursorImpl> PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER =
         AtomicIntegerFieldUpdater.newUpdater(ManagedCursorImpl.class, "pendingMarkDeletedSubmittedCount");
     @SuppressWarnings("unused")
@@ -1650,14 +1653,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                 .attr("newReadPosition", newReadPosition)
                 .log("Initiate reset readPosition");
 
-        // Reject a second reset while one is already in progress. Reset operations for a cursor are serialized on the
-        // ledger executor (a single thread chosen by ledger name), and the RESET_CURSOR_IN_PROGRESS flag is only
-        // cleared under this monitor when the in-progress reset finishes, so a plain read here reliably detects it.
-        // The flag itself is armed later, atomically with enqueuing the reset entry in internalAsyncMarkDelete, so
-        // that an ack accepted before the reset entry is enqueued can still order ahead of the reset (and, for a
-        // compaction cursor, have its mark-delete properties carried forward by the reset) instead of being rejected.
         synchronized (pendingMarkDeleteOps) {
-            if (RESET_CURSOR_IN_PROGRESS_UPDATER.get(this) == TRUE) {
+            if (!RESET_CURSOR_IN_PROGRESS_UPDATER.compareAndSet(this, FALSE, TRUE)) {
                 log.error()
                         .attr("readPosition", newReadPosition)
                         .log("Reset requested, previous reset in progress");
@@ -1744,6 +1741,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 }
                 synchronized (pendingMarkDeleteOps) {
                     pendingMarkDeleteOps.clear();
+                    resetMarkDeleteEntry = null;
                     if (!RESET_CURSOR_IN_PROGRESS_UPDATER.compareAndSet(ManagedCursorImpl.this, TRUE, FALSE)) {
                         log.error()
                                 .attr("readPosition", newReadPosition)
@@ -1757,6 +1755,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             @Override
             public void operationFailed(ManagedLedgerException exception) {
                 synchronized (pendingMarkDeleteOps) {
+                    resetMarkDeleteEntry = null;
                     if (!RESET_CURSOR_IN_PROGRESS_UPDATER.compareAndSet(ManagedCursorImpl.this, TRUE, FALSE)) {
                         log.error()
                                 .attr("readPosition", newReadPosition)
@@ -1769,12 +1768,8 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         };
 
-        // Arm RESET_CURSOR_IN_PROGRESS and enqueue the reset's own mark-delete entry atomically inside
-        // internalAsyncMarkDelete (isCursorReset=true). Arming the flag exactly at the enqueue - rather than earlier -
-        // means a concurrent ack that reaches internalAsyncMarkDelete before the reset entry is enqueued observes the
-        // flag still FALSE, is accepted, and orders ahead of the reset entry (so it cannot displace the reset, and the
-        // reset inherits its properties as the last pending entry); an ack that arrives after observes the flag TRUE
-        // and is rejected. Either way the reset entry stays pendingMarkDeleteOps.getLast().
+        persistentMarkDeletePosition = null;
+        inProgressMarkDeletePersistPosition = null;
         internalAsyncMarkDelete(newMarkDeletePosition, isCompactionCursor() ? null : Collections.emptyMap(),
                 new MarkDeleteCallback() {
             @Override
@@ -1786,7 +1781,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
                 finalCallback.operationFailed(exception);
             }
-        }, null, alignAcknowledgeStatusAfterPersisted, true);
+        }, null, alignAcknowledgeStatusAfterPersisted);
     }
 
     @Override
@@ -2530,6 +2525,15 @@ public class ManagedCursorImpl implements ManagedCursor {
             return;
         }
 
+        if (RESET_CURSOR_IN_PROGRESS_UPDATER.get(this) == TRUE) {
+            log.debug().attr("position", position).log("Cursor reset in progress, ignoring mark delete");
+            callback.markDeleteFailed(
+                    new ManagedLedgerException("Reset cursor in progress - unable to mark delete position "
+                            + position.toString()),
+                    ctx);
+            return;
+        }
+
         log.debug().attr("position", position).log("Mark delete");
 
         Position newPosition = ackBatchPosition(position);
@@ -2574,15 +2578,8 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         // Apply rate limiting to mark-delete operations
         if (markDeleteLimiter != null && !markDeleteLimiter.tryAcquire()) {
-            // This fast path skips the pendingMarkDeleteOps enqueue, so it carries its own reset-in-progress guard:
-            // updateLastMarkDeleteEntryToLatest rejects (returns false) while a reset is in progress rather than
-            // racing the reset's rewind of lastMarkDeleteEntry.
-            if (!updateLastMarkDeleteEntryToLatest(newPosition, properties)) {
-                callback.markDeleteFailed(new ManagedLedgerException(
-                        "Reset cursor in progress - unable to mark delete position " + newPosition), ctx);
-                return;
-            }
             isDirty = true;
+            updateLastMarkDeleteEntryToLatest(newPosition, properties);
             callback.markDeleteComplete(ctx);
             return;
         }
@@ -2621,46 +2618,27 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     protected void internalAsyncMarkDelete(final Position newPosition, Map<String, Long> properties,
             final MarkDeleteCallback callback, final Object ctx, Runnable alignAcknowledgeStatusAfterPersisted) {
-        internalAsyncMarkDelete(newPosition, properties, callback, ctx, alignAcknowledgeStatusAfterPersisted, false);
-    }
-
-    protected void internalAsyncMarkDelete(final Position newPosition, Map<String, Long> properties,
-            final MarkDeleteCallback callback, final Object ctx, Runnable alignAcknowledgeStatusAfterPersisted,
-            final boolean isCursorReset) {
         ledger.mbean.addMarkDeleteOp();
 
         // We cannot write to the ledger during the switch, need to wait until the new metadata ledger is available
         synchronized (pendingMarkDeleteOps) {
-            // A reset stages its entire state mutation (markDeletePosition, readPosition, individualDeletedMessages,
-            // messagesConsumedCounter, ...) inside the alignAcknowledgeStatusAfterPersisted runnable of a single
-            // MarkDeleteEntry, and internalFlushPendingMarkDeletes only persists and runs the runnable of
-            // pendingMarkDeleteOps.getLast(). If a regular ack were enqueued behind the reset entry it would become
-            // getLast() and displace the reset: the ack's position would be persisted, the reset's runnable silently
-            // dropped, yet triggerComplete would still fire the reset callback, so resetComplete would report success
-            // for a reset that never took effect.
-            if (isCursorReset) {
-                // Arm the reset guard exactly here, atomically with appending the reset entry under this monitor.
-                // Any ack that already reached this monitor observed the flag FALSE, was accepted, and now sits ahead
-                // of the reset entry (the reset entry becomes getLast() and, via the last-pending-entry fallback
-                // below, carries that ack's properties forward). Any ack that arrives after this observes the flag
-                // TRUE and is rejected, so it cannot be enqueued behind the reset entry and displace it.
-                RESET_CURSOR_IN_PROGRESS_UPDATER.set(this, TRUE);
-                persistentMarkDeletePosition = null;
-                inProgressMarkDeletePersistPosition = null;
-            } else if (RESET_CURSOR_IN_PROGRESS_UPDATER.get(this) == TRUE) {
-                log.debug().attr("position", newPosition).log("Cursor reset in progress, rejecting mark delete");
-                callback.markDeleteFailed(
-                        new ManagedLedgerException("Reset cursor in progress - unable to mark delete position "
-                                + newPosition), ctx);
-                return;
-            }
-
             // use given properties or when missing, use the properties from the previous field value
             MarkDeleteEntry last = pendingMarkDeleteOps.peekLast();
             Map<String, Long> propertiesToUse =
                     properties != null ? properties : (last != null ? last.properties : getProperties());
             MarkDeleteEntry mdEntry = new MarkDeleteEntry(newPosition, propertiesToUse, callback, ctx,
                     alignAcknowledgeStatusAfterPersisted);
+
+            if (alignAcknowledgeStatusAfterPersisted != null) {
+                // Only a cursor reset brings its own alignment
+                resetMarkDeleteEntry = mdEntry;
+            } else if (resetMarkDeleteEntry != null) {
+                // The reset's entry must stay the last one persisted until the reset completes: a flush persists
+                // only the last pending entry and runs only its alignment, so a later entry would discard the reset
+                callback.markDeleteFailed(new ManagedLedgerException(
+                        "Reset cursor in progress - unable to mark delete position " + newPosition), ctx);
+                return;
+            }
 
             // The state might have changed while we were waiting on the queue mutex
             switch (state) {
@@ -3032,15 +3010,8 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         // Apply rate limiting to mark-delete operations
         if (markDeleteLimiter != null && !markDeleteLimiter.tryAcquire()) {
-            // This fast path skips the pendingMarkDeleteOps enqueue, so it carries its own reset-in-progress guard:
-            // updateLastMarkDeleteEntryToLatest rejects (returns false) while a reset is in progress rather than
-            // racing the reset's rewind of lastMarkDeleteEntry.
-            if (!updateLastMarkDeleteEntryToLatest(newMarkDeletePosition, null)) {
-                callback.deleteFailed(new ManagedLedgerException(
-                        "Reset cursor in progress - unable to delete positions " + positions), ctx);
-                return;
-            }
             isDirty = true;
+            updateLastMarkDeleteEntryToLatest(newMarkDeletePosition, null);
             callback.deleteComplete(ctx);
             return;
         }
@@ -3070,16 +3041,10 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
-    // Update lastMarkDeleteEntry field if newPosition is later than the current lastMarkDeleteEntry.newPosition.
-    // Returns false without updating when a cursor reset is in progress, so the caller can reject the ack instead of
-    // racing the reset's rewind of lastMarkDeleteEntry. The reset-in-progress check is performed under the same
-    // pendingMarkDeleteOps monitor that guards the enqueue path, keeping it consistent with internalAsyncMarkDelete.
-    private boolean updateLastMarkDeleteEntryToLatest(final Position newPosition,
+    // update lastMarkDeleteEntry field if newPosition is later than the current lastMarkDeleteEntry.newPosition
+    private void updateLastMarkDeleteEntryToLatest(final Position newPosition,
                                                    final Map<String, Long> properties) {
         synchronized (pendingMarkDeleteOps) {
-            if (RESET_CURSOR_IN_PROGRESS_UPDATER.get(this) == TRUE) {
-                return false;
-            }
             // use given properties or when missing, use the properties from the previous field value
             MarkDeleteEntry lastPending = pendingMarkDeleteOps.peekLast();
             Map<String, Long> propertiesToUse =
@@ -3092,7 +3057,6 @@ public class ManagedCursorImpl implements ManagedCursor {
                     return new MarkDeleteEntry(newPosition, propertiesToUse, null, null);
                 }
             });
-            return true;
         }
     }
 
