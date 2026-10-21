@@ -2676,6 +2676,12 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     void internalMarkDelete(final MarkDeleteEntry mdEntry) {
+        if (mdEntry == resetMarkDeleteEntry) {
+            // Mark-deletes submitted before the reset may have persisted, or be persisting, a later position: the
+            // reset must be persisted anyway
+            persistentMarkDeletePosition = null;
+            inProgressMarkDeletePersistPosition = null;
+        }
         if (persistentMarkDeletePosition != null
                 && mdEntry.newPosition.compareTo(persistentMarkDeletePosition) < 0) {
             log.info()

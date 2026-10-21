@@ -7826,6 +7826,50 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertTrue(deleteFailure.getMessage().contains("Reset cursor in progress"), deleteFailure.getMessage());
     }
 
+    @Test(timeOut = 30000)
+    public void testResetCursorNotSkippedByEarlierMarkDelete() throws Exception {
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testResetCursorNotSkippedByEarlierMarkDelete",
+                defaultConfig());
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+        cursor.setInactive(); // the read must reach the bookie, not the entry cache
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            positions.add(ledger.addEntry(("entry-" + i).getBytes(Encoding)));
+        }
+        cursor.markDelete(positions.get(4));
+
+        // A mark-delete submitted before the reset, whose write completes once the reset waits for the read
+        CompletableFuture<Void> markDeleteWritten = bkc.addEntryResponseGate();
+        CompletableFuture<Void> markDelete = new CompletableFuture<>();
+        cursor.asyncMarkDelete(positions.get(6), new MarkDeleteCallback() {
+            @Override
+            public void markDeleteComplete(Object ctx) {
+                markDelete.complete(null);
+            }
+
+            @Override
+            public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                markDelete.completeExceptionally(exception);
+            }
+        }, null);
+        CompletableFuture<Void> releaseRead = holdRead(cursor);
+        CompletableFuture<Void> reset = resetCursorAsync(cursor, positions.get(0));
+        Awaitility.await().until(() -> {
+            synchronized (cursor.pendingMarkDeleteOps) {
+                return cursor.pendingMarkDeleteOps.size() == 1;
+            }
+        });
+        markDeleteWritten.complete(null);
+        markDelete.get(10, TimeUnit.SECONDS);
+
+        releaseRead.complete(null);
+        reset.get(10, TimeUnit.SECONDS);
+        assertEquals(cursor.getReadPosition(), positions.get(0));
+        assertEquals(cursor.getMarkDeletedPosition(), ledger.getPreviousPosition(positions.get(0)));
+        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 10);
+    }
+
     // Starts a read of the cursor whose entries are returned only once the returned future completes
     private CompletableFuture<Void> holdRead(ManagedCursorImpl cursor) {
         CompletableFuture<Void> release = new CompletableFuture<>();
