@@ -1017,8 +1017,12 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             originalEntryAndMetadataList.add(EntryAndMetadata.create(entries.get(i), metadataArray[i]));
         }
 
+        // On a normal read, an orphan chunk after the first replay position goes back to replay: its first chunk
+        // may be waiting there, see SharedConsumerAssignor#assign
+        final Position firstReplayPosition = readType == ReadType.Normal
+                ? redeliveryMessages.getFirstPositionInReplay().orElse(null) : null;
         final Map<Consumer, List<EntryAndMetadata>> assignResult =
-                assignor.assign(originalEntryAndMetadataList, consumerList.size());
+                assignor.assign(originalEntryAndMetadataList, consumerList.size(), firstReplayPosition);
         long totalMessagesSent = 0;
         long totalBytesSent = 0;
         long totalEntries = 0;

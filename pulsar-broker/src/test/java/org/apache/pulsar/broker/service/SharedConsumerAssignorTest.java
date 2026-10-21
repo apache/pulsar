@@ -220,6 +220,49 @@ public class SharedConsumerAssignorTest {
     }
 
     /**
+     * A normal read can still be in flight when the consumer that owns a uuid is removed. Its pending chunk 0 then
+     * sits in the replay queue while the read returns a later chunk with no mapping. That chunk must go back to the
+     * replay queue rather than be dispatched as an orphan, otherwise it reaches a consumer before its chunk 0 and the
+     * client discards a message that could have been delivered.
+     */
+    @Test
+    public void testChunkAfterPendingReplayIsReplayedInOrder() {
+        final Consumer consumerA = new Consumer("A", 2);
+        final Consumer consumerB = new Consumer("B", 100);
+        roundRobinConsumerSelector.addConsumers(consumerA);
+
+        // consumerA receives A-0 and A-1-0-3, so the uuid "A-1" gets pinned to consumerA
+        assignor.assign(entryAndMetadataList.subList(0, 2), 1);
+        assertSame(assignor.getUuidToConsumer().get("A-1"), consumerA);
+
+        // consumerA disconnects, its pending A-1-0-3 is added to the replay queue
+        assignor.removeConsumer(consumerA);
+        roundRobinConsumerSelector.clear();
+        roundRobinConsumerSelector.addConsumers(consumerB);
+        final EntryAndMetadata firstChunk = entryAndMetadataList.get(1);
+
+        // The in-flight normal read returns A-1-1-3, which must wait behind its chunk 0 in the replay queue
+        Map<Consumer, List<EntryAndMetadata>> result =
+                assignor.assign(entryAndMetadataList.subList(2, 3), 1, firstChunk.getPosition());
+        assertTrue(result.isEmpty());
+        assertEquals(toString(replayQueue), Collections.singletonList("0:2@A-1-1-3"));
+        assertTrue(assignor.getUuidToConsumer().isEmpty());
+
+        // The replay read returns both chunks in position order, and they go to the same consumer
+        replayQueue.clear();
+        result = assignor.assign(entryAndMetadataList.subList(1, 3), 1);
+        assertEquals(toString(result.get(consumerB)), Arrays.asList("0:1@A-1-0-3", "0:2@A-1-1-3"));
+        assertSame(assignor.getUuidToConsumer().get("A-1"), consumerB);
+        assertTrue(replayQueue.isEmpty());
+
+        // An orphan chunk before the first replay position is still dispatched
+        assignor.clear();
+        result = assignor.assign(entryAndMetadataList.subList(5, 6), 1, entryAndMetadataList.get(6).getPosition());
+        assertEquals(toString(result.get(consumerB)), Collections.singletonList("0:5@A-1-2-3"));
+        assertTrue(replayQueue.isEmpty());
+    }
+
+    /**
      * The uuid mappings must not outlive the consumers of the dispatcher, otherwise they leak for every chunked
      * message whose last chunk is never published.
      */

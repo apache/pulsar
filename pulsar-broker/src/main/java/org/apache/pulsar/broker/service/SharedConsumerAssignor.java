@@ -28,7 +28,9 @@ import java.util.function.Supplier;
 import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The assigner to assign entries to the proper {@link Consumer} in the shared subscription.
@@ -56,6 +58,19 @@ public class SharedConsumerAssignor {
 
     public Map<Consumer, List<EntryAndMetadata>> assign(final List<EntryAndMetadata> entryAndMetadataList,
                                                         final int numConsumers) {
+        return assign(entryAndMetadataList, numConsumers, null);
+    }
+
+    /**
+     * Assign the entries to consumers.
+     *
+     * @param firstReplayPosition the first position waiting in the replay queue when the entries come from a normal
+     *                            read, or {@code null}. An orphan chunk after this position goes back to the replay
+     *                            queue instead of being dispatched, since its first chunk may be waiting there.
+     */
+    public Map<Consumer, List<EntryAndMetadata>> assign(final List<EntryAndMetadata> entryAndMetadataList,
+                                                        final int numConsumers,
+                                                        final @Nullable Position firstReplayPosition) {
         assert numConsumers >= 0;
         consumerToPermits.clear();
         final Map<Consumer, List<EntryAndMetadata>> consumerToEntries = new IdentityHashMap<>();
@@ -92,7 +107,8 @@ public class SharedConsumerAssignor {
             if (metadata == null || !metadata.hasUuid() || !metadata.hasChunkId() || !metadata.hasNumChunksFromMsg()) {
                 consumerToEntries.computeIfAbsent(consumer, __ -> new ArrayList<>()).add(entryAndMetadata);
             } else {
-                final Consumer consumerForUuid = getConsumerForUuid(metadata, consumer);
+                final Consumer consumerForUuid =
+                        getConsumerForUuid(entryAndMetadata, metadata, consumer, firstReplayPosition);
                 if (consumerForUuid == null) {
                     unassignedMessageProcessor.accept(entryAndMetadata);
                     continue;
@@ -137,16 +153,23 @@ public class SharedConsumerAssignor {
         uuidToConsumer.clear();
     }
 
-    private Consumer getConsumerForUuid(final MessageMetadata metadata, final Consumer defaultConsumer) {
+    private Consumer getConsumerForUuid(final EntryAndMetadata entryAndMetadata, final MessageMetadata metadata,
+                                        final Consumer defaultConsumer, final @Nullable Position firstReplayPosition) {
         final String uuid = metadata.getUuid();
         Consumer consumer = uuidToConsumer.get(uuid);
         if (consumer == null) {
             consumer = defaultConsumer;
             if (metadata.getChunkId() == 0) {
                 uuidToConsumer.put(uuid, consumer);
+            } else if (firstReplayPosition != null
+                    && firstReplayPosition.compareTo(entryAndMetadata.getPosition()) < 0) {
+                // A normal read that was in flight when the consumer owning this uuid was removed: chunk 0 may have
+                // just been added to the replay queue. Replay this chunk too, replay reads are in position order
+                // so chunk 0 will recreate the mapping before this chunk is assigned again.
+                return null;
             } else {
-                // Orphan chunk: only chunk 0 creates the mapping, and the cursor always re-reads chunk 0 before
-                // this one while it is still unacked, so a missing mapping means chunk 0 is acknowledged and gone.
+                // Orphan chunk: only chunk 0 creates the mapping, and replay reads come before normal reads and are
+                // in position order, so a missing mapping here means chunk 0 is acknowledged and gone.
                 // Never replay it: the dispatcher drains the replay queue before every normal read, so an entry that
                 // can never be assigned stalls the whole subscription. Dispatch it and let the client discard it.
                 if (subscription != null) {
