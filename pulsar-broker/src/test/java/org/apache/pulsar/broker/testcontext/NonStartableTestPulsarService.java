@@ -165,5 +165,13 @@ class NonStartableTestPulsarService extends AbstractTestPulsarService {
         public NamespaceResources getNamespaceResources() {
             return namespaceResources;
         }
+
+        @Override
+        public void close() {
+            super.close();
+            if (topicResources != null) {
+                topicResources.close();
+            }
+        }
     }
 }

@@ -74,9 +74,14 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
                     long lastLedgerId = ledgers.lastKey();
 
                     // Fetch last add confirmed for last ledger
-                    bookKeeper.newOpenLedgerOp().withRecovery(false).withLedgerId(lastLedgerId)
-                            .withDigestType(config.getDigestType()).withPassword(config.getPassword())
-                            .withLoggerContext(log).execute()
+                    bookKeeper.newOpenLedgerOp()
+                            .withRecovery(false)
+                            .withLedgerId(lastLedgerId)
+                            .withDigestType(config.getDigestType())
+                            .withPassword(config.getPassword())
+                            .withLoggerContext(log)
+                            .withOrderingKey(name)
+                            .execute()
                             .thenAccept(readHandle -> {
                                 readHandle.readLastAddConfirmedAsync().thenAccept(lastAddConfirmed -> {
                                     LedgerInfo info = new LedgerInfo().setLedgerId(lastLedgerId)
@@ -152,9 +157,10 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
     }
 
     @Override
-    public void asyncReadEntry(Position position, AsyncCallbacks.ReadEntryCallback callback, Object ctx) {
+    void asyncReadEntry(Position position, int expectedReadCount, AsyncCallbacks.ReadEntryCallback callback,
+                        Object ctx) {
             this.getLedgerHandle(position.getLedgerId())
-                    .thenAccept((ledger) -> asyncReadEntry(ledger, position, callback, ctx))
+                    .thenAccept((ledger) -> asyncReadEntry(ledger, position, expectedReadCount, callback, ctx))
                     .exceptionally((ex) -> {
                         log.error().attr("ledgerName", this.name)
                                 .attr("position", position)

@@ -156,7 +156,7 @@ public class PulsarTopicCompactionService implements TopicCompactionService {
                     SingleMessageMetadata singleMessageMetadata = new SingleMessageMetadata();
                     int batchIndex = -1;
                     for (int i = 0; i < batchSize; i++){
-                        final var singleMessagePayload = Commands.deSerializeSingleMessageInBatch(payload,
+                        final var singleMessagePayload = Commands.deSerializeSingleMessageInBatch(uncompressedPayload,
                                 singleMessageMetadata, i, batchSize);
                         singleMessagePayload.release();
                         if (singleMessageMetadata.isCompactedOut()){

@@ -114,7 +114,9 @@ public class CmdScalableTopics extends CmdBase {
         }
     }
 
-    @Command(description = "Get aggregated stats for a scalable topic")
+    @Command(description = "Get the stats of a scalable topic as a whole: the segment DAG with"
+            + " per-segment load, the subscriptions with their backlog across segments, and the"
+            + " producers")
     private class GetStatsCmd extends CliCommand {
         @Parameters(description = "tenant/namespace/topic", arity = "1")
         private String topic;
@@ -122,6 +124,19 @@ public class CmdScalableTopics extends CmdBase {
         @Override
         void run() throws Exception {
             prettyPrint(scalableTopics().getStats(topic));
+        }
+    }
+
+    @Command(description = "Get the stats of a single segment of a scalable topic: the regular topic"
+            + " stats of the topic backing the segment")
+    private class GetSegmentStatsCmd extends CliCommand {
+        @Parameters(description = "segment://tenant/namespace/topic/<hashStart>-<hashEnd>-<segmentId>,"
+                + " as listed by 'stats'", arity = "1")
+        private String segment;
+
+        @Override
+        void run() throws Exception {
+            prettyPrint(scalableTopics().getSegmentStats(segment));
         }
     }
 
@@ -220,6 +235,54 @@ public class CmdScalableTopics extends CmdBase {
         }
     }
 
+    @Command(description = "Get the permissions on a scalable topic: the permissions set at the namespace"
+            + " level combined (union) with any eventual specific permission set on the topic")
+    private class PermissionsCmd extends CliCommand {
+        @Parameters(description = "tenant/namespace/topic", arity = "1")
+        private String topic;
+
+        @Override
+        void run() throws Exception {
+            print(scalableTopics().getPermissions(topic));
+        }
+    }
+
+    @Command(description = "Grant a new permission to a client role on a scalable topic. The permission"
+            + " applies to every segment of the topic")
+    private class GrantPermissionCmd extends CliCommand {
+        @Parameters(description = "tenant/namespace/topic", arity = "1")
+        private String topic;
+
+        @Option(names = {"-r", "--role"}, description = "Client role to which grant permissions", required = true)
+        private String role;
+
+        @Option(names = {"-a", "--actions"}, description = "Actions to be granted (produce,consume,sources,sinks,"
+                + "functions,packages)", required = true, split = ",")
+        private List<String> actions;
+
+        @Override
+        void run() throws Exception {
+            scalableTopics().grantPermission(topic, role, getAuthActions(actions));
+            print("Granted " + actions + " to role " + role + " on topic " + topic);
+        }
+    }
+
+    @Command(description = "Revoke the permissions granted to a client role on a scalable topic. Permissions"
+            + " granted at the namespace level are not affected")
+    private class RevokePermissionCmd extends CliCommand {
+        @Parameters(description = "tenant/namespace/topic", arity = "1")
+        private String topic;
+
+        @Option(names = {"-r", "--role"}, description = "Client role to which revoke permissions", required = true)
+        private String role;
+
+        @Override
+        void run() throws Exception {
+            scalableTopics().revokePermissions(topic, role);
+            print("Revoked the permissions of role " + role + " on topic " + topic);
+        }
+    }
+
     public CmdScalableTopics(Supplier<PulsarAdmin> admin) {
         super("scalable-topics", admin);
         addCommand("list", new ListCmd());
@@ -227,11 +290,15 @@ public class CmdScalableTopics extends CmdBase {
         addCommand("migrate", new MigrateCmd());
         addCommand("get-metadata", new GetMetadataCmd());
         addCommand("stats", new GetStatsCmd());
+        addCommand("segment-stats", new GetSegmentStatsCmd());
         addCommand("delete", new DeleteCmd());
         addCommand("split-segment", new SplitSegmentCmd());
         addCommand("merge-segments", new MergeSegmentsCmd());
         addCommand("seek", new SeekSubscriptionCmd());
         addCommand("clear-backlog", new ClearBacklogCmd());
+        addCommand("permissions", new PermissionsCmd());
+        addCommand("grant-permission", new GrantPermissionCmd());
+        addCommand("revoke-permission", new RevokePermissionCmd());
     }
 
     private Map<String, String> parseProperties(List<String> properties) {

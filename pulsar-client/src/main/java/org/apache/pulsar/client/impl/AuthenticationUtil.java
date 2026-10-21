@@ -59,6 +59,15 @@ public class AuthenticationUtil {
         return authParams;
     }
 
+    private static Class<?> loadAuthenticationClass(String className) throws ClassNotFoundException {
+        try {
+            return Class.forName(className);
+        } catch (ClassNotFoundException e) {
+            // Built-in plugins retain their configured names when the implementation jar is shaded.
+            return Class.forName("org.apache.pulsar.shade." + className);
+        }
+    }
+
     /**
      * Create an instance of the Authentication-Plugin.
      *
@@ -74,7 +83,7 @@ public class AuthenticationUtil {
             throws UnsupportedAuthenticationException {
         try {
             if (isNotBlank(authPluginClassName)) {
-                Class<?> authClass = Class.forName(authPluginClassName);
+                Class<?> authClass = loadAuthenticationClass(authPluginClassName);
                 Authentication auth = (Authentication) authClass.getDeclaredConstructor().newInstance();
                 if (auth instanceof EncodedAuthenticationParameterSupport) {
                     // Parse parameters on plugin side.
@@ -107,7 +116,7 @@ public class AuthenticationUtil {
             throws UnsupportedAuthenticationException {
         try {
             if (isNotBlank(authPluginClassName)) {
-                Class<?> authClass = Class.forName(authPluginClassName);
+                Class<?> authClass = loadAuthenticationClass(authPluginClassName);
                 Authentication auth = (Authentication) authClass.getDeclaredConstructor().newInstance();
                 auth.configure(authParams);
                 return auth;

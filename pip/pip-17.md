@@ -2,7 +2,7 @@
 
 * **Status**: Implemented
 * **Authors**: Ivan Kelly
-* **Mailing List discussion**: https://lists.apache.org/thread.html/3f1c98658395c92e3c858ff966aa829dba0e165a28ef350e0ec3a33f@%3Cdev.pulsar.apache.org%3E
+* **Mailing List discussion**: https://lists.apache.org/thread/xvbt2y3hn4sw7f43hjo6ssdnw9t1jmcr (posted as PIP-16)
 * **Prototype**: https://github.com/ivankelly/incubator-pulsar/tree/s3-offload-proto
 
 

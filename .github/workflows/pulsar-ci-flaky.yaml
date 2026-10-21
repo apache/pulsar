@@ -44,6 +44,7 @@ on:
         options:
           - '25'
           - '21'
+          - '26'
         default: '25'
       trace_test_resource_cleanup:
         description: 'Collect thread & heap information before exiting a test JVM. When set to "on", thread dump and heap histogram will be collected. When set to "full", a heap dump will also be collected.'
@@ -74,14 +75,23 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  CI_ENABLE_SSH: ${{ vars.CI_ENABLE_SSH }}
   # defines the retention period for the intermediate build artifacts needed for rerunning a failed build job
   # it's possible to rerun individual failed jobs when the build artifacts are available
   # if the artifacts have already been expired, the complete workflow can be rerun by closing and reopening the PR or by rebasing the PR
   ARTIFACT_RETENTION_DAYS: 3
   JDK_DISTRIBUTION: corretto
 
+# Do not depend on the repository or enterprise default token permissions.
+permissions:
+  contents: read
+
 jobs:
   preconditions:
+    permissions:
+      contents: read
+      pull-requests: read # List changed files and check whether the PR is ready.
+      actions: write # Cancel scheduled runs in forks.
     name: Preconditions
     runs-on: ubuntu-24.04
     outputs:
@@ -133,6 +143,10 @@ jobs:
           else
             echo docs_only=false >> $GITHUB_OUTPUT
           fi
+
+      - name: Check if the PR is ready for running CI
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' && github.repository == 'apache/pulsar' && github.event_name == 'pull_request' }}
+        uses: ./.github/actions/check-pr-ready-to-test
 
       - name: Check if coverage should be collected
         id: check_coverage

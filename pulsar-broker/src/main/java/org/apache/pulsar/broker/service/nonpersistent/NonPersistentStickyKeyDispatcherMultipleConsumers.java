@@ -101,7 +101,7 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersis
                     if (ex != null) {
                         synchronized (NonPersistentStickyKeyDispatcherMultipleConsumers.this) {
                             consumerSet.removeAll(consumer);
-                            consumerList.remove(consumer);
+                            removeConsumerFromList(consumer);
                         }
                         throw FutureUtil.wrapToCompletionException(ex);
                     }
@@ -154,8 +154,7 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersis
         consumerStickyKeyHashesMap.clear();
 
         for (Entry entry : entries) {
-            byte[] stickyKey = peekStickyKey(entry);
-            int stickyKeyHash = selector.makeStickyKeyHash(stickyKey);
+            int stickyKeyHash = selector.makeStickyKeyHashOfKeyHash(peekStickyKeyHash(entry));
 
             Consumer consumer = selector.select(stickyKeyHash);
             if (consumer != null) {

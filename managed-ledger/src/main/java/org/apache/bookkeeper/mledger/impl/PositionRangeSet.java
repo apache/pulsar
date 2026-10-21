@@ -127,6 +127,23 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
         invalidateCaches();
     }
 
+    /**
+     * Adds the entry unless it's present, in one lookup: the same as {@link #contains(long, long)} followed, when it
+     * returns false, by {@code addOpenClosed(ledgerId, entryId - 1, ledgerId, entryId)}, which marks no ledger dirty
+     * since the range is within one ledger. The caller checks that the entry id is from 0 to
+     * {@link Integer#MAX_VALUE}, the entry ids of the bitmaps.
+     *
+     * @return whether the entry was added, false when it was present
+     */
+    boolean addIfAbsent(long ledgerId, long entryId) {
+        LongBitmap rangeBitmap = rangeBitmapMap.computeIfAbsent(ledgerId, k -> LongBitmaps.create());
+        if (!rangeBitmap.checkedAdd(getSafeEntry(entryId))) {
+            return false;
+        }
+        invalidateCaches();
+        return true;
+    }
+
     @Override
     public boolean contains(long ledgerId, long entryId) {
         LongBitmap rangeBitmap = rangeBitmapMap.get(ledgerId);
@@ -134,6 +151,25 @@ class PositionRangeSet implements LongPairRangeSet<Position> {
             return rangeBitmap.contains(getSafeEntry(entryId));
         }
         return false;
+    }
+
+    /**
+     * Returns {@code true} if any entry in the closed range {@code [lowerEntryId, upperEntryId]} of
+     * {@code ledgerId} is present in this set. Both bounds are inclusive (matching
+     * {@link #cardinality}), unlike the open lower bound of {@link #addOpenClosed}. A negative
+     * {@code lowerEntryId} is treated as {@code 0}. Returns {@code false} for an empty range or an
+     * absent ledger.
+     */
+    boolean containsAny(long ledgerId, long lowerEntryId, long upperEntryId) {
+        if (rangeBitmapMap.isEmpty() || lowerEntryId > upperEntryId) {
+            return false;
+        }
+        LongBitmap bitmap = rangeBitmapMap.get(ledgerId);
+        if (bitmap == null) {
+            return false;
+        }
+        long nextPresentEntryId = bitmap.nextPresentValue(Math.max(0, lowerEntryId));
+        return nextPresentEntryId != -1 && nextPresentEntryId <= upperEntryId;
     }
 
     @Override

@@ -45,6 +45,7 @@ import org.apache.commons.lang3.RandomUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.PulsarStats;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicLoadingContext;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
@@ -179,8 +180,11 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
                 .newTopic(Mockito.eq(topic), Mockito.any(), Mockito.eq(brokerService),
                         Mockito.eq(PersistentTopic.class));
 
+        // createPersistentTopic0 runs after the ownership check of the topic's load, which this test skips: its
+        // check right before opening the managed ledger finds the topic's bundle owned
+        Mockito.doReturn(CompletableFuture.completedFuture(null)).when(brokerService).checkTopicNsOwnership(topic);
         brokerService.createPersistentTopic0(new TopicLoadingContext(TopicName.get(topic), true,
-                new CompletableFuture<>()));
+                new CompletableFuture<>(), Mockito.mock(PulsarStats.class)));
 
         Awaitility.waitAtMost(1, TimeUnit.MINUTES).until(() -> reference.get() != null);
         PersistentTopic persistentTopic = reference.get();

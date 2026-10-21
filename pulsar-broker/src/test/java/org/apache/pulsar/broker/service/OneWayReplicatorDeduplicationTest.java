@@ -115,6 +115,9 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
         super.setConfigDefaults(config, clusterName, bookkeeperEnsemble, brokerConfigZk);
         // For check whether deduplication snapshot has done.
         config.setBrokerDeduplicationSnapshotIntervalSeconds(1);
+        // An entries-interval snapshot is skipped while the previous one is still in progress, so the last entries
+        // are only snapshotted by the periodic check. Run it every second instead of the default 120 seconds.
+        config.setBrokerDeduplicationSnapshotFrequencyInSeconds(1);
         config.setBrokerDeduplicationEntriesInterval(10);
         config.setReplicationStartAt("earliest");
         // To cover more cases, write more than one ledger.
@@ -321,13 +324,11 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
             (conf, eventLoopGroup) -> new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup) {
 
                 @Override
-                protected ByteBuf newConnectCommand() throws Exception {
+                protected ByteBuf buildConnectCommand(AuthData authData) throws Exception {
                     if (supportsReplDedupByLidAndEid) {
-                        return super.newConnectCommand();
+                        return super.buildConnectCommand(authData);
                     }
-                    authenticationDataProvider = authentication.getAuthData(remoteHostName);
-                    AuthData authData = authenticationDataProvider.authenticate(AuthData.INIT_AUTH_DATA);
-                    BaseCommand cmd = Commands.newConnectWithoutSerialize(authentication.getAuthMethodName(), authData,
+                    BaseCommand cmd = Commands.newConnectWithoutSerialize(authMethodName(), authData,
                             this.protocolVersion, clientVersion, proxyToTargetBrokerAddress,
                             null, null, null, null, null);
                     cmd.getConnect().getFeatureFlags().setSupportsReplDedupByLidAndEid(false);

@@ -25,16 +25,14 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.same;
-import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import io.netty.channel.EventLoopGroup;
 import java.util.ArrayList;
@@ -132,6 +130,7 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
         AtomicInteger counter = new AtomicInteger();
         InFlightTask injectedTask = new InFlightTask(PositionFactory.create(1, 1), 1, replicator.getReplicatorId());
         injectedTask.setEntries(Collections.emptyList());
+        injectedTask.setSubmissionComplete(true);
         InFlightTask spyTask = spy(injectedTask);
         replicator.inFlightTasks.add(spyTask);
         doAnswer(new Answer<Object>() {
@@ -206,40 +205,12 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
         }
     }
 
-    @Test
-    public void testFailedPublishCompletesInFlightTask() throws Exception {
-        PersistentReplicator replicator = spy(getReplicator(topicName));
-        doNothing().when(replicator).beforeTerminateOrCursorRewinding(ReasonOfWaitForCursorRewinding.Failed_Publishing);
-        doNothing().when(replicator).doRewindCursor(false);
-        doNothing().when(replicator).readMoreEntries();
-
-        LinkedList<InFlightTask> inFlightTasks = replicator.inFlightTasks;
-        List<InFlightTask> originalTasks = new ArrayList<>(inFlightTasks);
-        inFlightTasks.clear();
-
-        try {
-            InFlightTask task = new InFlightTask(PositionFactory.create(1, 1), 1, replicator.getReplicatorId());
-            task.setEntries(Collections.singletonList(mock(Entry.class)));
-            inFlightTasks.add(task);
-            assertEquals(replicator.getPermitsIfNoPendingRead(), 999);
-
-            ProducerSendCallback callback = ProducerSendCallback.create(replicator, mock(Entry.class), null, task);
-            callback.sendComplete(new PulsarClientException.ProducerBlockedQuotaExceededException("mocked"), null);
-
-            assertTrue(task.isDone());
-            assertEquals(replicator.getPermitsIfNoPendingRead(), 1000);
-        } finally {
-            inFlightTasks.clear();
-            inFlightTasks.addAll(originalTasks);
-        }
-    }
-
     /**
      * Reproduces a geo-replication stall on the cursor-rewind path.
      *
      * <p>When a cursor rewind happens while a cursor read has already been dispatched to bookies,
      * {@code cursor.cancelPendingReadRequest()} returns {@code false} (there is no registered waiting
-     * read op to cancel), so {@code cancelPendingReadTasks()} only flags the in-flight task with
+     * read op to cancel), so recovery only flags the in-flight task with
      * {@code skipReadResultDueToCursorRewind=true} without completing it. When that dispatched read
      * later completes, {@link PersistentReplicator#readEntriesComplete} hits the skip branch and must
      * still complete the task; otherwise the task stays {@code entries == null} forever,
@@ -248,56 +219,39 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
      */
     @Test
     public void testCursorRewindSkippedReadCompletesInFlightTask() throws Exception {
-        PersistentReplicator replicator = spy(getReplicator(topicName));
-        // Isolate the unit: don't issue a real cursor read, only verify reads are resumed.
-        doNothing().when(replicator).readMoreEntries();
+        TestReplicatorFixture fixture = newTestReplicatorFixture(true);
+        PersistentReplicator replicator = fixture.replicator;
+        Entry staleEntry = mock(Entry.class);
 
-        LinkedList<InFlightTask> inFlightTasks = replicator.inFlightTasks;
-        List<InFlightTask> originalTasks = new ArrayList<>(inFlightTasks);
-        inFlightTasks.clear();
+        // Reserve a real cursor read, then retain the ACK demand while recovery rewinds it.
+        replicator.readMoreEntries();
+        InFlightTask staleRead = replicator.inFlightTasks.peek();
+        assertTrue(replicator.hasPendingRead(), "precondition: first cursor read must be pending");
+        replicator.beforeTerminateOrCursorRewinding(ReasonOfWaitForCursorRewinding.Failed_Publishing);
+        replicator.doRewindCursor(false);
+        replicator.readMoreEntries();
 
-        try {
-            int fullPermits = replicator.getPermitsIfNoPendingRead();
-            assertTrue(fullPermits > 0, "precondition: replicator should have free permits");
+        // The stale read completes after recovery is requested. Its entry is discarded, then the owner
+        // rewinds the cursor and consumes the retained demand by reserving exactly one fresh read.
+        replicator.readEntriesComplete(Collections.singletonList(staleEntry), staleRead);
 
-            // A pending cursor read (entries == null) flagged to be skipped because of a cursor rewind
-            // whose pending read could not be cancelled (cancelPendingReadRequest() returned false).
-            InFlightTask task =
-                    new InFlightTask(PositionFactory.create(1, 1), 1, replicator.getReplicatorId());
-            task.setSkipReadResultDueToCursorRewind(true);
-            inFlightTasks.add(task);
-
-            // Precondition: the uncompleted task blocks all reads.
-            assertTrue(replicator.hasPendingRead(), "precondition: task must look like a pending read");
-            assertEquals(replicator.getPermitsIfNoPendingRead(), 0,
-                    "precondition: pending read must occupy all permits");
-
-            // The dispatched read finally completes; its result is discarded because of the rewind.
-            replicator.readEntriesComplete(Collections.singletonList(mock(Entry.class)), task);
-
-            // The task must be completed so it no longer blocks replication.
-            assertTrue(task.isDone(), "skipped read must complete the in-flight task");
-            assertFalse(replicator.hasPendingRead(),
-                    "replication must not stay stuck on an uncompleted pending read");
-            assertEquals(replicator.getPermitsIfNoPendingRead(), fullPermits,
-                    "permits must be released after the skipped read completes");
-            // Reads must be resumed once the slot is freed (dispatched on the broker executor to
-            // avoid recursing in the read-completion thread).
-            Awaitility.await().untilAsserted(() -> verify(replicator, atLeastOnce()).readMoreEntries());
-        } finally {
-            inFlightTasks.clear();
-            inFlightTasks.addAll(originalTasks);
-        }
+        verify(staleEntry).release();
+        verify(fixture.cursor).rewind();
+        verify(fixture.cursor, times(2)).asyncReadEntriesOrWait(anyInt(), anyLong(), same(replicator), any(),
+                any());
+        assertEquals(replicator.inFlightTasks.size(), 1, "only the fresh cursor read should remain");
+        assertTrue(replicator.hasPendingRead(), "the fresh cursor read must replace the stale one");
     }
 
     /**
      * End-to-end reproduction of the cursor-rewind stall over a real two-cluster replication setup.
      *
-     * <p>A real cursor read is held in flight (entries == null) while the cursor is rewound the same way
-     * {@link ProducerSendCallback#sendComplete} does on a failed publish to the remote cluster:
-     * {@code beforeTerminateOrCursorRewinding(Failed_Publishing)} followed by {@code doRewindCursor(false)}.
+     * <p>A real cursor read is held in flight (entries == null) while a prior submitted batch receives the failed
+     * publish callback that rewinds the cursor: {@link ProducerSendCallback#sendComplete} calls
+     * {@code beforeTerminateOrCursorRewinding(Failed_Publishing)}, {@code doRewindCursor(false)}, then publishes
+     * ACK demand for the next read.
      * Because the read was already dispatched, {@code cursor.cancelPendingReadRequest()} returns false, so
-     * {@code cancelPendingReadTasks()} only flags the task and does not complete it. When the dispatched
+     * recovery only flags the task and does not complete it. When the dispatched
      * read then completes through the skip branch, the task must still be completed and reads resumed —
      * otherwise the replicator stalls and the backlog is never delivered to the remote cluster.
      *
@@ -358,11 +312,20 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
             // The dispatched read is in flight and occupies the only read slot.
             assertTrue(replicator.hasPendingRead());
 
-            // Rewind the cursor exactly as a failed publish to the remote cluster does. The in-flight read
-            // was already dispatched, so cancelPendingReadRequest() returns false and the task is only
-            // flagged for skipping (not completed).
-            replicator.beforeTerminateOrCursorRewinding(ReasonOfWaitForCursorRewinding.Failed_Publishing);
-            replicator.doRewindCursor(false);
+            // Reproduce a failed ACK from a prior submitted batch while this cursor read is in flight.
+            // The callback drives the production rewind and publishes its ACK demand; a direct rewind
+            // would omit that demand and test a state that production never creates.
+            InFlightTask failedSendTask =
+                    new InFlightTask(PositionFactory.create(1, 0), 1, replicator.getReplicatorId());
+            Entry failedEntry = mock(Entry.class);
+            failedSendTask.setEntries(Collections.singletonList(failedEntry));
+            failedSendTask.setSubmissionComplete(true);
+            synchronized (replicator.inFlightTasks) {
+                replicator.inFlightTasks.addFirst(failedSendTask);
+            }
+            ProducerSendCallback.create(replicator, failedEntry, null, failedSendTask)
+                    .sendComplete(new PulsarClientException.ProducerBlockedQuotaExceededException("mocked"), null);
+            verify(failedEntry).release();
 
             // The in-flight read now completes successfully and is discarded by the skip branch.
             releaseRead.countDown();
@@ -646,8 +609,10 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
         Assert.assertEquals(inFlightTasks.size(), 1, "Queue should have one task");
         Assert.assertEquals(task1.getReadPos(), position1, "Task should have the correct position");
         Assert.assertEquals(task1.getReadingEntries(), 10, "Task should have the correct reading entries count");
-        // Mark the task as done to test recycling
+        // A result cannot be recycled while its submission loop is still active, even if it is empty.
         task1.setEntries(Collections.emptyList());
+        Assert.assertFalse(task1.isDone(), "An active submission must not be recyclable");
+        task1.setSubmissionComplete(true);
 
         // Test Case 2: Recycle an existing task
         Position position2 = PositionFactory.create(2, 2);
@@ -707,6 +672,7 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
             Position position2 = PositionFactory.create(2, 2);
             InFlightTask task2 = new InFlightTask(position2, 3, "");
             task2.setEntries(Arrays.asList(mock(Entry.class), mock(Entry.class)));
+            task2.setSubmissionComplete(true);
             inFlightTasks.add(task2);
             Assert.assertEquals(replicator.getInflightMessagesCount(), 2);
 
@@ -724,6 +690,7 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
             Position position3 = PositionFactory.create(3, 3);
             InFlightTask task3 = new InFlightTask(position3, 4, "");
             task3.setEntries(Arrays.asList(mock(Entry.class), mock(Entry.class), mock(Entry.class)));
+            task3.setSubmissionComplete(true);
             task3.setCompletedEntries(1);
             inFlightTasks.add(task3);
             Assert.assertEquals(replicator.getInflightMessagesCount(), 2);
@@ -735,6 +702,7 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
             Position position4 = PositionFactory.create(4, 4);
             InFlightTask task4 = new InFlightTask(position4, 2, "");
             task4.setEntries(Collections.emptyList());
+            task4.setSubmissionComplete(true);
             inFlightTasks.add(task4);
             Assert.assertEquals(replicator.getInflightMessagesCount(), 2);
 
@@ -781,6 +749,7 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
             InFlightTask completedReadTask = new InFlightTask(position2, 5, "");
             completedReadTask.setEntries(Arrays.asList(
                     mock(Entry.class), mock(Entry.class), mock(Entry.class)));
+            completedReadTask.setSubmissionComplete(true);
             inFlightTasks.add(completedReadTask);
             Assert.assertEquals(replicator.getPermitsIfNoPendingRead(), 1000 - 3,
                     "With completed read task, should return producerQueueSize - inflightMessages");
@@ -789,6 +758,7 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
             Position position3 = PositionFactory.create(3, 3);
             InFlightTask task2 = new InFlightTask(position3, 5, "");
             task2.setEntries(Arrays.asList(mock(Entry.class), mock(Entry.class)));
+            task2.setSubmissionComplete(true);
             task2.setCompletedEntries(1); // 1 in-flight message
             inFlightTasks.add(task2);
             // Now we have 3 + 1 = 4 in-flight messages
@@ -907,12 +877,8 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
             assertTrue(replicator.isConnected());
         });
         replicator.beforeTerminateOrCursorRewinding(PersistentReplicator.ReasonOfWaitForCursorRewinding.Disconnecting);
-        replicator.doRewindCursor(false);
-        InFlightTask inFlightTask =
-                replicator.createOrRecycleInFlightTaskIntoQueue(PositionFactory.create(1, 1), 1);
-        return () -> {
-            inFlightTask.setEntries(Collections.emptyList());
-            replicator.readMoreEntries();
-        };
+        // Keep the rewind hold until resume. Releasing it while paused lets retained ACK demand
+        // admit another read, even if a synthetic pending task is installed immediately afterward.
+        return () -> replicator.doRewindCursor(true);
     }
 }
