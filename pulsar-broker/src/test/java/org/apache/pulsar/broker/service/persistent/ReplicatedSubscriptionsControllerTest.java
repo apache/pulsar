@@ -19,10 +19,12 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -55,16 +57,77 @@ import org.apache.pulsar.broker.service.Replicator;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.stats.OpenTelemetryReplicatedSubscriptionStats;
 import org.apache.pulsar.common.api.proto.MarkerType;
+import org.apache.pulsar.common.api.proto.MarkersMessageIdData;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
+import org.apache.pulsar.compaction.Compactor;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-replication")
 public class ReplicatedSubscriptionsControllerTest {
+
+    @Test
+    public void testReplicatedSubscriptionUpdateForCompactionSubscriptionIsIgnored() {
+        PersistentTopic topic = mockTopicForUpdates();
+        PulsarCompactorSubscription compactorSubscription = mock(PulsarCompactorSubscription.class);
+        // PulsarCompactorSubscription rejects acks without the compacted ledger property synchronously
+        doThrow(new IllegalArgumentException()).when(compactorSubscription).acknowledgeMessage(any(), any(), any());
+        when(topic.getSubscription(Compactor.COMPACTION_SUBSCRIPTION)).thenReturn(compactorSubscription);
+
+        receiveUpdate(topic, Compactor.COMPACTION_SUBSCRIPTION, 1, 2);
+
+        verify(compactorSubscription, never()).acknowledgeMessage(any(), any(), any());
+    }
+
+    @Test
+    public void testReplicatedSubscriptionUpdateDoesNotCreateCompactionSubscription() {
+        PersistentTopic topic = mockTopicForUpdates();
+        when(topic.getSubscription(Compactor.COMPACTION_SUBSCRIPTION)).thenReturn(null);
+
+        receiveUpdate(topic, Compactor.COMPACTION_SUBSCRIPTION, 1, 2);
+
+        verify(topic, never()).createSubscription(any(), any(), anyBoolean(), any());
+    }
+
+    private static void receiveUpdate(PersistentTopic topic, String subscriptionName, long ledgerId, long entryId) {
+        ReplicatedSubscriptionsController controller = new ReplicatedSubscriptionsController(topic, "local");
+        ByteBuf marker = Markers.newReplicatedSubscriptionsUpdate(subscriptionName,
+                Map.of("local", new MarkersMessageIdData().setLedgerId(ledgerId).setEntryId(entryId)));
+        try {
+            Commands.skipMessageMetadata(marker);
+            controller.receivedReplicatedSubscriptionMarker(PositionFactory.create(3, 4),
+                    MarkerType.REPLICATED_SUBSCRIPTION_UPDATE_VALUE, marker);
+        } finally {
+            marker.release();
+            controller.close();
+        }
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private static PersistentTopic mockTopicForUpdates() {
+        PulsarService pulsar = mock(PulsarService.class);
+        ScheduledExecutorService executor = mock(ScheduledExecutorService.class);
+        ServiceConfiguration config = new ServiceConfiguration();
+        config.setEnableReplicatedSubscriptions(true);
+        BrokerService brokerService = mock(BrokerService.class);
+        PersistentTopic topic = mock(PersistentTopic.class);
+
+        when(brokerService.pulsar()).thenReturn(pulsar);
+        when(brokerService.getPulsar()).thenReturn(pulsar);
+        when(pulsar.getExecutor()).thenReturn(executor);
+        when(pulsar.getConfiguration()).thenReturn(config);
+        when(pulsar.getOpenTelemetryReplicatedSubscriptionStats())
+                .thenReturn(mock(OpenTelemetryReplicatedSubscriptionStats.class));
+        when(executor.scheduleAtFixedRate(any(Runnable.class), anyLong(), anyLong(), any(TimeUnit.class)))
+                .thenReturn(mock(ScheduledFuture.class));
+        when(topic.getName()).thenReturn("persistent://public/default/t1");
+        when(topic.getBrokerService()).thenReturn(brokerService);
+        return topic;
+    }
 
     @Test
     @SuppressWarnings("unchecked")
