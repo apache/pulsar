@@ -106,6 +106,39 @@ public class InflightReadsLimiterTest {
     }
 
     @Test
+    public void tryAcquireTakesOnlyPermitsThatLeaveHalfTheLimitAndAreNotAwaited() throws Exception {
+        InflightReadsLimiter limiter =
+                new InflightReadsLimiter(100, ACQUIRE_QUEUE_SIZE, ACQUIRE_TIMEOUT_MILLIS,
+                        mock(ScheduledExecutorService.class), OpenTelemetry.noop());
+        // more than half of the limit is never acquired
+        assertThat(limiter.tryAcquire(51)).isEmpty();
+        assertThat(limiter.getRemainingBytes()).isEqualTo(100);
+        Optional<InflightReadsLimiter.Handle> first = limiter.tryAcquire(30);
+        assertThat(first).isPresent();
+        assertThat(first.get().success()).isTrue();
+        assertThat(limiter.getRemainingBytes()).isEqualTo(70);
+        // the rest of the permits that leave half of the limit available
+        assertThat(limiter.tryAcquire(21)).isEmpty();
+        Optional<InflightReadsLimiter.Handle> second = limiter.tryAcquire(20);
+        assertThat(second).isPresent();
+        assertThat(limiter.getRemainingBytes()).isEqualTo(50);
+        assertThat(limiter.tryAcquire(1)).isEmpty();
+        assertThat(limiter.getRemainingBytes()).isEqualTo(50);
+        limiter.release(second.get());
+        // a read waiting for permits keeps them for itself, though the permits would leave half of the limit
+        AtomicReference<InflightReadsLimiter.Handle> queued = new AtomicReference<>();
+        assertThat(limiter.acquire(80, queued::set)).isEmpty();
+        assertThat(limiter.getRemainingBytes()).isEqualTo(70);
+        assertThat(limiter.tryAcquire(10)).isEmpty();
+        limiter.release(first.get());
+        assertThat(queued.get()).isNotNull();
+        assertThat(queued.get().success()).isTrue();
+        assertThat(limiter.getRemainingBytes()).isEqualTo(20);
+        limiter.release(queued.get());
+        assertThat(limiter.tryAcquire(10)).isPresent();
+    }
+
+    @Test
     public void testNotEnoughPermits() throws Exception {
         InflightReadsLimiter limiter =
                 new InflightReadsLimiter(100, ACQUIRE_QUEUE_SIZE, ACQUIRE_TIMEOUT_MILLIS,

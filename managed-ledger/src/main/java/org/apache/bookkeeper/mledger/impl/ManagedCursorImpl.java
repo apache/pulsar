@@ -4657,4 +4657,30 @@ public class ManagedCursorImpl implements ManagedCursor {
             return EntryImpl.NO_EXPECTED_READ_COUNT;
         }
     }
+
+    /**
+     * Identifies a read ahead of the cursor that {@link #tryStartReadAhead()} started, so that only the read ahead
+     * that set it ends it.
+     */
+    static final class ReadAheadToken {
+    }
+
+    // The cursor's read ahead in progress, if any, which only the read ahead that set it clears when it completes
+    private final AtomicReference<ReadAheadToken> readAheadInProgress = new AtomicReference<>();
+
+    /** Claims the cursor's read ahead, of which it has at most one in progress; null when one is in progress. */
+    ReadAheadToken tryStartReadAhead() {
+        ReadAheadToken readAhead = new ReadAheadToken();
+        return readAheadInProgress.compareAndSet(null, readAhead) ? readAhead : null;
+    }
+
+    @VisibleForTesting
+    boolean isReadAheadInProgress() {
+        return readAheadInProgress.get() != null;
+    }
+
+    /** Ends the read ahead that {@link #tryStartReadAhead()} returned. */
+    void readAheadCompleted(ReadAheadToken readAhead) {
+        readAheadInProgress.compareAndSet(readAhead, null);
+    }
 }

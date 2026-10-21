@@ -34,6 +34,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
+import org.apache.pulsar.common.util.FutureUtil;
 
 /**
  * PendingReadsManager tries to prevent sending duplicate reads to BK.
@@ -168,7 +169,19 @@ public class PendingReadsManager {
 
     private FindPendingReadOutcome findPendingRead(PendingReadKey key, LedgerPendingReads ledgerCache,
                                                    AtomicBoolean created) {
+        return findPendingRead(key, ledgerCache, created, false);
+    }
+
+    /**
+     * @param createOnly create the pending read only if no pending read includes or overlaps the key; returns null
+     *                   without counting a match otherwise
+     */
+    private FindPendingReadOutcome findPendingRead(PendingReadKey key, LedgerPendingReads ledgerCache,
+                                                   AtomicBoolean created, boolean createOnly) {
         synchronized (ledgerCache) {
+            if (createOnly && isOverlappingReadPending(ledgerCache, key)) {
+                return null;
+            }
             PendingRead existing = ledgerCache.all.get(key);
             if (existing != null) {
                 COUNT_PENDING_READS_MATCHED.inc(key.size());
@@ -356,6 +369,50 @@ public class PendingReadsManager {
         }
     }
 
+
+    private static boolean isOverlappingReadPending(LedgerPendingReads ledgerCache, PendingReadKey key) {
+        for (PendingReadKey entryKey : ledgerCache.all.keySet()) {
+            if (entryKey.equals(key) || entryKey.includes(key) || entryKey.overlaps(key)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Returns whether a read of a range that overlaps the given one is pending, without the lock of the ledger's
+     * pending reads: a cheap check before {@link #readEntriesIfNotPending}, which checks it again atomically.
+     */
+    boolean isOverlappingReadPending(long ledgerId, long firstEntry, long lastEntry) {
+        LedgerPendingReads ledgerCache = cachedPendingReads.get(ledgerId);
+        return ledgerCache != null
+                && isOverlappingReadPending(ledgerCache, new PendingReadKey(firstEntry, lastEntry));
+    }
+
+    /**
+     * Reads the entries from storage, as a pending read that later reads of overlapping ranges join, only if no read
+     * of an overlapping range is pending: the callback then gets the storage read's own entries. Returns whether the
+     * read was started.
+     */
+    boolean readEntriesIfNotPending(ReadHandle lh, long firstEntry, long lastEntry, long maxSizeBytes,
+                                    IntSupplier expectedReadCount,
+                                    final AsyncCallbacks.ReadEntriesCallback callback, Object ctx) {
+        final PendingReadKey key = new PendingReadKey(firstEntry, lastEntry);
+        LedgerPendingReads pendingReadsForLedger =
+                cachedPendingReads.computeIfAbsent(lh.getId(), (l) -> new LedgerPendingReads());
+        AtomicBoolean createdByThisThread = new AtomicBoolean();
+        FindPendingReadOutcome outcome = findPendingRead(key, pendingReadsForLedger, createdByThisThread, true);
+        if (outcome == null || !createdByThisThread.get()) {
+            return false;
+        }
+        PendingRead pendingRead = outcome.pendingRead;
+        // A new pending read accepts listeners until its result is attached
+        boolean listenerAdded = pendingRead.addListener(callback, ctx, firstEntry, lastEntry);
+        // A storage read that fails to start fails the pending read, which removes it and completes its listeners
+        pendingRead.attach(FutureUtil.supplySafely(() -> rangeEntryCache.readFromStorage(lh, firstEntry, lastEntry,
+                maxSizeBytes, expectedReadCount)));
+        return listenerAdded;
+    }
 
     void readEntries(ReadHandle lh, long firstEntry, long lastEntry, long maxSizeBytes,
                      IntSupplier expectedReadCount, final AsyncCallbacks.ReadEntriesCallback callback, Object ctx) {
