@@ -18,7 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.rawEntryConfig;
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultConfig;
 import static org.apache.bookkeeper.mledger.util.ManagedLedgerUtils.NO_MAX_SIZE_LIMIT;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -65,7 +65,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
         when(ml.getName()).thenReturn("name");
         when(ml.getExecutor()).thenReturn((ThreadBoundExecutor) bkExecutor.chooseThread());
         when(ml.getMbean()).thenReturn(new ManagedLedgerMBeanImpl(ml));
-        when(ml.getConfig()).thenReturn(rawEntryConfig());
+        when(ml.getConfig()).thenReturn(defaultConfig());
         when(ml.isBatchReadEnabled()).thenReturn(true);
         when(ml.getOptionalLedgerInfo(0L)).thenReturn(Optional.of(mock(
                 ManagedLedgerInfo.LedgerInfo.class)));

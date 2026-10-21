@@ -37,4 +37,5 @@ public final class BookKeeperClientConfigAccessor {
         ClientConfiguration conf = bookKeeper.getConf();
         return conf != null && conf.getUseV2WireProtocol() && conf.isBatchReadEnabled();
     }
+
 }

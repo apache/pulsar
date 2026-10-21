@@ -44,7 +44,9 @@ import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -68,6 +70,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl
 import org.apache.pulsar.broker.loadbalance.extensions.manager.RedirectManagerForLoadManagerMigration;
 import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.resources.NamespaceResources;
+import org.apache.pulsar.broker.service.BrokerServiceException.MetadataSessionLostException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
@@ -87,6 +90,7 @@ import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.lookup.GetTopicsResult;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.BundleSplitOption;
+import org.apache.pulsar.common.naming.FlowOrQpsEquallyDivideBundleSplitAlgorithm;
 import org.apache.pulsar.common.naming.FlowOrQpsEquallyDivideBundleSplitOption;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
@@ -283,6 +287,23 @@ public class NamespaceService implements AutoCloseable {
     public Optional<NamespaceBundle> getBundleIfPresent(TopicName topicName) {
         Optional<NamespaceBundles> bundles = bundleFactory.getBundlesIfPresent(topicName.getNamespaceObject());
         return bundles.map(b -> b.findBundle(topicName));
+    }
+
+    /**
+     * Stops serving the bundle of a topic whose ledger another broker fenced after this broker lost its metadata
+     * session, which shows that the other broker took the bundle over. See
+     * {@link OwnershipCache#handleOwnershipTakenOver(TopicName)}. The extensible load manager tracks the ownerships
+     * in its own service unit state channel, which this doesn't apply to.
+     */
+    public void handleOwnershipTakenOver(TopicName topicName) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            return;
+        }
+        ownershipCache.handleOwnershipTakenOver(topicName).exceptionally(e -> {
+            log.warn().attr("topic", topicName).exception(e)
+                    .log("Failed to stop serving the bundle that another broker took over");
+            return null;
+        });
     }
 
     public NamespaceBundle getBundle(TopicName topicName) {
@@ -483,7 +504,9 @@ public class NamespaceService implements AutoCloseable {
         }
         LookupRequestKey lookupRequestKey = LookupRequestKey.from(bundle, options);
 
-        return targetMap.computeIfAbsent(lookupRequestKey, (k) -> {
+        AtomicBoolean started = new AtomicBoolean();
+        CompletableFuture<Optional<LookupResult>> lookup = targetMap.computeIfAbsent(lookupRequestKey, (k) -> {
+            started.set(true);
             CompletableFuture<Optional<LookupResult>> future = new CompletableFuture<>();
 
             // First check if we or someone else already owns the bundle
@@ -507,10 +530,16 @@ public class NamespaceService implements AutoCloseable {
                     resolveBrokerServiceLookupResult(options, nsData.get(), future);
                 }
             }).exceptionally(exception -> {
-                log.warn()
-                        .attr("bundle", bundle)
-                        .exception(exception)
-                        .log("Failed to check owner for bundle");
+                if (FutureUtil.unwrapCompletionException(exception) instanceof MetadataSessionLostException) {
+                    // the client retries the lookup
+                    log.debug().attr("bundle", bundle).exceptionMessage(exception)
+                            .log("Failed to check owner for bundle");
+                } else {
+                    log.warn()
+                            .attr("bundle", bundle)
+                            .exception(exception)
+                            .log("Failed to check owner for bundle");
+                }
                 future.completeExceptionally(exception);
                 return null;
             });
@@ -521,6 +550,15 @@ public class NamespaceService implements AutoCloseable {
 
             return future;
         });
+        if (!started.get() && !lookup.isDone() && pulsar.isMetadataSessionLost()) {
+            // Another lookup of the bundle is still in progress while the session is lost: it may be waiting for the
+            // metadata store, such as for acquiring the bundle, which this can't tell from a lookup that is only
+            // choosing a broker to redirect to. Fail rather than risk waiting behind it: the client looks the topic
+            // up again, possibly at another broker.
+            return FutureUtil.failedFuture(new MetadataSessionLostException("Namespace bundle " + bundle
+                    + " is being looked up while this broker's metadata session is lost"));
+        }
+        return lookup;
     }
 
     /**
@@ -710,10 +748,18 @@ public class NamespaceService implements AutoCloseable {
                         resolveBrokerServiceLookupResult(options, ownerInfo, lookupFuture);
                     }
                 }).exceptionally(exception -> {
-                    log.warn()
-                            .attr("bundle", bundle)
-                            .exceptionMessage(exception)
-                            .log("Failed to acquire ownership for namespace bundle");
+                    if (FutureUtil.unwrapCompletionException(exception) instanceof MetadataSessionLostException) {
+                        // the client retries the lookup
+                        log.debug()
+                                .attr("bundle", bundle)
+                                .exceptionMessage(exception)
+                                .log("Failed to acquire ownership for namespace bundle");
+                    } else {
+                        log.warn()
+                                .attr("bundle", bundle)
+                                .exceptionMessage(exception)
+                                .log("Failed to acquire ownership for namespace bundle");
+                    }
                     lookupFuture.completeExceptionally(new PulsarServerException(
                             "Failed to acquire ownership for namespace bundle " + bundle, exception));
                     return null;
@@ -911,9 +957,11 @@ public class NamespaceService implements AutoCloseable {
         }
         // found corresponding policy, set the status to controlled
         nsOwnedStatus.is_controlled = true;
-        if (nsIsolationPolicy.isPrimaryBroker(pulsar.getAdvertisedAddress())) {
+        if (nsIsolationPolicy.isPrimaryBroker(pulsar.getAdvertisedAddress())
+                || nsIsolationPolicy.isPrimaryBrokerId(pulsar.getBrokerId())) {
             nsOwnedStatus.broker_assignment = BrokerAssignment.primary;
-        } else if (nsIsolationPolicy.isSecondaryBroker(pulsar.getAdvertisedAddress())) {
+        } else if (nsIsolationPolicy.isSecondaryBroker(pulsar.getAdvertisedAddress())
+                || nsIsolationPolicy.isSecondaryBrokerId(pulsar.getBrokerId())) {
             nsOwnedStatus.broker_assignment = BrokerAssignment.secondary;
         }
 
@@ -978,7 +1026,7 @@ public class NamespaceService implements AutoCloseable {
                                        CompletableFuture<Void> completionFuture,
                                        NamespaceBundleSplitAlgorithm splitAlgorithm,
                                        List<Long> boundaries) {
-        BundleSplitOption bundleSplitOption = getBundleSplitOption(bundle, boundaries, config);
+        BundleSplitOption bundleSplitOption = getBundleSplitOption(bundle, boundaries, config, splitAlgorithm);
 
         splitAlgorithm.getSplitBoundary(bundleSplitOption).whenComplete((splitBoundaries, ex) -> {
             CompletableFuture<List<NamespaceBundle>> updateFuture = new CompletableFuture<>();
@@ -1030,8 +1078,7 @@ public class NamespaceService implements AutoCloseable {
                                                         + "NamespaceBundle: %s due to %s",
                                                 nsname.toString(), bundle.getBundleRange(), ex1.getMessage());
                                         log.warn(msg);
-                                        updateFuture.completeExceptionally(
-                                                new ServiceUnitNotReadyException(msg, ex1.getCause()));
+                                        updateFuture.completeExceptionally(ex1);
                                         return null;
                                     });
                                 } catch (Exception e) {
@@ -1039,8 +1086,11 @@ public class NamespaceService implements AutoCloseable {
                                             "failed to acquire ownership of split bundle for namespace [%s], %s",
                                             nsname.toString(), e.getMessage());
                                     log.warn().exception(e).log(msg);
-                                    updateFuture.completeExceptionally(new ServiceUnitNotReadyException(msg, e));
+                                    updateFuture.completeExceptionally(e);
                                 }
+                            }).exceptionally(splitException -> {
+                                updateFuture.completeExceptionally(splitException);
+                                return null;
                             });
                 } catch (Exception e) {
                     updateFuture.completeExceptionally(e);
@@ -1051,25 +1101,34 @@ public class NamespaceService implements AutoCloseable {
 
             // If success updateNamespaceBundles, then do invalidateBundleCache and unload.
             // Else retry splitAndOwnBundleOnceAndRetry.
-            updateFuture.whenCompleteAsync((r, t)-> {
+            // Consume the update failure when a retry is scheduled. A whenComplete stage would retain
+            // that failure and incorrectly fail completionFuture in the dispatch-failure handler below.
+            updateFuture.handleAsync((r, t) -> {
                 if (t != null) {
+                    Throwable cause = FutureUtil.unwrapCompletionException(t);
                     // retry several times on BadVersion
-                    if ((t.getCause() instanceof MetadataStoreException.BadVersionException)
+                    if ((cause instanceof MetadataStoreException.BadVersionException)
                             && (counter.decrementAndGet() >= 0)) {
-                        pulsar.getExecutor().schedule(() -> pulsar.getOrderedExecutor()
-                                .execute(() -> splitAndOwnBundleOnceAndRetry(
-                                        bundle, unload, counter, completionFuture, splitAlgorithm, boundaries)),
-                                100, MILLISECONDS);
-                    } else if (t instanceof IllegalArgumentException) {
-                        completionFuture.completeExceptionally(t);
+                        pulsar.getExecutor().schedule(() -> {
+                            try {
+                                pulsar.getOrderedExecutor().execute(() -> splitAndOwnBundleOnceAndRetry(
+                                        bundle, unload, counter, completionFuture, splitAlgorithm, boundaries));
+                            } catch (RejectedExecutionException retryException) {
+                                completionFuture.completeExceptionally(new ServiceUnitNotReadyException(
+                                        "Failed to dispatch namespace bundle split retry for " + bundle,
+                                        retryException));
+                            }
+                        }, 100, MILLISECONDS);
+                    } else if (cause instanceof IllegalArgumentException) {
+                        completionFuture.completeExceptionally(cause);
                     } else {
                         // Retry enough, or meet other exception
                         String msg2 = format(" %s not success update nsBundles, counter %d, reason %s",
-                            bundle.toString(), counter.get(), t.getMessage());
+                            bundle.toString(), counter.get(), cause.getMessage());
                         log.warn(msg2);
-                        completionFuture.completeExceptionally(new ServiceUnitNotReadyException(msg2));
+                        completionFuture.completeExceptionally(new ServiceUnitNotReadyException(msg2, cause));
                     }
-                    return;
+                    return null;
                 }
 
                 // success updateNamespaceBundles
@@ -1129,7 +1188,13 @@ public class NamespaceService implements AutoCloseable {
                             completionFuture.completeExceptionally(new ServiceUnitNotReadyException(msg1));
                             return null;
                         });
-            }, pulsar.getOrderedExecutor());
+                return null;
+            }, pulsar.getOrderedExecutor()).exceptionally(processException -> {
+                completionFuture.completeExceptionally(new ServiceUnitNotReadyException(
+                        "Failed to process namespace bundle split completion for " + bundle,
+                        FutureUtil.unwrapCompletionException(processException)));
+                return null;
+            });
         });
     }
 
@@ -1160,16 +1225,16 @@ public class NamespaceService implements AutoCloseable {
 
     public CompletableFuture<List<Long>> getSplitBoundary(
             NamespaceBundle bundle, List<Long> boundaries, NamespaceBundleSplitAlgorithm nsBundleSplitAlgorithm) {
-        BundleSplitOption bundleSplitOption = getBundleSplitOption(bundle, boundaries, config);
+        BundleSplitOption bundleSplitOption = getBundleSplitOption(bundle, boundaries, config, nsBundleSplitAlgorithm);
         return nsBundleSplitAlgorithm.getSplitBoundary(bundleSplitOption);
     }
 
     private BundleSplitOption getBundleSplitOption(NamespaceBundle bundle,
                                                    List<Long> boundaries,
-                                                   ServiceConfiguration config) {
+                                                   ServiceConfiguration config,
+                                                   NamespaceBundleSplitAlgorithm splitAlgorithm) {
         BundleSplitOption bundleSplitOption;
-        if (config.getDefaultNamespaceBundleSplitAlgorithm()
-                .equals(NamespaceBundleSplitAlgorithm.FLOW_OR_QPS_EQUALLY_DIVIDE)) {
+        if (splitAlgorithm instanceof FlowOrQpsEquallyDivideBundleSplitAlgorithm) {
             Map<String, TopicStatsImpl> topicStatsMap =  pulsar.getBrokerService().getTopicStats(bundle);
             bundleSplitOption = new FlowOrQpsEquallyDivideBundleSplitOption(this, bundle, boundaries,
                     topicStatsMap,
@@ -1969,5 +2034,6 @@ public class NamespaceService implements AutoCloseable {
                         .log("Error shutting down namespace client for cluster");
             }
         });
+        bundleFactory.close();
     }
 }

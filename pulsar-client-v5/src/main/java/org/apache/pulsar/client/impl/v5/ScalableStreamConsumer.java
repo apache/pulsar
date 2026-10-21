@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.client.impl.v5;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.github.merlimat.slog.Logger;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -95,6 +95,11 @@ final class ScalableStreamConsumer<T>
     // ownership (a consumer joined/left) re-subscribes the segment with the new ranges.
     private final ConcurrentHashMap<Long, List<HashRange>> segmentBucketRanges = new ConcurrentHashMap<>();
 
+    // The receive loops of the segments subscribed before the initial subscribe completed, which start once it
+    // has; both fields are guarded by deferredReceiveLoops
+    private final List<Runnable> deferredReceiveLoops = new ArrayList<>();
+    private boolean deliveryStarted;
+
     /**
      * Tracks the latest message ID delivered from each segment. Updated atomically
      * inside {@link #startReceiveLoop} before the message is enqueued, and snapshot
@@ -118,6 +123,26 @@ final class ScalableStreamConsumer<T>
      */
     private final ConcurrentHashMap<Long, org.apache.pulsar.client.api.MessageId> lastCumulativeAcked =
             new ConcurrentHashMap<>();
+
+    /**
+     * Per segment, the highest position whose plain (non-transactional) cumulative ack has
+     * completed at the v4 consumer, tagged with the delivery generation it belongs to. Only this
+     * decides whether a later ack is redundant: a transactional ack may still abort and a failed
+     * ack never reached the broker, so neither advances it and retrying the same position
+     * afterwards still goes through. A backwards delivery (the broker redelivering after a
+     * reconnect, seek or nack) bumps the generation, and a completion that captured an older one
+     * is rejected rather than resurrecting a position the broker may never have received.
+     * {@link #lastCumulativeAcked} keeps recording every attempt, which is what the PIP-486
+     * release drain compares against.
+     */
+    private final ConcurrentHashMap<Long, AckWatermark> cumulativeAckWatermark = new ConcurrentHashMap<>();
+
+    private record AckWatermark(long generation, org.apache.pulsar.client.api.MessageId position) {
+    }
+
+    /** Test seam: runs after a plain ack has been issued and before its completion is observed. */
+    @VisibleForTesting
+    volatile Runnable beforeAckWatermarkUpdateHook;
 
     /**
      * PIP-486: segments paused for a release — their receive loops stop re-arming so what was
@@ -157,6 +182,13 @@ final class ScalableStreamConsumer<T>
     private volatile List<ActiveSegment> latestAssignment;
     /** Coalesces concurrent reconcile attempts; only one runs at a time. */
     private final AtomicBoolean reconcileInProgress = new AtomicBoolean(false);
+    /** Whether a reconcile retry is scheduled. Guarded by {@code this}. */
+    private boolean retryScheduled = false;
+    /** Whether the backoff was reset after the pending retry was scheduled. Guarded by {@code this}. */
+    private boolean backoffResetSinceRetry = false;
+    /** Identifies the latest retry: a retry it replaced does nothing. Guarded by {@code this}. */
+    private long retryGeneration = 0;
+    /** Paces the retries. Guarded by {@code this}. */
     private final Backoff reconcileBackoff = Backoff.builder()
             .initialDelay(Duration.ofMillis(100))
             .maxBackoff(Duration.ofSeconds(30))
@@ -230,6 +262,7 @@ final class ScalableStreamConsumer<T>
         consumer.latestAssignment = initialAssignment;
         return consumer.subscribeInitialWithRetry(initialAssignment)
                 .thenApply(__ -> {
+                    consumer.startDelivery();
                     session.setListener(consumer);
                     return consumer;
                 })
@@ -327,11 +360,33 @@ final class ScalableStreamConsumer<T>
         }
         var unacked = sharedSegmentUnacked.get(segmentId);
         if (unacked == null) {
+            long generation = 0;
+            if (v4Txn == null) {
+                // The vector names every segment on every message, so all but the message's own
+                // segment usually repeat a position an earlier ack already covered. Skip those
+                // rather than issuing one v4 cumulative ack per segment per message.
+                var watermark = cumulativeAckWatermark.get(segmentId);
+                if (watermark != null) {
+                    if (watermark.position() != null && watermark.position().compareTo(position) >= 0) {
+                        return;
+                    }
+                    generation = watermark.generation();
+                }
+            }
             lastCumulativeAcked.merge(segmentId, position,
                     (a, b) -> a.compareTo(b) >= 0 ? a : b);
-            trackDrainAck(segmentId, future.thenCompose(c ->
+            CompletableFuture<Void> ack = future.thenCompose(c ->
                     v4Txn == null ? c.acknowledgeCumulativeAsync(position)
-                            : c.acknowledgeCumulativeAsync(position, v4Txn)));
+                            : c.acknowledgeCumulativeAsync(position, v4Txn));
+            if (v4Txn == null) {
+                long issuedIn = generation;
+                Runnable hook = beforeAckWatermarkUpdateHook;
+                if (hook != null) {
+                    hook.run();
+                }
+                ack.thenRun(() -> advanceAckWatermark(segmentId, issuedIn, position));
+            }
+            trackDrainAck(segmentId, ack);
             return;
         }
         // Redeliveries can enqueue ids out of order, so scan the whole queue rather than stopping at
@@ -364,6 +419,33 @@ final class ScalableStreamConsumer<T>
      * While the segment is draining for a release, record the broker ack so the release barrier
      * can wait for it to settle before the old consumer is closed.
      */
+    /**
+     * A plain cumulative ack completed: record its position for the deduplication, unless the
+     * segment's delivery restarted since the ack was issued — the broker may never have received
+     * it, so the application's re-ack must go through. Atomic per segment.
+     */
+    private void advanceAckWatermark(long segmentId, long issuedIn,
+                                     org.apache.pulsar.client.api.MessageId position) {
+        cumulativeAckWatermark.compute(segmentId, (id, current) -> {
+            long generation = current == null ? 0 : current.generation();
+            if (generation != issuedIn
+                    || (current != null && current.position() != null
+                            && current.position().compareTo(position) >= 0)) {
+                return current;
+            }
+            return new AckWatermark(generation, position);
+        });
+    }
+
+    /**
+     * Forget what a segment's plain acks have covered and start a new delivery generation, so
+     * completions of acks issued before this point can no longer count.
+     */
+    private void resetAckWatermark(long segmentId) {
+        cumulativeAckWatermark.compute(segmentId, (id, current) ->
+                new AckWatermark((current == null ? 0 : current.generation()) + 1, null));
+    }
+
     private void trackDrainAck(long segmentId, CompletableFuture<?> ackFuture) {
         if (!drainingConsumers.containsKey(segmentId)) {
             return;
@@ -385,7 +467,7 @@ final class ScalableStreamConsumer<T>
             Thread.currentThread().interrupt();
             throw new PulsarClientException("Close interrupted", e);
         } catch (ExecutionException e) {
-            throw new PulsarClientException(e.getCause());
+            throw V5ExceptionMappings.toV5Exception(e);
         }
     }
 
@@ -432,7 +514,9 @@ final class ScalableStreamConsumer<T>
                     pendingDrainAcks.clear();
                     sharedSegmentUnacked.clear();
                     lastCumulativeAcked.clear();
-                });
+                    cumulativeAckWatermark.clear();
+                })
+                .exceptionallyCompose(V5ExceptionMappings::failWithV5Exception);
     }
 
     // --- Assignment change handling ---
@@ -466,7 +550,9 @@ final class ScalableStreamConsumer<T>
                                          CompletableFuture<Void> result) {
         subscribeAssigned(assigned).whenComplete((__, ex) -> {
             if (ex == null) {
-                reconcileBackoff.reset();
+                synchronized (this) {
+                    reconcileBackoff.reset();
+                }
                 result.complete(null);
                 return;
             }
@@ -480,11 +566,22 @@ final class ScalableStreamConsumer<T>
                 return;
             }
             evictFailedSegmentConsumers();
-            Duration delay = reconcileBackoff.next();
+            Duration delay;
+            synchronized (this) {
+                delay = reconcileBackoff.next();
+            }
             log.info().attr("delayMs", delay.toMillis()).exceptionMessage(ex)
                     .log("Initial subscribe rejected during rebalance, retrying after backoff");
-            scheduler().schedule(() -> attemptInitialSubscribe(assigned, deadlineNanos, result),
-                    delay.toMillis(), TimeUnit.MILLISECONDS);
+            // Retry with the session's current assignment, not the one this attempt started with: the
+            // rebalance that rejected us usually also moved segments away from this consumer, and
+            // retrying the stale assignment would keep asking for a segment another member now owns.
+            // The assignment listener is only registered once the initial subscribe succeeds, so the
+            // session, not latestAssignment, holds the updates that arrived in the meantime.
+            scheduler().schedule(() -> {
+                List<ActiveSegment> current = session.currentAssignment();
+                latestAssignment = current;
+                attemptInitialSubscribe(current, deadlineNanos, result);
+            }, delay.toMillis(), TimeUnit.MILLISECONDS);
         });
     }
 
@@ -494,11 +591,18 @@ final class ScalableStreamConsumer<T>
      * consumer may not have released a segment or bucket range yet, so our subscribe is rejected
      * ({@code ConsumerBusy} on Exclusive, {@code ConsumerAssignError} on overlapping STICKY
      * ranges) — and neither is retried at the v4 layer.
+     *
+     * <p>The next reconcile starts only once this one's releases have drained and its subscribes
+     * have settled. A segment's release state (drain bookkeeping, receive epoch, acked positions)
+     * is keyed by segment id, so applying a newer assignment meanwhile could re-subscribe, or
+     * release again, a segment that is still draining.
      */
     private void reconcile() {
         if (closed || !reconcileInProgress.compareAndSet(false, true)) {
             return;
         }
+        // Evict failed subscribe futures so this attempt re-tries them.
+        evictFailedSegmentConsumers();
         List<ActiveSegment> target = latestAssignment;
         subscribeAssigned(target).whenComplete((__, ex) -> {
             reconcileInProgress.set(false);
@@ -506,20 +610,50 @@ final class ScalableStreamConsumer<T>
                 return;
             }
             if (ex == null) {
-                reconcileBackoff.reset();
-                // If a newer assignment arrived during this reconcile, run again to converge.
-                if (latestAssignment != target) {
-                    reconcile();
+                synchronized (this) {
+                    reconcileBackoff.reset();
+                    backoffResetSinceRetry = retryScheduled;
                 }
+            }
+            // If a newer assignment arrived during this reconcile, run again to converge: that run also
+            // re-tries what failed in this one.
+            if (latestAssignment != target) {
+                reconcile();
+            } else if (ex != null) {
+                scheduleRetry(ex);
+            }
+        });
+    }
+
+    /**
+     * Retry the reconcile after a backoff, with at most one retry scheduled. A retry scheduled before
+     * the backoff was last reset is replaced, so a new failure doesn't wait out the longer delay of
+     * earlier ones.
+     */
+    private void scheduleRetry(Throwable ex) {
+        Duration delay;
+        long generation;
+        synchronized (this) {
+            if (retryScheduled && !backoffResetSinceRetry) {
                 return;
             }
-            // Evict failed subscribe futures so the next attempt can re-try them.
-            evictFailedSegmentConsumers();
-            Duration delay = reconcileBackoff.next();
-            log.warn().attr("delayMs", delay.toMillis()).exceptionMessage(ex)
-                    .log("Failed to apply assignment update, retrying after backoff");
-            scheduler().schedule(this::reconcile, delay.toMillis(), TimeUnit.MILLISECONDS);
-        });
+            retryScheduled = true;
+            backoffResetSinceRetry = false;
+            generation = ++retryGeneration;
+            delay = reconcileBackoff.next();
+        }
+        log.warn().attr("delayMs", delay.toMillis()).exceptionMessage(ex)
+                .log("Failed to apply assignment update, retrying after backoff");
+        scheduler().schedule(() -> {
+            synchronized (this) {
+                if (generation != retryGeneration) {
+                    // Replaced by a later retry.
+                    return;
+                }
+                retryScheduled = false;
+            }
+            reconcile();
+        }, delay.toMillis(), TimeUnit.MILLISECONDS);
     }
 
     private void evictFailedSegmentConsumers() {
@@ -561,6 +695,7 @@ final class ScalableStreamConsumer<T>
                         .whenComplete((__, ___) -> {
                             sharedSegmentUnacked.remove(segmentId);
                             lastCumulativeAcked.remove(segmentId);
+                            resetAckWatermark(segmentId);
                             latestDelivered.remove(segmentId);
                             segmentReceiveEpoch.remove(segmentId);
                         }));
@@ -591,6 +726,7 @@ final class ScalableStreamConsumer<T>
                             // drain that has nothing left to ack.
                             sharedSegmentUnacked.remove(seg.segmentId());
                             lastCumulativeAcked.remove(seg.segmentId());
+                            resetAckWatermark(seg.segmentId());
                             latestDelivered.remove(seg.segmentId());
                         });
                 futures.add(segmentConsumers.computeIfAbsent(seg.segmentId(), id ->
@@ -702,7 +838,7 @@ final class ScalableStreamConsumer<T>
             ActiveSegment segment) {
         PulsarClientImpl v4Client = client.v4Client();
         // Clone so per-segment consumers inherit every builder knob the user set
-        // (ackTimeout, readCompacted, replicateSubscriptionState, encryption, ...).
+        // (ackTimeout, readCompacted, encryption, ...).
         var segConf = consumerConf.clone();
         segConf.getTopicNames().clear();
         segConf.setTopicsPattern(null);
@@ -749,10 +885,40 @@ final class ScalableStreamConsumer<T>
         }
         return v4Client.subscribeSegmentAsync(segConf, v4Schema)
                 .thenApply(consumer -> {
-                    startReceiveLoop(consumer, segment.segmentId(),
+                    startReceiveLoopWhenDelivering(consumer, segment.segmentId(),
                             segmentReceiveEpoch.getOrDefault(segment.segmentId(), 0L));
                     return consumer;
                 });
+    }
+
+    /**
+     * Starts the segment's receive loop, or defers it until the initial subscribe completes. Until then the
+     * application has no consumer to ack with, so a message handed out early could never be acked: an
+     * initial-subscribe retry that releases the segment would wait forever for its drain.
+     */
+    private void startReceiveLoopWhenDelivering(org.apache.pulsar.client.api.Consumer<T> v4Consumer,
+                                                long segmentId, long armedEpoch) {
+        synchronized (deferredReceiveLoops) {
+            if (!deliveryStarted) {
+                deferredReceiveLoops.add(() -> startReceiveLoop(v4Consumer, segmentId, armedEpoch));
+                return;
+            }
+        }
+        startReceiveLoop(v4Consumer, segmentId, armedEpoch);
+    }
+
+    /**
+     * Starts the receive loops deferred during the initial subscribe. A loop whose segment was released in the
+     * meantime finds its consumer closed or its epoch stale, and stops.
+     */
+    private void startDelivery() {
+        List<Runnable> loops;
+        synchronized (deferredReceiveLoops) {
+            deliveryStarted = true;
+            loops = new ArrayList<>(deferredReceiveLoops);
+            deferredReceiveLoops.clear();
+        }
+        loops.forEach(Runnable::run);
     }
 
     /**
@@ -774,7 +940,13 @@ final class ScalableStreamConsumer<T>
                 return;
             }
             // Update the latest delivered position for this segment
-            latestDelivered.put(segmentId, v4Msg.getMessageId());
+            var previous = latestDelivered.put(segmentId, v4Msg.getMessageId());
+            if (previous != null && previous.compareTo(v4Msg.getMessageId()) >= 0) {
+                // Delivery went backwards: the broker is redelivering (reconnect, seek, nack).
+                // Acks issued before it may never have reached the broker, so forget what this
+                // segment has covered and let the application's re-acks through.
+                resetAckWatermark(segmentId);
+            }
 
             // PIP-486 bucket-shared segment: remember the id so a cumulative ack can be translated
             // into individual acks (Key_Shared consumers cannot ack cumulatively).
@@ -783,9 +955,9 @@ final class ScalableStreamConsumer<T>
                 unacked.add(v4Msg.getMessageId());
             }
 
-            // Snapshot the position vector (all segments, including this one)
-            Map<Long, org.apache.pulsar.client.api.MessageId> positionVector =
-                    new HashMap<>(latestDelivered);
+            // Snapshot the position vector (all segments, including this one). Already immutable,
+            // so MessageIdV5's own defensive Map.copyOf() returns it as is instead of copying again.
+            Map<Long, org.apache.pulsar.client.api.MessageId> positionVector = Map.copyOf(latestDelivered);
 
             // Create the V5 message with the position vector embedded in the ID
             var msgId = new MessageIdV5(v4Msg.getMessageId(), segmentId, positionVector);
@@ -818,6 +990,7 @@ final class ScalableStreamConsumer<T>
                 segmentConsumers.remove(segmentId);
                 sharedSegmentUnacked.remove(segmentId);
                 lastCumulativeAcked.remove(segmentId);
+                            resetAckWatermark(segmentId);
                 latestDelivered.remove(segmentId);
                 segmentReceiveEpoch.remove(segmentId);
                 v4Consumer.closeAsync();

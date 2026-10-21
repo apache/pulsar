@@ -18,7 +18,7 @@
  */
 package org.apache.bookkeeper.mledger;
 
-import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.rawEntryConfig;
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultConfig;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -52,7 +52,7 @@ public class ManagedLedgerReplayTaskTest extends MockedBookKeeperTestCase {
         };
 
         final var maxEntriesPerRead = 5;
-        @Cleanup final var ml = factory.open("testNormalReplay", initManagedLedgerConfig(rawEntryConfig()));
+        @Cleanup final var ml = factory.open("testNormalReplay", initManagedLedgerConfig(defaultConfig()));
         final var replayTask = new ManagedLedgerReplayTask(ml.getName(), executor, maxEntriesPerRead);
         final var cursor = ml.openCursor("cursor");
         final var processor = new TestEntryProcessor();
@@ -87,7 +87,7 @@ public class ManagedLedgerReplayTaskTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 30000)
     public void testProcessFailed() throws Exception {
-        @Cleanup final var ml = factory.open("testNormalReplay", initManagedLedgerConfig(rawEntryConfig()));
+        @Cleanup final var ml = factory.open("testNormalReplay", initManagedLedgerConfig(defaultConfig()));
         final var positions = new ArrayList<Position>();
         for (int i = 0; i < 10; i++) {
             positions.add(ml.addEntry(("msg-" + i).getBytes(StandardCharsets.UTF_8)));
