@@ -7782,6 +7782,88 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(spyCursor.getProperties(), properties);
     }
 
+    @Test(timeOut = 30000)
+    public void testResetCursorIsNotDroppedByAckQueuedBehindIt() throws Exception {
+        CompletableFuture<Void> releaseReads = new CompletableFuture<>();
+        AtomicBoolean holdReads = new AtomicBoolean(false);
+        bkc.setReadHandleInterceptor((ledgerId, firstEntry, lastEntry, entries) ->
+                holdReads.get() ? releaseReads.thenApply(__ -> entries) : CompletableFuture.completedFuture(entries));
+
+        String ledgerName = "testResetCursorIsNotDroppedByAckQueuedBehindIt";
+        ManagedLedger ledger = factory.open(ledgerName, defaultConfig());
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+        cursor.setInactive(); // disable caching when adding entries, so reads go to the bookie
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            positions.add(ledger.addEntry(("entry-" + i).getBytes(Encoding)));
+        }
+        cursor.markDelete(positions.get(4));
+
+        // Keep a read in flight, so mark-delete requests are queued
+        holdReads.set(true);
+        CompletableFuture<List<Entry>> readFuture = new CompletableFuture<>();
+        cursor.asyncReadEntries(1, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                readFuture.complete(entries);
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                readFuture.completeExceptionally(exception);
+            }
+        }, null, PositionFactory.LATEST);
+        Awaitility.await().until(() -> cursor.getPendingReadOpsCount() == 1);
+
+        // Queue a reset, then an ack that advances the mark-delete position behind it
+        CompletableFuture<Void> resetFuture = new CompletableFuture<>();
+        cursor.asyncResetCursor(positions.get(0), false, new AsyncCallbacks.ResetCursorCallback() {
+            @Override
+            public void resetComplete(Object ctx) {
+                resetFuture.complete(null);
+            }
+
+            @Override
+            public void resetFailed(ManagedLedgerException exception, Object ctx) {
+                resetFuture.completeExceptionally(exception);
+            }
+        });
+        Awaitility.await().until(() -> cursor.pendingMarkDeleteOps.size() == 1);
+        cursor.asyncDelete(positions.get(5), new DeleteCallback() {
+            @Override
+            public void deleteComplete(Object ctx) {
+            }
+
+            @Override
+            public void deleteFailed(ManagedLedgerException exception, Object ctx) {
+            }
+        }, null);
+        assertEquals(cursor.pendingMarkDeleteOps.size(), 2);
+        assertEquals(cursor.pendingMarkDeleteOps.getLast().newPosition, positions.get(5));
+
+        // Completing the read flushes the queued mark-delete requests
+        releaseReads.complete(null);
+        readFuture.get(10, TimeUnit.SECONDS).forEach(Entry::release);
+        resetFuture.get(10, TimeUnit.SECONDS);
+
+        Position resetMarkDeletePosition = ((ManagedLedgerImpl) ledger).getPreviousPosition(positions.get(0));
+        assertEquals(cursor.getReadPosition(), positions.get(0));
+        assertEquals(cursor.getMarkDeletedPosition(), resetMarkDeletePosition);
+        assertEquals(cursor.getPersistentMarkDeletedPosition(), resetMarkDeletePosition);
+        assertFalse(cursor.isMessageDeleted(positions.get(5)));
+
+        // Acknowledgments after the reset are persisted
+        holdReads.set(false);
+        cursor.markDelete(positions.get(2));
+        ledger.close();
+
+        ManagedLedger reopenedLedger = factory.open(ledgerName, defaultConfig());
+        ManagedCursorImpl reopenedCursor = (ManagedCursorImpl) reopenedLedger.openCursor("c1");
+        assertEquals(reopenedCursor.getMarkDeletedPosition(), positions.get(2));
+        assertFalse(reopenedCursor.isMessageDeleted(positions.get(5)));
+        reopenedLedger.close();
+    }
+
     @SuppressWarnings("try")
     class TestPulsarMockBookKeeper extends PulsarMockBookKeeper {
         Map<Long, Integer> ledgerErrors = new HashMap<>();
