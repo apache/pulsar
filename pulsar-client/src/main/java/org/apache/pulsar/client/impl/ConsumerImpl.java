@@ -1091,10 +1091,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
      * Clear the internal receiver queue and returns the message id of what was the 1st message in the queue that was
      * not seen by the application.
      */
-    private void clearReceiverQueue(boolean updateStartMessageId) {
+    @VisibleForTesting
+    void clearReceiverQueue(boolean updateStartMessageId) {
         List<Message<?>> currentMessageQueue = new ArrayList<>(incomingMessages.size());
         incomingMessages.drainTo(currentMessageQueue);
-        resetIncomingMessageSize();
+        MessageIdAdv nextMessageInQueue =
+                currentMessageQueue.isEmpty() ? null : (MessageIdAdv) currentMessageQueue.get(0).getMessageId();
+        // release messages if they are pooled messages
+        currentMessageQueue.forEach(this::discardIncomingMessage);
 
         CompletableFuture<Void> seekFuture = this.seekFuture;
         MessageIdAdv seekMessageId = this.seekMessageId;
@@ -1111,8 +1115,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return;
         }
 
-        if (!currentMessageQueue.isEmpty()) {
-            MessageIdAdv nextMessageInQueue = (MessageIdAdv) currentMessageQueue.get(0).getMessageId();
+        if (nextMessageInQueue != null) {
             MessageIdAdv previousMessage;
             if (MessageIdAdvUtils.isBatch(nextMessageInQueue)) {
                 // Get on the previous message within the current batch
@@ -1123,8 +1126,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 // Get on previous message in previous entry
                 previousMessage = MessageIdAdvUtils.prevMessageId(nextMessageInQueue);
             }
-            // release messages if they are pooled messages
-            currentMessageQueue.forEach(Message::release);
             if (updateStartMessageId) {
                 startMessageId = previousMessage;
             }
@@ -1280,7 +1281,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         negativeAcksTracker.close();
         stats.getStatTimeout().ifPresent(Timeout::cancel);
         //terminate incomingMessages queue, stop accept the new messages and waking up blocked thread.
-        incomingMessages.terminate(Message::release);
+        incomingMessages.terminate(this::discardIncomingMessage);
         clearIncomingMessages();
     }
 
@@ -2434,8 +2435,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
 
                 // clear local message
-                currentSize = incomingMessages.size();
-                clearIncomingMessages();
+                currentSize = clearIncomingMessages();
                 unAckedMessageTracker.clear();
             } finally {
                 incomingQueueLock.unlock();
@@ -3210,9 +3210,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             if (message == null) {
                 break;
             }
-            decreaseIncomingMessageSize(message);
+            discardIncomingMessage(message);
             messagesFromQueue++;
-            message.release();
         }
         return messagesFromQueue;
     }
