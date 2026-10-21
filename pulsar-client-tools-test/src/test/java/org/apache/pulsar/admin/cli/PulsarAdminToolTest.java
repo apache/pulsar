@@ -1014,7 +1014,7 @@ public class PulsarAdminToolTest {
         nsIsolationPoliciesCmd.run(split("brokers use"));
         verify(mockClusters).getBrokersWithNamespaceIsolationPolicy("use");
 
-        nsIsolationPoliciesCmd.run(split("broker use --broker-id my-broker"));
+        nsIsolationPoliciesCmd.run(split("broker use --broker my-broker"));
         verify(mockClusters).getBrokerWithNamespaceIsolationPolicy("use", "my-broker");
     }
 
