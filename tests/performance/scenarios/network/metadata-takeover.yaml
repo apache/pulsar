@@ -1,0 +1,53 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# A broker loses the metadata stores for 90 s of the measurement, in the failover cluster, while it still reaches its
+# clients and the bookies, and 40 s in, after its metadata session has expired, the applications' connections are reset,
+# so that the consumers look their topics up again. A lookup that reaches the other broker makes it take the topics over
+# and fence the isolated broker's ledgers. The isolated broker keeps serving, as the default
+# zookeeperSessionExpiredPolicy of reconnect intends, while the gateways' producers stay connected to it. The brokers
+# deduplicate, and the producers have no send timeout.
+#
+# Look for: how long the isolated broker holds its producers after another broker has fenced its ledgers, the publish
+# latency until the producers move, the fencing in the brokers' logs, and the duplicates' kinds in the Correctness
+# section.
+
+extends: failover-cluster.yaml
+network:
+  impairments:
+    broker-1-metadata-cut-off:
+      between: [broker-1, metadata]
+      partition: true
+      start: 30s
+      duration: 90s
+    reset-applications:
+      from: applications
+      to: brokers
+      reset: true
+      start: 70s
+workloads:
+  iotTelemetry:
+    # Long enough to see the recovery after the metadata stores come back
+    measurement:
+      seconds: 180
+    timeoutSeconds: 360
+    gateways:
+      env:
+        PULSAR_CLIENT_LOG_LEVEL: info
+    applications:
+      env:
+        PULSAR_CLIENT_LOG_LEVEL: info

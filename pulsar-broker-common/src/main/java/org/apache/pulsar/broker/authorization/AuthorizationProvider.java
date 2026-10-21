@@ -24,8 +24,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import lombok.Builder;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.client.admin.GrantTopicPermissionOptions;
 import org.apache.pulsar.client.admin.RevokeTopicPermissionOptions;
@@ -76,15 +78,33 @@ public interface AuthorizationProvider extends Closeable {
     }
 
     /**
+     * Initialization dependencies for an authorization provider.
+     * The authentication service is already initialized and owned by the enclosing service.
+     */
+    @Builder
+    record InitialContext(ServiceConfiguration config, PulsarResources pulsarResources,
+                          AuthenticationService authenticationService) {
+    }
+
+    /**
+     * Initialize the authorization provider with its shared dependencies.
+     */
+    default void initialize(InitialContext context) throws IOException {
+        initialize(context.config(), context.pulsarResources());
+    }
+
+    /**
      * Perform initialization for the authorization provider.
      *
      * @param conf
      *            broker config object
      * @param pulsarResources
      *            Resources component for access to metadata
+     * @deprecated use {@link #initialize(InitialContext)} instead
      * @throws IOException
      *             if the initialization fails
      */
+    @Deprecated
     default void initialize(ServiceConfiguration conf, PulsarResources pulsarResources) throws IOException {
     }
 
@@ -323,6 +343,34 @@ public interface AuthorizationProvider extends Closeable {
         return FutureUtil.failedFuture(
             new IllegalStateException("TopicOperation [" + operation.name() + "] is not supported by the Authorization"
                     + "provider you are using."));
+    }
+
+    /**
+     * Check if a given <tt>role</tt> may have a topic created automatically, when it produces to, subscribes to or
+     * looks up a topic that does not exist and the auto topic creation settings allow creating it.
+     *
+     * <p>The default allows it, so the auto topic creation settings alone decide, as they did before this check
+     * existed. A provider overrides it to restrict which roles may trigger topic auto-creation, for example by
+     * checking {@link NamespaceOperation#CREATE_TOPIC}.
+     *
+     * <p>It is only called when the settings would create the topic from nothing: not for a topic the broker
+     * re-materializes from existing metadata (a partition of an existing partitioned topic, an active segment of a
+     * scalable topic), nor for system topics, and only once the broker found that the topic does not exist, in this
+     * cluster or, for partitioned-topic metadata, in a remote one. The exception is an HTTP request for a
+     * non-persistent topic, whose existence the broker does not check there, so it must not assume the topic is
+     * missing. It should be cheap. A refusal only prevents creating a missing topic, and a future that completes
+     * exceptionally fails the client request. The broker's own clients, such as geo-replication, go through it too
+     * with their role, so a provider should keep allowing super users.
+     *
+     * @param topic topic name
+     * @param role role name
+     * @param authData authenticated data
+     * @return CompletableFuture<Boolean>
+     */
+    default CompletableFuture<Boolean> allowTopicAutoCreationAsync(TopicName topic,
+                                                                   String role,
+                                                                   AuthenticationDataSource authData) {
+        return CompletableFuture.completedFuture(true);
     }
 
     /**

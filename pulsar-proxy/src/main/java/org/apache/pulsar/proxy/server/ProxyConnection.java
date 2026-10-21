@@ -19,6 +19,8 @@
 package org.apache.pulsar.proxy.server;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFutureListener;
@@ -29,6 +31,7 @@ import io.netty.channel.epoll.EpollSocketChannel;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.resolver.dns.DnsAddressResolverGroup;
+import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.ScheduledFuture;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -162,6 +165,11 @@ public class ProxyConnection extends PulsarHandler {
         return connectionPool;
     }
 
+    @VisibleForTesting
+    void setStateForTesting(State state) {
+        this.state = state;
+    }
+
     public ProxyConnection(ProxyService proxyService, DnsAddressResolverGroup dnsAddressResolverGroup) {
         super(proxyService.getConfiguration().getKeepAliveIntervalSeconds(), TimeUnit.SECONDS);
         this.service = proxyService;
@@ -290,6 +298,7 @@ public class ProxyConnection extends PulsarHandler {
     public void channelRead(final ChannelHandlerContext ctx, Object msg) throws Exception {
         if (msg instanceof HAProxyMessage) {
             haProxyMessage = (HAProxyMessage) msg;
+            haProxyMessage.release();
             return;
         }
         switch (state) {
@@ -332,6 +341,7 @@ public class ProxyConnection extends PulsarHandler {
                         .attr("bytes", msg instanceof ByteBuf ? ((ByteBuf) msg).readableBytes() : -1)
                         .log("Received message while connection to broker"
                                 + " is missing. Dropping input.");
+                ReferenceCountUtil.safeRelease(msg);
             }
             break;
         case ProxyConnectingToBroker:
@@ -341,8 +351,10 @@ public class ProxyConnection extends PulsarHandler {
                             ? ((ByteBuf) msg).readableBytes() : -1)
                     .log("Received message while connecting to broker."
                             + " Dropping input.");
+            ReferenceCountUtil.safeRelease(msg);
             break;
         default:
+            ReferenceCountUtil.safeRelease(msg);
             break;
         }
     }
@@ -880,6 +892,25 @@ public class ProxyConnection extends PulsarHandler {
     }
 
     ClientConfigurationData createClientConfiguration() {
+        return createClientConfiguration(service);
+    }
+
+    /**
+     * Build the deterministic broker-client {@link ClientConfigurationData} the proxy uses for its outbound
+     * (proxy&rarr;broker) lookup and direct connections. The result depends only on the {@link ProxyService}
+     * configuration (identical for every connection), so {@link ProxyService} also calls it once at startup to
+     * derive the representative config for building the shared lookup client TLS factory.
+     *
+     * <p>PIP-478: when TLS with the broker is enabled the resolved lookup client TLS factory
+     * ({@link ProxyService#getLookupClientTlsFactory()}) is stashed on the config so the lookup
+     * {@code ConnectionPool}'s client transport can build its per-connection {@code SslContext} for the
+     * {@code CLIENT_DEFAULT} purpose. This method self-builds the config outside
+     * {@code PulsarClientImpl} (which is where the client factory is normally resolved), so the factory must
+     * be stashed here explicitly; otherwise the proxy binary lookup path hits a null-factory NPE. The factory
+     * is {@code null} while it is itself being built at startup, which is harmless: that representative config
+     * is only read for its {@code tls*} fields.
+     */
+    static ClientConfigurationData createClientConfiguration(ProxyService service) {
         ClientConfigurationData initialConf = new ClientConfigurationData();
         ProxyConfiguration proxyConfig = service.getConfiguration();
         initialConf.setServiceUrl(
@@ -894,7 +925,7 @@ public class ProxyConnection extends PulsarHandler {
                 .filterAndMapProperties(proxyConfig.getProperties(), "brokerClient_");
         ClientConfigurationData clientConf = ConfigurationDataUtils
                 .loadData(overrides, initialConf, ClientConfigurationData.class);
-        clientConf.setAuthentication(this.getClientAuthentication());
+        clientConf.setAuthentication(service.getProxyClientAuthenticationPlugin());
         if (proxyConfig.isTlsEnabledWithBroker()) {
             clientConf.setUseTls(true);
             clientConf.setTlsHostnameVerificationEnable(proxyConfig.isTlsHostnameVerificationEnabled());
@@ -912,6 +943,32 @@ public class ProxyConnection extends PulsarHandler {
                 clientConf.setTlsCertificateFilePath(proxyConfig.getBrokerClientCertificateFilePath());
             }
             clientConf.setTlsAllowInsecureConnection(proxyConfig.isTlsAllowInsecureConnection());
+            // PIP-478: propagate the broker-client TLS engine (sslProvider), JSSE (SSLContext) provider
+            // (jsseProvider) and JCA (crypto) provider (jcaProvider) onto the internal lookup client config so
+            // the proxy's outbound broker client honors them — otherwise they are dropped (never copied into
+            // ClientConfigurationData) and the engine/provider silently defaults. The JCA pin matters here
+            // because ProxyTlsFactories.brokerClientPolicy already honours it on the direct path: one
+            // proxy.conf setting drives two outbound legs, and only one of them read it.
+            if (isNotBlank(proxyConfig.getBrokerClientSslProvider())) {
+                clientConf.setSslProvider(proxyConfig.getBrokerClientSslProvider());
+            }
+            if (isNotBlank(proxyConfig.getBrokerClientJsseProvider())) {
+                clientConf.setJsseProvider(proxyConfig.getBrokerClientJsseProvider());
+            }
+            if (isNotBlank(proxyConfig.getBrokerClientJcaProvider())) {
+                clientConf.setJcaProvider(proxyConfig.getBrokerClientJcaProvider());
+            }
+            // PIP-478: propagate the broker-client custom TLS factory selection so resolveClientTlsFactory
+            // (run by ProxyService over the representative config built here) instantiates the named factory
+            // for the lookup path's shared CLIENT_DEFAULT factory instead of silently defaulting to the
+            // file-based one while the direct path honors it. Gated on a non-default (non-blank) class name —
+            // mirroring PulsarService.maybeApplyBrokerClientTlsFactory — so a brokerClient_tlsFactoryClassName
+            // / brokerClient_tlsFactoryConfig override applied above is not clobbered by blank defaults.
+            if (isNotBlank(proxyConfig.getBrokerClientTlsFactoryClassName())) {
+                clientConf.setTlsFactoryClassName(proxyConfig.getBrokerClientTlsFactoryClassName());
+                clientConf.setTlsFactoryConfig(proxyConfig.getBrokerClientTlsFactoryConfig());
+            }
+            clientConf.setTlsFactory(service.getLookupClientTlsFactory());
         }
         return clientConf;
     }

@@ -25,8 +25,10 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
@@ -47,31 +49,26 @@ import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicType;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
 
-    @BeforeClass
+    @BeforeMethod
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
     }
 
-    @AfterClass(alwaysRun = true)
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
-    }
-
-    @AfterMethod(alwaysRun = true)
-    protected void cleanupTest() throws Exception {
-        pulsar.getAdminClient().namespaces().removeAutoTopicCreation("prop/ns-abc");
     }
 
     @Test
@@ -85,6 +82,28 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
 
         assertTrue(admin.namespaces().getTopics("prop/ns-abc").contains(topicString));
         assertFalse(admin.topics().getPartitionedTopicList("prop/ns-abc").contains(topicString));
+    }
+
+    @Test
+    public void testAutoTopicCreationRejectsSurroundingWhitespace() throws Exception {
+        pulsar.getConfiguration().setAllowAutoTopicCreation(true);
+        pulsar.getConfiguration().setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
+
+        // Go straight to the broker service: the Java client trims topic names, so it could never send this name.
+        final String topicString = "persistent://prop/ns-abc/auto-created-with-whitespace ";
+        assertFalse(pulsar.getBrokerService().isAllowAutoTopicCreationAsync(topicString).get());
+
+        try {
+            pulsar.getBrokerService().getOrCreateTopic(topicString).get();
+            fail("Should not have auto-created a topic whose name has surrounding whitespace");
+        } catch (ExecutionException e) {
+            // Auto-creation is denied, so getTopic returns Optional.empty() and getOrCreateTopic's
+            // thenApply(Optional::get) throws NoSuchElementException for that empty optional.
+            Throwable root = FutureUtil.unwrapCompletionException(e);
+            assertTrue(root instanceof NoSuchElementException,
+                    "expected NoSuchElementException because the topic was not auto-created, got: " + root);
+        }
+        assertFalse(admin.namespaces().getTopics("prop/ns-abc").contains(topicString));
     }
 
     @Test

@@ -56,10 +56,7 @@ final class StreamConsumerBuilderV5<T> implements StreamConsumerBuilder<T> {
         try {
             return subscribeAsync().join();
         } catch (java.util.concurrent.CompletionException e) {
-            if (e.getCause() instanceof PulsarClientException pce) {
-                throw pce;
-            }
-            throw new PulsarClientException(e.getCause());
+            throw V5ExceptionMappings.toV5Exception(e);
         }
     }
 
@@ -84,7 +81,8 @@ final class StreamConsumerBuilderV5<T> implements StreamConsumerBuilder<T> {
 
         if (namespaceSet) {
             return MultiTopicStreamConsumer.createAsync(
-                    client, v5Schema, conf, namespaceName, propertyFilters);
+                            client, v5Schema, conf, namespaceName, propertyFilters)
+                    .exceptionallyCompose(V5ExceptionMappings::failWithV5Exception);
         }
 
         TopicName topic = V5Utils.parseScalableTopicInput(topicName);
@@ -97,7 +95,18 @@ final class StreamConsumerBuilderV5<T> implements StreamConsumerBuilder<T> {
 
         return session.start()
                 .thenCompose(initialAssignment -> ScalableStreamConsumer.createAsync(
-                        client, v5Schema, conf, session, topic.toString(), initialAssignment));
+                        client, v5Schema, conf, session, topic.toString(), initialAssignment))
+                .whenComplete((consumer, ex) -> {
+                    if (ex != null) {
+                        // An abandoned subscribe must not leave a controller registration
+                        // behind: close() sends the clean unsubscribe once the in-flight
+                        // attempt settles — covering a registration the broker completed
+                        // after the client's subscribe timed out. Idempotent if the consumer
+                        // path already closed the session.
+                        session.close();
+                    }
+                })
+                .exceptionallyCompose(V5ExceptionMappings::failWithV5Exception);
     }
 
     @Override
@@ -154,12 +163,6 @@ final class StreamConsumerBuilderV5<T> implements StreamConsumerBuilder<T> {
     @Override
     public StreamConsumerBuilderV5<T> readCompacted(boolean readCompacted) {
         conf.setReadCompacted(readCompacted);
-        return this;
-    }
-
-    @Override
-    public StreamConsumerBuilderV5<T> replicateSubscriptionState(boolean replicate) {
-        conf.setReplicateSubscriptionState(replicate);
         return this;
     }
 

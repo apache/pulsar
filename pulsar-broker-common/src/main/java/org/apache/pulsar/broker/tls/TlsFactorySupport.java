@@ -22,6 +22,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import io.netty.handler.ssl.OpenSsl;
 import io.netty.handler.ssl.SslProvider;
 import io.opentelemetry.api.OpenTelemetry;
+import java.security.Provider;
 import java.time.Clock;
 import java.util.LinkedHashMap;
 import java.util.Locale;
@@ -35,6 +36,7 @@ import java.util.function.Supplier;
 import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.common.util.tls.JcaProviders;
 import org.apache.pulsar.tls.PulsarTlsFactory;
 import org.apache.pulsar.tls.TlsFactoryInitContext;
 
@@ -43,9 +45,9 @@ import org.apache.pulsar.tls.TlsFactoryInitContext;
  * replaces the PIP-337 {@code PulsarSslFactory} path (removed at the end of the PIP-478 series, leaving
  * this SPI the only server TLS path). Server components (broker,
  * proxy, websocket, functions-worker) call these helpers to instantiate and initialize the factory and parse
- * its parameters. A stale PIP-337 {@code sslFactoryPlugin} configuration key is still accepted at this
- * point in the series; the removed-key validation that rejects it at config-file load arrives with the
- * server-side migration.
+ * its parameters. A stale PIP-337 {@code sslFactoryPlugin} configuration key is rejected at config-file
+ * load by {@code PulsarConfigurationLoader.rejectRemovedPip337TlsFactoryKeys}, so it never reaches these
+ * helpers.
  *
  * <p>The helper deliberately does not touch Netty's {@code SslContext} itself — that subscribe pattern stays
  * inline in the binary-listener components — so it stays usable by every component, including the websocket
@@ -271,6 +273,43 @@ public final class TlsFactorySupport {
      * @param engineProviderString the configured {@code tlsProvider}/{@code sslProvider} (may be null/blank)
      * @return the resolved JSSE provider name, or {@code null} for none
      */
+    /**
+     * As {@link #resolveJsseProvider}, but for a <b>web listener</b>, whose JSSE provider defaults to
+     * Conscrypt when nothing is configured and Conscrypt is usable on this platform.
+     *
+     * <p>Conscrypt was the shipped default for the web-listener provider keys before PIP-478 and is
+     * meaningfully faster than the JDK provider, so it stays the default here. What changes is that the
+     * default is now <em>conditional</em>: under PIP-337 the key only reached Jetty's
+     * {@code SslContextFactory.setProvider(...)}, inert on a factory that overrides {@code getSslContext()},
+     * so the shipped default never selected a provider and could not fail. Now that the value is pinned into
+     * the built {@code SSLContext} it can, so it is applied only where Conscrypt actually loads.
+     * {@code conscrypt-openjdk-uber} ships native libraries for x86_64 and — since 2.6.1 — aarch64, but not
+     * for every platform Pulsar runs on (s390x, for one), and it need not be on the class path at all.
+     *
+     * <p>Hence availability rather than mere presence: {@link JcaProviders#CONSCRYPT_PROVIDER} is resolved by
+     * calling Conscrypt's own {@code checkAvailability()}, which fails where the native library is missing, so
+     * this returns {@code null} there and the JVM default applies. A provider the operator names explicitly is
+     * always honoured verbatim and still fails loudly when it cannot be resolved — only the <em>default</em>
+     * is conditional, because a default that breaks a supported platform is not a usable default.
+     *
+     * <p>This applies to server listeners only. Client-side hostname verification is unaffected: a server
+     * does not verify hostnames, so pinning Conscrypt here cannot interact with the hostname verification
+     * PIP-478 turns on.
+     *
+     * @param explicitJsseProvider the configured {@code jsseProvider} (may be null/blank)
+     * @param engineProviderString the configured web-listener provider key (may be null/blank)
+     * @return the resolved JSSE provider name, Conscrypt's name when nothing is configured and it is
+     *         available, or {@code null} for the JVM default
+     */
+    public static String resolveWebJsseProvider(String explicitJsseProvider, String engineProviderString) {
+        String configured = resolveJsseProvider(explicitJsseProvider, engineProviderString);
+        if (configured != null) {
+            return configured;
+        }
+        Provider conscrypt = JcaProviders.CONSCRYPT_PROVIDER;
+        return conscrypt == null ? null : conscrypt.getName();
+    }
+
     public static String resolveJsseProvider(String explicitJsseProvider, String engineProviderString) {
         if (StringUtils.isNotBlank(explicitJsseProvider)) {
             return explicitJsseProvider.trim();
