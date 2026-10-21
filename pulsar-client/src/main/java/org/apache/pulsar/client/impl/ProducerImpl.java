@@ -201,6 +201,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private final Counter producersOpenedCounter;
     private final Counter producersClosedCounter;
     private final boolean pauseSendingToPreservePublishOrderOnSchemaRegFailure;
+    private final Backoff schemaRegistrationBackoff;
     // This variable can be exposed as a metrics in the future, a PIP is needed.
     private final AtomicInteger pendingQueueFullCounter;
 
@@ -218,6 +219,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         // Otherwise, it may cause an out-of-order issue, and it may lead to a messages lost issue if users enabled
         // deduplication on the remote side.
         this.pauseSendingToPreservePublishOrderOnSchemaRegFailure = conf.isReplProducer();
+        this.schemaRegistrationBackoff = Backoff.builder()
+                .initialDelay(Duration.ofNanos(client.getConfiguration().getInitialBackoffIntervalNanos()))
+                .maxBackoff(Duration.ofNanos(client.getConfiguration().getMaxBackoffIntervalNanos()))
+                .build();
         if (conf.getMaxPendingMessages() > 0) {
             // With admission done upstream the permit is never taken but would still be released.
             checkArgument(!conf.isMemoryLimitAdmittedUpstream(),
@@ -998,8 +1003,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         .exception(t)
                         .log("GetOrCreateSchema error");
                 if (t instanceof PulsarClientException.IncompatibleSchemaException) {
-                    // Only the first time of failed schema registration will trigger a "recoverProcessOpSendMsgFrom".
-                    if (!Broken.equals(msg.getSchemaState())) {
+                    if (!Broken.equals(msg.getSchemaState()) || pauseSendingToPreservePublishOrderOnSchemaRegFailure) {
                         cnx.ctx().channel().eventLoop().execute(() -> {
                             synchronized (ProducerImpl.this) {
                                 recoverProcessOpSendMsgFrom(cnx, msg, true, expectedCnxEpoch);
@@ -2886,10 +2890,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
      * 3. If using multiple version producer, the new schema was failed to registered.
      *   3-1. If the new schema is incompatible.
      *     3-1-1. If {@link #pauseSendingToPreservePublishOrderOnSchemaRegFailure} is true pause all following
-     *       publishing to avoid out-of-order issue.
+     *       publishing to avoid out-of-order issue, and retry registration with backoff.
      *     3-1-2. Otherwise, discard the failed message anc continuously publishing the following messages.
      *            Additionally, the following messages may need schema registration also.
      *   3-2. The new schema registration failed due to other error, retry registering.
+     * 4. Retry a previously incompatible schema after backoff.
      * Note: Since the current method accesses & modifies {@link #pendingMessages}, you should acquire a lock on
      *       {@link ProducerImpl} before calling method.
      */
@@ -2905,6 +2910,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                             + " since they will deliver using another"
                             + " connection.");
             return;
+        }
+        if (latestMsgAttemptedRegisteredSchema != null
+                && latestMsgAttemptedRegisteredSchema.getSchemaState() == MessageImpl.SchemaState.Ready) {
+            schemaRegistrationBackoff.reset();
         }
         final boolean stripChecksum = cnx.getRemoteEndpointProtocolVersion() < brokerChecksumSupportedVersion();
         Iterator<OpSendMsg> msgIterator = pendingMessages.iterator();
@@ -2938,10 +2947,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
             if (op.msg != null) {
                 if (Broken.equals(op.msg.getSchemaState())) {
-                    // "Event 1-1" happens after "Event 3-1-1".
-                    // Maybe user has changed the schema compatibility strategy, will retry to register the new schema.
+                    // Retry a previously incompatible schema after backoff or reconnect.
                     if (pauseSendingToPreservePublishOrderOnSchemaRegFailure) {
                         loopEndDueToSchemaRegisterNeeded = op;
+                        pausedSendingToPreservePublishOrderOnSchemaRegFailure = failedIncompatibleSchema;
                         break;
                     } else {
                         // This scenario will never happen because the message will be removed from the queue as soon
@@ -2973,10 +2982,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                                 .attr("details", SchemaUtils.jsonifySchemaInfo(msgSchemaInfo, false))
                                 .log("Publishing paused: message schema"
                                         + " incompatible with target cluster."
-                                        + " To resume publishing: 1) Adjust"
-                                        + " schema compatibility strategy on"
-                                        + " target cluster 2) Unload topic on"
-                                        + " target cluster. Schema details");
+                                        + " Schema registration will be retried"
+                                        + " automatically. Schema details");
                         loopEndDueToSchemaRegisterNeeded = op;
                         pausedSendingToPreservePublishOrderOnSchemaRegFailure = true;
                         break;
@@ -3048,7 +3055,16 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 tryRegisterSchema(cnx, loopEndDueToSchemaRegisterNeeded.msg, loopEndDueToSchemaRegisterNeeded.callback,
                     expectedEpoch);
             } else if (pausedSendingToPreservePublishOrderOnSchemaRegFailure) {
-                // Nothing to do if the event is "Event 3-1-1", just keep stuck.
+                MessageImpl<?> msg = loopEndDueToSchemaRegisterNeeded.msg;
+                // Keep later messages queued while retrying the blocked schema on the same connection.
+                cnx.ctx().channel().eventLoop().schedule(() -> {
+                    synchronized (ProducerImpl.this) {
+                        if (cnx() == cnx && expectedEpoch == connectionHandler.getEpoch()
+                                && getState() == State.RegisteringSchema) {
+                            recoverProcessOpSendMsgFrom(cnx, msg, false, expectedEpoch);
+                        }
+                    }
+                }, schemaRegistrationBackoff.next().toMillis(), TimeUnit.MILLISECONDS);
                 return;
             } else if (compareAndSetState(State.RegisteringSchema, State.Ready)) {
                 // "Event 2-1" or "Event 3-1-2" or "Event 3-2".
