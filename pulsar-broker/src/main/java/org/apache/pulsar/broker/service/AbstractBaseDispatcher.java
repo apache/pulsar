@@ -52,6 +52,7 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
+import org.apache.pulsar.common.util.Murmur3_32Hash;
 import org.apache.pulsar.compaction.Compactor;
 import org.jspecify.annotations.Nullable;
 
@@ -242,13 +243,13 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
             int batchSize = msgMetadata.getNumMessagesInBatch();
             long[] ackSet = null;
             if (indexesAcks != null && cursor != null) {
-                Position position = PositionFactory.create(entry.getLedgerId(), entry.getEntryId());
                 ackSet = cursor
-                        .getDeletedBatchIndexesAsLongArray(position);
+                        .getDeletedBatchIndexesAsLongArray(entry.getLedgerId(), entry.getEntryId());
                 // some batch messages ack bit sit will be in pendingAck state, so don't send all bit sit to consumer
                 if (subscription instanceof PersistentSubscription
                         && ((PersistentSubscription) subscription)
                         .getPendingAckHandle() instanceof PendingAckHandleImpl) {
+                    Position position = PositionFactory.create(entry.getLedgerId(), entry.getEntryId());
                     Position positionInPendingAck =
                             ((PersistentSubscription) subscription).getPositionInPendingAck(position);
                     // if this position not in pendingAck state, don't need to do any op
@@ -280,7 +281,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 // No explicit null write is needed for a missing ackSet. EntryBatchIndexesAcks is reset before
                 // reuse, so absent ack sets are already null.
                 if (ackSet != null) {
-                    indexesAcks.setIndexesAcks(i, Pair.of(batchSize, ackSet));
+                    indexesAcks.setIndexesAcks(i, batchSize, ackSet);
                 }
             }
 
@@ -474,6 +475,26 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
             return Commands.NONE_KEY;
         }
         return Commands.resolveStickyKey(metadata);
+    }
+
+    /**
+     * {@link Murmur3_32Hash#makeHash(byte[])} of {@link #peekStickyKey(Entry)}, which hashes the key where it is in the
+     * entry's metadata, as {@link Commands#resolveStickyKeyHash(MessageMetadata)} does.
+     */
+    protected int peekStickyKeyHash(Entry entry) {
+        MessageMetadata metadata;
+        if (entry instanceof EntryAndMetadata entryAndMetadata) {
+            metadata = entryAndMetadata.getMetadata();
+        } else {
+            metadata = entry.getMessageMetadata();
+            if (metadata == null) {
+                metadata = Commands.peekMessageMetadata(entry.getDataBuffer(), subscription.toString(), -1);
+            }
+        }
+        if (metadata == null) {
+            return Murmur3_32Hash.getInstance().makeHash(Commands.NONE_KEY);
+        }
+        return Commands.resolveStickyKeyHash(metadata);
     }
 
     protected String getSubscriptionName() {

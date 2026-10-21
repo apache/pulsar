@@ -25,7 +25,7 @@
                status="INFO">
   <Properties>
     <Property name="pulsar.test.logging.appender" value="CONSOLE"/>
-    <Property name="pulsar.test.logging.file" value="target/pulsar.test.log"/>
+    <Property name="pulsar.test.logging.file" value="build/pulsar.test.log"/>
     <Property name="pulsar.test.logging.file.immediateFlush" value="false"/>
   </Properties>
   <Appenders>

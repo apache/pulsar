@@ -100,6 +100,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
+import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 
 @CustomLog
 public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerSelectionStrategyFactory {
@@ -386,6 +387,10 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
             this.serviceUnitStateChannel.listen(splitManager);
             this.leaderElectionService.start();
 
+            if (this.antiAffinityGroupPolicyHelper != null) {
+                // Left by a start that failed or was closed before it completed
+                this.antiAffinityGroupPolicyHelper.close();
+            }
             this.antiAffinityGroupPolicyHelper =
                     new AntiAffinityGroupPolicyHelper(pulsar, serviceUnitStateChannel);
             antiAffinityGroupPolicyHelper.listenFailureDomainUpdate();
@@ -476,6 +481,9 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
     }
 
     private void failStarting(Throwable throwable) {
+        if (this.antiAffinityGroupPolicyHelper != null) {
+            this.antiAffinityGroupPolicyHelper.close();
+        }
         if (this.brokerRegistry != null) {
             try {
                 brokerRegistry.close();
@@ -758,34 +766,50 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
         final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle.toString());
         NamespaceBundle namespaceBundle =
                 pulsar.getNamespaceService().getNamespaceBundleFactory().getBundle(namespaceName, bundleRange);
-        return pulsar.getNamespaceService().getSplitBoundary(namespaceBundle, splitAlgorithm, boundaries)
-                .thenCompose(splitBundlesPair -> {
-                    if (splitBundlesPair == null) {
-                        String msg = format("Bundle %s not found under namespace", namespaceBundle);
-                        log.error(msg);
-                        return FutureUtil.failedFuture(new IllegalStateException(msg));
+        return pulsar.getNamespaceService().getSplitBoundary(namespaceBundle, boundaries, splitAlgorithm)
+                .thenCompose(splitBoundaries -> {
+                    if (splitBoundaries == null || splitBoundaries.isEmpty()) {
+                        log.info()
+                                .attr("namespaceObject", namespaceBundle.getNamespaceObject().toString())
+                                .attr("boundaries", boundaries)
+                                .attr("bundle", namespaceBundle.getBundleRange())
+                                .log("No valid boundary found to split bundle");
+                        return CompletableFuture.completedFuture(null);
                     }
-
-                    return getOwnershipAsync(Optional.empty(), bundle)
-                            .thenCompose(brokerOpt -> {
-                                if (brokerOpt.isEmpty()) {
-                                    String msg = String.format("Namespace bundle: %s is not owned by any broker.",
-                                            bundle);
-                                    log.warn(msg);
-                                    throw new IllegalStateException(msg);
+                    return pulsar.getNamespaceService().getNamespaceBundleFactory()
+                            .splitBundles(namespaceBundle, splitBoundaries.size() + 1, splitBoundaries)
+                            .thenCompose(splitBundlesPair -> {
+                                if (splitBundlesPair == null) {
+                                    String msg = format("Bundle %s not found under namespace", namespaceBundle);
+                                    log.error(msg);
+                                    return FutureUtil.failedFuture(new IllegalStateException(msg));
                                 }
-                                String sourceBroker = brokerOpt.get();
-                                SplitDecision splitDecision = new SplitDecision();
-                                List<NamespaceBundle> splitBundles = splitBundlesPair.getRight();
-                                Map<String, Optional<String>> splitServiceUnitToDestBroker = new HashMap<>();
-                                splitBundles.forEach(splitBundle -> splitServiceUnitToDestBroker
-                                        .put(splitBundle.getBundleRange(), Optional.empty()));
-                                splitDecision.setSplit(
-                                        new Split(bundle.toString(), sourceBroker, splitServiceUnitToDestBroker));
-                                splitDecision.setLabel(Success);
-                                splitDecision.setReason(Admin);
-                                return splitAsync(splitDecision,
-                                        conf.getNamespaceBundleUnloadingTimeoutMs(), TimeUnit.MILLISECONDS);
+
+                                return getOwnershipAsync(Optional.empty(), bundle)
+                                        .thenCompose(brokerOpt -> {
+                                            if (brokerOpt.isEmpty()) {
+                                                String msg = String.format(
+                                                        "Namespace bundle: %s is not owned by any broker.",
+                                                        bundle);
+                                                log.warn(msg);
+                                                throw new IllegalStateException(msg);
+                                            }
+                                            String sourceBroker = brokerOpt.get();
+                                            SplitDecision splitDecision = new SplitDecision();
+                                            List<NamespaceBundle> splitBundles = splitBundlesPair.getRight();
+                                            Map<String, Optional<String>> splitServiceUnitToDestBroker =
+                                                    new HashMap<>();
+                                            splitBundles.forEach(splitBundle -> splitServiceUnitToDestBroker
+                                                    .put(splitBundle.getBundleRange(), Optional.empty()));
+                                            splitDecision.setSplit(
+                                                    new Split(bundle.toString(), sourceBroker,
+                                                            splitServiceUnitToDestBroker));
+                                            splitDecision.setLabel(Success);
+                                            splitDecision.setReason(Admin);
+                                            return splitAsync(splitDecision,
+                                                    conf.getNamespaceBundleUnloadingTimeoutMs(),
+                                                    TimeUnit.MILLISECONDS);
+                                        });
                             });
                 });
     }
@@ -801,9 +825,20 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
     @Override
     public void close() throws PulsarServerException {
         if (state.get() == State.INIT) {
+            // The start may have registered metadata store listeners before it failed or before the broker was
+            // ready for incoming requests
+            if (antiAffinityGroupPolicyHelper != null) {
+                antiAffinityGroupPolicyHelper.close();
+            }
+            if (brokerRegistry != null) {
+                brokerRegistry.close();
+            }
             return;
         }
         try {
+            if (antiAffinityGroupPolicyHelper != null) {
+                antiAffinityGroupPolicyHelper.close();
+            }
             stopLoadDataReportTasks();
             this.unloadScheduler.close();
             this.splitScheduler.close();
@@ -1041,8 +1076,34 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
         metricsCollection.addAll(this.assignCounter.toMetrics(pulsar.getAdvertisedAddress()));
         metricsCollection.addAll(this.serviceUnitStateChannel.getMetrics());
         metricsCollection.addAll(getIgnoredCommandMetrics(pulsar.getAdvertisedAddress()));
+        if (conf.isExposeBundlesMetricsInPrometheus()) {
+            metricsCollection.addAll(getBundleMetrics(pulsar.getAdvertisedAddress()));
+        }
 
         return metricsCollection;
+    }
+
+    private List<Metrics> getBundleMetrics(String advertisedBrokerAddress) {
+        List<Metrics> metrics = new ArrayList<>();
+        for (Map.Entry<String, NamespaceBundleStats> entry
+                : pulsar.getBrokerService().getBundleStats().entrySet()) {
+            final String bundle = entry.getKey();
+            final NamespaceBundleStats stats = entry.getValue();
+            Map<String, String> dimensions = new HashMap<>();
+            dimensions.put("broker", advertisedBrokerAddress);
+            dimensions.put("bundle", bundle);
+            dimensions.put("metric", "bundle");
+            Metrics m = Metrics.create(dimensions);
+            m.put("brk_bundle_msg_rate_in", stats.msgRateIn);
+            m.put("brk_bundle_msg_rate_out", stats.msgRateOut);
+            m.put("brk_bundle_topics_count", stats.topics);
+            m.put("brk_bundle_consumer_count", stats.consumerCount);
+            m.put("brk_bundle_producer_count", stats.producerCount);
+            m.put("brk_bundle_msg_throughput_in", stats.msgThroughputIn);
+            m.put("brk_bundle_msg_throughput_out", stats.msgThroughputOut);
+            metrics.add(m);
+        }
+        return metrics;
     }
 
     private List<Metrics> getIgnoredCommandMetrics(String advertisedBrokerAddress) {

@@ -79,6 +79,9 @@ public interface EntryCache {
      *            the first entry to read (inclusive)
      * @param lastEntry
      *            the last entry to read (inclusive)
+     * @param maxSizeBytes
+     *            the size limit in bytes of the read that triggered this call, used to bound each storage read
+     *            request; a non-positive value means no limit
      * @param expectedReadCount resolves the expected read count for the given entry. When the expected read count is
      *                         >0, the entry can be cached and reused later.
      * @param callback
@@ -86,8 +89,8 @@ public interface EntryCache {
      * @param ctx
      *            the context object
      */
-    void asyncReadEntry(ReadHandle lh, long firstEntry, long lastEntry, IntSupplier expectedReadCount,
-            ReadEntriesCallback callback, Object ctx);
+    void asyncReadEntry(ReadHandle lh, long firstEntry, long lastEntry, long maxSizeBytes,
+            IntSupplier expectedReadCount, ReadEntriesCallback callback, Object ctx);
 
     /**
      * Read entry at given position from the cache or from bookkeeper.
@@ -104,6 +107,35 @@ public interface EntryCache {
      *            the context object
      */
     void asyncReadEntry(ReadHandle lh, Position position, ReadEntryCallback callback, Object ctx);
+
+    /**
+     * Read an entry, as {@link #asyncReadEntry(ReadHandle, Position, ReadEntryCallback, Object)} does, caching it
+     * with the expected read count when it's read from storage.
+     *
+     * @param expectedReadCount
+     *            the expected read count that the entry is cached with when it's read from storage, a negative value
+     *            not to cache it, or {@link #DEFAULT_EXPECTED_READ_COUNT} for the cache's default for a single entry
+     */
+    default void asyncReadEntry(ReadHandle lh, Position position, int expectedReadCount, ReadEntryCallback callback,
+                                Object ctx) {
+        asyncReadEntry(lh, position, callback, ctx);
+    }
+
+    /**
+     * The expected read count argument for the cache's default for a single entry read.
+     */
+    int DEFAULT_EXPECTED_READ_COUNT = Integer.MIN_VALUE;
+
+    /**
+     * Whether the cache has the entry, without reading it.
+     *
+     * @param position
+     *            the entry's position
+     * @return whether the cache has the entry; false when the cache keeps no entries
+     */
+    default boolean hasEntry(Position position) {
+        return false;
+    }
 
     /**
      * Get the total size in bytes of all the entries stored in this cache.

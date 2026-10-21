@@ -21,6 +21,7 @@ package org.apache.pulsar.proxy.server;
 
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.AdaptiveRecvByteBufAllocator;
@@ -69,11 +70,16 @@ import org.apache.pulsar.broker.topiclistlimit.TopicListMemoryLimiter;
 import org.apache.pulsar.broker.topiclistlimit.TopicListSizeResultCache;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlets;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.impl.auth.v5.BinaryAuthenticationDriver;
+import org.apache.pulsar.client.impl.auth.v5.V5AuthenticationLoader;
+import org.apache.pulsar.client.impl.auth.v5.V5BinaryAuthenticationDriver;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.tls.ClientTlsFactorySupport;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterImpl;
+import org.apache.pulsar.common.semaphore.AsyncSemaphore;
 import org.apache.pulsar.common.tls.impl.TlsContextAcquisition;
 import org.apache.pulsar.common.tls.impl.TlsSynthesisSpec;
 import org.apache.pulsar.common.util.netty.DnsResolverUtil;
@@ -96,6 +102,9 @@ public class ProxyService implements Closeable {
 
     private final ProxyConfiguration proxyConfig;
     private final Authentication proxyClientAuthentication;
+    // PIP-478: lazily built from proxyClientAuthentication; see getProxyClientAuthenticationDriver().
+    // Volatile because that getter reads it without holding the monitor.
+    private volatile BinaryAuthenticationDriver proxyClientAuthenticationDriver;
     @Getter
     private final DnsAddressResolverGroup dnsAddressResolverGroup;
     @Getter
@@ -183,7 +192,7 @@ public class ProxyService implements Closeable {
     private final AsyncDualMemoryLimiterImpl maxTopicListInFlightLimiter;
 
     @Getter
-    private final TopicListSizeResultCache topicListSizeResultCache = new TopicListSizeResultCache();
+    private final TopicListSizeResultCache topicListSizeResultCache;
 
     private boolean gracefulShutdown = true;
 
@@ -191,6 +200,15 @@ public class ProxyService implements Closeable {
     public ProxyService(ProxyConfiguration proxyConfig,
                         AuthenticationService authenticationService,
                         Authentication proxyClientAuthentication) throws Exception {
+        this(proxyConfig, authenticationService, proxyClientAuthentication, 60, TimeUnit.SECONDS);
+    }
+
+    @VisibleForTesting
+    ProxyService(ProxyConfiguration proxyConfig,
+                 AuthenticationService authenticationService,
+                 Authentication proxyClientAuthentication,
+                 long statsUpdateInterval,
+                 TimeUnit statsUpdateIntervalUnit) throws Exception {
         requireNonNull(proxyConfig);
         this.proxyConfig = proxyConfig;
         this.clientCnxs = Sets.newConcurrentHashSet();
@@ -228,7 +246,7 @@ public class ProxyService implements Closeable {
 
         statsExecutor = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("proxy-stats-executor"));
-        statsExecutor.schedule(() -> {
+        statsExecutor.scheduleAtFixedRate(() -> {
             this.clientCnxs.forEach(cnx -> {
                 if (cnx.getDirectProxyHandler() != null
                         && cnx.getDirectProxyHandler().getInboundChannelRequestsRate() != null) {
@@ -238,7 +256,7 @@ public class ProxyService implements Closeable {
             this.topicStats.forEach((topic, stats) -> {
                 stats.calculate();
             });
-        }, 60, TimeUnit.SECONDS);
+        }, statsUpdateInterval, statsUpdateInterval, statsUpdateIntervalUnit);
         this.proxyAdditionalServlets = AdditionalServlets.load(proxyConfig);
         this.proxyClientAuthentication = proxyClientAuthentication;
         this.connectionController = new ConnectionController.DefaultConnectionController(
@@ -256,6 +274,11 @@ public class ProxyService implements Closeable {
                 proxyConfig.getMaxTopicListInFlightDirectMemSizeMB() * 1024L * 1024L,
                 proxyConfig.getMaxTopicListInFlightDirectMemSizePermitsAcquireQueueSize(),
                 proxyConfig.getMaxTopicListInFlightDirectMemSizePermitsAcquireTimeoutMillis());
+        AsyncSemaphore topicListHeapLimiter =
+                maxTopicListInFlightLimiter.getLimiter(AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY);
+        this.topicListSizeResultCache = new TopicListSizeResultCache(
+                proxyConfig.getMaxTopicListInFlightHeapMemSizeMB() * 1024L * 1024L,
+                () -> topicListHeapLimiter.getQueueSize() == 0 && topicListHeapLimiter.getAcquiredPermits() == 0);
     }
 
     public void start() throws Exception {
@@ -270,7 +293,7 @@ public class ProxyService implements Closeable {
             pulsarResources = new PulsarResources(localMetadataStore, configMetadataStore);
             discoveryProvider = new BrokerDiscoveryProvider(this.proxyConfig, pulsarResources);
             authorizationService = new AuthorizationService(PulsarConfigurationLoader.convertFrom(proxyConfig),
-                    pulsarResources);
+                    pulsarResources, authenticationService);
         }
 
         ServerBootstrap bootstrap = new ServerBootstrap();
@@ -515,6 +538,9 @@ public class ProxyService implements Closeable {
         }
         resetMetricsServlet();
 
+        if (pulsarResources != null) {
+            pulsarResources.close();
+        }
         if (localMetadataStore != null) {
             try {
                 localMetadataStore.close();
@@ -677,6 +703,40 @@ public class ProxyService implements Closeable {
 
     public Authentication getProxyClientAuthenticationPlugin() {
         return this.proxyClientAuthentication;
+    }
+
+    /**
+     * The v5 driver the proxy's broker connections authenticate through (PIP-478).
+     *
+     * <p>The proxy owns one started v4 plugin for all of its broker connections, so it owns one driver:
+     * every {@code DirectProxyHandler} opens its own exchange against it, and the exchange is what carries
+     * per-connection conversation state. Built from the <em>started</em> plugin, because {@link ProxyService}
+     * starts and closes that instance itself — the bridge must not run that lifecycle a second time.
+     *
+     * <p>No {@code ClientAuthenticationServices} are bound: the proxy is not a {@code PulsarClient} and has
+     * no client-owned executor to lend. Credential work therefore lands on the framework's shared blocking
+     * pool, which is the case {@code V5AuthContexts} documents for exactly this caller — the alternative,
+     * running it inline, is the Netty event loop.
+     *
+     * <p>Read on every backend connection's {@code channelActive}, so the hit path is lock-free and only a
+     * miss takes the monitor — as {@code ClientCnx.resolveAuthDriver} does, and for the same reason: this
+     * monitor is the {@link ProxyService} one, shared with the metrics-servlet accessors, and a connection
+     * being set up should not have to queue behind unrelated machinery.
+     *
+     * @return the shared binary authentication driver
+     */
+    public BinaryAuthenticationDriver getProxyClientAuthenticationDriver() {
+        BinaryAuthenticationDriver resolved = proxyClientAuthenticationDriver;
+        if (resolved != null) {
+            return resolved;
+        }
+        synchronized (this) {
+            if (proxyClientAuthenticationDriver == null) {
+                proxyClientAuthenticationDriver = new V5BinaryAuthenticationDriver(
+                        V5AuthenticationLoader.forStartedV4Plugin(proxyClientAuthentication));
+            }
+            return proxyClientAuthenticationDriver;
+        }
     }
 
     public synchronized PrometheusMetricsServlet getMetricsServlet() {

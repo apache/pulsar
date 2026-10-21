@@ -46,7 +46,6 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
     public static final String TLS_HANDLER = "tls";
     private final ProxyService proxyService;
     private final boolean enableTls;
-    private final boolean tlsEnabledWithKeyStore;
     private final int brokerProxyReadTimeoutMs;
     private final int maxMessageSize;
 
@@ -61,7 +60,6 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
         super();
         this.proxyService = proxyService;
         this.enableTls = enableTls;
-        this.tlsEnabledWithKeyStore = serviceConfig.isTlsEnabledWithKeyStore();
         this.brokerProxyReadTimeoutMs = serviceConfig.getBrokerProxyReadTimeoutMs();
         this.maxMessageSize = serviceConfig.getMaxMessageSize();
 

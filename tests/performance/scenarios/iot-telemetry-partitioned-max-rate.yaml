@@ -1,0 +1,36 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# The capacity of consumers of a partitioned topic: the gateways publish to one topic of 16 partitions without a rate
+# limit, in batches, and two applications of two pods read it on Key_Shared subscriptions, each pod's consumer a
+# multi-topics consumer of the 16 partitions. The consumers' delivery is the limit to watch: a change that serializes
+# the partitions' consumers on fewer threads would show here first. iot-telemetry-partitioned.yaml is the moderate
+# rate case.
+extends: iot-telemetry-high-rate.yaml
+workloads:
+  iotTelemetry:
+    rate: 0
+    measurement:
+      messages: 6000000
+    topics:
+      count: 1
+      partitions: 16
+      prefix: persistent://public/default/iot-fleet-telemetry-
+    applications:
+      count: 2
+      podsPerApplication: 2
+      subscriptionPrefix: fleet-analytics-
