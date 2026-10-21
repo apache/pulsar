@@ -139,6 +139,17 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                            int receiverQueueSize, ExecutorProvider executorProvider,
                            CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema,
                            ConsumerInterceptors<T> interceptors) {
+        this(client, topic, conf, receiverQueueSize, executorProvider, subscribeFuture, schema, interceptors, null);
+    }
+
+    /**
+     * @param internalExecutor the consumer's internal pinned executor, or null for one of the client's internal
+     *                         executors
+     */
+    protected ConsumerBase(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
+                           int receiverQueueSize, ExecutorProvider executorProvider,
+                           CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema,
+                           ConsumerInterceptors<T> interceptors, ExecutorService internalExecutor) {
         super(client, topic);
         this.maxReceiverQueueSize = receiverQueueSize;
         this.subscription = conf.getSubscriptionName();
@@ -164,7 +175,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                    : this::executeMessageListener)
                 : conf.getMessageListenerExecutor();
         this.externalPinnedExecutor = executorProvider.getExecutor();
-        this.internalPinnedExecutor = client.getInternalExecutorService();
+        this.internalPinnedExecutor =
+                internalExecutor != null ? internalExecutor : client.getInternalExecutorService();
         this.listenerTaskScheduler = listener == null
                 ? null : new ListenerTaskScheduler(internalPinnedExecutor, this::drainListener);
         this.pendingReceives = Queues.newConcurrentLinkedQueue();
