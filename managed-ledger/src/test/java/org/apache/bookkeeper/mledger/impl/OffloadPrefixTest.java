@@ -1579,10 +1579,11 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         Position lastPosition = ledger.terminate();
 
         assertEquals(lastPosition.getLedgerId(), lastLedgerId);
-        assertEventuallyTrue(() -> offloader.offloadedLedgers().equals(Set.of(lastLedgerId)));
+        Awaitility.await().untilAsserted(() -> assertEquals(offloader.offloadedLedgers(), Set.of(lastLedgerId)));
         assertTrue(ledger.isTerminated());
         assertEquals(ledger.getLedgersInfoAsList().size(), 1);
-        assertTrue(ledger.getLedgersInfoAsList().get(0).getOffloadContext().isComplete());
+        // the offloader completes before the ledger info is marked complete with an async metadata update
+        Awaitility.await().until(() -> ledger.getLedgersInfoAsList().get(0).getOffloadContext().isComplete());
     }
 
 
