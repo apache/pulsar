@@ -26,7 +26,7 @@ mimalloc = "3.5.3"
 # Code quality
 checkstyle = "13.3.0"
 # Major frameworks
-bookkeeper = "4.18.1"
+bookkeeper = "4.18.2"
 zookeeper = "3.9.6"
 netty = "4.2.19.Final"
 jetty = "12.1.13"
