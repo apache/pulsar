@@ -24,8 +24,10 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import java.time.Duration;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 import lombok.Cleanup;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.v5.config.TransactionPolicy;
 import org.apache.pulsar.client.api.v5.schema.Schema;
@@ -354,12 +356,18 @@ public class V5CumulativeAckTest extends V5ClientBaseTest {
         // Throw the consumer off the broker and ack while it is gone.
         var segments = admin.scalableTopics().getStats(topic).getLayout().getSegments().values();
         assertEquals(segments.size(), 1, "single-segment topic");
-        var brokerSub = getTopicReference(segments.iterator().next().getName()).orElseThrow()
-                .getSubscription(subscription);
+        var brokerSub = (PersistentSubscription) getTopicReference(segments.iterator().next().getName())
+                .orElseThrow().getSubscription(subscription);
         Awaitility.await().until(() -> !brokerSub.getConsumers().isEmpty());
-        brokerSub.getConsumers().get(0).disconnect();
-        Awaitility.await().until(() -> brokerSub.getConsumers().isEmpty());
-        consumer.acknowledgeCumulative(last);
+        // Fence the subscription while disconnecting: the client reconnects on its own after a short
+        // backoff, and an ack issued while that re-subscribe is in flight would reach the broker right
+        // behind it. The fence rejects the re-subscribe until the ack has been issued.
+        brokerSub.close(true, Optional.empty()).get();
+        try {
+            consumer.acknowledgeCumulative(last);
+        } finally {
+            brokerSub.resumeAfterFence();
+        }
 
         // Once re-attached the broker redelivers everything still unacked; drain that copy. The
         // cursor has not moved: the ack above never made it.

@@ -63,6 +63,7 @@ public class ShadowReplicatorTest extends BrokerTestBase {
     @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
+        conf.setEnableShadowTopics(true);
         super.baseSetup();
         admin.tenants().createTenant("prop1",
                 new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("test")));

@@ -86,6 +86,7 @@ dependencies {
     compileOnly(libs.swagger.annotations)
 
     testImplementation(libs.protobuf.java.util)
+    testImplementation(libs.opentelemetry.sdk.testing)
     testImplementation(project(":pulsar-functions:pulsar-functions-api-examples"))
 }
 

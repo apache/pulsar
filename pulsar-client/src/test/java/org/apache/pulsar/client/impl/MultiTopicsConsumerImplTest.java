@@ -230,6 +230,22 @@ public class MultiTopicsConsumerImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    public void testCloseDiscardsQueuedMessages() throws Exception {
+        MultiTopicsConsumerImpl<byte[]> consumer = createMultiTopicsConsumer();
+        TopicMessageImpl<byte[]> message = mock(TopicMessageImpl.class);
+        when(message.size()).thenReturn(100);
+        consumer.enqueueMessageAndCheckBatchReceive(message);
+        assertEquals(consumer.getIncomingMessageSize(), 100);
+
+        consumer.closeAsync().get(10, TimeUnit.SECONDS);
+
+        verify(message).release();
+        assertEquals(consumer.getTotalIncomingMessages(), 0);
+        assertEquals(consumer.getIncomingMessageSize(), 0);
+    }
+
+    @Test
     public void testUnsubscribeAsyncInvalidTopicNameReturnsFailedFuture() {
         MultiTopicsConsumerImpl<byte[]> consumer = createMultiTopicsConsumer();
         CompletableFuture<Void> future = consumer.unsubscribeAsync("persistent://public/invalid-topic");

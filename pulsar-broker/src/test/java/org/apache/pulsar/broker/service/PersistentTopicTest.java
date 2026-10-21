@@ -59,6 +59,7 @@ import java.net.InetSocketAddress;
 import java.net.URL;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -419,6 +420,45 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         });
 
         assertTrue(latch.await(1, TimeUnit.SECONDS));
+    }
+
+    @Test
+    public void testPublishFailureAfterATakeoverIsReportedOnceByTheLoadedTopic() throws Exception {
+        final String topicName = "persistent://prop/ns-abc/takenOverTopic";
+
+        final ManagedLedger ledgerMock = mock(ManagedLedger.class);
+        doReturn(new ManagedLedgerConfig()).when(ledgerMock).getConfig();
+        doReturn(new ArrayList<>()).when(ledgerMock).getCursors();
+        List<Runnable> pendingAddFailures = new ArrayList<>();
+        doAnswer((Answer<Object>) invocationOnMock -> {
+            pendingAddFailures.add(() -> ((AddEntryCallback) invocationOnMock.getArguments()[2]).addFailed(
+                    new ManagedLedgerException.ManagedLedgerFencedByAnotherWriterException("fenced by another broker"),
+                    invocationOnMock.getArguments()[3]));
+            return null;
+        }).when(ledgerMock).asyncAddEntry(any(ByteBuf.class), anyInt(), any(AddEntryCallback.class), any());
+        NamespaceService nsSvc = pulsarTestContext.getPulsarService().getNamespaceService();
+        doNothing().when(nsSvc).handleOwnershipTakenOver(any());
+
+        // an instance that an unload already replaced
+        PersistentTopic replacedTopic = new PersistentTopic(topicName, ledgerMock, brokerService);
+        PersistentTopic topic = new PersistentTopic(topicName, ledgerMock, brokerService);
+        doReturn(Optional.of(topic)).when(brokerService).getTopicReference(topicName);
+
+        List<Exception> publishFailures = new ArrayList<>();
+        replacedTopic.publishMessage(Unpooled.wrappedBuffer("content".getBytes()),
+                (exception, ledgerId, entryId) -> publishFailures.add(exception));
+        topic.publishMessage(Unpooled.wrappedBuffer("content".getBytes()),
+                (exception, ledgerId, entryId) -> publishFailures.add(exception));
+        topic.publishMessage(Unpooled.wrappedBuffer("content".getBytes()),
+                (exception, ledgerId, entryId) -> publishFailures.add(exception));
+        assertEquals(pendingAddFailures.size(), 3);
+        pendingAddFailures.forEach(Runnable::run);
+
+        assertEquals(publishFailures.size(), 3);
+        publishFailures.forEach(e -> assertTrue(e instanceof BrokerServiceException.TopicFencedException,
+                String.valueOf(e)));
+        verify(nsSvc, times(1)).handleOwnershipTakenOver(any());
+        verify(nsSvc).handleOwnershipTakenOver(TopicName.get(topicName));
     }
 
     @Test
@@ -1493,6 +1533,15 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         // create topic
         PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
+        // Note: this test class does not actually create the namespace. It creates the topic without namespace
+        // creation, so the following injected metadata-store path is never accessed because the namespace
+        // replication-cluster policy does not include the current broker’s cluster. We add the missing namespace
+        // policy here so the deletion flow reaches the injected path and the subsequent assertion is exercised.
+        List<String> nsList = topic.getBrokerService().getPulsar().getPulsarResources().getTenantResources()
+                .getListOfNamespaces("prop");
+        assertFalse(nsList.contains(TopicName.get(successTopicName).getNamespace()));
+        topic.topicPolicies.getReplicationClusters().updateNamespaceValue(
+                Arrays.asList(topic.getBrokerService().getPulsar().getConfig().getClusterName()));
 
         Field isFencedField = AbstractTopic.class.getDeclaredField("isFenced");
         isFencedField.setAccessible(true);
@@ -2339,19 +2388,20 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         TopicPoliciesService topicPoliciesService = mock(TopicPoliciesService.class);
         doReturn(topicPoliciesService).when(pulsarTestContext.getPulsarService()).getTopicPoliciesService();
-        CompletableFuture<Optional<TopicPolicies>> topicPoliciesFuture = new CompletableFuture<>();
         TopicPolicies topicPolicies = new TopicPolicies();
         List<String> topicClusters = new ArrayList<>();
         topicClusters.add("topic-cluster");
         topicPolicies.setReplicationClusters(topicClusters);
-        Optional<TopicPolicies> optionalTopicPolicies = Optional.of(topicPolicies);
-        topicPoliciesFuture.complete(optionalTopicPolicies);
-        when(topicPoliciesService.getTopicPoliciesAsync(any(), any()))
+        when(topicPoliciesService.registerListenerAsync(any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(true));
+        when(topicPoliciesService.getTopicPoliciesAsync(any(), eq(TopicPoliciesService.GetType.GLOBAL_ONLY)))
+                .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+        when(topicPoliciesService.getTopicPoliciesAsync(any(), eq(TopicPoliciesService.GetType.LOCAL_ONLY)))
                 .thenReturn(CompletableFuture.completedFuture(Optional.of(topicPolicies)));
 
         topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         topic.initialize().join();
-        assertEquals(topic.getHierarchyTopicPolicies().getReplicationClusters().get(), namespaceClusters);
+        assertEquals(topic.getHierarchyTopicPolicies().getReplicationClusters().get(), topicClusters);
     }
 
     @Test

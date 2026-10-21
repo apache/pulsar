@@ -1,0 +1,37 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+# Key_Shared with a stuck consumer: like iot-telemetry-key-shared-replay.yaml, but each application has five pods, and
+# every 60 seconds it pauses one of them for 45 seconds. The paused pod's keys, a fifth of the messages, fill the
+# subscription's replay queue up to its look-ahead limit within seconds; from then on the dispatcher stops reading
+# new messages, so the other pods wait too, until the pod resumes and the replay queue drains. It measures what the
+# broker spends while dispatch is stuck at the limit, and the drain after the pause. The pauses go on after the
+# gateways finish, so the applications drain the backlog in the 15 seconds between them, which takes several minutes.
+extends: iot-telemetry-key-shared-replay.yaml
+workloads:
+  iotTelemetry:
+    rate: 20000
+    timeoutSeconds: 1200
+    applications:
+      podsPerApplication: 5
+    behaviors:
+      podPauses:
+        intervalSeconds: 60
+        fraction: 0.2
+        pauseMillis: 45000
+      podRestarts:
+        intervalSeconds: 0
+        fraction: 0

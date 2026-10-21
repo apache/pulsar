@@ -39,12 +39,13 @@ import org.apache.pulsar.metadata.api.NotificationType;
  *
  */
 @CustomLog
-public class ResourceGroupNamespaceConfigListener implements Consumer<Notification> {
+public class ResourceGroupNamespaceConfigListener implements Consumer<Notification>, AutoCloseable {
     private final ResourceGroupService rgService;
     private final PulsarService pulsarService;
     private final NamespaceResources namespaceResources;
     private final TenantResources tenantResources;
     private final ResourceGroupConfigListener rgConfigListener;
+    private final Runnable cancelListener;
 
     public ResourceGroupNamespaceConfigListener(ResourceGroupService rgService, PulsarService pulsarService,
             ResourceGroupConfigListener rgConfigListener) {
@@ -54,7 +55,15 @@ public class ResourceGroupNamespaceConfigListener implements Consumer<Notificati
         this.tenantResources = pulsarService.getPulsarResources().getTenantResources();
         this.rgConfigListener = rgConfigListener;
         loadAllNamespaceResourceGroups();
-        this.namespaceResources.getStore().registerListener(this);
+        cancelListener = this.namespaceResources.getStore().registerCancellableListener(this);
+    }
+
+    /**
+     * Stop following the changes of the namespaces in the metadata store.
+     */
+    @Override
+    public void close() {
+        cancelListener.run();
     }
 
     private void updateNamespaceResourceGroup(NamespaceName nsName) {

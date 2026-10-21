@@ -23,8 +23,11 @@ import jakarta.ws.rs.client.WebTarget;
 import jakarta.ws.rs.core.GenericType;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response.Status;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
@@ -32,6 +35,7 @@ import org.apache.pulsar.client.admin.ScalableTopics;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
 import org.apache.pulsar.common.policies.data.ScalableTopicMetadata;
 import org.apache.pulsar.common.policies.data.ScalableTopicStats;
@@ -188,6 +192,57 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
     public CompletableFuture<Void> removeAutoScalePolicyAsync(String topic) {
         TopicName tn = validateTopic(topic);
         return asyncDeleteRequest(topicPath(tn).path("autoScalePolicy"));
+    }
+
+    // --- Permissions ---
+
+    @Override
+    public Map<String, Set<AuthAction>> getPermissions(String topic) throws PulsarAdminException {
+        return sync(() -> getPermissionsAsync(topic));
+    }
+
+    @Override
+    public CompletableFuture<Map<String, Set<AuthAction>>> getPermissionsAsync(String topic) {
+        return FutureUtil.supplySafely(() -> {
+            TopicName tn = validateTopic(topic);
+            return asyncGetRequest(topicPath(tn).path("permissions"),
+                    new GenericType<Map<String, Set<AuthAction>>>() {});
+        });
+    }
+
+    @Override
+    public void grantPermission(String topic, String role, Set<AuthAction> actions) throws PulsarAdminException {
+        sync(() -> grantPermissionAsync(topic, role, actions));
+    }
+
+    @Override
+    public CompletableFuture<Void> grantPermissionAsync(String topic, String role, Set<AuthAction> actions) {
+        return FutureUtil.supplySafely(() -> {
+            TopicName tn = validateTopic(topic);
+            return asyncPostRequest(permissionsPath(tn, role), Entity.entity(actions, MediaType.APPLICATION_JSON));
+        });
+    }
+
+    @Override
+    public void revokePermissions(String topic, String role) throws PulsarAdminException {
+        sync(() -> revokePermissionsAsync(topic, role));
+    }
+
+    @Override
+    public CompletableFuture<Void> revokePermissionsAsync(String topic, String role) {
+        return FutureUtil.supplySafely(() -> {
+            TopicName tn = validateTopic(topic);
+            return asyncDeleteRequest(permissionsPath(tn, role));
+        });
+    }
+
+    /**
+     * The role as a single path component, even if it contains a '/'. Unlike the form encoding of
+     * {@link URLEncoder}, a space must be "%20" in a path: the broker reads a '+' of the path as a '+'.
+     */
+    private WebTarget permissionsPath(TopicName tn, String role) {
+        String encodedRole = URLEncoder.encode(role, StandardCharsets.UTF_8).replace("+", "%20");
+        return topicPath(tn).path("permissions").path(encodedRole);
     }
 
     // --- Delete ---

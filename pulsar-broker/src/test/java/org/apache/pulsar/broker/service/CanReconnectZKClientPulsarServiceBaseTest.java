@@ -96,7 +96,7 @@ public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetr
         } else if (store instanceof ZKMetadataStore zkStore) {
             localZkOfBroker = zkStore.getZkClient();
         }
-        store.registerSessionListener(n -> {
+        store.registerCancellableSessionListener(n -> {
             log.info().attr("event", n).log("Received session event");
             sessionEvent = n;
         });

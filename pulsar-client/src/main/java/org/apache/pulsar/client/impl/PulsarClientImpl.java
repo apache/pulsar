@@ -1496,7 +1496,9 @@ public class PulsarClientImpl implements PulsarClient {
                 conf.getServiceUrlProvider().close();
             }
 
-            if (addressResolver != null) {
+            // A DnsResolverGroupImpl hands the same resolver to every client on an event loop, so a resolver from a
+            // shared group is left to the group: closing it would break DNS for the clients that still use it.
+            if (addressResolver != null && dnsResolverGroupLocalInstance != null) {
                 try {
                     addressResolver.close();
                 } catch (Throwable t) {
@@ -1894,7 +1896,8 @@ public class PulsarClientImpl implements PulsarClient {
                     blockingAuthExecutor());
         } else {
             lookupService = new BinaryProtoLookupService(this, url, conf.getListenerName(), conf.isUseTls(),
-                    this.scheduledExecutorProvider.getExecutor(), this.lookupExecutorProvider.getExecutor());
+                    (ScheduledExecutorService) this.scheduledExecutorProvider.getExecutor(),
+                    this.lookupExecutorProvider.getExecutor());
         }
         return new InProgressDeduplicationDecoratorLookupService(lookupService,
                 () -> getConfiguration().getLookupProperties());

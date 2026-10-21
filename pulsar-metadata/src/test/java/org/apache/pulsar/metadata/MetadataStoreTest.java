@@ -45,12 +45,14 @@ import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import lombok.Cleanup;
 import lombok.CustomLog;
@@ -339,7 +341,7 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         BlockingQueue<Notification> notifications = new LinkedBlockingDeque<>();
-        store.registerListener(n -> {
+        store.registerCancellableListener(n -> {
             notifications.add(n);
         });
 
@@ -399,6 +401,42 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         assertNotNull(n);
         assertEquals(n.getType(), NotificationType.ChildrenChanged);
         assertEquals(n.getPath(), key1);
+    }
+
+    @Test(dataProvider = "impl")
+    public void cancelledListenersAreNotNotified(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
+        String key = newKey();
+
+        List<Notification> cancelledListenerNotifications = new CopyOnWriteArrayList<>();
+        Runnable cancelListener = store.registerCancellableListener(cancelledListenerNotifications::add);
+        // A listener instance registered twice keeps one registration when the other one is cancelled, even if the
+        // callback of the cancelled one runs more than once
+        List<Notification> twiceRegisteredListenerNotifications = new CopyOnWriteArrayList<>();
+        Consumer<Notification> twiceRegisteredListener = twiceRegisteredListenerNotifications::add;
+        store.registerCancellableListener(twiceRegisteredListener);
+        Runnable cancelSecondRegistration = store.registerCancellableListener(twiceRegisteredListener);
+        // Registered last: the store calls the listeners in registration order, so when this one is notified, the
+        // others have been
+        BlockingQueue<Notification> notifications = new LinkedBlockingDeque<>();
+        store.registerCancellableListener(notifications::add);
+
+        cancelListener.run();
+        cancelSecondRegistration.run();
+        cancelSecondRegistration.run();
+
+        store.put(key, "value".getBytes(), Optional.empty()).join();
+        Awaitility.await().untilAsserted(() -> assertThat(notifications)
+                .anyMatch(n -> n.getPath().equals(key) && n.getType() == NotificationType.Created));
+
+        assertThat(cancelledListenerNotifications).noneMatch(n -> n.getPath().equals(key));
+        assertThat(twiceRegisteredListenerNotifications).filteredOn(n -> n.getPath().equals(key))
+                .extracting(Notification::getType).containsExactly(NotificationType.Created);
+
+        // The tests that list the root of a shared store don't expect it
+        store.delete(key, Optional.empty()).join();
     }
 
     @Test(dataProvider = "impl")
