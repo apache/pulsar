@@ -132,6 +132,7 @@ import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.PositionInfo;
 import org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil;
 import org.apache.bookkeeper.mledger.util.ManagedLedgerUtils;
+import org.apache.bookkeeper.mledger.util.MockClock;
 import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.commons.collections4.iterators.EmptyIterator;
@@ -6037,6 +6038,76 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         }
 
         assertNotEquals(cursor.getCursorLedger(), initialLedgerId);
+    }
+
+    @Test
+    public void testShouldCloseLedgerObservesUpdatedMetadataMaxEntriesPerLedger() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMetadataMaxEntriesPerLedger(10_000);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "testShouldCloseLedgerObservesUpdatedMetadataMaxEntriesPerLedger", config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+
+        LedgerHandle lh = mock(LedgerHandle.class);
+        when(lh.getLastAddConfirmed()).thenReturn(1L);
+
+        // Cursor was created with a large rollover threshold, so a single persisted entry is not enough.
+        assertFalse(cursor.shouldCloseLedger(lh));
+
+        ManagedLedgerConfig updated = new ManagedLedgerConfig();
+        updated.setMetadataMaxEntriesPerLedger(1);
+        ledger.setConfig(updated);
+
+        // shouldCloseLedger must read the live config, not a cached derived threshold.
+        assertTrue(cursor.shouldCloseLedger(lh));
+    }
+
+    @Test
+    public void testShouldCloseLedgerObservesUpdatedLedgerRolloverTimeout() throws Exception {
+        MockClock clock = new MockClock();
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setClock(clock);
+        config.setLedgerRolloverTimeout(14400);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "testShouldCloseLedgerObservesUpdatedLedgerRolloverTimeout", config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+
+        LedgerHandle lh = mock(LedgerHandle.class);
+        // Keep lastAddConfirmed below the entries threshold so only the time check can close.
+        when(lh.getLastAddConfirmed()).thenReturn(0L);
+
+        assertFalse(cursor.shouldCloseLedger(lh));
+
+        // 2s is far below 14400s, but past the 1s timeout even with 5% jitter.
+        clock.advance(2, TimeUnit.SECONDS);
+        assertFalse(cursor.shouldCloseLedger(lh));
+
+        ManagedLedgerConfig updated = new ManagedLedgerConfig();
+        updated.setClock(clock);
+        updated.setLedgerRolloverTimeout(1);
+        ledger.setConfig(updated);
+
+        assertTrue(cursor.shouldCloseLedger(lh));
+    }
+
+    @Test
+    public void testShouldCloseLedgerEntriesJitterStaysWithinConfiguredMax() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMetadataMaxEntriesPerLedger(1000);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "testShouldCloseLedgerEntriesJitterStaysWithinConfiguredMax", config);
+
+        LedgerHandle belowJitterRange = mock(LedgerHandle.class);
+        when(belowJitterRange.getLastAddConfirmed()).thenReturn(949L);
+        LedgerHandle atConfiguredMax = mock(LedgerHandle.class);
+        when(atConfiguredMax.getLastAddConfirmed()).thenReturn(1000L);
+
+        // Every cursor draws its own jitter: none may roll over before 95% of the limit or go past the limit.
+        for (int i = 0; i < 50; i++) {
+            ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c" + i);
+            assertFalse(cursor.shouldCloseLedger(belowJitterRange));
+            assertTrue(cursor.shouldCloseLedger(atConfiguredMax));
+        }
     }
 
     @Test
