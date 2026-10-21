@@ -91,6 +91,24 @@ public class PulsarProfilingConfigTest {
     }
 
     @Test
+    public void configuresKeySharedScenarioAndOverridesKeyGeneration() {
+        Path scenario = PulsarProfilingConfig.scenarioFile("key-shared-500x20");
+        var config = PulsarProfilingConfig.Config.read(scenario, Map.of());
+        assertThat(config.load().messageKeyGenerationMode()).isEqualTo("random");
+        assertThat(config.load().producerCount()).isEqualTo(500);
+        assertThat(config.load().consumerCount()).isEqualTo(20);
+        assertThat(config.load().isolatedConsumers()).isEqualTo(20);
+        assertThat(config.load().subscriptionType()).isEqualTo(SubscriptionType.Key_Shared);
+        assertThat(config.load().batchingEnabled()).isFalse();
+        var overridden = PulsarProfilingConfig.Config.read(scenario, Map.of(
+                "PULSAR_PROFILING_LOAD_MESSAGE_KEY_GENERATION_MODE", "autoIncrement"));
+        assertThat(overridden.load().messageKeyGenerationMode()).isEqualTo("autoIncrement");
+        assertThatThrownBy(() -> PulsarProfilingConfig.Config.read(scenario, Map.of(
+                "PULSAR_PROFILING_LOAD_MESSAGE_KEY_GENERATION_MODE", "invalid")))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     public void rejectsWorkloadsThatCannotFinish() {
         assertThatThrownBy(() -> PulsarProfilingConfig.Config.read(null,
                 Map.of("PULSAR_PROFILING_LOAD_ISOLATED_PRODUCERS", "500")))
@@ -234,16 +252,27 @@ public class PulsarProfilingConfigTest {
 
     @Test
     public void sharedScenarioOnlyChangesSubscriptionTypeAndOutputDirectory() {
-        Path scenarios = Path.of("../performance/scenarios");
         var exclusive = PulsarProfilingConfig.Config.read(
-                scenarios.resolve("read-completion-isolation.yaml"), Map.of());
-        var shared = PulsarProfilingConfig.Config.read(scenarios.resolve("read-completion-isolation-shared.yaml"),
-                Map.of());
+                PulsarProfilingConfig.scenarioFile("read-completion-isolation"), Map.of());
+        var shared = PulsarProfilingConfig.Config.read(
+                PulsarProfilingConfig.scenarioFile("read-completion-isolation-shared"), Map.of());
         assertThat(shared.cluster()).isEqualTo(exclusive.cluster());
         assertThat(shared.load()).usingRecursiveComparison().ignoringFields("subscriptionType")
                 .isEqualTo(exclusive.load());
         assertThat(shared.load().subscriptionType()).isEqualTo(SubscriptionType.Shared);
         assertThat(shared.output().directory()).isEqualTo("build/pulsar-profiling/read-completion-isolation-shared");
+    }
+
+    @Test
+    public void selectsAScenarioByNameOrByPath() {
+        assertThat(PulsarProfilingConfig.scenarioFile("pulsar-profiling"))
+                .hasFileName("pulsar-profiling.yaml").isRegularFile();
+        assertThat(PulsarProfilingConfig.scenarioFile("/tmp/my-scenario.yaml"))
+                .isEqualTo(Path.of("/tmp/my-scenario.yaml"));
+        assertThat(PulsarProfilingConfig.scenarioFile("my-scenario.yaml")).isEqualTo(Path.of("my-scenario.yaml"));
+        assertThatThrownBy(() -> PulsarProfilingConfig.scenarioFile("no-such-scenario"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("No profiling scenario named 'no-such-scenario'");
     }
 
     private static final class ScenarioFiles implements AutoCloseable {

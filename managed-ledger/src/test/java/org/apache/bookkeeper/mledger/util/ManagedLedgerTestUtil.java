@@ -25,12 +25,13 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 public abstract class ManagedLedgerTestUtil {
 
     /**
-     * Creates a config for tests that store raw bytes rather than serialized Pulsar messages.
-     * Disables message metadata parsing when entries are inserted into the cache or read from storage.
+     * Creates the default test config with inline read completion enabled, matching the broker default.
+     * Disables message metadata parsing because most tests store raw bytes rather than Pulsar messages.
      */
-    public static ManagedLedgerConfig rawEntryConfig() {
+    public static ManagedLedgerConfig defaultConfig() {
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setPulsarMessageEntries(false);
+        config.setReadEntriesCallbackInline(true);
         return config;
     }
 

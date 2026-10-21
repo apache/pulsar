@@ -149,7 +149,7 @@ public class EntryCacheDisabled implements EntryCache {
                     try {
                         for (LedgerEntry e : ledgerEntries) {
                             // Insert the entries at the end of the list (they will be unsorted for now)
-                            EntryImpl entry = EntryImpl.create(e, interceptor, 0);
+                            EntryImpl entry = EntryImpl.create(e, interceptor, EntryImpl.NO_EXPECTED_READ_COUNT);
                             if (ml.getConfig().isPulsarMessageEntries()) {
                                 entry.initializeMessageMetadataIfNeeded(ml.getName());
                             }
@@ -197,7 +197,8 @@ public class EntryCacheDisabled implements EntryCache {
     @Override
     public void asyncReadEntry(ReadHandle lh, Position position, AsyncCallbacks.ReadEntryCallback callback,
                                Object ctx) {
-        asyncReadEntry(lh, position.getEntryId(), position.getEntryId(), NO_MAX_SIZE_LIMIT, () -> 0,
+        asyncReadEntry(lh, position.getEntryId(), position.getEntryId(), NO_MAX_SIZE_LIMIT,
+                () -> EntryImpl.NO_EXPECTED_READ_COUNT,
                 new AsyncCallbacks.ReadEntriesCallback() {
                     @Override
                     public void readEntriesComplete(List<Entry> entries, Object callbackCtx) {

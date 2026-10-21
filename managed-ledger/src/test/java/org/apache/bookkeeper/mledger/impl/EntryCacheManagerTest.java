@@ -18,7 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.rawEntryConfig;
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultConfig;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -65,13 +65,13 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         when(ml1.getMbean()).thenReturn(new ManagedLedgerMBeanImpl(ml1));
         when(ml1.getExecutor()).thenReturn((ThreadBoundExecutor) bkExecutor.chooseThread());
         when(ml1.getFactory()).thenReturn(factory);
-        when(ml1.getConfig()).thenReturn(rawEntryConfig());
+        when(ml1.getConfig()).thenReturn(defaultConfig());
         when(ml1.isBatchReadEnabled()).thenReturn(true);
 
         ml2 = mock(ManagedLedgerImpl.class);
         when(ml2.getScheduledExecutor()).thenReturn(executor);
         when(ml2.getName()).thenReturn("cache2");
-        when(ml2.getConfig()).thenReturn(rawEntryConfig());
+        when(ml2.getConfig()).thenReturn(defaultConfig());
         when(ml2.isBatchReadEnabled()).thenReturn(true);
     }
 
@@ -266,7 +266,7 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         ManagedLedgerFactoryImpl factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc, config);
 
         EntryCacheManager cacheManager = factory2.getEntryCacheManager();
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory2.open("ledger", rawEntryConfig());
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory2.open("ledger", defaultConfig());
         EntryCache cache1 = ledger.entryCache;
 
         for (int i = 0; i < 10; i++) {
@@ -295,7 +295,7 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         config.setCacheEvictionWatermark(0.8);
         config.setCacheEvictionIntervalMs(1000);
 
-        ManagedLedgerConfig managedLedgerConfig = rawEntryConfig();
+        ManagedLedgerConfig managedLedgerConfig = defaultConfig();
         managedLedgerConfig.setCacheEvictionByExpectedReadCount(false);
         managedLedgerConfig.setCacheEvictionByMarkDeletedPosition(false);
 
@@ -375,7 +375,7 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         @Cleanup("shutdown")
         ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, config);
 
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("test", rawEntryConfig());
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("test", defaultConfig());
         ManagedCursor c1 = ledger.openCursor("c1");
         c1.setActive();
         ManagedCursor c2 = ledger.openCursor("c2");

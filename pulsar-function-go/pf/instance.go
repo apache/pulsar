@@ -725,11 +725,12 @@ func (gi *goInstance) getAvgProcessLatency() float32 {
 	return float32(*sum) / float32(*count)
 }
 
-func (gi *goInstance) getLastInvocation() float32 {
+func (gi *goInstance) getLastInvocation() float64 {
 	metric := gi.getMatchingMetricFromRegistry(PulsarFunctionMetricsPrefix + LastInvocation)
 	// "pulsar_function_" + "last_invocation", GaugeVec.
+	// float64, as a float32 would round an epoch-millis timestamp to ~2 minutes.
 	val := metric.GetGauge().Value
-	return float32(*val)
+	return *val
 }
 
 func (gi *goInstance) getTotalProcessedSuccessfully1min() float32 {

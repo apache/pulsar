@@ -337,9 +337,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Number of threads to use for Netty IO."
-            + " Default is set to `2 * Runtime.getRuntime().availableProcessors()`"
+            + " Default is set to half the available processors, but no fewer than 8 unless that exceeds twice the"
+            + " available processors: `Math.min(2 * n, Math.max(8, n / 2))` for n available processors."
+            + " Increase it when the busiest pulsar-io thread stays busy and consumers' backlogs grow"
     )
-    private int numIOThreads = 2 * Runtime.getRuntime().availableProcessors();
+    private int numIOThreads = defaultNumIOThreads(Runtime.getRuntime().availableProcessors());
+
+    /**
+     * The default number of Netty IO threads for the given number of available processors: half of them, but no fewer
+     * than 8 unless that exceeds twice the processors. Fewer, busier event loops batch more work per wakeup and
+     * system call, and the threads that hand work over to them, such as a managed ledger's, wake them less often.
+     */
+    static int defaultNumIOThreads(int availableProcessors) {
+        return Math.min(2 * availableProcessors, Math.max(8, availableProcessors / 2));
+    }
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -622,6 +633,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
+            dynamic = true,
             doc = "Amount of seconds to timeout when loading a topic. In situations with many geo-replicated clusters, "
                     + "this may need raised."
     )
@@ -964,22 +976,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "On KeyShared subscriptions, number of points in the consistent-hashing ring. "
                 + "The higher the number, the more equal the assignment of keys to consumers")
     private int subscriptionKeySharedConsistentHashingReplicaPoints = 100;
-
-    @FieldContext(
-            category = CATEGORY_POLICIES,
-            doc = "For persistent Key_Shared subscriptions, enables the use of the classic implementation of the "
-                    + "Key_Shared subscription that was used before Pulsar 4.0.0 and PIP-379.",
-            dynamic = true
-    )
-    private boolean subscriptionKeySharedUseClassicPersistentImplementation = false;
-
-    @FieldContext(
-            category = CATEGORY_POLICIES,
-            doc = "For persistent Shared subscriptions, enables the use of the classic implementation of the Shared "
-                    + "subscription that was used before Pulsar 4.0.0.",
-            dynamic = true
-    )
-    private boolean subscriptionSharedUseClassicPersistentImplementation = false;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
@@ -1430,7 +1426,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_POLICIES,
             doc = "Enables the scalable-topics V5 API on this broker. When disabled, "
                     + "the broker advertises supports_scalable_topics=false in CommandConnected "
-                    + "feature flags and rejects scalable-topic commands from clients."
+                    + "feature flags, rejects scalable-topic commands and topic/segment lookups and loads, "
+                    + "and does not start scalable-topic services or expose the scalable-topic admin API. "
+                    + "Disable before migrating from 4.x to preserve the option to roll back without using "
+                    + "scalable topics. Existing scalable-topic data is retained but inaccessible while disabled. "
+                    + "Changing this setting requires a broker restart."
     )
     private boolean scalableTopicsEnabled = true;
 
@@ -1523,7 +1523,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "PIP-486 segments-vs-buckets lever: on consumer-driven scale-up, split only if the "
                     + "busiest segment's inbound msg/s is at or above this floor; below it the "
                     + "controller grows the segment's entry-buckets instead (a low-throughput topic "
-                    + "should not materialize physical segments just for consumer count)."
+                    + "should not materialize physical segments just for consumer count). Checkpoint "
+                    + "consumer groups drive splits only: they read whole segments, so more buckets "
+                    + "would not serve them."
     )
     private double scalableTopicSplitVsRebucketMinMsgRateInThreshold = 1_000;
 
@@ -1639,9 +1641,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         dynamic = true,
         category = CATEGORY_SERVER,
-        doc = "Max number of entries to read from bookkeeper. By default it is 100 entries."
+        doc = "Max number of entries to read from bookkeeper. By default it is 500 entries."
     )
-    private int dispatcherMaxReadBatchSize = 100;
+    private int dispatcherMaxReadBatchSize = 500;
 
     @FieldContext(
             dynamic = true,
@@ -1826,6 +1828,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Enable broker to load persistent topics"
     )
     private boolean enablePersistentTopics = true;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Enable shadow topic creation, loading and replication. Requires a broker restart."
+    )
+    private boolean enableShadowTopics = false;
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -2555,9 +2563,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_STORAGE_BK,
-            doc = "Use separated IO threads for BookKeeper client. Default is false, which will use Pulsar IO threads"
+            doc = "Use separated IO threads for BookKeeper client. Default is true, which will use dedicated "
+                    + "BookKeeper IO threads"
     )
-    private boolean bookkeeperClientSeparatedIoThreadsEnabled = false;
+    private boolean bookkeeperClientSeparatedIoThreadsEnabled = true;
 
     /**** --- Managed Ledger. --- ****/
     @FieldContext(
@@ -2637,7 +2646,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
             (int) (DirectMemoryUtils.jvmMaxDirectMemory() / 5 / (1024 * 1024)));
 
     @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Whether we should make a copy of the entry payloads when "
-            + "inserting in cache")
+            + "inserting in cache. Without a copy, a cached entry keeps the buffer that it was received in allocated\n"
+            + "while it stays in the cache. That is a buffer of the Netty connection that the entry arrived on, from\n"
+            + "a client or from a bookie, such as a receive buffer or one that the TLS handler or the frame decoder\n"
+            + "allocated, and it can be much larger than the entry. The cache size limit counts only\n"
+            + "the entry's own size, so size-based eviction doesn't bound that memory, and\n"
+            + "managedLedgerCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes extends how long it\n"
+            + "stays allocated.")
     private boolean managedLedgerCacheCopyEntries = false;
 
     @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Maximum buffer size in MB for bytes read from storage"
@@ -2697,7 +2712,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "- Consumers temporarily falling behind the tail\n"
             + "Entries with remaining expected reads will have their TTL extended up to this many times\n"
             + "before being eligible for eviction. The TTL will be extended by\n"
-            + "managedLedgerCacheEvictionTimeThresholdMillis each time.\n"
+            + "managedLedgerCacheEvictionTimeThresholdMillis each time. When the cache needs memory, size-based\n"
+            + "eviction overrides this protection after requeuing an entry at most once per eviction pass. Both this\n"
+            + "protection and the one of managedLedgerCacheEvictionExtendTTLOfRecentlyAccessed apply only in a\n"
+            + "pass's first cycle through the cache's entries; after it, the pass removes entries in their order in\n"
+            + "the queue. Entries added while a pass is running are past its first cycle, so that pass doesn't\n"
+            + "requeue them.\n"
+            + "Without managedLedgerCacheCopyEntries, a cached entry keeps the larger buffer that it was received in\n"
+            + "allocated while its time to live is extended, so consider enabling copying before raising this value.\n"
             + "Default is 5.")
     private int managedLedgerCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes = 5;
 
@@ -2732,6 +2754,52 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "data is split into sequential batch read requests. Entries read this way are copied when "
                     + "inserted in the entry cache.")
     private boolean managedLedgerBatchReadEnabled = true;
+
+    @FieldContext(category = CATEGORY_STORAGE_ML,
+            doc = "Allow successful ordinary multi-entry managed-ledger read callbacks to complete on the current "
+                    + "thread. Fully cached reads may complete before the read method returns. Set false to restore "
+                    + "ledger-executor affinity, including bounded inline completion when already on that executor. "
+                    + "False also restores the Exclusive/Failover cache-hit handoff used before PR #26619. "
+                    + "The JVM-wide property pulsar.managedLedger.maxReadCompletionDepth limits nested inline "
+                    + "callbacks in both modes when callbacks issue another read before returning "
+                    + "(default 10, values below 1 use 1); set it at JVM startup. "
+                    + "The depth accepts Integer.decode syntax, including hexadecimal and leading-zero octal. "
+                    + "At the limit, enabled mode queues to the JVM common ForkJoinPool; disabled mode queues to "
+                    + "the ledger executor. If common-pool parallelism is at most 1, both use the ledger executor. "
+                    + "Common-pool parallelism normally uses available processors minus one (at least one); "
+                    + "override it with -Djava.util.concurrent.ForkJoinPool.common.parallelism. "
+                    + "A limit of 1 queues every subsequent completion in a nested cached-read chain. "
+                    + "This is not a dynamic setting: the completion policy is captured when a managed "
+                    + "ledger opens and does not change for already loaded topics. Failure callbacks, single-entry "
+                    + "reads, and replay callbacks are unaffected.")
+    private boolean managedLedgerReadEntriesCallbackInline = true;
+
+    @FieldContext(category = CATEGORY_STORAGE_ML,
+            dynamic = true,
+            doc = "Maximum number of add entry requests handed over to the managed ledger's executor thread in one "
+                    + "batch. Publishing threads queue adds for the ledger's executor, which takes them over in "
+                    + "batches of up to this many adds and processes each batch before other tasks on that thread can "
+                    + "run. A batch also stops before taking an entry that would exceed "
+                    + "managedLedgerAddEntryHandoverMaxBatchBytesSize bytes. "
+                    + "A larger value reduces scheduling overhead and contention between publishing threads under "
+                    + "high publish rates, but keeps the executor thread occupied for longer per batch, which can "
+                    + "delay add completions, reads and cursor notifications for the ledgers that share the thread. "
+                    + "A smaller value favors those tasks over add throughput. Set to 0 or 1 to disable batching, so "
+                    + "that each add is handed over to the executor as a task of its own. Updates apply to managed "
+                    + "ledgers opened after the change; ledgers that are already open keep the value they opened with.")
+    private int managedLedgerAddEntryHandoverMaxBatchItems = 1024;
+
+    @FieldContext(category = CATEGORY_STORAGE_ML,
+            dynamic = true,
+            doc = "Maximum total entry size in bytes of a batch of add entry requests handed over to the "
+                    + "managed ledger's executor thread. This keeps a ledger with large entries "
+                    + "from occupying the executor thread for as long as a full batch of "
+                    + "managedLedgerAddEntryHandoverMaxBatchItems adds would, which would delay add completions, "
+                    + "reads and cursor notifications for the ledgers that share the thread. An entry larger than "
+                    + "this runs in a batch of its own. Set to 0 to limit batches only by "
+                    + "their number of adds. Updates apply to managed ledgers opened after the change; ledgers that "
+                    + "are already open keep the value they opened with.")
+    private long managedLedgerAddEntryHandoverMaxBatchBytesSize = 5 * 1024 * 1024;
 
     @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "Configure the threshold (in number of entries) from where a cursor should be considered 'backlogged'"
@@ -3695,6 +3763,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int replicationProducerQueueSize = 1000;
     @FieldContext(
+        category = CATEGORY_REPLICATION,
+        minValue = 1,
+        doc = "Maximum read-processing steps per persistent replicator before yielding to the broker executor. "
+                + "A step initiates a read, processes a completed batch, or handles cancellation or rewind; "
+                + "it is not a message limit. Lower values improve fairness between tasks; higher values reduce "
+                + "scheduling overhead. Must be at least 1. Requires a broker restart."
+    )
+    private int replicationMaxReadProcessingStepsPerTurn = 64;
+    @FieldContext(
             category = CATEGORY_REPLICATION,
             doc = "Duration to check replication policy to avoid replicator "
                     + "inconsistency due to missing ZooKeeper watch (disable with value 0)"
@@ -3830,7 +3907,19 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_SCHEMA,
-        doc = "The list compatibility checkers to be used in schema registry"
+        doc = "The compatibility checker classes used by the schema registry. For opt-in PROTOBUF_NATIVE field "
+            + "checks, replace ProtobufNativeSchemaCompatibilityCheck with "
+            + "org.apache.pulsar.broker.service.schema.ProtobufNativeSchemaAdvancedCompatibilityCheck. "
+            + "Configure only one PROTOBUF_NATIVE checker and use the same selection on all brokers that can own "
+            + "a topic. Changes require a broker restart. Review retained history and consumer schemas before "
+            + "activation: reconnecting consumers can be rejected, even with an unchanged schema, when another "
+            + "selected historical version is incompatible or unsupported. A configured checker that cannot be "
+            + "instantiated fails broker startup. Restore the default entry before downgrading broker binaries. "
+            + "Advanced checks allow up to 100,000 work units per historical version and direction, with a lower "
+            + "limit for smaller descriptor graphs. Even a compatible optional-field addition under BACKWARD can "
+            + "exceed the cap for a flat message around 14,500 fields or a referenced enum around 16,700 values; "
+            + "the threshold depends on the descriptor graph. "
+            + "Check representative large schemas in staging before activation; the cap is not configurable."
     )
     private Set<String> schemaRegistryCompatibilityCheckers = Sets.newHashSet(
             "org.apache.pulsar.broker.service.schema.JsonSchemaCompatibilityCheck",
@@ -4091,7 +4180,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_STORAGE_OFFLOADING,
-        doc = "The directory where nar Extraction of offloaders happens"
+        doc = "The directory where nar packages are extracted. Default is java.io.tmpdir. Outside of Kubernetes,"
+            + " OS cleanup of /tmp (for example, by systemd-tmpfiles) can delete extracted files while the broker is"
+            + " running, which causes ClassNotFoundException or NoClassDefFoundError errors. In that case, set this"
+            + " to a dedicated directory that isn't cleaned up automatically."
     )
     private String narExtractionDirectory = NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR;
 

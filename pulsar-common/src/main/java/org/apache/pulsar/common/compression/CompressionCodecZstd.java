@@ -18,11 +18,13 @@
  */
 package org.apache.pulsar.common.compression;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.airlift.compress.zstd.ZStdRawCompressor;
 import io.airlift.compress.zstd.ZStdRawDecompressor;
 import io.airlift.compress.zstd.ZstdCompressor;
 import io.airlift.compress.zstd.ZstdDecompressor;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -32,6 +34,17 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
  * Zstandard Compression.
  */
 public class CompressionCodecZstd implements CompressionCodec {
+
+    private final ByteBufAllocator allocator;
+
+    public CompressionCodecZstd() {
+        this(PulsarByteBufAllocator.DEFAULT);
+    }
+
+    @VisibleForTesting
+    CompressionCodecZstd(ByteBufAllocator allocator) {
+        this.allocator = allocator;
+    }
 
     private static final int ZSTD_COMPRESSION_LEVEL = 3;
 
@@ -58,7 +71,7 @@ public class CompressionCodecZstd implements CompressionCodec {
         int uncompressedLength = source.readableBytes();
         int maxLength = ZSTD_COMPRESSOR.maxCompressedLength(uncompressedLength);
 
-        ByteBuf target = PulsarByteBufAllocator.DEFAULT.buffer(maxLength, maxLength);
+        ByteBuf target = allocator.buffer(maxLength, maxLength);
         int compressedLength;
 
         if (source.hasMemoryAddress() && target.hasMemoryAddress()) {
@@ -82,24 +95,31 @@ public class CompressionCodecZstd implements CompressionCodec {
 
     @Override
     public ByteBuf decode(ByteBuf encoded, int uncompressedLength) throws IOException {
-        ByteBuf uncompressed = PulsarByteBufAllocator.DEFAULT.buffer(uncompressedLength, uncompressedLength);
+        ByteBuf uncompressed = allocator.buffer(uncompressedLength, uncompressedLength);
+        try {
 
-        if (encoded.hasMemoryAddress() && uncompressed.hasMemoryAddress()) {
-            ZSTD_RAW_DECOMPRESSOR.get().decompress(
-                    null,
-                    encoded.memoryAddress() + encoded.readerIndex(),
-                    encoded.memoryAddress() + encoded.writerIndex(),
-                    null,
-                    uncompressed.memoryAddress() + uncompressed.writerIndex(),
-                    uncompressed.memoryAddress() + uncompressed.writerIndex() + uncompressedLength);
-        } else {
-            ByteBuffer uncompressedNio = uncompressed.nioBuffer(0, uncompressedLength);
-            ByteBuffer encodedNio = encoded.nioBuffer(encoded.readerIndex(), encoded.readableBytes());
-            encodedNio = AirliftUtils.ensureAirliftSupported(encodedNio);
-            ZSTD_DECOMPRESSOR.get().decompress(encodedNio, uncompressedNio);
+            if (encoded.hasMemoryAddress() && uncompressed.hasMemoryAddress()) {
+                ZSTD_RAW_DECOMPRESSOR.get().decompress(
+                        null,
+                        encoded.memoryAddress() + encoded.readerIndex(),
+                        encoded.memoryAddress() + encoded.writerIndex(),
+                        null,
+                        uncompressed.memoryAddress() + uncompressed.writerIndex(),
+                        uncompressed.memoryAddress() + uncompressed.writerIndex() + uncompressedLength);
+            } else {
+                ByteBuffer uncompressedNio = uncompressed.nioBuffer(0, uncompressedLength);
+                ByteBuffer encodedNio = encoded.nioBuffer(encoded.readerIndex(), encoded.readableBytes());
+                encodedNio = AirliftUtils.ensureAirliftSupported(encodedNio);
+                ZSTD_DECOMPRESSOR.get().decompress(encodedNio, uncompressedNio);
+            }
+
+            uncompressed.writerIndex(uncompressedLength);
+            return uncompressed;
+        } catch (Throwable t) {
+            // The output buffer is only ever handed to the caller on success: release it when the decompressor
+            // rejects the input, whether as malformed or as not fitting the advertised uncompressed size.
+            uncompressed.release();
+            throw t;
         }
-
-        uncompressed.writerIndex(uncompressedLength);
-        return uncompressed;
     }
 }
