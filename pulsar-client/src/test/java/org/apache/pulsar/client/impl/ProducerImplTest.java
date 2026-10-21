@@ -390,6 +390,186 @@ public class ProducerImplTest {
             assertThat(fixture.requests).hasSize(1);
             assertThat(fixture.producer.getState()).isEqualTo(HandlerState.State.Closed);
             assertThat(blocked).isCompletedExceptionally();
+            verify(fixture.retryTasks.get(0)).cancel(false);
+            verify(fixture.cnx.channel(), never()).close();
+        }
+    }
+
+    @DataProvider
+    public Object[][] staleSchemaRetries() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "staleSchemaRetries")
+    public void testSchemaRetryCannotInterruptAnotherRegistration(boolean nextMessage) throws Exception {
+        try (SchemaRetryFixture fixture = new SchemaRetryFixture(true)) {
+            ProducerImpl<byte[]> producer = fixture.producer;
+            producer.newMessage().value(new byte[] {0}).sendAsync();
+            producer.newMessage(Schema.STRING).value("blocked").sendAsync();
+            fixture.rejectSchema();
+            Runnable staleRetry = fixture.retries.get(0);
+            // A checksum resend can start a new registration without changing the connection epoch.
+            producer.recoverChecksumError(fixture.cnx, -1);
+            assertThat(fixture.requests).hasSize(2);
+            if (nextMessage) {
+                fixture.requests.get(1).complete(new byte[] {1});
+                producer.ackReceived(fixture.cnx, 0, 0, 1, 0);
+                producer.ackReceived(fixture.cnx, 1, 1, 1, 1);
+                producer.newMessage(Schema.BOOL).value(true).sendAsync();
+                assertThat(fixture.requests).hasSize(3);
+            }
+            int requests = fixture.requests.size();
+            int writes = fixture.writes.get();
+            staleRetry.run();
+            assertThat(fixture.requests).hasSize(requests);
+            assertThat(producer.getState()).isEqualTo(HandlerState.State.RegisteringSchema);
+            producer.newMessage().value(new byte[] {2}).sendAsync();
+            assertThat(fixture.writes).hasValue(writes);
+            verify(fixture.retryTasks.get(0)).cancel(false);
+            verify(fixture.cnx.channel(), never()).close();
+        }
+    }
+
+    @Test(dataProvider = "staleSchemaRetries")
+    public void testStaleSchemaResponseCannotInterruptAnotherRegistration(boolean success) throws Exception {
+        try (SchemaRetryFixture fixture = new SchemaRetryFixture(true)) {
+            ProducerImpl<byte[]> producer = fixture.producer;
+            producer.newMessage().value(new byte[] {0}).sendAsync();
+            producer.newMessage(Schema.STRING).value("blocked").sendAsync();
+            producer.recoverChecksumError(fixture.cnx, -1);
+            assertThat(fixture.requests).hasSize(2);
+            int writes = fixture.writes.get();
+            if (success) {
+                fixture.requests.get(0).complete(new byte[] {1});
+            } else {
+                fixture.requests.get(0).completeExceptionally(
+                        new PulsarClientException.IncompatibleSchemaException("stale rejection"));
+            }
+            assertThat(producer.getState()).isEqualTo(HandlerState.State.RegisteringSchema);
+            assertThat(fixture.retries).isEmpty();
+            assertThat(fixture.writes).hasValue(writes);
+            fixture.requests.get(1).complete(new byte[] {1});
+            assertThat(producer.getState()).isEqualTo(HandlerState.State.Ready);
+            assertThat(fixture.writes).hasValue(writes + 1);
+        }
+    }
+
+    @Test(dataProvider = "staleSchemaRetries")
+    public void testSchemaResponseAfterCloseIsIgnored(boolean success) throws Exception {
+        try (SchemaRetryFixture fixture = new SchemaRetryFixture(true)) {
+            CompletableFuture<?> blocked = fixture.producer.newMessage(Schema.STRING).value("blocked").sendAsync();
+            fixture.producer.closeAsync().get(5, TimeUnit.SECONDS);
+            if (success) {
+                fixture.requests.get(0).complete(new byte[] {1});
+            } else {
+                fixture.requests.get(0).completeExceptionally(new PulsarClientException("late failure"));
+            }
+            assertThat(blocked).isCompletedExceptionally();
+            assertThat(fixture.producer.getState()).isEqualTo(HandlerState.State.Closed);
+            assertThat(fixture.retries).isEmpty();
+            assertThat(fixture.writes).hasValue(0);
+            verify(fixture.cnx.channel(), never()).close();
+        }
+    }
+
+    @Test
+    public void testSchemaResponseRecoversAfterPendingMessageFails() throws Exception {
+        try (SchemaRetryFixture fixture = new SchemaRetryFixture(false)) {
+            ProducerImpl<byte[]> producer = fixture.producer;
+            CompletableFuture<?> expired = producer.newMessage(Schema.STRING).value("expired").sendAsync();
+            producer.failPendingMessages(null, new PulsarClientException.TimeoutException("send timed out"));
+            producer.newMessage().value(new byte[] {1}).sendAsync();
+            fixture.requests.get(0).complete(new byte[] {1});
+            assertThat(expired).isCompletedExceptionally();
+            assertThat(producer.getState()).isEqualTo(HandlerState.State.Ready);
+            assertThat(fixture.writes).hasValue(1);
+            assertThat(fixture.requests).hasSize(1);
+        }
+    }
+
+    @Test
+    public void testSchemaRetryDoesNotRequireBlockedMessageAtQueueHead() throws Exception {
+        try (SchemaRetryFixture fixture = new SchemaRetryFixture(true)) {
+            ProducerImpl<byte[]> producer = fixture.producer;
+            producer.newMessage().value(new byte[] {0}).sendAsync();
+            producer.newMessage(Schema.STRING).value("blocked").sendAsync();
+            fixture.rejectSchema();
+            fixture.retries.get(0).run();
+            assertThat(fixture.requests).hasSize(2);
+            fixture.requests.get(1).complete(new byte[] {1});
+            assertThat(fixture.writes).hasValue(2);
+            assertThat(producer.pendingMessages.size()).isEqualTo(2);
+        }
+    }
+
+    @DataProvider
+    public Object[][] transientSchemaErrors() {
+        return new Object[][] {
+                {false, new PulsarClientException("registration failed")},
+                {true, new PulsarClientException("registration failed")},
+                {false, new PulsarClientException.NotSupportedException("unsupported")},
+                {true, new PulsarClientException.NotSupportedException("unsupported")}
+        };
+    }
+
+    @Test(dataProvider = "transientSchemaErrors")
+    public void testSchemaRegistrationErrorsUseBackoff(boolean replication, PulsarClientException error)
+            throws Exception {
+        try (SchemaRetryFixture fixture = new SchemaRetryFixture(replication)) {
+            ProducerImpl<byte[]> producer = fixture.producer;
+            CompletableFuture<?> blocked = producer.newMessage(Schema.STRING).value("blocked").sendAsync();
+            producer.newMessage().value(new byte[] {1}).sendAsync();
+            for (int i = 0; i < 5; i++) {
+                fixture.requests.get(i).completeExceptionally(error);
+                assertThat(fixture.requests).hasSize(i + 1);
+                assertThat(fixture.retries).hasSize(i + 1);
+                assertThat(blocked).isNotDone();
+                assertThat(fixture.writes).hasValue(0);
+                long delay = Math.min(100L << i, 400L);
+                assertThat(fixture.retryDelays.get(i)).isBetween(delay * 95 / 100, delay * 105 / 100);
+                fixture.retries.get(i).run();
+            }
+            fixture.requests.get(5).complete(new byte[] {1});
+            assertThat(producer.getState()).isEqualTo(HandlerState.State.Ready);
+            assertThat(fixture.writes).hasValue(2);
+            producer.ackReceived(fixture.cnx, 0, 0, 1, 0);
+            producer.ackReceived(fixture.cnx, 1, 1, 1, 1);
+            assertThat(blocked).isCompleted();
+        }
+    }
+
+    @Test
+    public void testUnsupportedSchemaProtocolUsesBackoff() throws Exception {
+        try (SchemaRetryFixture fixture = new SchemaRetryFixture(false)) {
+            when(fixture.cnx.getRemoteEndpointProtocolVersion()).thenReturn(0);
+            CompletableFuture<?> blocked = fixture.producer.newMessage(Schema.STRING).value("blocked").sendAsync();
+            for (int i = 0; i < 3; i++) {
+                assertThat(fixture.requests).isEmpty();
+                assertThat(fixture.retries).hasSize(i + 1);
+                assertThat(blocked).isNotDone();
+                fixture.retries.get(i).run();
+            }
+            when(fixture.cnx.getRemoteEndpointProtocolVersion()).thenReturn(Commands.getCurrentProtocolVersion());
+            fixture.retries.get(3).run();
+            assertThat(fixture.requests).hasSize(1);
+            fixture.requests.get(0).complete(new byte[] {1});
+            assertThat(fixture.writes).hasValue(1);
+        }
+    }
+
+    @Test
+    public void testSchemaRetryRecoversAfterPendingMessageFails() throws Exception {
+        try (SchemaRetryFixture fixture = new SchemaRetryFixture(false)) {
+            ProducerImpl<byte[]> producer = fixture.producer;
+            CompletableFuture<?> expired = producer.newMessage(Schema.STRING).value("expired").sendAsync();
+            fixture.requests.get(0).completeExceptionally(new PulsarClientException("registration failed"));
+            producer.failPendingMessages(null, new PulsarClientException.TimeoutException("send timed out"));
+            CompletableFuture<?> following = producer.newMessage().value(new byte[] {1}).sendAsync();
+            fixture.retries.get(0).run();
+            assertThat(expired).isCompletedExceptionally();
+            assertThat(following).isNotDone();
+            assertThat(producer.getState()).isEqualTo(HandlerState.State.Ready);
+            assertThat(fixture.writes).hasValue(1);
         }
     }
 
@@ -411,6 +591,7 @@ public class ProducerImplTest {
             assertThat(fixture.requests).hasSize(1);
             assertThat(fixture.retries).hasSize(1);
             assertThat(fixture.producer.pendingMessages.size()).isEqualTo(1);
+            verify(fixture.cnx.channel(), never()).close();
         }
     }
 
@@ -433,6 +614,7 @@ public class ProducerImplTest {
         private final List<CompletableFuture<byte[]>> requests = new ArrayList<>();
         private final List<Runnable> retries = new ArrayList<>();
         private final List<Long> retryDelays = new ArrayList<>();
+        private final List<ScheduledFuture<?>> retryTasks = new ArrayList<>();
         private final AtomicInteger writes = new AtomicInteger();
 
         private SchemaRetryFixture(boolean replicationProducer) {
@@ -455,7 +637,9 @@ public class ProducerImplTest {
             doAnswer(invocation -> {
                 retries.add(invocation.getArgument(0));
                 retryDelays.add(invocation.getArgument(1));
-                return mock(ScheduledFuture.class);
+                ScheduledFuture<?> task = mock(ScheduledFuture.class);
+                retryTasks.add(task);
+                return task;
             }).when(eventLoop).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
             Channel channel = mock(Channel.class);
             when(channel.eventLoop()).thenReturn(eventLoop);
@@ -469,6 +653,11 @@ public class ProducerImplTest {
                 writes.incrementAndGet();
                 return null;
             }).when(ctx).write(any(), any());
+            doAnswer(invocation -> {
+                ReferenceCountUtil.release(invocation.getArgument(0));
+                writes.incrementAndGet();
+                return null;
+            }).when(ctx).writeAndFlush(any(), any());
             doAnswer(invocation -> {
                 ReferenceCountUtil.release(invocation.getArgument(0));
                 CompletableFuture<byte[]> response = new CompletableFuture<>();

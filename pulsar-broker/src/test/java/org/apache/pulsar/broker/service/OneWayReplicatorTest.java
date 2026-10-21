@@ -86,6 +86,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerTest;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.logging.log4j.Level;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.resources.ClusterResources;
@@ -2192,6 +2193,13 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
                     assertThat(event.getMessage().getFormattedMessage()).contains("Publishing paused")));
             assertThat(replicator.getCursor().getNumberOfEntriesInBacklog(false)).isEqualTo(expected.size());
             assertThat(consumer.receive(1, TimeUnit.SECONDS)).isNull();
+            assertThat(logs.getEvents().stream().filter(event -> event.getLevel() == Level.WARN
+                    && event.getMessage().getFormattedMessage().contains("GetOrCreateSchema error")).count())
+                    .isEqualTo(1);
+            assertThat(logs.getEvents()).noneSatisfy(event -> {
+                assertThat(event.getLevel()).isEqualTo(Level.INFO);
+                assertThat(event.getMessage().getFormattedMessage()).contains("GetOrCreateSchema request");
+            });
 
             if (deleteSchema) {
                 admin2.schemas().deleteSchema(topicName);
