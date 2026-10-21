@@ -485,7 +485,8 @@ public abstract class AdminResource extends PulsarWebResource {
                 .thenCompose(__ -> {
                     if (checkAllowAutoCreation) {
                         return pulsar().getBrokerService()
-                                .fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName);
+                                .fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName,
+                                        newTopicCheck(topicName));
                     } else {
                         return pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName);
                     }

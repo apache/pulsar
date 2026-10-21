@@ -1308,6 +1308,34 @@ public abstract class PulsarWebResource {
         }
     }
 
+    /**
+     * Whether a topic that does not exist may be created for this client: the auto topic creation settings allow it
+     * and, when it would be created from nothing, the authorization provider lets this client trigger it. The
+     * provider is not consulted for a topic the broker re-materializes from existing metadata, such as a partition
+     * of an existing partitioned topic, see {@link BrokerService#isAllowAutoTopicCreationAsync}.
+     */
+    protected CompletableFuture<Boolean> isAllowAutoTopicCreationAsync(TopicName topicName) {
+        return pulsar().getBrokerService().isAllowAutoTopicCreationAsync(topicName, newTopicCheck(topicName));
+    }
+
+    /**
+     * Whether the authorization provider lets this client trigger the creation of a new topic. The request values are
+     * read now, as the check may run later on another thread.
+     */
+    protected Supplier<CompletableFuture<Boolean>> newTopicCheck(TopicName topicName) {
+        BrokerService brokerService = pulsar().getBrokerService();
+        if (!pulsar().getConfiguration().isAuthenticationEnabled() || !brokerService.isAuthorizationEnabled()) {
+            return () -> CompletableFuture.completedFuture(true);
+        }
+        String originalPrincipal = originalPrincipal();
+        String clientAppId = clientAppId();
+        // As for topic operations, the original principal of a proxied request is checked with its own auth data.
+        AuthenticationDataSource originalAuthData = originalPrincipalAuthData();
+        AuthenticationDataSource authData = clientAuthData();
+        return () -> brokerService.getAuthorizationService().allowTopicAutoCreationAsync(topicName,
+                originalPrincipal, clientAppId, originalAuthData, authData);
+    }
+
     public <T> T sync(Supplier<CompletableFuture<T>> supplier) {
         try {
             return supplier.get().get(config().getMetadataStoreOperationTimeoutSeconds(), SECONDS);

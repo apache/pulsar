@@ -32,6 +32,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.schema.Schemas;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -100,6 +101,11 @@ public class ClientGetSchemaTest extends SharedPulsarBaseTest {
         String key = TopicName.get(topicOne).getSchemaName();
         BookkeeperSchemaStorage schemaStorage = (BookkeeperSchemaStorage) getSchemaStorage();
         long schemaLedgerId = schemaStorage.getSchemaLedgerList(key).get(0);
+
+        // Warm the versioned-read cache. Producer registration must still read BookKeeper directly
+        // so a missing ledger reaches the existing recovery path.
+        assertNotNull(getPulsar().getSchemaRegistryService()
+                .getSchema(key, new LongSchemaVersion(0)).get());
 
         // (2) break schema locator by deleting schema-ledger
         schemaStorage.getBookKeeper().deleteLedger(schemaLedgerId);

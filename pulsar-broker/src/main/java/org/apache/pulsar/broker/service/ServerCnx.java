@@ -68,6 +68,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
@@ -727,6 +728,52 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         } else {
             return CompletableFuture.completedFuture(true);
         }
+    }
+
+    /**
+     * Whether a topic that does not exist may be created for this client: the auto topic creation settings allow it
+     * and, when it would be created from nothing, the authorization provider lets this client trigger it. The
+     * provider is not consulted for a topic the broker re-materializes from existing metadata, such as a partition
+     * of an existing partitioned topic, see {@link BrokerService#isAllowAutoTopicCreationAsync}.
+     */
+    public CompletableFuture<Boolean> isAllowAutoTopicCreationAsync(TopicName topicName) {
+        return service.isAllowAutoTopicCreationAsync(topicName, newTopicCheck(topicName));
+    }
+
+    /**
+     * Whether the authorization provider lets this client trigger the creation of a new topic.
+     */
+    private Supplier<CompletableFuture<Boolean>> newTopicCheck(TopicName topicName) {
+        if (!service.isAuthorizationEnabled()) {
+            return () -> CompletableFuture.completedFuture(true);
+        }
+        // The identity of the client when the request arrived, as the check may run later on another thread.
+        String role = authRole;
+        String originalRole = originalPrincipal;
+        AuthenticationDataSource authData = authenticationData;
+        AuthenticationDataSource originalData = originalAuthData != null ? originalAuthData : authData;
+        return () -> service.getAuthorizationService()
+                .allowTopicAutoCreationAsync(topicName, originalRole, role, originalData, authData)
+                .thenApply(isAllowed -> {
+                    if (!isAllowed) {
+                        log.debug()
+                                .attr("topic", topicName)
+                                .attr("role", role)
+                                .attr("originalPrincipal", originalRole)
+                                .log("The authorization provider refused to auto-create the topic");
+                    }
+                    return isAllowed;
+                });
+    }
+
+    /**
+     * Loads the topic and, when it does not exist and {@code createIfMissing} is set, creates it if
+     * {@link #isAllowAutoTopicCreationAsync} allows it, see {@link BrokerService#getTopicCreatingIfAllowed}.
+     */
+    private CompletableFuture<Optional<Topic>> getTopic(TopicName topicName, boolean createIfMissing) {
+        return createIfMissing
+                ? service.getTopicCreatingIfAllowed(topicName, newTopicCheck(topicName))
+                : service.getTopic(topicName.toString(), false);
     }
 
     @Override
@@ -1560,13 +1607,17 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     private CompletableFuture<Void> lookupPartitionMetadata(TopicName topicName, long requestId,
                                                              boolean metadataAutoCreationEnabled) {
+        if (!metadataAutoCreationEnabled) {
+            return lookupExistingTopicMetadata(topicName, requestId);
+        }
+        // The authorization provider is only consulted later, if the topic turns out not to exist.
         return FutureUtil.supplySafely(() -> getBrokerService().isAllowAutoTopicCreationAsync(topicName))
                 .<CompletableFuture<Void>>handle((brokerAllowAutoCreate, ex) -> {
                     if (ex != null) {
                         sendPartitionMetadataLookupError(topicName, requestId, ex);
                         return CompletableFuture.completedFuture(null);
                     }
-                    if (metadataAutoCreationEnabled && brokerAllowAutoCreate) {
+                    if (brokerAllowAutoCreate) {
                         return lookupOrCreatePartitionMetadata(topicName, requestId);
                     }
                     return lookupExistingTopicMetadata(topicName, requestId);
@@ -1614,14 +1665,40 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     private CompletableFuture<Void> lookupOrCreatePartitionMetadata(TopicName topicName, long requestId) {
+        Supplier<CompletableFuture<Boolean>> newTopicCheck = newTopicCheck(topicName);
+        AtomicBoolean creationRefused = new AtomicBoolean();
+        AtomicBoolean creationCheckFailed = new AtomicBoolean();
         return FutureUtil.supplySafely(() ->
-                        unsafeGetPartitionedTopicMetadataAsync(getBrokerService().pulsar(), topicName))
+                        unsafeGetPartitionedTopicMetadataAsync(getBrokerService().pulsar(), topicName,
+                                () -> FutureUtil.supplySafely(newTopicCheck).whenComplete((isAllowed, checkEx) -> {
+                                    if (checkEx != null) {
+                                        creationCheckFailed.set(true);
+                                    } else {
+                                        creationRefused.set(!isAllowed);
+                                    }
+                                })))
                 .handle((metadata, ex) -> {
                     if (ex == null) {
-                        commandSender.sendPartitionMetadataResponse(metadata.partitions, requestId);
+                        if (creationRefused.get()) {
+                            // The topic does not exist and this client may not create it, as when the auto topic
+                            // creation settings forbid it.
+                            writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.TopicNotFound, "",
+                                    requestId));
+                        } else {
+                            commandSender.sendPartitionMetadataResponse(metadata.partitions, requestId);
+                        }
                         return null;
                     }
                     Throwable actEx = FutureUtil.unwrapCompletionException(ex);
+                    if (creationCheckFailed.get()) {
+                        // As when checking a topic operation fails.
+                        logAuthException(remoteAddress, "partition-metadata", getPrincipal(), Optional.of(topicName),
+                                actEx);
+                        commandSender.sendPartitionMetadataResponse(ServerError.AuthorizationError,
+                                "Exception occurred while checking whether the client may auto-create the topic",
+                                requestId);
+                        return null;
+                    }
                     if (actEx instanceof PulsarClientException) {
                         log.warn()
                                 .attr("role", getRole())
@@ -2267,10 +2344,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     return null;
                 }
 
-                service.isAllowAutoTopicCreationAsync(topicName.toString())
-                        .thenApply(isAllowed -> forceTopicCreation && isAllowed)
-                        .thenCompose(createTopicIfDoesNotExist ->
-                                service.getTopic(topicName.toString(), createTopicIfDoesNotExist))
+                getTopic(topicName, forceTopicCreation)
                         .thenCompose(optTopic -> {
                             if (!optTopic.isPresent()) {
                                 return FutureUtil
@@ -2670,7 +2744,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     .attr("schema", schema == null ? "absent" : "present")
                     .log("Creating producer");
 
-            service.getOrCreateTopic(topicName.toString()).thenComposeAsync((Topic topic) -> {
+            getTopic(topicName, true).thenApply(Optional::get).thenComposeAsync((Topic topic) -> {
                 // Check max producer limitation to avoid unnecessary ops wasting resources. For example: the new
                 // producer reached max producer limitation, but pulsar did schema check first, it would waste CPU
                 if (((AbstractTopic) topic).isProducersExceeded(producerName)) {

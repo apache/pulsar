@@ -53,15 +53,19 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LogEvent;
 import org.apache.logging.log4j.core.Logger;
 import org.apache.logging.log4j.core.appender.AbstractAppender;
+import org.apache.logging.log4j.core.config.Configurator;
 import org.apache.logging.log4j.core.layout.PatternLayout;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -784,6 +788,95 @@ public class MessageDuplicationTest extends BrokerTestBase {
                 appender.stop();
                 assertTrue(executor.awaitTermination(30, TimeUnit.SECONDS));
             }
+        }
+    }
+
+    @Test(timeOut = 60000)
+    public void testSnapshotAfterDeduplicationIsReenabled() throws Exception {
+        String topicName = "persistent://prop/ns-abc/" + UUID.randomUUID();
+        String producerName = "snapshot-producer";
+        int snapshotInterval = conf.getBrokerDeduplicationEntriesInterval();
+        // Keep the initial publish below the entry threshold so the interval-triggered snapshot can be paused.
+        // After re-enabling, the next two publishes trigger an entry-count snapshot.
+        conf.setBrokerDeduplicationEntriesInterval(2);
+        try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName)
+                .producerName(producerName).enableBatching(false).create()) {
+            producer.newMessage().sequenceId(0).value("before-disable").send();
+            PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicName)
+                    .get().orElseThrow();
+            MessageDeduplication deduplication = topic.getMessageDeduplication();
+            admin.topicPolicies().setDeduplicationSnapshotInterval(topicName, 1);
+            Awaitility.await().untilAsserted(() -> assertEquals(
+                    topic.getHierarchyTopicPolicies().getDeduplicationSnapshotIntervalSeconds().get(),
+                    Integer.valueOf(1)));
+
+            CountDownLatch snapshotStarted = new CountDownLatch(1);
+            CountDownLatch resumeSnapshot = new CountDownLatch(1);
+            CountDownLatch cursorUnavailable = new CountDownLatch(1);
+            AtomicBoolean pauseSnapshot = new AtomicBoolean(true);
+            // Pause the monitor's production entry point after its enabled/cursor checks, then disable via Admin.
+            AbstractAppender appender = new AbstractAppender("pause-dedup-snapshot", null,
+                    PatternLayout.createDefaultLayout(), false, null) {
+                @Override
+                public void append(LogEvent event) {
+                    if (!event.getLoggerName().equals(MessageDeduplication.class.getName())
+                            || !topicName.equals(event.getContextData().getValue("topic"))) {
+                        return;
+                    }
+                    // These messages come from MessageDeduplication.takeSnapshot(Position); keep the matchers in sync.
+                    String message = event.getMessage().getFormattedMessage();
+                    if (message.equals("Taking snapshot of sequence ids map")
+                            && pauseSnapshot.compareAndSet(true, false)) {
+                        snapshotStarted.countDown();
+                        try {
+                            assertTrue(resumeSnapshot.await(30, TimeUnit.SECONDS), "Snapshot was not resumed");
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            throw new AssertionError(e);
+                        }
+                    } else if (message.equals("Cursor is null when taking snapshot for")) {
+                        cursorUnavailable.countDown();
+                    }
+                }
+            };
+            Logger logger = (Logger) LogManager.getLogger(MessageDeduplication.class);
+            Level originalLevel = logger.getLevel();
+            ExecutorService executor = Executors.newSingleThreadExecutor(
+                    new DefaultThreadFactory("dedup-snapshot-test"));
+            appender.start();
+            logger.addAppender(appender);
+            Configurator.setLevel(logger.getName(), Level.DEBUG);
+            try {
+                Future<?> snapshot = executor.submit(topic::checkDeduplicationSnapshot);
+                assertTrue(snapshotStarted.await(30, TimeUnit.SECONDS), "Snapshot did not start");
+                admin.topicPolicies().setDeduplicationStatus(topicName, false);
+                Awaitility.await().until(() -> deduplication.getStatus() == MessageDeduplication.Status.Disabled
+                        && deduplication.getManagedCursor() == null);
+                resumeSnapshot.countDown();
+                snapshot.get(30, TimeUnit.SECONDS);
+                assertEquals(cursorUnavailable.getCount(), 0L, "Snapshot must encounter the deleted cursor");
+
+                admin.topicPolicies().setDeduplicationStatus(topicName, true);
+                Awaitility.await().until(deduplication::isEnabled);
+                ManagedCursor cursor = deduplication.getManagedCursor();
+                producer.newMessage().sequenceId(1).value("after-enable-1").send();
+                producer.newMessage().sequenceId(2).value("after-enable-2").send();
+                Position lastPosition = topic.getManagedLedger().getLastConfirmedEntry();
+                Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                    assertEquals(cursor.getMarkDeletedPosition(), lastPosition,
+                            "Reenabled deduplication must resume snapshot progress");
+                    assertEquals(cursor.getProperties(), Map.of(producerName, 2L));
+                });
+            } finally {
+                resumeSnapshot.countDown();
+                executor.shutdownNow();
+                logger.removeAppender(appender);
+                Configurator.setLevel(logger.getName(), originalLevel);
+                appender.stop();
+                assertTrue(executor.awaitTermination(30, TimeUnit.SECONDS));
+            }
+        } finally {
+            conf.setBrokerDeduplicationEntriesInterval(snapshotInterval);
         }
     }
 

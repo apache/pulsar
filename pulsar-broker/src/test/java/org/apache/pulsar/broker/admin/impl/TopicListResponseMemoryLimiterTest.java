@@ -22,7 +22,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -30,8 +32,12 @@ import jakarta.ws.rs.container.AsyncResponse;
 import jakarta.ws.rs.container.CompletionCallback;
 import jakarta.ws.rs.core.Response;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -113,6 +119,87 @@ public class TopicListResponseMemoryLimiterTest {
         assertThat(acquiredHeapPermits()).isEqualTo(TopicListMemoryLimiter.estimateTopicListSize(TOPICS));
 
         completeResponse(null);
+        assertThat(acquiredHeapPermits()).isZero();
+    }
+
+    @Test
+    public void testRequestsWaitingForTheSizeEstimateContinueOnTheCompletionExecutor() {
+        // the first request lists the topics without a size estimate, the concurrent requests wait for its estimate
+        CompletableFuture<List<String>> firstListing = new CompletableFuture<>();
+        CompletableFuture<List<String>> first = listTopics(() -> firstListing);
+        List<CompletableFuture<String>> listingThreads = new ArrayList<>();
+        List<CompletableFuture<List<String>>> waiting = new ArrayList<>();
+        for (int i = 0; i < 3; i++) {
+            CompletableFuture<String> listingThread = new CompletableFuture<>();
+            listingThreads.add(listingThread);
+            waiting.add(listTopics(() -> {
+                listingThread.complete(Thread.currentThread().getName());
+                return CompletableFuture.completedFuture(TOPICS);
+            }));
+        }
+
+        // completing the first listing, here on the test thread, completes the size estimate
+        firstListing.complete(TOPICS);
+
+        assertThat(first).succeedsWithin(Duration.ofSeconds(5)).isEqualTo(TOPICS);
+        String testThread = Thread.currentThread().getName();
+        for (int i = 0; i < waiting.size(); i++) {
+            assertThat(waiting.get(i)).succeedsWithin(Duration.ofSeconds(5)).isEqualTo(TOPICS);
+            // the waiting requests don't continue one after another on the thread that completed the estimate
+            assertThat(listingThreads.get(i)).isCompleted();
+            assertThat(listingThreads.get(i).join()).isNotEqualTo(testThread)
+                    .startsWith("async-dual-memory-limiter-completion");
+        }
+    }
+
+    @Test
+    public void testDoesNotListTopicsWhenResponseCompletesWhileWaitingForTheCompletionExecutor() {
+        // gate the completion executor so that the continuation of a request waiting for the size estimate stays
+        // queued until the test runs it
+        Queue<Runnable> queuedTasks = new ConcurrentLinkedQueue<>();
+        AsyncDualMemoryLimiterImpl gatedLimiter = spy(limiter);
+        doReturn((Executor) queuedTasks::add).when(gatedLimiter).getCompletionExecutor();
+        when(brokerService.getMaxTopicListInFlightLimiter()).thenReturn(gatedLimiter);
+
+        // the first request lists the topics without a size estimate, the second request waits for its estimate
+        CompletableFuture<List<String>> firstListing = new CompletableFuture<>();
+        CompletableFuture<List<String>> first = listTopics(() -> firstListing);
+        CompletionCallback firstCompletionCallback = completionCallback.get();
+        AsyncResponse waitingResponse = mock(AsyncResponse.class);
+        AtomicBoolean waitingResponseDone = new AtomicBoolean();
+        AtomicReference<CompletionCallback> waitingCompletionCallback = new AtomicReference<>();
+        when(waitingResponse.isDone()).thenAnswer(__ -> waitingResponseDone.get());
+        doAnswer(invocation -> {
+            waitingCompletionCallback.set(invocation.getArgument(0));
+            return List.of();
+        }).when(waitingResponse).register(any(Object.class));
+        AtomicInteger listingCalls = new AtomicInteger();
+        CompletableFuture<List<String>> waiting = TopicListResponseMemoryLimiter.listTopics(brokerService,
+                waitingResponse, TopicListing.namespaceTopics(NAMESPACE, Mode.PERSISTENT), null, () -> {
+                    listingCalls.incrementAndGet();
+                    return CompletableFuture.completedFuture(TOPICS);
+                });
+
+        // completing the first listing completes the size estimate and queues the waiting request's continuation
+        firstListing.complete(TOPICS);
+        assertThat(first).succeedsWithin(Duration.ofSeconds(5)).isEqualTo(TOPICS);
+        assertThat(queuedTasks).hasSize(1);
+        assertThat(waiting).isNotDone();
+
+        // the waiting request's response times out before its continuation runs
+        waitingResponseDone.set(true);
+        waitingCompletionCallback.get().onComplete(null);
+        Runnable task;
+        while ((task = queuedTasks.poll()) != null) {
+            task.run();
+        }
+
+        assertThat(waiting).failsWithin(Duration.ofSeconds(5));
+        assertThat(listingCalls).hasValue(0);
+        // only the first request holds permits until its response completes
+        assertThat(acquiredHeapPermits()).isEqualTo(TopicListMemoryLimiter.estimateTopicListSize(TOPICS));
+        responseDone.set(true);
+        firstCompletionCallback.onComplete(null);
         assertThat(acquiredHeapPermits()).isZero();
     }
 
