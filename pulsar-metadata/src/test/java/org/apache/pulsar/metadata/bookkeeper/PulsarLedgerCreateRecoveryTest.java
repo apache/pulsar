@@ -319,6 +319,8 @@ public class PulsarLedgerCreateRecoveryTest {
                         MetadataCacheConfig.<LedgerMetadata>builder().refreshAfterWriteMillis(0)
                                 .expireAfterWriteMillis(0).build(), executor, scheduler);
             }).when(store).getMetadataCache(any(MetadataSerde.class));
+            // The manager cancels its store listener on close.
+            doReturn((Runnable) () -> { }).when(store).registerCancellableListener(any());
             manager = new PulsarLedgerManager(store, "/ledgers");
             path = manager.getLedgerPath(LEDGER_ID);
             doReturn(CompletableFuture.completedFuture(null)).when(store).sync(path);
