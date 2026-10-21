@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -68,6 +69,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
+import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.utils.TestLogAppender;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -155,9 +157,37 @@ public class ReplicatedSubscriptionsControllerTest {
         return subscription;
     }
 
+    @Test
+    public void testReplicatedSubscriptionUpdateForCompactionSubscriptionIsIgnored() {
+        PersistentTopic topic = mockTopicForUpdates();
+        PulsarCompactorSubscription compactorSubscription = mock(PulsarCompactorSubscription.class);
+        // PulsarCompactorSubscription rejects acks without the compacted ledger property synchronously
+        when(compactorSubscription.acknowledgeMessageAsync(any(), any(), any()))
+                .thenThrow(new IllegalArgumentException());
+        when(topic.getSubscription(Compactor.COMPACTION_SUBSCRIPTION)).thenReturn(compactorSubscription);
+
+        receiveUpdate(topic, Compactor.COMPACTION_SUBSCRIPTION, 1, 2);
+
+        verify(compactorSubscription, never()).acknowledgeMessageAsync(any(), any(), any());
+    }
+
+    @Test
+    public void testReplicatedSubscriptionUpdateDoesNotCreateCompactionSubscription() {
+        PersistentTopic topic = mockTopicForUpdates();
+        when(topic.getSubscription(Compactor.COMPACTION_SUBSCRIPTION)).thenReturn(null);
+
+        receiveUpdate(topic, Compactor.COMPACTION_SUBSCRIPTION, 1, 2);
+
+        verify(topic, never()).createSubscription(any(), any(), anyBoolean(), any());
+    }
+
     private static void receiveUpdate(PersistentTopic topic, long ledgerId, long entryId) {
+        receiveUpdate(topic, "sub", ledgerId, entryId);
+    }
+
+    private static void receiveUpdate(PersistentTopic topic, String subscriptionName, long ledgerId, long entryId) {
         ReplicatedSubscriptionsController controller = new ReplicatedSubscriptionsController(topic, "local");
-        ByteBuf marker = Markers.newReplicatedSubscriptionsUpdate("sub",
+        ByteBuf marker = Markers.newReplicatedSubscriptionsUpdate(subscriptionName,
                 Map.of("local", new MarkersMessageIdData().setLedgerId(ledgerId).setEntryId(entryId)));
         try {
             Commands.skipMessageMetadata(marker);
