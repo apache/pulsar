@@ -105,6 +105,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaHash;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.BackoffBuilder;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -196,6 +197,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private final Counter producersOpenedCounter;
     private final Counter producersClosedCounter;
     private final boolean pauseSendingToPreservePublishOrderOnSchemaRegFailure;
+    private final Backoff schemaRegistrationBackoff;
+    // Guarded by the producer lock, including schema callbacks and retry tasks.
+    private long schemaRegistrationGeneration;
+    private ScheduledFuture<?> schemaRegistrationRetryTask;
+    private boolean schemaRegistrationFailed;
     // This variable can be exposed as a metrics in the future, a PIP is needed.
     private final AtomicInteger pendingQueueFullCounter;
 
@@ -213,6 +219,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         // Otherwise, it may cause an out-of-order issue, and it may lead to a messages lost issue if users enabled
         // deduplication on the remote side.
         this.pauseSendingToPreservePublishOrderOnSchemaRegFailure = conf.isReplProducer();
+        this.schemaRegistrationBackoff = new BackoffBuilder()
+                .setInitialTime(client.getConfiguration().getInitialBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
+                .setMax(client.getConfiguration().getMaxBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
+                .create();
         if (conf.getMaxPendingMessages() > 0) {
             this.semaphore = Optional.of(new Semaphore(conf.getMaxPendingMessages(), true));
         } else {
@@ -953,50 +963,90 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         return true;
     }
 
-    private void tryRegisterSchema(ClientCnx cnx, final MessageImpl msg, SendCallback callback, long expectedCnxEpoch) {
+    private void tryRegisterSchema(ClientCnx cnx, OpSendMsg op, long expectedCnxEpoch) {
         if (!changeToRegisteringSchemaState()) {
             return;
         }
+        long generation = ++schemaRegistrationGeneration;
+        cancelSchemaRegistrationRetry();
+        MessageImpl<?> msg = op.msg;
+        long sequenceId = op.sequenceId;
         SchemaInfo schemaInfo = msg.hasReplicateFrom() ? msg.getSchemaInfoForReplicator() : msg.getSchemaInfo();
         schemaInfo = Optional.ofNullable(schemaInfo)
                 .filter(si -> si.getType().getValue() > 0)
                 .orElse(Schema.BYTES.getSchemaInfo());
-        getOrCreateSchemaAsync(cnx, schemaInfo).handle((v, ex) -> {
-            if (ex != null) {
-                Throwable t = FutureUtil.unwrapCompletionException(ex);
-                log.warn("[{}] [{}] GetOrCreateSchema error", topic, producerName, t);
-                if (t instanceof PulsarClientException.IncompatibleSchemaException) {
-                    // Only the first time of failed schema registration will trigger a "recoverProcessOpSendMsgFrom".
-                    if (!Broken.equals(msg.getSchemaState())) {
-                        cnx.ctx().channel().eventLoop().execute(() -> {
-                            synchronized (ProducerImpl.this) {
-                                recoverProcessOpSendMsgFrom(cnx, msg, true, expectedCnxEpoch);
+        getOrCreateSchemaAsync(cnx, schemaInfo).whenComplete((v, ex) ->
+                cnx.ctx().channel().eventLoop().execute(() -> {
+                    synchronized (ProducerImpl.this) {
+                        if (generation != schemaRegistrationGeneration || cnx() != cnx
+                                || expectedCnxEpoch != connectionHandler.getEpoch()
+                                || getState() != State.RegisteringSchema) {
+                            return;
+                        }
+                        // A send timeout can dispose and recycle the operation while registration is outstanding.
+                        if (op.msg != msg || op.sequenceId != sequenceId) {
+                            recoverProcessOpSendMsgFrom(cnx, null, false, expectedCnxEpoch);
+                            return;
+                        }
+                        if (ex == null) {
+                            if (log.isDebugEnabled()) {
+                                log.debug("[{}] [{}] GetOrCreateSchema succeed", topic, producerName);
                             }
-                        });
+                            // An empty version means there is no schema and must not be set on message metadata.
+                            if (v.length != 0) {
+                                schemaCache.putIfAbsent(msg.getSchemaHash(), v);
+                                msg.getMessageBuilder().setSchemaVersion(v);
+                            } else {
+                                schemaCache.putIfAbsent(msg.getSchemaHash(), SchemaVersion.Empty.bytes());
+                            }
+                            msg.setSchemaState(MessageImpl.SchemaState.Ready);
+                            schemaRegistrationBackoff.reset();
+                            schemaRegistrationFailed = false;
+                            recoverProcessOpSendMsgFrom(cnx, msg, false, expectedCnxEpoch);
+                            return;
+                        }
+                        Throwable t = FutureUtil.unwrapCompletionException(ex);
+                        if (schemaRegistrationFailed) {
+                            if (log.isDebugEnabled()) {
+                                log.debug("[{}] [{}] GetOrCreateSchema retry failed: {}", topic, producerName,
+                                        t.getMessage());
+                            }
+                        } else {
+                            log.warn("[{}] [{}] GetOrCreateSchema error", topic, producerName, t);
+                        }
+                        schemaRegistrationFailed = true;
+                        if (t instanceof IncompatibleSchemaException) {
+                            if (!pauseSendingToPreservePublishOrderOnSchemaRegFailure) {
+                                schemaRegistrationBackoff.reset();
+                                schemaRegistrationFailed = false;
+                                recoverProcessOpSendMsgFrom(cnx, msg, true, expectedCnxEpoch);
+                                return;
+                            }
+                            recoverProcessOpSendMsgFrom(cnx, msg, true, expectedCnxEpoch);
+                        }
+                        schemaRegistrationRetryTask = cnx.ctx().channel().eventLoop().schedule(() -> {
+                            synchronized (ProducerImpl.this) {
+                                if (generation != schemaRegistrationGeneration) {
+                                    return;
+                                }
+                                schemaRegistrationRetryTask = null;
+                                if (cnx() == cnx && expectedCnxEpoch == connectionHandler.getEpoch()
+                                        && getState() == State.RegisteringSchema) {
+                                    MessageImpl<?> retryFrom =
+                                            op.msg == msg && op.sequenceId == sequenceId ? msg : null;
+                                    recoverProcessOpSendMsgFrom(cnx, retryFrom, false, expectedCnxEpoch);
+                                }
+                            }
+                        }, schemaRegistrationBackoff.next(), TimeUnit.MILLISECONDS);
                     }
-                    return null;
-                }
-            } else {
-                log.info("[{}] [{}] GetOrCreateSchema succeed", topic, producerName);
-                // In broker, if schema version is an empty byte array, it means the topic doesn't have schema.
-                // In this case, we cache the schema version to `SchemaVersion.Empty.bytes()`.
-                // When we need to set the schema version of the message metadata,
-                // we should check if the cached schema version is `SchemaVersion.Empty.bytes()`
-                if (v.length != 0) {
-                    schemaCache.putIfAbsent(msg.getSchemaHash(), v);
-                    msg.getMessageBuilder().setSchemaVersion(v);
-                } else {
-                    schemaCache.putIfAbsent(msg.getSchemaHash(), SchemaVersion.Empty.bytes());
-                }
-                msg.setSchemaState(MessageImpl.SchemaState.Ready);
-            }
-            cnx.ctx().channel().eventLoop().execute(() -> {
-                synchronized (ProducerImpl.this) {
-                    recoverProcessOpSendMsgFrom(cnx, msg, false, expectedCnxEpoch);
-                }
-            });
-            return null;
-        });
+                }));
+    }
+
+    private void cancelSchemaRegistrationRetry() {
+        if (schemaRegistrationRetryTask != null) {
+            schemaRegistrationRetryTask.cancel(false);
+            schemaRegistrationRetryTask = null;
+        }
     }
 
     private CompletableFuture<byte[]> getOrCreateSchemaAsync(ClientCnx cnx, SchemaInfo schemaInfo) {
@@ -1009,7 +1059,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
         long requestId = client.newRequestId();
         ByteBuf request = Commands.newGetOrCreateSchema(requestId, topic, schemaInfo);
-        log.info("[{}] [{}] GetOrCreateSchema request", topic, producerName);
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] [{}] GetOrCreateSchema request", topic, producerName);
+        }
         return cnx.sendGetOrCreateSchema(request, requestId);
     }
 
@@ -2327,7 +2379,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         return true;
     }
 
-    private void closeProducerTasks() {
+    private synchronized void closeProducerTasks() {
+        schemaRegistrationGeneration++;
+        cancelSchemaRegistrationRetry();
         Timeout timeout = sendTimeout;
         if (timeout != null) {
             timeout.cancel();
@@ -2729,7 +2783,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             final ClientCnx cnx = getCnxIfReady();
             if (cnx != null) {
                 if (op.msg != null && op.msg.getSchemaState() == None) {
-                    tryRegisterSchema(cnx, op.msg, op.callback, this.connectionHandler.getEpoch());
+                    tryRegisterSchema(cnx, op, this.connectionHandler.getEpoch());
                     return;
                 }
                 // If we do have a connection, the message is sent immediately, otherwise we'll try again once a new
@@ -2805,10 +2859,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
      * 3. If using multiple version producer, the new schema was failed to registered.
      *   3-1. If the new schema is incompatible.
      *     3-1-1. If {@link #pauseSendingToPreservePublishOrderOnSchemaRegFailure} is true pause all following
-     *       publishing to avoid out-of-order issue.
+     *       publishing to avoid out-of-order issue, and retry registration with backoff.
      *     3-1-2. Otherwise, discard the failed message anc continuously publishing the following messages.
      *            Additionally, the following messages may need schema registration also.
-     *   3-2. The new schema registration failed due to other error, retry registering.
+     *   3-2. The new schema registration failed due to other error, retry registering with backoff.
+     * 4. Retry a previously incompatible schema after backoff.
      * Note: Since the current method accesses & modifies {@link #pendingMessages}, you should acquire a lock on
      *       {@link ProducerImpl} before calling method.
      */
@@ -2826,7 +2881,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         Iterator<OpSendMsg> msgIterator = pendingMessages.iterator();
         MessageImpl loopStartAt = latestMsgAttemptedRegisteredSchema;
         OpSendMsg loopEndDueToSchemaRegisterNeeded = null;
-        boolean pausedSendingToPreservePublishOrderOnSchemaRegFailure = false;
         while (true) {
             // Re-check after every iteration that can invoke application callbacks, including the
             // last one: closing the producer may also drain the queue and invalidate this iterator.
@@ -2854,8 +2908,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
             if (op.msg != null) {
                 if (Broken.equals(op.msg.getSchemaState())) {
-                    // "Event 1-1" happens after "Event 3-1-1".
-                    // Maybe user has changed the schema compatibility strategy, will retry to register the new schema.
+                    // Retry a previously incompatible schema after backoff or reconnect.
                     if (pauseSendingToPreservePublishOrderOnSchemaRegFailure) {
                         loopEndDueToSchemaRegisterNeeded = op;
                         break;
@@ -2883,11 +2936,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     // remains stuck, causing out-of-order delivery or potential message loss with deduplication.
                     if (pauseSendingToPreservePublishOrderOnSchemaRegFailure) {
                         log.error("[{}] [{}] Publishing paused: message schema incompatible with target cluster."
-                                + " To resume publishing: 1) Adjust schema compatibility strategy on target cluster"
-                                + " 2) Unload topic on target cluster. Schema details: {}",
+                                + " Schema registration will be retried automatically. Schema details: {}",
                                 topic, producerName, SchemaUtils.jsonifySchemaInfo(msgSchemaInfo, false));
                         loopEndDueToSchemaRegisterNeeded = op;
-                        pausedSendingToPreservePublishOrderOnSchemaRegFailure = true;
                         break;
                     }
                     // Event 3-1-2.
@@ -2953,18 +3004,16 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 // "Event 1-1" happens after "Event 3-1-1".
                 // After a topic unload, ask the producer retry to register schema, which avoids restart client
                 // after users changed the compatibility strategy to make the schema is compatible.
-                tryRegisterSchema(cnx, loopEndDueToSchemaRegisterNeeded.msg, loopEndDueToSchemaRegisterNeeded.callback,
-                    expectedEpoch);
-            } else if (pausedSendingToPreservePublishOrderOnSchemaRegFailure) {
-                // Nothing to do if the event is "Event 3-1-1", just keep stuck.
+                tryRegisterSchema(cnx, loopEndDueToSchemaRegisterNeeded, expectedEpoch);
+            } else if (failedIncompatibleSchema && pauseSendingToPreservePublishOrderOnSchemaRegFailure) {
+                // The registration failure handler schedules the retry, keeping subsequent messages queued.
                 return;
             } else if (compareAndSetState(State.RegisteringSchema, State.Ready)) {
                 // "Event 2-1" or "Event 3-1-2" or "Event 3-2".
                 // "pendingMessages" has more messages to register new schema.
                 // This operation will not be conflict with another schema registration because both operations are
                 // attempt to acquire the same lock "ProducerImpl.this".
-                tryRegisterSchema(cnx, loopEndDueToSchemaRegisterNeeded.msg, loopEndDueToSchemaRegisterNeeded.callback,
-                        expectedEpoch);
+                tryRegisterSchema(cnx, loopEndDueToSchemaRegisterNeeded, expectedEpoch);
             }
             // Schema registration will trigger a new "recoverProcessOpSendMsgFrom", so return here. If failed to switch
             // state, it means another task will trigger a new "recoverProcessOpSendMsgFrom".

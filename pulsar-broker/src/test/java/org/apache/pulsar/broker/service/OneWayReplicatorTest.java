@@ -43,6 +43,7 @@ import io.netty.channel.Channel;
 import io.netty.util.concurrent.FastThreadLocalThread;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -82,6 +83,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerTest;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.logging.log4j.Level;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.resources.ClusterResources;
@@ -106,6 +108,9 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.GenericSchema;
+import org.apache.pulsar.client.api.schema.RecordSchemaBuilder;
+import org.apache.pulsar.client.api.schema.SchemaBuilder;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
@@ -127,9 +132,11 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl;
+import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.utils.TestLogAppender;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.awaitility.Awaitility;
@@ -1903,6 +1910,101 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             {false},
             {true},
         };
+    }
+
+    @DataProvider
+    public Object[][] schemaRecovery() {
+        return new Object[][] {{false, false}, {false, true}, {true, false}, {true, true}};
+    }
+
+    @Test(dataProvider = "schemaRecovery", timeOut = 120_000)
+    public void testReplicationResumesAfterSchemaConflictResolved(boolean deduplication, boolean deleteSchema)
+            throws Exception {
+        String topicName = BrokerTestUtil.newUniqueName("persistent://"
+                + sourceClusterAlwaysSchemaCompatibleNamespace + "/schema-retry-");
+        RecordSchemaBuilder oldKeyBuilder = SchemaBuilder.record("Key");
+        oldKeyBuilder.field("id").type(SchemaType.INT64);
+        RecordSchemaBuilder newKeyBuilder = SchemaBuilder.record("Key");
+        newKeyBuilder.field("game_id").type(SchemaType.INT64);
+        GenericSchema<GenericRecord> oldKey = Schema.generic(oldKeyBuilder.build(SchemaType.AVRO));
+        GenericSchema<GenericRecord> newKey = Schema.generic(newKeyBuilder.build(SchemaType.AVRO));
+        Schema<KeyValue<GenericRecord, String>> schema = Schema.KeyValue(newKey, Schema.STRING);
+
+        admin2.topics().createNonPartitionedTopic(topicName);
+        admin2.topicPolicies().setSchemaCompatibilityStrategy(topicName, SchemaCompatibilityStrategy.FULL);
+        admin2.topicPolicies().setDeduplicationStatus(topicName, deduplication);
+        admin2.schemas().createSchema(topicName, Schema.KeyValue(oldKey, Schema.STRING).getSchemaInfo());
+        try (Consumer<byte[]> consumer = client2.newConsumer(Schema.BYTES).topic(topicName)
+                .subscriptionName("schema-retry").subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+             Producer<byte[]> producer = client1.newProducer(Schema.AUTO_PRODUCE_BYTES()).topic(topicName)
+                     .enableBatching(false).create();
+             TestLogAppender logs = TestLogAppender.create(ProducerImpl.class)) {
+            waitReplicatorStarted(topicName);
+            PersistentTopic destination = (PersistentTopic) broker2.getTopic(topicName, false).join().orElseThrow();
+            Awaitility.await().untilAsserted(() -> {
+                assertThat(destination.getSchemaCompatibilityStrategy()).isEqualTo(SchemaCompatibilityStrategy.FULL);
+                assertThat(destination.getMessageDeduplication().isEnabled()).isEqualTo(deduplication);
+            });
+            PersistentTopic source = (PersistentTopic) broker1.getTopic(topicName, false).join().orElseThrow();
+            PersistentReplicator replicator = (PersistentReplicator) source.getReplicators().get(cluster2);
+            ProducerImpl<?> replicationProducer = replicator.getProducer();
+            ClientCnx connection = replicationProducer.getClientCnx();
+            long producerEpoch = replicationProducer.getConnectionHandler().getEpoch();
+            List<byte[]> expected = new ArrayList<>();
+            for (int i = 0; i < 10; i++) {
+                KeyValue<GenericRecord, String> value = new KeyValue<>(
+                        newKey.newRecordBuilder().set("game_id", (long) i).build(), "game-" + i);
+                producer.newMessage(schema).value(value).send();
+                expected.add(schema.encode(value));
+                // A schema-free message must not overtake the incompatible message.
+                byte[] following = ("after-" + i).getBytes(StandardCharsets.UTF_8);
+                producer.newMessage(Schema.BYTES).value(following).send();
+                expected.add(following);
+            }
+            Awaitility.await().untilAsserted(() -> assertThat(logs.getEvents()).anySatisfy(event ->
+                    assertThat(event.getMessage().getFormattedMessage()).contains("Publishing paused")));
+            assertThat(replicator.getCursor().getNumberOfEntriesInBacklog(false)).isEqualTo(expected.size());
+            assertThat(consumer.receive(1, TimeUnit.SECONDS)).isNull();
+            assertThat(logs.getEvents().stream().filter(event -> event.getLevel() == Level.WARN
+                    && event.getMessage().getFormattedMessage().contains("GetOrCreateSchema error")).count())
+                    .isEqualTo(1);
+            assertThat(logs.getEvents()).noneSatisfy(event -> {
+                assertThat(event.getLevel()).isEqualTo(Level.INFO);
+                assertThat(event.getMessage().getFormattedMessage()).contains("GetOrCreateSchema request");
+            });
+
+            if (deleteSchema) {
+                admin2.schemas().deleteSchema(topicName);
+            } else {
+                admin2.topicPolicies().setSchemaCompatibilityStrategy(topicName,
+                        SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+            }
+            Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() ->
+                    assertThat(replicator.getCursor().getNumberOfEntriesInBacklog(false)).isZero());
+            assertThat(admin2.schemas().getSchemaInfo(topicName).getSchema())
+                    .isEqualTo(schema.getSchemaInfo().getSchema());
+            assertThat(replicator.getProducer()).isSameAs(replicationProducer);
+            assertThat(replicationProducer.getClientCnx()).isSameAs(connection);
+            assertThat(replicationProducer.getConnectionHandler().getEpoch()).isEqualTo(producerEpoch);
+            assertThat(broker1.getTopic(topicName, false).join().orElseThrow()).isSameAs(source);
+            assertThat(broker2.getTopic(topicName, false).join().orElseThrow()).isSameAs(destination);
+            for (byte[] payload : expected) {
+                Message<byte[]> received = consumer.receive(5, TimeUnit.SECONDS);
+                assertThat(received).isNotNull();
+                assertThat(received.getData()).isEqualTo(payload);
+                consumer.acknowledge(received);
+            }
+            assertThat(consumer.receive(1, TimeUnit.SECONDS)).isNull();
+            producer.newMessage(schema).value(new KeyValue<>(
+                    newKey.newRecordBuilder().set("game_id", 100L).build(), "live")).send();
+            assertThat(consumer.receive(5, TimeUnit.SECONDS)).isNotNull();
+        } finally {
+            admin1.topics().setReplicationClusters(topicName, Collections.singletonList(cluster1));
+            waitReplicatorStopped(topicName, false);
+            admin1.topics().delete(topicName, true);
+            admin2.topics().delete(topicName, true);
+        }
     }
 
     @Test(dataProvider = "enableDeduplication")
