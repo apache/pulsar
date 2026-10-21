@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api.v5;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.expectThrows;
@@ -25,9 +26,14 @@ import java.time.Duration;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.v5.schema.Schema;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.scalable.HashRange;
+import org.apache.pulsar.common.scalable.SegmentTopicName;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -40,6 +46,70 @@ public class V5MigrationEndToEndTest extends V5ClientBaseTest {
 
     private String baseName(String suffix) {
         return getNamespace() + "/" + suffix + "-" + UUID.randomUUID().toString().substring(0, 8);
+    }
+
+    @DataProvider
+    public Object[][] encodedTopicNames() {
+        return new Object[][] {{"a b"}, {"a+b"}, {"café"}, {"x%20y"}};
+    }
+
+    @Test(dataProvider = "encodedTopicNames")
+    public void testMigrationPreservesEncodedTopicName(String localName) throws Exception {
+        String topic = "persistent://" + baseName(localName);
+        admin.topics().createPartitionedTopic(topic, 2);
+
+        admin.scalableTopics().migrateToScalable(topic, false);
+
+        TopicName scalable = TopicName.get(topic).toScalableTopic();
+        var metadata = admin.scalableTopics().getMetadata(scalable.toString());
+        assertThat(metadata.getSegments()).hasSize(4);
+        for (var segment : metadata.getSegments().values()) {
+            if (segment.isActive()) {
+                String backingTopic = SegmentTopicName.fromParent(scalable,
+                        HashRange.of(segment.getHashRange().getStart(), segment.getHashRange().getEnd()),
+                        segment.getSegmentId()).toString();
+                assertThat(getTopicIfExists(backingTopic).get(10, TimeUnit.SECONDS))
+                        .as("migration must create the canonical backing segment %s", backingTopic)
+                        .isPresent();
+            }
+        }
+
+        @Cleanup
+        Producer<String> producer = v5Client.newProducer(Schema.string()).topic(topic).create();
+        producer.async().newMessage().key("key").value("after-migration").send()
+                .get(10, TimeUnit.SECONDS);
+
+        @Cleanup
+        QueueConsumer<String> consumer = v5Client.newQueueConsumer(Schema.string())
+                .topic(topic).subscriptionName("encoded-topic-sub")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.EARLIEST).subscribe();
+        Message<String> message = consumer.receive(Duration.ofSeconds(10));
+        assertThat(message).isNotNull();
+        assertThat(message.value()).isEqualTo("after-migration");
+        consumer.acknowledge(message.id());
+    }
+
+    @Test
+    public void testMigratingLiteralPlusDoesNotMigrateSpaceTopic() throws Exception {
+        String prefix = baseName("collision");
+        String plusTopic = "persistent://" + prefix + "+name";
+        String spaceTopic = "persistent://" + prefix + " name";
+        admin.topics().createNonPartitionedTopic(plusTopic);
+        admin.topics().createNonPartitionedTopic(spaceTopic);
+        @Cleanup
+        org.apache.pulsar.client.api.Producer<byte[]> spaceProducer = pulsarClient.newProducer()
+                .topic(spaceTopic).create();
+
+        // The unrelated topic has a legacy producer. Authorizing and inspecting it would reject
+        // the migration; terminating it would also break the send below.
+        admin.scalableTopics().migrateToScalable(plusTopic, false);
+
+        assertThat(admin.scalableTopics().getMetadata(TopicName.get(plusTopic).toScalableTopic().toString())
+                .getSegments().get(0L).getLegacyTopicName()).isEqualTo(plusTopic);
+        assertThat(getPulsar().getPulsarResources().getScalableTopicResources()
+                .getScalableTopicMetadataAsync(TopicName.get(spaceTopic).toScalableTopic())
+                .get(10, TimeUnit.SECONDS)).isEmpty();
+        spaceProducer.sendAsync(new byte[] {1}).get(10, TimeUnit.SECONDS);
     }
 
     @Test
