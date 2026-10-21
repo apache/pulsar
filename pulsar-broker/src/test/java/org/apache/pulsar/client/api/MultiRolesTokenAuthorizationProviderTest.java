@@ -228,11 +228,13 @@ public class MultiRolesTokenAuthorizationProviderTest extends MockedPulsarServic
     @Test(dataProvider = "truncateTopics")
     public void testTruncateWithSecondaryTenantAdminRole(boolean partitioned) throws Exception {
         final String tenant = "multi-roles-truncate-tenant-" + partitioned;
+        final String otherTenant = tenant + "-other";
         final String namespace = tenant + "/ns";
         final String topic = "persistent://" + namespace + "/test-topic";
         final String subscription = "sub";
         final String primaryRole = "truncate-user";
         final String tenantAdminRole = "truncate-tenant-admin";
+        final String otherTenantAdminRole = "truncate-other-tenant-admin";
         final int numMessages = 6;
         Map<String, Object> claims = new HashMap<>();
         // The authenticated principal is the first role, while the second role grants tenant admin access.
@@ -240,14 +242,23 @@ public class MultiRolesTokenAuthorizationProviderTest extends MockedPulsarServic
         final String tenantAdminToken = Jwts.builder().setClaims(claims).signWith(secretKey).compact();
         claims.put("roles", List.of(primaryRole));
         final String userToken = Jwts.builder().setClaims(claims).signWith(secretKey).compact();
+        claims.put("roles", List.of(primaryRole, otherTenantAdminRole));
+        final String otherTenantAdminToken = Jwts.builder().setClaims(claims).signWith(secretKey).compact();
 
         try (PulsarAdmin superUserAdmin = newPulsarAdmin(superUserToken);
              PulsarAdmin tenantAdmin = newPulsarAdmin(tenantAdminToken);
              PulsarAdmin userAdmin = newPulsarAdmin(userToken);
+             PulsarAdmin otherTenantAdmin = newPulsarAdmin(otherTenantAdminToken);
              PulsarClient client = newPulsarClient(superUserToken)) {
             superUserAdmin.tenants().createTenant(tenant, TenantInfo.builder()
                     .adminRoles(Set.of(tenantAdminRole))
                     .allowedClusters(Set.of(configClusterName)).build());
+            superUserAdmin.tenants().createTenant(otherTenant, TenantInfo.builder()
+                    .adminRoles(Set.of(otherTenantAdminRole))
+                    .allowedClusters(Set.of(configClusterName)).build());
+            assertThat(otherTenantAdmin.namespaces().getNamespaces(otherTenant))
+                    .as("the secondary role grants administration of the other tenant")
+                    .isEmpty();
             superUserAdmin.namespaces().createNamespace(namespace);
             if (partitioned) {
                 superUserAdmin.topics().createPartitionedTopic(topic, 2);
@@ -271,6 +282,10 @@ public class MultiRolesTokenAuthorizationProviderTest extends MockedPulsarServic
                     .isInstanceOf(PulsarAdminException.NotAuthorizedException.class);
             assertThat(getBacklog(superUserAdmin, topic, subscription, partitioned)).isEqualTo(numMessages);
 
+            assertThatThrownBy(() -> otherTenantAdmin.topics().truncate(topic))
+                    .isInstanceOf(PulsarAdminException.NotAuthorizedException.class);
+            assertThat(getBacklog(superUserAdmin, topic, subscription, partitioned)).isEqualTo(numMessages);
+
             tenantAdmin.topics().truncate(topic);
             assertThat(getBacklog(superUserAdmin, topic, subscription, partitioned)).isZero();
 
@@ -282,6 +297,9 @@ public class MultiRolesTokenAuthorizationProviderTest extends MockedPulsarServic
                 }
                 assertThat(getBacklog(superUserAdmin, topic, subscription, true)).isEqualTo(1);
                 assertThatThrownBy(() -> userAdmin.topics().truncate(partition))
+                        .isInstanceOf(PulsarAdminException.NotAuthorizedException.class);
+                assertThat(getBacklog(superUserAdmin, topic, subscription, true)).isEqualTo(1);
+                assertThatThrownBy(() -> otherTenantAdmin.topics().truncate(partition))
                         .isInstanceOf(PulsarAdminException.NotAuthorizedException.class);
                 assertThat(getBacklog(superUserAdmin, topic, subscription, true)).isEqualTo(1);
                 tenantAdmin.topics().truncate(partition);
