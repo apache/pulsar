@@ -23,6 +23,7 @@
     <test name="messaging-test-suite" preserve-order="true">
         <classes>
             <class name="org.apache.pulsar.tests.integration.messaging.PersistentTopicMessagingTest" />
+            <class name="org.apache.pulsar.tests.integration.messaging.ProcessFailureDurabilityTest" />
             <class name="org.apache.pulsar.tests.integration.messaging.NonPersistentTopicMessagingTest" />
             <class name="org.apache.pulsar.tests.integration.messaging.GeoReplicationTest" />
             <class name="org.apache.pulsar.tests.integration.messaging.DelayMessagingTest" />

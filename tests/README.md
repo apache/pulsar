@@ -52,6 +52,38 @@ that goes into them has changed, or when the image has been removed, so the test
 To run the whole suite, use
 [Personal CI](../CONTRIBUTING.md#running-the-full-ci-pipeline-personal-ci).
 
+### Process-crash durability tests
+
+`ProcessFailureDurabilityTest` is part of the messaging suite. Run it on its own with:
+
+```shell
+./gradlew :tests:integration:integrationTest \
+  --tests 'org.apache.pulsar.tests.integration.messaging.ProcessFailureDurabilityTest' -PtestRetryCount=0
+```
+
+It uses a dedicated single-broker, single-bookie cluster with `journalSyncData=true` and
+`journalWriteData=true`, quorum sizes of one, and the broker ledger cache disabled. This intentionally
+removes replica/cache fallbacks; it does not change the faster settings used by other integration tests.
+Embedded BookKeeper AutoRecovery is disabled: there is no replica to re-replicate to, and its session-expiry
+shutdown would turn a long bookie pause into a graceful process shutdown. These cases test storage recovery,
+not the AutoRecovery daemon or ensemble replacement.
+During bounded, continuous publishing and receipt-enabled acknowledgments, it sends `SIGKILL` to either
+the broker or bookie container and starts that **same container**, retaining its journal, ledger data,
+cookies and hostname. Separate cases pause/resume each container for 35 seconds, longer than the configured
+metadata session timeouts. Faults are confined to the test containers and never target the host filesystem.
+
+After recovery, a further abrupt broker restart discards in-memory ledger/cursor state. A fresh reader
+checks the original message ID and payload of every successful publish, including acknowledged messages
+kept by retention. The original subscription must recover its receipt-confirmed acknowledgments and all
+confirmed, deliberately unacknowledged messages, drain, and reopen empty. A second audit subscription
+freezes its receipt-confirmed cursor before the fault, preventing later live acknowledgments from
+repairing lost cursor records and hiding data loss. Sends/acks without confirmation have uncertain
+outcomes; legitimate redelivery of unconfirmed acknowledgments is allowed. Workload completion and recovery
+waits are bounded, and the normal container teardown collects logs.
+
+These are **process-crash and process-pause tests, not power-loss or disk-failure tests**: the Docker
+host and its page cache remain alive.
+
 ### Profiling an integration test
 
 > [!NOTE]
