@@ -268,32 +268,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             this.msgCrypto = null;
         }
 
-        if (this.msgCrypto != null) {
-            // Regenerate data key cipher at fixed interval
-            keyGeneratorTask = client.eventLoopGroup().scheduleWithFixedDelay(catchingAndLoggingThrowables(() -> {
-                try {
-                    msgCrypto.addPublicKeyCipher(conf.getEncryptionKeys(), conf.getCryptoKeyReader());
-                } catch (CryptoException e) {
-                    if (!producerCreatedFuture.isDone()) {
-                        log.warn().log("Failed to add public key cipher");
-                        producerCreatedFuture.completeExceptionally(
-                                PulsarClientException.wrap(e,
-                                        String.format("The producer %s of the topic %s "
-                                                        + "adds the public key cipher was failed",
-                                                producerName, topic)));
-                        // The creation has failed, so close the producer as the other creation failures do.
-                        // Otherwise it stays in the client and keeps the connection it is about to open, which
-                        // registers it on the broker and then reconnects it as if it had been created.
-                        closeAsync().exceptionally(closeEx -> {
-                            log.warn().exceptionMessage(closeEx)
-                                    .log("Failed to close the producer whose public key cipher could not be added");
-                            return null;
-                        });
-                    }
-                }
-            }), 0L, 4L, TimeUnit.HOURS);
-        }
-
         if (conf.getSendTimeoutMs() > 0) {
             sendTimeout = client.timer().newTimeout(this, conf.getSendTimeoutMs(), TimeUnit.MILLISECONDS);
         }
@@ -346,6 +320,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         setChunkMaxMessageSize();
         grabCnx();
         producersOpenedCounter.increment();
+        if (this.msgCrypto != null) {
+            scheduleKeyGeneratorTask();
+        }
     }
 
     @VisibleForTesting
@@ -3174,6 +3151,40 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     void setClientCnx(ClientCnx clientCnx) {
         this.connectionHandler.setClientCnx(clientCnx);
+    }
+
+    /**
+     * Loads the public key cipher now and refreshes it at a fixed interval. Called once the producer is fully
+     * initialized: a key that cannot be loaded fails the creation and closes the producer, which uses the counters,
+     * the stats and the connection handler. {@link #closeAsync()} is synchronized, so the task cannot close the
+     * producer before the handle of the task is stored here and the close can cancel it; when the task has run by
+     * then, from the scheduling thread for instance, the handle is cancelled here instead.
+     */
+    private synchronized void scheduleKeyGeneratorTask() {
+        keyGeneratorTask = client.eventLoopGroup().scheduleWithFixedDelay(
+                catchingAndLoggingThrowables(this::addPublicKeyCipher), 0L, 4L, TimeUnit.HOURS);
+        if (getState() == State.Closing || getState() == State.Closed) {
+            keyGeneratorTask.cancel(false);
+        }
+    }
+
+    private void addPublicKeyCipher() {
+        try {
+            msgCrypto.addPublicKeyCipher(conf.getEncryptionKeys(), conf.getCryptoKeyReader());
+        } catch (CryptoException e) {
+            if (!producerCreatedFuture.isDone()) {
+                log.warn().log("Failed to add public key cipher");
+                producerCreatedFuture.completeExceptionally(
+                        PulsarClientException.wrap(e,
+                                String.format("The producer %s of the topic %s "
+                                                + "adds the public key cipher was failed",
+                                        producerName, topic)));
+                // The creation has failed, so close the producer as the other creation failures do. Otherwise it
+                // stays in the client and keeps the connection it is about to open, which registers it on the
+                // broker and then reconnects it as if it had been created.
+                closeAsync();
+            }
+        }
     }
 
     void grabCnx() {

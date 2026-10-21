@@ -54,17 +54,21 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import lombok.Cleanup;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientSharedResources;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.ScheduledExecutorProvider;
@@ -106,6 +110,46 @@ public class PulsarClientImplTest {
         assertFalse(client.isClosed());
         client.close();
         assertTrue(client.isClosed());
+    }
+
+    /**
+     * A producer whose creation fails on another thread closes itself before the client has registered it. The
+     * client must not keep it.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testProducerClosedBeforeItIsRegisteredIsNotKept() throws Exception {
+        LookupService lookup = mock(LookupService.class);
+        when(lookup.getPartitionedTopicMetadata(any(TopicName.class), anyBoolean(), anyBoolean()))
+                .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata()));
+        when(lookup.getBroker(any())).thenReturn(new CompletableFuture<>());
+        ConnectionPool pool = mock(ConnectionPool.class);
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("pulsar://localhost:6650");
+        PulsarClientImpl client = new PulsarClientImpl(conf, eventLoopGroup, pool) {
+            @Override
+            protected <T> ProducerImpl<T> newProducerImpl(String topic, int partitionIndex,
+                                                          ProducerConfigurationData producerConf, Schema<T> schema,
+                                                          ProducerInterceptors interceptors,
+                                                          CompletableFuture<Producer<T>> producerCreatedFuture,
+                                                          Optional<String> overrideProducerName) {
+                ProducerImpl<T> producer = super.newProducerImpl(topic, partitionIndex, producerConf, schema,
+                        interceptors, producerCreatedFuture, overrideProducerName);
+                // As a key that cannot be loaded does, before createProducerAsync() has added the producer.
+                producer.closeAsync();
+                return producer;
+            }
+        };
+        client.setLookup(lookup);
+        try {
+            ProducerConfigurationData producerConf = new ProducerConfigurationData();
+            producerConf.setTopicName("persistent://public/default/closed-before-registered");
+            client.createProducerAsync(producerConf, Schema.BYTES);
+
+            assertEquals(client.producersCount(), 0, "A producer closed before it was registered must not be kept");
+        } finally {
+            client.close();
+        }
     }
 
     @Test
