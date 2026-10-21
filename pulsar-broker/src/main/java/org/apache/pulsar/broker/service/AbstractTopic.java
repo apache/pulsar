@@ -619,14 +619,16 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
      * topic load, which removes the need to broadcast every topic's policy when a namespace's policy cache finishes
      * loading (see {@code topicPolicyListenerReplayEnabled}).
      *
-     * <p>This method is invoked once during topic initialization. The listener wrapper is one-shot for a topic
-     * instance and does not support re-initialization.
+     * <p>This method is invoked once during topic initialization; the listener wrapper is one-shot for a topic
+     * instance. Whatever the outcome, the wrapper's initialization is always completed afterwards, so it never stays
+     * in the buffering phase (dropping updates) even if policy loading fails.
      */
     protected CompletableFuture<Void> initTopicPolicy() {
         final var topicPoliciesService = brokerService.getPulsar().getTopicPoliciesService();
         final var partitionedTopicName = TopicName.getPartitionedTopicName(topic);
 
-        return topicPoliciesService.registerListenerAsync(partitionedTopicName, topicPolicyListener)
+        CompletableFuture<Void> initTopicPolicyFuture =
+                topicPoliciesService.registerListenerAsync(partitionedTopicName, topicPolicyListener)
                         .thenCompose(registered -> {
                             if (!registered) {
                                 return CompletableFuture.completedFuture(null);
@@ -651,6 +653,14 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
                                         getPoliciesNotifyThread());
                             }).thenCompose(Function.identity());
                         });
+        // Whatever the outcome -- success, failure, or the listener not being registered -- make sure the wrapper
+        // leaves the initialization (buffering) phase, so it forwards any buffered value plus all future live updates
+        // instead of dropping them. This is a no-op when the loaded policies were already applied above. Return the
+        // whenComplete stage (not initTopicPolicyFuture) so the returned future completes only after this has run, and
+        // whenComplete's pass-through semantics carry the original success or failure to the caller's initialize().
+        return initTopicPolicyFuture.whenCompleteAsync((v, ex) -> {
+            topicPolicyListener.completeInitializationUnlessAlreadyCompleted();
+        }, getPoliciesNotifyThread());
     }
 
     protected boolean isSameAddressProducersExceeded(Producer producer) {

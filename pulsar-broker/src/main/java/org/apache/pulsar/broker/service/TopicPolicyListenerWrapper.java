@@ -23,45 +23,59 @@ import io.github.merlimat.slog.Logger;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.jspecify.annotations.Nullable;
+
 /**
- * Loaded policy: the policy obtained when creating the topic.
- * Live policy: the policy notified from {@link TopicPoliciesService}.
+ * Wraps the real {@link TopicPolicyListener} of a topic while its initial topic policies are being loaded.
  *
- * This class lets the live policy have higher priority than the loaded policy, in order to fix the following race
- * condition:
- * 1. init thread: Creates a topic.
- * 2. init thread: Registers a listener to receive notification from {@link TopicPoliciesService}.
- * 3. notification thread: Receives a live policy.
- * 4. init thread: Applies loaded topic policies (the older policy).
- * 5. Issue occurs: loaded topic policies overwrite live policies.
+ * <ul>
+ *   <li>Loaded policy: the policy read by {@code AbstractTopic#initTopicPolicy()} when the topic is loaded.</li>
+ *   <li>Live policy: a policy update notified by {@link TopicPoliciesService} after the listener is registered.</li>
+ * </ul>
  *
- * The class initialize both newest local policy and newest global policy at the same time to guarantee correctness.
+ * <p>A live policy has higher priority than the loaded policy of the same scope (local or global), which prevents
+ * the following race:
+ * <ol>
+ *   <li>init thread: creates the topic and registers this listener with {@link TopicPoliciesService}.</li>
+ *   <li>notification thread: receives a live policy.</li>
+ *   <li>init thread: applies the loaded (older) policy, overwriting the live one.</li>
+ * </ol>
+ *
+ * <p>Until initialization completes, live updates are buffered (only the latest per scope is kept) instead of being
+ * forwarded. Initialization completes, at most once, on whichever comes first:
+ * <ul>
+ *   <li>{@link #completeInitialization}, with the loaded policies;</li>
+ *   <li>live updates for both scopes having been received, so the loaded policies are no longer needed;</li>
+ *   <li>a live delete ({@code onUpdate(null)}), which supersedes both scopes;</li>
+ *   <li>{@link #completeInitializationUnlessAlreadyCompleted}, the safety net run after every
+ *       {@code initTopicPolicy()} outcome, so the wrapper never keeps buffering (and dropping) updates.</li>
+ * </ul>
+ * Afterwards every update is forwarded immediately. The wrapper is one-shot for a topic instance.
  */
 public class TopicPolicyListenerWrapper implements TopicPolicyListener {
 
     private static final Logger LOG = Logger.get(TopicPolicyListenerWrapper.class);
-    private static final long INITIALIZATION_WARNING_LOG_INTERVAL_MILLIS = TimeUnit.SECONDS.toMillis(30);
-    protected final Logger log;
+    private static final long INITIALIZATION_WARNING_LOG_INTERVAL_NANOS = TimeUnit.SECONDS.toNanos(30);
+    private final Logger log;
 
     private final TopicPolicyListener realTopicListener;
-    // The latest value received during initialization, per scope. A null reference means no update was
-    // received during initialization (the loaded value should be used);
+    // The latest live value received during initialization, per scope. A null reference means no update was
+    // received during initialization for that scope (the loaded value should be used).
     private TopicPolicies latestGlobalPolicies;
     private TopicPolicies latestLocalPolicies;
-    // Timestamp when the current initialization phase started, set by startInitialization(). Used only to warn if the
-    // phase takes too long (i.e. completeInitialization was never called after policy loading started).
-    private final long initializationStartedMillis;
+    // Timestamp when the wrapper was created, i.e. when the topic object was constructed. Used only to warn if
+    // initialization takes too long (i.e. completeInitialization was never called).
+    private final long createdNanos;
     private boolean initialized;
     private int lastIntervalLogged;
 
     public TopicPolicyListenerWrapper(TopicPolicyListener realTopicListener, String topic) {
         this.realTopicListener = realTopicListener;
         this.log = LOG.with().attr("topic", topic).build();
-        this.initializationStartedMillis = System.currentTimeMillis();
+        this.createdNanos = System.nanoTime();
     }
 
     /**
-     * Handles live updates. Once a live update is applied, loaded policies will be skipped.
+     * Handles live updates. A live update supersedes the loaded policy of its scope.
      */
     @Override
     public synchronized void onUpdate(TopicPolicies data) {
@@ -72,57 +86,85 @@ public class TopicPolicyListenerWrapper implements TopicPolicyListener {
 
         maybeLogWarning();
 
-        // May receive a null value when the following two cases happen:
-        //  1. User calls `pulsar-admin topicPolicies delete`, broker will delete both local and global policies.
-        //  2. The topic was deleted.
         if (data == null) {
-            // Now we got the both newest value of global and local policy, we can trigger initialize.
-            doInitPolicies(null, null);
+            // A delete does not carry the scope through the listener interface and removes the topic policies of
+            // both scopes, so it supersedes every buffered and loaded value: forward it and finish initialization.
+            initialized = true;
+            latestLocalPolicies = null;
+            latestGlobalPolicies = null;
+            realTopicListener.onUpdate(null);
             return;
-        } else if (data.isGlobalPolicies()) {
+        }
+        if (data.isGlobalPolicies()) {
             latestGlobalPolicies = data;
         } else {
             latestLocalPolicies = data;
         }
-        // Now we got the both newest value of global and local policy, we can trigger initialize.
+        // With the latest value of both scopes at hand, the loaded policies are not needed anymore.
         if (latestGlobalPolicies != null && latestLocalPolicies != null) {
             doInitPolicies(latestLocalPolicies, latestGlobalPolicies);
         }
     }
 
-    private void doInitPolicies(TopicPolicies local, TopicPolicies global) {
-        initialized = true;
-        realTopicListener.onUpdate(local);
-        realTopicListener.onUpdate(global);
-        // help for GC.
-        latestLocalPolicies = null;
-        latestGlobalPolicies = null;
-    }
-
     /**
-     * Initializes policies (including local and global policies) when a topic is created; skips if a live update
-     * has already been received.
+     * Completes initialization with the loaded policies, unless it has already completed. For each scope, the latest
+     * live value received during initialization is preferred over the loaded one.
+     *
+     * @param globalLoaded the loaded global policies, or null if there are none
+     * @param localLoaded  the loaded local policies, or null if there are none
      */
     public synchronized void completeInitialization(@Nullable TopicPolicies globalLoaded,
-                                              @Nullable TopicPolicies localLoaded) {
+                                                    @Nullable TopicPolicies localLoaded) {
         if (initialized) {
             return;
         }
-        // Now we got the both newest value of global and local policy, we can trigger initialize.
         TopicPolicies local = latestLocalPolicies != null ? latestLocalPolicies : localLoaded;
         TopicPolicies global = latestGlobalPolicies != null ? latestGlobalPolicies : globalLoaded;
         doInitPolicies(local, global);
     }
 
+    /**
+     * Completes initialization with no loaded policies, unless it has already completed. Run at the end of
+     * {@code AbstractTopic#initTopicPolicy()} whatever its outcome -- the listener not being registered, policy
+     * loading failing or being skipped -- so the wrapper always leaves the buffering phase: it emits any buffered
+     * value and forwards all future live updates.
+     */
+    public synchronized void completeInitializationUnlessAlreadyCompleted() {
+        completeInitialization(null, null);
+    }
+
+    private void doInitPolicies(@Nullable TopicPolicies local, @Nullable TopicPolicies global) {
+        initialized = true;
+        latestLocalPolicies = null;
+        latestGlobalPolicies = null;
+        // Emit the local policy before the global policy. A local topic policy takes precedence over a global one,
+        // so applying the local value first means that by the time the global value is applied the local override is
+        // already in place and the merged (local-wins) result is what takes effect. Emitting the global value first
+        // would briefly apply it on its own and let a global-only setting act before the local policy overrides it
+        // -- e.g. a compaction subscription being created for a global compaction policy even though the local
+        // policy disables compaction.
+        //
+        // Nothing is emitted for a scope without a value: null means "policies deleted" to the listener.
+        try {
+            if (local != null) {
+                realTopicListener.onUpdate(local);
+            }
+        } finally {
+            if (global != null) {
+                realTopicListener.onUpdate(global);
+            }
+        }
+    }
+
     // warn if the initialization takes too long and updates have been received
     // this helps detect issues where completeInitialization didn't get called after loading policies
     private void maybeLogWarning() {
-        long durationMillis = System.currentTimeMillis() - initializationStartedMillis;
-        int warningLogIntervalCount = (int) (durationMillis / INITIALIZATION_WARNING_LOG_INTERVAL_MILLIS);
+        long durationNanos = System.nanoTime() - createdNanos;
+        int warningLogIntervalCount = (int) (durationNanos / INITIALIZATION_WARNING_LOG_INTERVAL_NANOS);
         if (warningLogIntervalCount > lastIntervalLogged) {
-            log.warn().attr("sinceInitializationStartedMs", durationMillis).log("TopicPolicyListenerWrapper"
-                    + " initialization phase took too long. "
-                    + "completeInitialization should have been called to complete the phase.");
+            log.warn().attr("sinceCreatedMs", TimeUnit.NANOSECONDS.toMillis(durationNanos))
+                    .log("TopicPolicyUpdate buffered. TopicPolicyListenerWrapper initialization phase took too long. "
+                            + "completeInitialization should have been called to complete the phase.");
             lastIntervalLogged = warningLogIntervalCount;
         }
     }
