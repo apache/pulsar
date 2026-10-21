@@ -3925,9 +3925,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
         SchemaData schemaData = getSchema(commandGetOrCreateSchema.getSchema());
         SchemaData schema = schemaData.getType() == SchemaType.NONE ? null : schemaData;
-        // Read the producer name now: the decoder reuses the command object after this method returns.
-        boolean isReplicatorProducer = commandGetOrCreateSchema.hasProducerName()
-                && Producer.isRemoteOrShadow(commandGetOrCreateSchema.getProducerName(),
+        // Read these now: the decoder reuses the command object after this method returns.
+        String producerName = commandGetOrCreateSchema.hasProducerName()
+                ? commandGetOrCreateSchema.getProducerName() : null;
+        boolean isReplicatorProducer = Producer.isRemoteOrShadow(producerName,
                         getBrokerService().getPulsar().getConfig().getReplicatorPrefix());
         // Adding a schema version changes what the topic's producers may send, so it takes PRODUCE, as the
         // REST schema upload does.
@@ -3943,18 +3944,30 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         topicFuture.thenAccept(topicOpt -> {
             if (topicOpt.isPresent()) {
                 Topic topic = topicOpt.get();
+                // This marker must be visible before tryAddSchema: schemaVersionFuture cannot be used because a
+                // schema-state change can be observed synchronously while tryAddSchema is still being invoked.
+                CompletableFuture<Void> inProgressSchemaRegistrationMarker =
+                        topic.addInProgressSchemaRegistrationMarker();
                 CompletableFuture<SchemaVersion> schemaVersionFuture =
                         tryAddSchema(topic, schema, isReplicatorProducer);
-                schemaVersionFuture.exceptionally(ex -> {
-                    ServerError errorCode = BrokerServiceException.getClientErrorCode(ex);
-                    String message = ex.getMessage();
-                    if (ex.getCause() != null) {
-                        message += (" caused by " + ex.getCause());
+                schemaVersionFuture.whenComplete((schemaVersion, ex) -> {
+                    if (ex != null) {
+                        Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                        if (isReplicatorProducer && cause instanceof IncompatibleSchemaException) {
+                            topic.markProducerBlockedByIncompatibleSchema(producerName);
+                        }
                     }
-                    commandSender.sendGetOrCreateSchemaErrorResponse(requestId, errorCode, message);
-                    return null;
-                }).thenAccept(schemaVersion -> {
-                    commandSender.sendGetOrCreateSchemaResponse(requestId, schemaVersion);
+                    topic.completeInProgressSchemaRegistrationMarker(inProgressSchemaRegistrationMarker);
+                    if (ex != null) {
+                        ServerError errorCode = BrokerServiceException.getClientErrorCode(ex);
+                        String message = ex.getMessage();
+                        if (ex.getCause() != null) {
+                            message += (" caused by " + ex.getCause());
+                        }
+                        commandSender.sendGetOrCreateSchemaErrorResponse(requestId, errorCode, message);
+                    } else {
+                        commandSender.sendGetOrCreateSchemaResponse(requestId, schemaVersion);
+                    }
                 });
             } else {
                 commandSender.sendGetOrCreateSchemaErrorResponse(requestId, ServerError.TopicNotFound,

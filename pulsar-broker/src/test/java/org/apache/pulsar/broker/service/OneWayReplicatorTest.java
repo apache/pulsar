@@ -86,7 +86,6 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerTest;
 import org.apache.commons.collections4.CollectionUtils;
-import org.apache.logging.log4j.Level;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.resources.ClusterResources;
@@ -146,7 +145,6 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.impl.DualMetadataStore;
-import org.apache.pulsar.utils.TestLogAppender;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.awaitility.Awaitility;
@@ -2161,11 +2159,28 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
 
     @DataProvider
     public Object[][] schemaRecovery() {
-        return new Object[][] {{false, false}, {false, true}, {true, false}, {true, true}};
+        return new Object[][] {
+                {false, SchemaRecoveryTrigger.TOPIC_POLICY},
+                {true, SchemaRecoveryTrigger.TOPIC_POLICY},
+                {false, SchemaRecoveryTrigger.NAMESPACE_POLICY},
+                {true, SchemaRecoveryTrigger.NAMESPACE_POLICY},
+                {false, SchemaRecoveryTrigger.NEW_SCHEMA},
+                {true, SchemaRecoveryTrigger.NEW_SCHEMA},
+                {false, SchemaRecoveryTrigger.DELETE_SCHEMA},
+                {true, SchemaRecoveryTrigger.DELETE_SCHEMA}
+        };
+    }
+
+    private enum SchemaRecoveryTrigger {
+        TOPIC_POLICY,
+        NAMESPACE_POLICY,
+        NEW_SCHEMA,
+        DELETE_SCHEMA
     }
 
     @Test(dataProvider = "schemaRecovery", timeOut = 120_000)
-    public void testReplicationResumesAfterSchemaConflictResolved(boolean deduplication, boolean deleteSchema)
+    public void testReplicationResumesAfterSchemaConflictResolved(boolean deduplication,
+                                                                    SchemaRecoveryTrigger trigger)
             throws Exception {
         String topicName = BrokerTestUtil.newUniqueName("persistent://"
                 + sourceClusterAlwaysSchemaCompatibleNamespace + "/schema-retry-");
@@ -2174,19 +2189,29 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         RecordSchemaBuilder newKeyBuilder = SchemaBuilder.record("Key");
         newKeyBuilder.field("game_id").type(SchemaType.INT64);
         GenericSchema<GenericRecord> oldKey = Schema.generic(oldKeyBuilder.build(SchemaType.AVRO));
+        RecordSchemaBuilder compatibleKeyBuilder = SchemaBuilder.record("Key");
+        compatibleKeyBuilder.field("id").type(SchemaType.INT64);
+        compatibleKeyBuilder.field("description").type(SchemaType.STRING).optional();
+        GenericSchema<GenericRecord> compatibleKey = Schema.generic(compatibleKeyBuilder.build(SchemaType.AVRO));
         GenericSchema<GenericRecord> newKey = Schema.generic(newKeyBuilder.build(SchemaType.AVRO));
         Schema<KeyValue<GenericRecord, String>> schema = Schema.KeyValue(newKey, Schema.STRING);
 
         admin2.topics().createNonPartitionedTopic(topicName);
-        admin2.topicPolicies().setSchemaCompatibilityStrategy(topicName, SchemaCompatibilityStrategy.FULL);
+        SchemaCompatibilityStrategy originalNamespaceStrategy =
+                admin2.namespaces().getSchemaCompatibilityStrategy(sourceClusterAlwaysSchemaCompatibleNamespace);
+        if (trigger == SchemaRecoveryTrigger.NAMESPACE_POLICY) {
+            admin2.namespaces().setSchemaCompatibilityStrategy(sourceClusterAlwaysSchemaCompatibleNamespace,
+                    SchemaCompatibilityStrategy.FULL);
+        } else {
+            admin2.topicPolicies().setSchemaCompatibilityStrategy(topicName, SchemaCompatibilityStrategy.FULL);
+        }
         admin2.topicPolicies().setDeduplicationStatus(topicName, deduplication);
         admin2.schemas().createSchema(topicName, Schema.KeyValue(oldKey, Schema.STRING).getSchemaInfo());
         try (Consumer<byte[]> consumer = client2.newConsumer(Schema.BYTES).topic(topicName)
                 .subscriptionName("schema-retry").subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
              Producer<byte[]> producer = client1.newProducer(Schema.AUTO_PRODUCE_BYTES()).topic(topicName)
-                     .enableBatching(false).create();
-             TestLogAppender logs = TestLogAppender.create(ProducerImpl.class)) {
+                     .enableBatching(false).create()) {
             waitReplicatorStarted(topicName);
             PersistentTopic destination = (PersistentTopic) broker2.getTopic(topicName, false).join().orElseThrow();
             Awaitility.await().untilAsserted(() -> {
@@ -2196,7 +2221,6 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             PersistentTopic source = (PersistentTopic) broker1.getTopic(topicName, false).join().orElseThrow();
             PersistentReplicator replicator = (PersistentReplicator) source.getReplicators().get(cluster2);
             ProducerImpl<?> replicationProducer = replicator.getProducer();
-            ClientCnx connection = replicationProducer.getClientCnx();
             long producerEpoch = replicationProducer.getConnectionHandler().getEpoch();
             List<byte[]> expected = new ArrayList<>();
             for (int i = 0; i < 10; i++) {
@@ -2209,31 +2233,49 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
                 producer.newMessage(Schema.BYTES).value(following).send();
                 expected.add(following);
             }
-            Awaitility.await().untilAsserted(() -> assertThat(logs.getEvents()).anySatisfy(event ->
-                    assertThat(event.getMessage().getFormattedMessage()).contains("Publishing paused")));
             assertThat(replicator.getCursor().getNumberOfEntriesInBacklog(false)).isEqualTo(expected.size());
             assertThat(consumer.receive(1, TimeUnit.SECONDS)).isNull();
-            assertThat(logs.getEvents().stream().filter(event -> event.getLevel() == Level.WARN
-                    && event.getMessage().getFormattedMessage().contains("GetOrCreateSchema error")).count())
-                    .isEqualTo(1);
-            assertThat(logs.getEvents()).noneSatisfy(event -> {
-                assertThat(event.getLevel()).isEqualTo(Level.INFO);
-                assertThat(event.getMessage().getFormattedMessage()).contains("GetOrCreateSchema request");
-            });
 
-            if (deleteSchema) {
-                admin2.schemas().deleteSchema(topicName);
-            } else {
-                admin2.topicPolicies().setSchemaCompatibilityStrategy(topicName,
-                        SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+            switch (trigger) {
+                case DELETE_SCHEMA:
+                    admin2.schemas().deleteSchema(topicName);
+                    // Deleted schema versions still participate in FULL compatibility checks. Verify deletion
+                    // triggers the reconnect, then relax the policy so the replication can resume.
+                    Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() ->
+                            assertThat(replicationProducer.getConnectionHandler().getEpoch())
+                                    .isGreaterThan(producerEpoch));
+                    admin2.topicPolicies().setSchemaCompatibilityStrategy(topicName,
+                            SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+                    break;
+                case NAMESPACE_POLICY:
+                    admin2.namespaces().setSchemaCompatibilityStrategy(sourceClusterAlwaysSchemaCompatibleNamespace,
+                            SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+                    break;
+                case NEW_SCHEMA:
+                    admin2.schemas().createSchema(topicName,
+                            Schema.KeyValue(compatibleKey, Schema.STRING).getSchemaInfo());
+                    // Registering a compatible schema alone does not make the blocked schema compatible. Verify it
+                    // triggers the reconnect before relaxing the policy so the replication can resume.
+                    Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() ->
+                            assertThat(replicationProducer.getConnectionHandler().getEpoch())
+                                    .isGreaterThan(producerEpoch));
+                    admin2.topicPolicies().setSchemaCompatibilityStrategy(topicName,
+                            SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+                    break;
+                case TOPIC_POLICY:
+                    admin2.topicPolicies().setSchemaCompatibilityStrategy(topicName,
+                            SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+                    break;
+                default:
+                    throw new IllegalStateException("Unexpected recovery trigger " + trigger);
             }
+            Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() ->
+                    assertThat(replicationProducer.getConnectionHandler().getEpoch()).isGreaterThan(producerEpoch));
             Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() ->
                     assertThat(replicator.getCursor().getNumberOfEntriesInBacklog(false)).isZero());
             assertThat(admin2.schemas().getSchemaInfo(topicName).getSchema())
                     .isEqualTo(schema.getSchemaInfo().getSchema());
             assertThat(replicator.getProducer()).isSameAs(replicationProducer);
-            assertThat(replicationProducer.getClientCnx()).isSameAs(connection);
-            assertThat(replicationProducer.getConnectionHandler().getEpoch()).isEqualTo(producerEpoch);
             assertThat(broker1.getTopic(topicName, false).join().orElseThrow()).isSameAs(source);
             assertThat(broker2.getTopic(topicName, false).join().orElseThrow()).isSameAs(destination);
             for (byte[] payload : expected) {
@@ -2247,6 +2289,10 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
                     newKey.newRecordBuilder().set("game_id", 100L).build(), "live")).send();
             assertThat(consumer.receive(5, TimeUnit.SECONDS)).isNotNull();
         } finally {
+            if (trigger == SchemaRecoveryTrigger.NAMESPACE_POLICY) {
+                admin2.namespaces().setSchemaCompatibilityStrategy(sourceClusterAlwaysSchemaCompatibleNamespace,
+                        originalNamespaceStrategy);
+            }
             admin1.topics().setReplicationClusters(topicName, Collections.singletonList(cluster1));
             waitReplicatorStopped(topicName, false);
             admin1.topics().delete(topicName, true);

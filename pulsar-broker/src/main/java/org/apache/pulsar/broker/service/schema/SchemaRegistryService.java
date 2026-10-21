@@ -22,15 +22,28 @@ import io.github.merlimat.slog.Logger;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.schema.validator.SchemaRegistryServiceWithSchemaDataValidator;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
+import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaStorage;
+import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.Reflections;
 
 public interface SchemaRegistryService extends SchemaRegistry {
     Logger LOG = Logger.get(SchemaRegistryService.class);
     long NO_SCHEMA_VERSION = -1L;
+
+    record PutSchemaResult(SchemaVersion version, boolean created) {
+    }
+
+    default CompletableFuture<PutSchemaResult> putSchemaIfAbsentWithResult(String schemaId, SchemaData schema,
+                                                                            SchemaCompatibilityStrategy strategy) {
+        return putSchemaIfAbsent(schemaId, schema, strategy)
+                .thenApply(version -> new PutSchemaResult(version, false));
+    }
 
     static Map<SchemaType, SchemaCompatibilityCheck> getCheckers(Set<String> checkerClasses) throws Exception {
         Map<SchemaType, SchemaCompatibilityCheck> checkers = new HashMap<>();

@@ -87,6 +87,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.CursorStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
@@ -1190,12 +1191,14 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
     @Override
     public CompletableFuture<Void> onPoliciesUpdate(Policies data) {
+        SchemaCompatibilityStrategy previousSchemaCompatibilityStrategy = getSchemaCompatibilityStrategy();
         log.debug()
                 .attr("isEncryptionRequired", isEncryptionRequired)
                 .attr("encryption_required", data.encryption_required)
                 .log("isEncryptionRequired changes: ->");
 
         updateTopicPolicyByNamespacePolicy(data);
+        disconnectProducersBlockedByIncompatibleSchemaIfStrategyChanged(previousSchemaCompatibilityStrategy);
 
         isEncryptionRequired = data.encryption_required;
         isAllowAutoUpdateSchema = data.is_allow_auto_update_schema;
@@ -1228,7 +1231,9 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
         if (data == null) {
             return;
         }
+        SchemaCompatibilityStrategy previousSchemaCompatibilityStrategy = getSchemaCompatibilityStrategy();
         updateTopicPolicy(data);
+        disconnectProducersBlockedByIncompatibleSchemaIfStrategyChanged(previousSchemaCompatibilityStrategy);
     }
 
     /**

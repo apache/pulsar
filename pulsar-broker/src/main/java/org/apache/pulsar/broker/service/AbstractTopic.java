@@ -118,6 +118,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
 
     // Producers currently connected to this topic
     protected final ConcurrentHashMap<String, Producer> producers;
+    private final Set<CompletableFuture<Void>> schemaRegistrationMarkers = ConcurrentHashMap.newKeySet();
 
     protected final BrokerService brokerService;
 
@@ -809,6 +810,54 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
         return producers;
     }
 
+    @Override
+    public CompletableFuture<Void> addInProgressSchemaRegistrationMarker() {
+        CompletableFuture<Void> inProgressSchemaRegistrationMarker = new CompletableFuture<>();
+        schemaRegistrationMarkers.add(inProgressSchemaRegistrationMarker);
+        return inProgressSchemaRegistrationMarker;
+    }
+
+    @Override
+    public void completeInProgressSchemaRegistrationMarker(
+            CompletableFuture<Void> inProgressSchemaRegistrationMarker) {
+        schemaRegistrationMarkers.remove(inProgressSchemaRegistrationMarker);
+        inProgressSchemaRegistrationMarker.complete(null);
+    }
+
+    @Override
+    public void markProducerBlockedByIncompatibleSchema(String producerName) {
+        Producer producer = producers.get(producerName);
+        if (producer != null && producer.isRemote()) {
+            producer.markBlockedByIncompatibleSchema();
+        }
+    }
+
+    @Override
+    public void disconnectProducersBlockedByIncompatibleSchema() {
+        if (schemaRegistrationMarkers.isEmpty()) {
+            disconnectProducersBlockedByIncompatibleSchemaNow();
+        } else {
+            FutureUtil.waitForAll(new ArrayList<>(schemaRegistrationMarkers))
+                    .handle((__, ex) -> {
+                        disconnectProducersBlockedByIncompatibleSchemaNow();
+                        return null;
+                    });
+        }
+    }
+
+    private void disconnectProducersBlockedByIncompatibleSchemaNow() {
+        producers.values().stream()
+                .filter(producer -> producer.isRemote() && producer.isBlockedByIncompatibleSchema())
+                .forEach(Producer::disconnect);
+    }
+
+    protected void disconnectProducersBlockedByIncompatibleSchemaIfStrategyChanged(
+            SchemaCompatibilityStrategy previousStrategy) {
+        if (previousStrategy != getSchemaCompatibilityStrategy()) {
+            disconnectProducersBlockedByIncompatibleSchema();
+        }
+    }
+
 
     @Override
     public BrokerService getBrokerService() {
@@ -870,7 +919,13 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
         SchemaRegistryService schemaRegistryService = brokerService.pulsar().getSchemaRegistryService();
 
         if (allowAutoUpdateSchema(isReplicatorProducer)) {
-            return schemaRegistryService.putSchemaIfAbsent(id, schema, getSchemaCompatibilityStrategy());
+            return schemaRegistryService.putSchemaIfAbsentWithResult(id, schema, getSchemaCompatibilityStrategy())
+                    .thenApply(result -> {
+                        if (result.created()) {
+                            disconnectProducersBlockedByIncompatibleSchema();
+                        }
+                        return result.version();
+                    });
         } else {
             return schemaRegistryService.trimDeletedSchemaAndGetList(id).thenCompose(schemaAndMetadataList ->
                     schemaRegistryService.getSchemaVersionBySchemaData(schemaAndMetadataList, schema)

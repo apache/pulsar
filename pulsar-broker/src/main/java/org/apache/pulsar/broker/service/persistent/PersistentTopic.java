@@ -181,6 +181,7 @@ import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.CursorS
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.LedgerInfo;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
@@ -4082,6 +4083,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Override
     public CompletableFuture<Void> onPoliciesUpdate(@NonNull Policies data) {
         requireNonNull(data);
+        SchemaCompatibilityStrategy previousSchemaCompatibilityStrategy = getSchemaCompatibilityStrategy();
         log.debug()
                 .attr("isEncryptionRequired", isEncryptionRequired)
                 .attr("encryption_required", data.encryption_required)
@@ -4095,6 +4097,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         // The component "EntryFilters" is update in the method "updateTopicPolicyByNamespacePolicy(data)".
         //   see more detail: https://github.com/apache/pulsar/pull/19364.
         updateTopicPolicyByNamespacePolicy(data);
+        disconnectProducersBlockedByIncompatibleSchemaIfStrategyChanged(previousSchemaCompatibilityStrategy);
         checkReplicatedSubscriptionControllerState();
         isEncryptionRequired = data.encryption_required;
         isAllowAutoUpdateSchema = data.is_allow_auto_update_schema;
@@ -5441,10 +5444,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         if (policies == null) {
             return;
         }
+        SchemaCompatibilityStrategy previousSchemaCompatibilityStrategy = getSchemaCompatibilityStrategy();
         // Update props.
         // The component "EntryFilters" is update in the method "updateTopicPolicy(data)".
         //   see more detail: https://github.com/apache/pulsar/pull/19364.
         updateTopicPolicy(policies);
+        disconnectProducersBlockedByIncompatibleSchemaIfStrategyChanged(previousSchemaCompatibilityStrategy);
         shadowTopics = policies.getShadowTopics();
         checkReplicatedSubscriptionControllerState();
 

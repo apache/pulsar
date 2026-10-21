@@ -31,6 +31,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
@@ -118,7 +119,11 @@ public class SchemasResourceBase extends AdminResource {
                     String schemaId = getSchemaId();
                     return pulsar().getSchemaRegistryService()
                             .deleteSchema(schemaId, defaultIfEmpty(clientAppId(), ""), force);
-                });
+                }).thenCompose(version -> pulsar().getBrokerService().getTopicIfExists(topicName.toString())
+                        .thenApply(topic -> {
+                            topic.ifPresent(Topic::disconnectProducersBlockedByIncompatibleSchema);
+                            return version;
+                        }));
     }
 
     public CompletableFuture<SchemaVersion> postSchemaAsync(PostSchemaPayload payload, boolean authoritative) {
@@ -138,13 +143,23 @@ public class SchemasResourceBase extends AdminResource {
                         data = payload.getSchema().getBytes(StandardCharsets.UTF_8);
                     }
                     return pulsar().getSchemaRegistryService()
-                            .putSchemaIfAbsent(getSchemaId(),
+                            .putSchemaIfAbsentWithResult(getSchemaId(),
                                     SchemaData.builder().data(data).isDeleted(false).timestamp(clock.millis())
                                             .type(SchemaType.valueOf(payload.getType()))
                                             .user(defaultIfEmpty(clientAppId(), ""))
                                             .props(payload.getProperties())
                                             .build(),
-                                    schemaCompatibilityStrategy);
+                                    schemaCompatibilityStrategy)
+                            .thenCompose(result -> {
+                                if (!result.created()) {
+                                    return CompletableFuture.completedFuture(result.version());
+                                }
+                                return pulsar().getBrokerService().getTopicIfExists(topicName.toString())
+                                        .thenApply(topic -> {
+                                            topic.ifPresent(Topic::disconnectProducersBlockedByIncompatibleSchema);
+                                            return result.version();
+                                        });
+                            });
                 });
     }
 
