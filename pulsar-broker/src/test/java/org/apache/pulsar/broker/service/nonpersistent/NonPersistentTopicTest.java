@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.nonpersistent;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertThrows;
@@ -43,6 +44,7 @@ import org.apache.pulsar.broker.service.SubscriptionOption;
 import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.InjectedClientCnxClientBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -50,7 +52,12 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.ClientBuilderImpl;
+import org.apache.pulsar.client.impl.ClientCnx;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
+import org.apache.pulsar.common.api.proto.CommandTopicMigrated;
+import org.apache.pulsar.common.api.proto.CommandTopicMigrated.ResourceType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.policies.data.TopicStats;
@@ -261,8 +268,19 @@ public class NonPersistentTopicTest extends BrokerTestBase {
                 return resumeSubscribe;
             });
         }).when(brokerService).checkTopicNsOwnership(topicName);
+        // Observe only the pending subscribe's client; the existing consumer also receives a migration notification.
+        CompletableFuture<CommandTopicMigrated> migrationRedirect = new CompletableFuture<>();
+        ClientBuilderImpl clientBuilder = (ClientBuilderImpl) PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrl());
         @Cleanup
-        PulsarClient reconnectingClient = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
+        PulsarClient reconnectingClient = InjectedClientCnxClientBuilder.create(clientBuilder,
+                (clientConf, eventLoopGroup) -> new ClientCnx(InstrumentProvider.NOOP, clientConf, eventLoopGroup) {
+                    @Override
+                    protected void handleTopicMigrated(CommandTopicMigrated command) {
+                        super.handleTopicMigrated(command);
+                        migrationRedirect.complete(new CommandTopicMigrated().copyFrom(command));
+                    }
+                });
         reconnectingClient.newConsumer().topic(topicName).subscriptionName(subName)
                 .subscriptionType(subscriptionType).subscribeAsync();
         assertTrue(subscribeStarted.await(10, TimeUnit.SECONDS));
@@ -296,6 +314,11 @@ public class NonPersistentTopicTest extends BrokerTestBase {
                     assertEquals(topic.currentUsageCount(), 0L,
                             "Both the existing consumer and the redirected subscribe must release their usage"));
             assertTrue(subscription.getConsumers().isEmpty());
+
+            CommandTopicMigrated redirect = migrationRedirect.get(10, TimeUnit.SECONDS);
+            assertEquals(redirect.getResourceType(), ResourceType.Consumer);
+            assertEquals(redirect.getBrokerServiceUrl(), migratedUrl.getBrokerServiceUrl());
+            assertFalse(redirect.hasBrokerServiceUrlTls());
             admin.topics().delete(topicName, true);
         } finally {
             resumeSubscribe.complete(null);
