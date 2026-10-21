@@ -130,6 +130,7 @@ import org.apache.bookkeeper.mledger.WaitingEntryCallBack;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCache;
+import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.mledger.offload.OffloadUtils;
 import org.apache.bookkeeper.mledger.proto.KeyValue;
@@ -140,6 +141,7 @@ import org.apache.bookkeeper.mledger.proto.OffloadContext;
 import org.apache.bookkeeper.mledger.util.CallbackMutex;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.mledger.util.ManagedLedgerImplUtils;
+import org.apache.bookkeeper.mledger.util.ManagedLedgerUtils;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -599,7 +601,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                                 entries.getEntry(lh.getLastAddConfirmed());
                                         if (ledgerEntry != null) {
                                             promise.complete(
-                                                    Optional.of(EntryImpl.create(ledgerEntry, 0)));
+                                                    Optional.of(EntryImpl.create(ledgerEntry,
+                                                            EntryImpl.NO_EXPECTED_READ_COUNT)));
                                         } else {
                                             promise.complete(Optional.empty());
                                         }
@@ -984,6 +987,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             addOperation.failed(new ManagedLedgerFencedException());
             return;
         } else if (state == State.Terminated) {
+            if (!pendingAddEntries.isEmpty()) {
+                // Adds still in flight to the ledger being closed may yet succeed: fail this one after them, so that
+                // a writer never sees an add rejected before the earlier ones are confirmed. A producer drops the
+                // receipts that arrive after a rejection, and fails the messages they are for.
+                pendingAddEntries.add(addOperation);
+                return;
+            }
             addOperation.failed(new ManagedLedgerTerminatedException("Managed ledger was already terminated"));
             return;
         } else if (state == State.Closed) {
@@ -1702,7 +1712,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 log.info().attr("lastConfirmedEntry", lastConfirmedEntry).log("Terminated managed ledger");
                 // The final ledger was closed outside a rollover, so offload it from here
                 maybeOffloadInBackground(AUTOMATIC_OFFLOAD_TRIGGER);
-                callback.terminateComplete(lastConfirmedEntry, ctx);
+                // Complete on the managed ledger executor, after the adds confirmed before the close, which complete
+                // there too: the caller may disconnect the writers, which must not miss the confirmation of an add
+                Position terminatedPosition = lastConfirmedEntry;
+                try {
+                    executor.execute(() -> callback.terminateComplete(terminatedPosition, ctx));
+                } catch (RejectedExecutionException e) {
+                    callback.terminateComplete(terminatedPosition, ctx);
+                }
             }
 
             @Override
@@ -2411,6 +2428,28 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
+    /**
+     * Fails the adds that arrived after the managed ledger was terminated, once the adds that were in flight ahead of
+     * them have completed (see {@link #internalAsyncAddEntry}). Those are the adds at the head of the queue that were
+     * never initiated. Runs on the managed ledger executor, after an add completed. A managed ledger fenced since then
+     * fails them as fenced instead; closing it fails them along with the other pending adds.
+     */
+    void failAddsQueuedAfterTermination() {
+        State state = STATE_UPDATER.get(this);
+        if (state != State.Terminated && !state.isFenced()) {
+            return;
+        }
+        synchronized (this) {
+            OpAddEntry op;
+            while ((op = pendingAddEntries.peek()) != null && op.state == OpAddEntry.State.OPEN) {
+                pendingAddEntries.poll();
+                op.failed(state == State.Terminated
+                        ? new ManagedLedgerTerminatedException("Managed ledger was already terminated")
+                        : new ManagedLedgerFencedException());
+            }
+        }
+    }
+
     void asyncReadEntries(OpReadEntry opReadEntry) {
         final State state = STATE_UPDATER.get(this);
         if (state.isFenced() || state == State.Closed) {
@@ -2551,6 +2590,33 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
         LedgerInfo info = ledgers.get(ledgerId);
         return info == null || !info.hasOffloadContext() || !info.getOffloadContext().isComplete();
+    }
+
+    /**
+     * The size of an entry of the given ledger that the inflight reads limiter acquires a read's permits with: the
+     * ledger's length per entry, as its read handle has them, with {@link
+     * RangeEntryCacheImpl#BOOKKEEPER_READ_OVERHEAD_PER_ENTRY}. It's negative when the ledger has no entries or isn't
+     * known, for which the entry caches' estimates differ.
+     */
+    long getEstimatedReadEntrySize(long ledgerId) {
+        LedgerHandle currentLedger = this.currentLedger;
+        long length;
+        long entries;
+        if (isReadFromCurrentLedger(currentLedger, ledgerId)) {
+            length = currentLedger.getLength();
+            entries = currentLedger.getLastAddConfirmed() + 1;
+        } else {
+            LedgerInfo info = ledgers.get(ledgerId);
+            if (info == null) {
+                return -1;
+            }
+            length = info.getSize();
+            entries = info.getEntries();
+        }
+        if (length <= 0 || entries <= 0) {
+            return -1;
+        }
+        return Math.max(1, length / entries) + RangeEntryCacheImpl.BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
     }
 
     CompletableFuture<ReadHandle> getLedgerHandle(long ledgerId) {
@@ -2697,14 +2763,22 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @Override
     public void asyncReadEntry(Position position, ReadEntryCallback callback, Object ctx) {
+        asyncReadEntry(position, EntryCache.DEFAULT_EXPECTED_READ_COUNT, callback, ctx);
+    }
+
+    /**
+     * Reads the entry, caching it with the expected read count when it's read from storage, as
+     * {@link EntryCache#asyncReadEntry(ReadHandle, Position, int, ReadEntryCallback, Object)} does.
+     */
+    void asyncReadEntry(Position position, int expectedReadCount, ReadEntryCallback callback, Object ctx) {
         LedgerHandle currentLedger = this.currentLedger;
         log.debug().attr("ledgerId", position.getLedgerId())
                 .attr("entryId", position.getEntryId()).log("Reading entry");
         if (isReadFromCurrentLedger(currentLedger, position.getLedgerId())) {
-            asyncReadEntry(currentLedger, position, callback, ctx);
+            asyncReadEntry(currentLedger, position, expectedReadCount, callback, ctx);
         } else if (ledgers.containsKey(position.getLedgerId())) {
-            getLedgerHandle(position.getLedgerId()).thenAccept(ledger -> asyncReadEntry(ledger, position, callback,
-                    ctx)).exceptionally(ex -> {
+            getLedgerHandle(position.getLedgerId()).thenAccept(ledger -> asyncReadEntry(ledger, position,
+                    expectedReadCount, callback, ctx)).exceptionally(ex -> {
                 log.error().attr("position", position).exceptionMessage(ex)
                         .log("Error opening ledger for reading at position");
                 callback.readEntryFailed(ManagedLedgerException.getManagedLedgerException(ex.getCause()), ctx);
@@ -2719,6 +2793,52 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     + "the ledgerId does not belong to this topic or has been deleted"), ctx);
         }
 
+    }
+
+    /**
+     * Reads every entry from {@code firstEntry} to {@code lastEntry} of the ledger through the entry cache, without a
+     * size limit, as a cursor's replay of positions close to each other does with one read. The entries read from
+     * storage are cached with the expected read count.
+     *
+     * @param entriesWanted the entries of the range that the cursor reads, which the entries-read stat counts
+     * @param expectedReadCount the expected read count that the entries read from storage are cached with; a
+     *                          negative value doesn't cache them
+     */
+    void asyncReadEntries(long ledgerId, long firstEntry, long lastEntry, int entriesWanted, int expectedReadCount,
+                          ReadEntriesCallback callback, Object ctx) {
+        // the entries read for the cursor, as each would count when read alone
+        mbean.addEntriesReadOneByOne(entriesWanted);
+        LedgerHandle currentLedger = this.currentLedger;
+        if (isReadFromCurrentLedger(currentLedger, ledgerId)) {
+            asyncReadEntries(currentLedger, firstEntry, lastEntry, expectedReadCount, callback, ctx);
+        } else if (ledgers.containsKey(ledgerId)) {
+            getLedgerHandle(ledgerId).thenAccept(ledger -> asyncReadEntries(ledger, firstEntry, lastEntry,
+                    expectedReadCount, callback, ctx)).exceptionally(ex -> {
+                log.error().attr("ledgerId", ledgerId).exceptionMessage(ex)
+                        .log("Error opening ledger for reading entries");
+                callback.readEntriesFailed(ManagedLedgerException.getManagedLedgerException(ex.getCause()), ctx);
+                return null;
+            });
+        } else {
+            callback.readEntriesFailed(new LedgerNotExistException("Message not found, "
+                    + "the ledgerId does not belong to this topic or has been deleted"), ctx);
+        }
+    }
+
+    private void asyncReadEntries(ReadHandle ledger, long firstEntry, long lastEntry, int expectedReadCount,
+                                  ReadEntriesCallback callback, Object ctx) {
+        if (config.getReadEntryTimeoutSeconds() > 0) {
+            ReadEntryCallbackWrapper readCallback = ReadEntryCallbackWrapper.create(this, ledger.getId(), firstEntry,
+                    callback, ctx, timeoutAtNanos(config.getReadEntryTimeoutSeconds()));
+            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, ManagedLedgerUtils.NO_MAX_SIZE_LIMIT,
+                    () -> expectedReadCount, readCallback, ctx);
+            if (readCallback.registerTimeout()) {
+                factory.getReadEntryTimeoutTracker().add(readCallback);
+            }
+        } else {
+            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, ManagedLedgerUtils.NO_MAX_SIZE_LIMIT,
+                    () -> expectedReadCount, callback, ctx);
+        }
     }
 
     private void internalReadFromLedger(ReadHandle ledger, OpReadEntry opReadEntry) {
@@ -2778,8 +2898,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             long firstValidEntry = -1L;
             long lastValidEntry = -1L;
             long entryId = firstEntry;
+            final long ledgerId = ledger.getId();
             for (; entryId <= lastEntry; entryId++) {
-                if (opReadEntry.skipCondition.test(PositionFactory.create(ledger.getId(), entryId))) {
+                boolean shouldSkip;
+                if (opReadEntry.skipOnlyMessageDeleted) {
+                    // Fast path: only cursor's isMessageDeleted check, no Position allocation
+                    shouldSkip = opReadEntry.cursor.isMessageDeleted(ledgerId, entryId);
+                } else {
+                    shouldSkip = opReadEntry.skipCondition.test(PositionFactory.create(ledgerId, entryId));
+                }
+                if (shouldSkip) {
                     if (firstValidEntry != -1L) {
                         break;
                     }
@@ -2818,16 +2946,21 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     protected void asyncReadEntry(ReadHandle ledger, Position position, ReadEntryCallback callback, Object ctx) {
+        asyncReadEntry(ledger, position, EntryCache.DEFAULT_EXPECTED_READ_COUNT, callback, ctx);
+    }
+
+    protected void asyncReadEntry(ReadHandle ledger, Position position, int expectedReadCount,
+                                  ReadEntryCallback callback, Object ctx) {
         mbean.addEntriesRead(1);
         if (config.getReadEntryTimeoutSeconds() > 0) {
             ReadEntryCallbackWrapper readCallback = ReadEntryCallbackWrapper.create(this, position.getLedgerId(),
                     position.getEntryId(), callback, ctx, timeoutAtNanos(config.getReadEntryTimeoutSeconds()));
-            entryCache.asyncReadEntry(ledger, position, readCallback, ctx);
+            entryCache.asyncReadEntry(ledger, position, expectedReadCount, readCallback, ctx);
             if (readCallback.registerTimeout()) {
                 factory.getReadEntryTimeoutTracker().add(readCallback);
             }
         } else {
-            entryCache.asyncReadEntry(ledger, position, callback, ctx);
+            entryCache.asyncReadEntry(ledger, position, expectedReadCount, callback, ctx);
         }
     }
 
@@ -2899,7 +3032,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 readEntryCallback.readEntryComplete(entry, cntx);
             } else {
                 slog.debug().attr("ledgerId", ledgerId).attr("entryId", entryId).log("Read entry already completed");
-                entry.release();
+                releaseUnread(entry);
             }
         }
 
@@ -2918,7 +3051,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 readEntriesCallback.readEntriesComplete(returnedEntries, cntx);
             } else {
                 slog.debug().attr("ledgerId", ledgerId).attr("entryId", entryId).log("Read entry already completed");
-                returnedEntries.forEach(Entry::release);
+                returnedEntries.forEach(ReadEntryCallbackWrapper::releaseUnread);
             }
         }
 
@@ -2929,6 +3062,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             } else {
                 slog.debug().attr("ledgerId", ledgerId).attr("entryId", entryId).log("Read entry already completed");
             }
+        }
+
+        // nobody reads an entry of a read that timed out, so its expected reads remain for the reads that do
+        private static void releaseUnread(Entry entry) {
+            if (entry instanceof EntryImpl entryImpl) {
+                entryImpl.setDecreaseReadCountOnRelease(false);
+            }
+            entry.release();
         }
 
         boolean isCompleted() {

@@ -28,10 +28,12 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.broker.service.scalable.ScalableTopicMetrics.RequestType;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
@@ -86,7 +88,7 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
         BaseCommand command = Commands.newSuccessCommand(requestId);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
-        writeAndFlush(outBuf);
+        cnx.writeScalableTopicResponse(cnx.ctx(), outBuf, RequestType.UNSUBSCRIBE, requestId, true);
     }
 
     @Override
@@ -94,7 +96,7 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
         BaseCommand command = Commands.newErrorCommand(requestId, error, message);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
-        writeAndFlush(outBuf);
+        cnx.writeScalableTopicResponse(cnx.ctx(), outBuf, RequestType.UNSUBSCRIBE, requestId, false);
     }
 
     @Override
@@ -465,11 +467,12 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
     public CompletableFuture<Void> sendWatchTopicListSuccess(long requestId, long watcherId, String topicsHash,
                                                              Collection<String> topics,
                                                              Function<Throwable, CompletableFuture<Void>>
-                                                                         permitAcquireErrorHandler) {
+                                                                         permitAcquireErrorHandler,
+                                                             BooleanSupplier isCancelled) {
         BaseCommand command = Commands.newWatchTopicListSuccess(requestId, watcherId, topicsHash, topics);
         safeIntercept(command, cnx);
-        return acquireDirectMemoryPermitsAndWriteAndFlush(cnx.ctx(), maxTopicListInFlightLimiter, () -> !cnx.isActive(),
-                command, permitAcquireErrorHandler);
+        return acquireDirectMemoryPermitsAndWriteAndFlush(cnx.ctx(), maxTopicListInFlightLimiter,
+                () -> !cnx.isActive() || isCancelled.getAsBoolean(), command, permitAcquireErrorHandler);
     }
 
     /***
@@ -480,22 +483,25 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
     public CompletableFuture<Void> sendWatchTopicListUpdate(long watcherId, List<String> newTopics,
                                                             List<String> deletedTopics, String topicsHash,
                                                             Function<Throwable, CompletableFuture<Void>>
-                                                                        permitAcquireErrorHandler) {
+                                                                        permitAcquireErrorHandler,
+                                                            BooleanSupplier isCancelled) {
         BaseCommand command = Commands.newWatchTopicUpdate(watcherId, newTopics, deletedTopics, topicsHash);
         safeIntercept(command, cnx);
-        return acquireDirectMemoryPermitsAndWriteAndFlush(cnx.ctx(), maxTopicListInFlightLimiter, () -> !cnx.isActive(),
-                command, permitAcquireErrorHandler);
+        return acquireDirectMemoryPermitsAndWriteAndFlush(cnx.ctx(), maxTopicListInFlightLimiter,
+                () -> !cnx.isActive() || isCancelled.getAsBoolean(), command, permitAcquireErrorHandler);
     }
 
     @Override
     public void sendScalableTopicSubscribeResponse(long requestId,
             org.apache.pulsar.common.api.proto.ScalableConsumerAssignment assignment) {
-        writeAndFlush(Commands.newScalableTopicSubscribeResponse(requestId, assignment));
+        ByteBuf outBuf = Commands.newScalableTopicSubscribeResponse(requestId, assignment);
+        cnx.writeScalableTopicResponse(cnx.ctx(), outBuf, RequestType.SUBSCRIBE, requestId, true);
     }
 
     @Override
     public void sendScalableTopicSubscribeError(long requestId, ServerError error, String message) {
-        writeAndFlush(Commands.newScalableTopicSubscribeError(requestId, error, message));
+        ByteBuf outBuf = Commands.newScalableTopicSubscribeError(requestId, error, message);
+        cnx.writeScalableTopicResponse(cnx.ctx(), outBuf, RequestType.SUBSCRIBE, requestId, false);
     }
 
     @Override

@@ -35,6 +35,7 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import lombok.CustomLog;
 import lombok.Getter;
@@ -94,11 +95,59 @@ public class DualMetadataStore implements MetadataStoreExtended {
     }
 
     private final ScheduledExecutorService executor;
+    private final Runnable cancelMigrationEventsListener;
 
     private final MetadataCache<MigrationState> migrationStateCache;
 
-    private final Set<Consumer<Notification>> listeners = ConcurrentHashMap.newKeySet();
-    private final Set<Consumer<SessionEvent>> sessionListeners = ConcurrentHashMap.newKeySet();
+    private final Set<ListenerRegistration<Notification>> listeners = ConcurrentHashMap.newKeySet();
+    private final Set<ListenerRegistration<SessionEvent>> sessionListeners = ConcurrentHashMap.newKeySet();
+
+    /**
+     * A listener registered before the migration completed. It's registered with the source store, and with the
+     * target store when the migration completes, so unregistering it has to cancel both registrations.
+     */
+    private static final class ListenerRegistration<T> {
+        private final Consumer<T> listener;
+        private final Set<ListenerRegistration<T>> registrations;
+        private Runnable cancelSourceRegistration;
+        private Runnable cancelTargetRegistration;
+        private boolean cancelled;
+
+        private ListenerRegistration(Consumer<T> listener, Set<ListenerRegistration<T>> registrations) {
+            this.listener = listener;
+            this.registrations = registrations;
+        }
+
+        private synchronized void registerWithSource(Function<Consumer<T>, Runnable> register) {
+            if (!cancelled) {
+                cancelSourceRegistration = register.apply(listener);
+            }
+        }
+
+        private synchronized void registerWithTarget(Function<Consumer<T>, Runnable> register) {
+            if (!cancelled && cancelTargetRegistration == null) {
+                cancelTargetRegistration = register.apply(listener);
+            }
+        }
+
+        private void accept(T event) {
+            listener.accept(event);
+        }
+
+        private synchronized void cancel() {
+            if (cancelled) {
+                return;
+            }
+            cancelled = true;
+            registrations.remove(this);
+            if (cancelSourceRegistration != null) {
+                cancelSourceRegistration.run();
+            }
+            if (cancelTargetRegistration != null) {
+                cancelTargetRegistration.run();
+            }
+        }
+    }
 
     private final AtomicInteger pendingSourceWrites = new AtomicInteger();
 
@@ -127,7 +176,7 @@ public class DualMetadataStore implements MetadataStoreExtended {
         registerAsParticipant();
 
         // Watch for migration events
-        watchForMigrationEvents();
+        cancelMigrationEventsListener = watchForMigrationEvents();
 
         if (migrationState.getPhase() == MigrationPhase.PREPARATION
                 || migrationState.getPhase() == MigrationPhase.COPYING) {
@@ -167,9 +216,9 @@ public class DualMetadataStore implements MetadataStoreExtended {
         }
     }
 
-    private void watchForMigrationEvents() {
+    private Runnable watchForMigrationEvents() {
         // Register listener for migration-related paths
-        sourceStore.registerListener(notification -> {
+        return sourceStore.registerCancellableListener(notification -> {
             if (!MigrationState.MIGRATION_FLAG_PATH.equals(notification.getPath())) {
                 return;
             }
@@ -221,7 +270,7 @@ public class DualMetadataStore implements MetadataStoreExtended {
 
             // Mark the session as lost so that all the component will avoid trying to make metadata writes
             // for anything that can be deferred (eg: ledgers rollovers)
-            sessionListeners.forEach(listener -> listener.accept(SessionEvent.SessionLost));
+            sessionListeners.forEach(registration -> registration.accept(SessionEvent.SessionLost));
 
             // Initialize target store
             initializeTargetStore(migrationState.getTargetUrl());
@@ -251,15 +300,16 @@ public class DualMetadataStore implements MetadataStoreExtended {
         }
 
         caches.forEach(DualMetadataCache::handleSwitchToTargetStore);
-        listeners.forEach(targetStore::registerListener);
-        sessionListeners.forEach(targetStore::registerSessionListener);
+        listeners.forEach(registration -> registration.registerWithTarget(targetStore::registerCancellableListener));
+        sessionListeners.forEach(registration ->
+                registration.registerWithTarget(targetStore::registerCancellableSessionListener));
 
-        sessionListeners.forEach(listener -> listener.accept(SessionEvent.SessionReestablished));
+        sessionListeners.forEach(registration -> registration.accept(SessionEvent.SessionReestablished));
     }
 
     private void handleMigrationFailed() {
         log.info("=== Metadata Migration Failed ===");
-        sessionListeners.forEach(listener -> listener.accept(SessionEvent.SessionReestablished));
+        sessionListeners.forEach(registration -> registration.accept(SessionEvent.SessionReestablished));
     }
 
 
@@ -544,27 +594,32 @@ public class DualMetadataStore implements MetadataStoreExtended {
     }
 
     @Override
-    public void registerListener(Consumer<Notification> listener) {
-        switch (migrationState.getPhase()) {
+    public Runnable registerCancellableListener(Consumer<Notification> listener) {
+        return switch (migrationState.getPhase()) {
             case NOT_STARTED, PREPARATION, COPYING, FAILED -> {
-                listeners.add(listener);
-                sourceStore.registerListener(listener);
+                ListenerRegistration<Notification> registration = new ListenerRegistration<>(listener, listeners);
+                listeners.add(registration);
+                registration.registerWithSource(sourceStore::registerCancellableListener);
+                yield registration::cancel;
             }
 
-            case COMPLETED -> targetStore.registerListener(listener);
-        }
+            case COMPLETED -> targetStore.registerCancellableListener(listener);
+        };
     }
 
     @Override
-    public void registerSessionListener(Consumer<SessionEvent> listener) {
-        switch (migrationState.getPhase()) {
+    public Runnable registerCancellableSessionListener(Consumer<SessionEvent> listener) {
+        return switch (migrationState.getPhase()) {
             case NOT_STARTED, PREPARATION, COPYING, FAILED -> {
-                sessionListeners.add(listener);
-                sourceStore.registerSessionListener(listener);
+                ListenerRegistration<SessionEvent> registration =
+                        new ListenerRegistration<>(listener, sessionListeners);
+                sessionListeners.add(registration);
+                registration.registerWithSource(sourceStore::registerCancellableSessionListener);
+                yield registration::cancel;
             }
 
-            case COMPLETED -> targetStore.registerSessionListener(listener);
-        }
+            case COMPLETED -> targetStore.registerCancellableSessionListener(listener);
+        };
     }
 
     @Override
@@ -607,6 +662,7 @@ public class DualMetadataStore implements MetadataStoreExtended {
     @Override
     public void close() throws Exception {
         log.info("Closing DualMetadataStore");
+        cancelMigrationEventsListener.run();
 
         // Close target store first (if exists)
         if (targetStore != null) {

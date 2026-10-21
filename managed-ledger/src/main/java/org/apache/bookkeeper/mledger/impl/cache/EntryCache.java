@@ -109,6 +109,35 @@ public interface EntryCache {
     void asyncReadEntry(ReadHandle lh, Position position, ReadEntryCallback callback, Object ctx);
 
     /**
+     * Read an entry, as {@link #asyncReadEntry(ReadHandle, Position, ReadEntryCallback, Object)} does, caching it
+     * with the expected read count when it's read from storage.
+     *
+     * @param expectedReadCount
+     *            the expected read count that the entry is cached with when it's read from storage, a negative value
+     *            not to cache it, or {@link #DEFAULT_EXPECTED_READ_COUNT} for the cache's default for a single entry
+     */
+    default void asyncReadEntry(ReadHandle lh, Position position, int expectedReadCount, ReadEntryCallback callback,
+                                Object ctx) {
+        asyncReadEntry(lh, position, callback, ctx);
+    }
+
+    /**
+     * The expected read count argument for the cache's default for a single entry read.
+     */
+    int DEFAULT_EXPECTED_READ_COUNT = Integer.MIN_VALUE;
+
+    /**
+     * Whether the cache has the entry, without reading it.
+     *
+     * @param position
+     *            the entry's position
+     * @return whether the cache has the entry; false when the cache keeps no entries
+     */
+    default boolean hasEntry(Position position) {
+        return false;
+    }
+
+    /**
      * Get the total size in bytes of all the entries stored in this cache.
      *
      * @return the size of the entry cache
