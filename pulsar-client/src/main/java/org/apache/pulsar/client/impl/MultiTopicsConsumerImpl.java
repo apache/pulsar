@@ -682,6 +682,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     private void cleanupMultiConsumer() {
+        clearIncomingMessages();
         if (unAckedMessageTracker != null) {
             unAckedMessageTracker.close();
         }
@@ -942,13 +943,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             Message<T> message = incomingMessages.poll();
             checkState(message instanceof TopicMessageImpl);
             while (message != null) {
-                decreaseIncomingMessageSize(message);
                 MessageId messageId = message.getMessageId();
+                discardIncomingMessage(message);
                 if (!messageIds.contains(messageId)) {
                     messageIds.add(messageId);
                     break;
                 }
-                message.release();
                 message = incomingMessages.poll();
             }
         }
