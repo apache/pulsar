@@ -140,9 +140,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
         }
 
         if (priorityQueue.isEmpty()) {
-            // Reset to initial state
-            highestDeliveryTimeTracked = 0;
-            messagesHaveFixedDelay = true;
+            resetFixedDelayDetection();
         }
 
         updateTimer();
@@ -152,7 +150,17 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
     @Override
     public CompletableFuture<Void> clear() {
         this.priorityQueue.clear();
+        resetFixedDelayDetection();
         return CompletableFuture.completedFuture(null);
+    }
+
+    /**
+     * Go back to the initial state of the fixed delay detection. It must be done whenever the tracker is emptied,
+     * since the messages added afterwards are not related to the ones that were tracked before.
+     */
+    private void resetFixedDelayDetection() {
+        highestDeliveryTimeTracked = 0;
+        messagesHaveFixedDelay = true;
     }
 
     @Override
