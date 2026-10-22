@@ -29,6 +29,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -213,7 +214,7 @@ public class TransactionMetaStoreHandler extends HandlerState
                                 .log("Transaction coordinator client connect success! tcId");
                         if (registerToConnection(cnx)) {
                             this.connectionHandler.resetBackoff();
-                            pendingRequests.forEach((requestID, opBase) -> checkStateAndSendRequest(opBase));
+                            resendPendingRequests();
                         }
                         future.complete(null);
                     });
@@ -258,6 +259,18 @@ public class TransactionMetaStoreHandler extends HandlerState
                     new IllegalStateException("Failed to change the state from " + state + " to Ready"));
             return false;
         }
+    }
+
+    private void resendPendingRequests() {
+        // this method is executed in internalPinnedExecutor.
+        List<Long> failedRequestIds = new ArrayList<>();
+        pendingRequests.forEach((requestId, op) -> {
+            if (!checkStateAndSendRequest(op)) {
+                // The op has been completed and recycled, it must not stay in pendingRequests.
+                failedRequestIds.add(requestId);
+            }
+        });
+        failedRequestIds.forEach(pendingRequests::remove);
     }
 
     private void failPendingRequest() {
@@ -882,6 +895,11 @@ public class TransactionMetaStoreHandler extends HandlerState
     public void close() throws IOException {
         this.requestTimeout.cancel();
         this.setState(State.Closed);
+    }
+
+    @VisibleForTesting
+    int getPendingRequestsCount() {
+        return (int) pendingRequests.size();
     }
 
     @VisibleForTesting
