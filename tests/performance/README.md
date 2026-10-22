@@ -116,9 +116,10 @@ The telemetry tracker classifies duplicates of each device's latest tracked mess
 producer-sequence deduplication oracle. For that contract, the bounded
 [`TopicDuplicationTest`](../../pulsar-broker/src/test/java/org/apache/pulsar/broker/service/persistent/TopicDuplicationTest.java)
 regression discards publish receipts after persistence, restarts the in-JVM broker over the same storage fixtures,
-then retries old sequences after newer writes have succeeded. It covers two named producers with batching on and off,
-checks the entire stored backlog for distinct message IDs for the same producer sequence, and permits legitimate
-redelivery of the same stored message. It does not simulate a process crash.
+then retries old sequences both immediately after recovery and after newer writes have succeeded. The immediate
+retries start inside the original batch to check recovery of its highest sequence ID. It covers two named producers
+with batching on and off, checks the entire stored backlog for distinct message IDs for the same producer sequence,
+and permits legitimate redelivery of the same stored message. It does not simulate a process crash.
 
 ```bash
 ./gradlew :pulsar-broker:test -PtestRetryCount=0 \

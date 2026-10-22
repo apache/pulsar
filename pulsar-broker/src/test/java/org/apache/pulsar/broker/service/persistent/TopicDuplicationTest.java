@@ -735,6 +735,13 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
                     publish.get(30, TimeUnit.SECONDS);
                 }
                 for (Producer<String> producer : producers) {
+                    // Retry inside the recovered batch before newer writes can raise the high-water mark.
+                    // The automatic resend starts at 0, which even an incorrectly recovered high-water mark rejects.
+                    for (int sequence = 1; sequence < messagesPerProducer; sequence++) {
+                        pending.add(producer.newMessage().sequenceId(sequence)
+                                .value(producer.getProducerName() + ":" + sequence).sendAsync());
+                    }
+                    producer.flushAsync().get(15, TimeUnit.SECONDS);
                     for (int sequence = messagesPerProducer; sequence < messagesPerProducer * 2; sequence++) {
                         pending.add(producer.newMessage().sequenceId(sequence)
                                 .value(producer.getProducerName() + ":" + sequence).sendAsync());
