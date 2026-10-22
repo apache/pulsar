@@ -110,6 +110,23 @@ the run report are written for the IoT domain.
 [The IoT telemetry scenario](scenarios/docs/iot-telemetry.md) describes the workload's settings and the maintained
 scenarios in detail.
 
+### Deduplication fault regression
+
+The telemetry tracker classifies duplicates of each device's latest tracked message; it is not a full-history
+producer-sequence deduplication oracle. For that contract, the bounded
+[`TopicDuplicationTest`](../../pulsar-broker/src/test/java/org/apache/pulsar/broker/service/persistent/TopicDuplicationTest.java)
+regression discards publish receipts after persistence, restarts the in-JVM broker over the same storage fixtures,
+then retries old sequences both immediately after recovery and after newer writes have succeeded. The immediate
+retries start inside the original batch to check recovery of its highest sequence ID. It covers two named producers
+with batching on and off, checks the entire stored backlog for distinct message IDs for the same producer sequence,
+and permits legitimate redelivery of the same stored message. It does not simulate a process crash.
+
+```bash
+./gradlew :pulsar-broker:test -PtestRetryCount=0 \
+  --tests 'TopicDuplicationTest.testDeduplicationContractAfterLostReceiptsAndRestart' \
+  --tests 'TopicDuplicationTest.testStoredSequenceOracleAllowsRedeliveryButRejectsRepublishing'
+```
+
 ## Before you start
 
 - **A host with Docker**: the cluster and the workloads run in Linux containers, so the tests run on Linux and on
