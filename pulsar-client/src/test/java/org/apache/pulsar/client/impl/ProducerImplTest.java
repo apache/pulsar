@@ -69,6 +69,7 @@ import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.interceptor.ProducerInterceptor;
 import org.apache.pulsar.client.impl.ProducerImpl.OpSendMsg;
 import org.apache.pulsar.client.impl.ProducerImpl.OpSendMsgQueue;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -305,6 +306,20 @@ public class ProducerImplTest {
         connectionFuture.completeExceptionally(new PulsarClientException("producer closed during connect"));
     }
 
+    @Test
+    public void testCloseNotConnectedProducerClosesInterceptorsOnce() throws Exception {
+        PulsarClientImpl client = mockedPulsarClient();
+        when(client.getConnection(Mockito.anyString(), Mockito.anyInt())).thenReturn(new CompletableFuture<>());
+        ProducerInterceptor interceptor = mock(ProducerInterceptor.class);
+        ProducerImpl<byte[]> producer = constructProducer(client, new ProducerConfigurationData(),
+                new ProducerInterceptors(Collections.singletonList(interceptor)));
+
+        producer.closeAsync().get(5, TimeUnit.SECONDS);
+        producer.closeAsync().get(5, TimeUnit.SECONDS);
+
+        verify(interceptor).close();
+    }
+
     private ProducerConfigurationData encryptedProducerConf() {
         ProducerConfigurationData conf = new ProducerConfigurationData();
         conf.setEncryptionKeys(new TreeSet<>(Collections.singleton("key")));
@@ -336,12 +351,17 @@ public class ProducerImplTest {
      * {@code msgCrypto} fields hold real values instead of needing reflection: {@code conf.setMessageCrypto()}
      * installs a test crypto through the same constructor branch production uses.
      */
-    @SuppressWarnings("unchecked")
     private static ProducerImpl<byte[]> constructProducer(PulsarClientImpl client,
             ProducerConfigurationData conf) {
+        return constructProducer(client, conf, null);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static ProducerImpl<byte[]> constructProducer(PulsarClientImpl client,
+            ProducerConfigurationData conf, ProducerInterceptors interceptors) {
         return mock(ProducerImpl.class, withSettings()
                 .useConstructor(client, "persistent://public/default/producer-impl-test", conf,
-                        new CompletableFuture<>(), 0, Schema.BYTES, null, Optional.empty())
+                        new CompletableFuture<>(), 0, Schema.BYTES, interceptors, Optional.empty())
                 .defaultAnswer(CALLS_REAL_METHODS));
     }
 
