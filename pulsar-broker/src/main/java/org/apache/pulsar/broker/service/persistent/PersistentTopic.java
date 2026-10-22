@@ -5331,25 +5331,42 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 messageDeduplication.isDuplicate(publishContext, headersAndPayload);
         switch (status) {
             case NotDup:
+                // Handle success and failure in a single stage so that an exception thrown while handling the
+                // success can't complete the (recycled) publish context a second time as a failure.
                 transactionBuffer.appendBufferToTxn(txnID, publishContext.getSequenceId(), headersAndPayload)
-                        .thenAccept(position -> {
+                        .handle((position, throwable) -> {
+                            if (throwable != null) {
+                                throwable = FutureUtil.unwrapCompletionException(throwable);
+                                if (throwable instanceof NotAllowedException) {
+                                    publishContext.completed((NotAllowedException) throwable, -1, -1);
+                                    decrementPendingWriteOpsAndCheck();
+                                } else {
+                                    addFailed(ManagedLedgerException.getManagedLedgerException(throwable),
+                                            publishContext);
+                                }
+                                return null;
+                            }
                             // Message has been successfully persisted
-                            messageDeduplication.recordMessagePersisted(publishContext,
-                                    position);
-                            publishContext.setProperty("txn_id", txnID.toString());
+                            try {
+                                messageDeduplication.recordMessagePersisted(publishContext,
+                                        position);
+                                publishContext.setProperty("txn_id", txnID.toString());
+                            } catch (Throwable t) {
+                                // The publish context hasn't been completed yet, so it can still be failed once
+                                addFailed(ManagedLedgerException.getManagedLedgerException(t), publishContext);
+                                return null;
+                            }
                             publishContext.completed(null, position.getLedgerId(),
                                     position.getEntryId());
 
                             decrementPendingWriteOpsAndCheck();
+                            return null;
                         })
                         .exceptionally(throwable -> {
-                            throwable = FutureUtil.unwrapCompletionException(throwable);
-                            if (throwable instanceof NotAllowedException) {
-                              publishContext.completed((NotAllowedException) throwable, -1, -1);
-                              decrementPendingWriteOpsAndCheck();
-                            } else {
-                                addFailed(ManagedLedgerException.getManagedLedgerException(throwable), publishContext);
-                            }
+                            // Only reached when the handler above throws; the publish context is not completed again.
+                            log.warn().attr("txnId", txnID)
+                                    .exception(throwable)
+                                    .log("Failed to handle the result of appending a transactional message");
                             return null;
                         });
                 break;
