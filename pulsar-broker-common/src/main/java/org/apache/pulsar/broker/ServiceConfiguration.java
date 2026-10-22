@@ -2667,6 +2667,19 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "Set to a value greater than 0 to use that many MB.")
     private Long managedLedgerMaxReadsInFlightSizeInMB = null;
 
+    @FieldContext(
+            category = CATEGORY_STORAGE_ML,
+            doc = "Read ahead for cursors that read ranges of entries, such as subscriptions catching up with a"
+                    + " backlog: when a cursor reads a range, the managed ledger also reads the next range of the"
+                    + " same ledger into the entry cache, unless it's cached, so that the cursor's next read finds it"
+                    + " in the cache or joins the read in progress instead of waiting for the storage. A cursor has at"
+                    + " most one read ahead in progress; a read ahead takes no permits of"
+                    + " managedLedgerMaxReadsInFlightSizeInMB that reads are waiting for, nor ones that would leave"
+                    + " more than 70 % of the limit in use, and is skipped when the entry cache is at its eviction"
+                    + " watermark (managedLedgerCacheEvictionWatermark). Set to false to disable it"
+    )
+    private boolean managedLedgerReadAheadEnabled = true;
+
     @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Maximum time to wait for acquiring permits for max reads in "
             + "flight when managedLedgerMaxReadsInFlightSizeInMB is set (>0) and the limit is reached.")
     private long managedLedgerMaxReadsInFlightPermitsAcquireTimeoutMillis = 60000;
