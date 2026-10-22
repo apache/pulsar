@@ -318,11 +318,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         this.connectionHandler = initConnectionHandler();
         setChunkMaxMessageSize();
-        grabCnx();
-        producersOpenedCounter.increment();
         if (this.msgCrypto != null) {
             scheduleKeyGeneratorTask();
         }
+        grabCnx();
+        producersOpenedCounter.increment();
     }
 
     @VisibleForTesting
@@ -3154,16 +3154,18 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     /**
-     * Loads the public key cipher now and refreshes it at a fixed interval. Called once the producer is fully
-     * initialized: a key that cannot be loaded fails the creation and closes the producer, which uses the counters,
-     * the stats and the connection handler. {@link #closeAsync()} is synchronized, so the task cannot close the
-     * producer before the handle of the task is stored here and the close can cancel it; when the task has run by
-     * then, from the scheduling thread for instance, the handle is cancelled here instead.
+     * Loads the public key cipher now and refreshes it at a fixed interval. Called once the producer is initialized
+     * and before it connects: a key that cannot be loaded fails the creation and closes the producer, which uses the
+     * counters, the stats and the connection handler, and a connection failure that ends the creation
+     * ({@link #connectionFailed}) must find the handle of the task to cancel it. {@link #closeAsync()} is
+     * synchronized, so the task cannot close the producer before the handle is stored here and the close can cancel
+     * it; when the producer has reached a terminal state by then, from the scheduling thread for instance, the handle
+     * is cancelled here instead.
      */
     private synchronized void scheduleKeyGeneratorTask() {
         keyGeneratorTask = client.eventLoopGroup().scheduleWithFixedDelay(
                 catchingAndLoggingThrowables(this::addPublicKeyCipher), 0L, 4L, TimeUnit.HOURS);
-        if (getState() == State.Closing || getState() == State.Closed) {
+        if (isTerminalState()) {
             keyGeneratorTask.cancel(false);
         }
     }

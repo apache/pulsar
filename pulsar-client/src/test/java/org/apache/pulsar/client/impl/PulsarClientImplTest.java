@@ -58,6 +58,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.regex.Pattern;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.MessageRoutingMode;
@@ -172,13 +173,24 @@ public class PulsarClientImplTest {
         assertEquals(client.producersCount(), 0, "Closing the client must close the producer it kept");
     }
 
+    @DataProvider
+    public Object[][] endedBeforeRegistration() {
+        return new Object[][]{
+                {"closed", (Consumer<ProducerImpl<?>>) ProducerImpl::closeAsync},
+                {"failed", (Consumer<ProducerImpl<?>>) producer ->
+                        producer.connectionFailed(new PulsarClientException.AuthorizationException("not allowed"))},
+        };
+    }
+
     /**
-     * A producer whose creation fails on another thread closes itself before the client has registered it. The
-     * client must not keep it.
+     * A producer whose creation fails before the client has registered it, from another thread or from a
+     * connection that fails at once, removes itself from the client while it is not there yet. The client must not
+     * keep it afterwards.
      */
-    @Test
+    @Test(dataProvider = "endedBeforeRegistration")
     @SuppressWarnings("unchecked")
-    public void testProducerClosedBeforeItIsRegisteredIsNotKept() throws Exception {
+    public void testProducerEndedBeforeItIsRegisteredIsNotKept(String how, Consumer<ProducerImpl<?>> end)
+            throws Exception {
         LookupService lookup = mock(LookupService.class);
         when(lookup.getPartitionedTopicMetadata(any(TopicName.class), anyBoolean(), anyBoolean()))
                 .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata()));
@@ -195,8 +207,8 @@ public class PulsarClientImplTest {
                                                           Optional<String> overrideProducerName) {
                 ProducerImpl<T> producer = super.newProducerImpl(topic, partitionIndex, producerConf, schema,
                         interceptors, producerCreatedFuture, overrideProducerName);
-                // As a key that cannot be loaded does, before createProducerAsync() has added the producer.
-                producer.closeAsync();
+                // Before createProducerAsync() has added the producer.
+                end.accept(producer);
                 return producer;
             }
         };
@@ -206,7 +218,8 @@ public class PulsarClientImplTest {
             producerConf.setTopicName("persistent://public/default/closed-before-registered");
             client.createProducerAsync(producerConf, Schema.BYTES);
 
-            assertEquals(client.producersCount(), 0, "A producer closed before it was registered must not be kept");
+            assertEquals(client.producersCount(), 0,
+                    "A producer " + how + " before it was registered must not be kept");
         } finally {
             client.close();
         }

@@ -23,6 +23,7 @@ import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.anyLong;
+import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
@@ -75,6 +76,7 @@ import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.client.impl.metrics.LatencyHistogram;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.ByteBufPair;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.testng.annotations.DataProvider;
@@ -349,6 +351,34 @@ public class ProducerImplTest {
         assertTrue(created.isCompletedExceptionally(), "The creation must fail");
         assertThatThrownBy(created::join).hasCauseInstanceOf(PulsarClientException.CryptoException.class);
         assertEquals(producer.getState(), HandlerState.State.Closed);
+        verify(keyTask).cancel(false);
+        verify(client).cleanupProducer(producer);
+    }
+
+    /**
+     * A connection failure that ends the creation runs the terminal cleanup; the key task scheduled by the
+     * constructor must be cancelled by it, so it is scheduled before the producer connects.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testKeyTaskIsCancelledWhenTheConnectionFailsTheCreation() {
+        PulsarClientImpl client = mockedPulsarClient();
+        EventLoopGroup eventLoopGroup = client.eventLoopGroup();
+        ScheduledFuture<?> keyTask = mock(ScheduledFuture.class);
+        doReturn(keyTask).when(eventLoopGroup).scheduleWithFixedDelay(any(Runnable.class), anyLong(), anyLong(), any());
+        when(client.getConnection(anyString(), anyInt())).thenReturn(
+                FutureUtil.failedFuture(new PulsarClientException.AuthorizationException("not allowed")));
+        ProducerConfigurationData conf = new ProducerConfigurationData();
+        conf.setEncryptionKeys(new TreeSet<>(Collections.singleton("key")));
+        conf.setCryptoKeyReader(mock(CryptoKeyReader.class));
+        CompletableFuture<Producer<byte[]>> created = new CompletableFuture<>();
+
+        ProducerImpl<byte[]> producer = new ProducerImpl<>(client, "persistent://public/default/connection-failure",
+                conf, created, 0, Schema.BYTES, null, Optional.empty());
+
+        assertTrue(created.isCompletedExceptionally(), "The creation must fail");
+        assertThatThrownBy(created::join).hasCauseInstanceOf(PulsarClientException.AuthorizationException.class);
+        assertEquals(producer.getState(), HandlerState.State.Failed);
         verify(keyTask).cancel(false);
         verify(client).cleanupProducer(producer);
     }

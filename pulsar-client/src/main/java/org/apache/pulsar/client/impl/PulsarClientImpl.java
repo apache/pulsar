@@ -1013,9 +1013,10 @@ public class PulsarClientImpl implements PulsarClient {
                         Optional.empty());
             }
             producers.add(producer);
-            // The creation can fail on another thread before this line runs, in which case the producer has
-            // already closed and removed itself from the client. Do not keep it then.
-            if (producer.getState() == HandlerState.State.Closing || producer.getState() == HandlerState.State.Closed) {
+            // The creation can fail before this line runs, from another thread or from a connection that fails at
+            // once, in which case the producer has already closed or failed and removed itself from the client. Do
+            // not keep it then.
+            if (producer.isTerminalState()) {
                 cleanupProducer(producer);
             }
         }).exceptionally(ex -> {

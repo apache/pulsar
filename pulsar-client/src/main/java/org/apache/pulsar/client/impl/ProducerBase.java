@@ -145,6 +145,13 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
     @Override
     public abstract CompletableFuture<Void> closeAsync();
 
+    /** Whether the producer has reached a state it does not leave: closing, closed, failed, terminated or fenced. */
+    protected boolean isTerminalState() {
+        State state = getState();
+        return state == State.Closing || state == State.Closed || state == State.Failed
+                || state == State.Terminated || state == State.ProducerFenced;
+    }
+
     @Override
     public String getTopic() {
         return topic;
