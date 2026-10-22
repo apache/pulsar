@@ -81,6 +81,12 @@ repairing lost cursor records and hiding data loss. Sends/acks without confirmat
 outcomes; legitimate redelivery of unconfirmed acknowledgments is allowed. Workload completion and recovery
 waits are bounded, and the normal container teardown collects logs.
 
+The strict cold-replay acknowledgment check tests the broker's current `requirePersistedAck` behavior
+for unbatched messages with `managedLedgerDefaultMarkDeleteRateLimit=0`. Keep both settings: throttled
+mark-deletes or partial batch-index acknowledgments can return a receipt before cursor persistence.
+The public acknowledgment-receipt API confirms processing and does not guarantee against later
+redelivery; this fixture deliberately checks a stronger, implementation-specific behavior.
+
 These are **process-crash and process-pause tests, not power-loss or disk-failure tests**: the Docker
 host and its page cache remain alive.
 

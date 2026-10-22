@@ -76,6 +76,9 @@ public class ProcessFailureDurabilityTest extends PulsarTestSuite {
                         "managedLedgerDefaultWriteQuorum", "1",
                         "managedLedgerDefaultAckQuorum", "1",
                         "managedLedgerCacheSizeMB", "0",
+                        // Required by the strict ack check, together with enableBatching(false) below. Throttled
+                        // mark-deletes and partial batch-index acks can complete before cursor persistence. This
+                        // tests current requirePersistedAck behavior, not the public receipt/redelivery contract.
                         "managedLedgerDefaultMarkDeleteRateLimit", "0",
                         "metadataStoreSessionTimeoutMillis", "10000"));
     }
@@ -134,6 +137,7 @@ public class ProcessFailureDurabilityTest extends PulsarTestSuite {
         try (PulsarClient client = newClient();
              Consumer<Integer> consumer = newConsumer(client, topic);
              Producer<Integer> producer = client.newProducer(Schema.INT32).topic(topic)
+                     // Keep batching disabled for the strict ack check; see the mark-delete configuration above.
                      .enableBatching(false).maxPendingMessages(16).sendTimeout(10, TimeUnit.SECONDS).create()) {
             // Freeze a second cursor before the fault. Later acknowledgments on the live subscription must not
             // repair lost bookie cursor records from the broker's in-memory delete ranges and hide data loss.
@@ -192,7 +196,11 @@ public class ProcessFailureDurabilityTest extends PulsarTestSuite {
 
     private PulsarClient newClient() throws PulsarClientException {
         return PulsarClient.builder().serviceUrl(pulsarCluster.getPlainTextServiceUrl())
-                .operationTimeout(10, TimeUnit.SECONDS).build();
+                .operationTimeout(10, TimeUnit.SECONDS)
+                // Recovery should track broker readiness, not the client's default 60-second backoff ceiling.
+                .startingBackoffInterval(100, TimeUnit.MILLISECONDS)
+                .maxBackoffInterval(2, TimeUnit.SECONDS)
+                .build();
     }
 
     private Consumer<Integer> newConsumer(PulsarClient client, String topic) throws PulsarClientException {
