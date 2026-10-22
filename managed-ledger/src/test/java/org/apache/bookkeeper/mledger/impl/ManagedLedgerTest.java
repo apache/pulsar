@@ -2149,10 +2149,38 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         // a cursor between the reader's range and the range read ahead of it
         ahead.seek(fifth);
         ledger.entryCache.clear();
+        CompletableFuture<Void> readerReadHeld = new CompletableFuture<>();
+        CompletableFuture<Void> readAheadRead = new CompletableFuture<>();
+        bkc.setReadHandleInterceptor((ledgerId, firstEntry, lastEntry, entries) -> {
+            if (firstEntry == 5) {
+                readAheadRead.complete(null);
+            }
+            // the reader's read stays pending until the read ahead completes, so that the reader is still at the
+            // first entry when the read ahead's entries are cached
+            return firstEntry == 0
+                    ? readerReadHeld.thenApply(__ -> entries) : CompletableFuture.completedFuture(entries);
+        });
+        try {
+            CompletableFuture<List<Entry>> first = new CompletableFuture<>();
+            reader.asyncReadEntries(5, new ReadEntriesCallback() {
+                @Override
+                public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                    first.complete(entries);
+                }
 
-        List<Entry> first = reader.readEntries(5);
-        first.forEach(Entry::release);
-        Awaitility.await().until(() -> !((ManagedCursorImpl) reader).isReadAheadInProgress());
+                @Override
+                public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                    first.completeExceptionally(exception);
+                }
+            }, null, PositionFactory.LATEST);
+            Awaitility.await().until(() -> readAheadRead.isDone()
+                    && !((ManagedCursorImpl) reader).isReadAheadInProgress());
+            readerReadHeld.complete(null);
+            first.get(10, TimeUnit.SECONDS).forEach(Entry::release);
+        } finally {
+            readerReadHeld.complete(null);
+            bkc.setReadHandleInterceptor(null);
+        }
         List<Entry> next = ahead.readEntries(5);
         try {
             assertThat(next.get(0).getPosition()).isEqualTo(fifth);
