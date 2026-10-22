@@ -18,17 +18,16 @@
  */
 package org.apache.pulsar.tests.integration.topologies;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-
 import lombok.Builder;
 import lombok.Builder.Default;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.Singular;
 import lombok.experimental.Accessors;
-
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.testcontainers.containers.GenericContainer;
@@ -82,7 +81,7 @@ public class PulsarClusterSpec {
     int numFunctionWorkers = 0;
 
     /**
-     * Allow to query the last message
+     * Allow to query the last message.
      */
     @Default
     boolean queryLastMessage = false;
@@ -119,18 +118,31 @@ public class PulsarClusterSpec {
     boolean enableContainerLog = false;
 
     /**
-     * Provide a map of paths (in the classpath) to mount as volumes inside the containers
+     * Provide a map of paths (in the classpath) to mount as volumes inside the containers.
      */
     @Builder.Default
     Map<String, String> classPathVolumeMounts = new TreeMap<>();
 
     /**
-     * Pulsar Test Image Name
+     * Data container.
+     */
+    @Builder.Default
+    GenericContainer<?> dataContainer = null;
+
+    /**
+     * Pulsar Test Image Name.
      *
      * @return the version of the pulsar test image to use
      */
     @Default
     String pulsarTestImage = PulsarContainer.DEFAULT_IMAGE_NAME;
+
+    /**
+     * The image of the cluster's ZooKeeper, configuration store, bookies, brokers and proxy, such as a test image
+     * built on an earlier Pulsar release to compare it with this revision. Unset means
+     * {@link PulsarContainer#DEFAULT_IMAGE_NAME}. Function workers and other containers keep that image.
+     */
+    String clusterImage;
 
     /**
      * Specify envs for proxy.
@@ -195,4 +207,61 @@ public class PulsarClusterSpec {
 
     @Default
     boolean enableOxia = false;
+
+    // Which components async-profiler is attached to. A test that drives profiling itself, such as
+    // PulsarProfilingTest, sets these on the builder. Any other test can be profiled without being
+    // modified by naming the components on the command line instead — see
+    // inttest.asyncprofiler.components below.
+    @Default
+    boolean profileBroker = isProfilingEnabledFor("broker");
+
+    @Default
+    boolean profileProxy = isProfilingEnabledFor("proxy");
+
+    @Default
+    boolean profileFunctionWorker = isProfilingEnabledFor("functionworker");
+
+    @Default
+    boolean profileBookie = isProfilingEnabledFor("bookie");
+
+    @Default
+    boolean profileZookeeper = isProfilingEnabledFor("zookeeper");
+
+    /**
+     * Directory the profiler writes its recordings into, so that a test can keep them apart from
+     * every other test's rather than having them all land in one place. Unset means the
+     * {@code inttest.asyncprofiler.dir} system property the build passes in, and failing that
+     * {@code build} in the working directory.
+     */
+    String profileDirectory;
+
+    /**
+     * Host path of the jonoffcpu agent JAR to attach instead of the image's async-profiler library.
+     * Unset means the {@code inttest.jonoffcpu.agent} system property, and failing that plain
+     * async-profiler. See {@link org.apache.pulsar.tests.integration.profiling.JonoffcpuAgent}.
+     */
+    String jonoffcpuAgentJar;
+
+    /**
+     * The jonoffcpu agent's {@code sampling} block, deciding which off-CPU intervals are recorded.
+     */
+    @Default
+    Map<String, Object> jonoffcpuOptions = Map.of();
+
+    /**
+     * Whether the given cluster component should be profiled with async-profiler, according to the
+     * {@code inttest.asyncprofiler.components} system property. The property holds a comma separated
+     * list of {@code broker}, {@code proxy}, {@code functionworker}, {@code bookie} and
+     * {@code zookeeper}, or {@code all} for every component. It is empty by default, so profiling
+     * stays off unless it is asked for.
+     *
+     * @param component the component name to look for
+     * @return true when the component is listed
+     */
+    private static boolean isProfilingEnabledFor(String component) {
+        String components = System.getProperty("inttest.asyncprofiler.components", "");
+        return Arrays.stream(components.split(","))
+                .map(String::trim)
+                .anyMatch(listed -> listed.equalsIgnoreCase(component) || listed.equalsIgnoreCase("all"));
+    }
 }

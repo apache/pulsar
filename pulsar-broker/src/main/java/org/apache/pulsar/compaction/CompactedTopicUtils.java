@@ -19,35 +19,54 @@
 package org.apache.pulsar.compaction;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerUtils.readEntries;
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerUtils.readEntriesWithSkipOrWait;
 import com.google.common.annotations.Beta;
-import java.util.Collections;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import javax.annotation.Nullable;
-import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import java.util.function.Consumer;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
-import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.commons.collections4.CollectionUtils;
-import org.apache.pulsar.broker.service.Consumer;
-import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer;
-import org.apache.pulsar.common.util.FutureUtil;
+import org.jspecify.annotations.Nullable;
 
 public class CompactedTopicUtils {
 
     @Beta
-    public static void asyncReadCompactedEntries(TopicCompactionService topicCompactionService,
-                                                 ManagedCursor cursor, int maxEntries,
-                                                 long bytesToRead, Position maxReadPosition,
-                                                 boolean readFromEarliest, AsyncCallbacks.ReadEntriesCallback callback,
-                                                 boolean wait, @Nullable Consumer consumer) {
+    public static CompletableFuture<List<Entry>> asyncReadCompactedEntries(
+            TopicCompactionService topicCompactionService, ManagedCursor cursor, int maxEntries,
+            long bytesToRead, Position maxReadPosition, boolean readFromEarliest, boolean wait) {
+        return asyncReadCompactedEntries(topicCompactionService, cursor, maxEntries, bytesToRead, maxReadPosition,
+                readFromEarliest, wait, null, null);
+    }
+
+    /**
+     * Read the next entries of a compacted-topic reader.
+     *
+     * <p>Positions up to the compaction horizon are read from the compacted ledger, later positions from the
+     * original ledger. A reader that has already moved on to the original ledger must stay there even when a later
+     * compaction moves the horizon past its read position, or it would skip the messages compaction removed since,
+     * tombstones included.
+     *
+     * @param originalLedgerReadPosition the position from which this reader has been reading the original ledger,
+     *                                   or {@code null}. Positions at or after it are read from the original ledger
+     *                                   while it is still retained there.
+     * @param onOriginalLedgerRead called with the position from which the reader moves on to the original ledger,
+     *                             when a read finishes the compacted snapshot or reads the original ledger; may be
+     *                             {@code null}
+     */
+    @Beta
+    public static CompletableFuture<List<Entry>> asyncReadCompactedEntries(
+            TopicCompactionService topicCompactionService, ManagedCursor cursor, int maxEntries,
+            long bytesToRead, Position maxReadPosition, boolean readFromEarliest, boolean wait,
+            @Nullable Position originalLedgerReadPosition, @Nullable Consumer<Position> onOriginalLedgerRead) {
         Objects.requireNonNull(topicCompactionService);
         Objects.requireNonNull(cursor);
         checkArgument(maxEntries > 0);
-        Objects.requireNonNull(callback);
 
         final Position readPosition;
         if (readFromEarliest) {
@@ -56,52 +75,94 @@ public class CompactedTopicUtils {
             readPosition = cursor.getReadPosition();
         }
 
-        // TODO: redeliver epoch link https://github.com/apache/pulsar/issues/13690
-        PersistentDispatcherSingleActiveConsumer.ReadEntriesCtx readEntriesCtx =
-                PersistentDispatcherSingleActiveConsumer.ReadEntriesCtx.create(consumer, DEFAULT_CONSUMER_EPOCH);
+        // Once retention has trimmed the original ledger at that position, only the compacted ledger has the data.
+        final Position originalLedgerLimit = originalLedgerReadPosition != null
+                && isRetained(cursor, originalLedgerReadPosition) ? originalLedgerReadPosition : null;
+        if (originalLedgerLimit != null && readPosition.compareTo(originalLedgerLimit) >= 0) {
+            return readOriginalLedger(cursor, maxEntries, bytesToRead, maxReadPosition, wait);
+        }
 
         CompletableFuture<Position> lastCompactedPositionFuture = topicCompactionService.getLastCompactedPosition();
 
-        lastCompactedPositionFuture.thenCompose(lastCompactedPosition -> {
+        return lastCompactedPositionFuture.thenCompose(lastCompactedPosition -> {
             if (lastCompactedPosition == null
                     || readPosition.compareTo(
                     lastCompactedPosition.getLedgerId(), lastCompactedPosition.getEntryId()) > 0) {
-                if (wait) {
-                    cursor.asyncReadEntriesOrWait(maxEntries, bytesToRead, callback, readEntriesCtx, maxReadPosition);
-                } else {
-                    cursor.asyncReadEntries(maxEntries, bytesToRead, callback, readEntriesCtx, maxReadPosition);
+                if (onOriginalLedgerRead != null) {
+                    onOriginalLedgerRead.accept(cursor.getReadPosition());
                 }
-                return CompletableFuture.completedFuture(null);
+                return readOriginalLedger(cursor, maxEntries, bytesToRead, maxReadPosition, wait);
             }
 
             int numberOfEntriesToRead = cursor.applyMaxSizeCap(maxEntries, bytesToRead);
 
             return topicCompactionService.readCompactedEntries(readPosition, numberOfEntriesToRead)
-                    .thenAccept(entries -> {
+                    .thenApply(entries -> {
                         if (CollectionUtils.isEmpty(entries)) {
                             Position seekToPosition = lastCompactedPosition.getNext();
+                            if (originalLedgerLimit != null && seekToPosition.compareTo(originalLedgerLimit) > 0) {
+                                seekToPosition = originalLedgerLimit;
+                            }
                             if (readPosition.compareTo(seekToPosition.getLedgerId(), seekToPosition.getEntryId()) > 0) {
                                 seekToPosition = readPosition;
                             }
                             cursor.seek(seekToPosition);
-                            callback.readEntriesComplete(Collections.emptyList(), readEntriesCtx);
-                            return;
+                            notifyIfPastHorizon(seekToPosition, lastCompactedPosition, onOriginalLedgerRead);
+                            return entries;
+                        }
+
+                        List<Entry> result = entries;
+                        if (originalLedgerLimit != null
+                                && entries.get(entries.size() - 1).getPosition().compareTo(originalLedgerLimit) >= 0) {
+                            // The reader already went past this point on the original ledger: continue there.
+                            result = new ArrayList<>(entries.size());
+                            for (Entry entry : entries) {
+                                if (entry.getPosition().compareTo(originalLedgerLimit) < 0) {
+                                    result.add(entry);
+                                } else {
+                                    entry.release();
+                                }
+                            }
+                            if (result.isEmpty()) {
+                                cursor.seek(originalLedgerLimit, true);
+                                return result;
+                            }
                         }
 
                         long entriesSize = 0;
-                        for (Entry entry : entries) {
+                        for (Entry entry : result) {
                             entriesSize += entry.getLength();
                         }
-                        cursor.updateReadStats(entries.size(), entriesSize);
+                        cursor.updateReadStats(result.size(), entriesSize);
 
-                        Entry lastEntry = entries.get(entries.size() - 1);
-                        cursor.seek(lastEntry.getPosition().getNext(), true);
-                        callback.readEntriesComplete(entries, readEntriesCtx);
+                        Position nextPosition = result.get(result.size() - 1).getPosition().getNext();
+                        cursor.seek(nextPosition, true);
+                        notifyIfPastHorizon(nextPosition, lastCompactedPosition, onOriginalLedgerRead);
+                        return result;
                     });
-        }).exceptionally((exception) -> {
-            exception = FutureUtil.unwrapCompletionException(exception);
-            callback.readEntriesFailed(ManagedLedgerException.getManagedLedgerException(exception), readEntriesCtx);
-            return null;
         });
+    }
+
+    private static CompletableFuture<List<Entry>> readOriginalLedger(ManagedCursor cursor, int maxEntries,
+                                                                     long bytesToRead, Position maxReadPosition,
+                                                                     boolean wait) {
+        if (wait) {
+            return readEntriesWithSkipOrWait(cursor, maxEntries, bytesToRead, maxReadPosition, null);
+        } else {
+            return readEntries(cursor, maxEntries, bytesToRead, maxReadPosition);
+        }
+    }
+
+    // The snapshot ends when the cursor moves past the horizon: the next read goes to the original ledger.
+    private static void notifyIfPastHorizon(Position nextReadPosition, Position lastCompactedPosition,
+                                            @Nullable Consumer<Position> onOriginalLedgerRead) {
+        if (onOriginalLedgerRead != null && nextReadPosition.compareTo(lastCompactedPosition) > 0) {
+            onOriginalLedgerRead.accept(nextReadPosition);
+        }
+    }
+
+    private static boolean isRetained(ManagedCursor cursor, Position position) {
+        Position firstPosition = cursor.getManagedLedger().getFirstPosition();
+        return firstPosition == null || position.compareTo(firstPosition) > 0;
     }
 }

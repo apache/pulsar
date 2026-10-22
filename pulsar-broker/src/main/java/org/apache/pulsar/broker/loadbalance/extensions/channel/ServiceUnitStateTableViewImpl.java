@@ -28,17 +28,18 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 
-@Slf4j
+@CustomLog
 public class ServiceUnitStateTableViewImpl extends ServiceUnitStateTableViewBase {
 
     public static final String TOPIC = TopicName.get(
@@ -50,9 +51,12 @@ public class ServiceUnitStateTableViewImpl extends ServiceUnitStateTableViewBase
     private volatile Producer<ServiceUnitStateData> producer;
     private volatile TableView<ServiceUnitStateData> tableview;
 
+    @Override
+    @SuppressWarnings("deprecation")
     public void start(PulsarService pulsar,
                       BiConsumer<String, ServiceUnitStateData> tailItemListener,
-                      BiConsumer<String, ServiceUnitStateData> existingItemListener) throws IOException {
+                      BiConsumer<String, ServiceUnitStateData> existingItemListener,
+                      BiConsumer<String, ServiceUnitStateData> itemOutdatedListeners) throws IOException {
         boolean debug = ExtensibleLoadManagerImpl.debug(pulsar.getConfiguration(), log);
 
         init(pulsar);
@@ -144,8 +148,15 @@ public class ServiceUnitStateTableViewImpl extends ServiceUnitStateTableViewBase
                 .sendAsync()
                 .whenComplete((messageId, e) -> {
                     if (e != null) {
-                        log.error("Failed to publish the message: serviceUnit:{}, data:{}",
-                                key, value, e);
+                        if (e instanceof PulsarClientException.AlreadyClosedException) {
+                            log.info()
+                                    .attr("serviceUnit", key)
+                                    .attr("value", value)
+                                    .log("Skip publishing: producer closed");
+                        } else {
+                            log.error().attr("serviceUnit", key).attr("data", value).exception(e)
+                                    .log("Failed to publish the message");
+                        }
                         future.completeExceptionally(e);
                     } else {
                         future.complete(null);
@@ -159,7 +170,19 @@ public class ServiceUnitStateTableViewImpl extends ServiceUnitStateTableViewBase
         if (!isValidState()) {
             throw new IllegalStateException(INVALID_STATE_ERROR_MSG);
         }
-        producer.flushAsync().get(waitDurationInMillis, MILLISECONDS);
+        final var deadline = System.currentTimeMillis() + waitDurationInMillis;
+        var waitTimeMs = waitDurationInMillis;
+        producer.flushAsync().get(waitTimeMs, MILLISECONDS);
+        waitTimeMs = deadline - System.currentTimeMillis();
+        if (waitTimeMs < 0) {
+            waitTimeMs = 0;
+        }
+        tableview.refreshAsync().get(waitTimeMs, MILLISECONDS);
+    }
+
+    @Override
+    public boolean isMetadataStoreBased() {
+        return false;
     }
 
     @Override

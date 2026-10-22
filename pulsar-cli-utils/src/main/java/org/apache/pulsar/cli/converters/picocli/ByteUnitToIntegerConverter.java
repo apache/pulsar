@@ -27,7 +27,7 @@ public class ByteUnitToIntegerConverter implements ITypeConverter<Integer> {
     public Integer convert(String value) throws Exception {
         try {
             long l = validateSizeString(value);
-            return (int) l;
+            return Math.toIntExact(l);
         } catch (Exception e) {
             throw new TypeConversionException(e.getMessage());
         }

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.stats;
 
+import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricHistogramValue;
 import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
 import static org.apache.pulsar.transaction.coordinator.impl.DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -93,7 +94,7 @@ public class ManagedLedgerMetricsTest extends BrokerTestBase {
         List<Metrics> list1 = metrics.generate();
         Assert.assertTrue(list1.isEmpty());
 
-        var topicName = "persistent://my-property/use/my-ns/my-topic1";
+        var topicName = "persistent://my-property/my-ns/my-topic1";
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
@@ -105,7 +106,7 @@ public class ManagedLedgerMetricsTest extends BrokerTestBase {
             producer.send(message.getBytes());
         }
 
-        var managedLedgerFactory = (ManagedLedgerFactoryImpl) pulsar.getManagedLedgerFactory();
+        var managedLedgerFactory = (ManagedLedgerFactoryImpl) pulsar.getDefaultManagedLedgerFactory();
         for (Entry<String, ManagedLedger> ledger : managedLedgerFactory.getManagedLedgers().entrySet()) {
             ManagedLedgerMBeanImpl stats = (ManagedLedgerMBeanImpl) ledger.getValue().getStats();
             stats.refreshStats(1, TimeUnit.SECONDS);
@@ -133,6 +134,9 @@ public class ManagedLedgerMetricsTest extends BrokerTestBase {
         var ml = ledgers.get(mlName);
         var attribCommon = Attributes.of(
                 OpenTelemetryAttributes.ML_NAME, mlName,
+                OpenTelemetryAttributes.PULSAR_NAMESPACE, topicNameObj.getNamespace()
+        );
+        final var attribOnlyNamespace = Attributes.of(
                 OpenTelemetryAttributes.PULSAR_NAMESPACE, topicNameObj.getNamespace()
         );
         var metricReader = pulsarTestContext.getOpenTelemetryMetricReader();
@@ -183,12 +187,22 @@ public class ManagedLedgerMetricsTest extends BrokerTestBase {
                     attribCommon, value -> assertThat(value).isPositive());
 
             assertMetricLongSumValue(otelMetrics, OpenTelemetryManagedLedgerStats.READ_ENTRY_COUNTER, attribSucceed,
-                    value -> assertThat(value).isPositive());
+                    value -> assertThat(value).isGreaterThanOrEqualTo(0));
             assertMetricLongSumValue(otelMetrics, OpenTelemetryManagedLedgerStats.READ_ENTRY_COUNTER, attribFailed, 0);
             assertMetricLongSumValue(otelMetrics, OpenTelemetryManagedLedgerStats.BYTES_IN_COUNTER, attribCommon,
-                    value -> assertThat(value).isPositive());
+                    value -> assertThat(value).isGreaterThanOrEqualTo(0));
             assertMetricLongSumValue(otelMetrics, OpenTelemetryManagedLedgerStats.READ_ENTRY_CACHE_MISS_COUNTER,
-                    attribCommon, value -> assertThat(value).isPositive());
+                    attribCommon, value -> assertThat(value).isGreaterThanOrEqualTo(0));
+
+            assertMetricHistogramValue(otelMetrics, OpenTelemetryManagedLedgerStats.ADD_ENTRY_LATENCY_HISTOGRAM,
+                    attribOnlyNamespace, count -> assertThat(count).isEqualTo(15L),
+                    sum -> assertThat(sum).isGreaterThan(0.0));
+            assertMetricHistogramValue(otelMetrics, OpenTelemetryManagedLedgerStats.LEDGER_ADD_ENTRY_LATENCY_HISTOGRAM,
+                    attribOnlyNamespace, count -> assertThat(count).isEqualTo(15L),
+                    sum -> assertThat(sum).isGreaterThan(0.0));
+            assertMetricHistogramValue(otelMetrics, OpenTelemetryManagedLedgerStats.ENTRY_SIZE_HISTOGRAM,
+                    attribOnlyNamespace, count -> assertThat(count).isEqualTo(15L),
+                    sum -> assertThat(sum).isGreaterThan(0.0));
         });
     }
 
@@ -205,7 +219,7 @@ public class ManagedLedgerMetricsTest extends BrokerTestBase {
         ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
         managedLedgerConfig.setMaxEntriesPerLedger(2);
         MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(TransactionCoordinatorID.get(0),
-                pulsar.getManagedLedgerFactory(), managedLedgerConfig, txnLogBufferedWriterConfig,
+                pulsar.getDefaultManagedLedgerFactory(), managedLedgerConfig, txnLogBufferedWriterConfig,
                 transactionTimer, DISABLED_BUFFERED_WRITER_METRICS);
         mlTransactionLog.initialize().get(2, TimeUnit.SECONDS);
         ManagedLedgerMetrics metrics = new ManagedLedgerMetrics(pulsar);

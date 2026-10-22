@@ -18,17 +18,15 @@
  */
 package org.apache.pulsar.tests.integration.cli;
 
+import static org.testng.Assert.assertTrue;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
-
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import static org.testng.Assert.assertTrue;
 
 /**
  * Pulsar version test class.
@@ -38,6 +36,7 @@ public class PulsarVersionTest extends TestRetrySupport {
     private static final String clusterNamePrefix = "pulsar-version";
     private PulsarCluster pulsarCluster;
 
+    @SuppressWarnings("deprecation")
     @Override
     @BeforeClass(alwaysRun = true)
     public final void setup() throws Exception {

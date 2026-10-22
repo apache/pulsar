@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.resources;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Joiner;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -31,9 +32,11 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.metadata.api.MetadataCache;
+import org.apache.pulsar.metadata.api.MetadataCacheConfig;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 
@@ -43,7 +46,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
  * @param <T>
  *            type of configuration-resources.
  */
-@Slf4j
+@CustomLog
 public class BaseResources<T> {
 
     protected static final String BASE_POLICIES_PATH = "/admin/policies";
@@ -58,13 +61,23 @@ public class BaseResources<T> {
 
     public BaseResources(MetadataStore store, Class<T> clazz, int operationTimeoutSec) {
         this.store = store;
-        this.cache = store.getMetadataCache(clazz);
+        this.cache = store.getMetadataCache(clazz, MetadataCacheConfig.builder()
+                .retryBackoff(Backoff.builder()
+                        .initialDelay(Duration.ofMillis(5))
+                        .maxBackoff(Duration.ofSeconds(3))
+                        .mandatoryStop(Duration.ofSeconds(operationTimeoutSec)))
+                .build());
         this.operationTimeoutSec = operationTimeoutSec;
     }
 
     public BaseResources(MetadataStore store, TypeReference<T> typeRef, int operationTimeoutSec) {
         this.store = store;
-        this.cache = store.getMetadataCache(typeRef);
+        this.cache = store.getMetadataCache(typeRef, MetadataCacheConfig.builder()
+                .retryBackoff(Backoff.builder()
+                        .initialDelay(Duration.ofMillis(5))
+                        .maxBackoff(Duration.ofSeconds(3))
+                        .mandatoryStop(Duration.ofSeconds(operationTimeoutSec)))
+                .build());
         this.operationTimeoutSec = operationTimeoutSec;
     }
 
@@ -197,17 +210,17 @@ public class BaseResources<T> {
     }
 
     protected CompletableFuture<Void> deleteIfExistsAsync(String path) {
-        log.info("Deleting path: {}", path);
+        log.info().attr("path", path).log("Deleting path");
         CompletableFuture<Void> future = new CompletableFuture<>();
         cache.delete(path).whenComplete((ignore, ex) -> {
             if (ex != null && ex.getCause() instanceof MetadataStoreException.NotFoundException) {
-                log.info("Path {} did not exist in metadata store", path);
+                log.info().attr("path", path).log("Path did not exist in metadata store");
                 future.complete(null);
             } else if (ex != null) {
-                log.info("Failed to delete path from metadata store: {}", path, ex);
+                log.info().attr("path", path).exception(ex).log("Failed to delete path from metadata store");
                 future.completeExceptionally(ex);
             } else {
-                log.info("Deleted path from metadata store: {}", path);
+                log.info().attr("path", path).log("Deleted path from metadata store");
                 future.complete(null);
             }
         });

@@ -19,11 +19,17 @@
 package org.apache.pulsar.packages.management.storage.bookkeeper;
 
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.anyList;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.testng.AssertJUnit.assertEquals;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-
 import org.apache.distributedlog.DLSN;
 import org.apache.distributedlog.LogRecord;
 import org.apache.distributedlog.api.AsyncLogWriter;
@@ -31,14 +37,6 @@ import org.apache.distributedlog.api.DistributedLogManager;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.anyList;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.times;
-import static org.testng.AssertJUnit.assertEquals;
 
 public class DLOutputStreamTest {
 
@@ -99,7 +97,7 @@ public class DLOutputStreamTest {
 
     @Test
     public void writeLongBytesArrayData() throws ExecutionException, InterruptedException {
-        byte[] data = new byte[8192 * 3 + 4096];
+        byte[] data = new byte[1040364 * 3 + 4096];
         DLOutputStream.openWriterAsync(dlm)
                 .thenCompose(w -> w.writeAsync(new ByteArrayInputStream(data))
                         .thenCompose(DLOutputStream::closeAsync)).get();
