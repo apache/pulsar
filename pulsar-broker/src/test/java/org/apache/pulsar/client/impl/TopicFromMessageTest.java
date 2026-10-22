@@ -21,67 +21,44 @@ package org.apache.pulsar.client.impl;
 import com.google.common.collect.Lists;
 import java.util.HashSet;
 import java.util.Set;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
-public class TopicFromMessageTest extends ProducerConsumerBase {
+public class TopicFromMessageTest extends SharedPulsarBaseTest {
 
     private static final long TEST_TIMEOUT = 90000; // 1.5 min
     private static final int BATCHING_MAX_MESSAGES_THRESHOLD = 2;
 
-    @Override
-    @BeforeMethod
-    public void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @Override
-    @AfterMethod(alwaysRun = true)
-    public void cleanup() throws Exception {
-        super.internalCleanup();
-    }
-
     @Test(timeOut = TEST_TIMEOUT)
-    public void testSingleTopicConsumerNoBatchShortName() throws Exception {
+    public void testSingleTopicConsumerNoBatch() throws Exception {
+        final String topic = newTopicName();
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                .topic("topic1").subscriptionName("sub1").subscribe();
+                .topic(topic).subscriptionName("sub1").subscribe();
              Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic("topic1").enableBatching(false).create()) {
+                .topic(topic).enableBatching(false).create()) {
             producer.send("foobar".getBytes());
-            Assert.assertEquals(consumer.receive().getTopicName(), "persistent://public/default/topic1");
+            Assert.assertEquals(consumer.receive().getTopicName(), topic);
         }
     }
 
     @Test(timeOut = TEST_TIMEOUT)
-    public void testSingleTopicConsumerNoBatchFullName() throws Exception {
+    public void testMultiTopicConsumerNoBatch() throws Exception {
+        final String topic1 = newTopicName();
+        final String topic2 = newTopicName();
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                .topic("my-property/my-ns/topic1").subscriptionName("sub1").subscribe();
-             Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic("my-property/my-ns/topic1").enableBatching(false).create()) {
-            producer.send("foobar".getBytes());
-            Assert.assertEquals(consumer.receive().getTopicName(), "persistent://my-property/my-ns/topic1");
-        }
-    }
-
-    @Test(timeOut = TEST_TIMEOUT)
-    public void testMultiTopicConsumerNoBatchShortName() throws Exception {
-        try (Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                .topics(Lists.newArrayList("topic1", "topic2")).subscriptionName("sub1").subscribe();
+                .topics(Lists.newArrayList(topic1, topic2)).subscriptionName("sub1").subscribe();
              Producer<byte[]> producer1 = pulsarClient.newProducer()
-                .topic("topic1").enableBatching(false).create();
+                .topic(topic1).enableBatching(false).create();
              Producer<byte[]> producer2 = pulsarClient.newProducer()
-                .topic("topic2").enableBatching(false).create()) {
+                .topic(topic2).enableBatching(false).create()) {
 
             Set<String> topicSet = new HashSet<>();
-            topicSet.add("persistent://public/default/topic1");
-            topicSet.add("persistent://public/default/topic2");
+            topicSet.add(topic1);
+            topicSet.add(topic2);
             producer1.send("foobar".getBytes());
             producer2.send("foobar".getBytes());
             Assert.assertTrue(topicSet.remove(consumer.receive().getTopicName()));
@@ -90,25 +67,28 @@ public class TopicFromMessageTest extends ProducerConsumerBase {
     }
 
     @Test(timeOut = TEST_TIMEOUT)
-    public void testSingleTopicConsumerBatchShortName() throws Exception {
+    public void testSingleTopicConsumerBatch() throws Exception {
+        final String topic = newTopicName();
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                .topic("topic1").subscriptionName("sub1").subscribe();
+                .topic(topic).subscriptionName("sub1").subscribe();
              Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic("topic1").enableBatching(true).batchingMaxMessages(BATCHING_MAX_MESSAGES_THRESHOLD).create()) {
+                .topic(topic).enableBatching(true).batchingMaxMessages(BATCHING_MAX_MESSAGES_THRESHOLD).create()) {
             producer.send("foobar".getBytes());
 
-            Assert.assertEquals(consumer.receive().getTopicName(), "persistent://public/default/topic1");
+            Assert.assertEquals(consumer.receive().getTopicName(), topic);
         }
     }
 
     @Test(timeOut = TEST_TIMEOUT)
-    public void testMultiTopicConsumerBatchShortName() throws Exception {
+    public void testMultiTopicConsumerBatch() throws Exception {
+        final String topic1 = newTopicName();
+        final String topic2 = newTopicName();
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                .topics(Lists.newArrayList("topic1", "topic2")).subscriptionName("sub1").subscribe();
+                .topics(Lists.newArrayList(topic1, topic2)).subscriptionName("sub1").subscribe();
              Producer<byte[]> producer1 = pulsarClient.newProducer()
-                .topic("topic1").enableBatching(true).batchingMaxMessages(BATCHING_MAX_MESSAGES_THRESHOLD).create();
+                .topic(topic1).enableBatching(true).batchingMaxMessages(BATCHING_MAX_MESSAGES_THRESHOLD).create();
              Producer<byte[]> producer2 = pulsarClient.newProducer()
-                .topic("topic2").enableBatching(true).batchingMaxMessages(BATCHING_MAX_MESSAGES_THRESHOLD).create()) {
+                .topic(topic2).enableBatching(true).batchingMaxMessages(BATCHING_MAX_MESSAGES_THRESHOLD).create()) {
 
             producer1.send("foobar".getBytes());
             producer2.send("foobar".getBytes());
@@ -117,8 +97,7 @@ public class TopicFromMessageTest extends ProducerConsumerBase {
             String topicNameX = consumer.receive().getTopicName();
             String topicNameY = consumer.receive().getTopicName();
             Object[] actualTopicNames = new Object[]{topicNameX, topicNameY};
-            Object[] expectedTopicNames =
-                    new Object[]{"persistent://public/default/topic1", "persistent://public/default/topic2"};
+            Object[] expectedTopicNames = new Object[]{topic1, topic2};
             Assert.assertEqualsNoOrder(actualTopicNames, expectedTopicNames);
         }
     }

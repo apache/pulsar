@@ -23,7 +23,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -42,7 +42,7 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-impl")
 public class AutoCloseUselessClientConTXTest extends AutoCloseUselessClientConSupports {
 
@@ -104,7 +104,7 @@ public class AutoCloseUselessClientConTXTest extends AutoCloseUselessClientConSu
                 }
             }
         } catch (Exception e){
-            log.warn("create namespace failure", e);
+            log.warn().exception(e).log("create namespace failure");
         }
         return clientBuilder.enableTransaction(true).build();
     }

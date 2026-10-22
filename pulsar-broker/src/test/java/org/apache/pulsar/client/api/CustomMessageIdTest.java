@@ -25,26 +25,12 @@ import static org.testng.Assert.assertTrue;
 import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
-public class CustomMessageIdTest extends ProducerConsumerBase {
-
-    @BeforeClass
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+public class CustomMessageIdTest extends SharedPulsarBaseTest {
 
     @DataProvider
     public static Object[][] enableBatching() {
@@ -56,7 +42,7 @@ public class CustomMessageIdTest extends ProducerConsumerBase {
 
     @Test
     public void testSeek() throws Exception {
-        final var topic = "persistent://my-property/my-ns/test-seek-" + System.currentTimeMillis();
+        final var topic = newTopicName();
         @Cleanup final var producer = pulsarClient.newProducer(Schema.INT32).topic(topic).create();
         final var msgIds = new ArrayList<SimpleMessageIdImpl>();
         for (int i = 0; i < 10; i++) {
@@ -72,8 +58,7 @@ public class CustomMessageIdTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "enableBatching")
     public void testAcknowledgment(boolean enableBatching) throws Exception {
-        final var topic = "persistent://my-property/my-ns/test-ack-"
-                + enableBatching + System.currentTimeMillis();
+        final var topic = newTopicName();
         final var producer = pulsarClient.newProducer(Schema.INT32)
                 .topic(topic)
                 .enableBatching(enableBatching)

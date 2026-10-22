@@ -26,14 +26,14 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
 import java.util.function.Supplier;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class MetadataBenchmark extends BaseMetadataStoreTest {
 
     @Test(dataProvider = "impl", enabled = false)
@@ -59,7 +59,7 @@ public class MetadataBenchmark extends BaseMetadataStoreTest {
                         s.release();
                         latch.countDown();
                     }).exceptionally(ex -> {
-                        log.warn("Failed to do get operation", ex);
+                        log.warn().exception(ex).log("Failed to do get operation");
                         return null;
                     });
         }
@@ -68,7 +68,7 @@ public class MetadataBenchmark extends BaseMetadataStoreTest {
         long endTime = System.nanoTime();
         double throughput = 1e9 * nGets / (endTime - startTime);
 
-        log.info("[{}] Get Throughput: {} Kops/s", provider, throughput / 1_000);
+        log.info().attr("provider", provider).attr("throughput", throughput / 1_000).log("Get Throughput (Kops/s)");
     }
 
     @Test(dataProvider = "impl", enabled = false)
@@ -93,7 +93,7 @@ public class MetadataBenchmark extends BaseMetadataStoreTest {
                         s.release();
                         latch.countDown();
                     }).exceptionally(ex -> {
-                        log.warn("Failed to do get children operation", ex);
+                        log.warn().exception(ex).log("Failed to do get children operation");
                         return null;
                     });
         }
@@ -102,7 +102,8 @@ public class MetadataBenchmark extends BaseMetadataStoreTest {
         long endTime = System.nanoTime();
         double throughput = 1e9 * nGets / (endTime - startTime);
 
-        log.info("[{}] Get Children Throughput: {} Kops/s", provider, throughput / 1_000);
+        log.info().attr("provider", provider).attr("throughput", throughput / 1_000)
+                .log("Get Children Throughput (Kops/s)");
     }
 
     @Test(dataProvider = "impl", enabled = false)
@@ -130,7 +131,7 @@ public class MetadataBenchmark extends BaseMetadataStoreTest {
                         s.release();
                         latch.countDown();
                     }).exceptionally(ex -> {
-                        log.warn("Failed to do put operation", ex);
+                        log.warn().exception(ex).log("Failed to do put operation");
                         return null;
                     });
         }
@@ -139,7 +140,7 @@ public class MetadataBenchmark extends BaseMetadataStoreTest {
         long endTime = System.nanoTime();
         double throughput = 1e9 * nPuts / (endTime - startTime);
 
-        log.info("[{}] Put Throughput: {} Kops/s", provider, throughput / 1_000);
+        log.info().attr("provider", provider).attr("throughput", throughput / 1_000).log("Put Throughput (Kops/s)");
     }
 
     private void generateKeys(MetadataStore store, String prefix, int n) {

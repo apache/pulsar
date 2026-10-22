@@ -21,7 +21,7 @@ package org.apache.pulsar.tests.integration.bookkeeper;
 import static java.util.stream.Collectors.joining;
 import static org.testng.Assert.assertEquals;
 import java.util.stream.Stream;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
@@ -33,7 +33,7 @@ import org.testng.annotations.Test;
 /**
  * Test bookkeeper setup with http server enabled.
  */
-@Slf4j
+@CustomLog
 public class BookkeeperInstallWithHttpServerEnabledTest extends PulsarClusterTestBase {
 
     @BeforeClass(alwaysRun = true)
@@ -54,13 +54,16 @@ public class BookkeeperInstallWithHttpServerEnabledTest extends PulsarClusterTes
                 .clusterName(clusterName)
                 .build();
 
-        log.info("Setting up cluster {} with {} bookies, {} brokers",
-                spec.clusterName(), spec.numBookies(), spec.numBrokers());
+        log.info()
+                .attr("cluster", spec.clusterName())
+                .attr("with", spec.numBookies())
+                .attr("bookies", spec.numBrokers())
+                .log("Setting up cluster with bookies, brokers");
 
         pulsarCluster = PulsarCluster.forSpec(spec);
         pulsarCluster.start();
 
-        log.info("Cluster {} is setup", spec.clusterName());
+        log.info().attr("cluster", spec.clusterName()).log("Cluster is setup");
     }
 
     @AfterClass(alwaysRun = true)

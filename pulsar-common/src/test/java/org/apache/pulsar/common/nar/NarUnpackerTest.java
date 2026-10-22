@@ -30,14 +30,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test
 public class NarUnpackerTest {
     File sampleZipFile;
@@ -64,14 +64,14 @@ public class NarUnpackerTest {
             try {
                 sampleZipFile.delete();
             } catch (Exception e) {
-                log.warn("Failed to delete file {}", sampleZipFile, e);
+                log.warn().attr("file", sampleZipFile).exception(e).log("Failed to delete file");
             }
         }
         if (extractDirectory != null && extractDirectory.exists()) {
             try {
                 FileUtils.deleteFile(extractDirectory, true);
             } catch (IOException e) {
-                log.warn("Failed to delete directory {}", extractDirectory, e);
+                log.warn().attr("directory", extractDirectory).exception(e).log("Failed to delete directory");
             }
         }
     }
@@ -87,7 +87,7 @@ public class NarUnpackerTest {
                 try {
                     NarUnpacker.doUnpackNar(sampleZipFile, extractDirectory, extractCounter::incrementAndGet);
                 } catch (Exception e) {
-                    log.error("Unpacking failed", e);
+                    log.error().exception(e).log("Unpacking failed");
                     exceptionCounter.incrementAndGet();
                 } finally {
                     countDownLatch.countDown();
@@ -112,7 +112,7 @@ public class NarUnpackerTest {
                     System.exit(100);
                 }
             } catch (Exception e) {
-                log.error("Unpacking failed", e);
+                log.error().exception(e).log("Unpacking failed");
                 System.exit(99);
             }
         }
@@ -157,14 +157,14 @@ public class NarUnpackerTest {
                             .start();
                     String output = IOUtils.toString(process.getInputStream(), StandardCharsets.UTF_8);
                     int retval = process.waitFor();
-                    log.info("Process retval {} output {}", retval, output);
+                    log.info().attr("retval", retval).attr("output", output).log("Process completed");
                     if (retval == 101) {
                         extractCounter.incrementAndGet();
                     } else if (retval != 100) {
                         exceptionCounter.incrementAndGet();
                     }
                 } catch (Exception e) {
-                    log.error("Unpacking in a separate process failed", e);
+                    log.error().exception(e).log("Unpacking in a separate process failed");
                     exceptionCounter.incrementAndGet();
                 } finally {
                     countDownLatch.countDown();

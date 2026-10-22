@@ -34,7 +34,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -55,7 +55,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
     protected ScheduledExecutorService compactionScheduler;
@@ -117,8 +117,8 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
 
         compact(topic);
 
-        log.info(" ---- X 1: {}", mapper.writeValueAsString(
-                admin.topics().getInternalStats(topic, false)));
+        log.info().attr("internalStats",
+                mapper.writeValueAsString(admin.topics().getInternalStats(topic, false))).log("X 1");
 
         int round = 1;
 
@@ -129,15 +129,15 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
                     .send();
         }
 
-        log.info(" ---- X 2: {}", mapper.writeValueAsString(
-                admin.topics().getInternalStats(topic, false)));
+        log.info().attr("internalStats",
+                mapper.writeValueAsString(admin.topics().getInternalStats(topic, false))).log("X 2");
 
         validateMessages(pulsarClient, true, topic, round, allKeys);
 
         compactor.compact(topic).join();
 
-        log.info(" ---- X 3: {}", mapper.writeValueAsString(
-                admin.topics().getInternalStats(topic, false)));
+        log.info().attr("internalStats",
+                mapper.writeValueAsString(admin.topics().getInternalStats(topic, false))).log("X 3");
 
         validateMessages(pulsarClient, true, topic, round, allKeys);
 
@@ -163,8 +163,8 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
 
         compact(topic);
 
-        log.info(" ---- X 4: {}", mapper.writeValueAsString(
-                admin.topics().getInternalStats(topic, false)));
+        log.info().attr("internalStats",
+                mapper.writeValueAsString(admin.topics().getInternalStats(topic, false))).log("X 4");
 
         validateMessages(pulsarClient, true, topic, round, keys);
 
@@ -200,6 +200,7 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
                 testCompactionCursorRetention(topic)
         );
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testCompactionRetentionOnTopicCreationWithTopicPolicies() throws Exception {
@@ -224,8 +225,8 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
         for (String eventTopic : SystemTopicNames.EVENTS_TOPIC_NAMES) {
             checkSystemTopicRetentionPolicy(topicPrefix + eventTopic);
         }
-        checkSystemTopicRetentionPolicy(topicPrefix + SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN);
-        checkSystemTopicRetentionPolicy(topicPrefix + SystemTopicNames.TRANSACTION_COORDINATOR_LOG);
+        // TRANSACTION_COORDINATOR_ASSIGN and TRANSACTION_COORDINATOR_LOG are only recognized as system
+        // topics when in the pulsar/system namespace (via startsWith check), so they are not tested here.
         checkSystemTopicRetentionPolicy(topicPrefix + SystemTopicNames.PENDING_ACK_STORE_SUFFIX);
 
         // Check common topics.
@@ -274,8 +275,8 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
                 .topic(topic)
                 .create();
 
-        log.info(" ---- X 1: {}", mapper.writeValueAsString(
-                admin.topics().getInternalStats(topic, false)));
+        log.info().attr("internalStats",
+                mapper.writeValueAsString(admin.topics().getInternalStats(topic, false))).log("X 1");
 
         int round = 1;
 
@@ -286,15 +287,15 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
                     .send();
         }
 
-        log.info(" ---- X 2: {}", mapper.writeValueAsString(
-                admin.topics().getInternalStats(topic, false)));
+        log.info().attr("internalStats",
+                mapper.writeValueAsString(admin.topics().getInternalStats(topic, false))).log("X 2");
 
         validateMessages(pulsarClient, true, topic, round, allKeys);
 
         compact(topic);
 
-        log.info(" ---- X 3: {}", mapper.writeValueAsString(
-                admin.topics().getInternalStats(topic, false)));
+        log.info().attr("internalStats",
+                mapper.writeValueAsString(admin.topics().getInternalStats(topic, false))).log("X 3");
 
         validateMessages(pulsarClient, true, topic, round, allKeys);
     }
@@ -317,7 +318,7 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
             }
 
             Integer value = msg.size() > 0 ? msg.getValue() : null;
-            log.info("Received: {} -- value: {}", msg.getKey(), value);
+            log.info().attr("key", msg.getKey()).attr("value", value).log("Received");
             if (value != null) {
                 receivedValues.put(msg.getKey(), value);
             }
@@ -326,8 +327,8 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
         Map<String, Integer> expectedReceivedValues = new HashMap<>();
         expectedKeys.forEach(k -> expectedReceivedValues.put(k, round));
 
-        log.info("Received values: {}", receivedValues);
-        log.info("Expected values: {}", expectedReceivedValues);
+        log.info().attr("values", receivedValues).log("Received values");
+        log.info().attr("values", expectedReceivedValues).log("Expected values");
         assertEquals(receivedValues, expectedReceivedValues);
     }
 }

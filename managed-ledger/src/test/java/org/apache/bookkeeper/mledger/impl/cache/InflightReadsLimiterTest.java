@@ -25,20 +25,23 @@ import static org.mockito.Mockito.mock;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdk;
+import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.tuple.Pair;
 import org.assertj.core.api.Assertions;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class InflightReadsLimiterTest {
     private static final int ACQUIRE_QUEUE_SIZE = 1000;
     private static final int ACQUIRE_TIMEOUT_MILLIS = 500;
@@ -100,6 +103,40 @@ public class InflightReadsLimiterTest {
         limiter.release(handle);
         assertThat(limiter.getRemainingBytes()).isEqualTo(100);
         assertLimiterMetrics(metricReader, 100, 0, 100);
+    }
+
+    @Test
+    public void tryAcquireWhenBelowUtilizationThresholdTakesOnlyPermitsWithinItThatAreNotAwaited() throws Exception {
+        InflightReadsLimiter limiter =
+                new InflightReadsLimiter(100, ACQUIRE_QUEUE_SIZE, ACQUIRE_TIMEOUT_MILLIS,
+                        mock(ScheduledExecutorService.class), OpenTelemetry.noop());
+        assertThat(InflightReadsLimiter.TRY_ACQUIRE_UTILIZATION_THRESHOLD).isEqualTo(0.7);
+        // more than 70 % of the limit is never in use after it
+        assertThat(limiter.tryAcquireWhenBelowUtilizationThreshold(71)).isEmpty();
+        assertThat(limiter.getRemainingBytes()).isEqualTo(100);
+        Optional<InflightReadsLimiter.Handle> first = limiter.tryAcquireWhenBelowUtilizationThreshold(40);
+        assertThat(first).isPresent();
+        assertThat(first.get().success()).isTrue();
+        assertThat(limiter.getRemainingBytes()).isEqualTo(60);
+        // the rest of the permits within the threshold
+        assertThat(limiter.tryAcquireWhenBelowUtilizationThreshold(31)).isEmpty();
+        Optional<InflightReadsLimiter.Handle> second = limiter.tryAcquireWhenBelowUtilizationThreshold(30);
+        assertThat(second).isPresent();
+        assertThat(limiter.getRemainingBytes()).isEqualTo(30);
+        assertThat(limiter.tryAcquireWhenBelowUtilizationThreshold(1)).isEmpty();
+        assertThat(limiter.getRemainingBytes()).isEqualTo(30);
+        limiter.release(second.get());
+        // a read waiting for permits keeps them for itself, though the permits would stay within the threshold
+        AtomicReference<InflightReadsLimiter.Handle> queued = new AtomicReference<>();
+        assertThat(limiter.acquire(80, queued::set)).isEmpty();
+        assertThat(limiter.getRemainingBytes()).isEqualTo(60);
+        assertThat(limiter.tryAcquireWhenBelowUtilizationThreshold(10)).isEmpty();
+        limiter.release(first.get());
+        assertThat(queued.get()).isNotNull();
+        assertThat(queued.get().success()).isTrue();
+        assertThat(limiter.getRemainingBytes()).isEqualTo(20);
+        limiter.release(queued.get());
+        assertThat(limiter.tryAcquireWhenBelowUtilizationThreshold(10)).isPresent();
     }
 
     @Test
@@ -538,6 +575,94 @@ public class InflightReadsLimiterTest {
                 .isEqualTo(maxReadsInFlightSize);
     }
 
+    @SuppressWarnings("deprecation")
+    @Test
+    public void testPrometheusMetrics() throws Exception {
+        long maxReadsInFlightSize = 100;
+        @Cleanup
+        InflightReadsLimiter limiter = new InflightReadsLimiter(maxReadsInFlightSize, ACQUIRE_QUEUE_SIZE,
+                ACQUIRE_TIMEOUT_MILLIS, mock(ScheduledExecutorService.class), OpenTelemetry.noop());
+
+        Assertions.assertThat(InflightReadsLimiter.PULSAR_ML_READS_BUFFER_SIZE.get()).isZero();
+        Assertions.assertThat(InflightReadsLimiter.PULSAR_ML_READS_AVAILABLE_BUFFER_SIZE.get())
+                .isEqualTo(maxReadsInFlightSize);
+    }
+
+    @Test
+    public void testAcquireReleaseCountMetrics() throws Exception {
+        var otel = buildOpenTelemetryAndReader();
+        @Cleanup var openTelemetry = otel.getLeft();
+        @Cleanup var metricReader = otel.getRight();
+
+        InflightReadsLimiter limiter =
+                new InflightReadsLimiter(100, ACQUIRE_QUEUE_SIZE, ACQUIRE_TIMEOUT_MILLIS,
+                        mock(ScheduledExecutorService.class), openTelemetry);
+
+        // Normal acquire: remainingBytes decreases -> acquire count +1
+        Optional<InflightReadsLimiter.Handle> h1 = limiter.acquire(50, null);
+        assertThat(h1).isPresent();
+        assertCountMetrics(metricReader, 1, 0);
+
+        // Normal acquire again
+        Optional<InflightReadsLimiter.Handle> h2 = limiter.acquire(50, null);
+        assertThat(h2).isPresent();
+        assertCountMetrics(metricReader, 2, 0);
+
+        // Queue a request (not yet acquired, so count unchanged)
+        AtomicReference<InflightReadsLimiter.Handle> h3Ref = new AtomicReference<>();
+        limiter.acquire(50, h3Ref::set);
+        assertCountMetrics(metricReader, 2, 0);
+
+        // Release h1: release count +1, queued h3 gets processed -> acquire count +1
+        limiter.release(h1.get());
+        assertThat(h3Ref).hasValueSatisfying(h -> assertThat(h.success()).isTrue());
+        assertCountMetrics(metricReader, 3, 1);
+
+        // Release h2
+        limiter.release(h2.get());
+        assertCountMetrics(metricReader, 3, 2);
+
+        // Release h3
+        limiter.release(h3Ref.get());
+        assertCountMetrics(metricReader, 3, 3);
+    }
+
+    @Test
+    public void testAcquireCountMetricsExceedingMax() throws Exception {
+        var otel = buildOpenTelemetryAndReader();
+        @Cleanup var openTelemetry = otel.getLeft();
+        @Cleanup var metricReader = otel.getRight();
+
+        InflightReadsLimiter limiter =
+                new InflightReadsLimiter(100, ACQUIRE_QUEUE_SIZE, ACQUIRE_TIMEOUT_MILLIS,
+                        mock(ScheduledExecutorService.class), openTelemetry);
+
+        // Acquire > maxReadsInFlightSize from internalAcquire (remainingBytes == maxReadsInFlightSize)
+        Optional<InflightReadsLimiter.Handle> h1 = limiter.acquire(200, null);
+        assertThat(h1).hasValueSatisfying(h -> {
+            assertThat(h.success()).isTrue();
+            assertThat(h.permits()).isEqualTo(100);
+        });
+        assertCountMetrics(metricReader, 1, 0);
+
+        // Queue another request > maxReadsInFlightSize (will be handled by handleQueuedHandle)
+        AtomicReference<InflightReadsLimiter.Handle> h2Ref = new AtomicReference<>();
+        limiter.acquire(200, h2Ref::set);
+        assertCountMetrics(metricReader, 1, 0);
+
+        // Release h1 -> triggers h2 queued handle processing -> acquire count +1
+        limiter.release(h1.get());
+        assertThat(h2Ref).hasValueSatisfying(h -> {
+            assertThat(h.success()).isTrue();
+            assertThat(h.permits()).isEqualTo(100);
+        });
+        assertCountMetrics(metricReader, 2, 1);
+
+        // Release h2
+        limiter.release(h2Ref.get());
+        assertCountMetrics(metricReader, 2, 2);
+    }
+
     private Pair<OpenTelemetrySdk, InMemoryMetricReader> buildOpenTelemetryAndReader() {
         var metricReader = InMemoryMetricReader.create();
         var openTelemetry = AutoConfiguredOpenTelemetrySdk.builder()
@@ -549,6 +674,28 @@ public class InflightReadsLimiterTest {
                 .build()
                 .getOpenTelemetrySdk();
         return Pair.of(openTelemetry, metricReader);
+    }
+
+    private void assertCountMetrics(InMemoryMetricReader metricReader,
+                                     long expectedAcquireCount, long expectedReleaseCount) {
+        var metrics = metricReader.collectAllMetrics();
+        assertMetricCount(metrics, InflightReadsLimiter.INFLIGHT_READS_LIMITER_ACQUIRE_COUNT_METRIC_NAME,
+                expectedAcquireCount);
+        assertMetricCount(metrics, InflightReadsLimiter.INFLIGHT_READS_LIMITER_RELEASE_COUNT_METRIC_NAME,
+                expectedReleaseCount);
+    }
+
+    private static void assertMetricCount(Collection<MetricData> metrics, String metricName, long expectedValue) {
+        var matches = metrics.stream()
+                .filter(m -> m.getName().equals(metricName))
+                .collect(Collectors.toList());
+        if (expectedValue == 0 && matches.isEmpty()) {
+            return;
+        }
+        assertThat(matches).hasSize(1);
+        assertThat(matches.get(0))
+                .hasLongSumSatisfying(longSum -> longSum.hasPointsSatisfying(
+                        point -> point.hasValue(expectedValue)));
     }
 
     private void assertLimiterMetrics(InMemoryMetricReader metricReader,

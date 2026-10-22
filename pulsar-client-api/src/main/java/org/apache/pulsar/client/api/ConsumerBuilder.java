@@ -305,6 +305,20 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> messageListener(MessageListener<T> messageListener);
 
     /**
+     * Sets a {@link DecryptFailListener} for the consumer.
+     *
+     * <p>The application receives encrypt messages and cannot decrypt successfully will through this listener.
+     * <p>Must set with {@link ConsumerBuilder#messageListener(MessageListener)}
+     * and calls to {@link Consumer#receive()} are not allowed.
+     * This listener cannot be used with {@link ConsumerBuilder#cryptoFailureAction(ConsumerCryptoFailureAction)}.
+     *
+     * @param decryptFailListener
+     *            the listener object
+     * @return the consumer builder instance
+     */
+    ConsumerBuilder<T> decryptFailListener(DecryptFailListener<T> decryptFailListener);
+
+    /**
      * Set the {@link MessageListenerExecutor} to be used for message listeners of <b>current consumer</b>.
      * <i>(default: use executor from PulsarClient,
      * {@link org.apache.pulsar.client.impl.PulsarClientImpl#externalExecutorProvider})</i>.
@@ -363,7 +377,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *            MessageCrypto object
      * @return the consumer builder instance
      */
-    ConsumerBuilder<T> messageCrypto(MessageCrypto messageCrypto);
+    ConsumerBuilder<T> messageCrypto(MessageCrypto<?, ?> messageCrypto);
 
     /**
      * Sets the ConsumerCryptoFailureAction to the value specified.
@@ -650,6 +664,24 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *              .build())
      *          .subscribe();
      * </pre>
+     *
+     * <p>If you configure a custom retry letter topic or retry letter producer, you must also enable retry
+     * by calling {@link #enableRetry(boolean)} with {@code true}. Without {@code enableRetry(true)},
+     * any {@code retryLetterTopic} or {@code retryLetterProducerBuilderCustomizer} configuration is ignored.
+     * example:
+     * <pre>
+     * client.newConsumer()
+     *          .enableRetry(true)
+     *          .deadLetterPolicy(DeadLetterPolicy
+     *              .builder()
+     *              .maxRedeliverCount(10)
+     *              .retryLetterTopic("your-retry-letter-topic")
+     *              .retryLetterProducerBuilderCustomizer(customizer)
+     *              .deadLetterTopic("your-dead-letter-topic")
+     *              .deadLetterProducerBuilderCustomizer(customizer)
+     *              .build())
+     *          .subscribe();
+     * </pre>
      */
     ConsumerBuilder<T> deadLetterPolicy(DeadLetterPolicy deadLetterPolicy);
 
@@ -725,6 +757,10 @@ public interface ConsumerBuilder<T> extends Cloneable {
     /**
      * If enabled, the consumer auto-retries messages.
      * Default: disabled.
+     *
+     * <p>This method must be called with {@code true} if you configure a custom
+     * {@link DeadLetterPolicy#retryLetterTopic} or {@link DeadLetterPolicy#retryLetterProducerBuilderCustomizer}.
+     * Without this, retry letter topic configurations are ignored and no retry topic producer is created.
      *
      * @param retryEnable
      *            whether to auto retry message

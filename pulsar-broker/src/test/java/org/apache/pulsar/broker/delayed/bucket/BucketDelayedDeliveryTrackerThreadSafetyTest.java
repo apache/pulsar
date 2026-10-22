@@ -177,6 +177,27 @@ public class BucketDelayedDeliveryTrackerThreadSafetyTest {
     }
 
     /**
+     * Regression test: addMessage should not throw IllegalArgumentException when a ledgerId
+     * falls within the current mutable bucket range [startLedgerId, endLedgerId).
+     * Before the fix, such ledger IDs hit a checkArgument(ledgerId >= endLedgerId)
+     * that assumed monotonically increasing ledger IDs.
+     */
+    @Test
+    public void testAddMessageWithNonMonotonicLedgerIds() {
+        long deliverAt = System.currentTimeMillis() + 10000;
+
+        // Add messages with increasing ledger IDs to establish the mutable bucket range.
+        tracker.addMessage(100, 0, deliverAt);
+        tracker.addMessage(100, 1, deliverAt);
+        tracker.addMessage(101, 0, deliverAt);
+        tracker.addMessage(101, 1, deliverAt);
+
+        // Now add a message with a ledgerId that falls within the established range.
+        // This should NOT throw IllegalArgumentException.
+        tracker.addMessage(100, 2, deliverAt);
+    }
+
+    /**
      * Test concurrent nextDeliveryTime() calls.
      * This verifies the StampedLock implementation for read-heavy operations.
      */

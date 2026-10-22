@@ -21,32 +21,18 @@ package org.apache.pulsar.client.api;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
-public class ExposeMessageRedeliveryCountTest extends ProducerConsumerBase {
-
-    @BeforeMethod
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+public class ExposeMessageRedeliveryCountTest extends SharedPulsarBaseTest {
 
     @Test(timeOut = 30000)
     public void testRedeliveryCount() throws PulsarClientException {
 
-        final String topic = "persistent://my-property/my-ns/redeliveryCount";
+        final String topic = newTopicName();
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
                 .topic(topic)
@@ -81,7 +67,7 @@ public class ExposeMessageRedeliveryCountTest extends ProducerConsumerBase {
     @Test(timeOut = 30000)
     public void testRedeliveryCountWithPartitionedTopic() throws PulsarClientException, PulsarAdminException {
 
-        final String topic = "persistent://my-property/my-ns/redeliveryCount.partitioned";
+        final String topic = newTopicName();
 
         admin.topics().createPartitionedTopic(topic, 3);
 
@@ -119,7 +105,7 @@ public class ExposeMessageRedeliveryCountTest extends ProducerConsumerBase {
     @Test(timeOut = 30000)
     public void testRedeliveryCountWhenConsumerDisconnected() throws PulsarClientException {
 
-        String topic = "persistent://my-property/my-ns/testRedeliveryCountWhenConsumerDisconnected";
+        String topic = newTopicName();
 
         Consumer<String> consumer0 = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
