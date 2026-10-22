@@ -18,10 +18,11 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import org.apache.pulsar.broker.qos.AsyncTokenBucket;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class PublishRateLimiterDisableTest {
@@ -29,9 +30,23 @@ public class PublishRateLimiterDisableTest {
     // GH issue #10603
     @Test
     void shouldAlwaysAllowAcquire() {
-        PublishRateLimiter publishRateLimiter = new PublishRateLimiterImpl(AsyncTokenBucket.DEFAULT_SNAPSHOT_CLOCK);
+        PublishRateLimiter publishRateLimiter = new PublishRateLimiterImpl(AsyncTokenBucket.DEFAULT_SNAPSHOT_CLOCK,
+    producer -> {
+                producer.getCnx().getThrottleTracker().markThrottled(
+                        ServerCnxThrottleTracker.ThrottleType.BrokerPublishRate);
+            }, producer -> {
+                producer.getCnx().getThrottleTracker().unmarkThrottled(
+                        ServerCnxThrottleTracker.ThrottleType.BrokerPublishRate);
+            });
         Producer producer = mock(Producer.class);
+        ServerCnx serverCnx = mock(ServerCnx.class);
+        doAnswer(a -> serverCnx).when(producer).getCnx();
+        ServerCnxThrottleTracker throttleTracker = new ServerCnxThrottleTracker(serverCnx);
+        doAnswer(a -> throttleTracker).when(serverCnx).getThrottleTracker();
+        when(producer.getCnx()).thenReturn(serverCnx);
+        BrokerService brokerService = mock(BrokerService.class);
+        when(serverCnx.getBrokerService()).thenReturn(brokerService);
         publishRateLimiter.handlePublishThrottling(producer, Integer.MAX_VALUE, Long.MAX_VALUE);
-        verify(producer, never()).incrementThrottleCount();
+        Assert.assertEquals(throttleTracker.throttledCount(), 0);
     }
 }

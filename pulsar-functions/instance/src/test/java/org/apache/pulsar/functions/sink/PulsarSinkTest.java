@@ -18,13 +18,13 @@
  */
 package org.apache.pulsar.functions.sink;
 
+import static org.apache.pulsar.functions.instance.ProducerCache.CacheArea.SINK_RECORD_CACHE;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -37,12 +37,11 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.MessageId;
@@ -65,16 +64,18 @@ import org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.SerDe;
+import org.apache.pulsar.functions.instance.ProducerCache;
 import org.apache.pulsar.functions.instance.SinkRecord;
 import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
 import org.apache.pulsar.functions.sink.PulsarSink.PulsarSinkProcessorBase;
 import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.io.core.SinkContext;
 import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class PulsarSinkTest {
 
     private static final String TOPIC = "test_result";
@@ -95,21 +96,22 @@ public class PulsarSinkTest {
     /**
      * Verify that JavaInstance does not support functions that take Void type as input.
      */
+    @SuppressWarnings("unchecked")
     private static PulsarClientImpl getPulsarClient() throws PulsarClientException {
         PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
         ConnectionPool connectionPool = mock(ConnectionPool.class);
         when(pulsarClient.getCnxPool()).thenReturn(connectionPool);
-        ConsumerBuilder consumerBuilder = mock(ConsumerBuilder.class);
+        ConsumerBuilder<?> consumerBuilder = mock(ConsumerBuilder.class);
         doReturn(consumerBuilder).when(consumerBuilder).topics(anyList());
         doReturn(consumerBuilder).when(consumerBuilder).subscriptionName(anyString());
         doReturn(consumerBuilder).when(consumerBuilder).subscriptionType(any());
         doReturn(consumerBuilder).when(consumerBuilder).ackTimeout(anyLong(), any());
-        Consumer consumer = mock(Consumer.class);
+        Consumer<?> consumer = mock(Consumer.class);
         doReturn(consumer).when(consumerBuilder).subscribe();
         doReturn(consumerBuilder).when(pulsarClient).newConsumer(any());
         doReturn(CompletableFuture.completedFuture(Optional.empty())).when(pulsarClient).getSchema(anyString());
 
-        ProducerBuilder producerBuilder = mock(ProducerBuilder.class);
+        ProducerBuilder<?> producerBuilder = mock(ProducerBuilder.class);
         doReturn(producerBuilder).when(producerBuilder).blockIfQueueFull(anyBoolean());
         doReturn(producerBuilder).when(producerBuilder).enableBatching(anyBoolean());
         doReturn(producerBuilder).when(producerBuilder).batchingMaxPublishDelay(anyLong(), any());
@@ -123,15 +125,16 @@ public class PulsarSinkTest {
         doReturn(producerBuilder).when(producerBuilder).properties(any());
         doReturn(producerBuilder).when(producerBuilder).sendTimeout(anyInt(), any());
 
-        CompletableFuture completableFuture = new CompletableFuture<>();
+        CompletableFuture<MessageId> completableFuture = new CompletableFuture<>();
         completableFuture.complete(mock(MessageId.class));
-        TypedMessageBuilder typedMessageBuilder = mock(TypedMessageBuilder.class);
+        TypedMessageBuilder<?> typedMessageBuilder = mock(TypedMessageBuilder.class);
         doReturn(completableFuture).when(typedMessageBuilder).sendAsync();
 
-        Producer producer = mock(Producer.class);
+        Producer<?> producer = mock(Producer.class);
         doReturn(producer).when(producerBuilder).create();
         doReturn(typedMessageBuilder).when(producer).newMessage();
         doReturn(typedMessageBuilder).when(producer).newMessage(any(Schema.class));
+        doReturn(CompletableFuture.completedFuture(null)).when(producer).flushAsync();
 
         doReturn(producerBuilder).when(pulsarClient).newProducer();
         doReturn(producerBuilder).when(pulsarClient).newProducer(any());
@@ -139,9 +142,17 @@ public class PulsarSinkTest {
         return pulsarClient;
     }
 
-    @BeforeMethod
-    public void setup() {
+    ProducerCache producerCache;
 
+    @BeforeMethod(alwaysRun = true)
+    public void setup() {
+        producerCache = new ProducerCache();
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void tearDown() {
+        producerCache.close();
+        producerCache = null;
     }
 
     private static PulsarSinkConfig getPulsarConfigs() {
@@ -176,16 +187,17 @@ public class PulsarSinkTest {
      * Verify that JavaInstance does support functions that output Void type.
      */
     @Test
+    @SuppressWarnings("unchecked")
     public void testVoidOutputClasses() throws Exception {
         PulsarSinkConfig pulsarConfig = getPulsarConfigs();
         // set type to void
         pulsarConfig.setTypeClassName(Void.class.getName());
-        PulsarSink pulsarSink =
-                new PulsarSink(getPulsarClient(), pulsarConfig, new HashMap<>(), mock(ComponentStatsManager.class),
-                        Thread.currentThread().getContextClassLoader());
+        PulsarSink<?> pulsarSink =
+                new PulsarSink<>(getPulsarClient(), pulsarConfig, new HashMap<>(), mock(ComponentStatsManager.class),
+                        Thread.currentThread().getContextClassLoader(), producerCache);
 
         try {
-            Schema schema = pulsarSink.initializeSchema();
+            Schema<?> schema = pulsarSink.initializeSchema();
             assertNull(schema);
         } catch (Exception ex) {
             ex.printStackTrace();
@@ -195,23 +207,24 @@ public class PulsarSinkTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testInconsistentOutputType() throws IOException {
         PulsarSinkConfig pulsarConfig = getPulsarConfigs();
         // set type to be inconsistent to that of SerDe
         pulsarConfig.setTypeClassName(Integer.class.getName());
         pulsarConfig.setSerdeClassName(TestSerDe.class.getName());
-        PulsarSink pulsarSink =
-                new PulsarSink(getPulsarClient(), pulsarConfig, new HashMap<>(), mock(ComponentStatsManager.class),
-                        Thread.currentThread().getContextClassLoader());
+        PulsarSink<?> pulsarSink =
+                new PulsarSink<>(getPulsarClient(), pulsarConfig, new HashMap<>(), mock(ComponentStatsManager.class),
+                        Thread.currentThread().getContextClassLoader(), producerCache);
         try {
             pulsarSink.initializeSchema();
             fail("Should fail constructing java instance if function type is inconsistent with serde type");
         } catch (RuntimeException ex) {
-            log.error("RuntimeException: {}", ex, ex);
+            log.error().exception(ex).log("RuntimeException");
             assertTrue(
                     ex.getMessage().startsWith("Inconsistent types found between function input type and serde type:"));
         } catch (Exception ex) {
-            log.error("Exception: {}", ex, ex);
+            log.error().exception(ex).log("Exception");
             fail();
         }
     }
@@ -220,14 +233,15 @@ public class PulsarSinkTest {
      * Verify that Default Serializer works fine.
      */
     @Test
+    @SuppressWarnings("unchecked")
     public void testDefaultSerDe() throws PulsarClientException {
 
         PulsarSinkConfig pulsarConfig = getPulsarConfigs();
         // set type to void
         pulsarConfig.setTypeClassName(String.class.getName());
-        PulsarSink pulsarSink =
-                new PulsarSink(getPulsarClient(), pulsarConfig, new HashMap<>(), mock(ComponentStatsManager.class),
-                        Thread.currentThread().getContextClassLoader());
+        PulsarSink<?> pulsarSink =
+                new PulsarSink<>(getPulsarClient(), pulsarConfig, new HashMap<>(), mock(ComponentStatsManager.class),
+                        Thread.currentThread().getContextClassLoader(), producerCache);
 
         try {
             pulsarSink.initializeSchema();
@@ -241,14 +255,15 @@ public class PulsarSinkTest {
      * Verify that Explicit setting of Default Serializer works fine.
      */
     @Test
+    @SuppressWarnings("unchecked")
     public void testExplicitDefaultSerDe() throws PulsarClientException {
         PulsarSinkConfig pulsarConfig = getPulsarConfigs();
         // set type to void
         pulsarConfig.setTypeClassName(String.class.getName());
         pulsarConfig.setSerdeClassName(TopicSchema.DEFAULT_SERDE);
-        PulsarSink pulsarSink =
-                new PulsarSink(getPulsarClient(), pulsarConfig, new HashMap<>(), mock(ComponentStatsManager.class),
-                        Thread.currentThread().getContextClassLoader());
+        PulsarSink<?> pulsarSink =
+                new PulsarSink<>(getPulsarClient(), pulsarConfig, new HashMap<>(), mock(ComponentStatsManager.class),
+                        Thread.currentThread().getContextClassLoader(), producerCache);
 
         try {
             pulsarSink.initializeSchema();
@@ -259,14 +274,15 @@ public class PulsarSinkTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testComplexOuputType() throws PulsarClientException {
         PulsarSinkConfig pulsarConfig = getPulsarConfigs();
         // set type to void
         pulsarConfig.setTypeClassName(ComplexUserDefinedType.class.getName());
         pulsarConfig.setSerdeClassName(ComplexSerDe.class.getName());
-        PulsarSink pulsarSink =
-                new PulsarSink(getPulsarClient(), pulsarConfig, new HashMap<>(), mock(ComponentStatsManager.class),
-                        Thread.currentThread().getContextClassLoader());
+        PulsarSink<?> pulsarSink =
+                new PulsarSink<>(getPulsarClient(), pulsarConfig, new HashMap<>(), mock(ComponentStatsManager.class),
+                        Thread.currentThread().getContextClassLoader(), producerCache);
 
         try {
             pulsarSink.initializeSchema();
@@ -277,6 +293,7 @@ public class PulsarSinkTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testInitializeSchema() throws Exception {
         PulsarClient pulsarClient = getPulsarClient();
 
@@ -284,18 +301,18 @@ public class PulsarSinkTest {
         PulsarSinkConfig pulsarSinkConfig = getPulsarConfigs();
         pulsarSinkConfig.setSerdeClassName(null);
         pulsarSinkConfig.setTypeClassName(GenericRecord.class.getName());
-        PulsarSink sink = new PulsarSink(
+        PulsarSink<?> sink = new PulsarSink<>(
             pulsarClient, pulsarSinkConfig, new HashMap<>(), mock(ComponentStatsManager.class),
-            Thread.currentThread().getContextClassLoader());
+            Thread.currentThread().getContextClassLoader(), producerCache);
         Schema<?> schema = sink.initializeSchema();
         assertTrue(schema instanceof AutoConsumeSchema);
 
         // generic record type (default serde and no schema type)
         pulsarSinkConfig = getPulsarConfigs();
         pulsarSinkConfig.setTypeClassName(GenericRecord.class.getName());
-        sink = new PulsarSink(
+        sink = new PulsarSink<>(
             pulsarClient, pulsarSinkConfig, new HashMap<>(), mock(ComponentStatsManager.class),
-            Thread.currentThread().getContextClassLoader());
+            Thread.currentThread().getContextClassLoader(), producerCache);
         schema = sink.initializeSchema();
         assertTrue(schema instanceof AutoConsumeSchema);
 
@@ -304,9 +321,9 @@ public class PulsarSinkTest {
         pulsarSinkConfig.setSerdeClassName(null);
         pulsarSinkConfig.setSchemaType(SchemaType.AVRO.toString());
         pulsarSinkConfig.setTypeClassName(GenericRecord.class.getName());
-        sink = new PulsarSink(
+        sink = new PulsarSink<>(
             pulsarClient, pulsarSinkConfig, new HashMap<>(), mock(ComponentStatsManager.class),
-            Thread.currentThread().getContextClassLoader());
+            Thread.currentThread().getContextClassLoader(), producerCache);
         schema = sink.initializeSchema();
         assertTrue(schema instanceof AutoConsumeSchema);
 
@@ -315,9 +332,9 @@ public class PulsarSinkTest {
         pulsarSinkConfig.setSerdeClassName(null);
         pulsarSinkConfig.setSchemaType(SchemaType.AUTO_CONSUME.toString());
         pulsarSinkConfig.setTypeClassName(GenericRecord.class.getName());
-        sink = new PulsarSink(
+        sink = new PulsarSink<>(
             pulsarClient, pulsarSinkConfig, new HashMap<>(), mock(ComponentStatsManager.class),
-            Thread.currentThread().getContextClassLoader());
+            Thread.currentThread().getContextClassLoader(), producerCache);
         schema = sink.initializeSchema();
         assertTrue(schema instanceof AutoConsumeSchema);
 
@@ -325,14 +342,15 @@ public class PulsarSinkTest {
         pulsarSinkConfig = getPulsarConfigs();
         pulsarSinkConfig.setSchemaType(SchemaType.AUTO_CONSUME.toString());
         pulsarSinkConfig.setTypeClassName(GenericRecord.class.getName());
-        sink = new PulsarSink(
+        sink = new PulsarSink<>(
             pulsarClient, pulsarSinkConfig, new HashMap<>(), mock(ComponentStatsManager.class),
-            Thread.currentThread().getContextClassLoader());
+            Thread.currentThread().getContextClassLoader(), producerCache);
         schema = sink.initializeSchema();
         assertTrue(schema instanceof AutoConsumeSchema);
     }
 
     @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
     public void testSinkAndMessageRouting() throws Exception {
 
         String[] topics = {"topic-1", "topic-2", "topic-3", null};
@@ -344,9 +362,12 @@ public class PulsarSinkTest {
         /** test MANUAL **/
         pulsarClient = getPulsarClient();
         pulsarConfig.setProcessingGuarantees(ProcessingGuarantees.MANUAL);
-        PulsarSink pulsarSink = new PulsarSink(pulsarClient, pulsarConfig, new HashMap<>(), mock(ComponentStatsManager.class), Thread.currentThread().getContextClassLoader());
+        PulsarSink<String> pulsarSink =
+                new PulsarSink<>(pulsarClient, pulsarConfig, new HashMap<>(), mock(ComponentStatsManager.class),
+                        Thread.currentThread().getContextClassLoader(), producerCache);
 
         pulsarSink.open(new HashMap<>(), mock(SinkContext.class));
+        verify(pulsarClient.newProducer(), times(1)).topic(defaultTopic);
 
         for (String topic : topics) {
 
@@ -358,6 +379,7 @@ public class PulsarSinkTest {
                 }
 
                 @Override
+                @SuppressWarnings("unchecked")
                 public Optional<String> getDestinationTopic() {
                     return getTopicOptional(topic);
                 }
@@ -367,26 +389,22 @@ public class PulsarSinkTest {
             pulsarSink.write(record);
 
             Assert.assertTrue(pulsarSink.pulsarSinkProcessor instanceof PulsarSink.PulsarSinkManualProcessor);
-            PulsarSink.PulsarSinkManualProcessor pulsarSinkManualProcessor
-                    = (PulsarSink.PulsarSinkManualProcessor) pulsarSink.pulsarSinkProcessor;
+            PulsarSink.PulsarSinkManualProcessor pulsarSinkManualProcessor =
+                    (PulsarSink.PulsarSinkManualProcessor) pulsarSink.pulsarSinkProcessor;
             if (topic != null) {
-                Assert.assertTrue(pulsarSinkManualProcessor.publishProducers.containsKey(topic));
+                Assert.assertTrue(producerCache.containsKey(SINK_RECORD_CACHE, topic));
             } else {
-                Assert.assertTrue(pulsarSinkManualProcessor.publishProducers.containsKey(defaultTopic));
+                Assert.assertTrue(producerCache.containsKey(SINK_RECORD_CACHE, defaultTopic));
             }
-            verify(pulsarClient.newProducer(), times(1)).topic(argThat(otherTopic -> {
-                if (topic != null) {
-                    return topic.equals(otherTopic);
-                } else {
-                    return defaultTopic.equals(otherTopic);
-                }
-            }));
+            String actualTopic = topic != null ? topic : defaultTopic;
+            verify(pulsarClient.newProducer(), times(1)).topic(actualTopic);
         }
 
         /** test At-least-once **/
         pulsarClient = getPulsarClient();
         pulsarConfig.setProcessingGuarantees(ProcessingGuarantees.ATLEAST_ONCE);
-        pulsarSink = new PulsarSink(pulsarClient, pulsarConfig, new HashMap<>(), mock(ComponentStatsManager.class), Thread.currentThread().getContextClassLoader());
+        pulsarSink = new PulsarSink<>(pulsarClient, pulsarConfig, new HashMap<>(), mock(ComponentStatsManager.class),
+                Thread.currentThread().getContextClassLoader(), producerCache);
 
         pulsarSink.open(new HashMap<>(), mock(SinkContext.class));
 
@@ -400,6 +418,7 @@ public class PulsarSinkTest {
                 }
 
                 @Override
+                @SuppressWarnings("unchecked")
                 public Optional<String> getDestinationTopic() {
                     return getTopicOptional(topic);
                 }
@@ -407,27 +426,20 @@ public class PulsarSinkTest {
             pulsarSink.write(record);
 
             Assert.assertTrue(pulsarSink.pulsarSinkProcessor instanceof PulsarSink.PulsarSinkAtLeastOnceProcessor);
-            PulsarSink.PulsarSinkAtLeastOnceProcessor pulsarSinkAtLeastOnceProcessor
-                    = (PulsarSink.PulsarSinkAtLeastOnceProcessor) pulsarSink.pulsarSinkProcessor;
+            PulsarSink.PulsarSinkAtLeastOnceProcessor pulsarSinkAtLeastOnceProcessor =
+                    (PulsarSink.PulsarSinkAtLeastOnceProcessor) pulsarSink.pulsarSinkProcessor;
             if (topic != null) {
-                Assert.assertTrue(pulsarSinkAtLeastOnceProcessor.publishProducers.containsKey(topic));
+                Assert.assertTrue(producerCache.containsKey(SINK_RECORD_CACHE, topic));
             } else {
-                Assert.assertTrue(pulsarSinkAtLeastOnceProcessor.publishProducers.containsKey(defaultTopic));
+                Assert.assertTrue(producerCache.containsKey(SINK_RECORD_CACHE, defaultTopic));
             }
-            verify(pulsarClient.newProducer(), times(1)).topic(argThat(otherTopic -> {
-                if (topic != null) {
-                    return topic.equals(otherTopic);
-                } else {
-                    return defaultTopic.equals(otherTopic);
-                }
-            }));
         }
 
         /** test At-most-once **/
         pulsarClient = getPulsarClient();
         pulsarConfig.setProcessingGuarantees(ProcessingGuarantees.ATMOST_ONCE);
-        pulsarSink = new PulsarSink(pulsarClient, pulsarConfig, new HashMap<>(), mock(ComponentStatsManager.class),
-                Thread.currentThread().getContextClassLoader());
+        pulsarSink = new PulsarSink<>(pulsarClient, pulsarConfig, new HashMap<>(), mock(ComponentStatsManager.class),
+                Thread.currentThread().getContextClassLoader(), producerCache);
 
         pulsarSink.open(new HashMap<>(), mock(SinkContext.class));
 
@@ -445,6 +457,7 @@ public class PulsarSinkTest {
                 }
 
                 @Override
+                @SuppressWarnings("unchecked")
                 public Optional<String> getDestinationTopic() {
                     return getTopicOptional(topic);
                 }
@@ -454,23 +467,20 @@ public class PulsarSinkTest {
             pulsarSink.write(record);
 
             Assert.assertTrue(pulsarSink.pulsarSinkProcessor instanceof PulsarSink.PulsarSinkAtMostOnceProcessor);
-            PulsarSink.PulsarSinkAtMostOnceProcessor pulsarSinkAtLeastOnceProcessor
-                    = (PulsarSink.PulsarSinkAtMostOnceProcessor) pulsarSink.pulsarSinkProcessor;
+            PulsarSink.PulsarSinkAtMostOnceProcessor pulsarSinkAtLeastOnceProcessor =
+                    (PulsarSink.PulsarSinkAtMostOnceProcessor) pulsarSink.pulsarSinkProcessor;
             if (topic != null) {
-                Assert.assertTrue(pulsarSinkAtLeastOnceProcessor.publishProducers.containsKey(topic));
+                Assert.assertTrue(producerCache.containsKey(SINK_RECORD_CACHE, topic));
             } else {
-                Assert.assertTrue(pulsarSinkAtLeastOnceProcessor.publishProducers.containsKey(defaultTopic));
+                Assert.assertTrue(producerCache.containsKey(SINK_RECORD_CACHE, defaultTopic));
             }
-            verify(pulsarClient.newProducer(), times(1)).topic(argThat(o -> {
-                return getTopicEquals(o, topic, defaultTopic);
-            }));
         }
 
         /** test Effectively-once **/
         pulsarClient = getPulsarClient();
         pulsarConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE);
-        pulsarSink = new PulsarSink(pulsarClient, pulsarConfig, new HashMap<>(), mock(ComponentStatsManager.class),
-                Thread.currentThread().getContextClassLoader());
+        pulsarSink = new PulsarSink<>(pulsarClient, pulsarConfig, new HashMap<>(), mock(ComponentStatsManager.class),
+                Thread.currentThread().getContextClassLoader(), producerCache);
 
         pulsarSink.open(new HashMap<>(), mock(SinkContext.class));
 
@@ -507,6 +517,7 @@ public class PulsarSinkTest {
                 }
 
                 @Override
+                @SuppressWarnings("unchecked")
                 public Optional<Long> getRecordSequence() {
                     return Optional.of(1L);
                 }
@@ -517,26 +528,22 @@ public class PulsarSinkTest {
             pulsarSink.write(record);
 
             Assert.assertTrue(pulsarSink.pulsarSinkProcessor instanceof PulsarSink.PulsarSinkEffectivelyOnceProcessor);
-            PulsarSink.PulsarSinkEffectivelyOnceProcessor pulsarSinkEffectivelyOnceProcessor
-                    = (PulsarSink.PulsarSinkEffectivelyOnceProcessor) pulsarSink.pulsarSinkProcessor;
+            PulsarSink.PulsarSinkEffectivelyOnceProcessor pulsarSinkEffectivelyOnceProcessor =
+                    (PulsarSink.PulsarSinkEffectivelyOnceProcessor) pulsarSink.pulsarSinkProcessor;
             if (topic != null) {
-                Assert.assertTrue(pulsarSinkEffectivelyOnceProcessor.publishProducers
-                        .containsKey(String.format("%s-%s-id-1", topic, topic)));
+                Assert.assertTrue(producerCache
+                        .containsKey(SINK_RECORD_CACHE, topic, String.format("%s-id-1", topic)));
             } else {
-                Assert.assertTrue(pulsarSinkEffectivelyOnceProcessor.publishProducers
-                        .containsKey(String.format("%s-%s-id-1", defaultTopic, defaultTopic)));
+                Assert.assertTrue(producerCache
+                        .containsKey(SINK_RECORD_CACHE,
+                                defaultTopic, String.format("%s-id-1", defaultTopic)
+                        ));
             }
 
-            verify(pulsarClient.newProducer(), times(1)).topic(argThat(o -> {
-                return getTopicEquals(o, topic, defaultTopic);
-            }));
-            verify(pulsarClient.newProducer(), times(1)).producerName(argThat(o -> {
-                if (topic != null) {
-                    return String.format("%s-id-1", topic).equals(o);
-                } else {
-                    return String.format("%s-id-1", defaultTopic).equals(o);
-                }
-            }));
+            String expectedTopicName = topic != null ? topic : defaultTopic;
+            verify(pulsarClient.newProducer(), times(1)).topic(expectedTopicName);
+            String expectedProducerName = String.format("%s-id-1", expectedTopicName);
+            verify(pulsarClient.newProducer(), times(1)).producerName(expectedProducerName);
         }
     }
 
@@ -555,6 +562,7 @@ public class PulsarSinkTest {
         testWriteGenericRecords(ProcessingGuarantees.EFFECTIVELY_ONCE);
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     private void testWriteGenericRecords(ProcessingGuarantees guarantees) throws Exception {
         String defaultTopic = "default";
 
@@ -564,9 +572,9 @@ public class PulsarSinkTest {
         sinkConfig.setProcessingGuarantees(guarantees);
 
         PulsarClient client = getPulsarClient();
-        PulsarSink pulsarSink = new PulsarSink(
+        PulsarSink<GenericRecord> pulsarSink = new PulsarSink<>(
             client, sinkConfig, new HashMap<>(), mock(ComponentStatsManager.class),
-            Thread.currentThread().getContextClassLoader());
+            Thread.currentThread().getContextClassLoader(), producerCache);
 
         pulsarSink.open(new HashMap<>(), mock(SinkContext.class));
 
@@ -578,7 +586,7 @@ public class PulsarSinkTest {
             assertTrue(pulsarSink.pulsarSinkProcessor instanceof PulsarSink.PulsarSinkEffectivelyOnceProcessor);
         }
         PulsarSinkProcessorBase processor = (PulsarSinkProcessorBase) pulsarSink.pulsarSinkProcessor;
-        assertFalse(processor.publishProducers.containsKey(defaultTopic));
+        assertFalse(producerCache.containsKey(SINK_RECORD_CACHE, defaultTopic));
 
         String[] topics = {"topic-1", "topic-2", "topic-3"};
         for (String topic : topics) {
@@ -617,6 +625,7 @@ public class PulsarSinkTest {
                 }
 
                 @Override
+                @SuppressWarnings("unchecked")
                 public Optional<Long> getRecordSequence() {
                     return Optional.of(1L);
                 }
@@ -625,17 +634,15 @@ public class PulsarSinkTest {
             pulsarSink.write(record);
 
             if (ProcessingGuarantees.EFFECTIVELY_ONCE == guarantees) {
-                assertTrue(processor.publishProducers.containsKey(String.format("%s-%s-id-1", topic, topic)));
+                assertTrue(producerCache.containsKey(SINK_RECORD_CACHE,
+                        topic, String.format("%s-id-1", topic)
+                ));
             } else {
-                assertTrue(processor.publishProducers.containsKey(topic));
+                assertTrue(producerCache.containsKey(SINK_RECORD_CACHE, topic));
             }
-            verify(client.newProducer(), times(1))
-                .topic(argThat(
-                    otherTopic -> topic != null ? topic.equals(otherTopic) : defaultTopic.equals(otherTopic)));
-
-            verify(client, times(1))
-                .newProducer(argThat(
-                    otherSchema -> Objects.equals(otherSchema, schema)));
+            String expectedTopicName = topic != null ? topic : defaultTopic;
+            verify(client.newProducer(), times(1)).topic(expectedTopicName);
+            verify(client, times(1)).newProducer(schema);
         }
     }
 
@@ -646,13 +653,4 @@ public class PulsarSinkTest {
             return Optional.empty();
         }
     }
-
-    private boolean getTopicEquals(Object o, String topic, String defaultTopic) {
-        if (topic != null) {
-            return topic.equals(o);
-        } else {
-            return defaultTopic.equals(o);
-        }
-    }
-
 }

@@ -20,7 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.mledger.proto.CompressionType;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -40,7 +40,7 @@ public class ManagedLedgerCompressionTest extends BrokerTestBase {
     @BeforeClass
     @Override
     protected void setup() throws Exception {
-        conf.setManagedLedgerInfoCompressionType(MLDataFormats.CompressionType.NONE.name());
+        conf.setManagedLedgerInfoCompressionType(CompressionType.NONE.name());
         super.baseSetup();
     }
 
@@ -67,12 +67,12 @@ public class ManagedLedgerCompressionTest extends BrokerTestBase {
         produceAndConsume(producer, consumer, messageCnt);
 
         stopBroker();
-        conf.setManagedLedgerInfoCompressionType(MLDataFormats.CompressionType.ZSTD.name());
+        conf.setManagedLedgerInfoCompressionType(CompressionType.ZSTD.name());
         startBroker();
         produceAndConsume(producer, consumer, messageCnt);
 
         stopBroker();
-        conf.setManagedLedgerInfoCompressionType(MLDataFormats.CompressionType.LZ4.name());
+        conf.setManagedLedgerInfoCompressionType(CompressionType.LZ4.name());
         startBroker();
         produceAndConsume(producer, consumer, messageCnt);
 
@@ -85,11 +85,11 @@ public class ManagedLedgerCompressionTest extends BrokerTestBase {
             Throwable e = rte.getCause();
             Assert.assertEquals(e.getCause().getClass(), IllegalArgumentException.class);
             Assert.assertEquals(
-                    "No enum constant org.apache.bookkeeper.mledger.proto.MLDataFormats.CompressionType.INVALID",
+                    "No enum constant org.apache.bookkeeper.mledger.proto.CompressionType.INVALID",
                     e.getCause().getMessage());
         }
 
-        conf.setManagedLedgerInfoCompressionType(MLDataFormats.CompressionType.NONE.name());
+        conf.setManagedLedgerInfoCompressionType(CompressionType.NONE.name());
         startBroker();
         produceAndConsume(producer, consumer, messageCnt);
     }

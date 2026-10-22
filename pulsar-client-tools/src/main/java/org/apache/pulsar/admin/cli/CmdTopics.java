@@ -62,9 +62,12 @@ import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.TransactionIsolationLevel;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.common.api.proto.MarkerType;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -80,6 +83,7 @@ import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
+import org.apache.pulsar.common.stats.AnalyzeSubscriptionBacklogResult;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import picocli.CommandLine.Command;
@@ -88,6 +92,7 @@ import picocli.CommandLine.Parameters;
 
 @Getter
 @Command(description = "Operations on persistent topics")
+@SuppressWarnings("deprecation")
 public class CmdTopics extends CmdBase {
     private final CmdTopics.PartitionedLookup partitionedLookup;
     private final CmdTopics.DeleteCmd deleteCmd;
@@ -272,6 +277,8 @@ public class CmdTopics extends CmdBase {
         addCommand("set-schema-validation-enforce", new SetSchemaValidationEnforced());
 
         addCommand("trim-topic", new TrimTopic());
+
+        addCommand("get-message-id-by-index", new GetMessageIdByIndex());
     }
 
     @Command(description = "Get the list of topics under a namespace.")
@@ -291,12 +298,18 @@ public class CmdTopics extends CmdBase {
                 "--include-system-topic" }, description = "Include system topic")
         private boolean includeSystemTopic;
 
+        @Option(names = {"--property", "-p"},
+            description = "key value pair properties(-p a=b -p c=d) for customized topic listing plugin",
+            required = false)
+        private Map<String, String> properties;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(namespaceName);
             ListTopicsOptions options = ListTopicsOptions.builder()
                     .bundle(bundle)
                     .includeSystemTopic(includeSystemTopic)
+                    .properties(properties)
                     .build();
             print(getTopics().getList(namespace, topicDomain, options));
         }
@@ -1097,50 +1110,24 @@ public class CmdTopics extends CmdBase {
         @Option(names = { "-n", "--count" }, description = "Number of messages (default 1)", required = false)
         private int numMessages = 1;
 
+        @Option(names = { "-ssm", "--show-server-marker" },
+                description = "Enables the display of internal server write markers.", required = false)
+        private boolean showServerMarker = false;
+
+        @Option(names = { "-til", "--transaction-isolation-level" },
+                description = "Sets the isolation level for peeking messages within transactions. "
+                   + "'READ_COMMITTED' allows peeking only committed transactional messages. "
+                   + "'READ_UNCOMMITTED' allows peeking all messages, "
+                        + "even transactional messages which have been aborted.",
+                required = false)
+        private TransactionIsolationLevel transactionIsolationLevel = TransactionIsolationLevel.READ_COMMITTED;
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(topicName);
-            List<Message<byte[]>> messages = getTopics().peekMessages(persistentTopic, subName, numMessages);
-            int position = 0;
-            for (Message<byte[]> msg : messages) {
-                MessageImpl message = (MessageImpl) msg;
-                if (++position != 1) {
-                    System.out.println("-------------------------------------------------------------------------\n");
-                }
-                if (message.getMessageId() instanceof BatchMessageIdImpl) {
-                    BatchMessageIdImpl msgId = (BatchMessageIdImpl) message.getMessageId();
-                    System.out.println("Batch Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId() + ":"
-                            + msgId.getBatchIndex());
-                } else {
-                    MessageIdImpl msgId = (MessageIdImpl) msg.getMessageId();
-                    System.out.println("Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId());
-                }
-
-                System.out.println("Publish time: " + message.getPublishTime());
-                System.out.println("Event time: " + message.getEventTime());
-
-                if (message.getDeliverAtTime() != 0) {
-                    System.out.println("Deliver at time: " + message.getDeliverAtTime());
-                }
-
-                if (message.getBrokerEntryMetadata() != null) {
-                    if (message.getBrokerEntryMetadata().hasBrokerTimestamp()) {
-                        System.out.println("Broker entry metadata timestamp: "
-                                + message.getBrokerEntryMetadata().getBrokerTimestamp());
-                    }
-                    if (message.getBrokerEntryMetadata().hasIndex()) {
-                        System.out.println("Broker entry metadata index: "
-                                + message.getBrokerEntryMetadata().getIndex());
-                    }
-                }
-
-                if (message.getProperties().size() > 0) {
-                    System.out.println("Properties:");
-                    print(msg.getProperties());
-                }
-                ByteBuf data = Unpooled.wrappedBuffer(msg.getData());
-                System.out.println(ByteBufUtil.prettyHexDump(data));
-            }
+            List<Message<byte[]>> messages = getTopics().peekMessages(persistentTopic, subName, numMessages,
+                    showServerMarker, transactionIsolationLevel);
+            printMessages(messages, showServerMarker, this);
         }
     }
 
@@ -1163,8 +1150,8 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(topicName);
-            MessageImpl message =
-                    (MessageImpl) getTopics().examineMessage(persistentTopic, initialPosition, messagePosition);
+            MessageImpl<?> message =
+                    (MessageImpl<?>) getTopics().examineMessage(persistentTopic, initialPosition, messagePosition);
 
             if (message.getMessageId() instanceof BatchMessageIdImpl) {
                 BatchMessageIdImpl msgId = (BatchMessageIdImpl) message.getMessageId();
@@ -1220,7 +1207,7 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(topicName);
 
-            MessageImpl message = (MessageImpl) getTopics().getMessageById(persistentTopic, ledgerId, entryId);
+            MessageImpl<?> message = (MessageImpl<?>) getTopics().getMessageById(persistentTopic, ledgerId, entryId);
             if (message == null) {
                 System.out.println("Cannot find any messages based on ledgerId:"
                         + ledgerId + " entryId:" + entryId);
@@ -1359,6 +1346,55 @@ public class CmdTopics extends CmdBase {
         return null;
     }
 
+    public static void printMessages(List<Message<byte[]>> messages, boolean showServerMarker, CliCommand cli) {
+        if (messages == null) {
+            return;
+        }
+        int position = 0;
+        for (Message<byte[]> msg : messages) {
+            MessageImpl<?> message = (MessageImpl<?>) msg;
+            if (++position != 1) {
+                System.out.println("-------------------------------------------------------------------------\n");
+            }
+            if (message.getMessageId() instanceof BatchMessageIdImpl) {
+                BatchMessageIdImpl msgId = (BatchMessageIdImpl) message.getMessageId();
+                System.out.println("Batch Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId() + ":"
+                        + msgId.getBatchIndex());
+            } else {
+                MessageIdImpl msgId = (MessageIdImpl) msg.getMessageId();
+                System.out.println("Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId());
+            }
+
+            System.out.println("Publish time: " + message.getPublishTime());
+            System.out.println("Event time: " + message.getEventTime());
+
+            if (message.getDeliverAtTime() != 0) {
+                System.out.println("Deliver at time: " + message.getDeliverAtTime());
+            }
+            MessageMetadata msgMetaData = message.getMessageBuilder();
+            if (showServerMarker && msgMetaData.hasMarkerType()) {
+                System.out.println("Marker Type: " + MarkerType.valueOf(msgMetaData.getMarkerType()));
+            }
+
+            if (message.getBrokerEntryMetadata() != null) {
+                if (message.getBrokerEntryMetadata().hasBrokerTimestamp()) {
+                    System.out.println("Broker entry metadata timestamp: "
+                            + message.getBrokerEntryMetadata().getBrokerTimestamp());
+                }
+                if (message.getBrokerEntryMetadata().hasIndex()) {
+                    System.out.println("Broker entry metadata index: " + message.getBrokerEntryMetadata().getIndex());
+                }
+            }
+
+            if (message.getProperties().size() > 0) {
+                System.out.println("Properties:");
+                cli.print(msg.getProperties());
+            }
+            ByteBuf data = Unpooled.wrappedBuffer(msg.getData());
+            System.out.println(ByteBufUtil.prettyHexDump(data));
+        }
+    }
+
     @Command(description = "Trigger offload of data from a topic to long-term storage (e.g. Amazon S3)")
     private class Offload extends CliCommand {
         @Option(names = { "-s", "--size-threshold" },
@@ -1379,7 +1415,7 @@ public class CmdTopics extends CmdBase {
                 throw new PulsarAdminException("Topic doesn't have any data");
             }
 
-            LinkedList<PersistentTopicInternalStats.LedgerInfo> ledgers = new LinkedList(stats.ledgers);
+            LinkedList<PersistentTopicInternalStats.LedgerInfo> ledgers = new LinkedList<>(stats.ledgers);
             ledgers.get(ledgers.size() - 1).size = stats.currentLedgerSize; // doesn't get filled in now it seems
             MessageId messageId = findFirstLedgerWithinThreshold(ledgers, sizeThreshold);
 
@@ -1832,14 +1868,14 @@ public class CmdTopics extends CmdBase {
                 + "-t 120 will set retention to 2 minutes. "
                 + "0 means no retention and -1 means infinite time retention.", required = true,
                 converter = TimeUnitToSecondsConverter.class)
-        private Integer retentionTimeInSec;
+        private Long retentionTimeInSec;
 
         @Option(names = { "--size", "-s" }, description = "Retention size limit with optional size unit suffix. "
                 + "For example, 4096, 10M, 16G, 3T.  The size unit suffix character can be k/K, m/M, g/G, or t/T.  "
                 + "If the size unit suffix is not specified, the default unit is bytes. "
                 + "0 or less than 1MB means no retention and -1 means infinite size retention", required = true,
-                converter = ByteUnitToIntegerConverter.class)
-        private Integer sizeLimit;
+                converter = ByteUnitToLongConverter.class)
+        private Long sizeLimit;
 
         @Override
         void run() throws PulsarAdminException {
@@ -1847,8 +1883,8 @@ public class CmdTopics extends CmdBase {
             final int retentionTimeInMin = retentionTimeInSec != -1
                     ? (int) TimeUnit.SECONDS.toMinutes(retentionTimeInSec)
                     : retentionTimeInSec.intValue();
-            final int retentionSizeInMB = sizeLimit != -1
-                    ? (int) (sizeLimit / (1024 * 1024))
+            final long retentionSizeInMB = sizeLimit != -1
+                    ? (sizeLimit / (1024 * 1024))
                     : sizeLimit;
             getTopics().setRetention(persistentTopic, new RetentionPolicies(retentionTimeInMin, retentionSizeInMB));
         }
@@ -2125,8 +2161,13 @@ public class CmdTopics extends CmdBase {
 
         @Option(names = { "-r",
                 "--ml-mark-delete-max-rate" }, description = "Throttling rate of mark-delete operation "
-                + "(0 means no throttle)")
-        private double managedLedgerMaxMarkDeleteRate = 0;
+                + "(0 means no throttle, -1 means unset which will use the configuration from namespace or broker)")
+        private double managedLedgerMaxMarkDeleteRate = -1;
+
+        @Option(names = { "-c",
+                "--ml-storage-class" },
+                description = "Managed ledger storage class name")
+        private String managedLedgerStorageClassName;
 
         @Override
         void run() throws PulsarAdminException {
@@ -2135,11 +2176,9 @@ public class CmdTopics extends CmdBase {
                 throw new ParameterException("[--bookkeeper-ensemble], [--bookkeeper-write-quorum] "
                         + "and [--bookkeeper-ack-quorum] must greater than 0.");
             }
-            if (managedLedgerMaxMarkDeleteRate < 0) {
-                throw new ParameterException("[--ml-mark-delete-max-rate] cannot less than 0.");
-            }
             getTopics().setPersistence(persistentTopic, new PersistencePolicies(bookkeeperEnsemble,
-                    bookkeeperWriteQuorum, bookkeeperAckQuorum, managedLedgerMaxMarkDeleteRate));
+                    bookkeeperWriteQuorum, bookkeeperAckQuorum, managedLedgerMaxMarkDeleteRate,
+                    managedLedgerStorageClassName));
         }
     }
 
@@ -2475,7 +2514,7 @@ public class CmdTopics extends CmdBase {
 
         @Option(names = { "--dispatch-rate-period",
             "-dt" }, description = "dispatch-rate-period in second type"
-                + " (default 1 second will be overwrite if not passed)")
+                + "(default 1 second will be overwrite if not passed)")
         private int dispatchRatePeriodSec = 1;
 
         @Option(names = { "--relative-to-publish-rate",
@@ -2964,24 +3003,52 @@ public class CmdTopics extends CmdBase {
         @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
         private String topicName;
 
-        @Option(names = { "-s", "--subscription" }, description = "Subscription to be analyzed", required = true)
+        @Option(names = {"-s", "--subscription"}, description = "Subscription to be analyzed", required = true)
         private String subName;
 
-        @Option(names = { "--position",
-                "-p" }, description = "message position to start the scan from (ledgerId:entryId)", required = false)
+        @Option(names = {"--position",
+                "-p"}, description = "Message position to start the scan from (ledgerId:entryId)", required = false)
         private String messagePosition;
 
+        @Option(names = {"--backlog-scan-max-entries",
+                "-b"}, description = "The maximum number of backlog entries the client will scan before terminating "
+                + "its loop", required = false)
+        private Long backlogScanMaxEntries;
+
+        @Option(names = {"--quiet", "-q"}, description = "Disable analyze-backlog progress reporting", required = false)
+        private boolean quiet = false;
+
+        @Option(names = {"--plain"}, description = "Plain(Non-pretty) print backlog results as NDJSON",
+                required = false)
+        private boolean plainPrint = false;
+
         @Override
-        void run() throws PulsarAdminException {
+        void run() throws Exception {
             String persistentTopic = validatePersistentTopic(topicName);
             Optional<MessageId> startPosition = Optional.empty();
+            int partitionIndex = TopicName.get(persistentTopic).getPartitionIndex();
             if (isNotBlank(messagePosition)) {
-                int partitionIndex = TopicName.get(persistentTopic).getPartitionIndex();
                 MessageId messageId = validateMessageIdString(messagePosition, partitionIndex);
                 startPosition = Optional.of(messageId);
             }
-            print(getTopics().analyzeSubscriptionBacklog(persistentTopic, subName, startPosition));
 
+            AnalyzeSubscriptionBacklogResult backlogResult;
+            if (backlogScanMaxEntries == null) {
+                backlogResult = getTopics().analyzeSubscriptionBacklog(persistentTopic, subName, startPosition);
+            } else {
+                if (backlogScanMaxEntries <= 0) {
+                    throw new ParameterException("--backlog-scan-max-entries must be greater than 0");
+                }
+                backlogResult = getTopics().analyzeSubscriptionBacklog(persistentTopic, subName, startPosition,
+                        result -> {
+                            boolean terminate = result.getEntries() >= backlogScanMaxEntries;
+                            if (!quiet && !terminate) {
+                                print(result, !plainPrint);
+                            }
+                            return terminate;
+                        });
+            }
+            print(backlogResult, !plainPrint);
         }
     }
 
@@ -3024,6 +3091,22 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String topic = validateTopicName(topicName);
             getAdmin().topics().trimTopic(topic);
+        }
+    }
+
+    @Command(description = "Get message id by index")
+    private class GetMessageIdByIndex extends CliCommand {
+
+        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
+        private String topicName;
+
+        @Option(names = { "--index", "-i" }, description = "Index to get message id for the topic", required = true)
+        private Long index;
+
+        @Override
+        void run() throws Exception {
+            String topic = validateTopicName(topicName);
+            System.out.println(getAdmin().topics().getMessageIdByIndex(topic, index));
         }
     }
 }

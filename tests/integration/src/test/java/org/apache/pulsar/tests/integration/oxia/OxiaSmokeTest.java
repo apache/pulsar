@@ -19,15 +19,15 @@
 package org.apache.pulsar.tests.integration.oxia;
 
 import java.util.function.Supplier;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.testng.annotations.Test;
 
 /**
- * Test pulsar produce/consume semantics
+ * Test pulsar produce/consume semantics.
  */
-@Slf4j
+@CustomLog
 public class OxiaSmokeTest extends PulsarTestSuite {
 
     protected PulsarClusterSpec.PulsarClusterSpecBuilder beforeSetupCluster(

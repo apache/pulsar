@@ -31,6 +31,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+// This test needs to be run separately since it relies on static field values
 public class DnsResolverTest {
     private static final int MIN_TTL = 0;
     private static final int TTL = 101;

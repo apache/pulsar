@@ -18,7 +18,7 @@
 @REM
 
 @echo off
-
+setlocal enabledelayedexpansion
 for %%i in ("%~dp0.") do SET "SCRIPT_PATH=%%~fi"
 set "PULSAR_HOME_DIR=%SCRIPT_PATH%\..\"
 for %%i in ("%PULSAR_HOME_DIR%.") do SET "PULSAR_HOME=%%~fi"
@@ -28,3 +28,4 @@ if ERRORLEVEL 1 (
 )
 cd "%PULSAR_HOME%"
 "%JAVACMD%" %OPTS% org.apache.pulsar.client.cli.PulsarClientTool %PULSAR_CLIENT_CONF% %*
+endlocal

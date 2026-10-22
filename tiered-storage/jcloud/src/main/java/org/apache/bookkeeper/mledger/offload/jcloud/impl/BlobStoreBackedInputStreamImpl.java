@@ -22,6 +22,7 @@ import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
 import org.apache.bookkeeper.mledger.offload.jcloud.BackedInputStream;
 import org.apache.bookkeeper.mledger.offload.jcloud.impl.DataBlockUtils.VersionCheck;
@@ -31,11 +32,9 @@ import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.KeyNotFoundException;
 import org.jclouds.blobstore.domain.Blob;
 import org.jclouds.blobstore.options.GetOptions;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
-    private static final Logger log = LoggerFactory.getLogger(BlobStoreBackedInputStreamImpl.class);
 
     private final BlobStore blobStore;
     private final String bucket;
@@ -89,10 +88,9 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
             long startRange = cursor;
             long endRange = Math.min(cursor + bufferSize - 1,
                                      objectLen - 1);
-            if (log.isDebugEnabled()) {
-                log.info("refillBufferIfNeeded {} - {} ({} bytes to fill)",
-                        startRange, endRange, (endRange - startRange));
-            }
+            log.debug().attr("startRange", startRange).attr("endRange", endRange)
+                    .attr("bytesToFill", endRange - startRange)
+                    .log("Refilling buffer");
             try {
                 long startReadTime = System.nanoTime();
                 Blob blob = blobStore.getBlob(bucket, key, new GetOptions().range(startRange, endRange));
@@ -107,9 +105,7 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
                     bufferOffsetEnd = endRange;
                     long bytesRead = endRange - startRange + 1;
                     int bytesToCopy = (int) bytesRead;
-                    while (bytesToCopy > 0) {
-                        bytesToCopy -= buffer.writeBytes(stream, bytesToCopy);
-                    }
+                    fillBuffer(stream, bytesToCopy);
                     cursor += buffer.readableBytes();
                 }
 
@@ -135,6 +131,20 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
         return true;
     }
 
+    void fillBuffer(InputStream is, int bytesToCopy) throws IOException {
+        while (bytesToCopy > 0) {
+            int writeBytes = buffer.writeBytes(is, bytesToCopy);
+            if (writeBytes < 0) {
+                break;
+            }
+            bytesToCopy -= writeBytes;
+        }
+    }
+
+    ByteBuf getBuffer() {
+        return buffer;
+    }
+
     @Override
     public int read() throws IOException {
         if (refillBufferIfNeeded()) {
@@ -157,8 +167,9 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
 
     @Override
     public void seek(long position) {
-        log.debug("Seeking to {} on {}/{}, current position {} (bufStart:{}, bufEnd:{})",
-                position, bucket, key, cursor, bufferOffsetStart, bufferOffsetEnd);
+        log.debug().attr("position", position).attr("bucket", bucket).attr("key", key)
+                .attr("cursor", cursor).attr("bufStart", bufferOffsetStart)
+                .attr("bufEnd", bufferOffsetEnd).log("Seeking");
         if (position >= bufferOffsetStart && position <= bufferOffsetEnd) {
             long newIndex = position - bufferOffsetStart;
             buffer.readerIndex((int) newIndex);

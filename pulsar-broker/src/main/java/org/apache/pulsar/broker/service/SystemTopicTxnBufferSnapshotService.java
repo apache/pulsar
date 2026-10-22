@@ -21,27 +21,39 @@ package org.apache.pulsar.broker.service;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
+import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.systopic.SystemTopicClientBase;
-import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.broker.transaction.buffer.impl.TableView;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.events.EventType;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 
-@Slf4j
+@CustomLog
 public class SystemTopicTxnBufferSnapshotService<T> {
 
     protected final ConcurrentHashMap<NamespaceName, SystemTopicClient<T>> clients;
     protected final NamespaceEventsSystemTopicFactory namespaceEventsSystemTopicFactory;
+    protected final PulsarClientImpl pulsarClient;
 
     protected final Class<T> schemaType;
     protected final EventType systemTopicType;
 
     private final ConcurrentHashMap<NamespaceName, ReferenceCountedWriter<T>> refCountedWriterMap;
+
+    /** SystemTopicTxnBufferSnapshotService is created only three, see also
+     *  {@link TransactionBufferSnapshotServiceFactory}. At the same time, each object can only
+     * be fixed threads access, see also {@link PulsarService#transactionSnapshotRecoverExecutorProvider}.
+     * So the un-static ThreadLocal is safe.
+     */
+    private final ThreadLocal<TableView<T>> tableViewThreadLocal = new ThreadLocal<>();
 
     // The class ReferenceCountedWriter will maintain the reference count,
     // when the reference count decrement to 0, it will be removed from writerFutureMap, the writer will be closed.
@@ -60,7 +72,10 @@ public class SystemTopicTxnBufferSnapshotService<T> {
             this.snapshotService = snapshotService;
             this.future = future;
             this.future.exceptionally(t -> {
-                        log.error("[{}] Failed to create TB snapshot writer.", namespaceName, t);
+                        log.error()
+                                .attr("namespace", namespaceName)
+                                .exception(t)
+                                .log("Failed to create TB snapshot writer.");
                 snapshotService.refCountedWriterMap.remove(namespaceName, this);
                 return null;
             });
@@ -81,11 +96,12 @@ public class SystemTopicTxnBufferSnapshotService<T> {
                     final String topicName = writer.getSystemTopicClient().getTopicName().toString();
                     writer.closeAsync().exceptionally(t -> {
                         if (t != null) {
-                            log.error("[{}] Failed to close TB snapshot writer.", topicName, t);
+                            log.error()
+                                    .attr("topic", topicName)
+                                    .exception(t)
+                                    .log("Failed to close TB snapshot writer.");
                         } else {
-                            if (log.isDebugEnabled()) {
-                                log.debug("[{}] Success to close TB snapshot writer.", topicName);
-                            }
+                            log.debug().attr("topic", topicName).log("Success to close TB snapshot writer.");
                         }
                         return null;
                     });
@@ -95,9 +111,10 @@ public class SystemTopicTxnBufferSnapshotService<T> {
 
     }
 
-    public SystemTopicTxnBufferSnapshotService(PulsarClient client, EventType systemTopicType,
-                                               Class<T> schemaType) {
-        this.namespaceEventsSystemTopicFactory = new NamespaceEventsSystemTopicFactory(client);
+    public SystemTopicTxnBufferSnapshotService(PulsarService pulsar, EventType systemTopicType,
+                                               Class<T> schemaType) throws PulsarServerException {
+        this.pulsarClient = (PulsarClientImpl) pulsar.getClient();
+        this.namespaceEventsSystemTopicFactory = new NamespaceEventsSystemTopicFactory(pulsarClient);
         this.systemTopicType = systemTopicType;
         this.schemaType = schemaType;
         this.clients = new ConcurrentHashMap<>();
@@ -145,7 +162,10 @@ public class SystemTopicTxnBufferSnapshotService<T> {
             try {
                 entry.getValue().close();
             } catch (Exception e) {
-                log.error("Failed to close system topic client for namespace {}", entry.getKey(), e);
+                log.error()
+                        .attr("key", entry.getKey())
+                        .exception(e)
+                        .log("Failed to close system topic client for namespace");
             }
         }
         clients.clear();
@@ -156,12 +176,25 @@ public class SystemTopicTxnBufferSnapshotService<T> {
                     try {
                         writer.close();
                     } catch (Exception e) {
-                        log.error("Failed to close writer for namespace {}", entry.getKey(), e);
+                        log.error()
+                                .attr("key", entry.getKey())
+                                .exception(e)
+                                .log("Failed to close writer for namespace");
                     }
                 });
             }
         }
         refCountedWriterMap.clear();
+    }
+
+    public TableView<T> getTableView(ScheduledExecutorService scheduledExecutor) {
+        TableView<T> tableView = tableViewThreadLocal.get();
+        if (tableView == null) {
+            tableView = new TableView<>(this::createReader,
+                    pulsarClient.getConfiguration().getOperationTimeoutMs(), scheduledExecutor);
+            tableViewThreadLocal.set(tableView);
+        }
+        return tableView;
     }
 
 }

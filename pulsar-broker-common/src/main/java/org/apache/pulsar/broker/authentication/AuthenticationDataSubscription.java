@@ -20,9 +20,9 @@ package org.apache.pulsar.broker.authentication;
 
 import java.net.SocketAddress;
 import java.security.cert.Certificate;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 
-@Slf4j
+@CustomLog
 public class AuthenticationDataSubscription implements AuthenticationDataSource {
     private final AuthenticationDataSource authData;
     private final String subscription;
@@ -34,32 +34,32 @@ public class AuthenticationDataSubscription implements AuthenticationDataSource 
 
     @Override
     public boolean hasDataFromCommand() {
-        return authData.hasDataFromCommand();
+        return hasAuthData() && authData.hasDataFromCommand();
     }
 
     @Override
     public String getCommandData() {
-        return authData.getCommandData();
+        return hasAuthData() ? authData.getCommandData() : null;
     }
 
     @Override
     public boolean hasDataFromPeer() {
-        return authData.hasDataFromPeer();
+        return hasAuthData() && authData.hasDataFromPeer();
     }
 
     @Override
     public SocketAddress getPeerAddress() {
-        return authData.getPeerAddress();
+        return hasAuthData() ? authData.getPeerAddress() : null;
     }
 
     @Override
     public boolean hasDataFromTls() {
-        return authData.hasDataFromTls();
+        return hasAuthData() && authData.hasDataFromTls();
     }
 
     @Override
     public Certificate[] getTlsCertificates() {
-        return authData.getTlsCertificates();
+        return hasAuthData() ? authData.getTlsCertificates() : null;
     }
 
     @Override
@@ -72,7 +72,26 @@ public class AuthenticationDataSubscription implements AuthenticationDataSource 
         return subscription;
     }
 
+    @Override
+    public boolean hasDataFromHttp() {
+        return hasAuthData() && authData.hasDataFromHttp();
+    }
+
+    @Override
+    public String getHttpAuthType() {
+        return hasAuthData() ? authData.getHttpAuthType() : null;
+    }
+
+    @Override
+    public String getHttpHeader(String name) {
+        return hasAuthData() ? authData.getHttpHeader(name) : null;
+    }
+
     public AuthenticationDataSource getAuthData() {
         return authData;
+    }
+
+    private boolean hasAuthData() {
+        return authData != null;
     }
 }

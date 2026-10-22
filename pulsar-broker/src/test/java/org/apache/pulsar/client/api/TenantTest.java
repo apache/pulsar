@@ -34,7 +34,7 @@ public class TenantTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        
+
     }
 
     @AfterMethod(alwaysRun = true)
@@ -66,5 +66,30 @@ public class TenantTest extends MockedPulsarServiceBaseTest {
             admin.tenants().createTenant("testTenant-unlimited" + i, tenantInfo);
         }
     }
-    
+
+    @Test
+    public void testBlankAdminRoleTenant() throws Exception {
+        super.internalSetup();
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        TenantInfoImpl blankAdminRoleTenantInfo =
+                new TenantInfoImpl(Sets.newHashSet(""), Sets.newHashSet("test"));
+        TenantInfoImpl containsWhitespaceAdminRoleTenantInfo =
+                new TenantInfoImpl(Sets.newHashSet("   role1   "), Sets.newHashSet("test"));
+        TenantInfoImpl noneBlankAdminRoleTenantInfo =
+                new TenantInfoImpl(Sets.newHashSet("role1"), Sets.newHashSet("test"));
+        admin.tenants().createTenant("testTenant1", noneBlankAdminRoleTenantInfo);
+        try {
+            admin.tenants().createTenant("testTenant2", blankAdminRoleTenantInfo);
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 412);
+            Assert.assertEquals(e.getHttpError(), "AdminRoles contains whitespace in the beginning or end.");
+        }
+
+        try {
+            admin.tenants().createTenant("testTenant3", containsWhitespaceAdminRoleTenantInfo);
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 412);
+            Assert.assertEquals(e.getHttpError(), "AdminRoles contains whitespace in the beginning or end.");
+        }
+    }
 }

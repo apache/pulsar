@@ -18,33 +18,84 @@
  */
 package org.apache.pulsar.client.impl.conf;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.ImmutableSet;
-import lombok.Cleanup;
-import org.testng.Assert;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
-import java.util.List;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
-
+import lombok.Cleanup;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 /**
  * Unit test {@link ConfigurationDataUtils}.
  */
 public class ConfigurationDataUtilsTest {
+
+    // PIP-478: a stale, removed PIP-337 sslFactoryPlugin key in a loadConf map is rejected loudly with an
+    // actionable migration message pointing to the tlsFactoryClassName successor.
+    @Test
+    public void testRemovedPip337SslFactoryPluginKeysRejectedLoudly() {
+        for (String key : new String[] {"sslFactoryPlugin", "sslFactoryPluginParams"}) {
+            Map<String, Object> config = new HashMap<>();
+            config.put(key, "com.example.CustomSslFactory");
+            try {
+                ConfigurationDataUtils.rejectRemovedPip337TlsFactoryKeys(config);
+                fail("expected IllegalArgumentException for removed key " + key);
+            } catch (IllegalArgumentException e) {
+                assertTrue(e.getMessage().contains(key), "message should name the removed key: " + e.getMessage());
+                assertTrue(e.getMessage().contains("tlsFactoryClassName"),
+                        "message should point to the successor: " + e.getMessage());
+            }
+        }
+        // A blank value (the default) or an absent key is tolerated.
+        Map<String, Object> tolerated = new HashMap<>();
+        tolerated.put("sslFactoryPlugin", "");
+        ConfigurationDataUtils.rejectRemovedPip337TlsFactoryKeys(tolerated);
+        ConfigurationDataUtils.rejectRemovedPip337TlsFactoryKeys(new HashMap<>());
+        ConfigurationDataUtils.rejectRemovedPip337TlsFactoryKeys(null);
+    }
+
+    // PIP-478 (FIX): the OLD DEFAULT factory FQCN on the *Plugin key is equivalent to "unset" (no custom
+    // factory) and is tolerated; a custom value is still rejected, and the default FQCN is not a valid
+    // *PluginParams value so a non-blank params value is still rejected.
+    @Test
+    public void testRemovedPip337DefaultSslFactoryFqcnTolerated() {
+        String defaultFqcn = "org.apache.pulsar.common.util.DefaultPulsarSslFactory";
+        Map<String, Object> defaulted = new HashMap<>();
+        defaulted.put("sslFactoryPlugin", defaultFqcn);
+        ConfigurationDataUtils.rejectRemovedPip337TlsFactoryKeys(defaulted); // tolerated -> no throw
+
+        Map<String, Object> custom = new HashMap<>();
+        custom.put("sslFactoryPlugin", "com.acme.CustomFactory");
+        try {
+            ConfigurationDataUtils.rejectRemovedPip337TlsFactoryKeys(custom);
+            fail("expected IllegalArgumentException for a custom sslFactoryPlugin");
+        } catch (IllegalArgumentException expected) {
+            // ok
+        }
+
+        Map<String, Object> params = new HashMap<>();
+        params.put("sslFactoryPluginParams", defaultFqcn);
+        try {
+            ConfigurationDataUtils.rejectRemovedPip337TlsFactoryKeys(params);
+            fail("expected IllegalArgumentException for a non-blank sslFactoryPluginParams");
+        } catch (IllegalArgumentException expected) {
+            // ok
+        }
+    }
 
     @Test
     public void testLoadClientConfigurationData() {
@@ -66,7 +117,7 @@ public class ConfigurationDataUtilsTest {
         config.put("dnsLookupBindAddress", "0.0.0.0");
         config.put("dnsLookupBindPort", 0);
         List<InetSocketAddress> dnsServerAddresses = Arrays.asList(new InetSocketAddress[] {
-                new InetSocketAddress("1.1.1.1", 53), new InetSocketAddress("2.2.2.2",100)
+                new InetSocketAddress("1.1.1.1", 53), new InetSocketAddress("2.2.2.2", 100)
         });
         config.put("dnsServerAddresses", dnsServerAddresses);
         confData = ConfigurationDataUtils.loadData(config, confData, ClientConfigurationData.class);
@@ -79,7 +130,15 @@ public class ConfigurationDataUtilsTest {
         assertEquals("v2", confData.getAuthParamMap().get("k2"));
         assertEquals("0.0.0.0", confData.getDnsLookupBindAddress());
         assertEquals(0, confData.getDnsLookupBindPort());
-        assertEquals(dnsServerAddresses, confData.getDnsServerAddresses());
+        // jackson-databind 2.22+ defers DNS resolution when deserializing InetSocketAddress
+        // (CVE-2026-54514 fix), which changes the resolved/unresolved representation. Compare host
+        // and port — the values that must survive the config round-trip — instead of object equality.
+        List<InetSocketAddress> loadedDnsServerAddresses = confData.getDnsServerAddresses();
+        assertEquals(loadedDnsServerAddresses.size(), dnsServerAddresses.size());
+        for (int i = 0; i < dnsServerAddresses.size(); i++) {
+            assertEquals(loadedDnsServerAddresses.get(i).getHostString(), dnsServerAddresses.get(i).getHostString());
+            assertEquals(loadedDnsServerAddresses.get(i).getPort(), dnsServerAddresses.get(i).getPort());
+        }
     }
 
     @Test
@@ -97,12 +156,12 @@ public class ConfigurationDataUtilsTest {
         assertEquals("test-producer", confData.getProducerName());
         assertFalse(confData.isBatchingEnabled());
         assertEquals(1234, confData.getBatchingMaxMessages());
-        assertEquals(60,confData.getAutoUpdatePartitionsIntervalSeconds());
+        assertEquals(60, confData.getAutoUpdatePartitionsIntervalSeconds());
     }
 
     @Test
     public void testLoadConsumerConfigurationData() {
-        ConsumerConfigurationData confData = new ConsumerConfigurationData();
+        ConsumerConfigurationData<?> confData = new ConsumerConfigurationData();
         confData.setSubscriptionName("unknown-subscription");
         confData.setPriorityLevel(10000);
         confData.setConsumerName("unknown-consumer");
@@ -114,17 +173,17 @@ public class ConfigurationDataUtilsTest {
         assertEquals("test-subscription", confData.getSubscriptionName());
         assertEquals(100, confData.getPriorityLevel());
         assertEquals("unknown-consumer", confData.getConsumerName());
-        assertEquals(60,confData.getAutoUpdatePartitionsIntervalSeconds());
+        assertEquals(60, confData.getAutoUpdatePartitionsIntervalSeconds());
     }
 
     @Test
     public void testLoadReaderConfigurationData() {
-        ReaderConfigurationData confData = new ReaderConfigurationData();
+        ReaderConfigurationData<?> confData = new ReaderConfigurationData();
         confData.setTopicName("unknown");
         confData.setReceiverQueueSize(1000000);
         confData.setReaderName("unknown-reader");
         Map<String, Object> config = new HashMap<>();
-        config.put("topicNames", ImmutableSet.of("test-topic"));
+        config.put("topicNames", Set.of("test-topic"));
         config.put("receiverQueueSize", 100);
         confData = ConfigurationDataUtils.loadData(config, confData, ReaderConfigurationData.class);
         assertEquals("test-topic", confData.getTopicName());
@@ -134,7 +193,7 @@ public class ConfigurationDataUtilsTest {
 
     @Test
     public void testLoadConfigurationDataWithUnknownFields() {
-        ReaderConfigurationData confData = new ReaderConfigurationData();
+        ReaderConfigurationData<?> confData = new ReaderConfigurationData();
         confData.setTopicName("unknown");
         confData.setReceiverQueueSize(1000000);
         confData.setReaderName("unknown-reader");
@@ -168,6 +227,7 @@ public class ConfigurationDataUtilsTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testLoadSecretParams() {
         ClientConfigurationData confData = new ClientConfigurationData();
         Map<String, String> authParamMap = new HashMap<>();
@@ -223,7 +283,8 @@ public class ConfigurationDataUtilsTest {
 
         @Cleanup
         PulsarClientImpl pulsarClient = new PulsarClientImpl(clientConfig);
-        assertEquals(pulsarClient.getConfiguration().getSocks5ProxyAddress(), new InetSocketAddress("localhost", 11080));
+        assertEquals(pulsarClient.getConfiguration().getSocks5ProxyAddress(),
+                new InetSocketAddress("localhost", 11080));
         assertEquals(pulsarClient.getConfiguration().getSocks5ProxyUsername(), "test");
         assertEquals(pulsarClient.getConfiguration().getSocks5ProxyPassword(), "test123");
 

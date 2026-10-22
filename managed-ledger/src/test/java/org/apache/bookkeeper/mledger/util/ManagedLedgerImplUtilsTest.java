@@ -19,28 +19,28 @@
 package org.apache.bookkeeper.mledger.util;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultConfig;
 import static org.testng.Assert.assertEquals;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class ManagedLedgerImplUtilsTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testGetLastValidPosition() throws Exception {
         final int maxEntriesPerLedger = 5;
 
-        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        ManagedLedgerConfig managedLedgerConfig = defaultConfig();
         managedLedgerConfig.setMaxEntriesPerLedger(maxEntriesPerLedger);
         managedLedgerConfig.setRetentionSizeInMB(10);
         managedLedgerConfig.setRetentionTime(5, TimeUnit.MINUTES);
@@ -54,8 +54,8 @@ public class ManagedLedgerImplUtilsTest extends MockedBookKeeperTestCase {
         };
 
         // New ledger will return the last position, regardless of whether the conditions are met or not.
-        Position position = ManagedLedgerImplUtils.asyncGetLastValidPosition((ManagedLedgerImpl) ledger, 
-                predicate, (PositionImpl) ledger.getLastConfirmedEntry()).get();
+        Position position = ManagedLedgerImplUtils.asyncGetLastValidPosition((ManagedLedgerImpl) ledger,
+                predicate, ledger.getLastConfirmedEntry()).get();
         assertEquals(ledger.getLastConfirmedEntry(), position);
 
         for (int i = 0; i < maxEntriesPerLedger - 1; i++) {
@@ -68,7 +68,7 @@ public class ManagedLedgerImplUtilsTest extends MockedBookKeeperTestCase {
 
         // Returns last position of entry is "match-entry"
         position = ManagedLedgerImplUtils.asyncGetLastValidPosition((ManagedLedgerImpl) ledger,
-                predicate, (PositionImpl) ledger.getLastConfirmedEntry()).get();
+                predicate, ledger.getLastConfirmedEntry()).get();
         assertEquals(position, lastMatchPosition);
 
         ledger.close();

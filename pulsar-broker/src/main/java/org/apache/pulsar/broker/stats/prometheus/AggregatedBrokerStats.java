@@ -35,6 +35,10 @@ public class AggregatedBrokerStats {
     public long msgBacklog;
     public long sizeBasedBacklogQuotaExceededEvictionCount;
     public long timeBasedBacklogQuotaExceededEvictionCount;
+    public long bytesInCounter;
+    public long bytesOutCounter;
+    public long systemTopicBytesInCounter;
+    public long bytesOutInternalCounter;
 
     @SuppressWarnings("DuplicatedCode")
     void updateStats(TopicStats stats) {
@@ -54,6 +58,10 @@ public class AggregatedBrokerStats {
         msgBacklog += stats.msgBacklog;
         timeBasedBacklogQuotaExceededEvictionCount += stats.timeBasedBacklogQuotaExceededEvictionCount;
         sizeBasedBacklogQuotaExceededEvictionCount += stats.sizeBasedBacklogQuotaExceededEvictionCount;
+        bytesInCounter += stats.bytesInCounter;
+        bytesOutCounter += stats.bytesOutCounter;
+        systemTopicBytesInCounter += stats.systemTopicBytesInCounter;
+        bytesOutInternalCounter += stats.bytesOutInternalCounter;
     }
 
     @SuppressWarnings("DuplicatedCode")
@@ -74,5 +82,9 @@ public class AggregatedBrokerStats {
         msgBacklog = 0;
         sizeBasedBacklogQuotaExceededEvictionCount = 0;
         timeBasedBacklogQuotaExceededEvictionCount = 0;
+        bytesInCounter = 0;
+        bytesOutCounter = 0;
+        systemTopicBytesInCounter = 0;
+        bytesOutInternalCounter = 0;
     }
 }

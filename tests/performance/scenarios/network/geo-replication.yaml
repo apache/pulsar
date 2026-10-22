@@ -1,0 +1,43 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Geo-replication: a second cluster, the remote one, shares the configuration store with the first, so that the
+# namespace public/default replicates the workload's topics to it. The gateways publish to the first cluster, whose
+# applications consume there as without it, and four remote applications, with the pods of the base scenario's, consume
+# the replicated messages in the remote cluster and check their order and that every message arrived. The remote cluster
+# has the brokers and the bookies of the base scenario; cluster.remote.brokers and cluster.remote.bookies change them.
+# Both clusters retain the messages for an hour. The geo overlays extend it, and it composes with the other overlays,
+# which act on the first cluster, such as --extends network/geo-replication --extends network/silent-client-disconnect.
+#
+# Look for: the remote applications' line in the progress, their publish-to-consume latency, which includes the
+# replication, against the first cluster's applications', and replication-stats.csv.
+
+cluster:
+  # An hour's retention in both clusters, through the namespaces' defaults, which public/default has no policy to
+  # override: no message of a run is deleted before it is checked, also once every subscription has acknowledged it
+  brokers:
+    env:
+      defaultRetentionTimeInMinutes: "60"
+      defaultRetentionSizeInMB: "-1"
+  remote:
+    # Empty, so that --set cluster.remote.brokers.env.<name>=<value> can change a remote setting
+    brokers:
+      env: {}
+    bookies:
+      env: {}
+    applications:
+      count: 4

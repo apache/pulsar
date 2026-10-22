@@ -30,15 +30,15 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.proxy.server.ProxyConfiguration;
 import org.apache.pulsar.proxy.server.ProxyService;
 
 /**
  * A collection of loaded extensions.
  */
-@Slf4j
+@CustomLog
 public class ProxyExtensions implements AutoCloseable {
 
     @Getter
@@ -71,18 +71,21 @@ public class ProxyExtensions implements AutoCloseable {
             try {
                 extension = ProxyExtensionsUtils.load(definition, conf.getNarExtractionDirectory());
             } catch (IOException e) {
-                log.error("Failed to load the extension for extension `" + extensionName + "`", e);
+                log.error().attr("extension", extensionName).exception(e)
+                        .log("Failed to load the extension");
                 throw new RuntimeException("Failed to load the extension for extension name `" + extensionName + "`");
             }
 
             if (!extension.accept(extensionName)) {
                 extension.close();
-                log.error("Malformed extension found for extensionName `" + extensionName + "`");
+                log.error().attr("extension", extensionName)
+                        .log("Malformed extension found");
                 throw new RuntimeException("Malformed extension found for extension name `" + extensionName + "`");
             }
 
             extensionsBuilder.put(extensionName, extension);
-            log.info("Successfully loaded extension for extension name `{}`", extensionName);
+            log.info().attr("extension", extensionName)
+                    .log("Successfully loaded extension");
         });
 
         return new ProxyExtensions(extensionsBuilder.build());
@@ -124,9 +127,9 @@ public class ProxyExtensions implements AutoCloseable {
                 extension.getValue().newChannelInitializers();
             initializers.forEach((address, initializer) -> {
                 if (!addresses.add(address)) {
-                    log.error("extension for `{}` attempts to use {} for its listening port."
-                        + " But it is already occupied by other extensions.",
-                        extension.getKey(), address);
+                    log.error().attr("extension", extension.getKey())
+                        .attr("address", address)
+                        .log("Extension attempts to use address already occupied");
                     throw new RuntimeException("extension for `" + extension.getKey()
                         + "` attempts to use " + address + " for its listening port. But it is"
                         + " already occupied by other messaging extensions");

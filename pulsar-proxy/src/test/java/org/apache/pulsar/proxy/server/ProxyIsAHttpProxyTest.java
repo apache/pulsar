@@ -19,49 +19,50 @@
 package org.apache.pulsar.proxy.server;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import jakarta.servlet.AsyncContext;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.ws.rs.client.Client;
+import jakarta.ws.rs.client.ClientBuilder;
+import jakarta.ws.rs.core.Response;
 import java.io.IOException;
 import java.util.Properties;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.BooleanSupplier;
-import javax.servlet.AsyncContext;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.core.Response;
+import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.eclipse.jetty.client.HttpClient;
-import org.eclipse.jetty.client.api.Result;
+import org.eclipse.jetty.client.Result;
+import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
+import org.eclipse.jetty.ee10.servlet.ServletHolder;
+import org.eclipse.jetty.http.UriCompliance;
 import org.eclipse.jetty.server.Connector;
+import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.HttpConnectionFactory;
-import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
-import org.eclipse.jetty.server.handler.AbstractHandler;
-import org.eclipse.jetty.servlet.ServletContextHandler;
-import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.ProcessorUtils;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.logging.LoggingFeature;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+@CustomLog
 public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
-
-    private static final Logger log = LoggerFactory.getLogger(ProxyIsAHttpProxyTest.class);
 
     private Server backingServer1;
     private Server backingServer2;
@@ -88,6 +89,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
 
         backingServer3 = new Server();
         HttpConfiguration httpConfig = new HttpConfiguration();
+        httpConfig.setUriCompliance(UriCompliance.LEGACY);
         httpConfig.setRequestHeaderSize(20000);
         ServerConnector connector = new ServerConnector(backingServer3, new HttpConnectionFactory(httpConfig));
         connector.setPort(0);
@@ -96,20 +98,21 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         backingServer3.start();
     }
 
-    private static AbstractHandler newHandler(String text) {
-        return new AbstractHandler() {
+    private static Handler newHandler(String text) {
+        ServletContextHandler context = new ServletContextHandler();
+        context.setContextPath("/");
+        context.addServlet(new ServletHolder(new HttpServlet() {
             @Override
-            public void handle(String target, Request baseRequest,
-                               HttpServletRequest request,HttpServletResponse response)
-                    throws IOException, ServletException {
+            protected void service(HttpServletRequest request, HttpServletResponse response)
+                    throws IOException {
                 response.setContentType("text/plain;charset=utf-8");
                 response.setStatus(HttpServletResponse.SC_OK);
-                baseRequest.setHandled(true);
                 String uri = request.getRequestURI();
                 response.getWriter().println(String.format("%s,%s", text,
                         uri.substring(0, uri.length() > 1024 ? 1024 : uri.length())));
             }
-        };
+        }), "/");
+        return context;
     }
 
     private static ServletContextHandler newStreamingHandler(LinkedBlockingQueue<String> dataQueue) {
@@ -141,7 +144,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
                                 log.error("Async handler interrupted");
                                 ctx.complete();
                             } catch (Exception e) {
-                                log.error("Unexpected error in async handler", e);
+                                log.error().exception(e).log("Unexpected error in async handler");
                                 ctx.complete();
                             }
                         });
@@ -197,10 +200,15 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         ProxyConfiguration proxyConfig = PulsarConfigurationLoader.create(props, ProxyConfiguration.class);
         AuthenticationService authService = new AuthenticationService(
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
+        @Cleanup
+        final Authentication proxyClientAuthentication =
+                AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                proxyConfig.getBrokerClientAuthenticationParameters());
+        proxyClientAuthentication.start();
 
         WebServer webServer = new WebServer(proxyConfig, authService);
         ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, null,
-                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)));
+                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)), proxyClientAuthentication);
         webServer.start();
         try {
             Response r = client.target(webServer.getServiceUri()).path("/ui/foobar").request().get();
@@ -226,10 +234,15 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         ProxyConfiguration proxyConfig = PulsarConfigurationLoader.create(props, ProxyConfiguration.class);
         AuthenticationService authService = new AuthenticationService(
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
+        @Cleanup
+        final Authentication proxyClientAuthentication =
+                AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                proxyConfig.getBrokerClientAuthenticationParameters());
+        proxyClientAuthentication.start();
 
         WebServer webServer = new WebServer(proxyConfig, authService);
         ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, null,
-                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)));
+                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)), proxyClientAuthentication);
         webServer.start();
         try {
             Response r1 = client.target(webServer.getServiceUri()).path("/server1/foobar").request().get();
@@ -257,10 +270,15 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         ProxyConfiguration proxyConfig = PulsarConfigurationLoader.create(props, ProxyConfiguration.class);
         AuthenticationService authService = new AuthenticationService(
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
+        @Cleanup
+        final Authentication proxyClientAuthentication =
+                AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                proxyConfig.getBrokerClientAuthenticationParameters());
+        proxyClientAuthentication.start();
 
         WebServer webServer = new WebServer(proxyConfig, authService);
         ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, null,
-                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)));
+                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)), proxyClientAuthentication);
 
     }
 
@@ -276,10 +294,15 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         ProxyConfiguration proxyConfig = PulsarConfigurationLoader.create(props, ProxyConfiguration.class);
         AuthenticationService authService = new AuthenticationService(
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
+        @Cleanup
+        final Authentication proxyClientAuthentication =
+                AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                proxyConfig.getBrokerClientAuthenticationParameters());
+        proxyClientAuthentication.start();
 
         WebServer webServer = new WebServer(proxyConfig, authService);
         ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, null,
-                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)));
+                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)), proxyClientAuthentication);
         webServer.start();
         try {
             Response r = client.target(webServer.getServiceUri()).path("/ui/foobar").request().get();
@@ -303,10 +326,15 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         ProxyConfiguration proxyConfig = PulsarConfigurationLoader.create(props, ProxyConfiguration.class);
         AuthenticationService authService = new AuthenticationService(
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
+        @Cleanup
+        final Authentication proxyClientAuthentication =
+                AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                proxyConfig.getBrokerClientAuthenticationParameters());
+        proxyClientAuthentication.start();
 
         WebServer webServer = new WebServer(proxyConfig, authService);
         ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, null,
-                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)));
+                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)), proxyClientAuthentication);
         webServer.start();
         try {
             Response r = client.target(webServer.getServiceUri()).path("/ui/foobar").request().get();
@@ -329,10 +357,15 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         ProxyConfiguration proxyConfig = PulsarConfigurationLoader.create(props, ProxyConfiguration.class);
         AuthenticationService authService = new AuthenticationService(
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
+        @Cleanup
+        final Authentication proxyClientAuthentication =
+                AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                proxyConfig.getBrokerClientAuthenticationParameters());
+        proxyClientAuthentication.start();
 
         WebServer webServer = new WebServer(proxyConfig, authService);
         ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, null,
-                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)));
+                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)), proxyClientAuthentication);
         webServer.start();
         try {
             Response r = client.target(webServer.getServiceUri()).path("/foo/bar/blah/foobar").request().get();
@@ -354,6 +387,11 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         ProxyConfiguration proxyConfig = PulsarConfigurationLoader.create(props, ProxyConfiguration.class);
         AuthenticationService authService = new AuthenticationService(
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
+        @Cleanup
+        final Authentication proxyClientAuthentication =
+                AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                proxyConfig.getBrokerClientAuthenticationParameters());
+        proxyClientAuthentication.start();
 
         StringBuilder longUri = new StringBuilder("/service3/tp");
         for (int i = 10 * 1024; i > 0; i = i - 11){
@@ -362,7 +400,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
 
         WebServer webServerMaxUriLen8k = new WebServer(proxyConfig, authService);
         ProxyServiceStarter.addWebServerHandlers(webServerMaxUriLen8k, proxyConfig, null,
-                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)));
+                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)), proxyClientAuthentication);
         webServerMaxUriLen8k.start();
         try {
             Response r = client.target(webServerMaxUriLen8k.getServiceUri()).path(longUri.toString()).request().get();
@@ -374,7 +412,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setHttpMaxRequestHeaderSize(12 * 1024);
         WebServer webServerMaxUriLen12k = new WebServer(proxyConfig, authService);
         ProxyServiceStarter.addWebServerHandlers(webServerMaxUriLen12k, proxyConfig, null,
-                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)));
+                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)), proxyClientAuthentication);
         webServerMaxUriLen12k.start();
         try {
             Response r = client.target(webServerMaxUriLen12k.getServiceUri()).path(longUri.toString()).request().get();
@@ -395,10 +433,15 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         ProxyConfiguration proxyConfig = PulsarConfigurationLoader.create(props, ProxyConfiguration.class);
         AuthenticationService authService = new AuthenticationService(
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
+        @Cleanup
+        final Authentication proxyClientAuthentication =
+                AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                proxyConfig.getBrokerClientAuthenticationParameters());
+        proxyClientAuthentication.start();
 
         WebServer webServer = new WebServer(proxyConfig, authService);
         ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, null,
-                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)));
+                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)), proxyClientAuthentication);
         webServer.start();
         try {
             Response r = client.target(webServer.getServiceUri()).path("/ui/foobar").request().get();
@@ -427,10 +470,15 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         ProxyConfiguration proxyConfig = PulsarConfigurationLoader.create(props, ProxyConfiguration.class);
         AuthenticationService authService = new AuthenticationService(
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
+        @Cleanup
+        final Authentication proxyClientAuthentication =
+                AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                proxyConfig.getBrokerClientAuthenticationParameters());
+        proxyClientAuthentication.start();
 
         WebServer webServer = new WebServer(proxyConfig, authService);
         ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, null,
-                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)));
+                registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)), proxyClientAuthentication);
         webServer.start();
 
         HttpClient httpClient = new HttpClient();
@@ -444,7 +492,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
                             try {
                                 responses.put(content.get());
                             } catch (Exception e) {
-                                log.error("Error reading response", e);
+                                log.error().exception(e).log("Error reading response");
                                 promise.completeExceptionally(e);
                             }
                         }

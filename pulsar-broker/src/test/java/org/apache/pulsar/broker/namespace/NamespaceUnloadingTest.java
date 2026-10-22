@@ -19,9 +19,7 @@
 package org.apache.pulsar.broker.namespace;
 
 import static org.testng.Assert.assertTrue;
-
 import com.google.common.collect.Sets;
-
 import lombok.Cleanup;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -53,7 +51,7 @@ public class NamespaceUnloadingTest extends BrokerTestBase {
     @Test
     public void testUnloadNotLoadedNamespace() throws Exception {
         admin.namespaces().createNamespace("prop/ns-test-1");
-        admin.namespaces().setNamespaceReplicationClusters("prop/ns-test-1", Sets.newHashSet("test"));
+        admin.namespaces().setNamespaceReplicationClusters("prop/ns-test-1", Sets.newHashSet("test"), false);
 
         assertTrue(admin.namespaces().getNamespaces("prop").contains("prop/ns-test-1"));
 
@@ -63,7 +61,7 @@ public class NamespaceUnloadingTest extends BrokerTestBase {
     @Test
     public void testUnloadPartiallyLoadedNamespace() throws Exception {
         admin.namespaces().createNamespace("prop/ns-test-2", 16);
-        admin.namespaces().setNamespaceReplicationClusters("prop/ns-test-2", Sets.newHashSet("test"));
+        admin.namespaces().setNamespaceReplicationClusters("prop/ns-test-2", Sets.newHashSet("test"), false);
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://prop/ns-test-2/my-topic")
                 .create();
