@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -41,6 +42,7 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
     protected final ProducerConfigurationData conf;
     protected final Schema<T> schema;
     protected final ProducerInterceptors interceptors;
+    private final AtomicBoolean interceptorsClosed = new AtomicBoolean();
     protected final Map<SchemaHash, byte[]> schemaCache = new ConcurrentHashMap<>();
     protected volatile MultiSchemaMode multiSchemaMode = MultiSchemaMode.Auto;
 
@@ -175,6 +177,15 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
     protected void onPartitionsChange(String topicName, int partitions) {
         if (interceptors != null) {
             interceptors.onPartitionsChange(topicName, partitions);
+        }
+    }
+
+    /**
+     * Close the interceptors once this producer is closed. Later calls do nothing.
+     */
+    protected void closeInterceptors() {
+        if (interceptors != null && interceptorsClosed.compareAndSet(false, true)) {
+            interceptors.close();
         }
     }
 
