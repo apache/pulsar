@@ -5426,8 +5426,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private void scheduleAddEntryTimeoutTask() {
         if (config.getAddEntryTimeoutSeconds() > 0) {
             long timeoutSec = config.getAddEntryTimeoutSeconds();
+            // Run the whole timeout check on the per-managed-ledger executor so that
+            // pendingAddEntries.peek(), the expiration decision, and the subsequent
+            // handleAddFailure call are serialized with OpAddEntry completion/recycling
+            // paths (which also run on this executor). This eliminates the race where
+            // an entry is recycled between peek() and handleAddFailure().
             this.timeoutTask = this.scheduledExecutor.scheduleAtFixedRate(
-                    this::checkAddTimeout, timeoutSec, timeoutSec, TimeUnit.SECONDS);
+                    () -> executor.execute(this::checkAddTimeout), timeoutSec, timeoutSec, TimeUnit.SECONDS);
         }
     }
 
