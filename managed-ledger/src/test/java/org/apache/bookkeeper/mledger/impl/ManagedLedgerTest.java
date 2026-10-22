@@ -2130,6 +2130,222 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void readAheadEntriesAreExpectedByTheCursorsBetweenTheReaderAndThem() throws Exception {
+        ManagedLedgerConfig config = defaultConfig();
+        initManagedLedgerConfig(config);
+        config.setCacheEvictionByExpectedReadCount(true);
+        config.setReadAheadEnabled(true);
+        ManagedLedgerImpl ledger =
+                (ManagedLedgerImpl) factory.open("readAheadEntriesAreExpectedByTheCursorsBetween", config);
+        ManagedCursor reader = ledger.openCursor("reader");
+        ManagedCursor ahead = ledger.openCursor("ahead");
+        Position fifth = null;
+        for (int i = 0; i < 20; i++) {
+            Position position = ledger.addEntry(("entry-" + i).getBytes());
+            if (i == 5) {
+                fifth = position;
+            }
+        }
+        // a cursor between the reader's range and the range read ahead of it
+        ahead.seek(fifth);
+        ledger.entryCache.clear();
+        CompletableFuture<Void> readerReadHeld = new CompletableFuture<>();
+        CompletableFuture<Void> readAheadRead = new CompletableFuture<>();
+        bkc.setReadHandleInterceptor((ledgerId, firstEntry, lastEntry, entries) -> {
+            if (firstEntry == 5) {
+                readAheadRead.complete(null);
+            }
+            // the reader's read stays pending until the read ahead completes, so that the reader is still at the
+            // first entry when the read ahead's entries are cached
+            return firstEntry == 0
+                    ? readerReadHeld.thenApply(__ -> entries) : CompletableFuture.completedFuture(entries);
+        });
+        try {
+            CompletableFuture<List<Entry>> first = new CompletableFuture<>();
+            reader.asyncReadEntries(5, new ReadEntriesCallback() {
+                @Override
+                public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                    first.complete(entries);
+                }
+
+                @Override
+                public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                    first.completeExceptionally(exception);
+                }
+            }, null, PositionFactory.LATEST);
+            Awaitility.await().until(() -> readAheadRead.isDone()
+                    && !((ManagedCursorImpl) reader).isReadAheadInProgress());
+            readerReadHeld.complete(null);
+            first.get(10, TimeUnit.SECONDS).forEach(Entry::release);
+        } finally {
+            readerReadHeld.complete(null);
+            bkc.setReadHandleInterceptor(null);
+        }
+        List<Entry> next = ahead.readEntries(5);
+        try {
+            assertThat(next.get(0).getPosition()).isEqualTo(fifth);
+            // the reader reads them too: releasing the cursor's copies leaves them expected by the reader
+            for (Entry entry : next) {
+                assertThat(((EntryImpl) entry).getReadCountHandler().getExpectedReadCount()).isEqualTo(2);
+            }
+        } finally {
+            next.forEach(Entry::release);
+        }
+        ledger.close();
+    }
+
+    @Test
+    public void readsAheadTheRangeAfterACursorsReadIntoTheCache() throws Exception {
+        ManagedLedgerConfig config = defaultConfig();
+        initManagedLedgerConfig(config);
+        config.setCacheEvictionByExpectedReadCount(true);
+        config.setReadAheadEnabled(true);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("readsAheadTheRangeAfterACursorsRead", config);
+        ManagedCursor cursor = ledger.openCursor("c1");
+        for (int i = 0; i < 20; i++) {
+            ledger.addEntry(("entry-" + i).getBytes());
+        }
+        // a cursor that is behind: its entries are no longer cached
+        ledger.entryCache.clear();
+        ManagedLedgerFactoryMBeanImpl stats = (ManagedLedgerFactoryMBeanImpl) factory.getCacheStats();
+
+        List<Entry> first = cursor.readEntries(5);
+        assertThat(first).hasSize(5);
+        first.forEach(Entry::release);
+        // the next 5 entries are read ahead into the cache
+        Awaitility.await().until(() -> !((ManagedCursorImpl) cursor).isReadAheadInProgress());
+        long hits = stats.getCacheHitsTotal();
+        List<Entry> next = cursor.readEntries(5);
+        try {
+            assertThat(next).hasSize(5);
+            assertThat(next.get(0).getEntryId()).isEqualTo(5);
+            // read from the cache, where the read ahead put them for this cursor
+            assertThat(stats.getCacheHitsTotal() - hits).isEqualTo(5);
+            // the cursor's own read is still expected: releasing the read ahead's copies didn't count as one
+            for (Entry entry : next) {
+                assertThat(((EntryImpl) entry).getReadCountHandler().getExpectedReadCount()).isEqualTo(1);
+            }
+        } finally {
+            next.forEach(Entry::release);
+        }
+        ledger.close();
+    }
+
+    @Test
+    public void doesNotReadAheadWhenTheCursorSkipsTheNextEntry() throws Exception {
+        ManagedLedgerConfig config = defaultConfig();
+        initManagedLedgerConfig(config);
+        config.setCacheEvictionByExpectedReadCount(true);
+        config.setReadAheadEnabled(true);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("doesNotReadAheadWhenTheCursorSkips", config);
+        ManagedCursor cursor = ledger.openCursor("c1");
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            positions.add(ledger.addEntry(("entry-" + i).getBytes()));
+        }
+        // the entry after the cursor's first read is individually deleted
+        cursor.delete(positions.get(5));
+        ledger.entryCache.clear();
+        List<Long> firstEntriesRead = new CopyOnWriteArrayList<>();
+        bkc.setReadHandleInterceptor((ledgerId, firstEntry, lastEntry, entries) -> {
+            firstEntriesRead.add(firstEntry);
+            return CompletableFuture.completedFuture(entries);
+        });
+        try {
+            List<Entry> first = cursor.readEntries(5);
+            assertThat(first).hasSize(5);
+            first.forEach(Entry::release);
+            assertThat(((ManagedCursorImpl) cursor).isReadAheadInProgress()).isFalse();
+            List<Entry> next = cursor.readEntries(5);
+            try {
+                assertThat(next.get(0).getPosition()).isEqualTo(positions.get(6));
+            } finally {
+                next.forEach(Entry::release);
+            }
+            // nothing was read from the deleted entry on
+            assertThat(firstEntriesRead).doesNotContain(positions.get(5).getEntryId());
+        } finally {
+            bkc.setReadHandleInterceptor(null);
+        }
+        ledger.close();
+    }
+
+    @Test
+    public void cursorsAtTheSamePositionShareTheReadAhead() throws Exception {
+        ManagedLedgerConfig config = defaultConfig();
+        initManagedLedgerConfig(config);
+        config.setCacheEvictionByExpectedReadCount(true);
+        config.setReadAheadEnabled(true);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("cursorsAtTheSamePositionShareReadAhead", config);
+        ManagedCursorImpl first = (ManagedCursorImpl) ledger.openCursor("c1");
+        ManagedCursorImpl second = (ManagedCursorImpl) ledger.openCursor("c2");
+        for (int i = 0; i < 20; i++) {
+            ledger.addEntry(("entry-" + i).getBytes());
+        }
+        ledger.entryCache.clear();
+        List<Long> firstEntriesRead = new CopyOnWriteArrayList<>();
+        CompletableFuture<Void> readAheadHeld = new CompletableFuture<>();
+        bkc.setReadHandleInterceptor((ledgerId, firstEntry, lastEntry, entries) -> {
+            firstEntriesRead.add(firstEntry);
+            // the read ahead of the range after the first read stays pending until it's released
+            return firstEntry == 5
+                    ? readAheadHeld.thenApply(__ -> entries) : CompletableFuture.completedFuture(entries);
+        });
+        try {
+            first.readEntries(5).forEach(Entry::release);
+            assertThat(first.isReadAheadInProgress()).isTrue();
+            // the second cursor's read ahead finds the first one's read of the range pending
+            second.readEntries(5).forEach(Entry::release);
+            assertThat(second.isReadAheadInProgress()).isFalse();
+            readAheadHeld.complete(null);
+            Awaitility.await().until(() -> !first.isReadAheadInProgress());
+            List<Entry> next = second.readEntries(5);
+            try {
+                assertThat(next.get(0).getEntryId()).isEqualTo(5);
+            } finally {
+                next.forEach(Entry::release);
+            }
+            // the range after the first read was read from storage once
+            assertThat(firstEntriesRead).filteredOn(entryId -> entryId < 10).containsExactly(0L, 5L);
+        } finally {
+            readAheadHeld.complete(null);
+            bkc.setReadHandleInterceptor(null);
+        }
+        ledger.close();
+    }
+
+    @Test
+    public void readAheadIsEnabledByDefaultAndCanBeDisabled() throws Exception {
+        assertThat(new ManagedLedgerConfig().isReadAheadEnabled()).isTrue();
+        ManagedLedgerConfig config = defaultConfig();
+        initManagedLedgerConfig(config);
+        config.setCacheEvictionByExpectedReadCount(true);
+        config.setReadAheadEnabled(false);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("readAheadCanBeDisabled", config);
+        ManagedCursor cursor = ledger.openCursor("c1");
+        for (int i = 0; i < 20; i++) {
+            ledger.addEntry(("entry-" + i).getBytes());
+        }
+        ledger.entryCache.clear();
+        ManagedLedgerFactoryMBeanImpl stats = (ManagedLedgerFactoryMBeanImpl) factory.getCacheStats();
+
+        List<Entry> first = cursor.readEntries(5);
+        assertThat(first).hasSize(5);
+        first.forEach(Entry::release);
+        assertThat(((ManagedCursorImpl) cursor).isReadAheadInProgress()).isFalse();
+        long hits = stats.getCacheHitsTotal();
+        List<Entry> next = cursor.readEntries(5);
+        try {
+            assertThat(next.get(0).getEntryId()).isEqualTo(5);
+            // nothing was read ahead: the next range comes from the storage
+            assertThat(stats.getCacheHitsTotal() - hits).isEqualTo(0);
+        } finally {
+            next.forEach(Entry::release);
+        }
+        ledger.close();
+    }
+
+    @Test
     public void testContinueCachingAddedEntriesWithoutActiveCursors() throws Exception {
         ManagedLedgerConfig config = defaultConfig();
         initManagedLedgerConfig(config);
