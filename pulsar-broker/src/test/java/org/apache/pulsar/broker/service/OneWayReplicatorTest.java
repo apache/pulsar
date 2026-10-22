@@ -2388,6 +2388,12 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         Schema<KeyValue<GenericRecord, String>> schema = Schema.KeyValue(forwardCompatibleKey, Schema.STRING);
 
         admin2.topics().createNonPartitionedTopic(topicName);
+        SchemaCompatibilityStrategy originalNamespaceStrategy =
+                admin2.namespaces().getSchemaCompatibilityStrategy(sourceClusterAlwaysSchemaCompatibleNamespace);
+        // This test verifies that removing the topic policy falls back to FORWARD. In the global-ZK variant,
+        // both clusters share the namespace metadata, so establish that fallback explicitly.
+        admin2.namespaces().setSchemaCompatibilityStrategy(sourceClusterAlwaysSchemaCompatibleNamespace,
+                SchemaCompatibilityStrategy.FORWARD);
         admin2.topicPolicies().setSchemaCompatibilityStrategy(topicName, SchemaCompatibilityStrategy.FULL);
         admin2.schemas().createSchema(topicName, Schema.KeyValue(oldKey, Schema.STRING).getSchemaInfo());
         try (Consumer<byte[]> consumer = client2.newConsumer(Schema.BYTES).topic(topicName)
@@ -2419,6 +2425,8 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             });
             assertThat(consumer.receive(5, TimeUnit.SECONDS)).isNotNull();
         } finally {
+            admin2.namespaces().setSchemaCompatibilityStrategy(sourceClusterAlwaysSchemaCompatibleNamespace,
+                    originalNamespaceStrategy);
             admin1.topics().setReplicationClusters(topicName, Collections.singletonList(cluster1));
             waitReplicatorStopped(topicName, false);
             Awaitility.await().atMost(Duration.ofSeconds(30)).ignoreExceptions().untilAsserted(() ->
