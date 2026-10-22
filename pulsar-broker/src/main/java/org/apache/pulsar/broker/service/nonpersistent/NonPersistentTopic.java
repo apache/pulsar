@@ -1231,14 +1231,13 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
     @Override
     public void onUpdate(TopicPolicies data) {
+        if (data == null) {
+            return;
+        }
         SchemaCompatibilityStrategy previousSchemaCompatibilityStrategy = getSchemaCompatibilityStrategy();
         Boolean previousAllowAutoUpdateSchema = isAllowAutoUpdateSchema;
         Boolean previousAllowAutoUpdateSchemaWithReplicator = isAllowAutoUpdateSchemaWithReplicator;
-        if (data == null) {
-            clearTopicPolicies();
-        } else {
-            updateTopicPolicy(data);
-        }
+        updateTopicPolicy(data);
         disconnectProducersBlockedByIncompatibleSchemaIfSchemaValidationChanged(previousSchemaCompatibilityStrategy,
                 previousAllowAutoUpdateSchema, previousAllowAutoUpdateSchemaWithReplicator);
     }
