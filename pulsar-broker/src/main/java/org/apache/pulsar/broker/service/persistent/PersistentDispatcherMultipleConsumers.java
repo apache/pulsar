@@ -104,6 +104,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     private volatile CompletableFuture<Void> delayedDeliveryTrackerCreateFuture = null;
     // Guarded by this. A concurrent map only so that stats can read its size without taking the dispatcher lock.
     private final Map<Position, Long> messagesPendingDelayedDeliveryTracker = new ConcurrentHashMap<>();
+    // Whether the last read pass was skipped because the tracker paused all deliveries, i.e. it detected fixed delays
+    // and the entries not read yet are delayed too. Volatile so that stats can read it without the dispatcher lock.
+    private volatile boolean readPausedByDelayTracker = false;
     private final Backoff delayedDeliveryTrackerCreateBackoff = Backoff.builder()
             .initialDelay(Duration.ofSeconds(1))
             .maxBackoff(Duration.ofMinutes(1))
@@ -402,9 +405,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             shouldRewindBeforeReadingOrReplaying = false;
         }
         if (shouldPauseDeliveryForDelayTracker()) {
+            readPausedByDelayTracker = delayedDeliveryTrackerCreateFuture == null;
             log.debug("Skipping read due to pause delivery for delay tracker");
             return;
         }
+        readPausedByDelayTracker = false;
         if (topic.isTransferring()) {
             // Do not deliver messages for topics that are undergoing transfer, as the acknowledgments would be ignored.
             return;
@@ -1618,6 +1623,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     protected boolean shouldPauseDeliveryForDelayTracker() {
         return delayedDeliveryTrackerCreateFuture != null
                 || delayedDeliveryTracker.map(DelayedDeliveryTracker::shouldPauseAllDeliveries).orElse(false);
+    }
+
+    @Override
+    public boolean isReadPausedByDelayTracker() {
+        return readPausedByDelayTracker;
     }
 
     @Override
