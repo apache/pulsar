@@ -2467,7 +2467,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
                     originalNamespaceStrategy);
             admin1.topics().setReplicationClusters(topicName, Collections.singletonList(cluster1));
             waitReplicatorStopped(partitionName, false);
-            admin1.topics().deletePartitionedTopic(topicName, true);
+            admin1.topics().delete(partitionName, true);
             admin2.topics().deletePartitionedTopic(topicName, true);
         }
     }
