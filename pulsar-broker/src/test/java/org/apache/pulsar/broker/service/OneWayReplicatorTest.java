@@ -86,6 +86,9 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerTest;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.config.Configurator;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.resources.ClusterResources;
@@ -145,6 +148,7 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.impl.DualMetadataStore;
+import org.apache.pulsar.utils.TestLogAppender;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.awaitility.Awaitility;
@@ -2298,6 +2302,73 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             admin1.topics().delete(topicName, true);
             admin2.topics().delete(topicName, true);
         }
+    }
+
+    @Test(timeOut = 120_000)
+    public void testReplicationStaysPausedWhenSchemaIsStillIncompatibleAfterReconnect() throws Exception {
+        String topicName = BrokerTestUtil.newUniqueName("persistent://"
+                + sourceClusterAlwaysSchemaCompatibleNamespace + "/schema-retry-remains-incompatible-");
+        RecordSchemaBuilder oldKeyBuilder = SchemaBuilder.record("Key");
+        oldKeyBuilder.field("id").type(SchemaType.INT64);
+        RecordSchemaBuilder compatibleKeyBuilder = SchemaBuilder.record("Key");
+        compatibleKeyBuilder.field("id").type(SchemaType.INT64);
+        compatibleKeyBuilder.field("description").type(SchemaType.STRING).optional();
+        RecordSchemaBuilder incompatibleKeyBuilder = SchemaBuilder.record("Key");
+        incompatibleKeyBuilder.field("game_id").type(SchemaType.INT64);
+        GenericSchema<GenericRecord> oldKey = Schema.generic(oldKeyBuilder.build(SchemaType.AVRO));
+        GenericSchema<GenericRecord> compatibleKey =
+                Schema.generic(compatibleKeyBuilder.build(SchemaType.AVRO));
+        GenericSchema<GenericRecord> incompatibleKey =
+                Schema.generic(incompatibleKeyBuilder.build(SchemaType.AVRO));
+        Schema<KeyValue<GenericRecord, String>> schema = Schema.KeyValue(incompatibleKey, Schema.STRING);
+
+        admin2.topics().createNonPartitionedTopic(topicName);
+        admin2.topicPolicies().setSchemaCompatibilityStrategy(topicName, SchemaCompatibilityStrategy.FULL);
+        admin2.schemas().createSchema(topicName, Schema.KeyValue(oldKey, Schema.STRING).getSchemaInfo());
+        try (Producer<byte[]> producer = client1.newProducer(Schema.AUTO_PRODUCE_BYTES()).topic(topicName)
+                .enableBatching(false).create()) {
+            waitReplicatorStarted(topicName);
+            PersistentTopic source = (PersistentTopic) broker1.getTopic(topicName, false).join().orElseThrow();
+            PersistentReplicator replicator = (PersistentReplicator) source.getReplicators().get(cluster2);
+            ProducerImpl<?> replicationProducer = replicator.getProducer();
+            long producerEpoch = replicationProducer.getConnectionHandler().getEpoch();
+            producer.newMessage(schema).value(new KeyValue<>(
+                    incompatibleKey.newRecordBuilder().set("game_id", 1L).build(), "game")).send();
+            Awaitility.await().untilAsserted(() ->
+                    assertThat(replicator.getCursor().getNumberOfEntriesInBacklog(false)).isOne());
+
+            Level previousServerCnxLogLevel = LogManager.getLogger(ServerCnx.class).getLevel();
+            Configurator.setLevel(ServerCnx.class.getName(), Level.DEBUG);
+            try (TestLogAppender appender = TestLogAppender.create(ServerCnx.class)) {
+                // This creates a schema version and reconnects the blocked producer, but does not make the
+                // incompatible schema above compatible with FULL.
+                admin2.schemas().createSchema(topicName, Schema.KeyValue(compatibleKey, Schema.STRING).getSchemaInfo());
+                Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() ->
+                        assertThat(replicationProducer.getConnectionHandler().getEpoch()).isGreaterThan(producerEpoch));
+                Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() ->
+                        assertThat(getOrCreateSchemaRequestCount(appender)).isGreaterThanOrEqualTo(1));
+                Awaitility.await().during(Duration.ofSeconds(1)).atMost(Duration.ofSeconds(2)).untilAsserted(() ->
+                        assertThat(getOrCreateSchemaRequestCount(appender)).isOne());
+            } finally {
+                Configurator.setLevel(ServerCnx.class.getName(), previousServerCnxLogLevel);
+            }
+        } finally {
+            admin2.topicPolicies().setSchemaCompatibilityStrategy(topicName,
+                    SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+            admin1.topics().setReplicationClusters(topicName, Collections.singletonList(cluster1));
+            waitReplicatorStopped(topicName, false);
+            Awaitility.await().atMost(Duration.ofSeconds(30)).ignoreExceptions().untilAsserted(() ->
+                    admin1.topics().delete(topicName, true));
+            Awaitility.await().atMost(Duration.ofSeconds(30)).ignoreExceptions().untilAsserted(() ->
+                    admin2.topics().delete(topicName, true));
+        }
+    }
+
+    private static long getOrCreateSchemaRequestCount(TestLogAppender appender) {
+        return appender.getEvents().stream()
+                .filter(event -> event.getMessage().getFormattedMessage()
+                        .contains("Received CommandGetOrCreateSchema call"))
+                .count();
     }
 
     @Test(timeOut = 120_000)

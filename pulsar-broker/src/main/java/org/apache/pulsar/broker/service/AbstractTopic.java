@@ -940,12 +940,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
 
         if (allowAutoUpdateSchema(isReplicatorProducer)) {
             return schemaRegistryService.putSchemaIfAbsentWithResult(id, schema, getSchemaCompatibilityStrategy())
-                    .thenApply(result -> {
-                        if (result.created()) {
-                            disconnectProducersBlockedByIncompatibleSchema();
-                        }
-                        return result.version();
-                    });
+                    .thenApply(result -> result.version());
         } else {
             return schemaRegistryService.trimDeletedSchemaAndGetList(id).thenCompose(schemaAndMetadataList ->
                     schemaRegistryService.getSchemaVersionBySchemaData(schemaAndMetadataList, schema)

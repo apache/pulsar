@@ -79,15 +79,6 @@ public class SchemasResourceBase extends AdminResource {
         }
     }
 
-    private void disconnectProducersBlockedByIncompatibleSchema() {
-        String schemaId = getSchemaId();
-        pulsar().getBrokerService().forEachTopic(topic -> {
-            if (TopicName.get(topic.getName()).getSchemaName().equals(schemaId)) {
-                topic.disconnectProducersBlockedByIncompatibleSchema();
-            }
-        });
-    }
-
     public CompletableFuture<SchemaAndMetadata> getSchemaAsync(boolean authoritative) {
         return validateOwnershipAndOperationAsync(authoritative, TopicOperation.GET_METADATA)
                 .thenApply(__ -> getSchemaId())
@@ -127,9 +118,6 @@ public class SchemasResourceBase extends AdminResource {
                     String schemaId = getSchemaId();
                     return pulsar().getSchemaRegistryService()
                             .deleteSchema(schemaId, defaultIfEmpty(clientAppId(), ""), force);
-                }).thenApply(version -> {
-                    disconnectProducersBlockedByIncompatibleSchema();
-                    return version;
                 });
     }
 
@@ -157,13 +145,7 @@ public class SchemasResourceBase extends AdminResource {
                                             .props(payload.getProperties())
                                             .build(),
                                     schemaCompatibilityStrategy)
-                            .thenCompose(result -> {
-                                if (!result.created()) {
-                                    return CompletableFuture.completedFuture(result.version());
-                                }
-                                disconnectProducersBlockedByIncompatibleSchema();
-                                return CompletableFuture.completedFuture(result.version());
-                            });
+                            .thenApply(result -> result.version());
                 });
     }
 

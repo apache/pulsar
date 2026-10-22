@@ -2958,7 +2958,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         Iterator<OpSendMsg> msgIterator = pendingMessages.iterator();
         MessageImpl<?> loopStartAt = latestMsgAttemptedRegisteredSchema;
         OpSendMsg loopEndDueToSchemaRegisterNeeded = null;
-        boolean pausedSendingToPreservePublishOrderOnSchemaRegFailure = false;
         while (true) {
             // Re-check after every iteration that can invoke application callbacks, including the
             // last one: closing the producer may also drain the queue and invalidate this iterator.
@@ -3021,12 +3020,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                                 .attr("details", SchemaUtils.jsonifySchemaInfo(msgSchemaInfo, false))
                                 .log("Publishing paused: message schema"
                                         + " incompatible with target cluster."
-                                        + " To resume publishing: 1) Adjust"
-                                        + " schema compatibility strategy on"
-                                        + " target cluster 2) Unload topic on"
-                                        + " target cluster. Schema details");
+                                        + " To resume publishing, adjust the"
+                                        + " schema compatibility strategy on the target cluster."
+                                        + " Target brokers earlier than the recovery fix in 4.0.15, 4.2.6,"
+                                        + " or 5.0.1 require unloading the topic after"
+                                        + " changing the strategy. Schema details");
                         loopEndDueToSchemaRegisterNeeded = op;
-                        pausedSendingToPreservePublishOrderOnSchemaRegFailure = true;
                         break;
                     }
                     // Event 3-1-2.
@@ -3094,7 +3093,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 // After a topic unload, ask the producer retry to register schema, which avoids restart client
                 // after users changed the compatibility strategy to make the schema is compatible.
                 tryRegisterSchema(cnx, loopEndDueToSchemaRegisterNeeded, expectedEpoch);
-            } else if (pausedSendingToPreservePublishOrderOnSchemaRegFailure) {
+            } else if (pauseSendingToPreservePublishOrderOnSchemaRegFailure
+                    && Broken.equals(loopEndDueToSchemaRegisterNeeded.msg.getSchemaState())) {
                 // Nothing to do if the event is "Event 3-1-1", just keep stuck.
                 return;
             } else if (compareAndSetState(State.RegisteringSchema, State.Ready)) {
