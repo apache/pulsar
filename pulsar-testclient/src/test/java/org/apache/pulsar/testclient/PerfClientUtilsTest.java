@@ -19,6 +19,7 @@
 package org.apache.pulsar.testclient;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -33,6 +34,7 @@ import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.tls.TlsPolicy;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -298,6 +300,76 @@ public class PerfClientUtilsTest {
         } finally {
             Files.deleteIfExists(testConf);
         }
+    }
+
+    @Test
+    public void v5TlsPolicyCarriesKeyStoreMaterial() {
+        final PerformanceBaseArguments args = new PerformanceArgumentsTestDefault("");
+        args.serviceURL = "pulsar://my-pulsar:6650";
+        args.useKeyStoreTls = true;
+        args.tlsTrustStoreType = "PKCS12";
+        args.tlsTrustStorePath = "./tlsTrustStorePath";
+        args.tlsTrustStorePassword = "tlsTrustStorePassword";
+        args.tlsKeyStoreType = "JKS";
+        args.tlsKeyStorePath = "./tlsKeyStorePath";
+        args.tlsKeyStorePassword = "tlsKeyStorePassword";
+        args.tlsHostnameVerificationEnable = true;
+
+        // --use-keystore-tls is an explicit TLS intent, like --trust-cert-file.
+        assertThat(PerfClientUtils.wantsTls(args)).isTrue();
+
+        final TlsPolicy policy = PerfClientUtils.createV5TlsPolicy(args);
+
+        assertThat(policy.format()).isEqualTo(TlsPolicy.Format.KEYSTORE);
+        assertThat(policy.trustStoreType()).isEqualTo("PKCS12");
+        assertThat(policy.trustStorePath()).isEqualTo("./tlsTrustStorePath");
+        assertThat(policy.trustStorePassword()).isEqualTo("tlsTrustStorePassword");
+        assertThat(policy.keyStoreType()).isEqualTo("JKS");
+        assertThat(policy.keyStorePath()).isEqualTo("./tlsKeyStorePath");
+        assertThat(policy.keyStorePassword()).isEqualTo("tlsKeyStorePassword");
+        assertThat(policy.trustCertsFilePath()).isNull();
+        assertThat(policy.enableHostnameVerification()).isTrue();
+    }
+
+    @Test
+    public void v5TlsPolicyKeyStoreWithoutClientKeyStore() {
+        final PerformanceBaseArguments args = new PerformanceArgumentsTestDefault("");
+        args.useKeyStoreTls = true;
+        args.tlsTrustStorePath = "./tlsTrustStorePath";
+
+        final TlsPolicy policy = PerfClientUtils.createV5TlsPolicy(args);
+
+        assertThat(policy.format()).isEqualTo(TlsPolicy.Format.KEYSTORE);
+        assertThat(policy.trustStorePath()).isEqualTo("./tlsTrustStorePath");
+        assertThat(policy.trustStorePassword()).isNull();
+        assertThat(policy.keyStorePath()).isNull();
+        assertThat(policy.keyStorePassword()).isNull();
+    }
+
+    @Test
+    public void v5TlsPolicyIsPemWithoutKeyStoreTls() {
+        final PerformanceBaseArguments args = new PerformanceArgumentsTestDefault("");
+        args.serviceURL = "pulsar+ssl://my-pulsar:6651";
+        args.tlsTrustCertsFilePath = "/tls/ca.pem";
+
+        final TlsPolicy policy = PerfClientUtils.createV5TlsPolicy(args);
+
+        assertThat(policy.format()).isEqualTo(TlsPolicy.Format.PEM);
+        assertThat(policy.trustCertsFilePath()).isEqualTo("/tls/ca.pem");
+        assertThat(policy.trustStorePath()).isNull();
+        assertThat(policy.keyStorePath()).isNull();
+    }
+
+    @Test
+    public void v5TlsPolicyRejectsKeyStoreTlsWithTrustCertFile() {
+        final PerformanceBaseArguments args = new PerformanceArgumentsTestDefault("");
+        args.useKeyStoreTls = true;
+        args.tlsTrustStorePath = "./tlsTrustStorePath";
+        args.tlsTrustCertsFilePath = "/tls/ca.pem";
+
+        assertThatThrownBy(() -> PerfClientUtils.createV5TlsPolicy(args))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("trustCertsFilePath");
     }
 
     @Test
