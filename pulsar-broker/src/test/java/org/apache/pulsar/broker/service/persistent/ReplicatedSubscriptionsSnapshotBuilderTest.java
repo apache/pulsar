@@ -31,6 +31,7 @@ import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
@@ -74,6 +75,14 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
         })
                 .when(controller)
                 .writeMarker(any(ByteBuf.class));
+        doAnswer(invocation -> {
+            ByteBuf marker = invocation.getArgument(0, ByteBuf.class);
+            Commands.skipMessageMetadata(marker);
+            markers.add(marker);
+            return CompletableFuture.completedFuture(PositionFactory.create(1, 1));
+        })
+                .when(controller)
+                .writeMarkerAndGetPosition(any(ByteBuf.class));
     }
 
     @AfterMethod
@@ -113,7 +122,7 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
 
         // At this point the snapshot should be created
         assertEquals(markers.size(), 1);
-        ReplicatedSubscriptionsSnapshot snapshot = parseReplicatedSubscriptionsSnapshot() ;
+        ReplicatedSubscriptionsSnapshot snapshot = parseReplicatedSubscriptionsSnapshot();
         assertEquals(snapshot.getClustersCount(), 1);
         assertEquals(snapshot.getClusterAt(0).getCluster(), "b");
         assertEquals(snapshot.getClusterAt(0).getMessageId().getLedgerId(), 11);

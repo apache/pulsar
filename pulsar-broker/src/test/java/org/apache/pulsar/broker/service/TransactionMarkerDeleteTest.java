@@ -32,8 +32,8 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
@@ -85,8 +85,8 @@ public class TransactionMarkerDeleteTest extends TransactionTestBase {
         PersistentSubscription persistentSubscription =
                 spyWithClassAndConstructorArgs(PersistentSubscription.class, topic, "test", cursor, false);
         Position position = managedLedger.addEntry("test".getBytes());
-        persistentSubscription.acknowledgeMessage(Collections.singletonList(position),
-                AckType.Individual, Collections.emptyMap());
+        persistentSubscription.acknowledgeMessageAsync(Collections.singletonList(position),
+                AckType.Individual, Collections.emptyMap()).join();
         verify(managedLedger, times(0)).asyncReadEntry(any(), any(), any());
     }
 

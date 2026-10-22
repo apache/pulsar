@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.broker.auth;
 
+import java.net.SocketAddress;
+import javax.net.ssl.SSLSession;
 import org.apache.pulsar.broker.authentication.AuthenticationState;
 import org.apache.pulsar.common.api.AuthData;
-import javax.net.ssl.SSLSession;
-import java.net.SocketAddress;
 
 public class MockMutableAuthenticationProvider extends MockAuthenticationProvider {
     public AuthenticationState newAuthState(AuthData authData,

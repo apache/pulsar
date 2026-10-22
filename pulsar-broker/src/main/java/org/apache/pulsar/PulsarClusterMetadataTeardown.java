@@ -18,13 +18,13 @@
  */
 package org.apache.pulsar;
 
-import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.conf.ClientConfiguration;
@@ -34,7 +34,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.TenantResources;
-import org.apache.pulsar.broker.service.schema.SchemaStorageFormat.SchemaLocator;
+import org.apache.pulsar.broker.service.schema.SchemaLocator;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -46,8 +46,6 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -56,6 +54,7 @@ import picocli.CommandLine.ScopeType;
 /**
  * Teardown the metadata for a existed Pulsar cluster.
  */
+@CustomLog
 public class PulsarClusterMetadataTeardown {
 
     @Command(name = "delete-cluster-metadata", showDefaultValues = true, scope = ScopeType.INHERIT)
@@ -180,11 +179,11 @@ public class PulsarClusterMetadataTeardown {
                 resources.getClusterResources().deleteCluster(arguments.cluster);
             } catch (MetadataStoreException.NotFoundException ex) {
                 // Ignore if the cluster does not exist
-                log.info("Cluster metadata for '{}' does not exist.", arguments.cluster);
+                log.info().attr("cluster", arguments.cluster).log("Cluster metadata does not exist");
             }
         }
 
-        log.info("Cluster metadata for '{}' teardown.", arguments.cluster);
+        log.info().attr("cluster", arguments.cluster).log("Cluster metadata teardown");
     }
 
     private static void removeCurrentClusterFromAllowedClusters(
@@ -219,20 +218,20 @@ public class PulsarClusterMetadataTeardown {
     private static void deleteLedger(BookKeeper bookKeeper, long ledgerId) {
         try {
             bookKeeper.deleteLedger(ledgerId);
-            if (log.isDebugEnabled()) {
-                log.debug("Delete ledger id: {}", ledgerId);
-            }
-        } catch (InterruptedException | BKException ex) {
+                log.debug().attr("ledgerId", ledgerId).log("Deleted ledger");
+                    } catch (InterruptedException | BKException ex) {
             if (ex instanceof BKException bkException) {
                 switch (bkException.getCode()) {
                     case BKException.Code.NoSuchLedgerExistsException:
                     case BKException.Code.NoSuchLedgerExistsOnMetadataServerException:
-                        log.warn("Failed to delete deleted ledger. ledgerId={} errorCode={}",
-                                ledgerId, bkException.getCode());
+                        log.warn()
+                                .attr("ledgerId", ledgerId)
+                                .attr("errorCode", bkException.getCode())
+                                .log("Failed to delete deleted ledger");
                         return;
                 }
             }
-            log.error("Failed to delete ledger {}: {}", ledgerId, ex);
+            log.error().attr("ledgerId", ledgerId).exceptionMessage(ex).log("Failed to delete ledger");
             throw new RuntimeException(ex);
         }
     }
@@ -248,7 +247,8 @@ public class PulsarClusterMetadataTeardown {
                     try {
                         managedLedgerFactory.delete(topicName.getPersistenceNamingEncoding());
                     } catch (InterruptedException | ManagedLedgerException e) {
-                        log.error("Failed to delete ledgers of {}: {}", topicName, e);
+                        log.error().attr("topic", topicName).exceptionMessage(e)
+                                .log("Failed to delete ledgers for topic");
                         throw new RuntimeException(e);
                     }
                 });
@@ -265,17 +265,18 @@ public class PulsarClusterMetadataTeardown {
                 metadataStore.getChildren(namespaceRoot).join().forEach(topic -> {
                     final String topicRoot = namespaceRoot + "/" + topic;
                     try {
-                        SchemaLocator.parseFrom(metadataStore.get(topicRoot).join().get().getValue())
-                                .getIndexList().stream()
-                                .map(indexEntry -> indexEntry.getPosition().getLedgerId())
-                                .forEach(ledgerId -> deleteLedger(bookKeeper, ledgerId));
-                    } catch (InvalidProtocolBufferException e) {
-                        log.warn("Invalid data format from {}: {}", topicRoot, e);
+                        byte[] data = metadataStore.get(topicRoot).join().get().getValue();
+                        SchemaLocator locator = new SchemaLocator();
+                        locator.parseFrom(data);
+                        for (int i = 0; i < locator.getIndexsCount(); i++) {
+                            deleteLedger(bookKeeper, locator.getIndexAt(i).getPosition().getLedgerId());
+                        }
+                    } catch (Exception e) {
+                        log.warn().attr("topic", topicRoot).exceptionMessage(e)
+                                .log("Invalid data format");
                     }
                 });
             });
         });
     }
-
-    private static final Logger log = LoggerFactory.getLogger(PulsarClusterMetadataTeardown.class);
 }

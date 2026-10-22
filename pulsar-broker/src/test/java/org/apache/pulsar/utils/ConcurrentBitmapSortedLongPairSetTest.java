@@ -129,6 +129,19 @@ public class ConcurrentBitmapSortedLongPairSetTest {
     }
 
     @Test
+    public void testRemoveUpToReportsASparsePrefix() {
+        ConcurrentBitmapSortedLongPairSet set = new ConcurrentBitmapSortedLongPairSet();
+        set.add(1, 5);
+        set.add(1, 100);
+
+        // removes 1:5 although 1:0 to 1:4 and 1:6 to 1:10 were never there
+        assertTrue(set.removeUpTo(1, 11));
+        assertFalse(set.contains(1, 5));
+        assertTrue(set.contains(1, 100));
+        assertFalse(set.removeUpTo(1, 11));
+    }
+
+    @Test
     public void testItems() {
         ConcurrentBitmapSortedLongPairSet set = new ConcurrentBitmapSortedLongPairSet();
         Set<ConcurrentLongPairSet.LongPair> items = set.items(10, ConcurrentLongPairSet.LongPair::new);
@@ -183,15 +196,15 @@ public class ConcurrentBitmapSortedLongPairSetTest {
         ExecutorService executor = Executors.newCachedThreadPool();
 
         final int nThreads = 8;
-        final int N = 1000;
+        final int num = 1000;
 
         List<Future<?>> futures = new ArrayList<>();
         for (int i = 0; i < nThreads; i++) {
             final int threadIdx = i;
             futures.add(executor.submit(() -> {
 
-                int start = N * (threadIdx + 1);
-                for (int j = 0; j < N; j++) {
+                int start = num * (threadIdx + 1);
+                for (int j = 0; j < num; j++) {
                     int key = start + j;
                     // Ensure keys are unique
                     set.add(key, key);
@@ -203,7 +216,7 @@ public class ConcurrentBitmapSortedLongPairSetTest {
             future.get();
         }
 
-        assertEquals(set.size(), N * nThreads);
+        assertEquals(set.size(), num * nThreads);
     }
 
     @Test

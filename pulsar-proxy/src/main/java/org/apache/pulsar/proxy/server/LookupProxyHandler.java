@@ -18,33 +18,50 @@
  */
 package org.apache.pulsar.proxy.server;
 
+import static org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterUtil.acquireDirectMemoryPermitsAndWriteAndFlush;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.util.ReferenceCountUtil;
 import io.prometheus.client.Counter;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
+import java.util.function.BooleanSupplier;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.broker.topiclistlimit.TopicListMemoryLimiter;
+import org.apache.pulsar.broker.topiclistlimit.TopicListSizeResultCache;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.BinaryProtoLookupService;
+import org.apache.pulsar.client.impl.ClientCnx;
+import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandGetSchema;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse.LookupType;
 import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadata;
+import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.api.proto.ServerError;
+import org.apache.pulsar.common.lookup.GetTopicsResult;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
+import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter;
+import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterImpl;
+import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterUtil;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.netty.NettyChannelUtil;
 import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class LookupProxyHandler {
     private final String throttlingErrorMessage = "Too many concurrent lookup and partitionsMetadata requests";
     private final ProxyConnection proxyConnection;
@@ -84,6 +101,8 @@ public class LookupProxyHandler {
                     "Counter of getTopicsOfNamespace requests rejected due to throttling")
             .create().register();
     private final Semaphore lookupRequestSemaphore;
+    private final AsyncDualMemoryLimiterImpl maxTopicListInFlightLimiter;
+    private final TopicListSizeResultCache topicListSizeResultCache;
 
     public LookupProxyHandler(ProxyService proxy, ProxyConnection proxyConnection) {
         this.discoveryProvider = proxy.getDiscoveryProvider();
@@ -93,12 +112,14 @@ public class LookupProxyHandler {
         this.connectWithTLS = proxy.getConfiguration().isTlsEnabledWithBroker();
         this.brokerServiceURL = this.connectWithTLS ? proxy.getConfiguration().getBrokerServiceURLTLS()
                 : proxy.getConfiguration().getBrokerServiceURL();
+        this.maxTopicListInFlightLimiter = proxy.getMaxTopicListInFlightLimiter();
+        this.topicListSizeResultCache = proxy.getTopicListSizeResultCache();
     }
 
     public void handleLookup(CommandLookupTopic lookup) {
-        if (log.isDebugEnabled()) {
-            log.debug("Received Lookup from {}", clientAddress);
-        }
+        log.debug()
+                .attr("clientAddress", clientAddress)
+                .log("Received Lookup from");
         long clientRequestId = lookup.getRequestId();
         if (lookupRequestSemaphore.tryAcquire()) {
             try {
@@ -112,10 +133,11 @@ public class LookupProxyHandler {
             }
         } else {
             REJECTED_LOOKUP_REQUESTS.inc();
-            if (log.isDebugEnabled()) {
-                log.debug("Lookup Request ID {} from {} rejected - {}.", clientRequestId, clientAddress,
-                        throttlingErrorMessage);
-            }
+            log.debug()
+                    .attr("clientRequestId", clientRequestId)
+                    .attr("clientAddress", clientAddress)
+                    .attr("throttlingErrorMessage", throttlingErrorMessage)
+                    .log("Lookup Request ID from rejected");
             writeAndFlush(Commands.newLookupErrorResponse(ServerError.TooManyRequests,
                     throttlingErrorMessage, clientRequestId));
         }
@@ -140,10 +162,11 @@ public class LookupProxyHandler {
         }
 
         InetSocketAddress addr = InetSocketAddress.createUnresolved(brokerURI.getHost(), brokerURI.getPort());
-        if (log.isDebugEnabled()) {
-            log.debug("Getting connections to '{}' for Looking up topic '{}' with clientReq Id '{}'", addr, topic,
-                    clientRequestId);
-        }
+        log.debug()
+                .attr("addr", addr)
+                .attr("topic", topic)
+                .attr("clientRequestId", clientRequestId)
+                .log("Getting connection for topic lookup");
         proxyConnection.getConnectionPool().getConnection(addr).thenAccept(clientCnx -> {
             // Connected to backend broker
             long requestId = proxyConnection.newRequestId();
@@ -152,7 +175,11 @@ public class LookupProxyHandler {
 
             clientCnx.newLookup(command, requestId).whenComplete((r, t) -> {
                 if (t != null) {
-                    log.warn("[{}] Failed to lookup topic {}: {}", clientAddress, topic, t.getMessage());
+                    log.warn()
+                            .attr("clientAddress", clientAddress)
+                            .attr("topic", topic)
+                            .exceptionMessage(t)
+                            .log("Failed to lookup topic");
                     writeAndFlush(
                         Commands.newLookupErrorResponse(getServerError(t), t.getMessage(), clientRequestId));
                 } else {
@@ -168,11 +195,12 @@ public class LookupProxyHandler {
                         // client
                         // to use the appropriate target broker (and port) when it
                         // will connect back.
-                        if (log.isDebugEnabled()) {
-                            log.debug("Successfully perform lookup '{}' for topic '{}'"
-                                            + " with clientReq Id '{}' and lookup-broker {}",
-                                    addr, topic, clientRequestId, brokerUrl);
-                        }
+                        log.debug()
+                                .attr("addr", addr)
+                                .attr("topic", topic)
+                                .attr("clientRequestId", clientRequestId)
+                                .attr("brokerUrl", brokerUrl)
+                                .log("Successfully performed lookup");
                         writeAndFlush(Commands.newLookupResponse(brokerUrl, brokerUrl, true,
                             LookupType.Connect, clientRequestId, true /* this is coming from proxy */));
                     }
@@ -193,9 +221,9 @@ public class LookupProxyHandler {
 
     public void handlePartitionMetadataResponse(CommandPartitionedTopicMetadata partitionMetadata) {
         PARTITIONS_METADATA_REQUESTS.inc();
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Received PartitionMetadataLookup", clientAddress);
-        }
+        log.debug()
+                .attr("clientAddress", clientAddress)
+                .log("Received PartitionMetadataLookup");
         final long clientRequestId = partitionMetadata.getRequestId();
         if (lookupRequestSemaphore.tryAcquire()) {
             try {
@@ -205,10 +233,11 @@ public class LookupProxyHandler {
             }
         } else {
             REJECTED_PARTITIONS_METADATA_REQUESTS.inc();
-            if (log.isDebugEnabled()) {
-                log.debug("PartitionMetaData Request ID {} from {} rejected - {}.", clientRequestId, clientAddress,
-                        throttlingErrorMessage);
-            }
+            log.debug()
+                    .attr("clientRequestId", clientRequestId)
+                    .attr("clientAddress", clientAddress)
+                    .attr("throttlingErrorMessage", throttlingErrorMessage)
+                    .log("PartitionMetaData Request ID rejected");
             writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.ServiceNotReady,
                     throttlingErrorMessage, clientRequestId));
         }
@@ -221,11 +250,13 @@ public class LookupProxyHandler {
      **/
     private void handlePartitionMetadataResponse(CommandPartitionedTopicMetadata partitionMetadata,
             long clientRequestId) {
-        TopicName topicName = TopicName.get(partitionMetadata.getTopic());
+        String topicName = TopicName.toFullTopicName(partitionMetadata.getTopic());
 
         String serviceUrl = getBrokerServiceUrl(clientRequestId);
         if (serviceUrl == null) {
-            log.warn("No available broker for {} to lookup partition metadata", topicName);
+            log.warn()
+                    .attr("topic", topicName)
+                    .log("No available broker for to lookup partition metadata");
             return;
         }
         InetSocketAddress addr = getAddr(serviceUrl, clientRequestId);
@@ -233,10 +264,11 @@ public class LookupProxyHandler {
             return;
         }
 
-        if (log.isDebugEnabled()) {
-            log.debug("Getting connections to '{}' for Looking up topic '{}' with clientReq Id '{}'", addr,
-                    topicName.getPartitionedTopicName(), clientRequestId);
-        }
+        log.debug()
+                .attr("addr", addr)
+                .attr("topic", topicName)
+                .attr("clientRequestId", clientRequestId)
+                .log("Getting connection for partition metadata lookup");
         proxyConnection.getConnectionPool().getConnection(addr).thenAccept(clientCnx -> {
             // Connected to backend broker
             long requestId = proxyConnection.newRequestId();
@@ -245,10 +277,12 @@ public class LookupProxyHandler {
                     partitionMetadata.isMetadataAutoCreationEnabled());
             clientCnx.newLookup(command, requestId).whenComplete((r, t) -> {
                 if (t != null) {
-                    log.warn("[{}] failed to get Partitioned metadata : {}", topicName.toString(),
-                        t.getMessage(), t);
+                    log.warn()
+                            .attr("topic", topicName)
+                            .exception(t)
+                            .log("failed to get Partitioned");
                     PulsarClientException pce = PulsarClientException.unwrap(t);
-                    writeAndFlush(Commands.newLookupErrorResponse(clientCnx.revertClientExToErrorCode(pce),
+                    writeAndFlush(Commands.newLookupErrorResponse(ClientCnx.revertClientExToErrorCode(pce),
                             t.getMessage(), clientRequestId));
                 } else {
                     writeAndFlush(
@@ -266,9 +300,9 @@ public class LookupProxyHandler {
 
     public void handleGetTopicsOfNamespace(CommandGetTopicsOfNamespace commandGetTopicsOfNamespace) {
         GET_TOPICS_OF_NAMESPACE_REQUESTS.inc();
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Received GetTopicsOfNamespace", clientAddress);
-        }
+        log.debug()
+                .attr("clientAddress", clientAddress)
+                .log("Received GetTopicsOfNamespace");
 
         final long requestId = commandGetTopicsOfNamespace.getRequestId();
 
@@ -280,10 +314,11 @@ public class LookupProxyHandler {
             }
         } else {
             REJECTED_GET_TOPICS_OF_NAMESPACE_REQUESTS.inc();
-            if (log.isDebugEnabled()) {
-                log.debug("GetTopicsOfNamespace Request ID {} from {} rejected - {}.", requestId, clientAddress,
-                    throttlingErrorMessage);
-            }
+            log.debug()
+                    .attr("requestId", requestId)
+                    .attr("clientAddress", clientAddress)
+                    .attr("throttlingErrorMessage", throttlingErrorMessage)
+                    .log("GetTopicsOfNamespace Request ID rejected");
             writeAndFlush(Commands.newError(
                 requestId, ServerError.ServiceNotReady, throttlingErrorMessage
             ));
@@ -302,7 +337,8 @@ public class LookupProxyHandler {
         String topicsHash = commandGetTopicsOfNamespace.hasTopicsHash()
                 ? commandGetTopicsOfNamespace.getTopicsHash() : null;
         performGetTopicsOfNamespace(clientRequestId, commandGetTopicsOfNamespace.getNamespace(), serviceUrl,
-                10, topicsPattern, topicsHash, commandGetTopicsOfNamespace.getMode());
+                10, topicsPattern, topicsHash, commandGetTopicsOfNamespace.getMode(),
+            commandGetTopicsOfNamespace.getPropertiesList());
     }
 
     private void performGetTopicsOfNamespace(long clientRequestId,
@@ -311,7 +347,8 @@ public class LookupProxyHandler {
                                              int numberOfRetries,
                                              String topicsPattern,
                                              String topicsHash,
-                                             CommandGetTopicsOfNamespace.Mode mode) {
+                                             CommandGetTopicsOfNamespace.Mode mode,
+                                             List<KeyValue> properties) {
         if (numberOfRetries == 0) {
             writeAndFlush(Commands.newError(clientRequestId, ServerError.ServiceNotReady,
                     "Reached max number of redirections"));
@@ -324,30 +361,24 @@ public class LookupProxyHandler {
             return;
         }
 
-        if (log.isDebugEnabled()) {
-            log.debug("Getting connections to '{}' for getting TopicsOfNamespace '{}' with clientReq Id '{}'",
-                addr, namespaceName, clientRequestId);
-        }
+        log.debug()
+                .attr("addr", addr)
+                .attr("namespaceName", namespaceName)
+                .attr("clientRequestId", clientRequestId)
+                .log("Getting connection for TopicsOfNamespace");
         proxyConnection.getConnectionPool().getConnection(addr).thenAccept(clientCnx -> {
             // Connected to backend broker
             long requestId = proxyConnection.newRequestId();
             ByteBuf command;
+            Map<String, String> propertiesMap = new HashMap<>();
+            for (KeyValue kv : properties) {
+                propertiesMap.put(kv.getKey(), kv.getValue());
+            }
             command = Commands.newGetTopicsOfNamespaceRequest(namespaceName, requestId, mode,
-                    topicsPattern, topicsHash);
-            clientCnx.newGetTopicsOfNamespace(command, requestId).whenComplete((r, t) -> {
-                if (t != null) {
-                    log.warn("[{}] Failed to get TopicsOfNamespace {}: {}",
-                            clientAddress, namespaceName, t.getMessage());
-                    writeAndFlush(
-                        Commands.newError(clientRequestId, getServerError(t), t.getMessage()));
-                } else {
-                    writeAndFlush(
-                        Commands.newGetTopicsOfNamespaceResponse(r.getNonPartitionedOrPartitionTopics(),
-                                r.getTopicsHash(), r.isFiltered(),
-                                r.isChanged(), clientRequestId));
-                }
-            });
+                    topicsPattern, topicsHash, propertiesMap);
 
+            internalPerformGetTopicsOfNamespace(clientRequestId, namespaceName, mode, propertiesMap, clientCnx,
+                    command, requestId);
             proxyConnection.getConnectionPool().releaseConnection(clientCnx);
         }).exceptionally(ex -> {
             // Failed to connect to backend broker
@@ -357,11 +388,120 @@ public class LookupProxyHandler {
         });
     }
 
+    private void internalPerformGetTopicsOfNamespace(long clientRequestId, String namespaceName,
+                                                     CommandGetTopicsOfNamespace.Mode mode,
+                                                     Map<String, String> properties, ClientCnx clientCnx,
+                                                     ByteBuf command, long requestId) {
+        BooleanSupplier isPermitRequestCancelled = () -> !proxyConnection.ctx().channel().isActive();
+        TopicListSizeResultCache.ResultHolder
+                listSizeHolder = topicListSizeResultCache.getTopicListSize(namespaceName, mode, properties);
+        listSizeHolder.getSizeAsync().thenAccept(initialSize -> {
+            maxTopicListInFlightLimiter.withAcquiredPermits(initialSize,
+                    AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY, isPermitRequestCancelled, initialPermits -> {
+                        return clientCnx.newGetTopicsOfNamespace(command, requestId).handle((r, t) -> {
+                            if (t != null) {
+                                log.warn()
+                                        .attr("clientAddress", clientAddress)
+                                        .attr("namespaceName", namespaceName)
+                                        .exceptionMessage(t)
+                                        .log("Failed to get TopicsOfNamespace");
+                                listSizeHolder.resetIfInitializing();
+                                writeAndFlush(Commands.newError(clientRequestId, getTopicListServerError(t),
+                                        t.getMessage()));
+                                return CompletableFuture.completedFuture(null);
+                            } else {
+                                long actualSize = TopicListMemoryLimiter.estimateTopicListSize(
+                                        r.getNonPartitionedOrPartitionTopics());
+                                listSizeHolder.updateSize(actualSize);
+                                return maxTopicListInFlightLimiter.withUpdatedPermits(initialPermits, actualSize,
+                                        isPermitRequestCancelled, permits -> {
+                                            return handleWritingGetTopicsResponse(clientRequestId, r,
+                                                    isPermitRequestCancelled);
+                                        }, t2 -> {
+                                            if (!isTopicListRequestCancelled(t2,
+                                                    "Failed to acquire actual heap memory permits for "
+                                                            + "GetTopicsOfNamespace")) {
+                                                writeTopicListPermitsError(clientRequestId, t2, true, "heap");
+                                            }
+                                            return CompletableFuture.completedFuture(null);
+                                        });
+                            }
+                        });
+                    }, t -> {
+                        // the command wasn't sent to the broker, release it
+                        ReferenceCountUtil.safeRelease(command);
+                        listSizeHolder.resetIfInitializing();
+                        if (!isTopicListRequestCancelled(t,
+                                "Failed to acquire initial heap memory permits for GetTopicsOfNamespace")) {
+                            writeTopicListPermitsError(clientRequestId, t, listSizeHolder.isMeasured(), "heap");
+                        }
+                        return CompletableFuture.completedFuture(null);
+                    }).exceptionally(ex -> {
+                listSizeHolder.resetIfInitializing();
+                writeAndFlush(Commands.newError(clientRequestId, getServerError(ex), ex.getMessage()));
+                return null;
+            });
+        });
+    }
+
+    private CompletableFuture<Void> handleWritingGetTopicsResponse(long clientRequestId, GetTopicsResult r,
+                                                                   BooleanSupplier isCancelled) {
+        BaseCommand responseCommand = Commands.newGetTopicsOfNamespaceResponseCommand(
+                r.getNonPartitionedOrPartitionTopics(), r.getTopicsHash(), r.isFiltered(),
+                r.isChanged(), clientRequestId);
+        return acquireDirectMemoryPermitsAndWriteAndFlush(proxyConnection.ctx(), maxTopicListInFlightLimiter,
+                isCancelled, responseCommand, t -> {
+                    if (!isTopicListRequestCancelled(t,
+                            "Failed to acquire actual direct memory permits for GetTopicsOfNamespace")) {
+                        writeTopicListPermitsError(clientRequestId, t, true, "direct");
+                    }
+                    return CompletableFuture.completedFuture(null);
+                });
+    }
+
+    /**
+     * Responds to a GetTopicsOfNamespace request that couldn't acquire topic list memory permits. A topic list that
+     * has been measured to be larger than the limit gets a non-retriable error, since a retry fails the same way
+     * until the list is measured again. A permit timeout or a full queue, or an estimate larger than the limit for
+     * a topic list that hasn't been measured, gets {@link ServerError#TooManyRequests}, which the client retries.
+     */
+    private void writeTopicListPermitsError(long clientRequestId, Throwable t, boolean topicListMeasured,
+                                            String memoryType) {
+        if (topicListMeasured && AsyncDualMemoryLimiterUtil.isPermitAcquireLimitExceeded(t)) {
+            writeAndFlush(Commands.newError(clientRequestId, ServerError.NotAllowedError,
+                    "Failed since the topic list is larger than the topic list " + memoryType + " memory limit"));
+        } else {
+            writeAndFlush(Commands.newError(clientRequestId, ServerError.TooManyRequests,
+                    "Failed due to " + memoryType + " memory limit exceeded"));
+        }
+    }
+
+    /**
+     * Logs a failure to acquire topic list memory permits. A request that was cancelled, because the client
+     * connection was closed, is logged at debug level, since there is no client to respond to.
+     *
+     * @return true if the request was cancelled and no error response should be sent
+     */
+    private boolean isTopicListRequestCancelled(Throwable t, String failureMessage) {
+        if (AsyncDualMemoryLimiterUtil.isPermitAcquireCancelled(t)) {
+            log.debug()
+                    .attr("clientAddress", clientAddress)
+                    .log("GetTopicsOfNamespace was cancelled since the client connection was closed");
+            return true;
+        }
+        log.warn()
+                .attr("clientAddress", clientAddress)
+                .exceptionMessage(t)
+                .log(failureMessage);
+        return false;
+    }
+
     public void handleGetSchema(CommandGetSchema commandGetSchema) {
         GET_SCHEMA_REQUESTS.inc();
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Received GetSchema {}", clientAddress, commandGetSchema);
-        }
+        log.debug()
+                .attr("clientAddress", clientAddress)
+                .attr("commandGetSchema", commandGetSchema)
+                .log("Received GetSchema");
 
         final long clientRequestId = commandGetSchema.getRequestId();
         String serviceUrl = getBrokerServiceUrl(clientRequestId);
@@ -381,10 +521,11 @@ public class LookupProxyHandler {
         if (addr == null) {
             return;
         }
-        if (log.isDebugEnabled()) {
-            log.debug("Getting connections to '{}' for getting schema of topic '{}' with clientReq Id '{}'",
-                    addr, topic, clientRequestId);
-        }
+        log.debug()
+                .attr("addr", addr)
+                .attr("topic", topic)
+                .attr("clientRequestId", clientRequestId)
+                .log("Getting connection for schema of topic");
 
         proxyConnection.getConnectionPool().getConnection(addr).thenAccept(clientCnx -> {
             // Connected to backend broker
@@ -393,7 +534,11 @@ public class LookupProxyHandler {
             command = Commands.newGetSchema(requestId, topic, schemaVersion);
             clientCnx.sendGetRawSchema(command, requestId).whenComplete((r, t) -> {
                 if (t != null) {
-                    log.warn("[{}] Failed to get schema {}: {}", clientAddress, topic, t);
+                    log.warn()
+                            .attr("clientAddress", clientAddress)
+                            .attr("topic", topic)
+                            .attr("t", t)
+                            .log("Failed to get schema");
                     writeAndFlush(
                         Commands.newError(clientRequestId, getServerError(t), t.getMessage()));
                 } else {
@@ -423,7 +568,11 @@ public class LookupProxyHandler {
         try {
             availableBroker = discoveryProvider.nextBroker();
         } catch (Exception e) {
-            log.warn("[{}] Failed to get next active broker {}", clientAddress, e.getMessage(), e);
+            log.warn()
+                    .attr("clientAddress", clientAddress)
+                    .attr("e", e.getMessage())
+                    .exception(e)
+                    .log("Failed to get next active broker");
             writeAndFlush(Commands.newError(
                     clientRequestId, ServerError.ServiceNotReady, e.getMessage()
             ));
@@ -456,10 +605,20 @@ public class LookupProxyHandler {
         return responseError;
     }
 
+    /**
+     * Maps a broker's GetTopicsOfNamespace failure to the error relayed to the client. The broker rejects a topic
+     * list that is larger than its topic list memory limit with {@link ServerError#NotAllowedError}, which is passed
+     * through so that the client doesn't retry it.
+     */
+    private ServerError getTopicListServerError(Throwable error) {
+        if (FutureUtil.unwrapCompletionException(error) instanceof PulsarClientException.NotAllowedException) {
+            return ServerError.NotAllowedError;
+        }
+        return getServerError(error);
+    }
+
     private void writeAndFlush(ByteBuf cmd) {
         final ChannelHandlerContext ctx = proxyConnection.ctx();
         NettyChannelUtil.writeAndFlushWithVoidPromise(ctx, cmd);
     }
-
-    private static final Logger log = LoggerFactory.getLogger(LookupProxyHandler.class);
 }

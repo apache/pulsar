@@ -43,9 +43,10 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
@@ -86,7 +87,7 @@ import org.testng.annotations.Test;
 /**
  * End to end transaction test.
  */
-@Slf4j
+@CustomLog
 @Test(groups = "broker-impl")
 public class TransactionEndToEndTest extends TransactionTestBase {
 
@@ -175,7 +176,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
     }
 
 
-    @Test(dataProvider="enableBatch")
+    @Test(dataProvider = "enableBatch")
     private void testFilterMsgsInPendingAckStateWhenConsumerDisconnect(boolean enableBatch) throws Exception {
         final String topicName = NAMESPACE1 + "/testFilterMsgsInPendingAckStateWhenConsumerDisconnect-" + enableBatch;
         final int count = 10;
@@ -243,9 +244,9 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         txn1.abort().get();
         // after txn1 aborted, consumer will receive messages txn1 contains
         int receiveCounter = 0;
-        while((message = consumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS)) != null) {
+        while ((message = consumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS)) != null) {
             Assert.assertEquals(message.getValue().intValue(), receiveCounter);
-            receiveCounter ++;
+            receiveCounter++;
         }
         Assert.assertEquals(receiveCounter, count / 2);
     }
@@ -309,7 +310,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         }
     }
 
-    @Test(dataProvider="enableBatch")
+    @Test(dataProvider = "enableBatch")
     private void produceCommitTest(boolean enableBatch) throws Exception {
         @Cleanup
         Consumer<byte[]> consumer = pulsarClient
@@ -352,7 +353,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         for (int i = 0; i < txnMessageCnt; i++) {
             message = consumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
-            receiveCnt ++;
+            receiveCnt++;
         }
         Assert.assertEquals(txnMessageCnt, receiveCnt);
 
@@ -363,7 +364,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         producer.close();
         consumer.close();
         resetTopicOutput();
-        log.info("message commit test enableBatch {}", enableBatch);
+        log.info().attr("enableBatch", enableBatch).log("message commit test enableBatch");
     }
 
     @Test
@@ -402,7 +403,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         Assert.assertNull(message);
         Awaitility.await().until(() -> {
             boolean flag = true;
-            for (int partition = 0; partition < TOPIC_PARTITION; partition ++) {
+            for (int partition = 0; partition < TOPIC_PARTITION; partition++) {
                 String topic;
                 topic = TopicName.get(TOPIC_OUTPUT).getPartition(partition).toString();
                 boolean exist = false;
@@ -423,8 +424,10 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                             if (!markDeletePosition.equals(lastConfirmedEntry)) {
                                 //this because of the transaction commit marker have't delete
                                 //delete commit marker after ack position
-                                //when delete commit marker operation is processing, next delete operation will not do again
-                                //when delete commit marker operation finish, it can run next delete commit marker operation
+                                //when delete commit marker operation is processing,
+                                // next delete operation will not do again
+                                //when delete commit marker operation finish,
+                                // it can run next delete commit marker operation
                                 //so this test may not delete all the position in this manageLedger.
                                 Position markerPosition = ((ManagedLedgerImpl) persistentSubscription.getCursor()
                                         .getManagedLedger()).getNextValidPosition(markDeletePosition);
@@ -449,8 +452,76 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         log.info("finished test partitionAbortTest");
     }
 
-    @Test(dataProvider="enableBatch")
-    private void testAckWithTransactionReduceUnAckMessageCount(boolean enableBatch) throws Exception {
+    @DataProvider
+    public Object[][] unackMessagesCountParams() {
+        return new Object[][] {
+                // batchSend, batchAck, asyncAck
+                {Boolean.TRUE, Boolean.TRUE, Boolean.TRUE},
+                {Boolean.TRUE, Boolean.TRUE, Boolean.FALSE},
+                {Boolean.TRUE, Boolean.FALSE, Boolean.TRUE},
+                {Boolean.TRUE, Boolean.FALSE, Boolean.FALSE},
+                {Boolean.FALSE, Boolean.TRUE, Boolean.TRUE},
+                {Boolean.FALSE, Boolean.TRUE, Boolean.FALSE},
+                {Boolean.FALSE, Boolean.FALSE, Boolean.TRUE},
+                {Boolean.FALSE, Boolean.FALSE, Boolean.FALSE}
+        };
+    }
+
+    @Test(dataProvider = "unackMessagesCountParams")
+    public void testUnackMessageAfterAckAllMessages(boolean batchSend, boolean batchAck, boolean asyncAck)
+            throws Exception {
+        final int messageCount = 50;
+        final String subName = "s1";
+        final String topicName = BrokerTestUtil.newUniqueName(NAMESPACE1 + "/tp");
+        // Create producer and consumer.
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared).isAckReceiptEnabled(true).subscribe();
+        Awaitility.await().until(consumer::isConnected);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).enableBatching(batchSend)
+                .batchingMaxMessages(10).create();
+        Awaitility.await().until(producer::isConnected);
+        // Publish messages.
+        CompletableFuture<MessageId> latestSendFuture = null;
+        for (int i = 0; i < messageCount; i++) {
+            latestSendFuture = producer.sendAsync((i + "").getBytes());
+        }
+        latestSendFuture.join();
+
+        // Ack messages with TXN.
+        Transaction txn = getTxn();
+        List<MessageId> msgIds = new ArrayList<>();
+        for (int i = 0; i < messageCount; i++) {
+            Message<byte[]> message = consumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS);
+            msgIds.add(message.getMessageId());
+        }
+        if (batchAck) {
+            consumer.acknowledgeAsync(msgIds, txn).get();
+        } else if (asyncAck) {
+            CompletableFuture<Void> latestAckFuture = null;
+            for (MessageId msgId : msgIds) {
+                latestAckFuture = consumer.acknowledgeAsync(msgId, txn);
+            }
+            latestAckFuture.join();
+        } else {
+            for (MessageId msgId : msgIds) {
+                consumer.acknowledgeAsync(msgId, txn).get();
+            }
+        }
+        txn.commit().get();
+
+        // Verify: the quantity of un-ack messages is 0.
+        int unAckMsgs = admin.topics().getStats(topicName).getSubscriptions().get(subName).getConsumers().get(0)
+                .getUnackedMessages();
+        assertEquals(unAckMsgs, 0);
+
+        // cleanup.
+        producer.close();
+        consumer.close();
+        admin.topics().delete(topicName, true);
+    }
+
+    @Test(dataProvider = "enableBatch")
+    public void testAckWithTransactionReduceUnAckMessageCount(boolean enableBatch) throws Exception {
 
         final int messageCount = 50;
         final String subName = "testAckWithTransactionReduceUnAckMessageCount";
@@ -563,7 +634,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             for (int i = 0; i < messageCnt; i++) {
                 Message<byte[]> message = consumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS);
                 Assert.assertNotNull(message);
-                log.info("receive msgId: {}, count : {}", message.getMessageId(), i);
+                log.info().attr("msgId", message.getMessageId()).attr("count", i).log("receive msgId: , count");
                 consumer.acknowledgeAsync(message.getMessageId(), txn).get();
             }
 
@@ -580,7 +651,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 message = consumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS);
                 Assert.assertNotNull(message);
                 consumer.acknowledgeAsync(message.getMessageId(), commitTxn).get();
-                log.info("receive msgId: {}, count: {}", message.getMessageId(), i);
+                log.info().attr("msgId", message.getMessageId()).attr("count", i).log("receive msgId: , count");
             }
 
             // 2) ack committed by a new txn
@@ -673,10 +744,10 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         for (int i = 0; i < messageCnt; i++) {
             message = consumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
-            receiveCnt ++;
+            receiveCnt++;
             if (i % 2 == 0) {
                 consumer.acknowledge(message);
-                ackedMessageCount ++;
+                ackedMessageCount++;
             }
         }
         Assert.assertEquals(messageCnt, receiveCnt);
@@ -696,7 +767,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             message = consumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
             consumer.acknowledge(message);
-            receiveCnt ++;
+            receiveCnt++;
         }
         Assert.assertEquals(messageCnt - ackedMessageCount, receiveCnt);
 
@@ -744,7 +815,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         producer.close();
         consumer.close();
         resetTopicOutput();
-        log.info("receive transaction messages count: {}", receiveCnt);
+        log.info().attr("count", receiveCnt).log("receive transaction messages count");
     }
 
     @Test
@@ -793,7 +864,11 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 if (i % 3 == 0) {
                     consumer.acknowledgeCumulativeAsync(message.getMessageId(), abortTxn).get();
                 }
-                log.info("receive msgId abort: {}, retryCount : {}, count : {}", message.getMessageId(), retryCnt, i);
+                log.info()
+                        .attr("abort", message.getMessageId())
+                        .attr("retryCount", retryCnt)
+                        .attr("count", i)
+                        .log("receive msgId abort: , retryCount : , count");
             }
             try {
                 consumer.acknowledgeCumulativeAsync(message.getMessageId(), abortTxn).get();
@@ -825,7 +900,11 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 if (i % 3 == 0) {
                     consumer.acknowledgeCumulativeAsync(message.getMessageId(), commitTxn).get();
                 }
-                log.info("receive msgId abort: {}, retryCount : {}, count : {}", message.getMessageId(), retryCnt, i);
+                log.info()
+                        .attr("abort", message.getMessageId())
+                        .attr("retryCount", retryCnt)
+                        .attr("count", i)
+                        .log("receive msgId abort: , retryCount : , count");
             }
 
             commitTxn.commit().get();
@@ -859,6 +938,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .build()
                 .get();
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void txnMetadataHandlerRecoverTest() throws Exception {
@@ -890,7 +970,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .enableTransaction(true)
                 .build();
 
-        TransactionCoordinatorClient tcClient = recoverPulsarClient.getTcClient();
+        TransactionCoordinatorClient tcClient = recoverPulsarClient.getTransactionCoordinatorClient();
         for (TxnID txnID : txnIDList) {
             tcClient.commit(txnID);
         }
@@ -1166,9 +1246,11 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         }
         Transaction txn = getTxn();
         if (ackType == CommandAck.AckType.Individual) {
-            consumer.acknowledgeAsync(consumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS).getMessageId(), txn);
+            consumer.acknowledgeAsync(consumer.receive(waitTimeForCanReceiveMsgInSec,
+                    TimeUnit.SECONDS).getMessageId(), txn);
         } else {
-            consumer.acknowledgeCumulativeAsync(consumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS).getMessageId(), txn);
+            consumer.acknowledgeCumulativeAsync(consumer.receive(waitTimeForCanReceiveMsgInSec,
+                    TimeUnit.SECONDS).getMessageId(), txn);
         }
         topic = TopicName.get(topic).toString();
         boolean exist = false;
@@ -1278,7 +1360,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .build().get();
         producer.newMessage().send();
         Awaitility.await().untilAsserted(() -> {
-            Assert.assertEquals(((TransactionImpl)transaction).getState(), TransactionImpl.State.TIME_OUT);
+            Assert.assertEquals(((TransactionImpl) transaction).getState(), TransactionImpl.State.TIME_OUT);
         });
 
         try {
@@ -1445,14 +1527,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             messageIds.add(consumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS).getMessageId());
         }
 
-        MessageIdImpl messageId = (MessageIdImpl) messageIds.get(0);
-
-
-        // remove the message from the pendingAcks, in fact redeliver will remove the messageId from the pendingAck
-        getPulsarServiceList().get(0).getBrokerService().getTopic(topic, false)
-                .get().get().getSubscription(subName).getConsumers().get(0).getPendingAcks()
-                .remove(messageId.ledgerId, messageId.entryId);
-
+        // Ack one message in the batch with a transaction.
         Transaction txn = getTxn();
         consumer.acknowledgeAsync(messageIds.get(1), txn).get();
 
@@ -1501,7 +1576,8 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .build().get();
 
         // consumer receive the message the first time, redeliverCount = 0
-        consumer.acknowledgeAsync(consumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS).getMessageId(), transaction).get();
+        consumer.acknowledgeAsync(consumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS)
+                .getMessageId(), transaction).get();
 
         transaction.abort().get();
 
@@ -1509,7 +1585,8 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .build().get();
 
         // consumer receive the message the second time, redeliverCount = 1, also can be received
-        consumer.acknowledgeAsync(consumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS).getMessageId(), transaction).get();
+        consumer.acknowledgeAsync(consumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS)
+                .getMessageId(), transaction).get();
 
         transaction.abort().get();
 
@@ -1519,7 +1596,8 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         assertEquals(((ConsumerImpl<?>) consumer).getAvailablePermits(), 3);
 
-        assertEquals(value, new String(deadLetterConsumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS).getValue()));
+        assertEquals(value, new String(deadLetterConsumer
+                .receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS).getValue()));
 
         // cleanup.
         consumer.close();
@@ -1572,7 +1650,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         // consumer will receive the batch message two and then receive
         // the message one and message two again, redeliverCount = 1
-        for (int i = 0; i < 3; i ++) {
+        for (int i = 0; i < 3; i++) {
             message = consumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS);
         }
 
@@ -1591,8 +1669,10 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         assertEquals(((ConsumerImpl<?>) consumer).getAvailablePermits(), 6);
 
-        assertEquals(value1, new String(deadLetterConsumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS).getValue()));
-        assertEquals(value2, new String(deadLetterConsumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS).getValue()));
+        assertEquals(value1, new String(deadLetterConsumer.receive(waitTimeForCanReceiveMsgInSec,
+                TimeUnit.SECONDS).getValue()));
+        assertEquals(value2, new String(deadLetterConsumer.receive(waitTimeForCanReceiveMsgInSec,
+                TimeUnit.SECONDS).getValue()));
 
         // cleanup.
         consumer.close();

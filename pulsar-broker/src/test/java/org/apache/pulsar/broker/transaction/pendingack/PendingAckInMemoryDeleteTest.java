@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.transaction.pendingack;
 
-
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import java.util.HashMap;
@@ -27,7 +26,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
@@ -50,14 +49,14 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
 
     private static final int NUM_PARTITIONS = 16;
     @BeforeMethod
     protected void setup() throws Exception {
-        setUpBase(1, NUM_PARTITIONS, NAMESPACE1 +"/test", 0);
+        setUpBase(1, NUM_PARTITIONS, NAMESPACE1 + "/test", 0);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -102,10 +101,12 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
                 Assert.assertNotNull(message);
                 if (i % 2 == 0) {
                     consumer.acknowledgeAsync(message.getMessageId(), commitTxn).get();
-                    log.info("txn receive msgId: {}, count: {}", message.getMessageId(), i);
+                    log.info().attr("receiveMsgId", message.getMessageId()).attr("count", i)
+                            .log("txn receive msgId, count");
                 } else {
                     consumer.acknowledge(message.getMessageId());
-                    log.info("normal receive msgId: {}, count: {}", message.getMessageId(), i);
+                    log.info().attr("receiveMsgId", message.getMessageId()).attr("count", i)
+                            .log("normal receive msgId, count");
                 }
             }
 
@@ -122,9 +123,11 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
                                 .getSubscription(subscriptionName);
                         var field = PersistentSubscription.class.getDeclaredField("pendingAckHandle");
                         field.setAccessible(true);
-                        PendingAckHandleImpl pendingAckHandle = (PendingAckHandleImpl) field.get(persistentSubscription);
+                        PendingAckHandleImpl pendingAckHandle =
+                                (PendingAckHandleImpl) field.get(persistentSubscription);
                         field = PendingAckHandleImpl.class.getDeclaredField("individualAckOfTransaction");
                         field.setAccessible(true);
+                        @SuppressWarnings("unchecked")
                         LinkedMap<TxnID, HashMap<Position, Position>> individualAckOfTransaction =
                                 (LinkedMap<TxnID, HashMap<Position, Position>>) field.get(pendingAckHandle);
                         assertTrue(individualAckOfTransaction.isEmpty());
@@ -189,10 +192,12 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
                 if (i != 500) {
                     if (i % 2 == 0) {
                         consumer.acknowledgeAsync(message.getMessageId(), commitTxn).get();
-                        log.info("txn receive msgId: {}, count: {}", message.getMessageId(), i);
+                        log.info().attr("receiveMsgId", message.getMessageId()).attr("count", i)
+                                .log("txn receive msgId, count");
                     } else {
                         consumer.acknowledge(message.getMessageId());
-                        log.info("normal receive msgId: {}, count: {}", message.getMessageId(), i);
+                        log.info().attr("receiveMsgId", message.getMessageId()).attr("count", i)
+                                .log("normal receive msgId, count");
                     }
                 } else {
                     messageIds[retryCnt] = message.getMessageId();
@@ -214,8 +219,10 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
                         pendingAckHandle = (PendingAckHandleImpl) field.get(testPersistentSubscription);
                         field = PendingAckHandleImpl.class.getDeclaredField("individualAckOfTransaction");
                         field.setAccessible(true);
-                        individualAckOfTransaction =
+                        @SuppressWarnings("unchecked")
+                        LinkedMap<TxnID, HashMap<Position, Position>> ackOfTransaction =
                                 (LinkedMap<TxnID, HashMap<Position, Position>>) field.get(pendingAckHandle);
+                        individualAckOfTransaction = ackOfTransaction;
                         assertTrue(individualAckOfTransaction.isEmpty());
                         managedCursor = (ManagedCursorImpl) testPersistentSubscription.getCursor();
                         final var batchDeletedIndexes = managedCursor.getBatchDeletedIndexes();
@@ -246,11 +253,18 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
                             // and it won't clear the last message in cursor batch index ack set
                             consumer.acknowledgeAsync(messageIds[1], commitTwice).get();
                             assertEquals(batchDeletedIndexes.size(), 1);
-                            assertEquals(testPersistentSubscription.getConsumers().get(0).getPendingAcks().size(), 0);
+                            // the consumer pending ack is removed asynchronously on the broker after it processes
+                            // the transactional acknowledgement, so the client side future completing does not
+                            // guarantee the pending ack has been cleared yet; await instead of asserting immediately
+                            Awaitility.await().untilAsserted(() -> assertEquals(
+                                    testPersistentSubscription.getConsumers().get(0).getPendingAcks().size(), 0));
 
-                            // the messages has been produced were all acked, the memory in broker for the messages has been cleared.
+                            // the messages has been produced were all acked,
+                            // the memory in broker for the messages has been cleared.
                             commitTwice.commit().get();
-                            assertEquals(batchDeletedIndexes.size(), 0);
+                            // the cursor batch deleted indexes are cleared asynchronously on the broker after it
+                            // processes the transaction commit, so await instead of asserting immediately
+                            Awaitility.await().untilAsserted(() -> assertEquals(batchDeletedIndexes.size(), 0));
                             assertEquals(testPersistentSubscription.getConsumers().get(0).getPendingAcks().size(), 0);
                         }
                         count++;

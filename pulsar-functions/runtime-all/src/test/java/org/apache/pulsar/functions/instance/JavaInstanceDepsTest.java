@@ -18,11 +18,6 @@
  */
 package org.apache.pulsar.functions.instance;
 
-import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
-import org.testng.Assert;
-import org.testng.annotations.Test;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
@@ -30,8 +25,10 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import lombok.Cleanup;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
-@Slf4j
 /**
  * This test serves to make sure that the correct classes are included in the java-instance.jar
  * THAT JAR SHOULD ONLY CONTAIN THE INTERFACES THAT PULSAR FUNCTION'S FRAMEWORK USES TO INTERACT WITH USER CODE
@@ -58,21 +55,26 @@ public class JavaInstanceDepsTest {
     @Test
     public void testInstanceJarDeps() throws IOException {
         File jar = new File("target/java-instance.jar");
+        if (!jar.exists()) {
+            jar = new File("build/libs/java-instance.jar");
+        }
 
         @Cleanup
         ZipInputStream zip = new ZipInputStream(jar.toURI().toURL().openStream());
 
         List<String> notAllowedClasses = new LinkedList<>();
-        while(true) {
+        while (true) {
             ZipEntry e = zip.getNextEntry();
-            if (e == null)
+            if (e == null) {
                 break;
+            }
             String name = e.getName();
             if (name.endsWith(".class") && !name.startsWith("META-INF") && !name.equals("module-info.class")) {
                 // The only classes in the java-instance.jar should be org.apache.pulsar, slf4j, and log4j classes
                 // (see the full list above)
                 // filter out those classes to see if there are any other classes that should not be allowed
                 if (!name.startsWith("org/apache/pulsar")
+                        && !name.startsWith("io/github/merlimat/slog")
                         && !name.startsWith("org/slf4j")
                         && !name.startsWith("org/apache/avro")
                         && !name.startsWith("com/fasterxml/jackson")

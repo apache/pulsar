@@ -29,6 +29,7 @@ import org.apache.pulsar.common.policies.data.ReplicatorStats;
  * Statistics about a replicator.
  */
 @Data
+@SuppressWarnings("deprecation") // Implements deprecated ReplicatorStats rate fields for backward compatibility
 public class ReplicatorStatsImpl implements ReplicatorStats {
 
     /** Total rate of messages received from the remote cluster (msg/s). */

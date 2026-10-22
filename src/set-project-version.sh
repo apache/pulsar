@@ -28,18 +28,22 @@ fi
 NEW_VERSION=$1
 
 # Go to top level project directory
-SRC_DIR=$(dirname "$0")
-ROOT_DIR=`cd ${SRC_DIR}/..; pwd`
+SRC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR=$(cd "${SRC_DIR}/.."; pwd)
 TERRAFORM_DIR=${ROOT_DIR}/deployment/terraform-ansible
 pushd ${ROOT_DIR}
 
-# Get the current version
-OLD_VERSION=`python3 ${ROOT_DIR}/src/get-project-version.py`
+# Get the current version from the gradle properties
+OLD_VERSION=$("$SRC_DIR/get-pulsar-version.sh")
 
-mvn versions:set -DnewVersion=$NEW_VERSION -DgenerateBackupPoms=false
-mvn versions:set -DnewVersion=$NEW_VERSION -DgenerateBackupPoms=false -pl buildtools
-mvn versions:set -DnewVersion=$NEW_VERSION -DgenerateBackupPoms=false -pl pulsar-bom
+echo "Changing version from $OLD_VERSION to $NEW_VERSION"
+
+# Update the gradle properties (single source of truth)
+sed -i "s/^version[[:space:]]*=[[:space:]]*.*/version=${NEW_VERSION}/" "$ROOT_DIR/gradle.properties"
+
 # Set terraform ansible deployment pulsar version
-sed -i -e "s/${OLD_VERSION}/${NEW_VERSION}/g" ${TERRAFORM_DIR}/deploy-pulsar.yaml
+if [ -f "${TERRAFORM_DIR}/deploy-pulsar.yaml" ]; then
+    sed -i -e "s/${OLD_VERSION}/${NEW_VERSION}/g" ${TERRAFORM_DIR}/deploy-pulsar.yaml
+fi
 
 popd
