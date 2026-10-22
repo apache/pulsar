@@ -396,3 +396,70 @@ class TestNegativeAckRedeliveryDelay(unittest.TestCase):
     args = self._instance(delay_ms=250).get_negative_ack_args()
     self.assertIsInstance(args, dict)
     self.assertEqual(["negative_ack_redelivery_delay_ms"], list(args.keys()))
+
+
+class TestConsumerCryptoFailureAction(unittest.TestCase):
+  """Covers ConsumerSpec.cryptoSpec.consumerCryptoFailureAction reaching the consumer.
+
+  The Java runtime applies the configured action in PulsarSource (cb.cryptoFailureAction(...));
+  the Python runtime dropped it, so the client default (FAIL) always applied and a configured
+  DISCARD or CONSUME was silently ignored.
+  """
+
+  def _instance_and_consumer_conf(self, failure_action=None, with_crypto_spec=False):
+    function_details = Function_pb2.FunctionDetails()
+    function_details.sink.topic = "test_sink_topic"
+    consumer_spec = function_details.source.inputSpecs["test_input_topic"]
+    if failure_action is not None:
+      consumer_spec.cryptoSpec.consumerCryptoFailureAction = failure_action
+    elif with_crypto_spec:
+      # a cryptoSpec present with the action left unset reads as the proto3 default (FAIL)
+      consumer_spec.cryptoSpec.cryptoKeyReaderClassName = "test.CryptoKeyReader"
+
+    instance = PythonInstance('test_instance', 'test_func', '1.0', function_details, 100, 30,
+                              'user_code', Mock(), Mock(), 'test_cluster', 'test_url', None)
+    consumer_conf = instance.instance_config.function_details.source.inputSpecs["test_input_topic"]
+    return instance, consumer_conf
+
+  def test_action_is_omitted_without_a_crypto_spec(self):
+    # subscribe() validates crypto_failure_action with _check_type rather than
+    # _check_type_or_none, so it must be omitted rather than passed as None - passing None
+    # would fail for every function that does not configure crypto at all.
+    instance, consumer_conf = self._instance_and_consumer_conf()
+    self.assertEqual({}, instance.get_crypto_failure_action_args(consumer_conf))
+
+  def test_unset_action_in_a_present_crypto_spec_keeps_the_client_default(self):
+    # proto3 enum default (FAIL) equals the client default, so a cryptoSpec that does not set
+    # the action leaves the pre-change behavior in place.
+    instance, consumer_conf = self._instance_and_consumer_conf(with_crypto_spec=True)
+    args = instance.get_crypto_failure_action_args(consumer_conf)
+    self.assertEqual(pulsar.ConsumerCryptoFailureAction.FAIL, args["crypto_failure_action"])
+
+  def test_discard_is_forwarded(self):
+    instance, consumer_conf = self._instance_and_consumer_conf(
+        failure_action=Function_pb2.CryptoSpec.FailureAction.Value("DISCARD"))
+    args = instance.get_crypto_failure_action_args(consumer_conf)
+    self.assertEqual(pulsar.ConsumerCryptoFailureAction.DISCARD, args["crypto_failure_action"])
+
+  def test_consume_is_forwarded(self):
+    instance, consumer_conf = self._instance_and_consumer_conf(
+        failure_action=Function_pb2.CryptoSpec.FailureAction.Value("CONSUME"))
+    args = instance.get_crypto_failure_action_args(consumer_conf)
+    self.assertEqual(pulsar.ConsumerCryptoFailureAction.CONSUME, args["crypto_failure_action"])
+
+  def test_producer_only_send_falls_back_to_fail(self):
+    # SEND only exists for producers; a consumer cannot honor it, so fall back to the client
+    # default rather than crash the instance at startup.
+    instance, consumer_conf = self._instance_and_consumer_conf(
+        failure_action=Function_pb2.CryptoSpec.FailureAction.Value("SEND"))
+    args = instance.get_crypto_failure_action_args(consumer_conf)
+    self.assertEqual(pulsar.ConsumerCryptoFailureAction.FAIL, args["crypto_failure_action"])
+
+  def test_result_is_splattable_into_subscribe_kwargs(self):
+    # The value is consumed via consumer_args.update(...), so it must be a dict with exactly the
+    # keyword subscribe() expects.
+    instance, consumer_conf = self._instance_and_consumer_conf(
+        failure_action=Function_pb2.CryptoSpec.FailureAction.Value("DISCARD"))
+    args = instance.get_crypto_failure_action_args(consumer_conf)
+    self.assertIsInstance(args, dict)
+    self.assertEqual(["crypto_failure_action"], list(args.keys()))
