@@ -3810,10 +3810,11 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         CompletableFuture<Long> future2 = (CompletableFuture<Long>) field.get(persistentTopic);
         Awaitility.await().untilAsserted(() -> assertTrue(future2.isDone()));
 
+        // A new subscription, since "sub" has already acknowledged the remaining message
         consumer = pulsarClient.newConsumer()
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .readCompacted(true)
-                .topic(topicPoliciesTopic).subscriptionName("sub").subscribe();
+                .topic(topicPoliciesTopic).subscriptionName("sub2").subscribe();
         count = 0;
         while (true) {
             Message<?> message = consumer.receive(1, TimeUnit.SECONDS);
