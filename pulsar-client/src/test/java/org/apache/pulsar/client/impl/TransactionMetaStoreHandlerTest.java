@@ -18,8 +18,10 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -29,7 +31,12 @@ import static org.testng.Assert.assertTrue;
 import io.netty.channel.Channel;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
@@ -61,5 +68,38 @@ public class TransactionMetaStoreHandlerTest {
         verify(cnx, times(0)).registerTransactionMetaStoreHandler(anyLong(), any());
 
         client.close();
+    }
+
+    @Test
+    public void testFailedResendOnReconnectRemovesPendingRequest() throws Exception {
+        @Cleanup
+        final PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
+                .serviceUrl("pulsar://localhost:6650").build();
+        final CompletableFuture<Void> connectFuture = new CompletableFuture<>();
+        final TransactionMetaStoreHandler handler = new TransactionMetaStoreHandler(
+                0L, client, "topic", connectFuture);
+
+        // Not connected yet: the request stays queued until the connection is opened.
+        final CompletableFuture<TxnID> txnFuture = handler.newTransactionAsync(1, TimeUnit.MINUTES);
+        Awaitility.await().untilAsserted(() -> assertEquals(handler.getPendingRequestsCount(), 1));
+
+        final ClientCnx cnx = mock(ClientCnx.class);
+        when(cnx.getRemoteEndpointProtocolVersion()).thenReturn(19);
+        when(cnx.sendRequestWithId(any(), anyLong())).thenReturn(CompletableFuture.completedFuture(null));
+        when(cnx.channel()).thenReturn(mock(Channel.class));
+        // The handler is closed concurrently after it switched to Ready, but before it resends the pending
+        // requests, so resending them fails.
+        doAnswer(invocation -> {
+            handler.close();
+            return null;
+        }).when(cnx).registerTransactionMetaStoreHandler(anyLong(), any());
+
+        handler.connectionOpened(cnx).get(10, TimeUnit.SECONDS);
+
+        assertThat(txnFuture).failsWithin(Duration.ofSeconds(10))
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException.class);
+        // The failed request has been completed and its op recycled, so it must not stay pending.
+        assertEquals(handler.getPendingRequestsCount(), 0);
     }
 }
