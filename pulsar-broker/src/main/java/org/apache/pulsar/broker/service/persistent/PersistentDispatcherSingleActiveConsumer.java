@@ -284,7 +284,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         } else if (readOnActiveConsumerTask != null) {
             log.debug()
                     .attr("consumer", consumer)
-                    .log("Ignoring flow control message since consumer is waiting for cursor to be rewinded");
+                    .log("Ignoring flow control message since consumer is waiting for cursor to be rewound");
         } else {
             log.debug()
                     .attr("consumer", consumer)
@@ -319,7 +319,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         if (readOnActiveConsumerTask != null) {
             log.info()
                     .attr("consumer", consumer)
-                    .log("Ignoring reDeliverUnAcknowledgedMessages: consumer is waiting for cursor to be rewinded");
+                    .log("Ignoring reDeliverUnAcknowledgedMessages: consumer is waiting for cursor to be rewound");
             return;
         }
         cursor.cancelPendingReadRequest();
@@ -327,7 +327,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         cursor.rewind(consumer.readCompacted());
         log.debug()
                 .attr("consumer", consumer)
-                .log("Cursor rewinded, redelivering unacknowledged messages.");
+                .log("Cursor rewound, redelivering unacknowledged messages.");
         readMoreEntries(consumer);
     }
 
