@@ -345,7 +345,6 @@ public abstract class PulsarWebResource {
                     if (tenantInfoOptional.isEmpty()) {
                         throw new RestException(Status.NOT_FOUND, "Tenant does not exist");
                     }
-                    TenantInfo tenantInfo = tenantInfoOptional.get();
                     if (pulsar.getConfiguration().isAuthenticationEnabled() && pulsar.getConfiguration()
                             .isAuthorizationEnabled()) {
                         if (!isClientAuthenticated(clientAppId)) {
@@ -377,15 +376,8 @@ public abstract class PulsarWebResource {
                         } else {
                             return pulsar.getBrokerService()
                                     .getAuthorizationService()
-                                    .isSuperUser(clientAppId, authenticationData)
-                                    .thenCompose(isSuperUser -> {
-                                        if (!isSuperUser) {
-                                            return pulsar.getBrokerService().getAuthorizationService()
-                                                    .isTenantAdmin(tenant, clientAppId, tenantInfo, authenticationData);
-                                        } else {
-                                            return CompletableFuture.completedFuture(true);
-                                        }
-                                    }).thenAccept(authorized -> {
+                                    .isSuperUserOrTenantAdmin(tenant, clientAppId, authenticationData)
+                                    .thenAccept(authorized -> {
                                         if (!authorized) {
                                             throw new RestException(Status.UNAUTHORIZED,
                                                     "Don't have permission to administrate resources on this tenant");
@@ -1306,6 +1298,34 @@ public abstract class PulsarWebResource {
         } else {
             return CompletableFuture.completedFuture(null);
         }
+    }
+
+    /**
+     * Whether a topic that does not exist may be created for this client: the auto topic creation settings allow it
+     * and, when it would be created from nothing, the authorization provider lets this client trigger it. The
+     * provider is not consulted for a topic the broker re-materializes from existing metadata, such as a partition
+     * of an existing partitioned topic, see {@link BrokerService#isAllowAutoTopicCreationAsync}.
+     */
+    protected CompletableFuture<Boolean> isAllowAutoTopicCreationAsync(TopicName topicName) {
+        return pulsar().getBrokerService().isAllowAutoTopicCreationAsync(topicName, newTopicCheck(topicName));
+    }
+
+    /**
+     * Whether the authorization provider lets this client trigger the creation of a new topic. The request values are
+     * read now, as the check may run later on another thread.
+     */
+    protected Supplier<CompletableFuture<Boolean>> newTopicCheck(TopicName topicName) {
+        BrokerService brokerService = pulsar().getBrokerService();
+        if (!pulsar().getConfiguration().isAuthenticationEnabled() || !brokerService.isAuthorizationEnabled()) {
+            return () -> CompletableFuture.completedFuture(true);
+        }
+        String originalPrincipal = originalPrincipal();
+        String clientAppId = clientAppId();
+        // As for topic operations, the original principal of a proxied request is checked with its own auth data.
+        AuthenticationDataSource originalAuthData = originalPrincipalAuthData();
+        AuthenticationDataSource authData = clientAuthData();
+        return () -> brokerService.getAuthorizationService().allowTopicAutoCreationAsync(topicName,
+                originalPrincipal, clientAppId, originalAuthData, authData);
     }
 
     public <T> T sync(Supplier<CompletableFuture<T>> supplier) {

@@ -803,6 +803,62 @@ public class TableViewImplTest {
         }
     }
 
+    @Test(timeOut = 10_000)
+    @SuppressWarnings("unchecked")
+    public void testRefreshWaitingForAMessageThatCouldNotBeAppliedCompletes() throws Exception {
+        TopicCompactionStrategy<String> strategy = mock(TopicCompactionStrategy.class);
+        when(strategy.shouldKeepLeft(any(), any())).thenThrow(new IllegalStateException("strategy failure"));
+        try (TailRetryFixture f = new TailRetryFixture(strategy)) {
+            CompletableFuture<Message<String>> read = new CompletableFuture<>();
+            when(f.reader.readNextAsync()).thenReturn(read, new CompletableFuture<>());
+            f.tableView.start().get(5, TimeUnit.SECONDS);
+            CompletableFuture<Void> refresh = f.pendingRefresh();
+            Message<String> message = mock(Message.class);
+            when(message.getTopicName()).thenReturn(TAIL_RETRY_TOPIC);
+            when(message.getMessageId()).thenReturn(new MessageIdImpl(1, 5, -1));
+            when(message.hasKey()).thenReturn(true);
+            when(message.getKey()).thenReturn("key");
+            when(message.size()).thenReturn(1);
+            when(message.getValue()).thenReturn("value");
+
+            // The message the refresh is waiting for is skipped.
+            read.complete(message);
+
+            assertTrue(refresh.isDone(), "A skipped message is processed: the refresh must not wait for the next one");
+            refresh.get(5, TimeUnit.SECONDS);
+            assertNull(f.tableView.get("key"), "The skipped message must not update the table");
+            assertEquals(f.retries.size(), 1, "The tail reads must go on after the skipped message");
+        }
+    }
+
+    @Test(timeOut = 10_000)
+    @SuppressWarnings("unchecked")
+    public void testRefreshStartedAfterASkippedMessageDoesNotWaitForIt() throws Exception {
+        TopicCompactionStrategy<String> strategy = mock(TopicCompactionStrategy.class);
+        when(strategy.shouldKeepLeft(any(), any())).thenThrow(new IllegalStateException("strategy failure"));
+        try (TailRetryFixture f = new TailRetryFixture(strategy)) {
+            TopicMessageId messageId = new TopicMessageIdImpl(TAIL_RETRY_TOPIC, new MessageIdImpl(1, 5, -1));
+            Message<String> message = mock(Message.class);
+            when(message.getTopicName()).thenReturn(TAIL_RETRY_TOPIC);
+            when(message.getMessageId()).thenReturn(messageId);
+            when(message.hasKey()).thenReturn(true);
+            when(message.getKey()).thenReturn("key");
+            when(message.size()).thenReturn(1);
+            when(message.getValue()).thenReturn("value");
+            when(f.reader.readNextAsync()).thenReturn(CompletableFuture.completedFuture(message),
+                    new CompletableFuture<>());
+            // The message is skipped while the table view starts.
+            f.tableView.start().get(5, TimeUnit.SECONDS);
+
+            // A refresh started afterwards looks up that message as the last one on the topic.
+            when(f.reader.getLastMessageIdsAsync()).thenReturn(CompletableFuture.completedFuture(List.of(messageId)));
+            CompletableFuture<Void> refresh = f.tableView.refreshAsync();
+
+            assertTrue(refresh.isDone(), "The skipped message is processed: a refresh must not wait for it");
+            refresh.get(5, TimeUnit.SECONDS);
+        }
+    }
+
     /**
      * Captures the WARN and above events of the table view's logger that are logged on the calling thread. The
      * tail reads of a {@link TailRetryFixture} run on the test thread, while a retry left over by another test

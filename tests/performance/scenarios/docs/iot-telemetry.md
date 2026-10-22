@@ -43,6 +43,15 @@ application-visible order across Key_Shared hash-range reassignment.
   processors with hot standbys: each application is a Failover subscription of three pods on four topics of 12
   partitions, so each partition has one active consumer, and every 20 seconds each application restarts one pod, whose
   partitions fail over to a standby: the fail-overs' delivery gap and redelivery, with each device's order checked.
+- [`iot-telemetry-partitioned.yaml`](../iot-telemetry-partitioned.yaml) runs fleet telemetry on partitioned
+  topics: 50 gateways publish 5,000 batched 256-byte messages per second to three topics of 16 partitions, and 10
+  applications of 20 pods read them on Key_Shared subscriptions. Each pod subscribes to the three partitioned topics,
+  so its consumer is a multi-topics consumer of 48 partitions that each receive a few messages per second: the
+  clients' cost per message, and the latency, at the moderate rate that most deployments of partitioned topics run.
+- [`iot-telemetry-partitioned-max-rate.yaml`](../iot-telemetry-partitioned-max-rate.yaml) measures the capacity of
+  consumers of a partitioned topic: the high-rate scenario's 500 gateways publish six million batched messages to one
+  topic of 16 partitions without a rate limit, and two applications of two pods read it, each pod a multi-topics
+  consumer of the 16 partitions. A change that serializes a consumer's partitions on fewer threads shows here first.
 - [`iot-device-shadow.yaml`](../iot-device-shadow.yaml) keeps device shadows on compacted topics: the broker compacts
   the four topics every 4 MB of updates, and two applications of three pods read them compacted from the start with
   `applications.mode: compactedReaders`, restarting one pod each every 30 seconds, which rebuilds its state from the
