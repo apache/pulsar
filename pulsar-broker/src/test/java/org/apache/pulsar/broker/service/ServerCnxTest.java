@@ -3030,6 +3030,38 @@ public class ServerCnxTest {
         assertNull(channel.outboundMessages().peek());
         channel.finish();
     }
+
+    @Test(timeOut = 30000)
+    public void testGetLastMessageIdAsyncFailureRepliesWithOriginalRequestId() throws Exception {
+        CompletableFuture<Position> lastDispatchablePositionFuture = new CompletableFuture<>();
+        doReturn(lastDispatchablePositionFuture).when(ledgerMock)
+                .getLastDispatchablePosition(any(), any());
+
+        resetChannel();
+        setChannelConnected();
+
+        ByteBuf clientCommand = Commands.newSubscribe(successTopicName, successSubName, //
+                1 /* consumer id */, 1 /* request id */, SubType.Exclusive, 0, "test" /* consumer name */,
+                0 /* avoid reseting cursor */);
+        channel.writeInbound(clientCommand);
+        assertTrue(getResponse() instanceof CommandSuccess);
+
+        long getLastMessageIdRequestId = 42;
+        channel.writeInbound(Commands.newGetLastMessageId(1 /* consumer id */, getLastMessageIdRequestId));
+        assertNull(channel.outboundMessages().peek());
+
+        // The next frame on the same connection makes the decoder clear and reuse its command object
+        channel.writeInbound(Commands.newFlow(1 /* consumer id */, 1 /* message permits */));
+
+        lastDispatchablePositionFuture.completeExceptionally(new RuntimeException("injected failure"));
+
+        Object response = getResponse();
+        assertThat(response).isInstanceOfSatisfying(CommandError.class, error -> {
+            assertThat(error.getRequestId()).isEqualTo(getLastMessageIdRequestId);
+            assertThat(error.getError()).isEqualTo(ServerError.UnknownError);
+        });
+        channel.finish();
+    }
     @SuppressWarnings("deprecation")
 
     @Test(timeOut = 30000)
