@@ -2174,7 +2174,8 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         response = mock(AsyncResponse.class);
         ArgumentCaptor<RestException> errorCaptor = ArgumentCaptor.forClass(RestException.class);
-        nonPersistentTopic.createPartitionedTopic(response, testTenant, testNamespace, "test-topic-partition-0", 3, true);
+        nonPersistentTopic.createPartitionedTopic(response, testTenant, testNamespace, "test-topic-partition-0", 3,
+                true);
         verify(response, timeout(5000).times(1)).resume(errorCaptor.capture());
         Assert.assertEquals(errorCaptor.getValue().getResponse().getStatus(),
                 Response.Status.PRECONDITION_FAILED.getStatusCode());
