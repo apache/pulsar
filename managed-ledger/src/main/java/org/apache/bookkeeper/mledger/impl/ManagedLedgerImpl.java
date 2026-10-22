@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static java.lang.Math.min;
 import static org.apache.bookkeeper.mledger.util.Errors.isNoSuchLedgerExistsException;
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Lists;
@@ -4963,7 +4964,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     ? Math.max(config.getAddEntryTimeoutSeconds(), config.getReadEntryTimeoutSeconds())
                     : timeoutSec;
             this.timeoutTask = this.scheduledExecutor.scheduleAtFixedRate(
-                    this::checkTimeouts, timeoutSec, timeoutSec, TimeUnit.SECONDS);
+                    catchingAndLoggingThrowables(this::checkTimeouts), timeoutSec, timeoutSec, TimeUnit.SECONDS);
         }
     }
 
@@ -4973,11 +4974,28 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 || state.isFenced()) {
             return;
         }
-        checkAddTimeout();
+        if (config.getAddEntryTimeoutSeconds() > 0) {
+            scheduleAddTimeoutCheck();
+        }
         checkReadTimeout();
     }
 
+    /**
+     * Runs the add timeout check on the managed ledger executor. The pending adds complete and get recycled on that
+     * executor, so checking the head of the queue from the scheduler thread could read a recycled, possibly reused,
+     * OpAddEntry. An exception must not escape to the scheduler, or the periodic check would stop for good.
+     */
+    @VisibleForTesting
+    void scheduleAddTimeoutCheck() {
+        executor.execute(catchingAndLoggingThrowables(this::checkAddTimeout));
+    }
+
     private void checkAddTimeout() {
+        final State state = STATE_UPDATER.get(this);
+        if (state == State.Closed
+                || state.isFenced()) {
+            return;
+        }
         long timeoutSec = config.getAddEntryTimeoutSeconds();
         if (timeoutSec < 1) {
             return;
