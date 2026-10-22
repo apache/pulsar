@@ -102,6 +102,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             AtomicIntegerFieldUpdater.newUpdater(ConsumerBase.class, "currentReceiverQueueSize");
     protected final Schema<T> schema;
     protected final ConsumerInterceptors<T> interceptors;
+    private final AtomicBoolean interceptorsClosed = new AtomicBoolean();
     protected final BatchReceivePolicy batchReceivePolicy;
     protected final ConcurrentLinkedQueue<OpBatchReceive<T>> pendingBatchReceives;
     private static final AtomicLongFieldUpdater<ConsumerBase> INCOMING_MESSAGES_SIZE_UPDATER = AtomicLongFieldUpdater
@@ -970,6 +971,15 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected void onPartitionsChange(String topicName, int partitions) {
         if (interceptors != null) {
             interceptors.onPartitionsChange(topicName, partitions);
+        }
+    }
+
+    /**
+     * Close the interceptors once this consumer is closed. Later calls do nothing.
+     */
+    protected void closeInterceptors() {
+        if (interceptors != null && interceptorsClosed.compareAndSet(false, true)) {
+            interceptors.close();
         }
     }
 
