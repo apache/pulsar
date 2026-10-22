@@ -54,8 +54,12 @@ public class PulsarCompactorSubscription extends PersistentSubscription {
         Map<String, Long> properties = cursor.getProperties();
         if (properties.containsKey(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY)) {
             long compactedLedgerId = properties.get(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY);
-            compactedTopic.newCompactedLedger(cursor.getMarkDeletedPosition(), compactedLedgerId)
+            Position markDeletedPosition = cursor.getMarkDeletedPosition();
+            compactedTopic.newCompactedLedger(markDeletedPosition, compactedLedgerId)
                     .thenAccept(previousContext -> {
+                        // The mark-delete is already durable (loaded from cursor metadata), so promote
+                        // the compacted ledger immediately so in-memory state matches persistence.
+                        compactedTopic.promoteNewCompactedLedger(markDeletedPosition);
                         if (previousContext != null) {
                             compactedTopic.deleteCompactedLedger(previousContext.getLedger().getId());
                         }
@@ -78,13 +82,10 @@ public class PulsarCompactorSubscription extends PersistentSubscription {
                 .attr("position", position)
                 .log("Cumulative ack on compactor subscription");
 
-        // The newCompactedLedger must be called at the first step because we need to ensure the reader can read
-        // complete data from compacted Ledger, otherwise, if the original ledger been deleted the reader cursor
-        // might move to a subsequent original ledger if `compactionHorizon` have not updated, this will lead to
-        // the reader skips compacted data at that time, after the `compactionHorizon` updated, the reader able
-        // to read the complete compacted data again.
-        // And we can only delete the previous ledger after the mark delete succeed, otherwise we will loss the
-        // compacted data if mark delete failed.
+        // Open the new compacted ledger first. This does NOT yet install the compaction horizon
+        // or set the active context — those are only promoted after the mark-delete below is
+        // durably committed. Otherwise a failed mark-delete would leave the in-memory state
+        // ahead of the persisted cursor metadata (see issue #26486).
         compactedTopic.newCompactedLedger(position, compactedLedgerId).thenAccept(previousContext -> {
             cursor.asyncMarkDelete(position, properties, new MarkDeleteCallback() {
                 @Override
@@ -92,6 +93,11 @@ public class PulsarCompactorSubscription extends PersistentSubscription {
                     log.debug()
                             .attr("position", position)
                             .log("Mark deleted messages until position on compactor subscription");
+
+                    // Mark-delete is now durable — promote the compacted ledger and horizon so reads
+                    // reflect what was actually persisted.
+                    compactedTopic.promoteNewCompactedLedger(position);
+
                     if (previousContext != null) {
                         compactedTopic.deleteCompactedLedger(previousContext.getLedger().getId());
                     }
@@ -100,6 +106,9 @@ public class PulsarCompactorSubscription extends PersistentSubscription {
 
                 @Override
                 public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                    // The mark-delete did not commit. The compacted ledger was opened above but never
+                    // promoted, so compactionHorizon and compactedTopicContext are unchanged and
+                    // remain consistent with the cursor's durable state.
                     // TODO: cut consumer connection on markDeleteFailed
                     log.debug()
                             .exception(exception)
