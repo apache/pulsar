@@ -132,6 +132,7 @@ import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.PositionInfo;
 import org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil;
 import org.apache.bookkeeper.mledger.util.ManagedLedgerUtils;
+import org.apache.bookkeeper.mledger.util.MockClock;
 import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.commons.collections4.iterators.EmptyIterator;
@@ -6040,6 +6041,76 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testShouldCloseLedgerObservesUpdatedMetadataMaxEntriesPerLedger() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMetadataMaxEntriesPerLedger(10_000);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "testShouldCloseLedgerObservesUpdatedMetadataMaxEntriesPerLedger", config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+
+        LedgerHandle lh = mock(LedgerHandle.class);
+        when(lh.getLastAddConfirmed()).thenReturn(1L);
+
+        // Cursor was created with a large rollover threshold, so a single persisted entry is not enough.
+        assertFalse(cursor.shouldCloseLedger(lh));
+
+        ManagedLedgerConfig updated = new ManagedLedgerConfig();
+        updated.setMetadataMaxEntriesPerLedger(1);
+        ledger.setConfig(updated);
+
+        // shouldCloseLedger must read the live config, not a cached derived threshold.
+        assertTrue(cursor.shouldCloseLedger(lh));
+    }
+
+    @Test
+    public void testShouldCloseLedgerObservesUpdatedLedgerRolloverTimeout() throws Exception {
+        MockClock clock = new MockClock();
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setClock(clock);
+        config.setLedgerRolloverTimeout(14400);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "testShouldCloseLedgerObservesUpdatedLedgerRolloverTimeout", config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+
+        LedgerHandle lh = mock(LedgerHandle.class);
+        // Keep lastAddConfirmed below the entries threshold so only the time check can close.
+        when(lh.getLastAddConfirmed()).thenReturn(0L);
+
+        assertFalse(cursor.shouldCloseLedger(lh));
+
+        // 2s is far below 14400s, but past the 1s timeout even with 5% jitter.
+        clock.advance(2, TimeUnit.SECONDS);
+        assertFalse(cursor.shouldCloseLedger(lh));
+
+        ManagedLedgerConfig updated = new ManagedLedgerConfig();
+        updated.setClock(clock);
+        updated.setLedgerRolloverTimeout(1);
+        ledger.setConfig(updated);
+
+        assertTrue(cursor.shouldCloseLedger(lh));
+    }
+
+    @Test
+    public void testShouldCloseLedgerEntriesJitterStaysWithinConfiguredMax() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMetadataMaxEntriesPerLedger(1000);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "testShouldCloseLedgerEntriesJitterStaysWithinConfiguredMax", config);
+
+        LedgerHandle belowJitterRange = mock(LedgerHandle.class);
+        when(belowJitterRange.getLastAddConfirmed()).thenReturn(949L);
+        LedgerHandle atConfiguredMax = mock(LedgerHandle.class);
+        when(atConfiguredMax.getLastAddConfirmed()).thenReturn(1000L);
+
+        // Every cursor draws its own jitter: none may roll over before 95% of the limit or go past the limit.
+        for (int i = 0; i < 50; i++) {
+            ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c" + i);
+            assertFalse(cursor.shouldCloseLedger(belowJitterRange));
+            assertTrue(cursor.shouldCloseLedger(atConfiguredMax));
+        }
+    }
+
+    @Test
     public void testReadEmptyEntryList() throws Exception {
         ManagedLedgerConfig managedLedgerConfig = defaultConfig();
         managedLedgerConfig.setMaxEntriesPerLedger(1);
@@ -7780,6 +7851,88 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         assertEquals(spyCursor.getMarkDeletedPosition(), markDeletePosition);
         assertEquals(spyCursor.getProperties(), properties);
+    }
+
+    @Test(timeOut = 30000)
+    public void testResetCursorIsNotDroppedByAckQueuedBehindIt() throws Exception {
+        CompletableFuture<Void> releaseReads = new CompletableFuture<>();
+        AtomicBoolean holdReads = new AtomicBoolean(false);
+        bkc.setReadHandleInterceptor((ledgerId, firstEntry, lastEntry, entries) ->
+                holdReads.get() ? releaseReads.thenApply(__ -> entries) : CompletableFuture.completedFuture(entries));
+
+        String ledgerName = "testResetCursorIsNotDroppedByAckQueuedBehindIt";
+        ManagedLedger ledger = factory.open(ledgerName, defaultConfig());
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+        cursor.setInactive(); // disable caching when adding entries, so reads go to the bookie
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            positions.add(ledger.addEntry(("entry-" + i).getBytes(Encoding)));
+        }
+        cursor.markDelete(positions.get(4));
+
+        // Keep a read in flight, so mark-delete requests are queued
+        holdReads.set(true);
+        CompletableFuture<List<Entry>> readFuture = new CompletableFuture<>();
+        cursor.asyncReadEntries(1, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                readFuture.complete(entries);
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                readFuture.completeExceptionally(exception);
+            }
+        }, null, PositionFactory.LATEST);
+        Awaitility.await().until(() -> cursor.getPendingReadOpsCount() == 1);
+
+        // Queue a reset, then an ack that advances the mark-delete position behind it
+        CompletableFuture<Void> resetFuture = new CompletableFuture<>();
+        cursor.asyncResetCursor(positions.get(0), false, new AsyncCallbacks.ResetCursorCallback() {
+            @Override
+            public void resetComplete(Object ctx) {
+                resetFuture.complete(null);
+            }
+
+            @Override
+            public void resetFailed(ManagedLedgerException exception, Object ctx) {
+                resetFuture.completeExceptionally(exception);
+            }
+        });
+        Awaitility.await().until(() -> cursor.pendingMarkDeleteOps.size() == 1);
+        cursor.asyncDelete(positions.get(5), new DeleteCallback() {
+            @Override
+            public void deleteComplete(Object ctx) {
+            }
+
+            @Override
+            public void deleteFailed(ManagedLedgerException exception, Object ctx) {
+            }
+        }, null);
+        assertEquals(cursor.pendingMarkDeleteOps.size(), 2);
+        assertEquals(cursor.pendingMarkDeleteOps.getLast().newPosition, positions.get(5));
+
+        // Completing the read flushes the queued mark-delete requests
+        releaseReads.complete(null);
+        readFuture.get(10, TimeUnit.SECONDS).forEach(Entry::release);
+        resetFuture.get(10, TimeUnit.SECONDS);
+
+        Position resetMarkDeletePosition = ((ManagedLedgerImpl) ledger).getPreviousPosition(positions.get(0));
+        assertEquals(cursor.getReadPosition(), positions.get(0));
+        assertEquals(cursor.getMarkDeletedPosition(), resetMarkDeletePosition);
+        assertEquals(cursor.getPersistentMarkDeletedPosition(), resetMarkDeletePosition);
+        assertFalse(cursor.isMessageDeleted(positions.get(5)));
+
+        // Acknowledgments after the reset are persisted
+        holdReads.set(false);
+        cursor.markDelete(positions.get(2));
+        ledger.close();
+
+        ManagedLedger reopenedLedger = factory.open(ledgerName, defaultConfig());
+        ManagedCursorImpl reopenedCursor = (ManagedCursorImpl) reopenedLedger.openCursor("c1");
+        assertEquals(reopenedCursor.getMarkDeletedPosition(), positions.get(2));
+        assertFalse(reopenedCursor.isMessageDeleted(positions.get(5)));
+        reopenedLedger.close();
     }
 
     @SuppressWarnings("try")

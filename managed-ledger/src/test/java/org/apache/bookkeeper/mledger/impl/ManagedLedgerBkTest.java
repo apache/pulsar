@@ -72,6 +72,7 @@ import org.apache.bookkeeper.mledger.util.ThrowableToStringUtil;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.test.BookKeeperClusterTestCase;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
@@ -873,11 +874,12 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         @Cleanup("shutdown")
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConf);
         ManagedLedgerConfig config = defaultConfig();
-        config.setEnsembleSize(1).setWriteQuorumSize(1).setAckQuorumSize(1);
-        ManagedLedger ledger = factory.open("property/namespace/my-ledger", config);
+        config.setEnsembleSize(1).setWriteQuorumSize(1).setAckQuorumSize(1).setDigestType(DigestType.CRC32);
+        TopicName topicName = TopicName.get("persistent://property/namespace/my-ledger");
+        ManagedLedger ledger = factory.open(topicName.getPersistenceNamingEncoding(), config);
         ManagedCursor cursor = ledger.openCursor("c1");
 
-        int num = 1;
+        int num = 3;
 
         for (int i = 0; i < num; i++) {
             String entry = "entry-" + i;
@@ -891,9 +893,12 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
 
         ManagedLedgerOfflineBacklog offlineTopicBacklog = new ManagedLedgerOfflineBacklog(
                 DigestType.CRC32, "".getBytes(StandardCharsets.UTF_8), "", false);
-        PersistentOfflineTopicStats offlineTopicStats = offlineTopicBacklog.getEstimatedUnloadedTopicBacklog(
-                (ManagedLedgerFactoryImpl) factory, "property/namespace/my-ledger");
+        PersistentOfflineTopicStats offlineTopicStats = offlineTopicBacklog.estimateUnloadedTopicBacklog(
+                factory, topicName);
         assertNotNull(offlineTopicStats);
+        assertEquals(offlineTopicStats.totalMessages, num);
+        assertEquals(offlineTopicStats.messageBacklog, num);
+        assertEquals(offlineTopicStats.cursorDetails.get("c1").cursorBacklog, num);
     }
 
     @Test(timeOut = 20000)

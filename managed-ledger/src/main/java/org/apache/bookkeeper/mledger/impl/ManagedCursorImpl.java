@@ -51,6 +51,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -248,6 +249,9 @@ public class ManagedCursorImpl implements ManagedCursor {
         final Object ctx;
         final Map<String, Long> properties;
         final Runnable alignAcknowledgeStatusAfterPersisted;
+        // Only a cursor reset supplies its own alignAcknowledgeStatusAfterPersisted, which replaces the whole
+        // acknowledgment state, so it must be persisted and applied even when other entries are queued behind it.
+        final boolean resetsCursor;
 
         // If the callbackGroup is set, it means this mark-delete request was done on behalf of a group of request (just
         // persist the last one in the chain). In this case we need to trigger the callbacks for every request in the
@@ -261,6 +265,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         public MarkDeleteEntry(Position newPosition, Map<String, Long> properties,
                 MarkDeleteCallback callback, Object ctx, Runnable alignAcknowledgeStatusAfterPersisted) {
+            this.resetsCursor = alignAcknowledgeStatusAfterPersisted != null;
             if (alignAcknowledgeStatusAfterPersisted == null) {
                 alignAcknowledgeStatusAfterPersisted = () -> {
                     if (batchDeletedIndexes != null) {
@@ -314,6 +319,12 @@ public class ManagedCursorImpl implements ManagedCursor {
     @SuppressWarnings("unused")
     private volatile int pendingMarkDeletedSubmittedCount = 0;
     private volatile long lastLedgerSwitchTimestamp;
+    // Stable per-cursor jitter so cursors created together don't roll over their ledgers together. It is
+    // drawn once, so it doesn't change on each check, and applied to the live config, so config updates
+    // are not missed. The time jitter is in [1.0, 1.05), like the managed ledger's. The entries jitter is
+    // in (0.95, 1.0], so the configured max entries per ledger is never exceeded.
+    private final double rolloverTimeJitter;
+    private final double rolloverEntriesJitter;
     private final Clock clock;
 
     private static final AtomicLongFieldUpdater<ManagedCursorImpl> LAST_ACTIVE_UPDATER =
@@ -394,6 +405,8 @@ public class ManagedCursorImpl implements ManagedCursor {
         this.clock = getConfig().getClock();
         this.lastActive = this.clock.millis();
         this.lastLedgerSwitchTimestamp = this.clock.millis();
+        this.rolloverTimeJitter = 1 + ThreadLocalRandom.current().nextDouble() * 0.05;
+        this.rolloverEntriesJitter = 1 - ThreadLocalRandom.current().nextDouble() * 0.05;
 
         if (getConfig().getThrottleMarkDelete() > 0.0) {
             markDeleteLimiter = RateLimiter.create(getConfig().getThrottleMarkDelete());
@@ -419,7 +432,11 @@ public class ManagedCursorImpl implements ManagedCursor {
     public boolean isCursorDataFullyPersistable() {
         lock.readLock().lock();
         try {
-            return individualDeletedMessages.size() <= getConfig().getMaxUnackedRangesToPersist();
+            if (individualDeletedMessages.size() > getConfig().getMaxUnackedRangesToPersist()) {
+                return false;
+            }
+            return batchDeletedIndexes == null
+                    || batchDeletedIndexes.size() <= getConfig().getMaxBatchDeletedIndexToPersist();
         } finally {
             lock.readLock().unlock();
         }
@@ -985,9 +1002,11 @@ public class ManagedCursorImpl implements ManagedCursor {
                                      Object ctx, Position maxPosition, Predicate<Position> skipCondition) {
         PENDING_READ_OPS_UPDATER.incrementAndGet(this);
         // Skip deleted entries.
+        boolean skipOnlyMessageDeleted = skipCondition == null;
         skipCondition = skipCondition == null ? this::isMessageDeleted : skipCondition.or(this::isMessageDeleted);
         OpReadEntry op = OpReadEntry.create(this, readPosition, numOfEntriesToRead, maxSizeBytes, callback, ctx,
                 maxPosition, skipCondition, true);
+        op.skipOnlyMessageDeleted = skipOnlyMessageDeleted;
         ledger.asyncReadEntries(op);
     }
 
@@ -1142,9 +1161,11 @@ public class ManagedCursorImpl implements ManagedCursor {
             readEntriesWithSkip(numberOfEntriesToRead, maxSizeBytes, callback, ctx, maxPosition, skipCondition);
         } else {
             // Skip deleted entries.
+            boolean skipOnlyMessageDeleted = skipCondition == null;
             skipCondition = skipCondition == null ? this::isMessageDeleted : skipCondition.or(this::isMessageDeleted);
             OpReadEntry op = OpReadEntry.create(this, readPosition, numberOfEntriesToRead, maxSizeBytes, callback,
                     ctx, maxPosition, skipCondition, true);
+            op.skipOnlyMessageDeleted = skipOnlyMessageDeleted;
             int opReadId = op.id;
             if (!WAITING_READ_OP_UPDATER.compareAndSet(this, null, op)) {
                 op.recycle();
@@ -1719,6 +1740,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                         .log("Reset readPosition to, skipping from current readPosition");
             }
             readPosition = newReadPosition;
+            persistentMarkDeletePosition = newMarkDeletePosition;
         };
 
         VoidCallback finalCallback = new VoidCallback() {
@@ -2656,7 +2678,9 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     void internalMarkDelete(final MarkDeleteEntry mdEntry) {
-        if (persistentMarkDeletePosition != null
+        // A cursor reset may move the mark-delete position backward, so it is never skipped in favor of a later
+        // position persisted or being persisted by an acknowledgment
+        if (!mdEntry.resetsCursor && persistentMarkDeletePosition != null
                 && mdEntry.newPosition.compareTo(persistentMarkDeletePosition) < 0) {
             log.info()
                     .attr("position", mdEntry.newPosition)
@@ -2668,7 +2692,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
 
         Position inProgressLatest = INPROGRESS_MARKDELETE_PERSIST_POSITION_UPDATER.updateAndGet(this, current -> {
-            if (current != null && current.compareTo(mdEntry.newPosition) > 0) {
+            if (!mdEntry.resetsCursor && current != null && current.compareTo(mdEntry.newPosition) > 0) {
                 return current;
             } else {
                 return mdEntry.newPosition;
@@ -3616,11 +3640,18 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     void internalFlushPendingMarkDeletes() {
-        MarkDeleteEntry lastEntry = pendingMarkDeleteOps.getLast();
-        lastEntry.callbackGroup = Lists.newArrayList(pendingMarkDeleteOps);
+        // Persist the last entry, unless a cursor reset is queued: the entries queued behind it were computed
+        // from the acknowledgment state before the reset, which the reset replaces once it is persisted
+        MarkDeleteEntry entryToPersist = pendingMarkDeleteOps.getLast();
+        for (MarkDeleteEntry entry : pendingMarkDeleteOps) {
+            if (entry.resetsCursor) {
+                entryToPersist = entry;
+            }
+        }
+        entryToPersist.callbackGroup = Lists.newArrayList(pendingMarkDeleteOps);
         pendingMarkDeleteOps.clear();
 
-        internalMarkDelete(lastEntry);
+        internalMarkDelete(entryToPersist);
     }
 
     void createNewMetadataLedger(final VoidCallback callback) {
@@ -3967,9 +3998,14 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     boolean shouldCloseLedger(LedgerHandle lh) {
         long now = clock.millis();
+        // Rounded up, so small limits (below 20) are not changed by the jitter
+        long maximumLedgerRolloverEntries = (long)
+                Math.ceil(getConfig().getMetadataMaxEntriesPerLedger() * rolloverEntriesJitter);
+        long maximumLedgerRolloverTimeMs = (long)
+                (getConfig().getLedgerRolloverTimeout() * 1000L * rolloverTimeJitter);
         if (ledger.getFactory().isMetadataServiceAvailable()
-                && (lh.getLastAddConfirmed() >= getConfig().getMetadataMaxEntriesPerLedger()
-                || lastLedgerSwitchTimestamp < (now - getConfig().getLedgerRolloverTimeout() * 1000))
+                && (lh.getLastAddConfirmed() >= maximumLedgerRolloverEntries
+                || lastLedgerSwitchTimestamp < (now - maximumLedgerRolloverTimeMs))
                 && !state.isClosed()) {
             // It's safe to modify the timestamp since this method will be only called from a callback, implying that
             // calls will be serialized on one single thread
@@ -4291,11 +4327,28 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
+    /**
+     * Check whether the entry identified by {@code ledgerId} and {@code entryId} has been deleted, without allocating
+     * a {@link Position}. Used on the hot read path.
+     */
+    public boolean isMessageDeleted(long ledgerId, long entryId) {
+        lock.readLock().lock();
+        try {
+            return internalIsMessageDeleted(ledgerId, entryId);
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+
     // When this method is called while the external has already acquired a write lock or a read lock,
     // it avoids unnecessary lock nesting.
     private boolean internalIsMessageDeleted(Position position) {
-        return position.compareTo(markDeletePosition) <= 0
-                || individualDeletedMessages.contains(position.getLedgerId(), position.getEntryId());
+        return internalIsMessageDeleted(position.getLedgerId(), position.getEntryId());
+    }
+
+    private boolean internalIsMessageDeleted(long ledgerId, long entryId) {
+        return markDeletePosition.compareTo(ledgerId, entryId) >= 0
+                || individualDeletedMessages.contains(ledgerId, entryId);
     }
 
     //this method will return a copy of the position's ack set
