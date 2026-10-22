@@ -3464,11 +3464,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     protected void handleGetLastMessageId(CommandGetLastMessageId getLastMessageId) {
         checkArgument(state == State.Connected);
 
+        // Capture command fields up front: the decoder reuses the command object for the next frame,
+        // so it must not be read from the async continuations below.
+        final long requestId = getLastMessageId.getRequestId();
         CompletableFuture<Consumer> consumerFuture = consumers.get(getLastMessageId.getConsumerId());
 
         if (consumerFuture != null && consumerFuture.isDone() && !consumerFuture.isCompletedExceptionally()) {
             Consumer consumer = consumerFuture.getNow(null);
-            long requestId = getLastMessageId.getRequestId();
 
             Topic topic = consumer.getSubscription().getTopic();
             topic.checkIfTransactionBufferRecoverCompletely()
@@ -3492,12 +3494,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                              consumer.readCompacted());
                     return null;
                  }).exceptionally(e -> {
-                     writeAndFlush(Commands.newError(getLastMessageId.getRequestId(),
+                     writeAndFlush(Commands.newError(requestId,
                              ServerError.UnknownError, "Failed to recover Transaction Buffer."));
                      return null;
                  });
         } else {
-            writeAndFlush(Commands.newError(getLastMessageId.getRequestId(),
+            writeAndFlush(Commands.newError(requestId,
                     ServerError.MetadataError, "Consumer not found"));
         }
     }
