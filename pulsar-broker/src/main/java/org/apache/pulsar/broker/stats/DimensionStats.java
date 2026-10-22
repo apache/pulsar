@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.stats;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static io.prometheus.client.CollectorRegistry.defaultRegistry;
 import io.prometheus.client.Collector;
 import io.prometheus.client.Summary;
@@ -28,11 +27,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.CustomLog;
 
 /**
  */
+@CustomLog
 public class DimensionStats {
 
     private final String name;
@@ -45,7 +44,6 @@ public class DimensionStats {
             Arrays.stream(QUANTILES).mapToObj(Collector::doubleToGoString)
                     .map(Collections::singletonList)
                     .collect(Collectors.toList()));
-
 
     public DimensionStats(String name, long updateDurationInSec) {
         this(name, updateDurationInSec, true);
@@ -65,20 +63,18 @@ public class DimensionStats {
                 defaultRegistry.register(summary);
             } catch (IllegalArgumentException ie) {
                 // it only happens in test-cases when try to register summary multiple times in registry
-                log.warn("{} is already registered {}", name, ie.getMessage());
+                log.warn().attr("name", name).exceptionMessage(ie).log("is already registered");
             }
         }
     }
 
     public void recordDimensionTimeValue(long latency, TimeUnit unit) {
-        checkArgument(latency >= 0);
         summary.observe(unit.toMillis(latency));
     }
 
     public DimensionStatsSnapshot getSnapshot() {
         return new DimensionStatsSnapshot(summary.collect());
     }
-
 
     public class DimensionStatsSnapshot {
         private final List<Collector.MetricFamilySamples> samples;
@@ -153,6 +149,4 @@ public class DimensionStats {
     public void reset() {
         summary.clear();
     }
-
-    private static final Logger log = LoggerFactory.getLogger(DimensionStats.class);
 }

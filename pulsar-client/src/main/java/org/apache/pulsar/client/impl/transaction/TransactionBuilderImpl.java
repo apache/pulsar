@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.client.impl.transaction;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TransactionBuilder;
@@ -31,7 +30,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 /**
  * The default implementation of transaction builder to build transactions.
  */
-@Slf4j
+@CustomLog
 public class TransactionBuilderImpl implements TransactionBuilder {
 
     private final PulsarClientImpl client;
@@ -46,7 +45,6 @@ public class TransactionBuilderImpl implements TransactionBuilder {
 
     @Override
     public TransactionBuilder withTransactionTimeout(long txnTimeout, TimeUnit timeoutUnit) {
-        checkArgument(txnTimeout >= 0, "The txn timeout must not be negative.");
         this.txnTimeout = txnTimeout;
         this.timeUnit = timeoutUnit;
         return this;
@@ -68,13 +66,12 @@ public class TransactionBuilderImpl implements TransactionBuilder {
                 .newTransactionAsync(txnTimeout, timeUnit)
                 .whenComplete((txnID, throwable) -> {
                     if (throwable != null) {
-                        log.error("New transaction error.", throwable);
+                        log.error().exception(throwable).log("New transaction error.");
                         future.completeExceptionally(throwable);
                         return;
                     }
-                    if (log.isDebugEnabled()) {
-                        log.debug("'newTransaction' command completed successfully for transaction: {}", txnID);
-                    }
+                        log.debug().attr("transaction", txnID)
+                                .log("'newTransaction' command completed successfully for transaction");
                     TransactionImpl transaction = new TransactionImpl(client, timeUnit.toMillis(txnTimeout),
                             txnID.getLeastSigBits(), txnID.getMostSigBits());
                     future.complete(transaction);

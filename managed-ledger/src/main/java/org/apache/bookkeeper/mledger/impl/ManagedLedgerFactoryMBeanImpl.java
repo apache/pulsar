@@ -18,7 +18,6 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryMXBean;
@@ -42,7 +41,6 @@ public class ManagedLedgerFactoryMBeanImpl implements ManagedLedgerFactoryMXBean
     }
 
     public void refreshStats(long period, TimeUnit unit) {
-        checkArgument(period >= 0);
         double seconds = unit.toMillis(period) / 1000.0;
 
         if (seconds <= 0.0) {
@@ -102,8 +100,18 @@ public class ManagedLedgerFactoryMBeanImpl implements ManagedLedgerFactoryMXBean
     }
 
     @Override
+    public long getCacheHitsTotal() {
+        return cacheHits.getTotalCount();
+    }
+
+    @Override
     public double getCacheMissesRate() {
         return cacheMisses.getRate();
+    }
+
+    @Override
+    public long getCacheMissesTotal() {
+        return cacheMisses.getTotalCount();
     }
 
     @Override
@@ -112,13 +120,28 @@ public class ManagedLedgerFactoryMBeanImpl implements ManagedLedgerFactoryMXBean
     }
 
     @Override
+    public long getCacheHitsBytesTotal() {
+        return cacheHits.getTotalValue();
+    }
+
+    @Override
     public double getCacheMissesThroughput() {
         return cacheMisses.getValueRate();
     }
 
     @Override
+    public long getCacheMissesBytesTotal() {
+        return cacheMisses.getTotalValue();
+    }
+
+    @Override
     public long getNumberOfCacheEvictions() {
         return cacheEvictions.getCount();
+    }
+
+    @Override
+    public long getNumberOfCacheEvictionsTotal() {
+        return cacheEvictions.getTotalCount();
     }
 
     public long getCacheInsertedEntriesCount() {
