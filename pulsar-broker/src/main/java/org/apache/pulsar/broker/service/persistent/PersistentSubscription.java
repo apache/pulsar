@@ -1568,6 +1568,12 @@ public class PersistentSubscription extends AbstractSubscription {
             subStats.backlogSize = -1;
         }
         subStats.msgBacklogNoDelayed = subStats.msgBacklog - subStats.msgDelayed;
+        if (Subscription.isIndividualAckMode(subType)
+                && dispatcher instanceof AbstractPersistentDispatcherMultipleConsumers d
+                && d.isReadPausedByDelayTracker()) {
+            // The tracker only holds the delayed messages read so far: the entries not read yet are delayed too
+            subStats.msgBacklogNoDelayed = Math.max(0, subStats.msgBacklogNoDelayed - cursor.getNumberOfEntries());
+        }
         subStats.msgRateExpired = expiryMonitor.getMessageExpiryRate();
         subStats.msgExpired = expiryMonitor.getMessageExpiryCount();
         subStats.totalMsgExpired = expiryMonitor.getTotalMessageExpired();
