@@ -19,7 +19,6 @@
 package org.apache.pulsar.metrics.prometheus.bookkeeper;
 
 import com.google.common.base.Joiner;
-import io.prometheus.metrics.model.snapshots.PrometheusNaming;
 import java.util.Map;
 import java.util.TreeMap;
 import org.apache.bookkeeper.stats.Counter;
@@ -95,6 +94,6 @@ public class PrometheusStatsLogger implements StatsLogger {
     }
 
     private String completeName(String name) {
-        return PrometheusNaming.sanitizeMetricName(scope.isEmpty() ? name : Joiner.on('_').join(scope, name));
+        return PrometheusMetricsProvider.sanitizeMetricName(scope.isEmpty() ? name : Joiner.on('_').join(scope, name));
     }
 }

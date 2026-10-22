@@ -24,6 +24,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.internal.PlatformDependent;
+import io.prometheus.metrics.config.EscapingScheme;
 import io.prometheus.metrics.core.metrics.GaugeWithCallback;
 import io.prometheus.metrics.instrumentation.jvm.JvmMetrics;
 import io.prometheus.metrics.model.registry.PrometheusRegistry;
@@ -193,7 +194,19 @@ public class PrometheusMetricsProvider implements StatsProvider {
         } else {
             completeName = StringUtils.join(statsComponents, '_');
         }
-        return PrometheusNaming.sanitizeMetricName(completeName);
+        return sanitizeMetricName(completeName);
+    }
+
+    /**
+     * Replaces every character that is not valid in a legacy Prometheus metric name with {@code _}, as
+     * simpleclient's {@code Collector.sanitizeMetricName} did. BookKeeper stat names such as
+     * {@code read-cache-hits} contain hyphens, and {@link PrometheusTextFormat} writes them in the 0.0.4
+     * text format, which only accepts {@code [a-zA-Z_:][a-zA-Z0-9_:]*}. The client 1.x
+     * {@link PrometheusNaming#sanitizeMetricName(String)} is not a replacement: it keeps any UTF-8 name and
+     * strips reserved suffixes such as {@code _total} instead.
+     */
+    static String sanitizeMetricName(String name) {
+        return PrometheusNaming.escapeName(name, EscapingScheme.UNDERSCORE_ESCAPING);
     }
 
     @VisibleForTesting

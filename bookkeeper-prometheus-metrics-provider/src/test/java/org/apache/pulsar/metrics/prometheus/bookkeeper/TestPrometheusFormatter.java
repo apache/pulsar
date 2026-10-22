@@ -20,6 +20,7 @@ package org.apache.pulsar.metrics.prometheus.bookkeeper;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.testng.AssertJUnit.assertEquals;
+import static org.testng.AssertJUnit.assertFalse;
 import static org.testng.AssertJUnit.assertTrue;
 import static org.testng.AssertJUnit.fail;
 import com.google.common.base.MoreObjects;
@@ -220,6 +221,30 @@ public class TestPrometheusFormatter {
         prometheusTextFormat.writeType(writer, "counter", "gauge");
         String string = writer.toString();
         assertEquals("# TYPE counter gauge\n", string);
+    }
+
+    @Test
+    public void testMetricNamesAreEscapedForTheTextFormat() throws IOException {
+        PrometheusMetricsProvider provider = new PrometheusMetricsProvider(new PrometheusRegistry());
+        // BookKeeper stat names such as DbLedgerStorage's read-cache-hits contain hyphens, which the text
+        // format does not allow, and names may end in a suffix that the client 1.x reserves.
+        StatsLogger statsLogger = provider.getStatsLogger("bookie").scope("db-storage");
+        statsLogger.getCounter("read-cache-hits").inc();
+        statsLogger.getCounter("entries_total").inc();
+        statsLogger.getOpStatsLogger("add-entry").registerSuccessfulEvent(1, TimeUnit.MILLISECONDS);
+
+        provider.rotateLatencyCollection();
+        StringWriter writer = new StringWriter();
+        provider.writeAllMetrics(writer);
+        String output = writer.toString();
+
+        assertFalse(output, output.contains("read-cache-hits"));
+        assertFalse(output, output.contains("db-storage"));
+        Multimap<String, Metric> metrics = parseMetrics(output);
+        assertEquals(1.0, metrics.get("bookie_db_storage_read_cache_hits").iterator().next().value, 0.0);
+        assertEquals(1.0, metrics.get("bookie_db_storage_entries_total").iterator().next().value, 0.0);
+        assertTrue(metrics.containsKey("bookie_db_storage_add_entry_count"));
+        assertEquals("bookie_add_entry", provider.getStatsName("bookie", "add-entry"));
     }
 
 
