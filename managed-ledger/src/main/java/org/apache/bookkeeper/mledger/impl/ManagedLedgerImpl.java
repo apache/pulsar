@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static java.lang.Math.min;
 import static org.apache.bookkeeper.mledger.util.Errors.isNoSuchLedgerExistsException;
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Lists;
@@ -5460,8 +5461,19 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (config.getAddEntryTimeoutSeconds() > 0) {
             long timeoutSec = config.getAddEntryTimeoutSeconds();
             this.timeoutTask = this.scheduledExecutor.scheduleAtFixedRate(
-                    this::checkAddTimeout, timeoutSec, timeoutSec, TimeUnit.SECONDS);
+                    catchingAndLoggingThrowables(this::scheduleAddTimeoutCheck), timeoutSec, timeoutSec,
+                    TimeUnit.SECONDS);
         }
+    }
+
+    /**
+     * Runs the add timeout check on the managed ledger executor. The pending adds complete and get recycled on that
+     * executor, so checking the head of the queue from the scheduler thread could read a recycled, possibly reused,
+     * OpAddEntry. An exception must not escape to the scheduler, or the periodic check would stop for good.
+     */
+    @VisibleForTesting
+    void scheduleAddTimeoutCheck() {
+        executor.execute(catchingAndLoggingThrowables(this::checkAddTimeout));
     }
 
     private void checkAddTimeout() {

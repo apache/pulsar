@@ -4103,6 +4103,78 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         factory.delete(ledger.name);
     }
 
+    /**
+     * The add timeout check runs on the managed ledger executor, after the add completions already queued there. The
+     * check must not act on an add that has completed: once its completion runs, the add is recycled and may be
+     * reused by another add, possibly of another managed ledger.
+     */
+    @Test(timeOut = 30000)
+    public void testAddTimeoutCheckRunsAfterQueuedAddCompletion() throws Exception {
+        // A timeout this long keeps the periodic check from running by itself: the test triggers it.
+        ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig()).setAddEntryTimeoutSeconds(3600);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("add_timeout_check_after_completion", config);
+
+        // Hold the bookie's add response, to deliver it at a chosen moment.
+        record BookieAdd(AddCallback callback, Object ctx) {
+        }
+        CompletableFuture<BookieAdd> bookieAdd = new CompletableFuture<>();
+        LedgerHandle spyLedger = spy(ledger.currentLedger);
+        doAnswer(invocation -> {
+            ((ByteBuf) invocation.getArgument(0)).release();
+            bookieAdd.complete(new BookieAdd(invocation.getArgument(1), invocation.getArgument(2)));
+            return null;
+        }).when(spyLedger).asyncAddEntry(any(ByteBuf.class), any(AddCallback.class), any());
+        ledger.currentLedger = spyLedger;
+
+        CompletableFuture<Position> addResult = new CompletableFuture<>();
+        ledger.asyncAddEntry("entry".getBytes(UTF_8), new AddEntryCallback() {
+            @Override
+            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                addResult.complete(position);
+            }
+
+            @Override
+            public void addFailed(ManagedLedgerException exception, Object ctx) {
+                addResult.completeExceptionally(exception);
+            }
+        }, null);
+        BookieAdd pendingBookieAdd = bookieAdd.get(10, TimeUnit.SECONDS);
+        OpAddEntry op = ledger.pendingAddEntries.peek();
+        assertThat(op).isNotNull();
+        // Make the add older than the timeout.
+        op.lastInitTime = System.nanoTime() - TimeUnit.HOURS.toNanos(2);
+
+        CountDownLatch executorBlocked = new CountDownLatch(1);
+        CountDownLatch releaseExecutor = new CountDownLatch(1);
+        ledger.getExecutor().execute(() -> {
+            executorBlocked.countDown();
+            try {
+                releaseExecutor.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        assertThat(executorBlocked.await(10, TimeUnit.SECONDS)).isTrue();
+        try {
+            // The bookie confirms the add, whose completion queues on the managed ledger executor...
+            pendingBookieAdd.callback().addComplete(BKException.Code.OK, spyLedger, 0, pendingBookieAdd.ctx());
+            // ...and the periodic timeout check fires before that completion has run.
+            ledger.scheduleAddTimeoutCheck();
+            assertThat(ledger.currentLedgerTimeoutTriggered)
+                    .as("timeout applied to an add whose completion is queued")
+                    .isFalse();
+        } finally {
+            releaseExecutor.countDown();
+        }
+
+        assertThat(addResult.get(10, TimeUnit.SECONDS)).isEqualTo(PositionFactory.create(spyLedger.getId(), 0));
+        // Wait for the timeout check queued after the completion.
+        CompletableFuture.runAsync(() -> { }, ledger.getExecutor()).get(10, TimeUnit.SECONDS);
+        assertThat(ledger.currentLedgerTimeoutTriggered).isFalse();
+        assertThat(ledger.pendingAddEntries).isEmpty();
+        assertThat(ledger.currentLedger).isSameAs(spyLedger);
+    }
+
     private static class CollectCtxAddEntryCallback implements AddEntryCallback {
 
         public List<Object> addCompleteCtxList = new CopyOnWriteArrayList<>();
