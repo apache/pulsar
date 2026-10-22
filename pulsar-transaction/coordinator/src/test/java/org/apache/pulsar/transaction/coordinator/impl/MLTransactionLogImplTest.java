@@ -19,6 +19,7 @@
 package org.apache.pulsar.transaction.coordinator.impl;
 
 import static org.apache.pulsar.transaction.coordinator.impl.DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import com.google.common.collect.ComparisonChain;
 import io.netty.util.HashedWheelTimer;
@@ -65,6 +66,30 @@ public class MLTransactionLogImplTest extends MockedBookKeeperTestCase {
                 {false, true}
         };
     }
+    @Test
+    public void testTransactionLogEntriesArentPulsarMessages() throws Exception {
+        // control: a plain managed ledger holds Pulsar messages, which is the default and what pins that the
+        // assertion below is about the transaction log rather than about the default
+        assertThat(new ManagedLedgerConfig().isPulsarMessageEntries()).isTrue();
+
+        HashedWheelTimer transactionTimer = new HashedWheelTimer(new DefaultThreadFactory("transaction-timer"),
+                1, TimeUnit.MILLISECONDS);
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        MLTransactionLogImpl transactionLog = new MLTransactionLogImpl(TransactionCoordinatorID.get(0), factory,
+                managedLedgerConfig, new TxnLogBufferedWriterConfig(), transactionTimer,
+                DISABLED_BUFFERED_WRITER_METRICS);
+        try {
+            transactionLog.initialize().get(3, TimeUnit.SECONDS);
+            // the transaction log stores TransactionMetadataEntry records, which can never parse as message
+            // metadata, so the entry cache must not try
+            assertThat(managedLedgerConfig.isPulsarMessageEntries()).isFalse();
+            assertThat(transactionLog.getManagedLedger().getConfig().isPulsarMessageEntries()).isFalse();
+        } finally {
+            transactionLog.closeAsync().get(3, TimeUnit.SECONDS);
+            transactionTimer.stop();
+        }
+    }
+
     /**
      * 1. Add some transaction logs.
      * 2. Create a new transaction meta store and execute recover, assert that the txn-mapping built by Recover is as

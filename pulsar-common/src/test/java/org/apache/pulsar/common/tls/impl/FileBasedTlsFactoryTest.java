@@ -135,6 +135,44 @@ public class FileBasedTlsFactoryTest {
         factory.close();
     }
 
+    /**
+     * PIP-478: {@code TlsHandle.get()} after {@code dispose()} is a programming error, and an implementation
+     * MUST NOT return a released native context. Both handle kinds used to return the instance regardless —
+     * so a consumer that read a disposed one-shot handle could be handed a
+     * {@code ReferenceCountedOpenSslContext} at refcount zero, a native use-after-free. They throw instead.
+     */
+    @Test
+    public void getAfterDisposeThrowsRatherThanServingAReleasedContext() throws Exception {
+        FileBasedTlsFactory factory = factory(
+                Map.of(TlsPurpose.BROKER, TlsPolicy.pem(RSA_CA, BROKER_CERT, BROKER_KEY)),
+                FileBasedTlsFactorySettings.defaults());
+
+        TlsHandle<SslContext> oneShot =
+                factory.createInstance(TlsPurpose.BROKER, SslContext.class).join().orElseThrow();
+        TlsHandle<SslContext> subscribing = factory
+                .createInstance(TlsPurpose.BROKER, SslContext.class, ctx -> { })
+                .join().orElseThrow();
+        assertThat(oneShot.get()).isNotNull();
+        assertThat(subscribing.get()).isNotNull();
+
+        oneShot.dispose();
+        subscribing.dispose();
+
+        assertThatThrownBy(oneShot::get)
+                .as("a disposed one-shot handle must not serve its released instance")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("dispose()");
+        assertThatThrownBy(subscribing::get)
+                .as("a disposed subscription handle must not serve the instance it dropped interest in")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("dispose()");
+
+        // dispose() stays idempotent — the second call must not double-release.
+        oneShot.dispose();
+        subscribing.dispose();
+        factory.close();
+    }
+
     // PIP-478 Part D: a TlsPolicy.jsseProvider pins the named java.security.Provider — the JDK SSLContext is
     // built with that provider, and the Netty context builds on the JDK engine backed by it. SunJSSE is always
     // installed, so this round-trips the wiring without a FIPS/BouncyCastle dependency.

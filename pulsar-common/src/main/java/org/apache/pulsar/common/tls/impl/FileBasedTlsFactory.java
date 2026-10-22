@@ -823,6 +823,13 @@ public class FileBasedTlsFactory implements PulsarTlsFactory {
 
         @Override
         public T get() {
+            // dispose() released this handle's retained reference, so returning the instance now can hand a
+            // consumer a ReferenceCountedOpenSslContext at refcount zero — a native use-after-free. TlsHandle
+            // permits throwing here and forbids returning a released context, so fail loudly instead.
+            if (disposed.get()) {
+                throw new IllegalStateException(
+                        "TlsHandle.get() called after dispose(); re-acquire through createInstance(...)");
+            }
             return instance;
         }
 
@@ -851,6 +858,12 @@ public class FileBasedTlsFactory implements PulsarTlsFactory {
 
         @Override
         public T get() {
+            // Same contract as OneShotHandle: removeSubscription() drops this handle's interest in the
+            // current instance, so reading it afterwards can observe a released context.
+            if (disposed.get()) {
+                throw new IllegalStateException(
+                        "TlsHandle.get() called after dispose(); re-acquire through createInstance(...)");
+            }
             return subscription.current();
         }
 

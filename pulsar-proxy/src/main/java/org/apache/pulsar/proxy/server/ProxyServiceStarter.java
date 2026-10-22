@@ -29,6 +29,7 @@ import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.Gauge.Child;
 import io.prometheus.client.hotspot.DefaultExports;
+import jakarta.servlet.Servlet;
 import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -46,6 +47,7 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
+import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletUtils;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithClassLoader;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
@@ -417,80 +419,31 @@ public class ProxyServiceStarter {
                     service.getProxyAdditionalServlets().getServlets().values();
             for (AdditionalServletWithClassLoader servletWithClassLoader : additionalServletCollection) {
                 servletWithClassLoader.loadConfig(config);
-                switch (servletWithClassLoader.getServletType()) {
-                    case JAVAX_SERVLET -> {
-                        // Legacy javax.servlet handlers are routed to Jetty's ee8 environment (PIP-472).
-                        Object servletInstance = servletWithClassLoader.getServletInstance();
-                        if (!(servletInstance instanceof javax.servlet.Servlet)) {
-                            log.error()
-                                    .attr("servletWithClassLoader", servletWithClassLoader)
-                                    .attr("servletInstance", servletInstance.getClass().getName())
-                                    .attr("servletWithClassLoader", servletWithClassLoader.getServletType())
-                                    .log("AdditionalServletWithClassLoader has invalid"
-                                            + " servlet instance type. Skipping.");
-                            try {
-                                servletWithClassLoader.close();
-                            } catch (Exception e) {
-                                log.error()
-                                        .attr("servletWithClassLoader", servletWithClassLoader)
-                                        .exception(e)
-                                        .log("Failed to close servlet");
-                            }
-                            continue;
-                        }
-                        org.eclipse.jetty.ee8.servlet.ServletHolder additionalServletHolder =
-                                new org.eclipse.jetty.ee8.servlet.ServletHolder(
-                                        (javax.servlet.Servlet) servletInstance);
-                        server.addServletEe8(servletWithClassLoader.getBasePath(), additionalServletHolder,
-                                Collections.emptyList(), config.isAuthenticationEnabled());
-                        log.info()
-                                .attr("servletWithClassLoader", servletWithClassLoader.getBasePath())
-                                .log("proxy add additional servlet basePath");
-                    }
-                    case JAKARTA_SERVLET -> {
-                        // jakarta.servlet handlers are routed to Jetty's ee10 environment (PIP-472).
-                        Object servletInstance = servletWithClassLoader.getServletInstance();
-                        if (!(servletInstance instanceof jakarta.servlet.Servlet)) {
-                            log.error()
-                                    .attr("servletWithClassLoader", servletWithClassLoader)
-                                    .attr("servletInstance", servletInstance.getClass().getName())
-                                    .attr("servletWithClassLoader", servletWithClassLoader.getServletType())
-                                    .log("AdditionalServletWithClassLoader has invalid"
-                                            + " servlet instance type. Skipping.");
-                            try {
-                                servletWithClassLoader.close();
-                            } catch (Exception e) {
-                                log.error()
-                                        .attr("servletWithClassLoader", servletWithClassLoader)
-                                        .exception(e)
-                                        .log("Failed to close servlet");
-                            }
-                            continue;
-                        }
-                        ServletHolder additionalServletHolder =
-                                new ServletHolder((jakarta.servlet.Servlet) servletInstance);
-                        server.addServlet(servletWithClassLoader.getBasePath(), additionalServletHolder,
-                                Collections.emptyList(), config.isAuthenticationEnabled());
-                        log.info()
-                                .attr("servletWithClassLoader", servletWithClassLoader.getBasePath())
-                                .log("proxy add additional servlet basePath");
-                    }
-                    default -> {
+                // Legacy javax.servlet handlers are adapted to jakarta.servlet so that every additional servlet
+                // is registered in the same Jetty environment and goes through the proxy filter chain (PIP-472).
+                Servlet servlet;
+                try {
+                    servlet = AdditionalServletUtils.toJakartaServlet(servletWithClassLoader);
+                } catch (IllegalArgumentException e) {
+                    log.error()
+                            .attr("servletWithClassLoader", servletWithClassLoader)
+                            .exception(e)
+                            .log("AdditionalServletWithClassLoader has an unusable servlet instance. Skipping.");
+                    try {
+                        servletWithClassLoader.close();
+                    } catch (Exception closeException) {
                         log.error()
                                 .attr("servletWithClassLoader", servletWithClassLoader)
-                                .attr("servletWithClassLoader", servletWithClassLoader.getServletType())
-                                .log("AdditionalServletWithClassLoader has unsupported servlet type . Skipping");
-                        try {
-                            servletWithClassLoader.close();
-                        } catch (Exception e) {
-                            log.error()
-                                    .attr("servletWithClassLoader", servletWithClassLoader)
-                                    .exception(e)
-                                    .log("Failed to close servlet");
-                        }
-                        continue;
+                                .exception(closeException)
+                                .log("Failed to close servlet");
                     }
+                    continue;
                 }
+                server.addServlet(servletWithClassLoader.getBasePath(), new ServletHolder(servlet),
+                        Collections.emptyList(), config.isAuthenticationEnabled());
+                log.info()
+                        .attr("servletWithClassLoader", servletWithClassLoader.getBasePath())
+                        .log("proxy add additional servlet basePath");
             }
         }
 

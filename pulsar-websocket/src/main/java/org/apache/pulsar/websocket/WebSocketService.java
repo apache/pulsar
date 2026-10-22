@@ -88,17 +88,26 @@ public class WebSocketService implements Closeable {
     }
 
     public WebSocketService(ClusterData localCluster, ServiceConfiguration config) {
+        this(localCluster, config, null);
+    }
+
+    /**
+     * @param pulsarResources resources to share, such as the broker's, so that no configuration metadata store is
+     *                        opened by this service; {@code null} to open one in {@link #start()}
+     */
+    public WebSocketService(ClusterData localCluster, ServiceConfiguration config, PulsarResources pulsarResources) {
         this.config = config;
         this.executor = Executors
                 .newScheduledThreadPool(config.getWebSocketNumServiceThreads(),
                         new DefaultThreadFactory("pulsar-websocket"));
         this.localCluster = localCluster;
+        this.pulsarResources = pulsarResources;
         this.proxyStats = new ProxyStats(this);
     }
 
     public void start() throws PulsarServerException, PulsarClientException, MalformedURLException, ServletException {
 
-        if (isNotBlank(config.getConfigurationMetadataStoreUrl())) {
+        if (pulsarResources == null && isNotBlank(config.getConfigurationMetadataStoreUrl())) {
             try {
                 configMetadataStore = createConfigMetadataStore(config.getConfigurationMetadataStoreUrl(),
                         (int) config.getMetadataStoreSessionTimeoutMillis(),
@@ -109,16 +118,17 @@ public class WebSocketService implements Closeable {
             pulsarResources = new PulsarResources(null, configMetadataStore);
         }
 
+        // Start authentication first so authorization can reuse the initialized token provider.
+        authenticationService = new AuthenticationService(this.config);
         // start authorizationService
         if (config.isAuthorizationEnabled()) {
             if (pulsarResources == null) {
                 throw new PulsarServerException(
                         "Failed to initialize authorization manager due to empty ConfigurationStoreServers");
             }
-            authorizationService = new AuthorizationService(this.config, pulsarResources);
+            authorizationService = new AuthorizationService(this.config, pulsarResources,
+                    authenticationService);
         }
-        // start authentication service
-        authenticationService = new AuthenticationService(this.config);
         // initialize crypto key reader
         String cryptoFactoryClassName = (String) config.getProperties().get("cryptoKeyReaderFactoryClassName");
         if (StringUtils.isNotBlank(cryptoFactoryClassName)) {
@@ -226,6 +236,7 @@ public class WebSocketService implements Closeable {
         } else {
             clientBuilder.serviceUrl(clusterData.getServiceUrl());
         }
+        applyBrokerClientProviders(clientBuilder);
         applyBrokerClientTlsFactory(clientBuilder);
         return clientBuilder.build();
     }
@@ -239,6 +250,29 @@ public class WebSocketService implements Closeable {
      * transport reads for {@code CLIENT_DEFAULT}. Leaves the client on the built-in TLS path when the gate is
      * off, when the client is not TLS, or when it is already on the new path.
      */
+    /**
+     * PIP-478: pin the proxy's own outbound (proxy-to-broker) client onto the configured engine and JSSE
+     * providers. Applied independently of {@code brokerClientTlsFactoryClassName} — the providers describe
+     * how TLS is built, not which factory builds it — mirroring the broker, the proxy and the functions
+     * worker. The listener-side {@code tlsProvider}/{@code jsseProvider} govern this service's own web
+     * server and must not leak onto this leg.
+     */
+    private void applyBrokerClientProviders(ClientBuilder clientBuilder) {
+        if (!(clientBuilder instanceof ClientBuilderImpl builderImpl)) {
+            return;
+        }
+        ClientConfigurationData conf = builderImpl.getClientConfigurationData();
+        if (isNotBlank(config.getBrokerClientSslProvider())) {
+            conf.setSslProvider(config.getBrokerClientSslProvider());
+        }
+        if (isNotBlank(config.getBrokerClientJsseProvider())) {
+            conf.setJsseProvider(config.getBrokerClientJsseProvider());
+        }
+        if (isNotBlank(config.getBrokerClientJcaProvider())) {
+            conf.setJcaProvider(config.getBrokerClientJcaProvider());
+        }
+    }
+
     private void applyBrokerClientTlsFactory(ClientBuilder clientBuilder) {
         String factoryClassName = config.getBrokerClientTlsFactoryClassName();
         if (!isNotBlank(factoryClassName) || !(clientBuilder instanceof ClientBuilderImpl builderImpl)) {
