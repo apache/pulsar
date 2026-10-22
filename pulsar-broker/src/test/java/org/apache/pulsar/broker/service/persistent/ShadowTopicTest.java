@@ -64,7 +64,14 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.GenericSchema;
+import org.apache.pulsar.client.api.schema.RecordSchemaBuilder;
+import org.apache.pulsar.client.api.schema.SchemaBuilder;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
+import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.metadata.api.Stat;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -575,6 +582,42 @@ public class ShadowTopicTest extends BrokerTestBase {
         }
         for (int i = 0; i < 10; i++) {
             Assert.assertEquals(consumer.receive().getValue(), content + i);
+        }
+    }
+
+    @Test
+    public void testShadowReplicationUsesSourceSchemaId() throws Exception {
+        String sourceTopic = newTopicName();
+        String shadowTopic = sourceTopic + "-shadow";
+        RecordSchemaBuilder oldKeyBuilder = SchemaBuilder.record("Key");
+        oldKeyBuilder.field("id").type(SchemaType.INT64);
+        RecordSchemaBuilder newKeyBuilder = SchemaBuilder.record("Key");
+        newKeyBuilder.field("game_id").type(SchemaType.INT64);
+        GenericSchema<GenericRecord> oldKey = Schema.generic(oldKeyBuilder.build(SchemaType.AVRO));
+        GenericSchema<GenericRecord> newKey = Schema.generic(newKeyBuilder.build(SchemaType.AVRO));
+        Schema<KeyValue<GenericRecord, String>> schema = Schema.KeyValue(newKey, Schema.STRING);
+
+        admin.topics().createNonPartitionedTopic(sourceTopic);
+        admin.topics().createShadowTopic(shadowTopic, sourceTopic);
+        admin.topics().setShadowTopics(sourceTopic, Lists.newArrayList(shadowTopic));
+        admin.topicPolicies().setSchemaCompatibilityStrategy(sourceTopic, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+        admin.topicPolicies().setSchemaCompatibilityStrategy(shadowTopic, SchemaCompatibilityStrategy.FULL);
+        admin.schemas().createSchema(sourceTopic, Schema.KeyValue(oldKey, Schema.STRING).getSchemaInfo());
+        awaitUntilShadowReplicatorReady(sourceTopic, shadowTopic);
+
+        try (Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES).topic(shadowTopic)
+                .subscriptionName("schema-id").subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+             Producer<byte[]> producer = pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES()).topic(sourceTopic)
+                     .enableBatching(false).create()) {
+            KeyValue<GenericRecord, String> value = new KeyValue<>(
+                    newKey.newRecordBuilder().set("game_id", 1L).build(), "game");
+            producer.newMessage(schema).value(value).send();
+
+            Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
+            assertThat(message).isNotNull();
+            assertThat(message.getData()).isEqualTo(schema.encode(value));
+            consumer.acknowledge(message);
         }
     }
 
