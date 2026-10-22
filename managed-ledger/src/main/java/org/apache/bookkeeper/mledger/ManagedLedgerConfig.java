@@ -96,8 +96,8 @@ public class ManagedLedgerConfig {
      * the next range of the same ledger into the entry cache, unless it's cached, so that the cursor's next read
      * finds it in the cache or joins the read in progress instead of waiting for storage. A cursor has at most one
      * read ahead in progress; a read ahead doesn't move the cursor, takes no permits that reads are waiting for nor
-     * ones that would leave less than half of the limit of the reads in flight, and is skipped when the entry cache is
-     * at its eviction watermark or wouldn't keep the entries.
+     * ones that would leave more than 70 % of the limit of the reads in flight in use, and is skipped when the entry
+     * cache is at its eviction watermark or wouldn't keep the entries.
      * Enabled by default.
      */
     @Getter

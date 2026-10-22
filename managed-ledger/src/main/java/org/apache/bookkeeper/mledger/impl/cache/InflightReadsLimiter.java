@@ -37,6 +37,12 @@ import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 @CustomLog
 public class InflightReadsLimiter implements AutoCloseable {
 
+    /**
+     * The highest fraction of the limit that may be in use after {@link #tryAcquireWhenBelowUtilizationThreshold(long)}
+     * acquires permits. The rest of the limit is left for {@link #acquire(long, Consumer)}.
+     */
+    static final double TRY_ACQUIRE_UTILIZATION_THRESHOLD = 0.7;
+
     public static final String INFLIGHT_READS_LIMITER_LIMIT_METRIC_NAME =
             "pulsar.broker.managed_ledger.inflight.read.limit";
     private final ObservableLongCounter inflightReadsLimitCounter;
@@ -74,6 +80,7 @@ public class InflightReadsLimiter implements AutoCloseable {
             .register();
 
     private final long maxReadsInFlightSize;
+    private final long utilizationThresholdBytes;
     private long remainingBytes;
     private final long acquireTimeoutMillis;
     private final ScheduledExecutorService timeOutExecutor;
@@ -92,6 +99,7 @@ public class InflightReadsLimiter implements AutoCloseable {
                                 long acquireTimeoutMillis, ScheduledExecutorService timeOutExecutor,
                                 OpenTelemetry openTelemetry) {
         this.maxReadsInFlightSize = maxReadsInFlightSize;
+        this.utilizationThresholdBytes = (long) (maxReadsInFlightSize * TRY_ACQUIRE_UTILIZATION_THRESHOLD);
         this.remainingBytes = maxReadsInFlightSize;
         this.acquireTimeoutMillis = acquireTimeoutMillis;
         this.timeOutExecutor = timeOutExecutor;
@@ -182,12 +190,12 @@ public class InflightReadsLimiter implements AutoCloseable {
     }
 
     /**
-     * Acquires permits only if they are available right away, no acquire is waiting for permits, and at least half of
-     * the limit stays available after them, for reads that may be skipped, such as a read ahead, so that they never
-     * delay or queue ahead of the reads that wait, nor take the permits that the next reads need. Returns an empty
-     * optional when the permits weren't acquired; nothing is queued then.
+     * Acquires permits only if they are available right away, no acquire is waiting for permits, and the permits in
+     * use after them stay within {@link #TRY_ACQUIRE_UTILIZATION_THRESHOLD} of the limit. It's meant for reads that
+     * the caller can skip, so that they never delay or queue ahead of the acquires that wait, nor take the permits that
+     * the next acquires need. Returns an empty optional when the permits weren't acquired; nothing is queued then.
      */
-    public Optional<Handle> tryAcquire(long permits) {
+    public Optional<Handle> tryAcquireWhenBelowUtilizationThreshold(long permits) {
         if (isDisabled()) {
             return DISABLED_OPTIONAL;
         }
@@ -195,7 +203,7 @@ public class InflightReadsLimiter implements AutoCloseable {
     }
 
     private synchronized Optional<Handle> internalTryAcquire(long permits) {
-        if (!queuedHandles.isEmpty() || remainingBytes - permits < maxReadsInFlightSize / 2) {
+        if (!queuedHandles.isEmpty() || maxReadsInFlightSize - remainingBytes + permits > utilizationThresholdBytes) {
             return Optional.empty();
         }
         remainingBytes -= permits;

@@ -2675,7 +2675,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + " in the cache or joins the read in progress instead of waiting for the storage. A cursor has at"
                     + " most one read ahead in progress; a read ahead takes no permits of"
                     + " managedLedgerMaxReadsInFlightSizeInMB that reads are waiting for, nor ones that would leave"
-                    + " less than half of the limit available, and is skipped when the entry cache is at its eviction"
+                    + " more than 70 % of the limit in use, and is skipped when the entry cache is at its eviction"
                     + " watermark (managedLedgerCacheEvictionWatermark). Set to false to disable it"
     )
     private boolean managedLedgerReadAheadEnabled = true;

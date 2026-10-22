@@ -601,7 +601,8 @@ public class RangeEntryCacheImpl implements EntryCache {
         }
         InflightReadsLimiter pendingReadsLimiter = getPendingReadsLimiter();
         long estimatedReadSize = (readAheadLastEntry - firstEntry + 1) * estimatedEntrySize;
-        Optional<InflightReadsLimiter.Handle> handle = pendingReadsLimiter.tryAcquire(estimatedReadSize);
+        Optional<InflightReadsLimiter.Handle> handle =
+                pendingReadsLimiter.tryAcquireWhenBelowUtilizationThreshold(estimatedReadSize);
         if (handle.isEmpty()) {
             return false;
         }
