@@ -3099,4 +3099,60 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         assertThatThrownBy(() -> service.getLastMessagePosition().get(5, TimeUnit.SECONDS))
                 .isInstanceOf(ExecutionException.class).hasCauseInstanceOf(BKException.class);
     }
+
+    @Test
+    public void testIndividualAcknowledgeWithReconnection() throws Exception {
+        final String topicName = newUniqueName("persistent://my-tenant/my-ns/testIndividualAcknowledge");
+        final String subName = "my-sub";
+        final int numMessages = 10;
+        final int numKeys = 4;
+        // Compaction keeps the last message of each key. The others are never delivered nor acknowledged, so the
+        // individual acks below leave the mark-delete position before the first message.
+        final int backlog = numMessages - numKeys;
+
+        pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).readCompacted(true).subscribe()
+                .close();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .enableBatching(false).topic(topicName).create();
+
+        Map<String, String> expected = new HashMap<>();
+        for (int i = 0; i < numMessages; i++) {
+            String key = "key-" + (i % numKeys);
+            String value = "value-" + i;
+            producer.newMessage().key(key).value(value).send();
+            expected.put(key, value);
+        }
+        compact(topicName);
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+                .subscriptionName(subName).readCompacted(true).subscribe();
+
+        Map<String, String> results = new HashMap<>();
+        for (int i = 0; i < numKeys; i++) {
+            Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
+            assertNotNull(message);
+            results.put(message.getKey(), message.getValue());
+            consumer.acknowledge(message);
+        }
+        assertEquals(results, expected);
+        Awaitility.await().untilAsserted(() -> assertEquals(
+                admin.topics().getStats(topicName, true).getSubscriptions().get(subName).getMsgBacklog(), backlog));
+
+        // After the reconnection, the dispatcher reads the compacted ledger again before the new message
+        admin.topics().unload(topicName);
+        producer.newMessage().key("key-new").value("value-new").send();
+        Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
+        assertNotNull(message);
+        assertEquals(message.getValue(), "value-new");
+        consumer.acknowledge(message);
+        Awaitility.await().untilAsserted(() -> assertEquals(
+                admin.topics().getStats(topicName, true).getSubscriptions().get(subName).getMsgBacklog(), backlog));
+
+        // A redelivery rewinds the cursor to the mark-delete position
+        consumer.redeliverUnacknowledgedMessages();
+        assertNull(consumer.receive(3, TimeUnit.SECONDS));
+    }
 }
