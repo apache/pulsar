@@ -3102,74 +3102,57 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testIndividualAcknowledgeWithReconnection() throws Exception {
-        final String topicName = "persistent://my-property/use/my-ns/testIndividualAcknowledge" + UUID.randomUUID();
-        final String subName = "sub1";
+        final String topicName = newUniqueName("persistent://my-tenant/my-ns/testIndividualAcknowledge");
+        final String subName = "my-sub";
         final int numMessages = 10;
+        final int numKeys = 4;
+        // Compaction keeps the last message of each key. The others are never delivered nor acknowledged, so the
+        // individual acks below leave the mark-delete position before the first message.
+        final int backlog = numMessages - numKeys;
 
-        pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
-                .receiverQueueSize(1).readCompacted(true).subscribe().close();
-
-        Map<String, String> expected = new HashMap<>();
+        pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).readCompacted(true).subscribe()
+                .close();
 
         @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic(topicName)
-                .enableBatching(false)
-                .messageRoutingMode(MessageRoutingMode.SinglePartition)
-                .create();
+                .enableBatching(false).topic(topicName).create();
 
+        Map<String, String> expected = new HashMap<>();
         for (int i = 0; i < numMessages; i++) {
-            String key = "key" + new Random().nextInt(4);
-            String value = ("my-message-" + i);
+            String key = "key-" + (i % numKeys);
+            String value = "value-" + i;
             producer.newMessage().key(key).value(value).send();
             expected.put(key, value);
         }
-        producer.flush();
-
-        // compact the topic
         compact(topicName);
 
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .subscriptionName(subName).receiverQueueSize(1).readCompacted(true).subscribe();
+                .subscriptionName(subName).readCompacted(true).subscribe();
 
         Map<String, String> results = new HashMap<>();
-        while (true) {
-            Message<String> message = consumer.receive(3, TimeUnit.SECONDS);
-            if (message == null) {
-                break;
-            }
+        for (int i = 0; i < numKeys; i++) {
+            Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
+            assertNotNull(message);
             results.put(message.getKey(), message.getValue());
             consumer.acknowledge(message);
         }
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(admin.topics().getStats(topicName, true).getSubscriptions().get(subName).getMsgBacklog(),
-                        numMessages - expected.size()));
-
-        // unload the topic
-        admin.topics().unload(topicName);
-
-        // wait the consumer reconnect
-        Awaitility.await().until(() -> admin.topics().getStats(topicName).getSubscriptions() != null);
-
-        // should not receive message
-        int count = 0;
-        while (true) {
-            Message<String> message = consumer.receive(3, TimeUnit.SECONDS);
-            if (message == null) {
-                break;
-            }
-            count++;
-            results.put(message.getKey(), message.getValue());
-            consumer.acknowledge(message);
-        }
-        assertEquals(count, 0);
-
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(admin.topics().getStats(topicName, true).getSubscriptions().get(subName).getMsgBacklog(),
-                        numMessages - expected.size()));
-
         assertEquals(results, expected);
+        Awaitility.await().untilAsserted(() -> assertEquals(
+                admin.topics().getStats(topicName, true).getSubscriptions().get(subName).getMsgBacklog(), backlog));
+
+        // After the reconnection, the dispatcher reads the compacted ledger again before the new message
+        admin.topics().unload(topicName);
+        producer.newMessage().key("key-new").value("value-new").send();
+        Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
+        assertNotNull(message);
+        assertEquals(message.getValue(), "value-new");
+        consumer.acknowledge(message);
+        Awaitility.await().untilAsserted(() -> assertEquals(
+                admin.topics().getStats(topicName, true).getSubscriptions().get(subName).getMsgBacklog(), backlog));
+
+        // A redelivery rewinds the cursor to the mark-delete position
+        consumer.redeliverUnacknowledgedMessages();
+        assertNull(consumer.receive(3, TimeUnit.SECONDS));
     }
 }

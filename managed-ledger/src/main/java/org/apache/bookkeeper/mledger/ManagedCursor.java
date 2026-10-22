@@ -982,8 +982,6 @@ public interface ManagedCursor {
 
     boolean isMessageDeleted(Position position);
 
-    boolean isMessageIndividualDeleted(Position position);
-
     ManagedCursor duplicateNonDurableCursor(String nonDurableCursorName) throws ManagedLedgerException;
 
     long[] getBatchPositionAckSet(Position position);

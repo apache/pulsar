@@ -427,11 +427,6 @@ public class MockManagedCursor implements ManagedCursor {
     }
 
     @Override
-    public boolean isMessageIndividualDeleted(Position position) {
-        return false;
-    }
-
-    @Override
     public ManagedCursor duplicateNonDurableCursor(String nonDurableCursorName) throws ManagedLedgerException {
         return null;
     }

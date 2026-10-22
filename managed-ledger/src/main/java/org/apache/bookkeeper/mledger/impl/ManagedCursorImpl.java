@@ -4327,16 +4327,6 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
-    @Override
-    public boolean isMessageIndividualDeleted(Position position) {
-        lock.readLock().lock();
-        try {
-            return individualDeletedMessages.contains(position.getLedgerId(), position.getEntryId());
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
     /**
      * Check whether the entry identified by {@code ledgerId} and {@code entryId} has been deleted, without allocating
      * a {@link Position}. Used on the hot read path.

@@ -85,11 +85,6 @@ public class ReadOnlyCursorImpl extends ManagedCursorImpl implements ReadOnlyCur
     }
 
     @Override
-    public boolean isMessageIndividualDeleted(Position position) {
-        return false;
-    }
-
-    @Override
     public boolean isMessageDeleted(long ledgerId, long entryId) {
         return false;
     }
