@@ -4179,6 +4179,63 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     }
 
     @Test(timeOut = 20000)
+    void testReplayAtReadPositionMovesReadPositionForwardOnce() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("test_replay_at_read_position");
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+        List<Position> added = new ArrayList<>();
+        for (int i = 0; i < 3; i++) {
+            added.add(ledger.addEntry(("entry-" + i).getBytes(Encoding)));
+        }
+        assertEquals(cursor.getReadPosition(), added.get(0));
+
+        // a replay of the read position moves it to the next position, so that a normal read doesn't read it again
+        cursor.replayEntries(Set.of(added.get(0))).forEach(Entry::release);
+        assertEquals(cursor.getReadPosition(), added.get(1));
+
+        // a normal read of the entries 1 and 2 completes while a replay of the entry 1 compares it with the read
+        // position: the replay must neither move the read position back to the entry 2 nor past the entry 3
+        Position afterNormalRead = added.get(2).getNext();
+        Position replayed = added.get(1);
+        AtomicBoolean normalReadCompleted = new AtomicBoolean();
+        Position racingReplayPosition = new Position() {
+            @Override
+            public long getLedgerId() {
+                return replayed.getLedgerId();
+            }
+
+            @Override
+            public long getEntryId() {
+                return replayed.getEntryId();
+            }
+
+            @Override
+            public int compareTo(Position that) {
+                int result = replayed.compareTo(that);
+                if (that == cursor.readPosition && normalReadCompleted.compareAndSet(false, true)) {
+                    cursor.setReadPosition(afterNormalRead);
+                }
+                return result;
+            }
+
+            @Override
+            public boolean equals(Object obj) {
+                return replayed.equals(obj);
+            }
+
+            @Override
+            public int hashCode() {
+                return replayed.hashCode();
+            }
+        };
+        List<Entry> entries = cursor.replayEntries(Set.of(racingReplayPosition));
+        assertEquals(entries.size(), 1);
+        assertEquals(new String(entries.get(0).getData(), Encoding), "entry-1");
+        entries.forEach(Entry::release);
+        assertTrue(normalReadCompleted.get());
+        assertEquals(cursor.getReadPosition(), afterNormalRead);
+    }
+
+    @Test(timeOut = 20000)
     void testReadsOfAnInactiveCursorAreNotCached() throws Exception {
         ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig());
         config.setCacheEvictionByExpectedReadCount(true);
