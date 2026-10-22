@@ -645,9 +645,11 @@ class PythonInstance(object):
 
   def get_crypto_reader(self, crypto_spec):
     crypto_key_reader = None
-    if crypto_spec is not None:
+    # An unset cryptoSpec reads as an empty default message rather than None, so treat a spec
+    # without a reader class or config as "no crypto" instead of failing to parse "" as JSON.
+    if crypto_spec is not None and (crypto_spec.cryptoKeyReaderClassName or crypto_spec.cryptoKeyReaderConfig):
       try:
-        crypto_config = json.loads(crypto_spec.cryptoKeyReaderConfig)
+        crypto_config = json.loads(crypto_spec.cryptoKeyReaderConfig) if crypto_spec.cryptoKeyReaderConfig else {}
         if crypto_spec.cryptoKeyReaderClassName == "" or crypto_spec.cryptoKeyReaderClassName is None:
           crypto_key_reader = pulsar.CryptoKeyReader(**crypto_config)
         else:

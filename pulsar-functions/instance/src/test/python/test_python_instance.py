@@ -20,7 +20,7 @@
 
 # DEPENDENCIES:  unittest2,mock
 
-from mock import Mock
+from mock import Mock, patch
 import sys
 sys.modules['prometheus_client'] = Mock()
 sys.modules['bookkeeper'] = Mock()
@@ -701,3 +701,46 @@ class TestConsumerCryptoFailureAction(unittest.TestCase):
   def test_action_is_not_passed_to_subscribe_without_a_crypto_spec(self):
     kwargs = TestConsumerSubscribeArgs()._subscribe_kwargs(via_input_specs=True)
     self.assertNotIn("crypto_failure_action", kwargs)
+
+
+class TestGetCryptoReader(unittest.TestCase):
+  """Covers get_crypto_reader() for functions that do not configure crypto.
+
+  An unset cryptoSpec reads as an empty default message rather than None, so every function
+  without crypto used to log "Failed to load the crypto key reader from spec" for its producer
+  and for each input topic (json.loads("") raised).
+  """
+
+  def _instance(self):
+    function_details = Function_pb2.FunctionDetails()
+    function_details.sink.topic = "test_sink_topic"
+    return PythonInstance('test_instance', 'test_func', '1.0', function_details, 100, 30,
+                          'user_code', Mock(), Mock(), 'test_cluster', 'test_url', None)
+
+  def test_unset_crypto_spec_yields_no_reader_and_no_error(self):
+    instance = self._instance()
+    details = instance.instance_config.function_details
+    for label, crypto_spec in (("producer", details.sink.producerSpec.cryptoSpec),
+                               ("consumer", details.source.inputSpecs["test_input_topic"].cryptoSpec),
+                               ("None", None)):
+      with self.subTest(spec=label), patch('python_instance.Log') as log_mock:
+        self.assertIsNone(instance.get_crypto_reader(crypto_spec))
+        log_mock.error.assert_not_called()
+
+  def test_partial_default_reader_config_still_logs_an_error(self):
+    # A spec that does configure the default reader but leaves out a key path is a
+    # misconfiguration, so it must still be reported rather than silently disable encryption.
+    crypto_spec = Function_pb2.CryptoSpec()
+    crypto_spec.cryptoKeyReaderConfig = '{"public_key_path": "/keys/public.pem"}'
+    with patch('python_instance.Log') as log_mock:
+      self.assertIsNone(self._instance().get_crypto_reader(crypto_spec))
+      log_mock.error.assert_called_once()
+
+  def test_custom_reader_class_without_config_is_built_with_no_arguments(self):
+    crypto_spec = Function_pb2.CryptoSpec()
+    crypto_spec.cryptoKeyReaderClassName = "test.CryptoKeyReader"
+    reader_class = Mock()
+    with patch('python_instance.util.import_class', return_value=reader_class):
+      reader = self._instance().get_crypto_reader(crypto_spec)
+    reader_class.assert_called_once_with()
+    self.assertIs(reader_class.return_value, reader)
