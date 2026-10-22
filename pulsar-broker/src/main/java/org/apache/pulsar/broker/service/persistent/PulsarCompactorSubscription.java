@@ -66,6 +66,18 @@ public class PulsarCompactorSubscription extends PersistentSubscription {
         }
     }
 
+    /**
+     * The compactor owns this cursor, so it can never be replicated. Disabling is still delegated, so that a
+     * replicated status that was set before is removed from the cursor properties.
+     */
+    @Override
+    public boolean setReplicated(boolean replicated) {
+        if (replicated) {
+            return false;
+        }
+        return super.setReplicated(false);
+    }
+
     @Override
     public CompletableFuture<Void> acknowledgeMessageAsync(List<Position> positions, AckType ackType,
                                                            Map<String, Long> properties) {
