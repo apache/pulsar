@@ -18,12 +18,13 @@
  */
 package org.apache.pulsar.broker.stats.metrics;
 
+import static org.apache.pulsar.common.allocator.PulsarByteBufAllocator.ML_CACHE_ALLOCATOR_NAME;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryMXBean;
-import org.apache.bookkeeper.mledger.impl.cache.PooledByteBufAllocatorStats;
-import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.common.allocator.ByteBufAllocatorStats;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.stats.Metrics;
 
 public class ManagedLedgerCacheMetrics extends AbstractMetrics {
@@ -54,7 +55,8 @@ public class ManagedLedgerCacheMetrics extends AbstractMetrics {
         m.put("brk_ml_cache_hits_throughput", mlCacheStats.getCacheHitsThroughput());
         m.put("brk_ml_cache_misses_throughput", mlCacheStats.getCacheMissesThroughput());
 
-        var allocatorStats = new PooledByteBufAllocatorStats(RangeEntryCacheImpl.ALLOCATOR);
+        var allocatorStats = new ByteBufAllocatorStats(
+                PulsarByteBufAllocator.getAllocatorMetric(ML_CACHE_ALLOCATOR_NAME));
         m.put("brk_ml_cache_pool_allocated", allocatorStats.totalAllocated);
         m.put("brk_ml_cache_pool_used", allocatorStats.totalUsed);
         m.put("brk_ml_cache_pool_active_allocations", allocatorStats.activeAllocations);

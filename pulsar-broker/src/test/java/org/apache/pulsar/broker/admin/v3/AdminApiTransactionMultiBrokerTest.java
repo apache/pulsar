@@ -26,7 +26,7 @@ import static org.testng.Assert.assertTrue;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -39,7 +39,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-admin-isolated")
 public class AdminApiTransactionMultiBrokerTest extends TransactionTestBase {
 
@@ -66,6 +66,7 @@ public class AdminApiTransactionMultiBrokerTest extends TransactionTestBase {
      *     4. Create a admin connected to broker x, and use the admin to call ` getCoordinatorInternalStats`.
      * </p>
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testRedirectOfGetCoordinatorInternalStats() throws Exception {
         PulsarAdmin localAdmin = this.admin;
@@ -73,12 +74,13 @@ public class AdminApiTransactionMultiBrokerTest extends TransactionTestBase {
                 .lookupPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.toString());
 
         for (int i = 0; map.containsValue(getPulsarServiceList().get(i).getBrokerServiceUrl()); i++) {
-            if (!map.containsValue(getPulsarServiceList().get(i + 1).getBrokerServiceUrl()))
+            if (!map.containsValue(getPulsarServiceList().get(i + 1).getBrokerServiceUrl())) {
                 if (localAdmin != null) {
                     localAdmin.close();
                 }
                 localAdmin = spy(createNewPulsarAdmin(PulsarAdmin.builder()
                         .serviceHttpUrl(pulsarServiceList.get(i + 1).getWebServiceAddress())));
+            }
         }
         if (pulsarClient != null) {
             pulsarClient.shutdown();
@@ -102,7 +104,7 @@ public class AdminApiTransactionMultiBrokerTest extends TransactionTestBase {
         }
         String topic1 = NAMESPACE1 +  "/testGetTransactionBufferInternalStatsInMultiBroker";
         assertTrue(admin.namespaces().getBundles(NAMESPACE1).getNumBundles() > 1);
-        for (int i = 0; true ; i++) {
+        for (int i = 0; true; i++) {
             topic1 = topic1 + i;
             admin.topics().createNonPartitionedTopic(topic1);
             String segmentTopicBroker = admin.lookups()

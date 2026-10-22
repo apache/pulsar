@@ -88,6 +88,7 @@ public class NativeAvroBytesSchema<T> implements Schema<byte[]> {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public Schema<byte[]> clone() {
         return new NativeAvroBytesSchema(nativeSchema);
     }

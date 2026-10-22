@@ -52,6 +52,14 @@ public class OpenTelemetryTopicStatsTest extends BrokerTestBase {
     }
 
     @Override
+    protected void doInitConf() throws Exception {
+        super.doInitConf();
+        // The messages are produced before any consumer subscribes, so don't cache added entries. The
+        // consumers must read them from the ledgers, which is what the storage entry incoming counter counts.
+        conf.setManagedLedgerContinueCachingAddedEntriesAfterLastActiveCursorLeavesMillis(0L);
+    }
+
+    @Override
     protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder builder) {
         super.customizeMainPulsarTestContextBuilder(builder);
         builder.enableOpenTelemetry(true);

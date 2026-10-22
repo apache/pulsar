@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.common.lookup;
 
-import com.google.re2j.Pattern;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -30,6 +29,7 @@ import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespaceResponse;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.topics.TopicList;
+import org.apache.pulsar.common.topics.TopicsPattern;
 
 /***
  * A value object.
@@ -123,7 +123,7 @@ public class GetTopicsResult {
         }
     }
 
-    public GetTopicsResult filterTopics(Pattern topicsPattern) {
+    public GetTopicsResult filterTopics(TopicsPattern topicsPattern) {
         List<String> topicsFiltered = TopicList.filterTopics(getTopics(), topicsPattern);
         // If nothing changed.
         if (topicsFiltered.equals(getTopics())) {

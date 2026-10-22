@@ -18,16 +18,18 @@
  */
 package org.apache.pulsar.broker.authentication;
 
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.apache.pulsar.common.api.AuthData;
@@ -35,14 +37,15 @@ import org.apache.pulsar.common.api.AuthData;
 /**
  * An authentication provider wraps a list of auth providers.
  */
-@Slf4j
-public class AuthenticationProviderList implements AuthenticationProvider {
+@CustomLog
+@SuppressWarnings("deprecation")
+public class AuthenticationProviderList implements TokenAuthenticationProvider {
 
     private AuthenticationMetrics authenticationMetrics;
 
     private interface AuthProcessor<T, W> {
 
-        T apply(W process) throws AuthenticationException;
+        T apply(W process) throws Exception;
 
     }
 
@@ -51,21 +54,29 @@ public class AuthenticationProviderList implements AuthenticationProvider {
         AUTH_REQUIRED,
     }
 
+    private static AuthenticationException newAuthenticationException(String message, Exception e) {
+        AuthenticationException authenticationException = new AuthenticationException(message);
+        if (e != null) {
+            authenticationException.initCause(e);
+        }
+        return authenticationException;
+    }
+
     private static <T, W> T applyAuthProcessor(List<W> processors, AuthenticationMetrics metrics,
                                                AuthProcessor<T, W> authFunc)
         throws AuthenticationException {
-        AuthenticationException authenticationException = null;
+        Exception authenticationException = null;
         String errorCode = ErrorCode.UNKNOWN.name();
         for (W ap : processors) {
             try {
                 return authFunc.apply(ap);
-            } catch (AuthenticationException ae) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Authentication failed for auth provider " + ap.getClass() + ": ", ae);
-                }
-                // Store the exception so we can throw it later instead of a generic one
+            } catch (Exception ae) {
+                log.debug().attr("authenticationProvider", ap.getClass()).exception(ae)
+                        .log("Authentication failed for auth provider");
                 authenticationException = ae;
-                errorCode = ap.getClass().getSimpleName() + "-INVALID-AUTH";
+                if (ae instanceof AuthenticationException) {
+                    errorCode = ap.getClass().getSimpleName() + "-INVALID-AUTH";
+                }
             }
         }
 
@@ -76,7 +87,7 @@ public class AuthenticationProviderList implements AuthenticationProvider {
         } else {
             metrics.recordFailure(AuthenticationProviderList.class.getSimpleName(),
                     "authentication-provider-list", errorCode);
-            throw authenticationException;
+            throw newAuthenticationException("Authentication failed", authenticationException);
         }
     }
 
@@ -119,9 +130,7 @@ public class AuthenticationProviderList implements AuthenticationProvider {
                             // Current authState is still correct. Just need to return the authChallenge.
                             authChallengeFuture.complete(authChallenge);
                         } else {
-                            if (log.isDebugEnabled()) {
-                                log.debug("Authentication failed for auth provider " + authState.getClass() + ": ", ex);
-                            }
+                            log.debug().exception(ex).log("Authentication failed for auth provider :");
                             authenticateRemainingAuthStates(authChallengeFuture, authData, ex,
                                     states.isEmpty() ? -1 : 0);
                         }
@@ -155,10 +164,8 @@ public class AuthenticationProviderList implements AuthenticationProvider {
                                 authState = state;
                                 authChallengeFuture.complete(authChallenge);
                             } else {
-                                if (log.isDebugEnabled()) {
-                                    log.debug("Authentication failed for auth provider "
-                                            + authState.getClass() + ": ", ex);
-                                }
+                                log.debug().attr("authProvider", state.getClass()).exception(ex)
+                                        .log("Authentication failed for auth provider");
                                 authenticateRemainingAuthStates(authChallengeFuture, clientAuthData, ex, index + 1);
                             }
                         });
@@ -244,15 +251,30 @@ public class AuthenticationProviderList implements AuthenticationProvider {
 
     @Override
     public CompletableFuture<String> authenticateAsync(AuthenticationDataSource authData) {
-        CompletableFuture<String> roleFuture = new CompletableFuture<>();
-        authenticateRemainingAuthProviders(roleFuture, authData, null, providers.isEmpty() ? -1 : 0);
-        return roleFuture;
+        return authenticateAsync(provider -> provider.authenticateAsync(authData));
     }
 
-    private void authenticateRemainingAuthProviders(CompletableFuture<String> roleFuture,
-                                                    AuthenticationDataSource authData,
-                                                    Throwable previousException,
-                                                    int index) {
+    @Override
+    public CompletableFuture<Set<String>> authenticateRolesAsync(AuthenticationDataSource authData, String roleClaim) {
+        return authenticateAsync(provider -> {
+            if (provider instanceof TokenAuthenticationProvider tokenProvider) {
+                return tokenProvider.authenticateRolesAsync(authData, roleClaim);
+            }
+            return CompletableFuture.failedFuture(
+                    new AuthenticationException("Authentication provider does not support token roles"));
+        });
+    }
+
+    private <T> CompletableFuture<T> authenticateAsync(
+            Function<AuthenticationProvider, CompletableFuture<T>> authenticate) {
+        CompletableFuture<T> result = new CompletableFuture<>();
+        authenticateRemainingAuthProviders(result, authenticate, null, providers.isEmpty() ? -1 : 0);
+        return result;
+    }
+
+    private <T> void authenticateRemainingAuthProviders(CompletableFuture<T> roleFuture,
+            Function<AuthenticationProvider, CompletableFuture<T>> authenticate,
+            Throwable previousException, int index) {
         if (index < 0 || index >= providers.size()) {
             if (previousException == null) {
                 previousException = new AuthenticationException("Authentication required");
@@ -263,18 +285,22 @@ public class AuthenticationProviderList implements AuthenticationProvider {
             return;
         }
         AuthenticationProvider provider = providers.get(index);
-        provider.authenticateAsync(authData)
-                .whenComplete((role, ex) -> {
-                    if (ex == null) {
-                        roleFuture.complete(role);
-                    } else {
-                        if (log.isDebugEnabled()) {
-                            log.debug("Authentication failed for auth provider " + provider.getClass() + ": ", ex);
-                        }
-                        authenticateRemainingAuthProviders(roleFuture, authData, ex, index + 1);
-                    }
-                });
+        CompletableFuture<T> authentication;
+        try {
+            authentication = authenticate.apply(provider);
+        } catch (Exception e) {
+            authentication = CompletableFuture.failedFuture(e);
         }
+        authentication.whenComplete((role, ex) -> {
+            if (ex == null) {
+                roleFuture.complete(role);
+            } else {
+                log.debug().attr("authProvider", provider.getClass()).exception(ex)
+                        .log("Authentication failed for auth provider");
+                authenticateRemainingAuthProviders(roleFuture, authenticate, ex, index + 1);
+            }
+        });
+    }
 
     @Override
     public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
@@ -290,26 +316,25 @@ public class AuthenticationProviderList implements AuthenticationProvider {
         throws AuthenticationException {
         final List<AuthenticationState> states = new ArrayList<>(providers.size());
 
-        AuthenticationException authenticationException = null;
+        Exception authenticationException = null;
         for (AuthenticationProvider provider : providers) {
             try {
                 AuthenticationState state = provider.newAuthState(authData, remoteAddress, sslSession);
                 states.add(state);
-            } catch (AuthenticationException ae) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Authentication failed for auth provider " + provider.getClass() + ": ", ae);
-                }
+            } catch (Exception ae) {
+                log.debug().attr("authProvider", provider.getClass()).exception(ae)
+                        .log("Authentication failed for auth provider");
                 // Store the exception so we can throw it later instead of a generic one
                 authenticationException = ae;
             }
         }
         if (states.isEmpty()) {
-            log.debug("Failed to initialize a new auth state from {}", remoteAddress, authenticationException);
-            if (authenticationException != null) {
-                throw authenticationException;
-            } else {
-                throw new AuthenticationException("Failed to initialize a new auth state from " + remoteAddress);
-            }
+            log.debug()
+                    .attr("state", remoteAddress)
+                    .exception(authenticationException)
+                    .log("Failed to initialize a new auth state from");
+            throw newAuthenticationException("Failed to initialize a new auth state from " + remoteAddress,
+                    authenticationException);
         } else {
             return new AuthenticationListState(states, authenticationMetrics);
         }
@@ -319,28 +344,25 @@ public class AuthenticationProviderList implements AuthenticationProvider {
     public AuthenticationState newHttpAuthState(HttpServletRequest request) throws AuthenticationException {
         final List<AuthenticationState> states = new ArrayList<>(providers.size());
 
-        AuthenticationException authenticationException = null;
+        Exception authenticationException = null;
         for (AuthenticationProvider provider : providers) {
             try {
                 AuthenticationState state = provider.newHttpAuthState(request);
                 states.add(state);
-            } catch (AuthenticationException ae) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Authentication failed for auth provider " + provider.getClass() + ": ", ae);
-                }
+            } catch (Exception ae) {
+                log.debug().exception(ae).log("Authentication failed for auth provider :");
                 // Store the exception so we can throw it later instead of a generic one
                 authenticationException = ae;
             }
         }
         if (states.isEmpty()) {
-            log.debug("Failed to initialize a new http auth state from {}",
-                    request.getRemoteHost(), authenticationException);
-            if (authenticationException != null) {
-                throw authenticationException;
-            } else {
-                throw new AuthenticationException(
-                        "Failed to initialize a new http auth state from " + request.getRemoteHost());
-            }
+            log.debug()
+                    .attr("state", request.getRemoteHost())
+                    .exception(authenticationException)
+                    .log("Failed to initialize a new http auth state from");
+            throw newAuthenticationException(
+                    "Failed to initialize a new http auth state from " + request.getRemoteHost(),
+                    authenticationException);
         } else {
             return new AuthenticationListState(states, authenticationMetrics);
         }
@@ -348,22 +370,11 @@ public class AuthenticationProviderList implements AuthenticationProvider {
 
     @Override
     public boolean authenticateHttpRequest(HttpServletRequest request, HttpServletResponse response) throws Exception {
-        Boolean authenticated = applyAuthProcessor(
+        return applyAuthProcessor(
             providers,
             authenticationMetrics,
-            provider -> {
-                try {
-                    return provider.authenticateHttpRequest(request, response);
-                } catch (Exception e) {
-                    if (e instanceof AuthenticationException) {
-                        throw (AuthenticationException) e;
-                    } else {
-                        throw new AuthenticationException("Failed to authentication http request");
-                    }
-                }
-            }
+            provider -> provider.authenticateHttpRequest(request, response)
         );
-        return authenticated;
     }
 
     @Override

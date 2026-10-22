@@ -21,11 +21,6 @@ package org.apache.pulsar.functions.config;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
-
-import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
-import org.apache.pulsar.functions.worker.WorkerConfig;
-import org.testng.annotations.Test;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -33,6 +28,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.functions.worker.WorkerConfig;
+import org.testng.annotations.Test;
 
 public class TestWorkerConfig {
     @Test
