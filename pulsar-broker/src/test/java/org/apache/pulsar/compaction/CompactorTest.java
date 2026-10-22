@@ -55,6 +55,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.OpenTelemetryTopicStats;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
+import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
@@ -69,6 +70,7 @@ import org.apache.pulsar.client.impl.RawMessageImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
@@ -407,6 +409,49 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
                 lastCompactedEntry.getEntryId()) >= 0);
 
         future.join();
+    }
+
+    @Test
+    public void testCompactionOfCompressedBatchWithProperties() throws Exception {
+        String topic = BrokerTestUtil.newUniqueName(
+                "persistent://my-property/use/my-ns/testCompactionOfCompressedBatchWithProperties");
+        // a compressible property that makes the uncompressed batch much larger than the compressed entry
+        String propertyValue = "a".repeat(1000);
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic)
+                .compressionType(CompressionType.LZ4)
+                .enableBatching(true)
+                .batchingMaxMessages(2)
+                .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
+        FutureUtil.waitForAll(List.of(
+                producer.newMessage().key("K1").value("V1").sendAsync(),
+                producer.newMessage().key("K2").value("V2").property("p1", propertyValue).sendAsync())).get();
+
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
+        PulsarTopicCompactionService topicCompactionService =
+                (PulsarTopicCompactionService) persistentTopic.getTopicCompactionService();
+
+        long compactedLedgerId = compact(topic);
+        Awaitility.await().untilAsserted(() -> {
+            Optional<CompactedTopicContext> compactedTopicContext = topicCompactionService.getCompactedTopic()
+                    .getCompactedTopicContext();
+            assertThat(compactedTopicContext).isPresent();
+            assertThat(compactedTopicContext.get().ledger.getId()).isEqualTo(compactedLedgerId);
+        });
+
+        @Cleanup
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING).topic(topic)
+                .startMessageId(MessageId.earliest).readCompacted(true).create();
+        Message<String> m1 = reader.readNext(10, TimeUnit.SECONDS);
+        assertThat(m1.getKey()).isEqualTo("K1");
+        assertThat(m1.getValue()).isEqualTo("V1");
+        Message<String> m2 = reader.readNext(10, TimeUnit.SECONDS);
+        assertThat(m2.getKey()).isEqualTo("K2");
+        assertThat(m2.getValue()).isEqualTo("V2");
+        assertThat(m2.getProperty("p1")).isEqualTo(propertyValue);
     }
 
     public ByteBuf extractPayload(RawMessage m) throws Exception {
