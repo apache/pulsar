@@ -4750,6 +4750,12 @@ public class BrokerService implements Closeable {
             return CompletableFuture.completedFuture(true);
         }
 
+        // Skip auto-creation for topics with "-partition-" suffix missing a valid partition number
+        if (topicName.getLocalName().contains(TopicName.PARTITIONED_TOPIC_SUFFIX)
+                && topicName.getPartitionIndex() == -1) {
+            return CompletableFuture.completedFuture(false);
+        }
+
         final boolean allowed;
         AutoTopicCreationOverride autoTopicCreationOverride = getAutoTopicCreationOverride(topicName, policies);
         if (autoTopicCreationOverride != null) {
@@ -4782,12 +4788,6 @@ public class BrokerService implements Closeable {
     public boolean isDefaultTopicTypePartitioned(final TopicName topicName, final Optional<Policies> policies) {
         if (topicName.getPartitionedTopicName().endsWith(DLQ_GROUP_TOPIC_SUFFIX)
                 || topicName.getPartitionedTopicName().endsWith(RETRY_GROUP_TOPIC_SUFFIX)) {
-            return false;
-        }
-        // The admin API refuses to create a partitioned topic whose name contains "-partition-", so auto-creation
-        // must not create one either: a name like "tp-partition--1" that is not a partition gets a non-partitioned
-        // topic instead.
-        if (!topicName.isPartitioned() && topicName.getLocalName().contains(TopicName.PARTITIONED_TOPIC_SUFFIX)) {
             return false;
         }
         AutoTopicCreationOverride autoTopicCreationOverride = getAutoTopicCreationOverride(topicName, policies);
