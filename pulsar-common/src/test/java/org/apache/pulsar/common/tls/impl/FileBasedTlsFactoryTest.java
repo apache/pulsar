@@ -67,6 +67,7 @@ import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509ExtendedKeyManager;
 import org.apache.commons.io.FileUtils;
+import org.apache.pulsar.common.tls.TlsClientAuthMode;
 import org.apache.pulsar.common.util.tls.PemReader;
 import org.apache.pulsar.tls.TlsHandle;
 import org.apache.pulsar.tls.TlsPolicy;
@@ -86,6 +87,9 @@ public class FileBasedTlsFactoryTest {
     private static final String PROXY_CERT = resource("certificate-authority/server-keys/proxy.cert.pem");
     private static final String PROXY_KEY = resource("certificate-authority/server-keys/proxy.key-pk8.pem");
     // EC identity is signed by the EC CA — untrusted by the RSA CA the server above trusts.
+    private static final String TRUSTED_CLIENT_CERT = resource("certificate-authority/client-keys/admin.cert.pem");
+    private static final String TRUSTED_CLIENT_KEY =
+            resource("certificate-authority/client-keys/admin.key-pk8.pem");
     private static final String EC_CLIENT_CERT = resource("certificate-authority/ec/client.cert.pem");
     private static final String EC_CLIENT_KEY = resource("certificate-authority/ec/client.key-pk8.pem");
 
@@ -335,7 +339,7 @@ public class FileBasedTlsFactoryTest {
                 Map.of(TlsPurpose.BROKER, TlsPolicy.builder()
                         .trustCertsFilePath(RSA_CA).certificateFilePath(BROKER_CERT).keyFilePath(BROKER_KEY)
                         .allowInsecureConnection(true).build()),
-                FileBasedTlsFactorySettings.builder().requireTrustedClientCert(false).build());
+                FileBasedTlsFactorySettings.builder().clientAuthMode(TlsClientAuthMode.OPTIONAL).build());
         FileBasedTlsFactory client = factory(
                 Map.of(TlsPurpose.CLIENT_DEFAULT, TlsPolicy.builder()
                         .trustCertsFilePath(RSA_CA).certificateFilePath(EC_CLIENT_CERT).keyFilePath(EC_CLIENT_KEY)
@@ -393,7 +397,7 @@ public class FileBasedTlsFactoryTest {
                 Map.of(TlsPurpose.BROKER, TlsPolicy.builder()
                         .trustCertsFilePath(RSA_CA).certificateFilePath(BROKER_CERT).keyFilePath(BROKER_KEY)
                         .allowInsecureConnection(false).build()),
-                FileBasedTlsFactorySettings.builder().requireTrustedClientCert(true).build());
+                FileBasedTlsFactorySettings.builder().clientAuthMode(TlsClientAuthMode.REQUIRE).build());
 
         SSLEngine serverEngine = tls12(serverEngine(server));
         SSLEngine clientEngine = tls12(forcingUntrustedClientEngine());
@@ -411,7 +415,7 @@ public class FileBasedTlsFactoryTest {
                 Map.of(TlsPurpose.BROKER, TlsPolicy.builder()
                         .trustCertsFilePath(RSA_CA).certificateFilePath(BROKER_CERT).keyFilePath(BROKER_KEY)
                         .allowInsecureConnection(true).build()),
-                FileBasedTlsFactorySettings.builder().requireTrustedClientCert(false).build());
+                FileBasedTlsFactorySettings.builder().clientAuthMode(TlsClientAuthMode.OPTIONAL).build());
 
         SSLEngine serverEngine = tls12(serverEngine(server));
         SSLEngine clientEngine = tls12(forcingUntrustedClientEngine());
@@ -419,6 +423,200 @@ public class FileBasedTlsFactoryTest {
         assertThat(serverEngine.getSession().getPeerCertificates())
                 .as("insecure server captured the forced untrusted client certificate").isNotEmpty();
         server.close();
+    }
+
+    // ---- TLS client-auth mode. ----
+    // What the server asks of the client is observed through a recording key manager on the client: it is
+    // consulted only when the server sends a CertificateRequest, and it receives the advertised CA names.
+
+    @DataProvider(name = "engineAndProtocol")
+    public static Object[][] engineAndProtocol() {
+        return new Object[][] {
+                {SslProvider.JDK, "TLSv1.2"},
+                {SslProvider.JDK, "TLSv1.3"},
+                {SslProvider.OPENSSL_REFCNT, "TLSv1.2"},
+                {SslProvider.OPENSSL_REFCNT, "TLSv1.3"},
+        };
+    }
+
+    @Test(dataProvider = "engineAndProtocol")
+    public void optionalClientAuthRequestsCertificateAndListsTrustedCa(SslProvider provider, String protocol)
+            throws Exception {
+        assumeEngineAvailable(provider);
+        FileBasedTlsFactory server = clientAuthTestServer(provider, TlsClientAuthMode.OPTIONAL, false);
+        RecordingKeyManager keyManager = trustedClientKeyManager();
+        SSLEngine serverEngine = protocol(serverEngine(server), protocol);
+        try {
+            handshake(protocol(recordingClientEngine(keyManager), protocol), serverEngine);
+            assertThat(keyManager.issuers()).as("CertificateRequest lists the trusted CA")
+                    .contains(PemReader.loadCertificatesFromPemFile(RSA_CA)[0].getSubjectX500Principal());
+            assertThat(serverEngine.getSession().getPeerCertificates()[0])
+                    .isEqualTo(PemReader.loadCertificatesFromPemFile(TRUSTED_CLIENT_CERT)[0]);
+        } finally {
+            ReferenceCountUtil.release(serverEngine);
+            server.close();
+        }
+    }
+
+    @Test(dataProvider = "engineAndProtocol")
+    public void noneClientAuthDoesNotRequestCertificate(SslProvider provider, String protocol) throws Exception {
+        assumeEngineAvailable(provider);
+        for (boolean insecure : new boolean[] {false, true}) {
+            FileBasedTlsFactory server = clientAuthTestServer(provider, TlsClientAuthMode.NONE, insecure);
+            RecordingKeyManager keyManager = trustedClientKeyManager();
+            SSLEngine serverEngine = protocol(serverEngine(server), protocol);
+            try {
+                handshake(protocol(recordingClientEngine(keyManager), protocol), serverEngine);
+                assertThat(keyManager.issuers()).as("no CertificateRequest sent (insecure=%s)", insecure)
+                        .isNull();
+                assertThatThrownBy(() -> serverEngine.getSession().getPeerCertificates())
+                        .isInstanceOf(SSLPeerUnverifiedException.class);
+            } finally {
+                ReferenceCountUtil.release(serverEngine);
+                server.close();
+            }
+        }
+    }
+
+    @Test(dataProvider = "engineAndProtocol")
+    public void noneClientAuthDoesNotRequestCertificateWithPlatformDefaultAnchors(SslProvider provider,
+                                                                                 String protocol) throws Exception {
+        // With no trust file the server trusts the JVM default CAs (about 150), which OPTIONAL advertises.
+        assumeEngineAvailable(provider);
+        FileBasedTlsFactory server = factory(
+                Map.of(TlsPurpose.BROKER, TlsPolicy.builder()
+                        .certificateFilePath(BROKER_CERT).keyFilePath(BROKER_KEY).build()),
+                FileBasedTlsFactorySettings.builder().engineProvider(provider)
+                        .clientAuthMode(TlsClientAuthMode.NONE).build());
+        RecordingKeyManager keyManager = new RecordingKeyManager(null, null);
+        SSLEngine serverEngine = protocol(serverEngine(server), protocol);
+        try {
+            handshake(protocol(recordingClientEngine(keyManager), protocol), serverEngine);
+            assertThat(keyManager.issuers()).as("no CertificateRequest sent").isNull();
+        } finally {
+            ReferenceCountUtil.release(serverEngine);
+            server.close();
+        }
+    }
+
+    @Test(dataProvider = "engineAndProtocol")
+    public void requireClientAuthRejectsMissingCertificate(SslProvider provider, String protocol) throws Exception {
+        if ("TLSv1.3".equals(protocol)) {
+            throw new SkipException("A TLS 1.3 client-cert rejection arrives after the in-memory handshake");
+        }
+        assumeEngineAvailable(provider);
+        FileBasedTlsFactory server = clientAuthTestServer(provider, TlsClientAuthMode.REQUIRE, false);
+        RecordingKeyManager keyManager = new RecordingKeyManager(null, null);
+        SSLEngine serverEngine = protocol(serverEngine(server), protocol);
+        try {
+            assertThatThrownBy(() -> handshake(protocol(recordingClientEngine(keyManager), protocol),
+                    serverEngine)).isInstanceOf(SSLException.class);
+            assertThat(keyManager.issuers()).as("CertificateRequest sent").isNotNull();
+        } finally {
+            ReferenceCountUtil.release(serverEngine);
+            server.close();
+        }
+    }
+
+    private FileBasedTlsFactory clientAuthTestServer(SslProvider provider, TlsClientAuthMode clientAuthMode,
+                                                     boolean allowInsecureConnection) {
+        return factory(
+                Map.of(TlsPurpose.BROKER, TlsPolicy.builder()
+                        .trustCertsFilePath(RSA_CA).certificateFilePath(BROKER_CERT).keyFilePath(BROKER_KEY)
+                        .allowInsecureConnection(allowInsecureConnection).build()),
+                FileBasedTlsFactorySettings.builder().engineProvider(provider)
+                        .clientAuthMode(clientAuthMode).build());
+    }
+
+    private static void assumeEngineAvailable(SslProvider provider) {
+        if (provider != SslProvider.JDK) {
+            assumeOpenSslAvailable();
+        }
+    }
+
+    private static SSLEngine protocol(SSLEngine engine, String protocol) {
+        engine.setEnabledProtocols(new String[] {protocol});
+        return engine;
+    }
+
+    private static RecordingKeyManager trustedClientKeyManager() throws Exception {
+        return new RecordingKeyManager(PemReader.loadCertificatesFromPemFile(TRUSTED_CLIENT_CERT),
+                PemReader.loadPrivateKeyFromPemFile(TRUSTED_CLIENT_KEY));
+    }
+
+    // A JDK client engine that trusts the RSA CA and presents the trusted client certificate through the given
+    // recording key manager.
+    private static SSLEngine recordingClientEngine(RecordingKeyManager keyManager) throws Exception {
+        KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
+        trustStore.load(null, null);
+        trustStore.setCertificateEntry("ca", PemReader.loadCertificatesFromPemFile(RSA_CA)[0]);
+        TrustManagerFactory tmf = TrustManagerFactory.getInstance("PKIX");
+        tmf.init(trustStore);
+        SSLContext context = SSLContext.getInstance("TLS");
+        context.init(new KeyManager[] {keyManager}, tmf.getTrustManagers(), null);
+        SSLEngine engine = context.createSSLEngine();
+        engine.setUseClientMode(true);
+        return engine;
+    }
+
+    /** A key manager that always presents a fixed chain and records the issuers the server advertised. */
+    private static final class RecordingKeyManager extends X509ExtendedKeyManager {
+        private static final String ALIAS = "client";
+        private final X509Certificate[] chain;
+        private final PrivateKey key;
+        private final AtomicReference<List<Principal>> issuers = new AtomicReference<>();
+
+        RecordingKeyManager(X509Certificate[] chain, PrivateKey key) {
+            this.chain = chain;
+            this.key = key;
+        }
+
+        List<Principal> issuers() {
+            return issuers.get();
+        }
+
+        // Returns no alias (no client certificate) when constructed without a chain.
+        // Records an empty list for a null array, so issuers() is null only when the client was never asked for
+        // a certificate.
+        private String record(Principal[] advertised) {
+            issuers.set(advertised == null ? List.of() : List.of(advertised));
+            return chain == null ? null : ALIAS;
+        }
+
+        @Override
+        public String[] getClientAliases(String keyType, Principal[] issuers) {
+            return new String[] {ALIAS};
+        }
+
+        @Override
+        public String chooseClientAlias(String[] keyType, Principal[] issuers, Socket socket) {
+            return record(issuers);
+        }
+
+        @Override
+        public String chooseEngineClientAlias(String[] keyType, Principal[] issuers, SSLEngine engine) {
+            return record(issuers);
+        }
+
+        @Override
+        public String[] getServerAliases(String keyType, Principal[] issuers) {
+            return null;
+        }
+
+        @Override
+        public String chooseServerAlias(String keyType, Principal[] issuers, Socket socket) {
+            return null;
+        }
+
+        @Override
+        public X509Certificate[] getCertificateChain(String alias) {
+            return chain;
+        }
+
+        @Override
+        public PrivateKey getPrivateKey(String alias) {
+            return key;
+        }
     }
 
     @Test
@@ -949,7 +1147,7 @@ public class FileBasedTlsFactoryTest {
         SSLContext jdk = (SSLContext) factory.createInstance(TlsPurpose.BROKER, SSLContext.class)
                 .join().get().get();
 
-        SslContext synthesized = TlsContexts.synthesizeNettyFromJdk(jdk, false, true);
+        SslContext synthesized = TlsContexts.synthesizeNettyFromJdk(jdk, false, TlsClientAuthMode.REQUIRE);
         assertThat(synthesized).isNotNull();
         assertThat(synthesized.isServer()).isTrue();
         assertThat(synthesized.newEngine(ByteBufAllocator.DEFAULT)).isNotNull();
@@ -1016,7 +1214,7 @@ public class FileBasedTlsFactoryTest {
                         .trustCertsFilePath(RSA_CA).certificateFilePath(BROKER_CERT).keyFilePath(BROKER_KEY)
                         .ciphers(ciphers).build()),
                 FileBasedTlsFactorySettings.builder().engineProvider(provider)
-                        .requireTrustedClientCert(true).build());
+                        .clientAuthMode(TlsClientAuthMode.REQUIRE).build());
         assertNettyContextBuildsUnlessOpenSslWithCiphers(factory, TlsPurpose.BROKER, provider, ciphers);
         factory.close();
     }
@@ -1040,7 +1238,7 @@ public class FileBasedTlsFactoryTest {
                         .trustStorePath(TRUSTSTORE).trustStorePassword(STORE_PW)
                         .keyStorePath(KEYSTORE).keyStorePassword(STORE_PW)
                         .ciphers(MATRIX_CIPHERS).build()),
-                FileBasedTlsFactorySettings.builder().requireTrustedClientCert(true).build());
+                FileBasedTlsFactorySettings.builder().clientAuthMode(TlsClientAuthMode.REQUIRE).build());
         Optional<TlsHandle<SslContext>> handle = factory.createInstance(TlsPurpose.BROKER, SslContext.class).join();
         assertThat(handle).isPresent();
         assertThat(handle.get().get()).isNotNull();
