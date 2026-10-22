@@ -30,6 +30,9 @@ dependencies {
     implementation(project(":pulsar-metadata"))
     api(project(":pulsar-io:pulsar-io-core"))
     api(project(":pulsar-client-original"))
+    api(project(":pulsar-client-api-v5"))
+    implementation(project(":pulsar-client-v5"))
+    implementation(project(":pulsar-tls-factory-api"))
     implementation(project(":pulsar-client-admin-original"))
     implementation(project(":pulsar-client-messagecrypto-bc"))
     api(libs.guava)
@@ -66,6 +69,8 @@ dependencies {
     // Main code only touches com.google.protobuf reflectively (protobuf schema detection for user
     // functions); tests exercise that path with concrete protobuf types.
     testImplementation(libs.protobuf.java)
+    // Log4j2's async loggers, which the broker and the functions worker use, for the log topic appender's tests
+    testImplementation(libs.disruptor)
 }
 
 tasks.withType<Test> {

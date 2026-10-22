@@ -23,8 +23,6 @@ plugins {
 
 dependencies {
     implementation(libs.slog)
-    compileOnly(project(":pulsar-client-tools"))
-    compileOnly(project(":pulsar-broker"))
 
     testImplementation(project(":pulsar-client-tools"))
     testImplementation(project(":pulsar-broker"))

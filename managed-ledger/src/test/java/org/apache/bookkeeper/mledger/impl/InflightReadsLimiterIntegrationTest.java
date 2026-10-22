@@ -18,6 +18,8 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultConfig;
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerUtils.NO_MAX_SIZE_LIMIT;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -64,7 +66,7 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
         ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConfig);
         try {
             ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("cache_disabled_limiter",
-                    new ManagedLedgerConfig());
+                    defaultConfig());
             ml.addEntry(new byte[] {1});
             EntryCache entryCache = ml.entryCache;
             Assert.assertTrue(entryCache instanceof EntryCacheDisabled);
@@ -73,7 +75,8 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
                     .getInflightReadsLimiter();
             long totalCapacity = limiter.getRemainingBytes();
             CompletableFuture<List<Entry>> entriesFuture = new CompletableFuture<>();
-            entryCache.asyncReadEntry(ml.currentLedger, 0, 0, () -> 0, new AsyncCallbacks.ReadEntriesCallback() {
+            entryCache.asyncReadEntry(ml.currentLedger, 0, 0, NO_MAX_SIZE_LIMIT, () -> 0,
+                    new AsyncCallbacks.ReadEntriesCallback() {
                 @Override
                 public void readEntriesComplete(List<Entry> entries, Object ctx) {
                     entriesFuture.complete(entries);
@@ -107,7 +110,7 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
         ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConfig);
         try {
             ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("cache_disabled_limiter_multi_entry",
-                    new ManagedLedgerConfig());
+                    defaultConfig());
             ml.addEntry(new byte[entrySize]);
             ml.addEntry(new byte[entrySize]);
             InflightReadsLimiter limiter = ((RangeEntryCacheManagerImpl) factory.getEntryCacheManager())
@@ -115,7 +118,7 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
             long totalCapacity = limiter.getRemainingBytes();
             HoldingReadEntriesCallback callback = new HoldingReadEntriesCallback();
 
-            ml.entryCache.asyncReadEntry(ml.currentLedger, 0, 1, () -> 0, callback, new Object());
+            ml.entryCache.asyncReadEntry(ml.currentLedger, 0, 1, NO_MAX_SIZE_LIMIT, () -> 0, callback, new Object());
 
             List<Entry> entries = callback.entries.join();
             long expectedReadSize = 2L * (entrySize + RangeEntryCacheImpl.BOOKKEEPER_READ_OVERHEAD_PER_ENTRY);
@@ -135,7 +138,7 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
         ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConfig);
         try {
             ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("cache_disabled_limiter_callback_failure",
-                    new ManagedLedgerConfig());
+                    defaultConfig());
             ml.addEntry(new byte[] {1});
             InflightReadsLimiter limiter = ((RangeEntryCacheManagerImpl) factory.getEntryCacheManager())
                     .getInflightReadsLimiter();
@@ -143,7 +146,8 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
             CompletableFuture<Void> readCompleted = new CompletableFuture<>();
             AtomicInteger failedCallbacks = new AtomicInteger();
 
-            ml.entryCache.asyncReadEntry(ml.currentLedger, 0, 0, () -> 0, new AsyncCallbacks.ReadEntriesCallback() {
+            ml.entryCache.asyncReadEntry(ml.currentLedger, 0, 0, NO_MAX_SIZE_LIMIT, () -> 0,
+                    new AsyncCallbacks.ReadEntriesCallback() {
                 @Override
                 public void readEntriesComplete(List<Entry> entries, Object ctx) {
                     entries.forEach(Entry::release);
@@ -176,7 +180,7 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
         ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConfig);
         try {
             ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(
-                    "cache_disabled_limiter_callback_failure_before_release", new ManagedLedgerConfig());
+                    "cache_disabled_limiter_callback_failure_before_release", defaultConfig());
             ml.addEntry(new byte[] {1});
             InflightReadsLimiter limiter = ((RangeEntryCacheManagerImpl) factory.getEntryCacheManager())
                     .getInflightReadsLimiter();
@@ -185,7 +189,8 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
             AtomicInteger failedCallbacks = new AtomicInteger();
             AtomicReference<List<Entry>> entriesReference = new AtomicReference<>();
 
-            ml.entryCache.asyncReadEntry(ml.currentLedger, 0, 0, () -> 0, new AsyncCallbacks.ReadEntriesCallback() {
+            ml.entryCache.asyncReadEntry(ml.currentLedger, 0, 0, NO_MAX_SIZE_LIMIT, () -> 0,
+                    new AsyncCallbacks.ReadEntriesCallback() {
                 @Override
                 public void readEntriesComplete(List<Entry> entries, Object ctx) {
                     entriesReference.set(entries);
@@ -219,14 +224,14 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
         ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConfig);
         try {
             ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("cache_disabled_limiter_read_failure",
-                    new ManagedLedgerConfig());
+                    defaultConfig());
             ml.addEntry(new byte[] {1});
             InflightReadsLimiter limiter = ((RangeEntryCacheManagerImpl) factory.getEntryCacheManager())
                     .getInflightReadsLimiter();
             long totalCapacity = limiter.getRemainingBytes();
             HoldingReadEntriesCallback callback = new HoldingReadEntriesCallback();
 
-            ml.entryCache.asyncReadEntry(ml.currentLedger, 1, 1, () -> 0, callback, new Object());
+            ml.entryCache.asyncReadEntry(ml.currentLedger, 1, 1, NO_MAX_SIZE_LIMIT, () -> 0, callback, new Object());
 
             Awaitility.await().untilAsserted(() -> {
                 Assert.assertTrue(callback.entries.isCompletedExceptionally());
@@ -245,7 +250,7 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
         ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConfig);
         try {
             ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("cache_disabled_limiter_queued_read",
-                    new ManagedLedgerConfig());
+                    defaultConfig());
             ml.addEntry(new byte[9_000]);
             InflightReadsLimiter limiter = ((RangeEntryCacheManagerImpl) factory.getEntryCacheManager())
                     .getInflightReadsLimiter();
@@ -253,9 +258,11 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
             HoldingReadEntriesCallback firstCallback = new HoldingReadEntriesCallback();
             HoldingReadEntriesCallback secondCallback = new HoldingReadEntriesCallback();
 
-            ml.entryCache.asyncReadEntry(ml.currentLedger, 0, 0, () -> 0, firstCallback, new Object());
+            ml.entryCache.asyncReadEntry(ml.currentLedger, 0, 0, NO_MAX_SIZE_LIMIT, () -> 0, firstCallback,
+                    new Object());
             List<Entry> firstEntries = firstCallback.entries.join();
-            ml.entryCache.asyncReadEntry(ml.currentLedger, 0, 0, () -> 0, secondCallback, new Object());
+            ml.entryCache.asyncReadEntry(ml.currentLedger, 0, 0, NO_MAX_SIZE_LIMIT, () -> 0, secondCallback,
+                    new Object());
             Assert.assertFalse(secondCallback.entries.isDone());
 
             firstEntries.forEach(Entry::release);
@@ -276,7 +283,7 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
         ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConfig);
         try {
             ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("cache_disabled_limiter_timeout",
-                    new ManagedLedgerConfig());
+                    defaultConfig());
             ml.addEntry(new byte[9_000]);
             InflightReadsLimiter limiter = ((RangeEntryCacheManagerImpl) factory.getEntryCacheManager())
                     .getInflightReadsLimiter();
@@ -284,9 +291,11 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
             HoldingReadEntriesCallback firstCallback = new HoldingReadEntriesCallback();
             HoldingReadEntriesCallback secondCallback = new HoldingReadEntriesCallback();
 
-            ml.entryCache.asyncReadEntry(ml.currentLedger, 0, 0, () -> 0, firstCallback, new Object());
+            ml.entryCache.asyncReadEntry(ml.currentLedger, 0, 0, NO_MAX_SIZE_LIMIT, () -> 0, firstCallback,
+                    new Object());
             List<Entry> firstEntries = firstCallback.entries.join();
-            ml.entryCache.asyncReadEntry(ml.currentLedger, 0, 0, () -> 0, secondCallback, new Object());
+            ml.entryCache.asyncReadEntry(ml.currentLedger, 0, 0, NO_MAX_SIZE_LIMIT, () -> 0, secondCallback,
+                    new Object());
             Awaitility.await().untilAsserted(() ->
                     Assert.assertTrue(secondCallback.entries.isCompletedExceptionally()));
 
@@ -317,7 +326,7 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
         ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConfig);
         try {
             ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("cache_disabled_limiter_queue_full",
-                    new ManagedLedgerConfig());
+                    defaultConfig());
             ml.addEntry(new byte[9_000]);
             InflightReadsLimiter limiter = ((RangeEntryCacheManagerImpl) factory.getEntryCacheManager())
                     .getInflightReadsLimiter();
@@ -325,9 +334,11 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
             HoldingReadEntriesCallback firstCallback = new HoldingReadEntriesCallback();
             HoldingReadEntriesCallback secondCallback = new HoldingReadEntriesCallback();
 
-            ml.entryCache.asyncReadEntry(ml.currentLedger, 0, 0, () -> 0, firstCallback, new Object());
+            ml.entryCache.asyncReadEntry(ml.currentLedger, 0, 0, NO_MAX_SIZE_LIMIT, () -> 0, firstCallback,
+                    new Object());
             List<Entry> firstEntries = firstCallback.entries.join();
-            ml.entryCache.asyncReadEntry(ml.currentLedger, 0, 0, () -> 0, secondCallback, new Object());
+            ml.entryCache.asyncReadEntry(ml.currentLedger, 0, 0, NO_MAX_SIZE_LIMIT, () -> 0, secondCallback,
+                    new Object());
 
             Throwable exception = secondCallback.entries.handle((__, error) -> error).join();
             Assert.assertTrue(exception instanceof ManagedLedgerException.TooManyRequestsException);
@@ -349,10 +360,11 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
         ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConfig);
         try {
             ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("cache_disabled_limiter_single_entry_rejection",
-                    new ManagedLedgerConfig());
+                    defaultConfig());
             ml.addEntry(new byte[9_000]);
             HoldingReadEntriesCallback holdingCallback = new HoldingReadEntriesCallback();
-            ml.entryCache.asyncReadEntry(ml.currentLedger, 0, 0, () -> 0, holdingCallback, new Object());
+            ml.entryCache.asyncReadEntry(ml.currentLedger, 0, 0, NO_MAX_SIZE_LIMIT, () -> 0, holdingCallback,
+                    new Object());
             List<Entry> heldEntries = holdingCallback.entries.join();
             ReadHandle readHandle = Mockito.mock(ReadHandle.class);
             long ledgerId = ml.currentLedger.getId() + 1;
@@ -390,7 +402,7 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
         ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConfig);
         try {
             ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("cache_disabled_limiter_single_entry_success",
-                    new ManagedLedgerConfig());
+                    defaultConfig());
             ml.addEntry(new byte[] {1});
             CompletableFuture<Entry> completedEntry = new CompletableFuture<>();
             AtomicInteger failedCallbacks = new AtomicInteger();
@@ -424,7 +436,7 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
         ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConfig);
         try {
             ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("cache_disabled_limiter_single_entry_failure",
-                    new ManagedLedgerConfig());
+                    defaultConfig());
             ReadHandle readHandle = Mockito.mock(ReadHandle.class);
             long ledgerId = ml.currentLedger.getId() + 1;
             Mockito.when(readHandle.getId()).thenReturn(ledgerId);
@@ -479,7 +491,7 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
         final int readCount2 = (int) (end2 - start2 + 1);
 
         final DefaultThreadFactory threadFactory = new DefaultThreadFactory(UUID.randomUUID().toString());
-        final ManagedLedgerConfig config = new ManagedLedgerConfig();
+        final ManagedLedgerConfig config = defaultConfig();
         config.setMaxEntriesPerLedger(100000);
         ManagedLedgerFactoryConfig factoryConfig = new ManagedLedgerFactoryConfig();
         factoryConfig.setCacheEvictionIntervalMs(3600 * 1000);
@@ -544,7 +556,7 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
         // Initialize "entryCache.estimatedEntrySize" to the correct value.
         Object ctx = new Object();
         SimpleReadEntriesCallback cb0 = new SimpleReadEntriesCallback();
-        entryCache.asyncReadEntry(spyCurrentLedger, 125, 125, () -> 1, cb0, ctx);
+        entryCache.asyncReadEntry(spyCurrentLedger, 125, 125, NO_MAX_SIZE_LIMIT, () -> 1, cb0, ctx);
         cb0.entries.join();
         int sizePerEntry = Long.valueOf(entryCache.getEstimatedEntrySize(ml.currentLedger)).intValue();
         Awaitility.await().untilAsserted(() -> {
@@ -558,7 +570,7 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
         SimpleReadEntriesCallback cb1 = new SimpleReadEntriesCallback();
         SimpleReadEntriesCallback cb2 = new SimpleReadEntriesCallback();
         threadFactory.newThread(() -> {
-            entryCache.asyncReadEntry(spyCurrentLedger, start1, end1, () -> 1, cb1, ctx);
+            entryCache.asyncReadEntry(spyCurrentLedger, start1, end1, NO_MAX_SIZE_LIMIT, () -> 1, cb1, ctx);
         }).start();
         threadFactory.newThread(() -> {
             try {
@@ -566,7 +578,7 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
-            entryCache.asyncReadEntry(spyCurrentLedger, start2, end2, () -> 1, cb2, ctx);
+            entryCache.asyncReadEntry(spyCurrentLedger, start2, end2, NO_MAX_SIZE_LIMIT, () -> 1, cb2, ctx);
         }).start();
 
         long bytesAcquired1 = calculateBytesSizeBeforeFirstReading(readCount1 + readCount2, sizePerEntry);

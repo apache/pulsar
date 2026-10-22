@@ -18,12 +18,16 @@
  */
 package org.apache.pulsar.testclient;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
+import org.HdrHistogram.Histogram;
+import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -126,6 +130,37 @@ public class PerfClientUtilsTest {
 
     }
 
+    /**
+     * PIP-478: the admin leg must be pinned on the same two axes as the binary leg, otherwise the HTTPS admin
+     * calls parse the broker certificate through the JVM provider search order while the data connection is
+     * pinned — a FIPS-shaped run on the very tool whose flags exist to validate a pinned cluster.
+     */
+    @Test
+    public void adminBuilderCarriesBothProviderAxes() throws Exception {
+        final PerformanceBaseArguments args = new PerformanceArgumentsTestDefault("");
+        args.serviceURL = "pulsar+ssl://my-pulsar:6651";
+        args.jsseProvider = "BCJSSE";
+        args.jcaProvider = "BCFIPS";
+
+        final PulsarAdminBuilderImpl builder = (PulsarAdminBuilderImpl) PerfClientUtils
+                .createAdminBuilderFromArguments(args, "https://my-pulsar:8443");
+
+        assertThat(builder.getConf().getJsseProvider()).isEqualTo("BCJSSE");
+        assertThat(builder.getConf().getJcaProvider()).isEqualTo("BCFIPS");
+    }
+
+    @Test
+    public void adminBuilderProviderAxesAreUnsetByDefault() throws Exception {
+        final PerformanceBaseArguments args = new PerformanceArgumentsTestDefault("");
+        args.serviceURL = "pulsar+ssl://my-pulsar:6651";
+
+        final PulsarAdminBuilderImpl builder = (PulsarAdminBuilderImpl) PerfClientUtils
+                .createAdminBuilderFromArguments(args, "https://my-pulsar:8443");
+
+        assertThat(builder.getConf().getJsseProvider()).isNull();
+        assertThat(builder.getConf().getJcaProvider()).isNull();
+    }
+
     @Test
     public void testClientCreationWithProxy() throws Exception {
 
@@ -195,6 +230,26 @@ public class PerfClientUtilsTest {
             Assert.assertNull(conf.getProxyProtocol());
         } finally {
             Files.deleteIfExists(testConf);
+        }
+    }
+
+    /**
+     * Each perf command holds several latency recorders (a live and a cumulative one per measured latency).
+     * HdrHistogram grows the counts array by roughly 10x per significant digit, and at 5 digits a single
+     * recorder over these same ranges costs 14-16 MB. Pin the bound so raising the precision again fails
+     * here instead of silently costing hundreds of megabytes per run.
+     */
+    @Test
+    public void latencyHistogramsStaySmallAtTheConfiguredPrecision() {
+        long[] rangesUsedByPerfClients = {
+                TimeUnit.HOURS.toMicros(1), // publish / ack / managed-ledger write latency, in microseconds
+                TimeUnit.DAYS.toMillis(10), // end-to-end consume / read latency, in milliseconds
+        };
+        for (long range : rangesUsedByPerfClients) {
+            Histogram histogram = new Histogram(range, PerfClientUtils.LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
+            assertThat(histogram.getEstimatedFootprintInBytes())
+                    .as("histogram footprint for range %d", range)
+                    .isLessThan(512 * 1024);
         }
     }
 }

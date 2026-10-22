@@ -167,3 +167,34 @@ tasks.withType<Sign>().configureEach {
         providers.gradleProperty("signing.gnupg.keyName").isPresent ||
         (providers.gradleProperty("useGpgCmd").orNull?.toBoolean() ?: false)
 }
+
+// Every upload in API/SPI mode waits for the entire selected consumer graph to pass validation.
+// String task dependencies also configure the selected projects with configure-on-demand enabled.
+if (PulsarApiSpiPublication.isEnabled(project)) {
+    if (project == rootProject) {
+        tasks.register<ValidateApiSpiPublication>("validateApiSpiPublication") {
+            group = "verification"
+            description = "Validate that every published Pulsar dependency belongs to the API/SPI publication set."
+            publicationGroup.set(project.group.toString())
+            for (selectedPath in PulsarApiSpiPublication.projects) {
+                val selected = project(selectedPath)
+                // A qualified task invocation does not discover/configure container projects.
+                // Initialize their Kotlin script scopes before Gradle resolves nested task paths.
+                generateSequence(selected.parent) { it.parent }
+                    .takeWhile { it != rootProject }.toList().asReversed().forEach {
+                        project.evaluationDependsOn(it.path)
+                    }
+                val prefix = if (selectedPath == ":") "" else selectedPath
+                poms.from(selected.layout.buildDirectory.file("publications/maven/pom-default.xml"))
+                dependsOn("$prefix:generatePomFileForMavenPublication")
+                if (selectedPath != ":") {
+                    moduleMetadata.from(selected.layout.buildDirectory.file("publications/maven/module.json"))
+                    dependsOn("$prefix:generateMetadataFileForMavenPublication")
+                }
+            }
+        }
+    }
+    tasks.withType<AbstractPublishToMaven>().configureEach {
+        dependsOn(":validateApiSpiPublication")
+    }
+}

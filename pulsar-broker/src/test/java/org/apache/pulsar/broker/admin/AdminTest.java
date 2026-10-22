@@ -22,7 +22,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
@@ -80,6 +79,8 @@ import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.apache.pulsar.common.policies.data.BrokerInfo;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.ClusterPolicies;
+import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -257,7 +258,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     @SuppressWarnings("unchecked")
     public void clusters() throws Exception {
         assertEquals(asyncRequests(ctx -> clusters.getClusters(ctx)), new HashSet<>());
-        verify(clusters, never()).validateSuperUserAccessAsync();
+        verify(clusters, times(1)).validateSuperUserAccessAsync();
 
         asyncRequests(ctx -> clusters.createCluster(ctx,
                 "use", ClusterDataImpl.builder().serviceUrl("http://broker.messaging.use.example.com:8080").build()));
@@ -290,6 +291,20 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(asyncRequests(ctx -> clusters.getCluster(ctx, "use")),
                 ClusterData.builder().serviceUrl("http://new-broker.messaging.use.example.com:8080").build());
+
+        // Marking a cluster as migrated without any target url must be rejected
+        try {
+            asyncRequests(ctx -> clusters.updateClusterMigration(ctx, "use", true, new ClusterUrl()));
+            fail("should have failed");
+        } catch (RestException e) {
+            assertEquals(e.getResponse().getStatus(), Status.BAD_REQUEST.getStatusCode());
+        }
+        // ... while a target url of any kind is accepted
+        ClusterUrl migratedUrl = new ClusterUrl(null, null, "pulsar://green.example.com:6650", null);
+        asyncRequests(ctx -> clusters.updateClusterMigration(ctx, "use", true, migratedUrl));
+        ClusterPolicies migration = (ClusterPolicies) asyncRequests(ctx -> clusters.getClusterMigration(ctx, "use"));
+        assertTrue(migration.isMigrated());
+        assertEquals(migration.getMigratedClusterUrl(), migratedUrl);
 
         try {
             asyncRequests(ctx -> clusters.getNamespaceIsolationPolicies(ctx, "use"));
@@ -458,7 +473,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
         }
-        verify(clusters, times(24)).validateSuperUserAccessAsync();
+        verify(clusters, times(30)).validateSuperUserAccessAsync();
     }
 
     @Test

@@ -21,6 +21,7 @@ package org.apache.pulsar.client.api.v5;
 import io.opentelemetry.api.OpenTelemetry;
 import java.time.Duration;
 import org.apache.pulsar.client.api.v5.auth.Authentication;
+import org.apache.pulsar.client.api.v5.config.BackoffPolicy;
 import org.apache.pulsar.client.api.v5.config.ConnectionPolicy;
 import org.apache.pulsar.client.api.v5.config.MemorySize;
 import org.apache.pulsar.client.api.v5.config.TransactionPolicy;
@@ -34,11 +35,18 @@ import org.apache.pulsar.tls.TlsPurpose;
 public interface PulsarClientBuilder {
 
     /**
-     * Build and return the configured client.
+     * Build and return the configured client. A builder may be reused to build further clients; each one
+     * takes its own copy of the configuration.
      *
      * @return the configured {@link PulsarClient} instance
      * @throws PulsarClientException if the client cannot be created (e.g., invalid configuration
      *         or connection failure)
+     * @throws IllegalStateException if the {@link PulsarTlsFactory} set with {@link #tlsFactory} was already
+     *         taken by an earlier {@code build()} — taking it is what initializes it, so it is spent whether
+     *         or not that build went on to produce a client, and it cannot be handed over a second time.
+     *         Deliberately unchecked: it reports a programming error in how the builder is used, not a
+     *         failure to reach or configure a cluster, so it is not something a caller catching
+     *         {@link PulsarClientException} should be made to handle
      */
     PulsarClient build() throws PulsarClientException;
 
@@ -95,6 +103,10 @@ public interface PulsarClientBuilder {
      * Configure connection-level settings such as timeouts, pool size, threading,
      * keep-alive, and proxy configuration.
      *
+     * <p>The reconnection backoff's initial and max intervals are applied. A backoff whose
+     * multiplier is not 2, or whose jitter is not {@link BackoffPolicy#DEFAULT_JITTER_PERCENT},
+     * is rejected rather than ignored. The client doubles the delay on each attempt.
+     *
      * @param policy the connection policy
      * @return this builder instance for chaining
      * @see ConnectionPolicy#builder()
@@ -140,8 +152,25 @@ public interface PulsarClientBuilder {
      * per-destination workload identity). The supplied factory is <em>adopted</em>: the client
      * initializes it and closes it when the client closes.
      *
+     * <p>Adoption is a hand-over rather than a share, so an instance passed here belongs to one build.
+     * A builder otherwise builds as many clients as you like, but {@link #build()} rejects a second one
+     * while this slot still holds a factory an earlier build already took — pass a fresh instance to build
+     * again.
+     *
+     * <p>What matters for a retry is whether the build got as far as the factory, not whether it succeeded.
+     * A build that failed <em>before</em> that — a missing {@link #serviceUrl(String)}, say — has not touched
+     * the instance, and the same one can be used to build again. Once the client has taken it the instance is
+     * spent, whether the build then succeeded or not: taking it is what initializes it, and the SPI calls
+     * {@code initialize} exactly once. A build that took it and <em>then</em> failed closes it on the way
+     * out, so that factory is released rather than left half-open — but it still cannot be offered to a
+     * second client. (One that succeeded keeps it, and closes it with the client, as above.)
+     *
+     * <p>Everything configured through {@link #tlsPolicy(TlsPolicy)} is unaffected: a policy is a value, and
+     * each client composes its own factory from it.
+     *
      * @param factory the TLS factory to adopt
      * @return this builder instance for chaining
+     * @throws IllegalArgumentException if {@code factory} is null
      */
     PulsarClientBuilder tlsFactory(PulsarTlsFactory factory);
 
@@ -167,9 +196,15 @@ public interface PulsarClientBuilder {
     PulsarClientBuilder openTelemetry(OpenTelemetry openTelemetry);
 
     /**
-     * Maximum amount of direct memory the client can use for pending messages.
+     * Maximum amount of memory the client may hold in pending messages, across all of its producers
+     * and consumers.
      *
-     * @param size the memory limit for pending messages across all producers
+     * <p>A message a producer has accepted is charged its payload size plus a fixed allowance for the
+     * per-message bookkeeping, until the send completes, so the limit bounds how many messages can be
+     * pending as well as how many bytes. It is the only bound on a producer's pending messages: see
+     * {@link ProducerBuilder#blockIfQueueFull(boolean)} for what a send does when it is reached.
+     *
+     * @param size the memory limit for pending messages
      * @return this builder instance for chaining
      * @see MemorySize#ofMegabytes(long)
      * @see MemorySize#ofGigabytes(long)

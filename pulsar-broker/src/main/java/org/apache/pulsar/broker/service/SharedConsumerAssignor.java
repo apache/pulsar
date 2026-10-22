@@ -28,7 +28,9 @@ import java.util.function.Supplier;
 import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The assigner to assign entries to the proper {@link Consumer} in the shared subscription.
@@ -56,6 +58,19 @@ public class SharedConsumerAssignor {
 
     public Map<Consumer, List<EntryAndMetadata>> assign(final List<EntryAndMetadata> entryAndMetadataList,
                                                         final int numConsumers) {
+        return assign(entryAndMetadataList, numConsumers, null);
+    }
+
+    /**
+     * Assign the entries to consumers.
+     *
+     * @param firstReplayPosition the first position waiting in the replay queue when the entries come from a normal
+     *                            read, or {@code null}. An orphan chunk after this position goes back to the replay
+     *                            queue instead of being dispatched, since its first chunk may be waiting there.
+     */
+    public Map<Consumer, List<EntryAndMetadata>> assign(final List<EntryAndMetadata> entryAndMetadataList,
+                                                        final int numConsumers,
+                                                        final @Nullable Position firstReplayPosition) {
         assert numConsumers >= 0;
         consumerToPermits.clear();
         final Map<Consumer, List<EntryAndMetadata>> consumerToEntries = new IdentityHashMap<>();
@@ -92,7 +107,8 @@ public class SharedConsumerAssignor {
             if (metadata == null || !metadata.hasUuid() || !metadata.hasChunkId() || !metadata.hasNumChunksFromMsg()) {
                 consumerToEntries.computeIfAbsent(consumer, __ -> new ArrayList<>()).add(entryAndMetadata);
             } else {
-                final Consumer consumerForUuid = getConsumerForUuid(metadata, consumer);
+                final Consumer consumerForUuid =
+                        getConsumerForUuid(entryAndMetadata, metadata, consumer, firstReplayPosition);
                 if (consumerForUuid == null) {
                     unassignedMessageProcessor.accept(entryAndMetadata);
                     continue;
@@ -123,16 +139,51 @@ public class SharedConsumerAssignor {
         return null;
     }
 
-    private Consumer getConsumerForUuid(final MessageMetadata metadata, final Consumer defaultConsumer) {
+    /**
+     * Remove every uuid mapping that points to the given consumer. Must be called when a consumer is removed from the
+     * dispatcher: a mapping to a disconnected consumer has no permits left, so the remaining chunks of that uuid stay
+     * unassignable and stall the subscription. Also bounds the map when the last chunk is never published.
+     */
+    public void removeConsumer(final Consumer consumer) {
+        uuidToConsumer.values().removeIf(cachedConsumer -> cachedConsumer == consumer);
+    }
+
+    /** Drop all uuid mappings, e.g. after all consumers have been removed from the dispatcher. */
+    public void clear() {
+        uuidToConsumer.clear();
+    }
+
+    private Consumer getConsumerForUuid(final EntryAndMetadata entryAndMetadata, final MessageMetadata metadata,
+                                        final Consumer defaultConsumer, final @Nullable Position firstReplayPosition) {
         final String uuid = metadata.getUuid();
         Consumer consumer = uuidToConsumer.get(uuid);
         if (consumer == null) {
-            if (metadata.getChunkId() != 0) {
-                // Not the first chunk, skip it
-                return null;
-            }
             consumer = defaultConsumer;
-            uuidToConsumer.put(uuid, consumer);
+            if (metadata.getChunkId() == 0) {
+                uuidToConsumer.put(uuid, consumer);
+            } else if (firstReplayPosition != null
+                    && firstReplayPosition.compareTo(entryAndMetadata.getPosition()) < 0) {
+                // A normal read that was in flight when the consumer owning this uuid was removed: chunk 0 may have
+                // just been added to the replay queue. Replay this chunk too, replay reads are in position order
+                // so chunk 0 will recreate the mapping before this chunk is assigned again.
+                return null;
+            } else {
+                // Orphan chunk: only chunk 0 creates the mapping, and replay reads come before normal reads and are
+                // in position order, so a missing mapping here means chunk 0 is acknowledged and gone.
+                // Never replay it: the dispatcher drains the replay queue before every normal read, so an entry that
+                // can never be assigned stalls the whole subscription. Dispatch it and let the client discard it.
+                if (subscription != null) {
+                    log.warn()
+                            .attr("topic", subscription.getTopic().getName())
+                            .attr("subscription", subscription.getName())
+                            .attr("uuid", uuid)
+                            .attr("chunkId", metadata.getChunkId())
+                            .attr("numChunks", metadata.getNumChunksFromMsg())
+                            .attr("consumer", defaultConsumer)
+                            .log("Dispatching orphan chunk whose first chunk is gone. The client should discard and"
+                                    + " acknowledge it");
+                }
+            }
         }
         final int permits = consumerToPermits.computeIfAbsent(consumer, Consumer::getAvailablePermits);
         if (permits <= 0) {

@@ -26,7 +26,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.IntSupplier;
 import lombok.CustomLog;
@@ -89,8 +88,32 @@ public class PendingReadsManager {
             .register();
 
     private final RangeEntryCacheImpl rangeEntryCache;
-    private final ConcurrentHashMap<Long, ConcurrentHashMap<PendingReadKey, PendingRead>> cachedPendingReads =
-            new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, LedgerPendingReads> cachedPendingReads = new ConcurrentHashMap<>();
+
+    /**
+     * A ledger's pending reads, and among them those of more than one entry. A read of a single entry, such as each
+     * read of a dispatcher's replay, can only match a pending read of the same entry or be included in a read of more
+     * entries, so that it doesn't visit the ledger's other single-entry reads: with hundreds of them pending, a full
+     * visit for each made a replay's reads quadratic.
+     */
+    private static final class LedgerPendingReads {
+        final ConcurrentHashMap<PendingReadKey, PendingRead> all = new ConcurrentHashMap<>();
+        final ConcurrentHashMap<PendingReadKey, PendingRead> multiEntry = new ConcurrentHashMap<>();
+
+        void put(PendingReadKey key, PendingRead read) {
+            all.put(key, read);
+            if (key.size() > 1) {
+                multiEntry.put(key, read);
+            }
+        }
+
+        void remove(PendingReadKey key, PendingRead read) {
+            all.remove(key, read);
+            if (key.size() > 1) {
+                multiEntry.remove(key, read);
+            }
+        }
+    }
 
     public PendingReadsManager(RangeEntryCacheImpl rangeEntryCache) {
         this.rangeEntryCache = rangeEntryCache;
@@ -143,10 +166,10 @@ public class PendingReadsManager {
         }
     }
 
-    private FindPendingReadOutcome findPendingRead(PendingReadKey key, ConcurrentMap<PendingReadKey,
-            PendingRead> ledgerCache, AtomicBoolean created) {
+    private FindPendingReadOutcome findPendingRead(PendingReadKey key, LedgerPendingReads ledgerCache,
+                                                   AtomicBoolean created) {
         synchronized (ledgerCache) {
-            PendingRead existing = ledgerCache.get(key);
+            PendingRead existing = ledgerCache.all.get(key);
             if (existing != null) {
                 COUNT_PENDING_READS_MATCHED.inc(key.size());
                 COUNT_ENTRIES_NOTREAD_FROM_BK.inc(key.size());
@@ -156,7 +179,9 @@ public class PendingReadsManager {
             FindPendingReadOutcome foundButMissingSomethingOnRight = null;
             FindPendingReadOutcome foundButMissingSomethingOnBoth = null;
 
-            for (Map.Entry<PendingReadKey, PendingRead> entry : ledgerCache.entrySet()) {
+            // a single entry is either the key of a pending read, or included in a read of more entries
+            Map<PendingReadKey, PendingRead> candidates = key.size() == 1 ? ledgerCache.multiEntry : ledgerCache.all;
+            for (Map.Entry<PendingReadKey, PendingRead> entry : candidates.entrySet()) {
                 PendingReadKey entryKey = entry.getKey();
                 if (entryKey.includes(key)) {
                     COUNT_PENDING_READS_MATCHED_INCLUDED.inc(key.size());
@@ -212,7 +237,7 @@ public class PendingReadsManager {
 
     private class PendingRead {
         final PendingReadKey key;
-        final ConcurrentMap<PendingReadKey, PendingRead> ledgerCache;
+        final LedgerPendingReads ledgerCache;
         final List<ReadEntriesCallbackWithContext> listeners = new ArrayList<>(1);
         PendingReadState state = PendingReadState.INITIALISED;
 
@@ -222,23 +247,26 @@ public class PendingReadsManager {
             COMPLETED
         }
 
-        public PendingRead(PendingReadKey key,
-                           ConcurrentMap<PendingReadKey, PendingRead> ledgerCache) {
+        public PendingRead(PendingReadKey key, LedgerPendingReads ledgerCache) {
             this.key = key;
             this.ledgerCache = ledgerCache;
         }
 
-        public synchronized void attach(CompletableFuture<List<Entry>> handle) {
-            if (state != PendingReadState.INITIALISED) {
-                // this shouldn't ever happen. this is here to prevent misuse in future changes
-                throw new IllegalStateException("Unexpected state " + state + " for PendingRead for key " + key);
+        public void attach(CompletableFuture<List<Entry>> handle) {
+            synchronized (this) {
+                if (state != PendingReadState.INITIALISED) {
+                    // this shouldn't ever happen. this is here to prevent misuse in future changes
+                    throw new IllegalStateException("Unexpected state " + state + " for PendingRead for key " + key);
+                }
+                state = PendingReadState.ATTACHED;
             }
-            state = PendingReadState.ATTACHED;
+            // Registered outside the monitor: an already completed handle runs this callback inline, and the
+            // listeners must never be invoked while holding the lock that addListener takes from other threads
             handle.whenComplete((entriesToReturn, error) -> {
                 // execute in the completing thread and return a copy of the listeners
                 List<ReadEntriesCallbackWithContext> callbacks = completeAndRemoveFromCache();
-                // execute the callbacks in the managed ledger executor
-                rangeEntryCache.getManagedLedger().getExecutor().execute(() -> {
+                // execute the callbacks in the managed ledger executor, inline when the read completed on its thread
+                rangeEntryCache.getManagedLedger().getExecutor().executeOrRun(() -> {
                     if (error != null) {
                         readEntriesFailed(callbacks, error);
                     } else {
@@ -329,12 +357,12 @@ public class PendingReadsManager {
     }
 
 
-    void readEntries(ReadHandle lh, long firstEntry, long lastEntry, IntSupplier expectedReadCount,
-                     final AsyncCallbacks.ReadEntriesCallback callback, Object ctx) {
+    void readEntries(ReadHandle lh, long firstEntry, long lastEntry, long maxSizeBytes,
+                     IntSupplier expectedReadCount, final AsyncCallbacks.ReadEntriesCallback callback, Object ctx) {
         final PendingReadKey key = new PendingReadKey(firstEntry, lastEntry);
 
-        ConcurrentMap<PendingReadKey, PendingRead> pendingReadsForLedger =
-                cachedPendingReads.computeIfAbsent(lh.getId(), (l) -> new ConcurrentHashMap<>());
+        LedgerPendingReads pendingReadsForLedger =
+                cachedPendingReads.computeIfAbsent(lh.getId(), (l) -> new LedgerPendingReads());
 
         boolean listenerAdded = false;
         while (!listenerAdded) {
@@ -351,9 +379,10 @@ public class PendingReadsManager {
                     continue;
                 }
                 CompletableFuture<List<Entry>> readFromLeftFuture =
-                        recursiveReadMissingEntriesAsync(lh, expectedReadCount, findBestCandidateOutcome.missingOnLeft);
+                        recursiveReadMissingEntriesAsync(lh, maxSizeBytes, expectedReadCount,
+                                findBestCandidateOutcome.missingOnLeft);
                 CompletableFuture<List<Entry>> readFromRightFuture =
-                        recursiveReadMissingEntriesAsync(lh, expectedReadCount,
+                        recursiveReadMissingEntriesAsync(lh, maxSizeBytes, expectedReadCount,
                                 findBestCandidateOutcome.missingOnRight);
                 readFromLeftFuture
                         .thenCombine(readFromMidFuture, (left, mid) -> {
@@ -381,21 +410,22 @@ public class PendingReadsManager {
 
             if (createdByThisThread.get()) {
                 CompletableFuture<List<Entry>> readResult = rangeEntryCache.readFromStorage(lh, firstEntry,
-                        lastEntry, expectedReadCount);
+                        lastEntry, maxSizeBytes, expectedReadCount);
                 pendingRead.attach(readResult);
             }
         }
     }
 
     private CompletableFuture<List<Entry>> recursiveReadMissingEntriesAsync(ReadHandle lh,
+                                                                            long maxSizeBytes,
                                                                             IntSupplier expectedReadCount,
                                                                             PendingReadKey missingKey) {
         CompletableFuture<List<Entry>> future;
         if (missingKey != null) {
             future = new CompletableFuture<>();
             ReadEntriesCallback callback = new ReadEntriesCallback(future);
-            rangeEntryCache.asyncReadEntry0(lh, missingKey.startEntry, missingKey.endEntry, expectedReadCount, callback,
-                    null, false);
+            rangeEntryCache.asyncReadEntry0(lh, missingKey.startEntry, missingKey.endEntry, maxSizeBytes,
+                    expectedReadCount, callback, null, false);
         } else {
             future = CompletableFuture.completedFuture(Collections.emptyList());
         }

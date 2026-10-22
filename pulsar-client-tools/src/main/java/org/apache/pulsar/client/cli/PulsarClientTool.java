@@ -22,14 +22,19 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.FileInputStream;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
+import java.util.function.Supplier;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import org.apache.pulsar.cli.converters.picocli.ByteUnitToLongConverter;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
+import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.api.v5.PulsarClient;
 import org.apache.pulsar.client.api.v5.PulsarClientBuilder;
 import org.apache.pulsar.client.api.v5.config.ConnectionPolicy;
@@ -155,13 +160,13 @@ public class PulsarClientTool implements CommandHook {
     }
 
     private int updateConfig() throws UnsupportedAuthenticationException {
-        Properties properties = pulsarClientPropertiesProvider.getProperties();
+        final Properties properties = pulsarClientPropertiesProvider.getProperties();
 
         PulsarClientBuilder clientBuilder = PulsarClient.builder()
                 .memoryLimit(MemorySize.ofBytes(rootParams.memoryLimit));
 
-        // The v4 Authentication object is still needed by the WebSocket produce/consume path,
-        // which talks HTTP and is not migrated to the binary-only V5 client.
+        // The v4 Authentication object is used by the v4 client and by the WebSocket produce/consume
+        // path, which talks HTTP and has no client generation of its own.
         Authentication authentication = null;
         if (isNotBlank(this.rootParams.authPluginClassName)) {
             authentication = AuthenticationFactory.create(rootParams.authPluginClassName, rootParams.authParams);
@@ -200,7 +205,57 @@ public class PulsarClientTool implements CommandHook {
         this.produceCommand.updateConfig(clientBuilder, authentication, this.rootParams.serviceURL);
         this.consumeCommand.updateConfig(clientBuilder, authentication, this.rootParams.serviceURL);
         this.readCommand.updateConfig(clientBuilder, authentication, this.rootParams.serviceURL);
+
+        // Deliberately a supplier rather than a built builder: this method is the preRun() hook and
+        // runs for every invocation, including `--help`, `generate_documentation` and the commands
+        // that use the V5 client. Building the v4 builder here would make all of them depend on a
+        // service URL and on client.conf keys that only the v4 client parses. It is resolved when a
+        // command actually uses the v4 client.
+        final Authentication v4Authentication = authentication;
+        Supplier<ClientBuilder> v4ClientBuilder = () -> buildV4ClientBuilder(properties, v4Authentication);
+        this.produceCommand.updateV4Config(v4ClientBuilder);
+        this.consumeCommand.updateV4Config(v4ClientBuilder);
+        this.readCommand.updateV4Config(v4ClientBuilder);
         return 0;
+    }
+
+    /**
+     * Build the v4 client for the commands that use it. Unlike the V5 builder this one keeps
+     * {@code loadConf}, so every {@code client.conf} key still applies without a hand-written
+     * translation, and it accepts {@code http://} / {@code https://} service URLs.
+     */
+    @VisibleForTesting
+    ClientBuilder buildV4ClientBuilder(Properties properties, Authentication authentication) {
+        Map<String, Object> conf = new HashMap<>();
+        for (String key : properties.stringPropertyNames()) {
+            conf.put(key, properties.getProperty(key));
+        }
+
+        // Fully qualified: the unqualified PulsarClient in this file is the V5 one.
+        ClientBuilder clientBuilder = org.apache.pulsar.client.api.PulsarClient.builder().loadConf(conf)
+                .memoryLimit(rootParams.memoryLimit, SizeUnit.BYTES);
+        if (authentication != null) {
+            clientBuilder.authentication(authentication);
+        }
+        if (isNotBlank(this.rootParams.listenerName)) {
+            clientBuilder.listenerName(this.rootParams.listenerName);
+        }
+        // Both are applied unconditionally on purpose. rootParams is itself populated from these
+        // same properties (each option declares the client.conf key as its descriptionKey, and the
+        // commander's default-value provider is a PropertiesDefaultProvider over them), so this
+        // rewrites the value loadConf already applied, or applies the CLI override. serviceUrl is
+        // additionally load-bearing: loadConf only reads the `serviceUrl` key, while client.conf
+        // supplies `brokerServiceUrl` / `webServiceUrl`.
+        clientBuilder.serviceUrl(rootParams.serviceURL);
+        clientBuilder.tlsTrustCertsFilePath(this.rootParams.tlsTrustCertsFilePath);
+        // A missing proxy protocol is already rejected by updateConfig(), the preRun() hook that
+        // creates this supplier, and again by ClientBuilderImpl.proxyServiceUrl(). The blank check
+        // stays because that same re-check rejects a null protocol: without a proxy configured at
+        // all, calling through would throw rather than leave the proxy unset.
+        if (isNotBlank(rootParams.proxyServiceURL)) {
+            clientBuilder.proxyServiceUrl(rootParams.proxyServiceURL, rootParams.proxyProtocol);
+        }
+        return clientBuilder;
     }
 
     /**
@@ -260,10 +315,14 @@ public class PulsarClientTool implements CommandHook {
                 tls.keyFilePath(keyFile);
             }
         }
-        // Format-independent: the JSSE (SSLContext) provider applies to both PEM and KEYSTORE.
+        // Format-independent: both provider axes apply to PEM and KEYSTORE alike.
         String jsseProvider = properties.getProperty("jsseProvider");
         if (isNotBlank(jsseProvider)) {
             tls.jsseProvider(jsseProvider);
+        }
+        String jcaProvider = properties.getProperty("jcaProvider");
+        if (isNotBlank(jcaProvider)) {
+            tls.jcaProvider(jcaProvider);
         }
         clientBuilder.tlsPolicy(tls.build());
     }

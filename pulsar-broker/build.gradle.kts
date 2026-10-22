@@ -66,9 +66,6 @@ dependencies {
     implementation(libs.jetty.alpn.conscrypt.server)
     api(libs.jetty.ee10.servlet)
     implementation(libs.jetty.ee10.servlets)
-    // ee8 + javax.servlet retained for the legacy AdditionalServlet javax.servlet path (PIP-472)
-    api(libs.jetty.ee8.servlet)
-    implementation(libs.javax.servlet.api)
     implementation(libs.jersey.server)
     implementation(libs.jersey.container.servlet.core)
     implementation(libs.jersey.container.servlet)
@@ -128,6 +125,8 @@ dependencies {
     testImplementation(libs.asynchttpclient)
     testImplementation(libs.bcprov.jdk18on)
     testImplementation(libs.commons.math3)
+    // Tests register AdditionalServlet plugins written against the legacy javax.servlet API
+    testImplementation(libs.javax.servlet.api)
     testImplementation(libs.okhttp3)
     testImplementation(libs.vertx.core)
     testImplementation(libs.wiremock)
@@ -224,7 +223,10 @@ sourceSets["main"].proto {
 
 lightproto {
     // Test protos that need standard protobuf (GeneratedMessageV3), not lightproto
-    excludes.addAll("ProtobufSchemaTest.proto", "DataRecord.proto")
+    excludes.addAll(
+        "ProtobufSchemaTest.proto", "DataRecord.proto", "NativeEditionJavaUtf8.proto",
+        "NativeUtf8Checked.proto", "NativeUtf8Unchecked.proto", "NativeLegacyEnum.proto", "NativeOpenEnum.proto"
+    )
     // TransactionPendingAck.proto imports PulsarApi.proto from pulsar-common
     extraProtoPaths.from(rootProject.layout.projectDirectory)
 }

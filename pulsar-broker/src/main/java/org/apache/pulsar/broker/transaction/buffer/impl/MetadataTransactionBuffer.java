@@ -109,6 +109,11 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
     private final CompletableFuture<Void> recoveryFuture = new CompletableFuture<>();
     private volatile AutoCloseable subscription;
     private volatile boolean closed;
+    /**
+     * Set once the segment topic is being deleted: its durable state is deleted after the topic, so the
+     * buffer stops updating it (see {@link #clearSnapshotAndClose()}).
+     */
+    private volatile boolean deleted;
 
     /** Guards mutable state below. */
     private final Object lock = new Object();
@@ -503,6 +508,12 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
             // positions needed for the durable side-effects below were already captured above.
             txns.remove(txnIdKey);
         }
+        if (deleted) {
+            // The segment is being deleted along with its state: skip the durable side effects. Should the topic
+            // delete fail, the topic keeps serving with the outcome applied in memory, and the op records left in
+            // place let the transaction be recovered when the topic is loaded again.
+            return CompletableFuture.completedFuture(null);
+        }
 
         // Persist aborted record if this is an abort.
         CompletableFuture<Void> persistAborted = (newState == TxnState.ABORTED)
@@ -549,7 +560,7 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
         long expectedVersion;
         synchronized (lock) {
             Position desired = maxReadPosition;
-            if (desired == null) {
+            if (deleted || desired == null) {
                 return CompletableFuture.completedFuture(null);
             }
             if (watermark != null
@@ -583,10 +594,14 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
                         // instead of looping on the stale one. Still propagate this failure so the
                         // caller logs+retries; the retry now has a fresh version to work with.
                         return txnStore.getSegmentWatermark(segmentName).thenAccept(opt -> {
-                            if (opt.isPresent()) {
-                                synchronized (lock) {
+                            synchronized (lock) {
+                                if (opt.isPresent()) {
                                     watermark = opt.get().value();
                                     watermarkVersion = opt.get().version();
+                                } else {
+                                    // The record was deleted (a versioned write of a missing record fails
+                                    // with BadVersion too): the next CAS creates it again.
+                                    watermarkVersion = -1L;
                                 }
                             }
                         }).thenCompose(__ -> FutureUtil.failedFuture(cause));
@@ -806,9 +821,20 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
         return CompletableFuture.completedFuture(null);
     }
 
+    /**
+     * Called when the segment topic is deleted. The durable state of the segment is not deleted here but once the
+     * segment's data is gone (see {@code Segments#deleteSegment}): the aborted-txn records are what hides the data
+     * of aborted transactions, and the topic delete can still fail. Stop updating the state and wait for the update
+     * in progress, so that none lands after the state is deleted.
+     */
     @Override
     public CompletableFuture<Void> clearSnapshotAndClose() {
-        return closeAsync();
+        CompletableFuture<Void> updateInProgress;
+        synchronized (lock) {
+            deleted = true;
+            updateInProgress = stateTail;
+        }
+        return closeAsync().thenCompose(__ -> updateInProgress);
     }
 
     @Override
