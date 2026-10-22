@@ -26,14 +26,14 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
 import java.util.function.Supplier;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class MetadataBenchmark extends BaseMetadataStoreTest {
 
     @Test(dataProvider = "impl", enabled = false)
@@ -41,34 +41,34 @@ public class MetadataBenchmark extends BaseMetadataStoreTest {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
 
-        final int N_KEYS = 128;
-        final int N_GETS = 1_000_000;
+        final int nKeys = 128;
+        final int nGets = 1_000_000;
 
         String key = newKey();
-        generateKeys(store, key, N_KEYS);
+        generateKeys(store, key, nKeys);
 
         Semaphore s = new Semaphore(10_000);
-        CountDownLatch latch = new CountDownLatch(N_GETS);
+        CountDownLatch latch = new CountDownLatch(nGets);
 
         long startTime = System.nanoTime();
-        for (int i = 0; i < N_GETS; i++) {
-            int k = i % (N_KEYS - 1);
+        for (int i = 0; i < nGets; i++) {
+            int k = i % (nKeys - 1);
             s.acquire();
             store.get(key + "/" + k)
                     .thenAccept(__ -> {
                         s.release();
                         latch.countDown();
                     }).exceptionally(ex -> {
-                        log.warn("Failed to do get operation", ex);
+                        log.warn().exception(ex).log("Failed to do get operation");
                         return null;
                     });
         }
 
         latch.await();
         long endTime = System.nanoTime();
-        double throughput = 1e9 * N_GETS / (endTime - startTime);
+        double throughput = 1e9 * nGets / (endTime - startTime);
 
-        log.info("[{}] Get Throughput: {} Kops/s", provider, throughput / 1_000);
+        log.info().attr("provider", provider).attr("throughput", throughput / 1_000).log("Get Throughput (Kops/s)");
     }
 
     @Test(dataProvider = "impl", enabled = false)
@@ -76,33 +76,34 @@ public class MetadataBenchmark extends BaseMetadataStoreTest {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
 
-        final int N_KEYS = 128;
-        final int N_GETS = 1_000_000;
+        final int nKeys = 128;
+        final int nGets = 1_000_000;
 
         String key = newKey();
-        generateKeys(store, key, N_KEYS);
+        generateKeys(store, key, nKeys);
 
         Semaphore s = new Semaphore(10_000);
-        CountDownLatch latch = new CountDownLatch(N_GETS);
+        CountDownLatch latch = new CountDownLatch(nGets);
 
         long startTime = System.nanoTime();
-        for (int i = 0; i < N_GETS; i++) {
+        for (int i = 0; i < nGets; i++) {
             s.acquire();
             store.getChildren(key)
                     .thenAccept(__ -> {
                         s.release();
                         latch.countDown();
                     }).exceptionally(ex -> {
-                        log.warn("Failed to do get children operation", ex);
+                        log.warn().exception(ex).log("Failed to do get children operation");
                         return null;
                     });
         }
 
         latch.await();
         long endTime = System.nanoTime();
-        double throughput = 1e9 * N_GETS / (endTime - startTime);
+        double throughput = 1e9 * nGets / (endTime - startTime);
 
-        log.info("[{}] Get Children Throughput: {} Kops/s", provider, throughput / 1_000);
+        log.info().attr("provider", provider).attr("throughput", throughput / 1_000)
+                .log("Get Children Throughput (Kops/s)");
     }
 
     @Test(dataProvider = "impl", enabled = false)
@@ -110,36 +111,36 @@ public class MetadataBenchmark extends BaseMetadataStoreTest {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
 
-        final int N_KEYS = 10_000;
-        final int N_PUTS = 100_000;
+        final int nKeys = 10_000;
+        final int nPuts = 100_000;
 
         String key = newKey();
 
         Semaphore s = new Semaphore(10_000);
-        CountDownLatch latch = new CountDownLatch(N_PUTS);
+        CountDownLatch latch = new CountDownLatch(nPuts);
 
-        generateKeys(store, key, N_KEYS);
+        generateKeys(store, key, nKeys);
 
         long startTime = System.nanoTime();
         byte[] data = new byte[100];
-        for (int i = 0; i < N_PUTS; i++) {
-            int k = i % (N_KEYS - 1);
+        for (int i = 0; i < nPuts; i++) {
+            int k = i % (nKeys - 1);
             s.acquire();
             store.put(key + "/" + k, data, Optional.empty())
                     .thenAccept(__ -> {
                         s.release();
                         latch.countDown();
                     }).exceptionally(ex -> {
-                        log.warn("Failed to do put operation", ex);
+                        log.warn().exception(ex).log("Failed to do put operation");
                         return null;
                     });
         }
 
         latch.await();
         long endTime = System.nanoTime();
-        double throughput = 1e9 * N_PUTS / (endTime - startTime);
+        double throughput = 1e9 * nPuts / (endTime - startTime);
 
-        log.info("[{}] Put Throughput: {} Kops/s", provider, throughput / 1_000);
+        log.info().attr("provider", provider).attr("throughput", throughput / 1_000).log("Put Throughput (Kops/s)");
     }
 
     private void generateKeys(MetadataStore store, String prefix, int n) {

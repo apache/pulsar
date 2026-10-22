@@ -18,8 +18,14 @@
  */
 package org.apache.pulsar.io.common;
 
+import java.nio.ByteBuffer;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import lombok.CustomLog;
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
+import lombok.EqualsAndHashCode;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -34,13 +40,7 @@ import org.slf4j.Logger;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import java.nio.ByteBuffer;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-
-@Slf4j
+@CustomLog
 public class IOConfigUtilsTest {
 
     @Data
@@ -138,7 +138,7 @@ public class IOConfigUtilsTest {
         protected String notSensitive;
 
         /**
-         * Non-string secrets are not supported at this moment
+         * Non-string secrets are not supported at this moment.
          */
         @FieldDoc(
                 required = false,
@@ -150,6 +150,7 @@ public class IOConfigUtilsTest {
     }
 
     @Data
+    @EqualsAndHashCode(callSuper = false)
     static class DerivedConfig extends TestConfig {
         @FieldDoc(
                 required = true,
@@ -161,6 +162,7 @@ public class IOConfigUtilsTest {
     }
 
     @Data
+    @EqualsAndHashCode(callSuper = false)
     static class DerivedDerivedConfig extends DerivedConfig {
         @FieldDoc(
                 required = true,
@@ -275,16 +277,17 @@ public class IOConfigUtilsTest {
 
         @Override
         public CompletableFuture<Void> deleteStateAsync(String key) {
-        	return null;
-        }
-
-        @Override
-        public <O> TypedMessageBuilder<O> newOutputMessage(String topicName, Schema<O> schema) throws PulsarClientException {
             return null;
         }
 
         @Override
-        public <O> ConsumerBuilder<O> newConsumerBuilder(Schema<O> schema) throws PulsarClientException {
+        public <T> TypedMessageBuilder<T> newOutputMessage(String topicName, Schema<T> schema)
+                throws PulsarClientException {
+            return null;
+        }
+
+        @Override
+        public <T> ConsumerBuilder<T> newConsumerBuilder(Schema<T> schema) throws PulsarClientException {
             return null;
         }
 
@@ -319,8 +322,8 @@ public class IOConfigUtilsTest {
         Assert.assertEquals(testDefaultConfig.isDefaultBool(), true);
         Assert.assertEquals(testDefaultConfig.getDefaultInt(), 100);
         Assert.assertEquals(testDefaultConfig.getDefaultLong(), 100);
-        Assert.assertEquals(testDefaultConfig.getDefaultDouble(), 100.12,0.00001);
-        Assert.assertEquals(testDefaultConfig.getDefaultFloat(), 100.10,0.00001);
+        Assert.assertEquals(testDefaultConfig.getDefaultDouble(), 100.12, 0.00001);
+        Assert.assertEquals(testDefaultConfig.getDefaultFloat(), 100.10, 0.00001);
         Assert.assertEquals(testDefaultConfig.getNoDefault(), 0);
     }
 
@@ -349,7 +352,8 @@ public class IOConfigUtilsTest {
         configMap.put("notSensitive", "foo");
         configMap.put("sensitiveLong", 5L);
 
-        DerivedConfig derivedConfig = IOConfigUtils.loadWithSecrets(configMap, DerivedConfig.class, new TestSourceContext());
+        DerivedConfig derivedConfig = IOConfigUtils.loadWithSecrets(configMap, DerivedConfig.class,
+                new TestSourceContext());
 
         Assert.assertEquals(derivedConfig.notSensitive, "foo");
         Assert.assertEquals(derivedConfig.password, "my-source-password");
@@ -360,7 +364,8 @@ public class IOConfigUtilsTest {
         configMap.put("notSensitive", "foo");
         configMap.put("sensitiveLong", 5L);
 
-        DerivedDerivedConfig derivedDerivedConfig  = IOConfigUtils.loadWithSecrets(configMap, DerivedDerivedConfig.class, new TestSourceContext());
+        DerivedDerivedConfig derivedDerivedConfig  = IOConfigUtils.loadWithSecrets(configMap,
+                DerivedDerivedConfig.class, new TestSourceContext());
 
         Assert.assertEquals(derivedDerivedConfig.notSensitive, "foo");
         Assert.assertEquals(derivedDerivedConfig.password, "my-source-password");
@@ -473,7 +478,7 @@ public class IOConfigUtilsTest {
 
         @Override
         public CompletableFuture<Void> deleteStateAsync(String key) {
-        	return null;
+            return null;
         }
 
         @Override
@@ -513,7 +518,8 @@ public class IOConfigUtilsTest {
         configMap.put("notSensitive", "foo");
         configMap.put("sensitiveLong", 5L);
 
-        DerivedConfig derivedConfig = IOConfigUtils.loadWithSecrets(configMap, DerivedConfig.class, new TestSinkContext());
+        DerivedConfig derivedConfig = IOConfigUtils.loadWithSecrets(configMap, DerivedConfig.class,
+                new TestSinkContext());
 
         Assert.assertEquals(derivedConfig.notSensitive, "foo");
         Assert.assertEquals(derivedConfig.password, "my-sink-password");
@@ -524,7 +530,8 @@ public class IOConfigUtilsTest {
         configMap.put("notSensitive", "foo");
         configMap.put("sensitiveLong", 5L);
 
-        DerivedDerivedConfig derivedDerivedConfig  = IOConfigUtils.loadWithSecrets(configMap, DerivedDerivedConfig.class, new TestSinkContext());
+        DerivedDerivedConfig derivedDerivedConfig  = IOConfigUtils.loadWithSecrets(configMap,
+                DerivedDerivedConfig.class, new TestSinkContext());
 
         Assert.assertEquals(derivedDerivedConfig.notSensitive, "foo");
         Assert.assertEquals(derivedDerivedConfig.password, "my-sink-password");

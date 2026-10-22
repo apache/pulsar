@@ -18,8 +18,10 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -30,10 +32,8 @@ import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-import java.nio.charset.StandardCharsets;
-import java.util.concurrent.TimeUnit;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-admin")
 public class TopicPoliciesWithBrokerRestartTest extends MockedPulsarServiceBaseTest {
 

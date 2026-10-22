@@ -20,7 +20,7 @@ package org.apache.pulsar.utils.auth.tokens;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwt;
+import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
@@ -40,7 +40,7 @@ import java.util.concurrent.Callable;
 import javax.crypto.SecretKey;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
-import org.apache.pulsar.cli.converters.picocli.TimeUnitToSecondsConverter;
+import org.apache.pulsar.cli.converters.picocli.TimeUnitToMillisConverter;
 import org.apache.pulsar.docs.tools.CmdGenerateDocs;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -49,6 +49,7 @@ import picocli.CommandLine.Parameters;
 import picocli.CommandLine.ScopeType;
 
 @Command(name = "tokens", showDefaultValues = true, scope = ScopeType.INHERIT)
+@SuppressWarnings("deprecation")
 public class TokensCliUtils {
 
     private final CommandLine commander;
@@ -128,7 +129,7 @@ public class TokensCliUtils {
                 "--expiry-time"},
                 description = "Relative expiry time for the token (eg: 1h, 3d, 10y)."
                         + " (m=minutes) Default: no expiration",
-                converter = TimeUnitToSecondsConverter.class)
+                converter = TimeUnitToMillisConverter.class)
         private Long expiryTime = null;
 
         @Option(names = {"-sk",
@@ -291,11 +292,10 @@ public class TokensCliUtils {
             }
 
             // Validate the token
-            @SuppressWarnings("unchecked")
-            Jwt<?, Claims> jwt = Jwts.parserBuilder()
+            Jws<Claims> jwt = Jwts.parser()
                     .setSigningKey(validationKey)
                     .build()
-                    .parse(token);
+                    .parseClaimsJws(token);
 
             System.out.println(jwt.getBody());
             return 0;

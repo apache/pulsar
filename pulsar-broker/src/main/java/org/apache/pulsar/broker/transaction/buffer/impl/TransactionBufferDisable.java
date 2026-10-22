@@ -21,9 +21,9 @@ package org.apache.pulsar.broker.transaction.buffer.impl;
 import io.netty.buffer.ByteBuf;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -39,7 +39,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 /**
  * Transaction buffer disable.
  */
-@Slf4j
+@CustomLog
 public class TransactionBufferDisable implements TransactionBuffer {
 
     private final Topic topic;
@@ -88,25 +88,38 @@ public class TransactionBufferDisable implements TransactionBuffer {
     }
 
     @Override
+    public CompletableFuture<Void> clearSnapshotAndClose() {
+        return clearSnapshot().thenCompose(__ -> closeAsync());
+    }
+
+    @Override
     public CompletableFuture<Void> closeAsync() {
         return CompletableFuture.completedFuture(null);
     }
 
     @Override
-    public boolean isTxnAborted(TxnID txnID, PositionImpl readPosition) {
+    public boolean isTxnAborted(TxnID txnID, Position readPosition) {
         return false;
     }
 
     @Override
-    public void syncMaxReadPositionForNormalPublish(PositionImpl position, boolean isMarkerMessage) {
-        if (!isMarkerMessage && maxReadPositionCallBack != null) {
-            maxReadPositionCallBack.maxReadPositionMovedForward(null, position);
+    public boolean isTxnOngoing(TxnID txnID) {
+        return false;
+    }
+
+    @Override
+    public void syncMaxReadPositionForNormalPublish(Position position, boolean isMarkerMessage) {
+        if (!isMarkerMessage) {
+            updateLastDispatchablePosition(position);
+            if (maxReadPositionCallBack != null) {
+                maxReadPositionCallBack.maxReadPositionMovedForward(null, position);
+            }
         }
     }
 
     @Override
-    public PositionImpl getMaxReadPosition() {
-        return (PositionImpl) topic.getLastPosition();
+    public Position getMaxReadPosition() {
+        return PositionFactory.LATEST;
     }
 
     @Override
@@ -130,7 +143,7 @@ public class TransactionBufferDisable implements TransactionBuffer {
     }
 
     @Override
-    public CompletableFuture<Void> checkIfTBRecoverCompletely(boolean isTxn) {
+    public CompletableFuture<Void> checkIfTBRecoverCompletely() {
         return CompletableFuture.completedFuture(null);
     }
 
@@ -147,5 +160,12 @@ public class TransactionBufferDisable implements TransactionBuffer {
     @Override
     public long getCommittedTxnCount() {
         return 0;
+    }
+
+    // ThreadSafe
+    private void updateLastDispatchablePosition(Position position) {
+        if (topic instanceof PersistentTopic t) {
+            t.updateLastDispatchablePosition(position);
+        }
     }
 }

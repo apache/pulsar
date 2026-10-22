@@ -20,7 +20,7 @@ package org.apache.pulsar.testclient;
 
 import static org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl.BROKER_LOAD_DATA_STORE_TOPIC;
 import static org.apache.pulsar.broker.resources.LoadBalanceResources.BROKER_TIME_AVERAGE_BASE_PATH;
-import com.google.gson.Gson;
+import com.fasterxml.jackson.databind.ObjectReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -30,11 +30,14 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.api.TableView;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
@@ -44,8 +47,6 @@ import org.apache.pulsar.testclient.utils.FixedColumnLengthTableMaker;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
@@ -56,14 +57,18 @@ import picocli.CommandLine.Option;
 @Command(name = "monitor-brokers",
         description = "Monitors brokers and prints to the console information about their system "
         + "resource usages, \ntheir topic and bundle counts, their message rates, and other metrics.")
+@CustomLog
 public class BrokerMonitor extends CmdBase {
-    private static final Logger log = LoggerFactory.getLogger(BrokerMonitor.class);
 
     private static final String BROKER_ROOT = "/loadbalance/brokers";
     private static final int ZOOKEEPER_TIMEOUT_MILLIS = 30000;
     private static final int GLOBAL_STATS_PRINT_PERIOD_MILLIS = 60000;
     private ZooKeeper zkClient;
-    private static final Gson gson = new Gson();
+    private static final ObjectReader LOAD_REPORT_READER = ObjectMapperFactory.getMapper().reader()
+            .forType(LoadManagerReport.class);
+
+    private static final ObjectReader TIME_AVERAGE_READER = ObjectMapperFactory.getMapper().reader()
+            .forType(TimeAverageBrokerData.class);
 
     // Fields common for message rows.
     private static final List<Object> MESSAGE_FIELDS = Arrays.asList("MSG/S IN", "MSG/S OUT", "TOTAL", "KB/S IN",
@@ -85,7 +90,7 @@ public class BrokerMonitor extends CmdBase {
     private static final Object[] ALLOC_MESSAGE_ROW = makeMessageRow("ALLOC MSG");
     private static final Object[] GLOBAL_HEADER = { "BROKER", "BUNDLE", "MSG/S", "LONG/S", "KB/S", "MAX %" };
 
-    private Map<String, Object> loadData;
+    private Map<String, LoadManagerReport> loadData;
 
     private static final FixedColumnLengthTableMaker localTableMaker = new FixedColumnLengthTableMaker();
 
@@ -146,9 +151,9 @@ public class BrokerMonitor extends CmdBase {
             double totalLongTermMessageRate = 0;
             double maxMaxUsage = 0;
             int i = 1;
-            for (final Map.Entry<String, Object> entry : loadData.entrySet()) {
+            for (final Map.Entry<String, LoadManagerReport> entry : loadData.entrySet()) {
                 final String broker = entry.getKey();
-                final Object data = entry.getValue();
+                final LoadManagerReport data = entry.getValue();
                 rows[i] = new Object[GLOBAL_HEADER.length];
                 rows[i][0] = broker;
                 int numBundles;
@@ -177,9 +182,8 @@ public class BrokerMonitor extends CmdBase {
                     messageRate = localData.getMsgRateIn() + localData.getMsgRateOut();
                     final String timeAveragePath = BROKER_TIME_AVERAGE_BASE_PATH + "/" + broker;
                     try {
-                        final TimeAverageBrokerData timeAverageData = gson.fromJson(
-                                new String(zkClient.getData(timeAveragePath, false, null)),
-                                TimeAverageBrokerData.class);
+                        final TimeAverageBrokerData timeAverageData = TIME_AVERAGE_READER.readValue(
+                                new String(zkClient.getData(timeAveragePath, false, null)));
                         longTermMessageRate = timeAverageData.getLongTermMsgRateIn()
                                 + timeAverageData.getLongTermMsgRateOut();
                     } catch (Exception x) {
@@ -213,7 +217,7 @@ public class BrokerMonitor extends CmdBase {
             rows[finalRow][4] = totalThroughput;
             rows[finalRow][5] = maxMaxUsage;
             final String table = globalTableMaker.make(rows);
-            log.info("Overall Broker Data:\n{}", table);
+            log.info().attr("data", table).log("Overall Broker Data:\n");
         }
     }
 
@@ -307,20 +311,21 @@ public class BrokerMonitor extends CmdBase {
         private synchronized void printData(final String path) {
             final String broker = brokerNameFromPath(path);
             String jsonString;
+            LoadManagerReport loadManagerReport;
             try {
                 jsonString = new String(zkClient.getData(path, this, null));
+                loadManagerReport = LOAD_REPORT_READER.readValue(jsonString);
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
             }
-            // Use presence of the String "allocated" to determine if this is using SimpleLoadManagerImpl.
-            if (jsonString.contains("allocated")) {
-                printLoadReport(broker, gson.fromJson(jsonString, LoadReport.class));
-            } else {
-                final LocalBrokerData localBrokerData = gson.fromJson(jsonString, LocalBrokerData.class);
+            if (loadManagerReport instanceof LoadReport) {
+                printLoadReport(broker, (LoadReport) loadManagerReport);
+            } else  {
+                final LocalBrokerData localBrokerData = (LocalBrokerData) loadManagerReport;
                 final String timeAveragePath = BROKER_TIME_AVERAGE_BASE_PATH + "/" + broker;
                 try {
-                    final TimeAverageBrokerData timeAverageData = gson.fromJson(
-                            new String(zkClient.getData(timeAveragePath, false, null)), TimeAverageBrokerData.class);
+                    final TimeAverageBrokerData timeAverageData = TIME_AVERAGE_READER.readValue(
+                            new String(zkClient.getData(timeAveragePath, false, null)));
                     printBrokerData(broker, localBrokerData, timeAverageData);
                 } catch (Exception e) {
                     throw new RuntimeException(e);
@@ -388,7 +393,7 @@ public class BrokerMonitor extends CmdBase {
                     loadReport.getAllocatedBandwidthIn(), loadReport.getAllocatedBandwidthOut());
 
             final String table = localTableMaker.make(rows);
-            log.info("\nLoad Report for {}:\n{}\n", broker, table);
+            log.info().attr("report", broker).attr("table", table).log("\nLoad Report for :\n \n");
         }
 
         // Print the broker data in a tabular form for a broker using ModularLoadManagerImpl.
@@ -433,7 +438,7 @@ public class BrokerMonitor extends CmdBase {
                     timeAverageData.getLongTermMsgThroughputIn(), timeAverageData.getLongTermMsgThroughputOut());
 
             final String table = localTableMaker.make(rows);
-            log.info("\nBroker Data for {}:\n{}\n", broker, table);
+            log.info().attr("data", broker).attr("table", table).log("\nBroker Data for :\n \n");
         }
     }
 
@@ -466,7 +471,7 @@ public class BrokerMonitor extends CmdBase {
         try {
             final BrokerWatcher brokerWatcher = new BrokerWatcher(zkClient);
             brokerWatcher.updateBrokers(BROKER_ROOT);
-            while (true) {
+            while (!Thread.currentThread().isInterrupted()) {
                 Thread.sleep(GLOBAL_STATS_PRINT_PERIOD_MILLIS);
                 printGlobalData();
             }
@@ -477,6 +482,7 @@ public class BrokerMonitor extends CmdBase {
 
     private TableView<BrokerLoadData> brokerLoadDataTableView;
 
+    @SuppressWarnings("deprecation")
     private BrokerMonitor(String brokerServiceUrl) {
         super("monitor-brokers");
         try {
@@ -491,7 +497,7 @@ public class BrokerMonitor extends CmdBase {
                     .newTableView(Schema.JSON(BrokerLoadData.class))
                     .topic(BROKER_LOAD_DATA_STORE_TOPIC).create();
         } catch (Throwable e) {
-            log.info("Failed to start BrokerMonitor", e);
+            log.info().exception(e).log("Failed to start BrokerMonitor");
             throw new RuntimeException(e);
         }
     }
@@ -523,7 +529,7 @@ public class BrokerMonitor extends CmdBase {
                 brokerLoadData.getMsgThroughputIn(), brokerLoadData.getMsgThroughputOut());
 
         final String table = localTableMaker.make(rows);
-        log.info("\nBroker Data for {}:\n{}\n", broker, table);
+        log.info().attr("data", broker).attr("table", table).log("\nBroker Data for :\n \n");
     }
 
     private synchronized void printBrokerLoadDataStore() {
@@ -532,7 +538,7 @@ public class BrokerMonitor extends CmdBase {
 
     private void startBrokerLoadDataStoreMonitor() {
         try {
-            while (true) {
+            while (!Thread.currentThread().isInterrupted()) {
                 Thread.sleep(GLOBAL_STATS_PRINT_PERIOD_MILLIS);
                 printBrokerLoadDataStore();
             }

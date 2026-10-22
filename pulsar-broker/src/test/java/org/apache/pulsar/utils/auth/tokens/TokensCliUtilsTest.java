@@ -20,14 +20,20 @@ package org.apache.pulsar.utils.auth.tokens;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.JwsHeader;
-import io.jsonwebtoken.Jwt;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import java.io.ByteArrayOutputStream;
+import java.io.OutputStream;
 import java.io.PrintStream;
 import java.lang.reflect.Field;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
+import java.util.Date;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import picocli.CommandLine.Option;
 
@@ -36,12 +42,26 @@ import picocli.CommandLine.Option;
  */
 public class TokensCliUtilsTest {
 
+    @DataProvider(name = "desiredExpireTime")
+    public Object[][] desiredExpireTime() {
+        return new Object[][] {
+                {"600", 600}, //10m
+                {"5m", 300},
+                {"1h", 3600},
+                {"1d", 86400},
+                {"1w", 604800},
+                {"1y", 31536000}
+        };
+    }
+    @SuppressWarnings("deprecation")
+
     @Test
     public void testCreateToken() {
         PrintStream oldStream = System.out;
+        ByteArrayOutputStream baoStream = new ByteArrayOutputStream();
+        PrintStream capturedStream = captureOutputForCurrentThread(baoStream, oldStream);
         try {
-            ByteArrayOutputStream baoStream = new ByteArrayOutputStream();
-            System.setOut(new PrintStream(baoStream));
+            System.setOut(capturedStream);
 
             new TokensCliUtils().execute(new String[]{"create-secret-key", "--base64"});
             String secretKey = baoStream.toString();
@@ -56,12 +76,12 @@ public class TokensCliUtilsTest {
             };
 
             new TokensCliUtils().execute(command);
-            String token = baoStream.toString();
+            String token = baoStream.toString().trim();
 
-            Jwt<?, ?> jwt = Jwts.parserBuilder()
+            Jws<Claims> jwt = Jwts.parser()
                     .setSigningKey(Decoders.BASE64.decode(secretKey))
                     .build()
-                    .parseClaimsJws(token);
+                    .parseSignedClaims(token);
 
             JwsHeader header = (JwsHeader) jwt.getHeader();
             String keyId = header.getKeyId();
@@ -72,6 +92,50 @@ public class TokensCliUtilsTest {
             throw new RuntimeException(e);
         } finally {
             System.setOut(oldStream);
+            capturedStream.close();
+        }
+    }
+    @SuppressWarnings("deprecation")
+
+    @Test(dataProvider = "desiredExpireTime")
+    public void commandCreateToken_WhenCreatingATokenWithExpiryTime_ShouldHaveTheDesiredExpireTime(String expireTime,
+                                                                                int expireAsSec) throws Exception {
+        PrintStream oldStream = System.out;
+        ByteArrayOutputStream baoStream = new ByteArrayOutputStream();
+        PrintStream capturedStream = captureOutputForCurrentThread(baoStream, oldStream);
+        try {
+            //Arrange
+            System.setOut(capturedStream);
+
+            String[] command = {"create", "--secret-key",
+                    "data:;base64,u+FxaxYWpsTfxeEmMh8fQeS3g2jfXw4+sGIv+PTY+BY=",
+                    "--subject", "test",
+                    "--expiry-time", expireTime,
+            };
+
+            new TokensCliUtils().execute(command);
+            String token = baoStream.toString().trim();
+
+            Instant start = (new Date().toInstant().plus(expireAsSec - 5, ChronoUnit.SECONDS));
+            Instant stop = (new Date().toInstant().plus(expireAsSec + 5, ChronoUnit.SECONDS));
+
+            //Act
+            Claims jwt = Jwts.parser()
+                    .setSigningKey(Decoders.BASE64.decode("u+FxaxYWpsTfxeEmMh8fQeS3g2jfXw4+sGIv+PTY+BY="))
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+
+            //Assert
+            //Checks if the token expires within +-5 sec.
+            assertTrue((!jwt.getExpiration().toInstant().isBefore(start))
+                    && (jwt.getExpiration().toInstant().isBefore(stop)));
+
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        } finally {
+            System.setOut(oldStream);
+            capturedStream.close();
         }
     }
 
@@ -83,9 +147,10 @@ public class TokensCliUtilsTest {
     @Test
     public void testGenerateDocs() throws Exception {
         PrintStream oldStream = System.out;
+        ByteArrayOutputStream baoStream = new ByteArrayOutputStream();
+        PrintStream capturedStream = captureOutputForCurrentThread(baoStream, oldStream);
         try {
-            ByteArrayOutputStream baoStream = new ByteArrayOutputStream();
-            System.setOut(new PrintStream(baoStream));
+            System.setOut(capturedStream);
 
             new TokensCliUtils().execute(new String[]{"gen-doc"});
 
@@ -105,7 +170,32 @@ public class TokensCliUtilsTest {
 
         } finally {
             System.setOut(oldStream);
+            capturedStream.close();
         }
+    }
+
+    private static PrintStream captureOutputForCurrentThread(ByteArrayOutputStream captured, PrintStream original) {
+        Thread testThread = Thread.currentThread();
+        // Shared brokers can still log while the CLI runs. Keep their output out of the captured token.
+        return new PrintStream(new OutputStream() {
+            @Override
+            public void write(int b) {
+                if (Thread.currentThread() == testThread) {
+                    captured.write(b);
+                } else {
+                    original.write(b);
+                }
+            }
+
+            @Override
+            public void write(byte[] b, int off, int len) {
+                if (Thread.currentThread() == testThread) {
+                    captured.write(b, off, len);
+                } else {
+                    original.write(b, off, len);
+                }
+            }
+        });
     }
 
     private void assertInnerClass(String className, String message) throws Exception {

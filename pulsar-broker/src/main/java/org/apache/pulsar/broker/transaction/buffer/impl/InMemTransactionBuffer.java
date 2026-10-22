@@ -31,7 +31,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
@@ -48,7 +48,7 @@ import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 /**
  * The in-memory implementation of {@link TransactionBuffer}.
  */
-class InMemTransactionBuffer implements TransactionBuffer {
+public class InMemTransactionBuffer implements TransactionBuffer {
 
     /**
      * A class represents the buffer of a transaction.
@@ -270,10 +270,10 @@ class InMemTransactionBuffer implements TransactionBuffer {
                                                      ByteBuf buffer) {
         TxnBuffer txnBuffer = getTxnBufferOrCreateIfNotExist(txnId);
 
-        CompletableFuture appendFuture = new CompletableFuture();
+        CompletableFuture<Position> appendFuture = new CompletableFuture<>();
         try {
             txnBuffer.appendEntry(sequenceId, buffer);
-            appendFuture.complete(null);
+            appendFuture.complete(PositionFactory.EARLIEST);
         } catch (TransactionBufferException.TransactionSealedException e) {
             appendFuture.completeExceptionally(e);
         }
@@ -365,26 +365,44 @@ class InMemTransactionBuffer implements TransactionBuffer {
     }
 
     @Override
+    public CompletableFuture<Void> clearSnapshotAndClose() {
+        return clearSnapshot().thenCompose(__ -> closeAsync());
+    }
+
+    @Override
     public CompletableFuture<Void> closeAsync() {
         buffers.values().forEach(TxnBuffer::close);
         return CompletableFuture.completedFuture(null);
     }
 
     @Override
-    public boolean isTxnAborted(TxnID txnID, PositionImpl readPosition) {
+    public boolean isTxnAborted(TxnID txnID, Position readPosition) {
         return false;
     }
 
     @Override
-    public void syncMaxReadPositionForNormalPublish(PositionImpl position, boolean isMarkerMessage) {
-        if (!isMarkerMessage && maxReadPositionCallBack != null) {
-            maxReadPositionCallBack.maxReadPositionMovedForward(null, position);
+    public boolean isTxnOngoing(TxnID txnID) {
+        TxnBuffer txnBuffer = buffers.get(txnID);
+        if (txnBuffer == null) {
+            return false;
+        }
+        TxnStatus status = txnBuffer.status();
+        return status == TxnStatus.OPEN || status == TxnStatus.COMMITTING || status == TxnStatus.ABORTING;
+    }
+
+    @Override
+    public void syncMaxReadPositionForNormalPublish(Position position, boolean isMarkerMessage) {
+        if (!isMarkerMessage) {
+            updateLastDispatchablePosition(position);
+            if (maxReadPositionCallBack != null) {
+                maxReadPositionCallBack.maxReadPositionMovedForward(null, position);
+            }
         }
     }
 
     @Override
-    public PositionImpl getMaxReadPosition() {
-        return (PositionImpl) topic.getLastPosition();
+    public Position getMaxReadPosition() {
+        return topic.getLastPosition();
     }
 
     @Override
@@ -409,7 +427,7 @@ class InMemTransactionBuffer implements TransactionBuffer {
 
 
     @Override
-    public CompletableFuture<Void> checkIfTBRecoverCompletely(boolean isTxn) {
+    public CompletableFuture<Void> checkIfTBRecoverCompletely() {
         return CompletableFuture.completedFuture(null);
     }
 
@@ -435,5 +453,12 @@ class InMemTransactionBuffer implements TransactionBuffer {
         return this.buffers.values().stream()
                 .filter(txnBuffer -> txnBuffer.status.equals(TxnStatus.COMMITTED))
                 .count();
+    }
+
+    // ThreadSafe
+    private void updateLastDispatchablePosition(Position position) {
+        if (topic instanceof PersistentTopic t) {
+            t.updateLastDispatchablePosition(position);
+        }
     }
 }

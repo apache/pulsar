@@ -117,6 +117,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testLookupThrottlingForClientByBroker0Permit() throws Exception {
 
@@ -161,6 +162,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testLookupThrottlingForClientByBroker() throws Exception {
         final String topicName = "persistent://prop/ns-abc/newTopic";
@@ -190,7 +192,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(20, false,
                 new DefaultThreadFactory("test-pool", Thread.currentThread().isDaemon()));
         ExecutorService executor = Executors.newFixedThreadPool(10);
-        try (ConnectionPool pool = new ConnectionPool(InstrumentProvider.NOOP, conf, eventLoop)) {
+        try (ConnectionPool pool = new ConnectionPool(InstrumentProvider.NOOP, conf, eventLoop, null)) {
             final int totalConsumers = 20;
             List<Future<?>> futures = new ArrayList<>();
 
@@ -216,8 +218,8 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
                     while (rootCause instanceof ExecutionException) {
                         rootCause = rootCause.getCause();
                     }
-                    if (rootCause instanceof
-                        org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException) {
+                    if (rootCause
+                            instanceof org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException) {
                         rejects++;
                     } else {
                         throw e;
@@ -249,8 +251,8 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
                     while (rootCause instanceof ExecutionException) {
                         rootCause = rootCause.getCause();
                     }
-                    if (rootCause instanceof
-                        org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException) {
+                    if (rootCause
+                            instanceof org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException) {
                         rejects++;
                     } else {
                         throw e;
@@ -278,6 +280,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testLookupThrottlingForClientByBrokerInternalRetry() throws Exception {
         final String topicName = "persistent://prop/ns-abc/newTopic-" + UUID.randomUUID().toString();

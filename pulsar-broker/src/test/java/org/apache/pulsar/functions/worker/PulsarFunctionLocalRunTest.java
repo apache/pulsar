@@ -47,6 +47,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
@@ -91,8 +92,6 @@ import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.utils.ResourceUtils;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
@@ -102,9 +101,10 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
- * Test Pulsar sink on function
+ * Test Pulsar sink on function.
  */
 @Test(groups = { "flaky" })
+@CustomLog
 public class PulsarFunctionLocalRunTest {
     LocalBookkeeperEnsemble bkEnsemble;
 
@@ -122,15 +122,15 @@ public class PulsarFunctionLocalRunTest {
 
     private static final String CLUSTER = "local";
 
-    private final String TLS_SERVER_CERT_FILE_PATH =
+    private static final String TLS_SERVER_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.cert.pem");
-    private final String TLS_SERVER_KEY_FILE_PATH =
+    private static final String TLS_SERVER_KEY_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
-    private final String TLS_CLIENT_CERT_FILE_PATH =
+    private static final String TLS_CLIENT_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.cert.pem");
-    private final String TLS_CLIENT_KEY_FILE_PATH =
+    private static final String TLS_CLIENT_KEY_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.key-pk8.pem");
-    private final String TLS_TRUST_CERT_FILE_PATH =
+    private static final String TLS_TRUST_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
 
     private static final String SYSTEM_PROPERTY_NAME_NAR_FILE_PATH = "pulsar-io-data-generator.nar.path";
@@ -173,9 +173,6 @@ public class PulsarFunctionLocalRunTest {
 
     private URLClassLoader pulsarApiExamplesClassLoader;
     private Class<?> avroTestObjectClass;
-
-
-    private static final Logger log = LoggerFactory.getLogger(PulsarFunctionLocalRunTest.class);
     private FileServer fileServer;
 
     @DataProvider(name = "validRoleName")
@@ -187,7 +184,8 @@ public class PulsarFunctionLocalRunTest {
     void loadPulsarApiExamples() throws MalformedURLException, ClassNotFoundException {
         pulsarApiExamplesClassLoader = new URLClassLoader(new URL[]{getPulsarApiExamplesJar().toURI().toURL()},
                 Thread.currentThread().getContextClassLoader());
-        avroTestObjectClass = pulsarApiExamplesClassLoader.loadClass("org.apache.pulsar.functions.api.examples.pojo.AvroTestObject");
+        avroTestObjectClass = pulsarApiExamplesClassLoader.loadClass(
+                "org.apache.pulsar.functions.api.examples.pojo.AvroTestObject");
     }
 
     @AfterClass(alwaysRun = true)
@@ -197,13 +195,14 @@ public class PulsarFunctionLocalRunTest {
             pulsarApiExamplesClassLoader = null;
         }
     }
+    @SuppressWarnings("deprecation")
 
     @BeforeMethod(alwaysRun = true)
     void setup(Method method) throws Exception {
-        log.info("--- Setting up method {} ---", method.getName());
+        log.info().attr("method", method.getName()).log("Setting up method");
 
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble.start();
 
         config = new ServiceConfiguration();
@@ -271,8 +270,10 @@ public class PulsarFunctionLocalRunTest {
         authTls.configure(authParams);
 
         admin = spy(
-                PulsarAdmin.builder().serviceHttpUrl(brokerServiceUrl).tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH)
-                        .allowTlsInsecureConnection(true).authentication(authTls).build());
+                PulsarAdmin.builder().serviceHttpUrl(brokerServiceUrl)
+                        .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH)
+                        .allowTlsInsecureConnection(true)
+                        .authentication(authTls).build());
 
         brokerStatsClient = admin.brokerStats();
         primaryHost = pulsar.getWebServiceAddress();
@@ -341,6 +342,7 @@ public class PulsarFunctionLocalRunTest {
             }
         }
     }
+    @SuppressWarnings({"deprecation", "unchecked"})
 
     protected WorkerConfig createWorkerConfig(ServiceConfiguration config) {
 
@@ -384,6 +386,7 @@ public class PulsarFunctionLocalRunTest {
         workerConfig.setAuthorizationEnabled(true);
         return workerConfig;
     }
+    @SuppressWarnings("deprecation")
 
     protected static FunctionConfig createFunctionConfig(String tenant,
                                                          String namespace,
@@ -459,14 +462,16 @@ public class PulsarFunctionLocalRunTest {
         final String subscriptionName = "test-sub";
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList(CLUSTER));
-        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters, false);
 
         // create a producer that creates a topic at broker
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(sinkTopic).subscriptionName("sub").subscribe();
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(sinkTopic)
+                .subscriptionName("sub").subscribe();
 
         FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
-                jarFilePathUrl != null && (jarFilePathUrl.startsWith(Utils.BUILTIN) || jarFilePathUrl.endsWith(".nar")), sourceTopic, sinkTopic, subscriptionName);
+                jarFilePathUrl != null && (jarFilePathUrl.startsWith(Utils.BUILTIN)
+                        || jarFilePathUrl.endsWith(".nar")), sourceTopic, sinkTopic, subscriptionName);
         functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
 
         functionConfig.setJar(jarFilePathUrl);
@@ -477,7 +482,8 @@ public class PulsarFunctionLocalRunTest {
         LocalRunner localRunner = LocalRunner.builder()
                 .functionConfig(functionConfig)
                 .clientAuthPlugin(AuthenticationTls.class.getName())
-                .clientAuthParams(String.format("tlsCertFile:%s,tlsKeyFile:%s", TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH))
+                .clientAuthParams(String.format("tlsCertFile:%s,tlsKeyFile:%s",
+                        TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH))
                 .useTls(true)
                 .tlsTrustCertFilePath(TLS_TRUST_CERT_FILE_PATH)
                 .tlsAllowInsecureConnection(true)
@@ -494,11 +500,13 @@ public class PulsarFunctionLocalRunTest {
                 TopicStats topicStats = admin.topics().getStats(sourceTopic);
                 if (topicStats.getSubscriptions().containsKey(subscriptionName)
                         && topicStats.getSubscriptions().get(subscriptionName).getConsumers().size() == parallelism) {
-                    for (ConsumerStats consumerStats : topicStats.getSubscriptions().get(subscriptionName).getConsumers()) {
+                    for (ConsumerStats consumerStats : topicStats.getSubscriptions()
+                            .get(subscriptionName).getConsumers()) {
                         result = consumerStats.getAvailablePermits() == 1000
                                 && consumerStats.getMetadata() != null
                                 && consumerStats.getMetadata().containsKey("id")
-                                && consumerStats.getMetadata().get("id").equals(String.format("%s/%s/%s", tenant, namespacePortion, functionName));
+                                && consumerStats.getMetadata().get("id").equals(String.format("%s/%s/%s",
+                                tenant, namespacePortion, functionName));
                     }
                 }
                 return result;
@@ -518,7 +526,8 @@ public class PulsarFunctionLocalRunTest {
         }
         retryStrategically((test) -> {
             try {
-                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
+                SubscriptionStats subStats =
+                        admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
                 return subStats.getUnackedMessages() == 0;
             } catch (PulsarAdminException e) {
                 return false;
@@ -534,12 +543,13 @@ public class PulsarFunctionLocalRunTest {
 
         // validate pulsar-sink consumer has consumed all messages and delivered to Pulsar sink but unacked messages
         // due to publish failure
-        assertNotEquals(admin.topics().getStats(sourceTopic).getSubscriptions().values().iterator().next().getUnackedMessages(),
+        assertNotEquals(admin.topics().getStats(sourceTopic).getSubscriptions()
+                        .values().iterator().next().getUnackedMessages(),
                 totalMsgs);
 
         // validate prometheus metrics
         String prometheusMetrics = TestPulsarFunctionUtils.getPrometheusMetrics(metricsPort);
-        log.info("prometheus metrics: {}", prometheusMetrics);
+        log.info().attr("metrics", prometheusMetrics).log("prometheus metrics");
 
         Map<String, TestPulsarFunctionUtils.Metric> metricsMap = new HashMap<>();
         Arrays.asList(prometheusMetrics.split("\n")).forEach(line -> {
@@ -562,7 +572,8 @@ public class PulsarFunctionLocalRunTest {
             assertEquals(m.tags.get("instance_id"), String.valueOf(i));
             assertEquals(m.tags.get("name"), functionName);
             assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-            assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
+            assertEquals(m.tags.get("fqfn"),
+                    FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
             totalMsgRecv += m.value;
         }
         Assert.assertEquals(totalMsgRecv, totalMsgs);
@@ -608,6 +619,7 @@ public class PulsarFunctionLocalRunTest {
         testE2EPulsarFunctionLocalRun(jarFilePathUrl, 1);
     }
 
+    @SuppressWarnings("unchecked")
     private void testAvroFunctionLocalRun(String jarFilePathUrl) throws Exception {
 
         final String namespacePortion = "io";
@@ -620,7 +632,7 @@ public class PulsarFunctionLocalRunTest {
         final String subscriptionName = "test-sub";
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList(CLUSTER));
-        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters, false);
 
 
         Schema schema = Schema.AVRO(SchemaDefinition.builder()
@@ -634,15 +646,20 @@ public class PulsarFunctionLocalRunTest {
         //produce message to sourceTopic
         Producer<Object> producer = pulsarClient.newProducer(schema).topic(sourceTopic).create();
         //consume message from sinkTopic
-        Consumer<GenericRecord> consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME()).topic(sinkTopic).subscriptionName("sub").subscribe();
+        Consumer<GenericRecord> consumer =
+                pulsarClient.newConsumer(Schema.AUTO_CONSUME()).topic(sinkTopic)
+                .subscriptionName("sub").subscribe();
 
         FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
-                jarFilePathUrl != null && jarFilePathUrl.startsWith(Utils.BUILTIN), sourceTopic, sinkTopic, subscriptionName);
+                jarFilePathUrl != null
+                        && jarFilePathUrl.startsWith(Utils.BUILTIN), sourceTopic, sinkTopic, subscriptionName);
         //set jsr310ConversionEnabled、alwaysAllowNull
-        Map<String,String> schemaInput = new HashMap<>();
-        schemaInput.put(sourceTopic, "{\"schemaType\":\"AVRO\",\"schemaProperties\":{\"__jsr310ConversionEnabled\":\"true\",\"__alwaysAllowNull\":\"true\"}}");
+        Map<String, String> schemaInput = new HashMap<>();
+        schemaInput.put(sourceTopic, "{\"schemaType\":\"AVRO\",\"schemaProperties\":{\"__jsr310ConversionEnabled\":"
+                + "\"true\",\"__alwaysAllowNull\":\"true\"}}");
         Map<String, String> schemaOutput = new HashMap<>();
-        schemaOutput.put(sinkTopic, "{\"schemaType\":\"AVRO\",\"schemaProperties\":{\"__jsr310ConversionEnabled\":\"true\",\"__alwaysAllowNull\":\"true\"}}");
+        schemaOutput.put(sinkTopic, "{\"schemaType\":\"AVRO\",\"schemaProperties\":{\"__jsr310ConversionEnabled\":"
+                + "\"true\",\"__alwaysAllowNull\":\"true\"}}");
 
         functionConfig.setCustomSchemaInputs(schemaInput);
         functionConfig.setCustomSchemaOutputs(schemaOutput);
@@ -657,7 +674,8 @@ public class PulsarFunctionLocalRunTest {
         LocalRunner localRunner = LocalRunner.builder()
                 .functionConfig(functionConfig)
                 .clientAuthPlugin(AuthenticationTls.class.getName())
-                .clientAuthParams(String.format("tlsCertFile:%s,tlsKeyFile:%s", TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH))
+                .clientAuthParams(String.format("tlsCertFile:%s,tlsKeyFile:%s",
+                        TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH))
                 .useTls(true)
                 .tlsTrustCertFilePath(TLS_TRUST_CERT_FILE_PATH)
                 .tlsAllowInsecureConnection(true)
@@ -694,7 +712,8 @@ public class PulsarFunctionLocalRunTest {
         }
 
         // validate pulsar-sink consumer has consumed all messages
-        assertNotEquals(admin.topics().getStats(sinkTopic).getSubscriptions().values().iterator().next().getUnackedMessages(), 0);
+        assertNotEquals(admin.topics().getStats(sinkTopic).getSubscriptions()
+                .values().iterator().next().getUnackedMessages(), 0);
         localRunner.stop();
 
         retryStrategically((test) -> {
@@ -708,11 +727,13 @@ public class PulsarFunctionLocalRunTest {
         }, 20, 150);
 
         //change the schema, the function should not run, resulting in no messages to consume
-        schemaInput.put(sourceTopic, "{\"schemaType\":\"AVRO\",\"schemaProperties\":{\"__jsr310ConversionEnabled\":\"false\",\"__alwaysAllowNull\":\"false\"}}");
+        schemaInput.put(sourceTopic, "{\"schemaType\":\"AVRO\",\"schemaProperties\":{\"__jsr310ConversionEnabled\":"
+                + "\"false\",\"__alwaysAllowNull\":\"false\"}}");
         localRunner = LocalRunner.builder()
                 .functionConfig(functionConfig)
                 .clientAuthPlugin(AuthenticationTls.class.getName())
-                .clientAuthParams(String.format("tlsCertFile:%s,tlsKeyFile:%s", TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH))
+                .clientAuthParams(String.format("tlsCertFile:%s,tlsKeyFile:%s",
+                        TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH))
                 .useTls(true)
                 .tlsTrustCertFilePath(TLS_TRUST_CERT_FILE_PATH)
                 .tlsAllowInsecureConnection(true)
@@ -780,7 +801,7 @@ public class PulsarFunctionLocalRunTest {
         final String sourceName = "PulsarSource-test";
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList(CLUSTER));
-        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters, false);
 
         SourceConfig sourceConfig = createSourceConfig(tenant, namespacePortion, sourceName, sinkTopic);
         if (jarFilePathUrl == null || !jarFilePathUrl.endsWith(".nar")) {
@@ -794,7 +815,8 @@ public class PulsarFunctionLocalRunTest {
         LocalRunner localRunner = LocalRunner.builder()
                 .sourceConfig(sourceConfig)
                 .clientAuthPlugin(AuthenticationTls.class.getName())
-                .clientAuthParams(String.format("tlsCertFile:%s,tlsKeyFile:%s", TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH))
+                .clientAuthParams(String.format("tlsCertFile:%s,tlsKeyFile:%s",
+                        TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH))
                 .useTls(true)
                 .tlsTrustCertFilePath(TLS_TRUST_CERT_FILE_PATH)
                 .tlsAllowInsecureConnection(true)
@@ -822,7 +844,8 @@ public class PulsarFunctionLocalRunTest {
                     for (PublisherStats publisher : sourceStats.getPublishers()) {
                         result = publisher.getMetadata() != null
                                 && publisher.getMetadata().containsKey("id")
-                                && publisher.getMetadata().get("id").equals(String.format("%s/%s/%s", tenant, namespacePortion, sourceName));
+                                && publisher.getMetadata().get("id").equals(String.format("%s/%s/%s",
+                                tenant, namespacePortion, sourceName));
                     }
                 }
 
@@ -844,7 +867,7 @@ public class PulsarFunctionLocalRunTest {
 
         // validate prometheus metrics
         String prometheusMetrics = TestPulsarFunctionUtils.getPrometheusMetrics(metricsPort);
-        log.info("prometheus metrics: {}", prometheusMetrics);
+        log.info().attr("metrics", prometheusMetrics).log("prometheus metrics");
 
         Map<String, TestPulsarFunctionUtils.Metric> metricsMap = new HashMap<>();
         Arrays.asList(prometheusMetrics.split("\n")).forEach(line -> {
@@ -866,7 +889,8 @@ public class PulsarFunctionLocalRunTest {
             assertEquals(m.tags.get("instance_id"), String.valueOf(i));
             assertEquals(m.tags.get("name"), sourceName);
             assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-            assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sourceName));
+            assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion,
+                    sourceName));
             assertTrue(m.value > 0.0);
         }
 
@@ -934,14 +958,16 @@ public class PulsarFunctionLocalRunTest {
         final String subscriptionName = "test-sub";
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("local"));
-        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters, false);
 
         // create a producer that creates a topic at broker
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
 
-        SinkConfig sinkConfig = createSinkConfig(tenant, namespacePortion, sinkName, sourceTopic, subscriptionName);
+        SinkConfig sinkConfig = createSinkConfig(tenant, namespacePortion, sinkName, sourceTopic,
+                subscriptionName);
 
-        sinkConfig.setInputSpecs(Collections.singletonMap(sourceTopic, ConsumerConfig.builder().receiverQueueSize(1000).build()));
+        sinkConfig.setInputSpecs(Collections.singletonMap(sourceTopic,
+                ConsumerConfig.builder().receiverQueueSize(1000).build()));
         if (className != null) {
             sinkConfig.setClassName(className);
         } else if (jarFilePathUrl == null || !jarFilePathUrl.endsWith(".nar")) {
@@ -958,7 +984,8 @@ public class PulsarFunctionLocalRunTest {
         LocalRunner localRunner = LocalRunner.builder()
                 .sinkConfig(sinkConfig)
                 .clientAuthPlugin(AuthenticationTls.class.getName())
-                .clientAuthParams(String.format("tlsCertFile:%s,tlsKeyFile:%s", TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH))
+                .clientAuthParams(String.format("tlsCertFile:%s,tlsKeyFile:%s",
+                        TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH))
                 .useTls(true)
                 .tlsTrustCertFilePath(TLS_TRUST_CERT_FILE_PATH)
                 .tlsAllowInsecureConnection(true)
@@ -977,7 +1004,8 @@ public class PulsarFunctionLocalRunTest {
                 TopicStats topicStats = admin.topics().getStats(sourceTopic);
                 if (topicStats.getSubscriptions().containsKey(subscriptionName)
                         && topicStats.getSubscriptions().get(subscriptionName).getConsumers().size() == parallelism) {
-                    for (ConsumerStats consumerStats : topicStats.getSubscriptions().get(subscriptionName).getConsumers()) {
+                    for (ConsumerStats consumerStats : topicStats.getSubscriptions()
+                            .get(subscriptionName).getConsumers()) {
                         result = consumerStats.getAvailablePermits() == 1000;
                     }
                 }
@@ -994,7 +1022,8 @@ public class PulsarFunctionLocalRunTest {
         }
         Assert.assertTrue(retryStrategically((test) -> {
             try {
-                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
+                SubscriptionStats subStats =
+                        admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
                 return subStats.getUnackedMessages() == 0 && subStats.getMsgThroughputOut() == totalMsgs;
             } catch (PulsarAdminException e) {
                 return false;
@@ -1003,7 +1032,7 @@ public class PulsarFunctionLocalRunTest {
 
         // validate prometheus metrics
         String prometheusMetrics = TestPulsarFunctionUtils.getPrometheusMetrics(metricsPort);
-        log.info("prometheus metrics: {}", prometheusMetrics);
+        log.info().attr("metrics", prometheusMetrics).log("prometheus metrics");
 
         Map<String, TestPulsarFunctionUtils.Metric> metricsMap = new HashMap<>();
         Arrays.asList(prometheusMetrics.split("\n")).forEach(line -> {
@@ -1114,13 +1143,16 @@ public class PulsarFunctionLocalRunTest {
 
     @Test
     public void testPulsarSinkStatsByteBufferType() throws Throwable {
-        runWithNarClassLoader(() -> testPulsarSinkLocalRun(null, 1, StatsNullSink.class.getName()));
+        runWithNarClassLoader(() -> testPulsarSinkLocalRun(null, 1,
+                StatsNullSink.class.getName()));
     }
 
     //@Test(timeOut = 20000, groups = "builtin")
     @Test(groups = "builtin")
     public void testPulsarSinkWithFunction() throws Throwable {
-        testPulsarSinkLocalRun(null, 1, StatsNullSink.class.getName(), "builtin://exclamation", "org.apache.pulsar.functions.api.examples.RecordFunction");
+        testPulsarSinkLocalRun(null, 1, StatsNullSink.class.getName(),
+                "builtin://exclamation",
+                "org.apache.pulsar.functions.api.examples.RecordFunction");
     }
 
     public static class TestErrorSink implements Sink<byte[]> {
@@ -1161,14 +1193,16 @@ public class PulsarFunctionLocalRunTest {
         final String subscriptionName = "test-sub";
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("local"));
-        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters, false);
 
         // create a producer that creates a topic at broker
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
 
-        SinkConfig sinkConfig = createSinkConfig(tenant, namespacePortion, sinkName, sourceTopic, subscriptionName);
+        SinkConfig sinkConfig = createSinkConfig(tenant, namespacePortion, sinkName, sourceTopic,
+                subscriptionName);
 
-        sinkConfig.setInputSpecs(Collections.singletonMap(sourceTopic, ConsumerConfig.builder().receiverQueueSize(1000).build()));
+        sinkConfig.setInputSpecs(Collections.singletonMap(sourceTopic,
+                ConsumerConfig.builder().receiverQueueSize(1000).build()));
 
         sinkConfig.setClassName(TestErrorSink.class.getName());
 
@@ -1176,7 +1210,8 @@ public class PulsarFunctionLocalRunTest {
 
         LocalRunner.LocalRunnerBuilder localRunnerBuilder = LocalRunner.builder()
                 .clientAuthPlugin(AuthenticationTls.class.getName())
-                .clientAuthParams(String.format("tlsCertFile:%s,tlsKeyFile:%s", TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH))
+                .clientAuthParams(String.format("tlsCertFile:%s,tlsKeyFile:%s",
+                        TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH))
                 .useTls(true)
                 .tlsTrustCertFilePath(TLS_TRUST_CERT_FILE_PATH)
                 .tlsAllowInsecureConnection(true)

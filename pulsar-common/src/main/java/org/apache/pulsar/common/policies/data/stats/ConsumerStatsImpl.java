@@ -23,12 +23,14 @@ import java.util.Map;
 import java.util.Objects;
 import lombok.Data;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
+import org.apache.pulsar.common.policies.data.DrainingHash;
 import org.apache.pulsar.common.util.DateFormatter;
 
 /**
  * Consumer statistics.
  */
 @Data
+@SuppressWarnings("deprecation") // Implements deprecated ConsumerStats fields for backward compatibility
 public class ConsumerStatsImpl implements ConsumerStats {
     /** the app id. */
     public String appId;
@@ -77,8 +79,29 @@ public class ConsumerStatsImpl implements ConsumerStats {
     /** Flag to verify if consumer is blocked due to reaching threshold of unacked messages. */
     public boolean blockedConsumerOnUnackedMsgs;
 
-    /** The read position of the cursor when the consumer joining. */
-    public String readPositionWhenJoining;
+    /**
+     * For Key_Shared AUTO_SPLIT ordered subscriptions: The current number of hashes in the draining state.
+     */
+    public int drainingHashesCount;
+
+    /**
+     * For Key_Shared AUTO_SPLIT ordered subscriptions: The total number of hashes cleared from the draining state for
+     * the consumer.
+     */
+    public long drainingHashesClearedTotal;
+
+    /**
+     * For Key_Shared AUTO_SPLIT ordered subscriptions: The total number of unacked messages for all draining hashes.
+     */
+    public int drainingHashesUnackedMessages;
+
+    /**
+     * For Key_Shared subscription in AUTO_SPLIT ordered mode:
+     * Retrieves the draining hashes for this consumer.
+     *
+     * @return a list of draining hashes for this consumer
+     */
+    public List<DrainingHash> drainingHashes;
 
     /** Address of this consumer. */
     private String address;
@@ -94,10 +117,15 @@ public class ConsumerStatsImpl implements ConsumerStats {
     @Deprecated
     public long lastConsumedTimestamp;
 
+    // The first timestamp of successfully sending a message to the consumer
+    public long firstMessagesSentTimestamp;
     public long lastConsumedFlowTimestamp;
+    // The first timestamp of consumer flow request
+    public long firstConsumedFlowTimestamp;
 
-    /** Hash ranges assigned to this consumer if is Key_Shared sub mode. **/
-    public List<String> keyHashRanges;
+
+    /** Hash ranges assigned to this consumer if in Key_Shared subscription mode. */
+    public List<int[]> keyHashRangeArrays;
 
     /** Metadata (key/value strings) associated with this consumer. */
     public Map<String, String> metadata;
@@ -113,7 +141,14 @@ public class ConsumerStatsImpl implements ConsumerStats {
         this.availablePermits += stats.availablePermits;
         this.unackedMessages += stats.unackedMessages;
         this.blockedConsumerOnUnackedMsgs = stats.blockedConsumerOnUnackedMsgs;
-        this.readPositionWhenJoining = stats.readPositionWhenJoining;
+        this.drainingHashesCount = stats.drainingHashesCount;
+        this.drainingHashesClearedTotal += stats.drainingHashesClearedTotal;
+        this.drainingHashesUnackedMessages = stats.drainingHashesUnackedMessages;
+        this.drainingHashes = stats.drainingHashes;
+        this.keyHashRangeArrays = stats.keyHashRangeArrays;
+        this.consumerName = stats.consumerName;
+        this.firstMessagesSentTimestamp = stats.firstMessagesSentTimestamp;
+        this.firstConsumedFlowTimestamp = stats.firstConsumedFlowTimestamp;
         return this;
     }
 
@@ -139,10 +174,6 @@ public class ConsumerStatsImpl implements ConsumerStats {
 
     public void setClientVersion(String clientVersion) {
         this.clientVersion = clientVersion;
-    }
-
-    public String getReadPositionWhenJoining() {
-        return readPositionWhenJoining;
     }
 
     public String getLastAckedTime() {

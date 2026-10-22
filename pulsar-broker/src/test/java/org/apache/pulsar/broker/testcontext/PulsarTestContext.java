@@ -19,28 +19,31 @@
 
 package org.apache.pulsar.broker.testcontext;
 
-import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.channel.EventLoopGroup;
+import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
 import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import lombok.AccessLevel;
 import lombok.Builder;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.Singular;
+import lombok.SneakyThrows;
 import lombok.ToString;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.mledger.impl.cache.EntryLengthFunction;
+import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheManagerImpl;
 import org.apache.bookkeeper.stats.NullStatsProvider;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.bookkeeper.util.ZkUtils;
@@ -55,12 +58,15 @@ import org.apache.pulsar.broker.resources.TopicResources;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil;
+import org.apache.pulsar.broker.storage.BookkeeperManagedLedgerStorageClass;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
+import org.apache.pulsar.broker.storage.ManagedLedgerStorageClass;
 import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
 import org.apache.pulsar.common.util.PortManager;
 import org.apache.pulsar.compaction.CompactionServiceFactory;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.PulsarCompactionServiceFactory;
+import org.apache.pulsar.metadata.TestZKServer;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -68,10 +74,12 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.MetadataStoreFactoryImpl;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.MockZooKeeperSession;
-import org.apache.zookeeper.data.ACL;
-import org.jetbrains.annotations.NotNull;
+import org.apache.zookeeper.ZooDefs;
+import org.apache.zookeeper.ZooKeeper;
+import org.jspecify.annotations.NonNull;
 import org.mockito.Mockito;
 import org.mockito.internal.util.MockUtil;
 
@@ -88,8 +96,9 @@ import org.mockito.internal.util.MockUtil;
  *
  * There are few motivations for PulsarTestContext:
  * <ul>
- * <li>It reduces the reliance on Mockito for hooking into the PulsarService for injecting mocks or customizing the behavior of some
- * collaborators. Mockito is not thread-safe and some mocking operations get corrupted. Some examples of the issues: https://github.com/apache/pulsar/issues/13620, https://github.com/apache/pulsar/issues/16444 and https://github.com/apache/pulsar/issues/16427.</li>
+ * <li>It reduces the reliance on Mockito for hooking into the PulsarService for injecting mocks or customizing the
+ * behavior of some collaborators. Mockito is not thread-safe and some mocking operations get corrupted. Some examples
+ * of the issues: https://github.com/apache/pulsar/issues/13620, https://github.com/apache/pulsar/issues/16444 and https://github.com/apache/pulsar/issues/16427.</li>
  * <li>Since the Mockito issue causes test flakiness, this change will improve reliability.</li>
  * <li>It makes it possible to use composition over inheritance in test classes. This can help reduce the dependency on
  * deep test base cases hierarchies.</li>
@@ -123,10 +132,11 @@ import org.mockito.internal.util.MockUtil;
  * }
  * }</pre>
  */
-@Slf4j
+@CustomLog
 @ToString
 @Getter
 @Builder(builderClassName = "Builder")
+@SuppressWarnings("try")
 public class PulsarTestContext implements AutoCloseable {
     private final ServiceConfiguration config;
     private final MetadataStoreExtended localMetadataStore;
@@ -135,7 +145,7 @@ public class PulsarTestContext implements AutoCloseable {
 
     private final OrderedExecutor executor;
 
-    private final ManagedLedgerStorage managedLedgerClientFactory;
+    private final ManagedLedgerStorage managedLedgerStorage;
 
     private final PulsarService pulsarService;
 
@@ -157,6 +167,10 @@ public class PulsarTestContext implements AutoCloseable {
 
     private final MockZooKeeper mockZooKeeperGlobal;
 
+    private final TestZKServer testZKServer;
+
+    private final TestZKServer testZKServerGlobal;
+
     private final SpyConfig spyConfig;
 
     private final boolean startable;
@@ -166,8 +180,12 @@ public class PulsarTestContext implements AutoCloseable {
     private final boolean enableOpenTelemetry;
     private final InMemoryMetricReader openTelemetryMetricReader;
 
-    public ManagedLedgerFactory getManagedLedgerFactory() {
-        return managedLedgerClientFactory.getManagedLedgerFactory();
+    public ManagedLedgerStorage getManagedLedgerStorage() {
+        return managedLedgerStorage;
+    }
+
+    public ManagedLedgerFactory getDefaultManagedLedgerFactory() {
+        return getManagedLedgerStorage().getDefaultStorageClass().getManagedLedgerFactory();
     }
 
     public PulsarMockBookKeeper getMockBookKeeper() {
@@ -209,7 +227,7 @@ public class PulsarTestContext implements AutoCloseable {
             try {
                 closeables.get(i).close();
             } catch (Exception e) {
-                log.error("Failure in calling cleanup function", e);
+                log.error().exception(e).log("Failure in calling cleanup function");
             }
         }
     }
@@ -223,6 +241,18 @@ public class PulsarTestContext implements AutoCloseable {
     public ServerCnx createServerCnxSpy() {
         return BrokerTestUtil.spyWithClassAndConstructorArgsRecordingInvocations(ServerCnx.class,
                 getPulsarService());
+    }
+
+    private enum WithMockZooKeeperOrTestZKServer {
+        MOCKZOOKEEPER, MOCKZOOKEEPER_SEPARATE_GLOBAL, TEST_ZK_SERVER, TEST_ZK_SERVER_SEPARATE_GLOBAL;
+
+        boolean isMockZooKeeper() {
+            return this == MOCKZOOKEEPER || this == MOCKZOOKEEPER_SEPARATE_GLOBAL;
+        }
+
+        boolean isTestZKServer() {
+            return this == TEST_ZK_SERVER || this == TEST_ZK_SERVER_SEPARATE_GLOBAL;
+        }
     }
 
     /**
@@ -241,6 +271,8 @@ public class PulsarTestContext implements AutoCloseable {
         protected boolean configOverrideCalled = false;
         protected Function<BrokerService, BrokerService> brokerServiceCustomizer = Function.identity();
         protected PulsarTestContext otherContextToClose;
+        protected WithMockZooKeeperOrTestZKServer withMockZooKeeperOrTestZKServer;
+        protected EntryLengthFunction entryCacheEntryLengthFunction;
 
         /**
          * Initialize the ServiceConfiguration with default values.
@@ -257,6 +289,7 @@ public class PulsarTestContext implements AutoCloseable {
          * This is used to run tests with smaller thread pools and shorter timeouts by default.
          * You can use <pre>{@code .configCustomizer(null)}</pre> to disable this behavior
          */
+        @SuppressWarnings("deprecation")
         protected void defaultOverrideServiceConfiguration(ServiceConfiguration svcConfig) {
             ServiceConfiguration unconfiguredDefaults = new ServiceConfiguration();
 
@@ -325,7 +358,8 @@ public class PulsarTestContext implements AutoCloseable {
         }
 
         /**
-         * Configure the PulsarService instance and the PulsarService collaborator objects to use Mockito spies by default.
+         * Configure the PulsarService instance and
+         * the PulsarService collaborator objects to use Mockito spies by default.
          * @see SpyConfig
          * @return the builder
          */
@@ -346,6 +380,11 @@ public class PulsarTestContext implements AutoCloseable {
 
         public Builder spyConfigCustomizer(Consumer<SpyConfig.Builder> spyConfigCustomizer) {
             spyConfigCustomizer.accept(spyConfigBuilder);
+            return this;
+        }
+
+        public Builder entryCacheEntryLengthFunction(EntryLengthFunction entryCacheEntryLengthFunction) {
+            this.entryCacheEntryLengthFunction = entryCacheEntryLengthFunction;
             return this;
         }
 
@@ -397,9 +436,16 @@ public class PulsarTestContext implements AutoCloseable {
         public Builder reuseMockBookkeeperAndMetadataStores(PulsarTestContext otherContext) {
             bookKeeperClient(otherContext.getBookKeeperClient());
             if (otherContext.getMockZooKeeper() != null) {
+                withMockZooKeeperOrTestZKServer = null;
                 mockZooKeeper(otherContext.getMockZooKeeper());
                 if (otherContext.getMockZooKeeperGlobal() != null) {
                     mockZooKeeperGlobal(otherContext.getMockZooKeeperGlobal());
+                }
+            } else if (otherContext.getTestZKServer() != null) {
+                withMockZooKeeperOrTestZKServer = null;
+                testZKServer(otherContext.getTestZKServer());
+                if (otherContext.getTestZKServerGlobal() != null) {
+                    testZKServerGlobal(otherContext.getTestZKServerGlobal());
                 }
             } else {
                 localMetadataStore(NonClosingProxyHandler.createNonClosingProxy(otherContext.getLocalMetadataStore(),
@@ -456,29 +502,37 @@ public class PulsarTestContext implements AutoCloseable {
          * @return the builder
          */
         public Builder withMockZookeeper(boolean useSeparateGlobalZk) {
-            try {
-                mockZooKeeper(createMockZooKeeper());
-                if (useSeparateGlobalZk) {
-                    mockZooKeeperGlobal(createMockZooKeeper());
-                }
-            } catch (Exception e) {
-                throw new RuntimeException(e);
+            if (useSeparateGlobalZk) {
+                withMockZooKeeperOrTestZKServer = WithMockZooKeeperOrTestZKServer.MOCKZOOKEEPER_SEPARATE_GLOBAL;
+            } else {
+                withMockZooKeeperOrTestZKServer = WithMockZooKeeperOrTestZKServer.MOCKZOOKEEPER;
             }
             return this;
         }
 
-        private MockZooKeeper createMockZooKeeper() throws Exception {
-            MockZooKeeper zk = MockZooKeeper.newInstance(MoreExecutors.newDirectExecutorService());
-            List<ACL> dummyAclList = new ArrayList<>(0);
+        /**
+         * Configure this PulsarTestContext to use a test ZooKeeper instance which is
+         * shared for both the local and configuration metadata stores.
+         *
+         * @return the builder
+         */
+        public Builder withTestZookeeper() {
+            return withTestZookeeper(false);
+        }
 
-            ZkUtils.createFullPathOptimistic(zk, "/ledgers/available/192.168.1.1:" + 5000,
-                    "".getBytes(StandardCharsets.UTF_8), dummyAclList, CreateMode.PERSISTENT);
-
-            zk.create("/ledgers/LAYOUT", "1\nflat:1".getBytes(StandardCharsets.UTF_8), dummyAclList,
-                    CreateMode.PERSISTENT);
-
-            registerCloseable(zk::shutdown);
-            return zk;
+        /**
+         * Configure this PulsarTestContext to use a test ZooKeeper instance.
+         *
+         * @param useSeparateGlobalZk if true, the global (configuration) zookeeper will be a separate instance
+         * @return the builder
+         */
+        public Builder withTestZookeeper(boolean useSeparateGlobalZk) {
+            if (useSeparateGlobalZk) {
+                withMockZooKeeperOrTestZKServer = WithMockZooKeeperOrTestZKServer.TEST_ZK_SERVER_SEPARATE_GLOBAL;
+            } else {
+                withMockZooKeeperOrTestZKServer = WithMockZooKeeperOrTestZKServer.TEST_ZK_SERVER;
+            }
+            return this;
         }
 
         /**
@@ -523,8 +577,8 @@ public class PulsarTestContext implements AutoCloseable {
          */
         public Builder managedLedgerClients(BookKeeper bookKeeperClient,
                                             ManagedLedgerFactory managedLedgerFactory) {
-            return managedLedgerClientFactory(
-                    PulsarTestContext.createManagedLedgerClientFactory(bookKeeperClient, managedLedgerFactory));
+            return managedLedgerStorage(
+                    PulsarTestContext.createManagedLedgerStorage(bookKeeperClient, managedLedgerFactory));
         }
 
         /**
@@ -543,7 +597,7 @@ public class PulsarTestContext implements AutoCloseable {
      * With Lombok, it is necessary to extend the generated Builder class for adding customizations related to
      * instantiation and completing the builder.
      */
-    static abstract class AbstractCustomBuilder extends Builder {
+    abstract static class AbstractCustomBuilder extends Builder {
         AbstractCustomBuilder(boolean startable) {
             super.startable = startable;
         }
@@ -568,8 +622,18 @@ public class PulsarTestContext implements AutoCloseable {
             if (configOverrideCustomizer != null) {
                 configOverrideCustomizer.accept(super.config);
             }
+            createWithMockZooKeeperOrTestZKServerInstances();
+            if (super.managedLedgerStorage != null && !MockUtil.isMock(super.managedLedgerStorage)) {
+                super.managedLedgerStorage = spyConfig.getManagedLedgerStorage().spy(super.managedLedgerStorage);
+            }
             initializeCommonPulsarServices(spyConfig);
             initializePulsarServices(spyConfig, this);
+            if (entryCacheEntryLengthFunction != null) {
+                RangeEntryCacheManagerImpl entryCacheManager =
+                        (RangeEntryCacheManagerImpl) super.pulsarService.getDefaultManagedLedgerFactory()
+                                .getEntryCacheManager();
+                entryCacheManager.setEntryLengthFunction(entryCacheEntryLengthFunction);
+            }
             if (pulsarServiceCustomizer != null) {
                 pulsarServiceCustomizer.accept(super.pulsarService);
             }
@@ -589,8 +653,81 @@ public class PulsarTestContext implements AutoCloseable {
             return super.build();
         }
 
+        void createWithMockZooKeeperOrTestZKServerInstances() {
+            if (withMockZooKeeperOrTestZKServer == null) {
+                return;
+            }
+            int sessionTimeout = (int) super.config.getMetadataStoreSessionTimeoutMillis();
+            try {
+                if (withMockZooKeeperOrTestZKServer.isMockZooKeeper()) {
+                    if (super.mockZooKeeper == null) {
+                        mockZooKeeper(createMockZooKeeper(sessionTimeout));
+                    } else {
+                        log.warn("Skipping creating mockZooKeeper, already set");
+                    }
+                    if (withMockZooKeeperOrTestZKServer
+                            == WithMockZooKeeperOrTestZKServer.MOCKZOOKEEPER_SEPARATE_GLOBAL) {
+                        if (super.mockZooKeeperGlobal == null) {
+                            mockZooKeeperGlobal(createMockZooKeeper(sessionTimeout));
+                        } else {
+                            log.warn("Skipping creating mockZooKeeperGlobal, already set");
+                        }
+                    }
+                } else if (withMockZooKeeperOrTestZKServer.isTestZKServer()) {
+                    if (super.testZKServer == null) {
+                        testZKServer(createTestZookeeper(sessionTimeout));
+                    } else {
+                        log.warn("Skipping creating testZKServer, already set");
+                    }
+                    if (withMockZooKeeperOrTestZKServer
+                            == WithMockZooKeeperOrTestZKServer.TEST_ZK_SERVER_SEPARATE_GLOBAL) {
+                        if (super.testZKServerGlobal == null) {
+                            testZKServerGlobal(createTestZookeeper(sessionTimeout));
+                        } else {
+                            log.warn("Skipping creating testZKServerGlobal, already set");
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        private MockZooKeeper createMockZooKeeper(int sessionTimeout) throws Exception {
+            MockZooKeeper zk = MockZooKeeper.newInstance();
+            zk.setSessionTimeout(sessionTimeout);
+            initializeZookeeper(zk);
+            registerCloseable(zk::shutdown);
+            return zk;
+        }
+
+        // this might not be required at all, but it's kept here as an example
+        private static void initializeZookeeper(ZooKeeper zk) throws KeeperException, InterruptedException {
+            ZkUtils.createFullPathOptimistic(zk, "/ledgers/available/192.168.1.1:" + 5000,
+                    "".getBytes(StandardCharsets.UTF_8), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+
+            zk.create("/ledgers/LAYOUT", "1\nflat:1".getBytes(StandardCharsets.UTF_8), ZooDefs.Ids.OPEN_ACL_UNSAFE,
+                    CreateMode.PERSISTENT);
+        }
+
+        @SuppressWarnings("try")
+        private TestZKServer createTestZookeeper(int sessionTimeout) throws Exception {
+            TestZKServer testZKServer = new TestZKServer();
+            try (ZooKeeper zkc = new ZooKeeper(testZKServer.getConnectionString(), sessionTimeout, event -> {
+            })) {
+                initializeZookeeper(zkc);
+            }
+            registerCloseable(testZKServer);
+            return testZKServer;
+        }
+
         protected void handlePreallocatePorts(ServiceConfiguration config) {
             if (super.preallocatePorts) {
+                // Pre-allocate ports for callers that need the port number BEFORE the broker
+                // starts (e.g. to build advertised-listener URLs). PortManager hands out ports
+                // outside the ephemeral range, so the kernel won't auto-assign them to other
+                // processes. Tests that don't need a pre-known port should leave
+                // preallocatePorts=false and let the broker bind to 0 directly.
                 config.getBrokerServicePort().ifPresent(portNumber -> {
                     if (portNumber == 0) {
                         config.setBrokerServicePort(Optional.of(PortManager.nextLockedFreePort()));
@@ -621,7 +758,7 @@ public class PulsarTestContext implements AutoCloseable {
         }
 
         private void initializeCommonPulsarServices(SpyConfig spyConfig) {
-            if (super.bookKeeperClient == null && super.managedLedgerClientFactory == null) {
+            if (super.bookKeeperClient == null && super.managedLedgerStorage == null) {
                 if (super.executor == null) {
                     OrderedExecutor createdExecutor = OrderedExecutor.newBuilder().numThreads(1)
                             .name(PulsarTestContext.class.getSimpleName() + "-executor").build();
@@ -644,22 +781,41 @@ public class PulsarTestContext implements AutoCloseable {
                 });
                 bookKeeperClient(mockBookKeeper);
             }
-            if (super.bookKeeperClient == null && super.managedLedgerClientFactory != null) {
-                bookKeeperClient(super.managedLedgerClientFactory.getBookKeeperClient());
+            if (super.bookKeeperClient == null && super.managedLedgerStorage != null) {
+                bookKeeperClient(super.managedLedgerStorage.getStorageClasses().stream()
+                        .filter(BookkeeperManagedLedgerStorageClass.class::isInstance)
+                        .map(BookkeeperManagedLedgerStorageClass.class::cast)
+                        .map(BookkeeperManagedLedgerStorageClass::getBookKeeperClient).findFirst().get());
             }
             if (super.localMetadataStore == null || super.configurationMetadataStore == null) {
                 if (super.mockZooKeeper != null) {
                     MetadataStoreExtended mockZookeeperMetadataStore =
-                            createMockZookeeperMetadataStore(super.mockZooKeeper, MetadataStoreConfig.METADATA_STORE);
+                            createMockZookeeperMetadataStore(super.mockZooKeeper, super.config,
+                                    MetadataStoreConfig.METADATA_STORE);
                     if (super.localMetadataStore == null) {
                         localMetadataStore(mockZookeeperMetadataStore);
                     }
                     if (super.configurationMetadataStore == null) {
                         if (super.mockZooKeeperGlobal != null) {
                             configurationMetadataStore(createMockZookeeperMetadataStore(super.mockZooKeeperGlobal,
-                                    MetadataStoreConfig.CONFIGURATION_METADATA_STORE));
+                                    super.config, MetadataStoreConfig.CONFIGURATION_METADATA_STORE));
                         } else {
                             configurationMetadataStore(mockZookeeperMetadataStore);
+                        }
+                    }
+                } else if (super.testZKServer != null) {
+                    MetadataStoreExtended testZookeeperMetadataStore =
+                            createTestZookeeperMetadataStore(super.testZKServer, super.config,
+                                    MetadataStoreConfig.METADATA_STORE);
+                    if (super.localMetadataStore == null) {
+                        localMetadataStore(testZookeeperMetadataStore);
+                    }
+                    if (super.configurationMetadataStore == null) {
+                        if (super.testZKServerGlobal != null) {
+                            configurationMetadataStore(createTestZookeeperMetadataStore(super.testZKServerGlobal,
+                                    super.config, MetadataStoreConfig.CONFIGURATION_METADATA_STORE));
+                        } else {
+                            configurationMetadataStore(testZookeeperMetadataStore);
                         }
                     }
                 } else {
@@ -687,22 +843,48 @@ public class PulsarTestContext implements AutoCloseable {
             }
         }
 
+        private MetadataStoreConfig createMetadataStoreConfig(ServiceConfiguration config, String metadataStoreName) {
+            return MetadataStoreConfig.builder()
+                    .sessionTimeoutMillis((int) config.getMetadataStoreSessionTimeoutMillis())
+                    .allowReadOnlyOperations(config.isMetadataStoreAllowReadOnlyOperations())
+                    .batchingEnabled(config.isMetadataStoreBatchingEnabled())
+                    .batchingMaxDelayMillis(config.getMetadataStoreBatchingMaxDelayMillis())
+                    .batchingMaxOperations(config.getMetadataStoreBatchingMaxOperations())
+                    .batchingMaxSizeKb(config.getMetadataStoreBatchingMaxSizeKb())
+                    .metadataStoreName(metadataStoreName)
+                    .build();
+        }
+
         private MetadataStoreExtended createMockZookeeperMetadataStore(MockZooKeeper mockZooKeeper,
+                                                                       ServiceConfiguration config,
                                                                        String metadataStoreName) {
             // provide a unique session id for each instance
             MockZooKeeperSession mockZooKeeperSession = MockZooKeeperSession.newInstance(mockZooKeeper, false);
+            mockZooKeeperSession.setSessionTimeout((int) config.getMetadataStoreSessionTimeoutMillis());
             registerCloseable(() -> {
                 mockZooKeeperSession.close();
                 resetSpyOrMock(mockZooKeeperSession);
             });
-            ZKMetadataStore zkMetadataStore = new ZKMetadataStore(mockZooKeeperSession,
-                    MetadataStoreConfig.builder().metadataStoreName(metadataStoreName).build());
+            ZKMetadataStore zkMetadataStore =
+                    new ZKMetadataStore(mockZooKeeperSession, createMetadataStoreConfig(config, metadataStoreName));
             registerCloseable(() -> {
                 zkMetadataStore.close();
                 resetSpyOrMock(zkMetadataStore);
             });
             MetadataStoreExtended nonClosingProxy =
                     NonClosingProxyHandler.createNonClosingProxy(zkMetadataStore, MetadataStoreExtended.class);
+            return nonClosingProxy;
+        }
+
+        @SneakyThrows
+        private MetadataStoreExtended createTestZookeeperMetadataStore(TestZKServer zkServer,
+                                                                       ServiceConfiguration config,
+                                                                       String metadataStoreName) {
+            MetadataStoreExtended store = MetadataStoreExtended.create("zk:" + zkServer.getConnectionString(),
+                    createMetadataStoreConfig(config, metadataStoreName));
+            registerCloseable(store);
+            MetadataStoreExtended nonClosingProxy =
+                    NonClosingProxyHandler.createNonClosingProxy(store, MetadataStoreExtended.class);
             return nonClosingProxy;
         }
 
@@ -724,8 +906,8 @@ public class PulsarTestContext implements AutoCloseable {
         }
 
         @Override
-        public Builder managedLedgerClientFactory(ManagedLedgerStorage managedLedgerClientFactory) {
-            throw new IllegalStateException("Cannot set managedLedgerClientFactory when startable.");
+        public Builder managedLedgerStorage(ManagedLedgerStorage managedLedgerStorage) {
+            throw new IllegalStateException("Cannot set managedLedgerStorage when startable.");
         }
 
         @Override
@@ -747,7 +929,8 @@ public class PulsarTestContext implements AutoCloseable {
                 var reader = InMemoryMetricReader.create();
                 openTelemetryMetricReader(reader);
                 registerCloseable(reader);
-                openTelemetrySdkBuilderCustomizer = BrokerOpenTelemetryTestUtil.getOpenTelemetrySdkBuilderConsumer(reader);
+                openTelemetrySdkBuilderCustomizer =
+                        BrokerOpenTelemetryTestUtil.getOpenTelemetrySdkBuilderConsumer(reader);
             } else {
                 openTelemetrySdkBuilderCustomizer = null;
             }
@@ -787,10 +970,12 @@ public class PulsarTestContext implements AutoCloseable {
 
         @Override
         protected void initializePulsarServices(SpyConfig spyConfig, Builder builder) {
-            if (builder.managedLedgerClientFactory == null) {
+            if (builder.managedLedgerStorage == null) {
                 ManagedLedgerFactory mlFactoryMock = Mockito.mock(ManagedLedgerFactory.class);
-                managedLedgerClientFactory(
-                        PulsarTestContext.createManagedLedgerClientFactory(builder.bookKeeperClient, mlFactoryMock));
+                managedLedgerStorage(
+                        spyConfig.getManagedLedgerStorage()
+                                .spy(PulsarTestContext.createManagedLedgerStorage(builder.bookKeeperClient,
+                                        mlFactoryMock)));
             }
             if (builder.pulsarResources == null) {
                 SpyConfig.SpyType spyConfigPulsarResources = spyConfig.getPulsarResources();
@@ -799,7 +984,8 @@ public class PulsarTestContext implements AutoCloseable {
                     if (metadataStore == null) {
                         metadataStore = builder.configurationMetadataStore;
                     }
-                    NamespaceResources nsr = spyConfigPulsarResources.spy(NamespaceResources.class,metadataStore, 30);
+                    NamespaceResources nsr = spyConfigPulsarResources.spy(NamespaceResources.class,
+                            metadataStore, 30);
                     TopicResources tsr = spyConfigPulsarResources.spy(TopicResources.class, metadataStore);
                     pulsarResources(
                             spyConfigPulsarResources.spy(
@@ -824,7 +1010,7 @@ public class PulsarTestContext implements AutoCloseable {
                             builder.configurationMetadataStore, compactionServiceFactory,
                             builder.brokerInterceptor,
                             bookKeeperClientFactory, builder.pulsarResources,
-                            builder.managedLedgerClientFactory, builder.brokerServiceCustomizer);
+                            builder.managedLedgerStorage, builder.brokerServiceCustomizer);
             if (compactionServiceFactory != null) {
                 compactionServiceFactory.initialize(pulsarService);
             }
@@ -836,31 +1022,50 @@ public class PulsarTestContext implements AutoCloseable {
         }
     }
 
-    @NotNull
-    private static ManagedLedgerStorage createManagedLedgerClientFactory(BookKeeper bookKeeperClient,
-                                                                         ManagedLedgerFactory managedLedgerFactory) {
-        return new ManagedLedgerStorage() {
+    @NonNull
+    private static ManagedLedgerStorage createManagedLedgerStorage(BookKeeper bookKeeperClient,
+                                                                   ManagedLedgerFactory managedLedgerFactory) {
+        BookkeeperManagedLedgerStorageClass managedLedgerStorageClass =
+                new BookkeeperManagedLedgerStorageClass() {
+                    @Override
+                    public String getName() {
+                        return "bookkeeper";
+                    }
 
+                    @Override
+                    public ManagedLedgerFactory getManagedLedgerFactory() {
+                        return managedLedgerFactory;
+                    }
+
+                    @Override
+                    public StatsProvider getStatsProvider() {
+                        return new NullStatsProvider();
+                    }
+
+                    @Override
+                    public BookKeeper getBookKeeperClient() {
+                        return bookKeeperClient;
+                    }
+                };
+        return new ManagedLedgerStorage() {
             @Override
             public void initialize(ServiceConfiguration conf, MetadataStoreExtended metadataStore,
-                                   BookKeeperClientFactory bookkeeperProvider, EventLoopGroup eventLoopGroup)
-                    throws Exception {
-
+                                   BookKeeperClientFactory bookkeeperProvider, EventLoopGroup eventLoopGroup,
+                                   OpenTelemetry openTelemetry) {
             }
 
             @Override
-            public ManagedLedgerFactory getManagedLedgerFactory() {
-                return managedLedgerFactory;
+            public Collection<ManagedLedgerStorageClass> getStorageClasses() {
+                return List.of(managedLedgerStorageClass);
             }
 
             @Override
-            public StatsProvider getStatsProvider() {
-                return new NullStatsProvider();
-            }
-
-            @Override
-            public BookKeeper getBookKeeperClient() {
-                return bookKeeperClient;
+            public Optional<ManagedLedgerStorageClass> getManagedLedgerStorageClass(String name) {
+                if (name == null || name.equals("bookkeeper")) {
+                    return Optional.of(managedLedgerStorageClass);
+                } else {
+                    return Optional.empty();
+                }
             }
 
             @Override
