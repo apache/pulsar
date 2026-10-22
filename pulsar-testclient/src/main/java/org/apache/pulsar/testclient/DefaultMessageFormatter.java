@@ -90,6 +90,7 @@ public class DefaultMessageFormatter implements IMessageFormatter {
             return String.valueOf(r.nextFloat());
         }
         String format = "%" + size + "f";
+
         return String.format(format, get_FloatValue(size));
     }
 
