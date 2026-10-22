@@ -197,15 +197,8 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     @NonNull
     public CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId, SchemaData schema,
                                                               SchemaCompatibilityStrategy strategy) {
-        return putSchemaIfAbsentWithResult(schemaId, schema, strategy).thenApply(PutSchemaResult::version);
-    }
-
-    @Override
-    @NonNull
-    public CompletableFuture<PutSchemaResult> putSchemaIfAbsentWithResult(String schemaId, SchemaData schema,
-                                                                            SchemaCompatibilityStrategy strategy) {
         MutableLong start = new MutableLong(0);
-        CompletableFuture<PutSchemaResult> promise = new CompletableFuture<>();
+        CompletableFuture<SchemaVersion> promise = new CompletableFuture<>();
         schemaStorage.put(schemaId,
             schemasFuture -> schemasFuture
                 .thenCompose(schemaFutureList -> trimDeletedSchemaAndGetList(schemaId,
@@ -214,7 +207,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                     .thenCompose(schemaVersion -> {
                         if (schemaVersion != null) {
                             log.debug().attr("schemaId", schemaId).log("Schema is already exists");
-                            promise.complete(new PutSchemaResult(schemaVersion, false));
+                            promise.complete(schemaVersion);
                             return CompletableFuture.completedFuture(null);
                         }
                         CompletableFuture<Void> checkCompatibilityFuture = new CompletableFuture<>();
@@ -262,7 +255,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                         log.debug().attr("schemaId", schemaId).log("Put schema finished");
                         // The schema storage will return null schema version if no schema is persisted to the storage
                         if (v != null) {
-                            promise.complete(new PutSchemaResult(v, start.longValue() != 0));
+                            promise.complete(v);
                             if (start.longValue() != 0) {
                                 this.stats.recordPutLatency(schemaId, this.clock.millis() - start.longValue());
                             }

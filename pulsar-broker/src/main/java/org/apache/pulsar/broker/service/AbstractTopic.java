@@ -923,8 +923,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
         SchemaRegistryService schemaRegistryService = brokerService.pulsar().getSchemaRegistryService();
 
         if (allowAutoUpdateSchema(isReplicatorProducer)) {
-            return schemaRegistryService.putSchemaIfAbsentWithResult(id, schema, getSchemaCompatibilityStrategy())
-                    .thenApply(result -> result.version());
+            return schemaRegistryService.putSchemaIfAbsent(id, schema, getSchemaCompatibilityStrategy());
         } else {
             return schemaRegistryService.trimDeletedSchemaAndGetList(id).thenCompose(schemaAndMetadataList ->
                     schemaRegistryService.getSchemaVersionBySchemaData(schemaAndMetadataList, schema)

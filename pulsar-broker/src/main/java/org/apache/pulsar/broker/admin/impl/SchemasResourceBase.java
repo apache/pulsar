@@ -138,14 +138,13 @@ public class SchemasResourceBase extends AdminResource {
                         data = payload.getSchema().getBytes(StandardCharsets.UTF_8);
                     }
                     return pulsar().getSchemaRegistryService()
-                            .putSchemaIfAbsentWithResult(getSchemaId(),
+                            .putSchemaIfAbsent(getSchemaId(),
                                     SchemaData.builder().data(data).isDeleted(false).timestamp(clock.millis())
                                             .type(SchemaType.valueOf(payload.getType()))
                                             .user(defaultIfEmpty(clientAppId(), ""))
                                             .props(payload.getProperties())
                                             .build(),
-                                    schemaCompatibilityStrategy)
-                            .thenApply(result -> result.version());
+                                    schemaCompatibilityStrategy);
                 });
     }
 

@@ -36,15 +36,6 @@ public interface SchemaRegistryService extends SchemaRegistry {
     Logger LOG = Logger.get(SchemaRegistryService.class);
     long NO_SCHEMA_VERSION = -1L;
 
-    record PutSchemaResult(SchemaVersion version, boolean created) {
-    }
-
-    default CompletableFuture<PutSchemaResult> putSchemaIfAbsentWithResult(String schemaId, SchemaData schema,
-                                                                            SchemaCompatibilityStrategy strategy) {
-        return putSchemaIfAbsent(schemaId, schema, strategy)
-                .thenApply(version -> new PutSchemaResult(version, false));
-    }
-
     static Map<SchemaType, SchemaCompatibilityCheck> getCheckers(Set<String> checkerClasses) throws Exception {
         Map<SchemaType, SchemaCompatibilityCheck> checkers = new HashMap<>();
         boolean advancedSelected = checkerClasses.contains(
