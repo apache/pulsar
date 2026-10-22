@@ -170,11 +170,13 @@ public class WindowContextImpl implements WindowContext {
         this.context.fatal(t);
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public <T> CompletableFuture<Void> publish(String topicName, T object) {
         return this.context.publish(topicName, object);
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public CompletableFuture<Void> publish(String topicName, Object object, String schemaOrSerdeClassName) {
         return this.context.publish(topicName, object, schemaOrSerdeClassName);

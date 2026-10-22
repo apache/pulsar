@@ -25,6 +25,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.TopicPolicies;
+import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.testng.annotations.Test;
 
@@ -43,5 +44,101 @@ public class CmdTopicPoliciesTest {
 
         verify(topicPolicies, times(1)).setRetention("persistent://public/default/topic",
                 new RetentionPolicies(200 * 24 * 60, 2 * 1024 * 1024));
+    }
+
+    @Test
+    public void testSetPersistenceWithDefaultMarkDeleteRate() throws Exception {
+        TopicPolicies topicPolicies = mock(TopicPolicies.class);
+
+        PulsarAdmin admin = mock(PulsarAdmin.class);
+        when(admin.topicPolicies(anyBoolean())).thenReturn(topicPolicies);
+
+        CmdTopicPolicies cmd = new CmdTopicPolicies(() -> admin);
+
+        // Test that the default value is now -1 (unset) instead of 0
+        cmd.run("set-persistence persistent://public/default/topic -e 2 -w 2 -a 2".split("\\s+"));
+
+        verify(topicPolicies, times(1)).setPersistence("persistent://public/default/topic",
+                new PersistencePolicies(2, 2, 2, -1.0, null));
+    }
+
+    @Test
+    public void testSetPersistenceWithNegativeMarkDeleteRate() throws Exception {
+        TopicPolicies topicPolicies = mock(TopicPolicies.class);
+
+        PulsarAdmin admin = mock(PulsarAdmin.class);
+        when(admin.topicPolicies(anyBoolean())).thenReturn(topicPolicies);
+
+        CmdTopicPolicies cmd = new CmdTopicPolicies(() -> admin);
+
+        // Test that negative values are now allowed (previously would throw exception)
+        cmd.run("set-persistence persistent://public/default/topic -e 2 -w 2 -a 2 -r -5.0".split("\\s+"));
+
+        verify(topicPolicies, times(1)).setPersistence("persistent://public/default/topic",
+                new PersistencePolicies(2, 2, 2, -5.0, null));
+    }
+
+    @Test
+    public void testSetPersistenceWithZeroMarkDeleteRate() throws Exception {
+        TopicPolicies topicPolicies = mock(TopicPolicies.class);
+
+        PulsarAdmin admin = mock(PulsarAdmin.class);
+        when(admin.topicPolicies(anyBoolean())).thenReturn(topicPolicies);
+
+        CmdTopicPolicies cmd = new CmdTopicPolicies(() -> admin);
+
+        // Test that zero is still allowed
+        cmd.run("set-persistence persistent://public/default/topic -e 2 -w 2 -a 2 -r 0".split("\\s+"));
+
+        verify(topicPolicies, times(1)).setPersistence("persistent://public/default/topic",
+                new PersistencePolicies(2, 2, 2, 0.0, null));
+    }
+
+    @Test
+    public void testSetPersistenceWithPositiveMarkDeleteRate() throws Exception {
+        TopicPolicies topicPolicies = mock(TopicPolicies.class);
+
+        PulsarAdmin admin = mock(PulsarAdmin.class);
+        when(admin.topicPolicies(anyBoolean())).thenReturn(topicPolicies);
+
+        CmdTopicPolicies cmd = new CmdTopicPolicies(() -> admin);
+
+        // Test that positive values still work
+        cmd.run("set-persistence persistent://public/default/topic -e 2 -w 2 -a 2 -r 10.5".split("\\s+"));
+
+        verify(topicPolicies, times(1)).setPersistence("persistent://public/default/topic",
+                new PersistencePolicies(2, 2, 2, 10.5, null));
+    }
+
+    @Test
+    public void testSetPersistenceWithUnsetMarkDeleteRate() throws Exception {
+        TopicPolicies topicPolicies = mock(TopicPolicies.class);
+
+        PulsarAdmin admin = mock(PulsarAdmin.class);
+        when(admin.topicPolicies(anyBoolean())).thenReturn(topicPolicies);
+
+        CmdTopicPolicies cmd = new CmdTopicPolicies(() -> admin);
+
+        // Test explicitly setting to -1 (unset)
+        cmd.run("set-persistence persistent://public/default/topic -e 2 -w 2 -a 2 -r -1".split("\\s+"));
+
+        verify(topicPolicies, times(1)).setPersistence("persistent://public/default/topic",
+                new PersistencePolicies(2, 2, 2, -1.0, null));
+    }
+
+    @Test
+    public void testSetPersistenceWithGlobalFlag() throws Exception {
+        TopicPolicies topicPolicies = mock(TopicPolicies.class);
+
+        PulsarAdmin admin = mock(PulsarAdmin.class);
+        when(admin.topicPolicies(true)).thenReturn(topicPolicies);
+
+        CmdTopicPolicies cmd = new CmdTopicPolicies(() -> admin);
+
+        // Test with global flag
+        cmd.run("set-persistence persistent://public/default/topic -e 2 -w 2 -a 2 -r -1 -g".split("\\s+"));
+
+        verify(topicPolicies, times(1)).setPersistence("persistent://public/default/topic",
+                new PersistencePolicies(2, 2, 2, -1.0, null));
     }
 }

@@ -1,0 +1,2 @@
+# perform line endings normalization for markdown files
+*.md text eol=lf

@@ -94,7 +94,8 @@ public class ConcurrentBitmapSortedLongPairSet {
                 } else {
                     RoaringBitmap bitSet = firstEntry.getValue();
                     if (bitSet != null) {
-                        bitsCleared |= bitSet.contains(0, item2);
+                        // any bit below item2, not every one: a sparse prefix has gaps
+                        bitsCleared |= bitSet.intersects(0, item2);
                         bitSet.remove(0, item2);
                         if (bitSet.isEmpty()) {
                             map.remove(firstEntry.getKey(), bitSet);
@@ -117,7 +118,7 @@ public class ConcurrentBitmapSortedLongPairSet {
             result.setValue(Optional.of(item));
             return false;
         });
-        return result.getValue();
+        return result.get();
     }
 
     public <T extends Comparable<T>> NavigableSet<T> items(int numberOfItems,

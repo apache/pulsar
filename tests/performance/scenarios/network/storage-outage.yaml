@@ -1,0 +1,40 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Every bookie is cut off from the brokers for 20 s of the measurement, in the failover cluster, as in a storage network
+# outage. The publishes wait for the bookies, and the producers' sends queue up to their limit of outstanding messages.
+# The brokers' TCP connections to the bookies retransmit with exponential backoff while the packets are dropped, so the
+# first retransmission after the outage can come seconds after it ends. With --set
+# network.impairments.storage-outage.duration=45s, the outage outlasts the bookie client's 30 s timeout
+# (bookkeeperClientTimeoutInSeconds). The gateways log at info level, so that their reconnections and resends show.
+#
+# Look for: the publish stall against the outage, how long publishing takes to resume after the bookies come back, and
+# whether every message is delivered once and in order.
+
+extends: failover-cluster.yaml
+network:
+  impairments:
+    storage-outage:
+      between: [brokers, bookies]
+      partition: true
+      start: 30s
+      duration: 20s
+workloads:
+  iotTelemetry:
+    gateways:
+      env:
+        PULSAR_CLIENT_LOG_LEVEL: info

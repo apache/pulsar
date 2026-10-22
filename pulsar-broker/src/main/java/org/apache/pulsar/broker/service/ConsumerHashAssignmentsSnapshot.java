@@ -32,7 +32,7 @@ import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.Range;
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
 
 /**
  * Represents the hash ranges assigned to each consumer in a {@link StickyKeyConsumerSelector} at a point in time.
@@ -72,7 +72,7 @@ public class ConsumerHashAssignmentsSnapshot {
     }
 
     public ImpactedConsumersResult resolveImpactedConsumers(ConsumerHashAssignmentsSnapshot assignmentsAfter) {
-        return resolveConsumerRemovedHashRanges(this.hashRangeAssignments, assignmentsAfter.hashRangeAssignments);
+        return resolveConsumerUpdatedHashRanges(this.hashRangeAssignments, assignmentsAfter.hashRangeAssignments);
     }
 
     /**
@@ -86,7 +86,7 @@ public class ConsumerHashAssignmentsSnapshot {
         return cachedRangesByConsumer;
     }
 
-    private @NotNull Map<Consumer, List<Range>> internalGetRangesByConsumer() {
+    private @NonNull Map<Consumer, List<Range>> internalGetRangesByConsumer() {
         Map<Consumer, SortedSet<Range>> rangesByConsumer = new IdentityHashMap<>();
         hashRangeAssignments.forEach(entry -> {
             Range range = entry.range();
@@ -111,28 +111,36 @@ public class ConsumerHashAssignmentsSnapshot {
      * @param mappingAfter the range mapping after the change
      * @return consumers and ranges where the existing range changed
      */
-    static ImpactedConsumersResult resolveConsumerRemovedHashRanges(List<HashRangeAssignment> mappingBefore,
+    static ImpactedConsumersResult resolveConsumerUpdatedHashRanges(List<HashRangeAssignment> mappingBefore,
                                                                     List<HashRangeAssignment> mappingAfter) {
         Map<Range, Pair<Consumer, Consumer>> impactedRanges = diffRanges(mappingBefore, mappingAfter);
-        Map<Consumer, SortedSet<Range>> removedRangesByConsumer = impactedRanges.entrySet().stream()
-                .collect(IdentityHashMap::new, (resultMap, entry) -> {
-                    Range range = entry.getKey();
-                    // filter out only where the range was removed
-                    Consumer consumerBefore = entry.getValue().getLeft();
-                    if (consumerBefore != null) {
-                        resultMap.computeIfAbsent(consumerBefore, k -> new TreeSet<>()).add(range);
-                    }
-                }, IdentityHashMap::putAll);
-        return mergedOverlappingRangesAndConvertToImpactedConsumersResult(removedRangesByConsumer);
+        Map<Consumer, SortedSet<Range>> addedRangesByConsumer = new IdentityHashMap<>();
+        Map<Consumer, SortedSet<Range>> removedRangesByConsumer = new IdentityHashMap<>();
+        impactedRanges.forEach((range, value) -> {
+            Consumer consumerAfter = value.getRight();
+
+            // last consumer was removed
+            if (consumerAfter != null) {
+                addedRangesByConsumer.computeIfAbsent(consumerAfter, k -> new TreeSet<>()).add(range);
+            }
+            // filter out only where the range was removed
+            Consumer consumerBefore = value.getLeft();
+            if (consumerBefore != null) {
+                removedRangesByConsumer.computeIfAbsent(consumerBefore, k -> new TreeSet<>()).add(range);
+            }
+        });
+        var removedMerged = mergedOverlappingRangesAndConvertToImpactedConsumersResult(removedRangesByConsumer);
+        var addedMerged = mergedOverlappingRangesAndConvertToImpactedConsumersResult(addedRangesByConsumer);
+        return ImpactedConsumersResult.of(removedMerged, addedMerged);
     }
 
-    static ImpactedConsumersResult mergedOverlappingRangesAndConvertToImpactedConsumersResult(
-            Map<Consumer, SortedSet<Range>> removedRangesByConsumer) {
-        Map<Consumer, RemovedHashRanges> mergedRangesByConsumer = new IdentityHashMap<>();
-        removedRangesByConsumer.forEach((consumer, ranges) -> {
-            mergedRangesByConsumer.put(consumer, RemovedHashRanges.of(mergeOverlappingRanges(ranges)));
+    static Map<Consumer, UpdatedHashRanges> mergedOverlappingRangesAndConvertToImpactedConsumersResult(
+            Map<Consumer, SortedSet<Range>> updatedRangesByConsumer) {
+        Map<Consumer, UpdatedHashRanges> mergedRangesByConsumer = new IdentityHashMap<>();
+        updatedRangesByConsumer.forEach((consumer, ranges) -> {
+            mergedRangesByConsumer.put(consumer, UpdatedHashRanges.of(mergeOverlappingRanges(ranges)));
         });
-        return ImpactedConsumersResult.of(mergedRangesByConsumer);
+        return mergedRangesByConsumer;
     }
 
     /**

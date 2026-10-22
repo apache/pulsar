@@ -19,8 +19,7 @@
 package org.apache.pulsar.tests;
 
 import java.lang.reflect.Method;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.CustomLog;
 import org.testng.ITestResult;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -38,8 +37,8 @@ import org.testng.annotations.BeforeMethod;
  * markCurrentSetupNumberCleaned method. This is required by the state tracking logic.
  *
  */
+@CustomLog
 public abstract class TestRetrySupport {
-    private static final Logger LOG = LoggerFactory.getLogger(TestRetrySupport.class);
     private int currentSetupNumber;
     private int failedSetupNumber = -1;
     private int cleanedUpSetupNumber;
@@ -50,15 +49,17 @@ public abstract class TestRetrySupport {
         // this is to cleanup state before retrying
         if (currentSetupNumber == failedSetupNumber
                 && cleanedUpSetupNumber != failedSetupNumber) {
-            LOG.info("Previous test run has failed before {}.{}, failedSetupNumber={}. Running cleanup and setup.",
-                    method.getDeclaringClass().getSimpleName(), method.getName(), failedSetupNumber);
+            log.info().attr("class", method.getDeclaringClass().getSimpleName())
+                    .attr("method", method.getName())
+                    .attr("failedSetupNumber", failedSetupNumber)
+                    .log("Previous test run has failed. Running cleanup and setup.");
             try {
                 cleanup();
             } catch (Exception e) {
-                LOG.error("Cleanup failed, ignoring this.", e);
+                log.error().exception(e).log("Cleanup failed, ignoring this.");
             }
             setup();
-            LOG.info("State cleanup finished.");
+            log.info("State cleanup finished.");
             failedSetupNumber = -1;
         }
     }
@@ -67,9 +68,12 @@ public abstract class TestRetrySupport {
     public final void failureCheck(ITestResult testResult, Method method) {
         // track the setup number where the failure happened
         if (!testResult.isSuccess()) {
-            LOG.info("Detected test failure in test {}.{}, currentSetupNumber={}",
-                    method.getDeclaringClass().getSimpleName(), method.getName(),
-                    currentSetupNumber);
+            if (testResult.getStatus() != ITestResult.SKIP && testResult.getStatus() != ITestResult.CREATED) {
+                log.info().attr("class", method.getDeclaringClass().getSimpleName())
+                        .attr("method", method.getName())
+                        .attr("currentSetupNumber", currentSetupNumber)
+                        .log("Detected test failure");
+            }
             failedSetupNumber = currentSetupNumber;
         }
     }
@@ -84,7 +88,7 @@ public abstract class TestRetrySupport {
     protected final void incrementSetupNumber() {
         currentSetupNumber++;
         failedSetupNumber = -1;
-        LOG.debug("currentSetupNumber={}", currentSetupNumber);
+        log.debug().attr("currentSetupNumber", currentSetupNumber).log("Setup number incremented");
     }
 
     /**
@@ -92,7 +96,7 @@ public abstract class TestRetrySupport {
      */
     protected final void markCurrentSetupNumberCleaned() {
         cleanedUpSetupNumber = currentSetupNumber;
-        LOG.debug("cleanedUpSetupNumber={}", cleanedUpSetupNumber);
+        log.debug().attr("cleanedUpSetupNumber", cleanedUpSetupNumber).log("Setup number marked cleaned");
     }
 
     /**

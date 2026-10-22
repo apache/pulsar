@@ -23,15 +23,15 @@ import com.google.common.collect.Range;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NavigableMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  */
@@ -53,7 +53,7 @@ public class ManagedLedgerOfflineBacklog {
 
     // need a better way than to duplicate the functionality below from ML
     private long getNumberOfEntries(Range<Position> range,
-            NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgers) {
+            NavigableMap<Long, ManagedLedgerInfo.LedgerInfo> ledgers) {
         Position fromPosition = range.lowerEndpoint();
         boolean fromIncluded = range.lowerBoundType() == BoundType.CLOSED;
         Position toPosition = range.upperEndpoint();
@@ -73,14 +73,14 @@ public class ManagedLedgerOfflineBacklog {
             count += toIncluded ? 1 : 0;
 
             // 2. Add the entries in the ledger pointed by fromPosition
-            MLDataFormats.ManagedLedgerInfo.LedgerInfo li = ledgers.get(fromPosition.getLedgerId());
+            ManagedLedgerInfo.LedgerInfo li = ledgers.get(fromPosition.getLedgerId());
             if (li != null) {
                 count += li.getEntries() - (fromPosition.getEntryId() + 1);
                 count += fromIncluded ? 1 : 0;
             }
 
             // 3. Add the whole ledgers entries in between
-            for (MLDataFormats.ManagedLedgerInfo.LedgerInfo ls : ledgers
+            for (ManagedLedgerInfo.LedgerInfo ls : ledgers
                     .subMap(fromPosition.getLedgerId(), false, toPosition.getLedgerId(), false).values()) {
                 count += ls.getEntries();
             }
@@ -113,5 +113,22 @@ public class ManagedLedgerOfflineBacklog {
         return offlineTopicStats;
     }
 
-    private static final Logger log = LoggerFactory.getLogger(ManagedLedgerOfflineBacklog.class);
+    public CompletableFuture<PersistentOfflineTopicStats> estimateUnloadedTopicBacklogAsync(
+            ManagedLedgerFactory factory, TopicName topicName, Executor blockingExecutor) {
+        try {
+            PersistentOfflineTopicStats offlineTopicStats = new PersistentOfflineTopicStats(
+                    topicName.getPersistenceNamingEncoding(), brokerName);
+            Object ctx = null;
+            if (factory instanceof ManagedLedgerFactoryImpl) {
+                List<Object> credentials = new ArrayList<>();
+                credentials.add(digestType);
+                credentials.add(password);
+                ctx = credentials;
+            }
+            return factory.estimateUnloadedTopicBacklogAsync(offlineTopicStats, topicName, accurate, ctx,
+                    blockingExecutor).thenApply(__ -> offlineTopicStats);
+        } catch (Exception e) {
+            return CompletableFuture.failedFuture(e);
+        }
+    }
 }

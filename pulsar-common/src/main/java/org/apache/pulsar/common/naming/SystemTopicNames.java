@@ -89,10 +89,21 @@ public class SystemTopicNames {
         return TopicName.getPartitionedTopicName(topic).getLocalName().equals(NAMESPACE_EVENTS_LOCAL_NAME);
     }
 
+    /**
+     * These topics can not be created manually by users.
+     */
     public static boolean isTransactionInternalName(TopicName topicName) {
         String topic = topicName.toString();
         return topic.startsWith(TRANSACTION_COORDINATOR_ASSIGN.toString())
                 || topic.startsWith(TRANSACTION_COORDINATOR_LOG.toString())
+                || topic.endsWith(PENDING_ACK_STORE_SUFFIX);
+    }
+
+    public static boolean isTransactionBufferOrPendingAckSystemTopicName(TopicName topicName) {
+        String topic = topicName.getPartitionedTopicName();
+        return topic.endsWith(TRANSACTION_BUFFER_SNAPSHOT.toString())
+                || topic.endsWith(TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS.toString())
+                || topic.endsWith(TRANSACTION_BUFFER_SNAPSHOT_INDEXES)
                 || topic.endsWith(PENDING_ACK_STORE_SUFFIX);
     }
 

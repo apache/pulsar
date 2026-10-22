@@ -1,0 +1,15 @@
+{
+  "resources": {
+    "includes": [
+      {
+        "pattern": "\\Qorg/asynchttpclient/config/ahc-default.properties\\E"
+      },
+      {
+        "pattern": "\\Qorg/asynchttpclient/config/ahc.properties\\E"
+      },
+      {
+        "pattern": "\\Qorg/apache/pulsar/pulsar-version.properties\\E"
+      }
+    ]
+  }
+}

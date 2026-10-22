@@ -1,0 +1,44 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+
+# The Pulsar cluster that the memory configurations share: one broker and three bookies, with the benchmark's broker
+# and bookie settings. Three bookies spread the load of many topics' ledgers, and of the new ledgers that rollovers
+# create, instead of putting it all on one bookie. The cluster-*-mem.yaml files extend it, and set the memory and, for
+# less memory, fewer bookies.
+cluster:
+  brokers:
+    replicas: 1
+    env:
+      brokerDeduplicationEnabled: "true"
+      # Keep storage-maintenance boundaries outside ordinary warmup and measurement windows.
+      # These are benchmark settings, not production sizing recommendations.
+      managedLedgerMaxEntriesPerLedger: "100000000"
+      managedLedgerMinLedgerRolloverTimeMinutes: "60"
+      managedLedgerMaxLedgerRolloverTimeMinutes: "1440"
+      managedLedgerMaxSizePerLedgerMbytes: "16384"
+      managedLedgerCursorMaxEntriesPerLedger: "100000000"
+      managedLedgerCursorRolloverTimeInSeconds: "86400"
+  bookies:
+    replicas: 3
+    env:
+      # The containers are ephemeral, so postpone reclamation and compaction until after the run.
+      journalMaxSizeMB: "8192"
+      gcWaitTime: "86400000"
+      gcOverreplicatedLedgerWaitTime: "86400000"
+      minorCompactionInterval: "-1"
+      majorCompactionInterval: "-1"

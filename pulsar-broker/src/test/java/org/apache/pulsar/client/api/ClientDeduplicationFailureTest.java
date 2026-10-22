@@ -39,7 +39,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
@@ -57,7 +57,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "quarantine")
 public class ClientDeduplicationFailureTest {
     LocalBookkeeperEnsemble bkEnsemble;
@@ -73,10 +73,10 @@ public class ClientDeduplicationFailureTest {
 
     @BeforeMethod(timeOut = 300000, alwaysRun = true)
     void setup(Method method) throws Exception {
-        log.info("--- Setting up method {} ---", method.getName());
+        log.info().attr("upMethod", method.getName()).log("--- Setting up method");
 
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble.start();
 
         config = new ServiceConfiguration();
@@ -96,7 +96,6 @@ public class ClientDeduplicationFailureTest {
 
         config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
 
-
         pulsar = new PulsarService(config);
         pulsar.start();
 
@@ -115,7 +114,8 @@ public class ClientDeduplicationFailureTest {
         if (pulsarClient != null) {
             pulsarClient.shutdown();
         }
-        ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).maxBackoffInterval(1, TimeUnit.SECONDS);
+        ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl())
+                .maxBackoffInterval(1, TimeUnit.SECONDS);
         pulsarClient = clientBuilder.build();
 
         TenantInfo tenantInfo = TenantInfo.builder()
@@ -129,7 +129,7 @@ public class ClientDeduplicationFailureTest {
         log.info("--- Shutting down ---");
         if (pulsarClient != null) {
             pulsarClient.close();
-            pulsar = null;
+            pulsarClient = null;
         }
         if (admin != null) {
             admin.close();
@@ -161,18 +161,18 @@ public class ClientDeduplicationFailureTest {
 
         @Override
         public void run() {
-            while(isRunning) {
+            while (isRunning) {
                 lastMessageFuture = producer.newMessage().sequenceId(i).value("foo-" + i).sendAsync();
                 lastMessageFuture.thenAccept(messageId -> {
                     atomicLong.incrementAndGet();
 
                 }).exceptionally(ex -> {
-                    log.info("publish exception:", ex);
+                    log.info().exception(ex).log("publish exception:");
                     return null;
                 });
                 i++;
             }
-            log.info("done Producing! Last send: {}", i);
+            log.info().attr("lastSend", i).log("done Producing! Last send");
         }
 
         public void start() {
@@ -208,7 +208,7 @@ public class ClientDeduplicationFailureTest {
         final String sourceTopic = "persistent://" + replNamespace + "/my-topic1";
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
-        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters, false);
         admin.namespaces().setDeduplicationStatus(replNamespace, true);
         admin.namespaces().setRetention(replNamespace, new RetentionPolicies(-1, -1));
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
@@ -217,14 +217,14 @@ public class ClientDeduplicationFailureTest {
                 .producerName("test-producer-1")
                 .create();
 
-
         ProducerThread producerThread = new ProducerThread(producer);
         producerThread.start();
 
         retryStrategically((test) -> {
             try {
                 TopicStats topicStats = admin.topics().getStats(sourceTopic);
-                return topicStats.getPublishers().size() == 1 && topicStats.getPublishers().get(0).getProducerName().equals("test-producer-1") && topicStats.getStorageSize() > 0;
+                return topicStats.getPublishers().size() == 1 && topicStats.getPublishers().get(0).getProducerName()
+                        .equals("test-producer-1") && topicStats.getStorageSize() > 0;
             } catch (PulsarAdminException e) {
                 return false;
             }
@@ -256,14 +256,14 @@ public class ClientDeduplicationFailureTest {
         Message<String> prevMessage = null;
         Message<String> message = null;
         int count = 0;
-        while(true) {
+        while (true) {
             message = reader.readNext(5, TimeUnit.SECONDS);
             if (message == null) {
                 break;
             }
 
             if (message.getValue().equals("end")) {
-                log.info("Last seq Id received: {}", prevMessage.getSequenceId());
+                log.info().attr("idReceived", prevMessage.getSequenceId()).log("Last seq Id received");
                 break;
             }
             if (prevMessage == null) {
@@ -275,11 +275,12 @@ public class ClientDeduplicationFailureTest {
             count++;
         }
 
-        log.info("# of messages read: {}", count);
+        log.info().attr("messagesRead", count).log("# of messages read");
 
         assertNotNull(prevMessage);
         assertEquals(prevMessage.getSequenceId(), producerThread.getLastSeqId());
     }
+    @SuppressWarnings("deprecation")
 
     @Test(timeOut = 300000)
     public void testClientDeduplicationWithBkFailure() throws  Exception {
@@ -293,7 +294,7 @@ public class ClientDeduplicationFailureTest {
         final List<Message<String>> msgRecvd = new LinkedList<>();
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
-        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters, false);
         admin.namespaces().setDeduplicationStatus(replNamespace, true);
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic)
                 .producerName("test-producer-1").create();
@@ -303,13 +304,13 @@ public class ClientDeduplicationFailureTest {
                 .consumerName(consumerName2).subscriptionName(subscriptionName2).subscribe();
 
         Thread thread = new Thread(() -> {
-            while(true) {
+            while (true) {
                 try {
                     Message<String> msg = consumer2.receive();
                     msgRecvd.add(msg);
                     consumer2.acknowledge(msg);
                 } catch (PulsarClientException e) {
-                    log.error("Failed to consume message: {}", e, e);
+                    log.error().attr("consumeMessage", e).exception(e).log("Failed to consume message");
                     break;
                 }
             }
@@ -319,15 +320,17 @@ public class ClientDeduplicationFailureTest {
         retryStrategically((test) -> {
             try {
                 TopicStats topicStats = admin.topics().getStats(sourceTopic);
-                boolean c1 =  topicStats!= null
+                boolean c1 =  topicStats != null
                         && topicStats.getSubscriptions().get(subscriptionName1) != null
                         && topicStats.getSubscriptions().get(subscriptionName1).getConsumers().size() == 1
-                        && topicStats.getSubscriptions().get(subscriptionName1).getConsumers().get(0).getConsumerName().equals(consumerName1);
+                        && topicStats.getSubscriptions().get(subscriptionName1).getConsumers().get(0)
+                        .getConsumerName().equals(consumerName1);
 
-                boolean c2 =  topicStats!= null
+                boolean c2 =  topicStats != null
                         && topicStats.getSubscriptions().get(subscriptionName2) != null
                         && topicStats.getSubscriptions().get(subscriptionName2).getConsumers().size() == 1
-                        && topicStats.getSubscriptions().get(subscriptionName2).getConsumers().get(0).getConsumerName().equals(consumerName2);
+                        && topicStats.getSubscriptions().get(subscriptionName2).getConsumers().get(0)
+                        .getConsumerName().equals(consumerName2);
                 return c1 && c2;
             } catch (PulsarAdminException e) {
                 return false;
@@ -338,18 +341,20 @@ public class ClientDeduplicationFailureTest {
         assertNotNull(topicStats1);
         assertNotNull(topicStats1.getSubscriptions().get(subscriptionName1));
         assertEquals(topicStats1.getSubscriptions().get(subscriptionName1).getConsumers().size(), 1);
-        assertEquals(topicStats1.getSubscriptions().get(subscriptionName1).getConsumers().get(0).getConsumerName(), consumerName1);
+        assertEquals(topicStats1.getSubscriptions().get(subscriptionName1)
+                .getConsumers().get(0).getConsumerName(), consumerName1);
         TopicStats topicStats2 = admin.topics().getStats(sourceTopic);
         assertNotNull(topicStats2);
         assertNotNull(topicStats2.getSubscriptions().get(subscriptionName2));
         assertEquals(topicStats2.getSubscriptions().get(subscriptionName2).getConsumers().size(), 1);
-        assertEquals(topicStats2.getSubscriptions().get(subscriptionName2).getConsumers().get(0).getConsumerName(), consumerName2);
+        assertEquals(topicStats2.getSubscriptions().get(subscriptionName2)
+                .getConsumers().get(0).getConsumerName(), consumerName2);
 
-        for (int i=0; i<10; i++) {
+        for (int i = 0; i < 10; i++) {
             producer.newMessage().sequenceId(i).value("foo-" + i).send();
         }
 
-        for (int i=0; i<10; i++) {
+        for (int i = 0; i < 10; i++) {
             Message<String> msg = consumer1.receive();
             consumer1.acknowledge(msg);
             assertEquals(msg.getValue(), "foo-" + i);
@@ -360,11 +365,13 @@ public class ClientDeduplicationFailureTest {
         bkEnsemble.stopBK();
 
         List<CompletableFuture<MessageId>> futures = new LinkedList<>();
-        for (int i=10; i<20; i++) {
+        for (int i = 10; i < 20; i++) {
             CompletableFuture<MessageId> future = producer.newMessage().sequenceId(i).value("foo-" + i).sendAsync();
             int finalI = i;
-            future.thenRun(() -> log.error("message: {} successful", finalI)).exceptionally((Function<Throwable, Void>) throwable -> {
-                log.info("message: {} failed: {}", finalI, throwable, throwable);
+            future.thenRun(() -> log.error().attr("message", finalI).log("message successful"))
+                    .exceptionally((Function<Throwable, Void>) throwable -> {
+                log.info().attr("message", finalI).attr("failed", throwable).exception(throwable)
+                        .log("message: failed");
                 return null;
             });
             futures.add(future);
@@ -399,12 +406,12 @@ public class ClientDeduplicationFailureTest {
         log.info("Starting BK...");
         bkEnsemble.startBK();
 
-        for (int i=20; i<30; i++) {
+        for (int i = 20; i < 30; i++) {
             producer.newMessage().sequenceId(i).value("foo-" + i).send();
         }
 
         MessageId lastMessageId = null;
-        for (int i=20; i<30; i++) {
+        for (int i = 20; i < 30; i++) {
             Message<String> msg = consumer1.receive();
             lastMessageId = msg.getMessageId();
             consumer1.acknowledge(msg);
@@ -420,7 +427,7 @@ public class ClientDeduplicationFailureTest {
             assertEquals(msgRecvd.get(i).getValue(), "foo-" + i);
             assertEquals(msgRecvd.get(i).getSequenceId(), i);
         }
-        for (int i = 10; i <20; i++) {
+        for (int i = 10; i < 20; i++) {
             assertEquals(msgRecvd.get(i).getValue(), "foo-" + (i + 10));
             assertEquals(msgRecvd.get(i).getSequenceId(), i + 10);
         }

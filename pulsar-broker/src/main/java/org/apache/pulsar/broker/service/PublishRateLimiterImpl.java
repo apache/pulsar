@@ -24,27 +24,39 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import lombok.extern.slf4j.Slf4j;
+import java.util.function.Consumer;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.qos.AsyncTokenBucket;
-import org.apache.pulsar.broker.qos.MonotonicSnapshotClock;
+import org.apache.pulsar.broker.qos.MonotonicClock;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MpscUnboundedArrayQueue;
 
-@Slf4j
+@CustomLog
 public class PublishRateLimiterImpl implements PublishRateLimiter {
     private volatile AsyncTokenBucket tokenBucketOnMessage;
     private volatile AsyncTokenBucket tokenBucketOnByte;
-    private final MonotonicSnapshotClock monotonicSnapshotClock;
+    private final MonotonicClock monotonicClock;
 
     private final MessagePassingQueue<Producer> unthrottlingQueue = new MpscUnboundedArrayQueue<>(1024);
 
     private final AtomicInteger throttledProducersCount = new AtomicInteger(0);
     private final AtomicBoolean processingQueuedProducers = new AtomicBoolean(false);
 
-    public PublishRateLimiterImpl(MonotonicSnapshotClock monotonicSnapshotClock) {
-        this.monotonicSnapshotClock = monotonicSnapshotClock;
+    /**
+     * Executor used for the last {@link #scheduleUnthrottling} from this limiter (set when throttling starts).
+     * Used to schedule an immediate follow-up run after publish-rate limits change.
+     */
+    private volatile ScheduledExecutorService lastUnthrottleExecutor;
+    private final Consumer<Producer> throttleAction;
+    private final Consumer<Producer> unthrottleAction;
+
+    public PublishRateLimiterImpl(MonotonicClock monotonicClock, Consumer<Producer> throttleAction,
+                                  Consumer<Producer> unthrottleAction) {
+        this.monotonicClock = monotonicClock;
+        this.throttleAction = throttleAction;
+        this.unthrottleAction = unthrottleAction;
     }
 
     /**
@@ -68,7 +80,7 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
         }
         if (shouldThrottle) {
             // throttle the producer by incrementing the throttle count
-            producer.incrementThrottleCount();
+            throttleAction.accept(producer);
             // schedule decrementing the throttle count to possibly unthrottle the producer after the
             // throttling period
             scheduleDecrementThrottleCount(producer);
@@ -82,6 +94,7 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
         // this is to avoid scheduling unthrottling multiple times for concurrent producers
         if (throttledProducersCount.incrementAndGet() == 1) {
             ScheduledExecutorService executor = producer.getCnx().getBrokerService().executor().next();
+            lastUnthrottleExecutor = executor;
             scheduleUnthrottling(executor, calculateThrottlingDurationNanos());
         }
     }
@@ -136,9 +149,10 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
             while ((throttlingDuration = calculateThrottlingDurationNanos()) == 0L
                     && (producer = unthrottlingQueue.poll()) != null) {
                 try {
-                    producer.decrementThrottleCount();
+                    final Producer producerFinal = producer;
+                    producer.getCnx().execute(() -> unthrottleAction.accept(producerFinal));
                 } catch (Exception e) {
-                    log.error("Failed to unthrottle producer {}", producer, e);
+                    log.error().attr("producer", producer).exception(e).log("Failed to unthrottle producer");
                 }
                 throttledProducersCount.decrementAndGet();
             }
@@ -160,28 +174,37 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
         update(maxPublishRate);
     }
 
+    private void scheduleImmediateUnthrottling() {
+        ScheduledExecutorService executor = lastUnthrottleExecutor;
+        if (executor != null) {
+            scheduleUnthrottling(executor, 0L);
+        }
+    }
+
     public void update(PublishRate maxPublishRate) {
         if (maxPublishRate != null) {
             updateTokenBuckets(maxPublishRate.publishThrottlingRateInMsg, maxPublishRate.publishThrottlingRateInByte);
         } else {
-            tokenBucketOnMessage = null;
-            tokenBucketOnByte = null;
+            updateTokenBuckets(0L, 0L);
         }
     }
 
     protected void updateTokenBuckets(long publishThrottlingRateInMsg, long publishThrottlingRateInByte) {
         if (publishThrottlingRateInMsg > 0) {
             tokenBucketOnMessage =
-                    AsyncTokenBucket.builder().rate(publishThrottlingRateInMsg).clock(monotonicSnapshotClock).build();
+                    AsyncTokenBucket.builder().rate(publishThrottlingRateInMsg).clock(monotonicClock).build();
         } else {
             tokenBucketOnMessage = null;
         }
         if (publishThrottlingRateInByte > 0) {
             tokenBucketOnByte =
-                    AsyncTokenBucket.builder().rate(publishThrottlingRateInByte).clock(monotonicSnapshotClock).build();
+                    AsyncTokenBucket.builder().rate(publishThrottlingRateInByte).clock(monotonicClock).build();
         } else {
             tokenBucketOnByte = null;
         }
+        // After any bucket rebuild, wake unthrottling:
+        // old scheduled delay may be invalid and cause unnecessary wait time for producers to be unthrottled.
+        scheduleImmediateUnthrottling();
     }
 
     @VisibleForTesting
