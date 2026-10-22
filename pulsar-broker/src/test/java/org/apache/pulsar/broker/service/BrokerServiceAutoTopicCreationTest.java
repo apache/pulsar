@@ -625,11 +625,16 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         pulsar.getConfiguration().setAllowAutoTopicCreationType(TopicType.PARTITIONED);
         pulsar.getConfiguration().setDefaultNumPartitions(3);
 
-        final String topicString = "persistent://prop/ns-abc/testTopic-partition--1";
-
-        Assert.assertThrows(PulsarClientException.NotFoundException.class,
-                ()-> pulsarClient.newProducer().topic(topicString).create());
-
+        // Names containing "-partition-" that are not partition names are auto-created as non-partitioned topics,
+        // since the admin API would refuse them as partitioned topics.
+        for (String localName : List.of("testTopic-partition--1", "testTopic-partition-01",
+                "testTopic-partition-abc", "orders-partition-events")) {
+            final String topicString = "persistent://prop/ns-abc/" + localName;
+            pulsarClient.newProducer().topic(topicString).create().close();
+            assertEquals(admin.topics().getPartitionedTopicMetadata(topicString).partitions, 0);
+            assertTrue(admin.namespaces().getTopics("prop/ns-abc").contains(topicString));
+            assertFalse(admin.topics().getPartitionedTopicList("prop/ns-abc").contains(topicString));
+        }
     }
 
     @Test
