@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.resources;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
@@ -121,6 +122,34 @@ public class ScalableTopicCreationLockTest {
                 .get(10, TimeUnit.SECONDS)).isEqualTo("created");
         assertThat(responseLost).isTrue();
         // Released: the next acquisition takes the lock.
+        resources.runWithCreationLock(TOPIC, CreationLock::checkHeld).get(10, TimeUnit.SECONDS);
+    }
+
+    /** An acquisition that fails after creating its record, as when it can't list the records, deletes it. */
+    @Test
+    public void testAcquisitionThatFailsToListTheRecords() throws Exception {
+        AtomicBoolean listingFailed = new AtomicBoolean();
+        @Cleanup
+        MetadataStoreExtended store = new LocalMemoryMetadataStore("memory:failed-listing",
+                MetadataStoreConfig.builder().build()) {
+            @Override
+            public CompletableFuture<List<String>> getChildrenFromStore(String path, Set<Option> opts) {
+                if (path.startsWith("/topic-creation-locks/") && listingFailed.compareAndSet(false, true)) {
+                    return CompletableFuture.failedFuture(new MetadataStoreException("Injected listing failure"));
+                }
+                return super.getChildrenFromStore(path, opts);
+            }
+        };
+        ScalableTopicResources resources = new ScalableTopicResources(store, 30);
+
+        AtomicBoolean ran = new AtomicBoolean();
+        assertThatThrownBy(() -> resources.runWithCreationLock(TOPIC, lock -> {
+                    ran.set(true);
+                    return CompletableFuture.completedFuture(null);
+                }).get(10, TimeUnit.SECONDS))
+                .hasRootCauseMessage("Injected listing failure");
+        assertThat(ran).isFalse();
+        // Its record was deleted: the next acquisition takes the lock.
         resources.runWithCreationLock(TOPIC, CreationLock::checkHeld).get(10, TimeUnit.SECONDS);
     }
 

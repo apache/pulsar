@@ -357,11 +357,13 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
                         // lost. No other acquisition uses this name.
                         return CompletableFuture.completedFuture(null);
                     }
-                    // Delete the record, in case it was created anyway.
-                    return releaseCreationLock(path).thenCompose(__ -> CompletableFuture.failedFuture(ex));
+                    return CompletableFuture.failedFuture(ex);
                 })
                 // Read the store, not the cache, which may miss the record of a concurrent acquisition.
                 .thenCompose(__ -> getStore().getChildrenFromStore(lockDir))
+                .exceptionallyCompose(ex ->
+                        // The record may have been created: delete it, or the lock would stay taken.
+                        releaseCreationLock(path).thenCompose(__ -> CompletableFuture.failedFuture(ex)))
                 .thenCompose(records -> {
                     if (records.stream().noneMatch(record -> record.startsWith(prefix) && !record.equals(name))) {
                         return CompletableFuture.completedFuture(null);
