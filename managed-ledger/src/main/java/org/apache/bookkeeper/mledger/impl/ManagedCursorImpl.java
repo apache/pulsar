@@ -1971,12 +1971,18 @@ public class ManagedCursorImpl implements ManagedCursor {
         List<Position> validPositions = new ArrayList<>(totalValidPositions);
         positions.stream().filter(position -> !alreadyAcknowledgedPositions.contains(position))
                 .forEach(p ->{
-                    if (p.compareTo(this.readPosition) == 0) {
-                        this.setReadPosition(this.readPosition.getNext());
-                        log.warn()
-                                .attr("replayPosition", p)
-                                .attr("readPosition", this.readPosition)
-                                .log("Replay position equals read position, setting next readPosition");
+                    // A normal read can complete concurrently and move the read position past p: only move it from p
+                    // to the next position atomically, so that it never goes backward nor skips an entry
+                    Position currentReadPosition = this.readPosition;
+                    if (p.compareTo(currentReadPosition) == 0) {
+                        Position nextReadPosition = p.getNext();
+                        if (READ_POSITION_UPDATER.compareAndSet(this, currentReadPosition, nextReadPosition)) {
+                            ledger.onCursorReadPositionUpdated(this, nextReadPosition);
+                            log.warn()
+                                    .attr("replayPosition", p)
+                                    .attr("readPosition", nextReadPosition)
+                                    .log("Replay position equals read position, setting next readPosition");
+                        }
                     }
                     validPositions.add(p);
                 });
