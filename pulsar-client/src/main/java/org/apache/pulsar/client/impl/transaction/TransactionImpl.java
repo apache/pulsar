@@ -28,12 +28,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.InvalidTxnStatusException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.TransactionNotFoundException;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -49,7 +50,7 @@ import org.apache.pulsar.common.util.FutureUtil;
  * failures. This decouples the transactional operations from non-transactional operations as
  * much as possible.
  */
-@Slf4j
+@CustomLog
 @Getter
 public class TransactionImpl implements Transaction , TimerTask {
 
@@ -62,7 +63,7 @@ public class TransactionImpl implements Transaction , TimerTask {
 
     private final Map<String, CompletableFuture<Void>> registerPartitionMap;
     private final Map<Pair<String, String>, CompletableFuture<Void>> registerSubscriptionMap;
-    private final TransactionCoordinatorClientImpl tcClient;
+    private final TransactionCoordinatorClient tcClient;
 
     private CompletableFuture<Void> opFuture;
 
@@ -96,7 +97,7 @@ public class TransactionImpl implements Transaction , TimerTask {
 
         this.registerPartitionMap = new ConcurrentHashMap<>();
         this.registerSubscriptionMap = new ConcurrentHashMap<>();
-        this.tcClient = client.getTcClient();
+        this.tcClient = client.getTransactionCoordinatorClient();
         this.opFuture = CompletableFuture.completedFuture(null);
         this.timeout = client.getTimer().newTimeout(this, transactionTimeoutMs, TimeUnit.MILLISECONDS);
 
@@ -128,8 +129,10 @@ public class TransactionImpl implements Transaction , TimerTask {
         // and then the opFuture will never be replaced.
         newSendFuture.whenComplete((messageId, e) -> {
             if (e != null) {
-                log.error("The transaction [{}:{}] get an exception when send messages.",
-                        txnIdMostBits, txnIdLeastBits, e);
+                log.error().attr("txnIdMostBits", txnIdMostBits)
+                        .attr("txnIdLeastBits", txnIdLeastBits)
+                        .exception(e)
+                        .log("The transaction got an exception when sending messages");
                 if (!hasOpsFailed) {
                     hasOpsFailed = true;
                 }
@@ -167,8 +170,10 @@ public class TransactionImpl implements Transaction , TimerTask {
         // and then the opFuture will never be replaced.
         newAckFuture.whenComplete((ignore, e) -> {
             if (e != null) {
-                log.error("The transaction [{}:{}] get an exception when ack messages.",
-                        txnIdMostBits, txnIdLeastBits, e);
+                log.error().attr("txnIdMostBits", txnIdMostBits)
+                        .attr("txnIdLeastBits", txnIdLeastBits)
+                        .exception(e)
+                        .log("The transaction got an exception when acking messages");
                 if (!hasOpsFailed) {
                     hasOpsFailed = true;
                 }

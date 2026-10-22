@@ -20,8 +20,8 @@ package org.apache.pulsar.client.admin.internal;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import jakarta.ws.rs.client.WebTarget;
 import java.util.concurrent.CompletableFuture;
-import javax.ws.rs.client.WebTarget;
 import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
@@ -35,12 +35,10 @@ import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
  */
 public class BrokerStatsImpl extends BaseResource implements BrokerStats {
 
-    private final WebTarget adminBrokerStats;
     private final WebTarget adminV2BrokerStats;
 
     public BrokerStatsImpl(WebTarget target, Authentication auth, long requestTimeoutMs) {
         super(auth, requestTimeoutMs);
-        adminBrokerStats = target.path("/admin/broker-stats");
         adminV2BrokerStats = target.path("/admin/v2/broker-stats");
     }
 
@@ -113,8 +111,8 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
     public JsonObject getBrokerResourceAvailability(String namespace) throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
-            WebTarget admin = ns.isV2() ? adminV2BrokerStats : adminBrokerStats;
-            String json = request(admin.path("/broker-resource-availability").path(ns.toString())).get(String.class);
+            String json = request(adminV2BrokerStats.path("/broker-resource-availability").path(ns.toString()))
+                    .get(String.class);
             return new Gson().fromJson(json, JsonObject.class);
         } catch (Exception e) {
             throw getApiException(e);

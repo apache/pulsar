@@ -23,11 +23,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.lang.reflect.Field;
 import java.util.Arrays;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.testng.annotations.Test;
 import picocli.CommandLine.Option;
 
-@Slf4j
+@CustomLog
 public class PulsarClusterMetadataSetupTest {
     @Test
     public void testMainGenerateDocs() throws Exception {

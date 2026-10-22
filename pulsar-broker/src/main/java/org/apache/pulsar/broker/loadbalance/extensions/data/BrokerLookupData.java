@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.data;
 
-import java.net.URI;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -31,7 +30,8 @@ import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
 /**
  * Defines the information required to broker lookup.
  */
-public record BrokerLookupData (String webServiceUrl,
+public record BrokerLookupData (String brokerId,
+                                String webServiceUrl,
                                 String webServiceUrlTls,
                                 String pulsarServiceUrl,
                                 String pulsarServiceUrlTls,
@@ -43,6 +43,11 @@ public record BrokerLookupData (String webServiceUrl,
                                 long startTimestamp,
                                 String brokerVersion,
                                 Map<String, String> properties) implements ServiceLookupData {
+    @Override
+    public String getBrokerId() {
+        return this.brokerId;
+    }
+
     @Override
     public String getWebServiceUrl() {
         return this.webServiceUrl();
@@ -84,24 +89,20 @@ public record BrokerLookupData (String webServiceUrl,
     }
 
     public LookupResult toLookupResult(LookupOptions options) throws PulsarServerException {
-        if (options.hasAdvertisedListenerName()) {
-            AdvertisedListener listener = advertisedListeners.get(options.getAdvertisedListenerName());
-            if (listener == null) {
-                throw new PulsarServerException("the broker do not have "
-                        + options.getAdvertisedListenerName() + " listener");
-            }
-            URI url = listener.getBrokerServiceUrl();
-            URI urlTls = listener.getBrokerServiceUrlTls();
-            return new LookupResult(webServiceUrl, webServiceUrlTls,
-                    url == null ? null : url.toString(),
-                    urlTls == null ? null : urlTls.toString(), LookupResult.Type.BrokerUrl, false);
+        if (options.hasAdvertisedListenerName()
+                && !advertisedListeners.containsKey(options.getAdvertisedListenerName())) {
+            throw new PulsarServerException("the broker do not have "
+                    + options.getAdvertisedListenerName() + " listener");
         }
-        return new LookupResult(webServiceUrl, webServiceUrlTls, pulsarServiceUrl, pulsarServiceUrlTls,
-                LookupResult.Type.BrokerUrl, false);
+        return LookupResult.create(this, options);
+    }
+
+    public LookupResult toLoadManagerMigrationLookupResult(LookupOptions options) {
+        return LookupResult.create(this, options, false);
     }
 
     public NamespaceEphemeralData toNamespaceEphemeralData() {
-        return new NamespaceEphemeralData(pulsarServiceUrl, pulsarServiceUrlTls, webServiceUrl, webServiceUrlTls,
-                false, advertisedListeners);
+        return new NamespaceEphemeralData(brokerId, pulsarServiceUrl, pulsarServiceUrlTls, webServiceUrl,
+                webServiceUrlTls, false, advertisedListeners);
     }
 }

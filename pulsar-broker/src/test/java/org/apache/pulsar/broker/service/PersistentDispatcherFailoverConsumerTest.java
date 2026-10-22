@@ -52,6 +52,7 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
@@ -79,17 +80,16 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.naming.NamespaceBundle;
-import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "quarantine")
+@CustomLog
 public class PersistentDispatcherFailoverConsumerTest {
 
     private ServerCnx serverCnx;
@@ -101,8 +101,8 @@ public class PersistentDispatcherFailoverConsumerTest {
 
     protected PulsarTestContext pulsarTestContext;
 
-    final String successTopicName = "persistent://part-perf/global/perf.t1/ptopic";
-    final String failTopicName = "persistent://part-perf/global/perf.t1/pfailTopic";
+    final String successTopicName = "persistent://part-perf/perf.t1/ptopic";
+    final String failTopicName = "persistent://part-perf/perf.t1/pfailTopic";
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -112,6 +112,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         svcConfig.setClusterName("pulsar-cluster");
         svcConfig.setSystemTopicEnabled(false);
         svcConfig.setTopicLevelPoliciesEnabled(false);
+        svcConfig.setActiveConsumerFailoverDelayTimeMillis(0);
         pulsarTestContext = PulsarTestContext.builderForNonStartableContext()
                 .config(svcConfig)
                 .spyByDefault()
@@ -146,7 +147,8 @@ public class PersistentDispatcherFailoverConsumerTest {
         doReturn(new InetSocketAddress("localhost", 1234)).when(serverCnx).clientAddress();
         when(serverCnx.getRemoteEndpointProtocolVersion()).thenReturn(ProtocolVersion.v12.getValue());
         when(serverCnx.ctx()).thenReturn(channelCtx);
-        doReturn(new PulsarCommandSenderImpl(null, serverCnx))
+        AsyncDualMemoryLimiter maxTopicListInFlightLimiter = mock(AsyncDualMemoryLimiter.class);
+        doReturn(new PulsarCommandSenderImpl(null, serverCnx, maxTopicListInFlightLimiter))
                 .when(serverCnx).getCommandSender();
 
         serverCnxWithOldVersion = pulsarTestContext.createServerCnxSpy();
@@ -157,19 +159,20 @@ public class PersistentDispatcherFailoverConsumerTest {
         when(serverCnxWithOldVersion.getRemoteEndpointProtocolVersion())
             .thenReturn(ProtocolVersion.v11.getValue());
         when(serverCnxWithOldVersion.ctx()).thenReturn(channelCtx);
-        doReturn(new PulsarCommandSenderImpl(null, serverCnxWithOldVersion))
+        doReturn(new PulsarCommandSenderImpl(null, serverCnxWithOldVersion, maxTopicListInFlightLimiter))
                 .when(serverCnxWithOldVersion).getCommandSender();
 
         NamespaceService nsSvc = pulsarTestContext.getPulsarService().getNamespaceService();
         doReturn(true).when(nsSvc).isServiceUnitOwned(any(NamespaceBundle.class));
-        doReturn(true).when(nsSvc).isServiceUnitActive(any(TopicName.class));
-        doReturn(CompletableFuture.completedFuture(true)).when(nsSvc).checkTopicOwnership(any(TopicName.class));
+        doReturn(CompletableFuture.completedFuture(mock(NamespaceBundle.class))).when(nsSvc).getBundleAsync(any());
+        doReturn(CompletableFuture.completedFuture(true)).when(nsSvc).checkBundleOwnership(any(), any());
 
         setupMLAsyncCallbackMocks();
 
     }
 
     @AfterMethod(alwaysRun = true)
+    @SuppressWarnings("unchecked")
     public void shutdown() throws Exception {
         if (pulsarTestContext != null) {
             pulsarTestContext.close();
@@ -177,6 +180,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         }
     }
 
+    @SuppressWarnings("unchecked")
     void setupMLAsyncCallbackMocks() {
         ledgerMock = mock(ManagedLedger.class);
         cursorMock = mock(ManagedCursorImpl.class);
@@ -332,8 +336,10 @@ public class PersistentDispatcherFailoverConsumerTest {
         verify(consumer1, times(2)).notifyActiveConsumerChange(same(consumer1));
 
         // 5. Add another consumer which does not change active consumer
-        Consumer consumer2 = spy(new Consumer(sub, SubType.Exclusive, topic.getName(), 2 /* consumer id */, 0, "Cons2"/* consumer name */,
-                true, serverCnx, "myrole-1", Collections.emptyMap(), false /* read compacted */, null, MessageId.latest, DEFAULT_CONSUMER_EPOCH));
+        Consumer consumer2 = spy(new Consumer(sub, SubType.Exclusive,
+                topic.getName(), 2 /* consumer id */, 0, "Cons2"/* consumer name */,
+                true, serverCnx, "myrole-1", Collections.emptyMap(),
+                false /* read compacted */, null, MessageId.latest, DEFAULT_CONSUMER_EPOCH));
         pdfc.addConsumer(consumer2);
         consumers = pdfc.getConsumers();
         assertSame(pdfc.getActiveConsumer().consumerName(), consumer1.consumerName());
@@ -461,6 +467,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         return res.get();
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testAddRemoveConsumerNonPartitionedTopic() throws Exception {
         log.info("--- Starting PersistentDispatcherFailoverConsumerTest::testAddRemoveConsumerNonPartitionedTopic ---");
@@ -511,8 +518,10 @@ public class PersistentDispatcherFailoverConsumerTest {
         verify(consumer2, times(1)).notifyActiveConsumerChange(same(consumer1));
 
         // 5. Add another consumer which has higher priority level
-        Consumer consumer3 = spy(new Consumer(sub, SubType.Failover, topic.getName(), 3 /* consumer id */, 0, "Cons3"/* consumer name */,
-                true, serverCnx, "myrole-1", Collections.emptyMap(), false /* read compacted */, null, MessageId.latest, DEFAULT_CONSUMER_EPOCH));
+        Consumer consumer3 = spy(new Consumer(sub, SubType.Failover,
+                topic.getName(), 3 /* consumer id */, 0, "Cons3"/* consumer name */,
+                true, serverCnx, "myrole-1", Collections.emptyMap(),
+                false /* read compacted */, null, MessageId.latest, DEFAULT_CONSUMER_EPOCH));
         pdfc.addConsumer(consumer3);
         consumers = pdfc.getConsumers();
         assertEquals(3, consumers.size());
@@ -689,18 +698,21 @@ public class PersistentDispatcherFailoverConsumerTest {
         if (consumer != null) {
             Field field = Consumer.class.getDeclaredField("MESSAGE_PERMITS_UPDATER");
             field.setAccessible(true);
-            AtomicIntegerFieldUpdater<Consumer> messagePermits = (AtomicIntegerFieldUpdater<Consumer>) field.get(consumer);
+            AtomicIntegerFieldUpdater<Consumer> messagePermits =
+                    (AtomicIntegerFieldUpdater<Consumer>) field.get(consumer);
             messagePermits.decrementAndGet(consumer);
             return consumer;
         }
         return null;
     }
 
-    private Consumer createConsumer(PersistentTopic topic, int priority, int permit, boolean blocked, int id) throws Exception {
+    private Consumer createConsumer(PersistentTopic topic, int priority, int permit, boolean blocked, int id)
+            throws Exception {
         PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock, false);
         Consumer consumer =
-                new Consumer(sub, SubType.Shared, "test-topic", id, priority, ""+id, true,
-                        serverCnx, "appId", Collections.emptyMap(), false /* read compacted */, null, MessageId.latest,DEFAULT_CONSUMER_EPOCH);
+                new Consumer(sub, SubType.Shared, "test-topic", id, priority,
+                        "" + id, true, serverCnx, "appId", Collections.emptyMap(),
+                        false /* read compacted */, null, MessageId.latest, DEFAULT_CONSUMER_EPOCH);
         try {
             consumer.flowPermits(permit);
         } catch (Exception e) {
@@ -711,7 +723,5 @@ public class PersistentDispatcherFailoverConsumerTest {
         blockField.set(consumer, blocked);
         return consumer;
     }
-
-    private static final Logger log = LoggerFactory.getLogger(PersistentDispatcherFailoverConsumerTest.class);
 
 }
