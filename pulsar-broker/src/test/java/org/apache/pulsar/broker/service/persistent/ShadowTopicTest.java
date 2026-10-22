@@ -600,7 +600,8 @@ public class ShadowTopicTest extends BrokerTestBase {
         admin.topics().createNonPartitionedTopic(sourceTopic);
         admin.topics().createShadowTopic(shadowTopic, sourceTopic);
         admin.topics().setShadowTopics(sourceTopic, Lists.newArrayList(shadowTopic));
-        admin.topicPolicies().setSchemaCompatibilityStrategy(sourceTopic, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+        admin.topicPolicies().setSchemaCompatibilityStrategy(sourceTopic,
+                SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
         admin.topicPolicies().setSchemaCompatibilityStrategy(shadowTopic, SchemaCompatibilityStrategy.FULL);
         admin.schemas().createSchema(sourceTopic, Schema.KeyValue(oldKey, Schema.STRING).getSchemaInfo());
         awaitUntilShadowReplicatorReady(sourceTopic, shadowTopic);
