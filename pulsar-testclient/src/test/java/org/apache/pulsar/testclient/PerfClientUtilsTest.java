@@ -183,7 +183,8 @@ public class PerfClientUtilsTest {
             }
             args.getCommander().setDefaultValueProvider(PulsarPerfTestPropertiesProvider.create(prop));
             args.parse(new String[]{});
-            final ClientBuilderImpl builder = (ClientBuilderImpl) PerfClientUtils.createClientBuilderFromArguments(args);
+            final ClientBuilderImpl builder =
+                    (ClientBuilderImpl) PerfClientUtils.createClientBuilderFromArguments(args);
             final ClientConfigurationData conf = builder.getClientConfigurationData();
 
             Assert.assertEquals(conf.getServiceUrl(), "pulsar+ssl://pulsar:6651");
@@ -216,7 +217,7 @@ public class PerfClientUtilsTest {
         args.tlsKeyStorePath = "./tlsKeyStorePath";
         args.tlsKeyStorePassword = "tlsKeyStorePassword";
 
-        final ClientBuilderImpl builder = (ClientBuilderImpl)PerfClientUtils.createClientBuilderFromArguments(args);
+        final ClientBuilderImpl builder = (ClientBuilderImpl) PerfClientUtils.createClientBuilderFromArguments(args);
         final ClientConfigurationData conf = builder.getClientConfigurationData();
 
         Assert.assertEquals(conf.getAuthPluginClassName(), MyAuth.class.getName());
@@ -247,8 +248,8 @@ public class PerfClientUtilsTest {
         args.tlsKeyStorePath = "./tlsKeyStorePath";
         args.tlsKeyStorePassword = "tlsKeyStorePassword";
 
-        final PulsarAdminBuilderImpl builder = (PulsarAdminBuilderImpl)PerfClientUtils.createAdminBuilderFromArguments(args,
-                "https://localhost:8081");
+        final PulsarAdminBuilderImpl builder = (PulsarAdminBuilderImpl) PerfClientUtils
+                .createAdminBuilderFromArguments(args, "https://localhost:8081");
         final ClientConfigurationData conf = builder.getConf();
 
         Assert.assertEquals(conf.getServiceUrl(), "https://localhost:8081");

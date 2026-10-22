@@ -20,8 +20,8 @@ package org.apache.pulsar.testclient;
 
 import static org.apache.pulsar.client.api.ProxyProtocol.SNI;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.assertThrows;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.io.File;
 import java.io.FileInputStream;
