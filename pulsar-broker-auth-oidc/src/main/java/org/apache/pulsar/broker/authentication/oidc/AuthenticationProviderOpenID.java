@@ -47,29 +47,30 @@ import java.net.SocketAddress;
 import java.security.PublicKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.interfaces.RSAPublicKey;
+import java.time.Duration;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
+import lombok.CustomLog;
 import okhttp3.OkHttpClient;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.AuthenticationState;
+import org.apache.pulsar.broker.authentication.TokenAuthenticationProvider;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
+import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.common.api.AuthData;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.AsyncHttpClientConfig;
 import org.asynchttpclient.DefaultAsyncHttpClient;
 import org.asynchttpclient.DefaultAsyncHttpClientConfig;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
- * An {@link AuthenticationProvider} implementation that supports the usage of a JSON Web Token (JWT)
+ * A {@link TokenAuthenticationProvider} implementation that supports the usage of a JSON Web Token (JWT)
  * for client authentication. This implementation retrieves the PublicKey from the JWT issuer (assuming the
  * issuer is in the configured allowed list) and then uses that Public Key to verify the validity of the JWT's
  * signature.
@@ -85,11 +86,9 @@ import org.slf4j.LoggerFactory;
  * Supported algorithms are: RS256, RS384, RS512, ES256, ES384, ES512 where the naming conventions follow
  * this RFC: https://datatracker.ietf.org/doc/html/rfc7518#section-3.1.
  */
-public class AuthenticationProviderOpenID implements AuthenticationProvider {
-    private static final Logger log = LoggerFactory.getLogger(AuthenticationProviderOpenID.class);
-
+@CustomLog
+public class AuthenticationProviderOpenID implements TokenAuthenticationProvider {
     // Must match the value used by the OAuth2 Client Plugin.
-    private static final String AUTH_METHOD_NAME = "token";
 
     // This is backed by an ObjectMapper, which is thread safe. It is an optimization
     // to share this for decoding JWTs for all connections to this broker.
@@ -148,6 +147,7 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
 
     private AuthenticationMetrics authenticationMetrics;
 
+    @SuppressWarnings("deprecation")
     @Override
     public void initialize(ServiceConfiguration config) throws IOException {
         initialize(Context.builder().config(config).build());
@@ -169,9 +169,9 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
         this.issuers = validateIssuers(getConfigValueAsSet(config, ALLOWED_TOKEN_ISSUERS), requireHttps,
                 fallbackDiscoveryMode != FallbackDiscoveryMode.DISABLED);
 
-        int connectionTimeout = getConfigValueAsInt(config, HTTP_CONNECTION_TIMEOUT_MILLIS,
+        int connectionTimeoutMs = getConfigValueAsInt(config, HTTP_CONNECTION_TIMEOUT_MILLIS,
                 HTTP_CONNECTION_TIMEOUT_MILLIS_DEFAULT);
-        int readTimeout = getConfigValueAsInt(config, HTTP_READ_TIMEOUT_MILLIS, HTTP_READ_TIMEOUT_MILLIS_DEFAULT);
+        int readTimeoutMs = getConfigValueAsInt(config, HTTP_READ_TIMEOUT_MILLIS, HTTP_READ_TIMEOUT_MILLIS_DEFAULT);
         String trustCertsFilePath = getConfigValueAsString(config, ISSUER_TRUST_CERTS_FILE_PATH, null);
         SslContext sslContext = null;
         // When config is in the conf file but is empty, it defaults to the empty string, which is not meaningful and
@@ -183,8 +183,9 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
                     .build();
         }
         AsyncHttpClientConfig clientConfig = new DefaultAsyncHttpClientConfig.Builder()
-                .setConnectTimeout(connectionTimeout)
-                .setReadTimeout(readTimeout)
+                .setCookieStore(null)
+                .setConnectTimeout(Duration.ofMillis(connectionTimeoutMs))
+                .setReadTimeout(Duration.ofMillis(readTimeoutMs))
                 .setSslContext(sslContext)
                 .build();
         httpClient = new DefaultAsyncHttpClient(clientConfig);
@@ -201,6 +202,17 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
     @Override
     public void incrementFailureMetric(Enum<?> errorCode) {
         authenticationMetrics.recordFailure(errorCode);
+    }
+
+    @Override
+    public CompletableFuture<Set<String>> authenticateRolesAsync(AuthenticationDataSource authData, String roleClaim) {
+        try {
+            return authenticateTokenAsync(authData)
+                    .thenApply(jwt -> AuthTokenUtils.rolesFromClaim(
+                            jwt.getClaim(roleClaim).as(Object.class)));
+        } catch (Exception e) {
+            return CompletableFuture.failedFuture(e);
+        }
     }
 
     /**
@@ -264,11 +276,12 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
             } else if (roles.size() == 1) {
                 return roles.get(0);
             } else {
-                log.debug("JWT for subject [{}] has multiple roles; using the first one.", jwt.getSubject());
+                log.debug().attr("value", jwt.getSubject())
+                        .log("JWT for subject [] has multiple roles; using the first one.");
                 return roles.get(0);
             }
         } catch (JWTDecodeException e) {
-            log.error("Exception while retrieving role from JWT", e);
+            log.error().exception(e).log("Exception while retrieving role from JWT");
             return null;
         }
     }
@@ -444,7 +457,6 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
                 .withAnyOfAudience(allowedAudiences)
                 .withClaimPresence(RegisteredClaims.ISSUED_AT)
                 .withClaimPresence(RegisteredClaims.EXPIRES_AT)
-                .withClaimPresence(RegisteredClaims.NOT_BEFORE)
                 .withClaimPresence(RegisteredClaims.SUBJECT);
 
         if (isRoleClaimNotSubject) {
@@ -494,7 +506,7 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
         }
         for (String issuer : allowedIssuers) {
             if (!issuer.toLowerCase().startsWith("https://")) {
-                log.warn("Allowed issuer is not using https scheme: {}", issuer);
+                log.warn().attr("issuer", issuer).log("Allowed issuer is not using https scheme");
                 if (requireHttps) {
                     throw new IllegalArgumentException("Issuer URL does not use https, but must: " + issuer);
                 }

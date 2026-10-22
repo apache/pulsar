@@ -50,6 +50,7 @@ import java.util.concurrent.TimeUnit;
 import javax.naming.AuthenticationException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
+import org.apache.pulsar.common.stats.CacheMetricsCollector;
 import org.asynchttpclient.AsyncHttpClient;
 
 public class JwksCache {
@@ -87,10 +88,12 @@ public class JwksCache {
             }
         };
         this.cache = Caffeine.newBuilder()
+                .recordStats()
                 .maximumSize(maxSize)
                 .refreshAfterWrite(refreshAfterWriteSeconds, TimeUnit.SECONDS)
                 .expireAfterWrite(expireAfterSeconds, TimeUnit.SECONDS)
                 .buildAsync(loader);
+        CacheMetricsCollector.CAFFEINE.addCache("oidc-jwks-cache", cache);
     }
 
     CompletableFuture<Jwk> getJwk(String jwksUri, String keyId) {
@@ -166,7 +169,7 @@ public class JwksCache {
     private CompletableFuture<List<Jwk>> getJwksFromKubernetesApiServer() {
         CompletableFuture<List<Jwk>> future = new CompletableFuture<>();
         try {
-            openidApi.getServiceAccountIssuerOpenIDKeysetAsync(new ApiCallback<String>() {
+            openidApi.getServiceAccountIssuerOpenIDKeyset().executeAsync(new ApiCallback<String>() {
                 @Override
                 public void onFailure(ApiException e, int statusCode, Map<String, List<String>> responseHeaders) {
                     authenticationProvider.incrementFailureMetric(ERROR_RETRIEVING_PUBLIC_KEY);

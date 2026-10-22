@@ -151,7 +151,7 @@ public class RawBatchConverter {
         ByteBuf uncompressedPayload = codec.decode(payload, uncompressedSize);
         try {
             int batchSize = metadata.getNumMessagesInBatch();
-            int messagesRetained = 0;
+            final var retainedBatchIndexes = new ArrayList<Integer>();
 
             SingleMessageMetadata emptyMetadata = new SingleMessageMetadata().setCompactedOut(true);
             SingleMessageMetadata singleMessageMetadata = new SingleMessageMetadata();
@@ -169,7 +169,7 @@ public class RawBatchConverter {
                             Unpooled.EMPTY_BUFFER, batchBuffer);
                 } else if (!singleMessageMetadata.hasPartitionKey()) {
                     if (retainNullKey) {
-                        messagesRetained++;
+                        retainedBatchIndexes.add(i);
                         Commands.serializeSingleMessageInBatchWithPayload(singleMessageMetadata,
                                 singleMessagePayload, batchBuffer);
                     } else {
@@ -178,7 +178,7 @@ public class RawBatchConverter {
                     }
                 } else if (filter.test(singleMessageMetadata.getPartitionKey(), id)
                            && singleMessagePayload.readableBytes() > 0) {
-                    messagesRetained++;
+                    retainedBatchIndexes.add(i);
                     Commands.serializeSingleMessageInBatchWithPayload(singleMessageMetadata,
                                                                       singleMessagePayload, batchBuffer);
                 } else {
@@ -189,10 +189,14 @@ public class RawBatchConverter {
                 singleMessagePayload.release();
             }
 
-            if (messagesRetained > 0) {
+            if (!retainedBatchIndexes.isEmpty()) {
                 int newUncompressedSize = batchBuffer.readableBytes();
                 ByteBuf compressedPayload = codec.encode(batchBuffer);
 
+                metadata.clearCompactedBatchIndexes();
+                for (int index : retainedBatchIndexes) {
+                    metadata.addCompactedBatchIndexe(index);
+                }
                 metadata.setUncompressedSize(newUncompressedSize);
 
                 ByteBuf metadataAndPayload = Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c,

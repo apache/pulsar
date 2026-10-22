@@ -24,9 +24,9 @@ import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUni
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.StorageType.SystemTopic;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData.state;
 import com.google.common.annotations.VisibleForTesting;
+import java.util.Objects;
 import java.util.function.BiConsumer;
 import lombok.Setter;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.topics.TopicCompactionStrategy;
 
@@ -136,8 +136,8 @@ public class ServiceUnitStateDataConflictResolver implements TopicCompactionStra
     }
 
     private boolean notEquals(ServiceUnitStateData from, ServiceUnitStateData to) {
-        return !StringUtils.equals(from.dstBroker(), to.dstBroker())
-                || !StringUtils.equals(from.sourceBroker(), to.sourceBroker());
+        return !Objects.equals(from.dstBroker(), to.dstBroker())
+                || !Objects.equals(from.sourceBroker(), to.sourceBroker());
     }
 
     private boolean invalidUnload(ServiceUnitStateData from, ServiceUnitStateData to) {

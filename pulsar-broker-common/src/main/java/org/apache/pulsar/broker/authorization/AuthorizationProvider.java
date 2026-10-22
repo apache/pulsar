@@ -24,14 +24,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import lombok.Builder;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.client.admin.GrantTopicPermissionOptions;
 import org.apache.pulsar.client.admin.RevokeTopicPermissionOptions;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.BrokerOperation;
+import org.apache.pulsar.common.policies.data.ClusterOperation;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
@@ -74,15 +78,33 @@ public interface AuthorizationProvider extends Closeable {
     }
 
     /**
+     * Initialization dependencies for an authorization provider.
+     * The authentication service is already initialized and owned by the enclosing service.
+     */
+    @Builder
+    record InitialContext(ServiceConfiguration config, PulsarResources pulsarResources,
+                          AuthenticationService authenticationService) {
+    }
+
+    /**
+     * Initialize the authorization provider with its shared dependencies.
+     */
+    default void initialize(InitialContext context) throws IOException {
+        initialize(context.config(), context.pulsarResources());
+    }
+
+    /**
      * Perform initialization for the authorization provider.
      *
      * @param conf
      *            broker config object
      * @param pulsarResources
      *            Resources component for access to metadata
+     * @deprecated use {@link #initialize(InitialContext)} instead
      * @throws IOException
      *             if the initialization fails
      */
+    @Deprecated
     default void initialize(ServiceConfiguration conf, PulsarResources pulsarResources) throws IOException {
     }
 
@@ -324,6 +346,34 @@ public interface AuthorizationProvider extends Closeable {
     }
 
     /**
+     * Check if a given <tt>role</tt> may have a topic created automatically, when it produces to, subscribes to or
+     * looks up a topic that does not exist and the auto topic creation settings allow creating it.
+     *
+     * <p>The default allows it, so the auto topic creation settings alone decide, as they did before this check
+     * existed. A provider overrides it to restrict which roles may trigger topic auto-creation, for example by
+     * checking {@link NamespaceOperation#CREATE_TOPIC}.
+     *
+     * <p>It is only called when the settings would create the topic from nothing: not for a topic the broker
+     * re-materializes from existing metadata (a partition of an existing partitioned topic, an active segment of a
+     * scalable topic), nor for system topics, and only once the broker found that the topic does not exist, in this
+     * cluster or, for partitioned-topic metadata, in a remote one. The exception is an HTTP request for a
+     * non-persistent topic, whose existence the broker does not check there, so it must not assume the topic is
+     * missing. It should be cheap. A refusal only prevents creating a missing topic, and a future that completes
+     * exceptionally fails the client request. The broker's own clients, such as geo-replication, go through it too
+     * with their role, so a provider should keep allowing super users.
+     *
+     * @param topic topic name
+     * @param role role name
+     * @param authData authenticated data
+     * @return CompletableFuture<Boolean>
+     */
+    default CompletableFuture<Boolean> allowTopicAutoCreationAsync(TopicName topic,
+                                                                   String role,
+                                                                   AuthenticationDataSource authData) {
+        return CompletableFuture.completedFuture(true);
+    }
+
+    /**
      * Check if a given <tt>role</tt> is allowed to execute a given topic <tt>operation</tt> on topic's <tt>policy</tt>.
      *
      * @param topic topic name
@@ -348,6 +398,25 @@ public interface AuthorizationProvider extends Closeable {
      * @return CompletableFuture<Void>
      */
     default CompletableFuture<Void> removePermissionsAsync(TopicName topicName) {
+        return CompletableFuture.completedFuture(null);
+    }
+
+    /**
+     * Grant on a topic the permissions granted on another topic, for a topic that takes over from another one, such
+     * as the scalable topic a regular topic is migrated to: the roles allowed on the source topic keep their access.
+     *
+     * <p>Both topics are in the same namespace. Only the permissions granted on the source topic itself are copied,
+     * not those of the namespace. A role keeps the permissions already granted to it on the target topic, and gains
+     * those granted to it on the source topic.
+     *
+     * <p>The default implementation copies nothing: a provider that stores the permissions granted on topics should
+     * override it.
+     *
+     * @param sourceTopicName the topic whose permissions are copied
+     * @param targetTopicName the topic to grant them on
+     * @return a future that completes once the permissions are granted on the target topic
+     */
+    default CompletableFuture<Void> copyPermissionsAsync(TopicName sourceTopicName, TopicName targetTopicName) {
         return CompletableFuture.completedFuture(null);
     }
 
@@ -382,5 +451,33 @@ public interface AuthorizationProvider extends Closeable {
         return FutureUtil.failedFuture(new IllegalStateException(
                 String.format("getPermissionsAsync on namespaceName %s is not supported by the Authorization",
                         namespaceName)));
+    }
+
+    default CompletableFuture<Boolean> allowBrokerOperationAsync(String clusterName,
+                                                                 String brokerId,
+                                                                 BrokerOperation brokerOperation,
+                                                                 String role,
+                                                                 AuthenticationDataSource authData) {
+        return FutureUtil.failedFuture(
+                new UnsupportedOperationException("allowBrokerOperationAsync is not supported yet."));
+    }
+
+
+    default CompletableFuture<Boolean> allowClusterOperationAsync(String clusterName,
+                                                                  ClusterOperation clusterOperation,
+                                                                  String role,
+                                                                  AuthenticationDataSource authData) {
+        return FutureUtil.failedFuture(
+                new UnsupportedOperationException("allowClusterOperationAsync is not supported yet."));
+    }
+
+    default CompletableFuture<Boolean> allowClusterPolicyOperationAsync(String clusterName,
+                                                                        String role,
+                                                                        PolicyName policy,
+                                                                        PolicyOperation operation,
+                                                                        AuthenticationDataSource authData) {
+        return FutureUtil.failedFuture(
+                new IllegalStateException("ClusterPolicyOperation [" + policy.name() + "/" + operation.name() + "] "
+                                          + "is not supported by the Authorization provider you are using."));
     }
 }

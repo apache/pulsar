@@ -18,6 +18,9 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultConfig;
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerUtils.NO_MAX_SIZE_LIMIT;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -27,7 +30,6 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-
 import io.netty.buffer.Unpooled;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,20 +37,21 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
+import java.util.function.IntSupplier;
 import lombok.Cleanup;
 import org.apache.bookkeeper.client.BKException.BKNoSuchLedgerExistsException;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
+import org.apache.bookkeeper.common.util.ThreadBoundExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCache;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.testng.annotations.Test;
 
@@ -60,11 +63,12 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
     protected void setUpTestCase() throws Exception {
         ml = mock(ManagedLedgerImpl.class);
         when(ml.getName()).thenReturn("name");
-        when(ml.getExecutor()).thenReturn(executor);
+        when(ml.getExecutor()).thenReturn((ThreadBoundExecutor) bkExecutor.chooseThread());
         when(ml.getMbean()).thenReturn(new ManagedLedgerMBeanImpl(ml));
-        when(ml.getConfig()).thenReturn(new ManagedLedgerConfig());
+        when(ml.getConfig()).thenReturn(defaultConfig());
+        when(ml.isBatchReadEnabled()).thenReturn(true);
         when(ml.getOptionalLedgerInfo(0L)).thenReturn(Optional.of(mock(
-                MLDataFormats.ManagedLedgerInfo.LedgerInfo.class)));
+                ManagedLedgerInfo.LedgerInfo.class)));
     }
 
     @Test(timeOut = 5000)
@@ -82,7 +86,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
         }
 
         when(ml.getLastConfirmedEntry()).thenReturn(PositionFactory.create(0, 9));
-        final var entries = readEntry(entryCache, lh, 0, 9, false, null);
+        final var entries = readEntry(entryCache, lh, 0, 9, () -> 0, null);
         assertEquals(entries.size(), 10);
         entries.forEach(Entry::release);
 
@@ -106,7 +110,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
         }
 
         when(ml.getLastConfirmedEntry()).thenReturn(PositionFactory.create(0, 9));
-        final var entries = readEntry(entryCache, lh, 0, 9, false, null);
+        final var entries = readEntry(entryCache, lh, 0, 9, () -> 0, null);
         assertEquals(entries.size(), 10);
     }
 
@@ -125,7 +129,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
         }
 
         when(ml.getLastConfirmedEntry()).thenReturn(PositionFactory.create(0, 9));
-        final var entries = readEntry(entryCache, lh, 0, 9, false, null);
+        final var entries = readEntry(entryCache, lh, 0, 9, () -> 0, null);
         assertEquals(entries.size(), 10);
     }
 
@@ -145,7 +149,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
         entryCache.insert(EntryImpl.create(0, 9, data));
 
         when(ml.getLastConfirmedEntry()).thenReturn(PositionFactory.create(0, 9));
-        final var entries = readEntry(entryCache, lh, 0, 9, false, null);
+        final var entries = readEntry(entryCache, lh, 0, 9, () -> 0, null);
         assertEquals(entries.size(), 10);
     }
 
@@ -165,7 +169,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
         entryCache.insert(EntryImpl.create(0, 8, data));
 
         when(ml.getLastConfirmedEntry()).thenReturn(PositionFactory.create(0, 9));
-        final var entries = readEntry(entryCache, lh, 0, 9, false, null);
+        final var entries = readEntry(entryCache, lh, 0, 9, () -> 0, null);
         assertEquals(entries.size(), 10);
     }
 
@@ -178,25 +182,25 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
         @Cleanup(value = "clear")
         EntryCache entryCache = cacheManager.getEntryCache(ml);
 
-        readEntry(entryCache, lh, 0, 1, true, e -> {
+        readEntry(entryCache, lh, 0, 1, () -> 1, e -> {
             assertTrue(e instanceof ManagedLedgerException);
             assertTrue(e.getMessage().contains("LastConfirmedEntry is null when reading ledger 0"));
         });
 
         when(ml.getLastConfirmedEntry()).thenReturn(PositionFactory.create(-1, -1));
-        readEntry(entryCache, lh, 0, 1, true, e -> {
+        readEntry(entryCache, lh, 0, 1, () -> 1, e -> {
             assertTrue(e instanceof ManagedLedgerException);
             assertTrue(e.getMessage().contains("LastConfirmedEntry is -1:-1 when reading ledger 0"));
         });
 
         when(ml.getLastConfirmedEntry()).thenReturn(PositionFactory.create(0, 0));
-        readEntry(entryCache, lh, 0, 1, true, e -> {
+        readEntry(entryCache, lh, 0, 1, () -> 1, e -> {
             assertTrue(e instanceof ManagedLedgerException);
             assertTrue(e.getMessage().contains("LastConfirmedEntry is 0:0 when reading entry 1"));
         });
 
         when(ml.getLastConfirmedEntry()).thenReturn(PositionFactory.create(0, 1));
-        List<Entry> cacheMissEntries = readEntry(entryCache, lh, 0, 1, true, null);
+        List<Entry> cacheMissEntries = readEntry(entryCache, lh, 0, 1, () -> 1, null);
         // Ensure first entry is 0 and
         assertEquals(cacheMissEntries.size(), 2);
         assertEquals(cacheMissEntries.get(0).getEntryId(), 0);
@@ -205,7 +209,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
         // Move the reader index to simulate consumption
         cacheMissEntries.get(0).getDataBuffer().readerIndex(10);
 
-        List<Entry> cacheHitEntries = readEntry(entryCache, lh, 0, 1, true, null);
+        List<Entry> cacheHitEntries = readEntry(entryCache, lh, 0, 1, () -> 1, null);
         assertEquals(cacheHitEntries.get(0).getEntryId(), 0);
         assertEquals(cacheHitEntries.get(0).getDataBuffer().readerIndex(), 0);
     }
@@ -229,7 +233,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
         entryCache.insert(EntryImpl.create(0, 2, data));
 
         when(ml.getLastConfirmedEntry()).thenReturn(PositionFactory.create(0, 9));
-        readEntry(entryCache, lh, 0, 9, false, e ->
+        readEntry(entryCache, lh, 0, 9, () -> 0, e ->
                 assertTrue(e instanceof ManagedLedgerException.LedgerNotExistException));
     }
 
@@ -248,25 +252,28 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
                 doAnswer((invocation2) -> entries.iterator()).when(ledgerEntries).iterator();
                 return CompletableFuture.completedFuture(ledgerEntries);
             }).when(lh).readUnconfirmedAsync(anyLong(), anyLong());
+        // Batch reads use the ReadHandle default, which delegates to the stubbed readUnconfirmedAsync
+        when(lh.batchReadUnconfirmedAsync(anyLong(), anyInt(), anyLong())).thenCallRealMethod();
 
         return lh;
     }
 
     private List<Entry> readEntry(EntryCache entryCache, ReadHandle lh, long firstEntry, long lastEntry,
-                                  boolean shouldCacheEntry, Consumer<Throwable> assertion)
+                                  IntSupplier expectedReadCount, Consumer<Throwable> assertion)
             throws InterruptedException {
         final var future = new CompletableFuture<List<Entry>>();
-        entryCache.asyncReadEntry(lh, firstEntry, lastEntry, shouldCacheEntry, new ReadEntriesCallback() {
-            @Override
-            public void readEntriesComplete(List<Entry> entries, Object ctx) {
-                future.complete(entries);
-            }
+        entryCache.asyncReadEntry(lh, firstEntry, lastEntry, NO_MAX_SIZE_LIMIT, expectedReadCount,
+                new ReadEntriesCallback() {
+                    @Override
+                    public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                        future.complete(entries);
+                    }
 
-            @Override
-            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-                future.completeExceptionally(exception);
-            }
-        }, null);
+                    @Override
+                    public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                        future.completeExceptionally(exception);
+                    }
+                }, null);
         try {
             final var entries = future.get();
             assertNull(assertion);

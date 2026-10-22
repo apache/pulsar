@@ -31,8 +31,8 @@ import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 import java.util.concurrent.atomic.AtomicReference;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.ClassUtils;
+import lombok.CustomLog;
+import lombok.Getter;
 import org.apache.pulsar.client.admin.internal.data.AuthPoliciesImpl;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionState;
@@ -114,9 +114,10 @@ import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReportDeserializer;
 
 @SuppressWarnings("checkstyle:JavadocType")
-@Slf4j
+@CustomLog
 public class ObjectMapperFactory {
     public static class MapperReference {
+        @Getter
         private final ObjectMapper objectMapper;
         private final ObjectWriter objectWriter;
         private final ObjectReader objectReader;
@@ -125,10 +126,6 @@ public class ObjectMapperFactory {
             this.objectMapper = objectMapper;
             this.objectWriter = objectMapper.writer();
             this.objectReader = objectMapper.reader();
-        }
-
-        public ObjectMapper getObjectMapper() {
-            return objectMapper;
         }
 
         public ObjectWriter writer() {
@@ -156,7 +153,7 @@ public class ObjectMapperFactory {
     private static ObjectMapper createObjectMapperWithIncludeAlways() {
         return MAPPER_REFERENCE
                 .get().getObjectMapper().copy()
-                .setSerializationInclusion(Include.ALWAYS);
+                .setDefaultPropertyInclusion(Include.ALWAYS);
     }
 
     public static ObjectMapper create() {
@@ -171,7 +168,7 @@ public class ObjectMapperFactory {
         // forward compatibility for the properties may go away in the future
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         mapper.configure(DeserializationFeature.READ_UNKNOWN_ENUM_VALUES_AS_NULL, true);
-        mapper.setSerializationInclusion(Include.NON_NULL);
+        mapper.setDefaultPropertyInclusion(Include.NON_NULL);
 
         // enable Jackson Java 8 support modules
         // https://github.com/FasterXML/jackson-modules-java8
@@ -263,15 +260,7 @@ public class ObjectMapperFactory {
         mapper.addMixIn(FunctionState.class, JsonIgnorePropertiesMixIn.class);
         mapper.addMixIn(Metrics.class, MetricsMixIn.class);
 
-        try {
-            // We look for LoadManagerReport first, then add deserializer to the module
-            // With shaded client, org.apache.pulsar.policies is relocated to
-            // org.apache.pulsar.shade.org.apache.pulsar.policies
-            ClassUtils.getClass("org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport");
-            module.addDeserializer(LoadManagerReport.class, new LoadReportDeserializer());
-        } catch (ClassNotFoundException e) {
-            log.debug("Add LoadManagerReport deserializer failed because LoadManagerReport.class has been shaded", e);
-        }
+        module.addDeserializer(LoadManagerReport.class, new LoadReportDeserializer());
 
         module.setAbstractTypes(resolver);
 
@@ -280,7 +269,6 @@ public class ObjectMapperFactory {
 
     /**
      * Clears the caches tied to the ObjectMapper instances and replaces the singleton ObjectMapper instance.
-     *
      * This can be used in tests to ensure that classloaders and class references don't leak across tests.
      */
     public static void clearCaches() {

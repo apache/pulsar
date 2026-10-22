@@ -128,6 +128,8 @@ public interface ConsumerBuilder<T> extends Cloneable {
     /**
      * Specify a pattern for topics(not contains the partition suffix) that this consumer subscribes to.
      *
+     * <p>Will ignore the topic domain("persistent://" or "non-persistent://") when pattern matching.
+     *
      * <p>The pattern is applied to subscribe to all topics, within a single namespace, that match the
      * pattern.
      *
@@ -143,7 +145,9 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * Specify a pattern for topics(not contains the partition suffix) that this consumer subscribes to.
      *
      * <p>It accepts a regular expression that is compiled into a pattern internally. E.g.,
-     * "persistent://public/default/pattern-topic-.*"
+     * "persistent://public/default/pattern-topic-.*" or "public/default/pattern-topic-.*"
+     *
+     * <p>Will ignore the topic domain("persistent://" or "non-persistent://") when pattern matching.
      *
      * <p>The pattern is applied to subscribe to all topics, within a single namespace, that match the
      * pattern.
@@ -244,6 +248,19 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> negativeAckRedeliveryDelay(long redeliveryDelay, TimeUnit timeUnit);
 
     /**
+     * Sets the redelivery time precision bit count. The lower bits of the redelivery time will be
+     * trimmed to reduce the memory occupation. The default value is 8, which means the redelivery time
+     * will be bucketed by 256ms, the redelivery time could be earlier(no later) than the expected time,
+     * but no more than 256ms. If set to k, the redelivery time will be bucketed by 2^k ms.
+     * If the value is 0, the redelivery time will be accurate to ms.
+     *
+     * @param negativeAckPrecisionBitCount
+     *            The redelivery time precision bit count.
+     * @return the consumer builder instance
+     */
+    ConsumerBuilder<T> negativeAckRedeliveryDelayPrecision(int negativeAckPrecisionBitCount);
+
+    /**
      * Select the subscription type to be used when subscribing to a topic.
      *
      * <p>Options are:
@@ -286,6 +303,20 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * @return the consumer builder instance
      */
     ConsumerBuilder<T> messageListener(MessageListener<T> messageListener);
+
+    /**
+     * Sets a {@link DecryptFailListener} for the consumer.
+     *
+     * <p>The application receives encrypt messages and cannot decrypt successfully will through this listener.
+     * <p>Must set with {@link ConsumerBuilder#messageListener(MessageListener)}
+     * and calls to {@link Consumer#receive()} are not allowed.
+     * This listener cannot be used with {@link ConsumerBuilder#cryptoFailureAction(ConsumerCryptoFailureAction)}.
+     *
+     * @param decryptFailListener
+     *            the listener object
+     * @return the consumer builder instance
+     */
+    ConsumerBuilder<T> decryptFailListener(DecryptFailListener<T> decryptFailListener);
 
     /**
      * Set the {@link MessageListenerExecutor} to be used for message listeners of <b>current consumer</b>.
@@ -346,7 +377,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *            MessageCrypto object
      * @return the consumer builder instance
      */
-    ConsumerBuilder<T> messageCrypto(MessageCrypto messageCrypto);
+    ConsumerBuilder<T> messageCrypto(MessageCrypto<?, ?> messageCrypto);
 
     /**
      * Sets the ConsumerCryptoFailureAction to the value specified.
@@ -376,8 +407,9 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * size is zero. {@link Consumer#receive()} function call should not be interrupted when the consumer queue size is
      * zero.</li>
      * <li>Doesn't support Batch-Message. If a consumer receives a batch-message, it closes the consumer connection with
-     * the broker and {@link Consumer#receive()} calls remain blocked while {@link Consumer#receiveAsync()} receives
-     * exception in callback.
+     * the broker and {@link Consumer#receive()} calls will throw {@link PulsarClientException}
+     * while {@link Consumer#receiveAsync()} receives
+     * {@link PulsarClientException} in callback.
      *
      * <b> The consumer is not able to receive any further messages unless batch-message in pipeline
      * is removed.</b></li>
@@ -632,6 +664,24 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *              .build())
      *          .subscribe();
      * </pre>
+     *
+     * <p>If you configure a custom retry letter topic or retry letter producer, you must also enable retry
+     * by calling {@link #enableRetry(boolean)} with {@code true}. Without {@code enableRetry(true)},
+     * any {@code retryLetterTopic} or {@code retryLetterProducerBuilderCustomizer} configuration is ignored.
+     * example:
+     * <pre>
+     * client.newConsumer()
+     *          .enableRetry(true)
+     *          .deadLetterPolicy(DeadLetterPolicy
+     *              .builder()
+     *              .maxRedeliverCount(10)
+     *              .retryLetterTopic("your-retry-letter-topic")
+     *              .retryLetterProducerBuilderCustomizer(customizer)
+     *              .deadLetterTopic("your-dead-letter-topic")
+     *              .deadLetterProducerBuilderCustomizer(customizer)
+     *              .build())
+     *          .subscribe();
+     * </pre>
      */
     ConsumerBuilder<T> deadLetterPolicy(DeadLetterPolicy deadLetterPolicy);
 
@@ -683,8 +733,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> keySharedPolicy(KeySharedPolicy keySharedPolicy);
 
     /**
-     * Sets the consumer to include the given position of any reset operation like {@link Consumer#seek(long)} or
-     * {@link Consumer#seek(MessageId)}}.
+     * Sets the consumer to include the given position of reset operation {@link Consumer#seek(MessageId)}}.
      *
      * @return the consumer builder instance
      */
@@ -709,6 +758,10 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * If enabled, the consumer auto-retries messages.
      * Default: disabled.
      *
+     * <p>This method must be called with {@code true} if you configure a custom
+     * {@link DeadLetterPolicy#retryLetterTopic} or {@link DeadLetterPolicy#retryLetterProducerBuilderCustomizer}.
+     * Without this, retry letter topic configurations are ignored and no retry topic producer is created.
+     *
      * @param retryEnable
      *            whether to auto retry message
      */
@@ -717,6 +770,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
     /**
      * Enable or disable batch index acknowledgment. To enable this feature, ensure batch index acknowledgment
      * is enabled on the broker side.
+     * Default: true
      */
     ConsumerBuilder<T> enableBatchIndexAcknowledgment(boolean batchIndexAcknowledgmentEnabled);
 
@@ -805,6 +859,33 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * If configured with a non-null value, the consumer uses the processor to process the payload, including
      * decoding it to messages and triggering the listener.
      *
+     * <p><b>Special behavior when {@link #receiverQueueSize(int) receiverQueueSize=0}:</b>
+     * When the consumer is configured with {@link #receiverQueueSize(int) receiverQueueSize=0}:
+     * <ul>
+     *   <li>For <b>batch messages</b>:
+     *     <ul>
+     *       <li>The payload processor will <i>not</i> be invoked</li>
+     *       <li>The consumer will <b>immediately close itself</b> upon receiving batch messages</li>
+     *       <li>Pending operations will fail with:
+     *         <ul>
+     *           <li>{@code receive()}: throws {@link PulsarClientException}</li>
+     *           <li>{@code receiveAsync()}: completes the Future with {@link PulsarClientException}</li>
+     *           <li>Message listeners: triggers {@link Consumer#close()} without delivering the message</li>
+     *         </ul>
+     *       </li>
+     *     </ul>
+     *   </li>
+     *   <li>For <b>single messages</b>:
+     *     <ul>
+     *       <li>The payload processor will process messages normally</li>
+     *     </ul>
+     *   </li>
+     * </ul>
+     *
+     *
+     * <p><b>Default behavior {@link #receiverQueueSize(int) receiverQueueSize>0}:</b>
+     * All messages (both single and batched) will be processed by the payload processor.
+     *
      * Default: null
      */
     ConsumerBuilder<T> messagePayloadProcessor(MessagePayloadProcessor payloadProcessor);
@@ -885,13 +966,16 @@ public interface ConsumerBuilder<T> extends Cloneable {
 
     /**
      * If this is enabled, the consumer receiver queue size is initialized as a very small value, 1 by default,
-     * and will double itself until it reaches the value set by {@link #receiverQueueSize(int)}, if and only if:
+     * and will double itself until it reaches either the value set by {@link #receiverQueueSize(int)} or the client
+     * memory limit set by {@link ClientBuilder#memoryLimit(long, SizeUnit)}.
+     *
+     * <p>The consumer receiver queue size will double if and only if:
      * <p>1) User calls receive() and there are no messages in receiver queue.
      * <p>2) The last message we put in the receiver queue took the last space available in receiver queue.
      *
-     * This is disabled by default and currentReceiverQueueSize is initialized as maxReceiverQueueSize.
+     * <p>This is disabled by default and currentReceiverQueueSize is initialized as maxReceiverQueueSize.
      *
-     * The feature should be able to reduce client memory usage.
+     * <p>The feature should be able to reduce client memory usage.
      *
      * @param enabled whether to enable AutoScaledReceiverQueueSize.
      */

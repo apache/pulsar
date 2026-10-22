@@ -46,7 +46,7 @@ public class SubscriptionOption {
     private boolean readCompacted;
     private CommandSubscribe.InitialPosition initialPosition;
     private long startMessageRollbackDurationSec;
-    private boolean replicatedSubscriptionStateArg;
+    private Boolean replicatedSubscriptionStateArg;
     private KeySharedMeta keySharedMeta;
     private Optional<Map<String, String>> subscriptionProperties;
     private long consumerEpoch;

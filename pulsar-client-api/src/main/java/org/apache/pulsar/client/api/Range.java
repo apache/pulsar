@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
+import java.io.Serializable;
 import java.util.Objects;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
@@ -27,7 +28,8 @@ import org.apache.pulsar.common.classification.InterfaceStability;
  */
 @InterfaceAudience.Public
 @InterfaceStability.Stable
-public class Range implements Comparable<Range> {
+public class Range implements Comparable<Range>, Serializable {
+    private static final long serialVersionUID = 1L;
 
     private final int start;
     private final int end;
