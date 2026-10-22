@@ -1,0 +1,157 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.pulsar.client.api.v5;
+
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.expectThrows;
+import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
+import org.apache.pulsar.client.api.v5.config.ProducerAccessMode;
+import org.apache.pulsar.client.api.v5.schema.Schema;
+import org.testng.annotations.Test;
+
+/**
+ * Producer {@link ProducerAccessMode} coverage:
+ * <ul>
+ *   <li>SHARED is the default — multiple producers can coexist.</li>
+ *   <li>EXCLUSIVE — first producer succeeds, a second EXCLUSIVE attempt fails fast
+ *       with {@code ProducerBusyException}.</li>
+ *   <li>WAIT_FOR_EXCLUSIVE — second producer blocks until the first closes, then
+ *       takes over.</li>
+ * </ul>
+ */
+public class V5ProducerAccessModeTest extends V5ClientBaseTest {
+
+    @Test
+    public void testSharedAllowsMultipleProducers() throws Exception {
+        String topic = newScalableTopic(1);
+
+        @Cleanup
+        Producer<String> p1 = v5Client.newProducer(Schema.string())
+                .topic(topic)
+                .accessMode(ProducerAccessMode.SHARED)
+                .create();
+        @Cleanup
+        Producer<String> p2 = v5Client.newProducer(Schema.string())
+                .topic(topic)
+                .accessMode(ProducerAccessMode.SHARED)
+                .create();
+
+        // Both producers are usable concurrently.
+        @Cleanup
+        QueueConsumer<String> consumer = v5Client.newQueueConsumer(Schema.string())
+                .topic(topic)
+                .subscriptionName("shared-sub")
+                .subscribe();
+
+        p1.newMessage().value("from-p1").send();
+        p2.newMessage().value("from-p2").send();
+
+        Message<String> first = consumer.receive(Duration.ofSeconds(5));
+        Message<String> second = consumer.receive(Duration.ofSeconds(5));
+        assertNotNull(first);
+        assertNotNull(second);
+        consumer.acknowledge(first.id());
+        consumer.acknowledge(second.id());
+    }
+
+    @Test
+    public void testExclusiveRejectsSecondProducer() throws Exception {
+        String topic = newScalableTopic(1);
+
+        @Cleanup
+        Producer<String> first = v5Client.newProducer(Schema.string())
+                .topic(topic)
+                .accessMode(ProducerAccessMode.EXCLUSIVE)
+                .create();
+
+        // Second EXCLUSIVE on the same topic must fail at create() — the V5 builder
+        // eagerly claims every active segment up front for exclusive access modes.
+        expectThrows(PulsarClientException.ProducerBusyException.class, () ->
+                v5Client.newProducer(Schema.string())
+                        .topic(topic)
+                        .accessMode(ProducerAccessMode.EXCLUSIVE)
+                        .create());
+
+        // The first producer is still healthy and can send.
+        first.newMessage().value("still-here").send();
+    }
+
+    @Test
+    public void testWaitForExclusiveSucceedsAfterFirstReleases() throws Exception {
+        String topic = newScalableTopic(1);
+
+        Producer<String> first = v5Client.newProducer(Schema.string())
+                .topic(topic)
+                .accessMode(ProducerAccessMode.EXCLUSIVE)
+                .create();
+        first.newMessage().value("first-claim").send();
+
+        // Start a WAIT_FOR_EXCLUSIVE create() on a separate thread — it should block
+        // until the first producer releases. We can't observe blocking directly, so we
+        // assert it has not completed before close, then completes once close lands.
+        java.util.concurrent.CompletableFuture<Producer<String>> secondFuture =
+                v5Client.newProducer(Schema.string())
+                        .topic(topic)
+                        .accessMode(ProducerAccessMode.WAIT_FOR_EXCLUSIVE)
+                        .createAsync();
+        Thread.sleep(500);
+        org.testng.Assert.assertFalse(secondFuture.isDone(),
+                "WAIT_FOR_EXCLUSIVE create() must block while the first producer holds the claim");
+
+        first.close();
+
+        @Cleanup
+        Producer<String> second = secondFuture.get(10, java.util.concurrent.TimeUnit.SECONDS);
+        MessageId id = second.newMessage().value("after-takeover").send();
+        assertNotNull(id);
+    }
+
+    @Test
+    public void testClosingClientWithWaitingExclusiveProducerCompletes() throws Exception {
+        String topic = newScalableTopic(1);
+
+        @Cleanup
+        Producer<String> incumbent = v5Client.newProducer(Schema.string())
+                .topic(topic)
+                .accessMode(ProducerAccessMode.EXCLUSIVE)
+                .create();
+
+        // Another client waits for exclusive access, which it never gets: closing that client must
+        // not wait for it.
+        PulsarClient waitingClient = newV5Client();
+        CompletableFuture<Producer<String>> waiting = waitingClient.newProducer(Schema.string())
+                .topic(topic)
+                .accessMode(ProducerAccessMode.WAIT_FOR_EXCLUSIVE)
+                .createAsync();
+        Thread.sleep(500);
+        assertFalse(waiting.isDone(), "WAIT_FOR_EXCLUSIVE create() must wait while another producer holds the claim");
+
+        waitingClient.closeAsync().get(10, TimeUnit.SECONDS);
+        assertThatThrownBy(() -> waiting.get(10, TimeUnit.SECONDS)).isInstanceOf(ExecutionException.class);
+
+        // The incumbent keeps its claim.
+        assertNotNull(incumbent.newMessage().value("still-exclusive").send());
+    }
+}

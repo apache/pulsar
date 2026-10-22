@@ -22,6 +22,7 @@ import java.nio.ByteBuffer;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.functions.api.StateStoreContext;
+import org.apache.pulsar.functions.api.state.StateValue;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStore;
 
@@ -108,6 +109,20 @@ public class PulsarMetadataStateStoreImpl implements DefaultStateStore {
         return store.get(getPath(key))
                 .thenApply(optRes ->
                         optRes.map(x -> ByteBuffer.wrap(x.getValue()))
+                                .orElse(null));
+    }
+
+    @Override
+    public StateValue getStateValue(String key) {
+        return getStateValueAsync(key).join();
+    }
+
+    @Override
+    public CompletableFuture<StateValue> getStateValueAsync(String key) {
+        return store.get(getPath(key))
+                .thenApply(optRes ->
+                        optRes.map(x ->
+                            new StateValue(x.getValue(), x.getStat().getVersion(), null))
                                 .orElse(null));
     }
 

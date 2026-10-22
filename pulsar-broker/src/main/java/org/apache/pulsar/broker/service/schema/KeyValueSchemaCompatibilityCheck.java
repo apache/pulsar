@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.schema;
 
 import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.LinkedList;
 import java.util.Map;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
@@ -71,6 +72,7 @@ public class KeyValueSchemaCompatibilityCheck implements SchemaCompatibilityChec
         }
         LinkedList<SchemaData> fromKeyList = new LinkedList<>();
         LinkedList<SchemaData> fromValueList = new LinkedList<>();
+        Map<SchemaData, SchemaData> enclosingSchemas = new IdentityHashMap<>();
         KeyValue<SchemaData, SchemaData> fromKeyValue;
         KeyValue<SchemaData, SchemaData> toKeyValue = decodeKeyValueSchemaData(to);
         SchemaType toKeyType = toKeyValue.getKey().getType();
@@ -93,10 +95,17 @@ public class KeyValueSchemaCompatibilityCheck implements SchemaCompatibilityChec
             }
             fromKeyList.addFirst(fromKeyValue.getKey());
             fromValueList.addFirst(fromKeyValue.getValue());
+            enclosingSchemas.put(fromKeyValue.getKey(), schemaData);
+            enclosingSchemas.put(fromKeyValue.getValue(), schemaData);
         }
         SchemaCompatibilityCheck keyCheck = checkers.getOrDefault(toKeyType, SchemaCompatibilityCheck.DEFAULT);
         SchemaCompatibilityCheck valueCheck = checkers.getOrDefault(toValueType, SchemaCompatibilityCheck.DEFAULT);
-        keyCheck.checkCompatible(fromKeyList, toKeyValue.getKey(), strategy);
-        valueCheck.checkCompatible(fromValueList, toKeyValue.getValue(), strategy);
+        try {
+            keyCheck.checkCompatible(fromKeyList, toKeyValue.getKey(), strategy);
+            valueCheck.checkCompatible(fromValueList, toKeyValue.getValue(), strategy);
+        } catch (SchemaComparisonException e) {
+            SchemaData enclosing = enclosingSchemas.get(e.existingSchema());
+            throw enclosing == null ? e : new SchemaComparisonException(enclosing, e);
+        }
     }
 }

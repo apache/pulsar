@@ -29,9 +29,9 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.AssertJUnit.assertTrue;
-import com.beust.jcommander.internal.Lists;
-import com.beust.jcommander.internal.Sets;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -122,8 +122,8 @@ public class AuditorBookieCheckTaskTest {
         OpStatsLogger numUnderReplicatedLedgerStats = mock(OpStatsLogger.class);
         when(auditorStats.getNumUnderReplicatedLedger()).thenReturn(numUnderReplicatedLedgerStats);
 
-        final List<BookieId> availableBookies = Lists.newArrayList();
-        final List<BookieId> readOnlyBookies = Lists.newArrayList();
+        final List<BookieId> availableBookies = new ArrayList<>();
+        final List<BookieId> readOnlyBookies = new ArrayList<>();
         // test bookie1 lost
         availableBookies.add(BookieId.parse(bookieId2));
         when(admin.getAvailableBookies()).thenReturn(availableBookies);
@@ -144,7 +144,7 @@ public class AuditorBookieCheckTaskTest {
     }
 
     private Set<Long> getLedgers(long count) {
-        final Set<Long> ledgers = Sets.newHashSet();
+        final Set<Long> ledgers = new HashSet<>();
         for (int i = 0; i < count; i++) {
             ledgers.add(i + startLedgerId++);
         }

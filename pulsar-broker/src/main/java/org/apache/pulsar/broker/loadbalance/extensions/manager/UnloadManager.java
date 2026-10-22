@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.manager;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Assigning;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Owned;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Label.Failure;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Unknown;
 import com.google.common.annotations.VisibleForTesting;
@@ -27,7 +30,9 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import java.util.concurrent.TimeoutException;
+import lombok.CustomLog;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
 import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadCounter;
@@ -36,12 +41,12 @@ import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision;
 /**
  * Unload manager.
  */
-@Slf4j
+@CustomLog
 public class UnloadManager implements StateChangeListener {
 
     private final UnloadCounter counter;
     private final Map<String, CompletableFuture<Void>> inFlightUnloadRequest;
-    private final String lookupServiceAddress;
+    private final String brokerId;
 
     @VisibleForTesting
     public enum LatencyMetric {
@@ -73,17 +78,18 @@ public class UnloadManager implements StateChangeListener {
             this.isDestinationBrokerMetric = isDestinationBrokerMetric;
         }
 
-        public void beginMeasurement(String serviceUnit, String lookupServiceAddress, ServiceUnitStateData data) {
-            if ((isSourceBrokerMetric && lookupServiceAddress.equals(data.sourceBroker()))
-                    || (isDestinationBrokerMetric && lookupServiceAddress.equals(data.dstBroker()))) {
+        public void beginMeasurement(String serviceUnit, String brokerId, ServiceUnitStateData data) {
+            if ((isSourceBrokerMetric && brokerId.equals(data.sourceBroker()))
+                    || (isDestinationBrokerMetric && brokerId.equals(data.dstBroker()))) {
                 var startTimeNs = System.nanoTime();
                 futures.computeIfAbsent(serviceUnit, ignore -> {
                     var future = new CompletableFuture<Void>();
                     future.completeOnTimeout(null, OP_TIMEOUT_NS, TimeUnit.NANOSECONDS).
                             thenAccept(__ -> {
                                 var durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTimeNs);
-                                log.info("Operation {} for service unit {} took {} ms", this, serviceUnit, durationMs);
-                                histogram.labels(lookupServiceAddress, "bundleUnloading").observe(durationMs);
+                                log.info().attr("operation", this).attr("unit", serviceUnit)
+                                        .attr("took", durationMs).log("Operation for service unit took ms");
+                                histogram.labels(brokerId, "bundleUnloading").observe(durationMs);
                             }).whenComplete((__, throwable) -> futures.remove(serviceUnit, future));
                     return future;
                 });
@@ -98,9 +104,9 @@ public class UnloadManager implements StateChangeListener {
         }
     }
 
-    public UnloadManager(UnloadCounter counter, String lookupServiceAddress) {
+    public UnloadManager(UnloadCounter counter, String brokerId) {
         this.counter = counter;
-        this.lookupServiceAddress = Objects.requireNonNull(lookupServiceAddress);
+        this.brokerId = Objects.requireNonNull(brokerId);
         inFlightUnloadRequest = new ConcurrentHashMap<>();
     }
 
@@ -112,16 +118,15 @@ public class UnloadManager implements StateChangeListener {
             LatencyMetric.ASSIGN.endMeasurement(serviceUnit);
         }
 
-        inFlightUnloadRequest.computeIfPresent(serviceUnit, (__, future) -> {
-            if (!future.isDone()) {
-                if (ex != null) {
-                    future.completeExceptionally(ex);
-                } else {
-                    future.complete(null);
-                }
-            }
-            return null;
-        });
+        CompletableFuture<Void> future = inFlightUnloadRequest.remove(serviceUnit);
+        if (future == null || future.isDone()) {
+            return;
+        }
+        if (ex != null) {
+            future.completeExceptionally(ex);
+        } else {
+            future.complete(null);
+        }
     }
 
     public CompletableFuture<Void> waitAsync(CompletableFuture<Void> eventPubFuture,
@@ -129,61 +134,73 @@ public class UnloadManager implements StateChangeListener {
                                              UnloadDecision decision,
                                              long timeout,
                                              TimeUnit timeoutUnit) {
-        return eventPubFuture.thenCompose(__ -> inFlightUnloadRequest.computeIfAbsent(bundle, ignore -> {
-            if (log.isDebugEnabled()) {
-                log.debug("Handle unload bundle: {}, timeout: {} {}", bundle, timeout, timeoutUnit);
-            }
-            CompletableFuture<Void> future = new CompletableFuture<>();
-            future.orTimeout(timeout, timeoutUnit).whenComplete((v, ex) -> {
-                if (ex != null) {
-                    inFlightUnloadRequest.remove(bundle);
-                    log.warn("Failed to wait unload for serviceUnit: {}", bundle, ex);
+        return eventPubFuture.thenCompose(__ -> {
+            CompletableFuture<Void> future = inFlightUnloadRequest.computeIfAbsent(bundle, ignore -> {
+                log.debug().attr("bundle", bundle).attr("timeout", timeout).attr("timeoutUnit", timeoutUnit)
+                        .log("Handle unload bundle: , timeout");
+                return new CompletableFuture<Void>().orTimeout(timeout, timeoutUnit);
+            });
+            // Return the dependent stage so callers cannot observe completion before timeout cleanup finishes.
+            return future.whenComplete((v, ex) -> {
+                if (ex instanceof TimeoutException && inFlightUnloadRequest.remove(bundle, future)) {
+                    log.warn().attr("bundle", bundle).exception(ex).log("Failed to wait unload for serviceUnit");
                 }
             });
-            return future;
-        })).whenComplete((__, ex) -> {
+        }).whenComplete((__, ex) -> {
             if (ex != null) {
                 counter.update(Failure, Unknown);
-                log.warn("Failed to unload bundle: {}", bundle, ex);
+                log.warn().attr("bundle", bundle).exception(ex).log("Failed to unload bundle");
                 return;
             }
-            log.info("Complete unload bundle: {}", bundle);
+            log.info().attr("bundle", bundle).log("Complete unload bundle");
             counter.update(decision);
         });
     }
 
     @Override
     public void beforeEvent(String serviceUnit, ServiceUnitStateData data) {
-        if (log.isDebugEnabled()) {
-            log.debug("Handling arrival of {} for service unit {}", data, serviceUnit);
-        }
+        log.debug().attr("data", data).attr("serviceUnit", serviceUnit).log("Handling arrival for service unit");
         ServiceUnitState state = ServiceUnitStateData.state(data);
         switch (state) {
-            case Free, Owned -> LatencyMetric.DISCONNECT.beginMeasurement(serviceUnit, lookupServiceAddress, data);
+            case Free, Owned -> LatencyMetric.DISCONNECT.beginMeasurement(serviceUnit, brokerId, data);
             case Releasing -> {
-                LatencyMetric.RELEASE.beginMeasurement(serviceUnit, lookupServiceAddress, data);
-                LatencyMetric.UNLOAD.beginMeasurement(serviceUnit, lookupServiceAddress, data);
+                LatencyMetric.RELEASE.beginMeasurement(serviceUnit, brokerId, data);
+                LatencyMetric.UNLOAD.beginMeasurement(serviceUnit, brokerId, data);
             }
-            case Assigning -> LatencyMetric.ASSIGN.beginMeasurement(serviceUnit, lookupServiceAddress, data);
+            case Assigning -> LatencyMetric.ASSIGN.beginMeasurement(serviceUnit, brokerId, data);
         }
     }
 
     @Override
     public void handleEvent(String serviceUnit, ServiceUnitStateData data, Throwable t) {
+        ServiceUnitState state = ServiceUnitStateData.state(data);
+
+        if ((state == Owned || state == Assigning) && StringUtils.isBlank(data.sourceBroker())) {
+            log.debug().attr("data", data).attr("serviceUnit", serviceUnit)
+                    .log("Skipping service unit from the assignment command");
+            return;
+        }
+
         if (t != null) {
-            if (log.isDebugEnabled()) {
-                log.debug("Handling {} for service unit {} with exception.", data, serviceUnit, t);
-            }
+            log.debug().attr("data", data).attr("serviceUnit", serviceUnit).exception(t)
+                    .log("Handling service unit with exception");
             complete(serviceUnit, t);
             return;
         }
 
-        if (log.isDebugEnabled()) {
-            log.debug("Handling {} for service unit {}", data, serviceUnit);
-        }
-        ServiceUnitState state = ServiceUnitStateData.state(data);
+        log.debug().attr("data", data).attr("serviceUnit", serviceUnit).log("Handling service unit");
+
         switch (state) {
-            case Free, Owned -> complete(serviceUnit, t);
+            case Free -> {
+                if (!data.force()) {
+                    complete(serviceUnit, t);
+                }
+            }
+            case Init -> {
+                checkArgument(data == null, "Init state must be associated with null data");
+                complete(serviceUnit, t);
+            }
+            case Owned -> complete(serviceUnit, t);
             case Releasing -> LatencyMetric.RELEASE.endMeasurement(serviceUnit);
             case Assigning -> LatencyMetric.ASSIGN.endMeasurement(serviceUnit);
         }
@@ -191,12 +208,16 @@ public class UnloadManager implements StateChangeListener {
 
     public void close() {
         inFlightUnloadRequest.forEach((bundle, future) -> {
-            if (!future.isDone()) {
+            if (inFlightUnloadRequest.remove(bundle, future) && !future.isDone()) {
                 String msg = String.format("Unloading bundle: %s, but the unload manager already closed.", bundle);
                 log.warn(msg);
                 future.completeExceptionally(new IllegalStateException(msg));
             }
         });
-        inFlightUnloadRequest.clear();
+    }
+
+    @VisibleForTesting
+    int getInFlightUnloadRequestCount() {
+        return inFlightUnloadRequest.size();
     }
 }

@@ -19,14 +19,14 @@
 package org.apache.pulsar.proxy.server;
 
 import static org.mockito.Mockito.doReturn;
-
 import java.io.File;
 import java.io.FileWriter;
 import java.util.Optional;
-
 import org.apache.pulsar.broker.auth.MockOIDCIdentityProvider;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.mockito.Mockito;
@@ -38,6 +38,7 @@ public class ProxyTlsWithAuthTest extends MockedPulsarServiceBaseTest {
 
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
+    private Authentication proxyClientAuthentication;
 
     private MockOIDCIdentityProvider server;
 
@@ -51,10 +52,10 @@ public class ProxyTlsWithAuthTest extends MockedPulsarServiceBaseTest {
         File tempFile = File.createTempFile("oauth2", ".tmp");
         tempFile.deleteOnExit();
         FileWriter writer = new FileWriter(tempFile);
-        writer.write("{\n" +
-            "  \"client_id\":\"my-user\",\n" +
-            "  \"client_secret\":\"" + clientSecret + "\"\n" +
-            "}");
+        writer.write("{\n"
+            + "  \"client_id\":\"my-user\",\n"
+            + "  \"client_secret\":\"" + clientSecret + "\"\n"
+            + "}");
         writer.flush();
         writer.close();
 
@@ -68,14 +69,20 @@ public class ProxyTlsWithAuthTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setTlsKeyFilePath(PROXY_KEY_FILE_PATH);
         proxyConfig.setMetadataStoreUrl(DUMMY_VALUE);
         proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
-        proxyConfig.setBrokerClientAuthenticationPlugin("org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2");
-        proxyConfig.setBrokerClientAuthenticationParameters("{\"grant_type\":\"client_credentials\"," +
-            " \"issuerUrl\":\"" + server.getIssuer() + "\"," +
-            " \"audience\": \"an-audience\"," +
-            " \"privateKey\":\"file://" + tempFile.getAbsolutePath() + "\"}");
+        proxyConfig.setBrokerClientAuthenticationPlugin(
+                "org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2");
+        proxyConfig.setBrokerClientAuthenticationParameters("{\"grant_type\":\"client_credentials\","
+            + " \"issuerUrl\":\"" + server.getIssuer() + "\","
+            + " \"audience\": \"an-audience\","
+            + " \"privateKey\":\"file://" + tempFile.getAbsolutePath() + "\"}");
+        proxyConfig.setClusterName(configClusterName);
+
+        proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                proxyConfig.getBrokerClientAuthenticationParameters());
+        proxyClientAuthentication.start();
 
         proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
-            PulsarConfigurationLoader.convertFrom(proxyConfig))));
+            PulsarConfigurationLoader.convertFrom(proxyConfig)), proxyClientAuthentication));
         doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeper))).when(proxyService).createLocalMetadataStore();
         doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal))).when(proxyService)
                 .createConfigurationMetadataStore();
@@ -88,6 +95,9 @@ public class ProxyTlsWithAuthTest extends MockedPulsarServiceBaseTest {
     protected void cleanup() throws Exception {
         internalCleanup();
         proxyService.close();
+        if (proxyClientAuthentication != null) {
+            proxyClientAuthentication.close();
+        }
         server.stop();
     }
 

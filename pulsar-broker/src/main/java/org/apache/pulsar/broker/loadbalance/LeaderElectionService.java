@@ -35,17 +35,17 @@ public class LeaderElectionService implements AutoCloseable {
     private final LeaderElection<LeaderBroker> leaderElection;
     private final LeaderBroker localValue;
 
-    public LeaderElectionService(CoordinationService cs, String localWebServiceAddress,
-            Consumer<LeaderElectionState> listener) {
-        this(cs, localWebServiceAddress, ELECTION_ROOT, listener);
+    public LeaderElectionService(CoordinationService cs, String brokerId,
+                                 String serviceUrl, Consumer<LeaderElectionState> listener) {
+        this(cs, brokerId, serviceUrl, ELECTION_ROOT, listener);
     }
 
     public LeaderElectionService(CoordinationService cs,
-                                 String localWebServiceAddress,
-                                 String electionRoot,
+                                 String brokerId,
+                                 String serviceUrl, String electionRoot,
                                  Consumer<LeaderElectionState> listener) {
         this.leaderElection = cs.getLeaderElection(LeaderBroker.class, electionRoot, listener);
-        this.localValue = new LeaderBroker(localWebServiceAddress);
+        this.localValue = new LeaderBroker(brokerId, serviceUrl);
     }
 
     public void start() {
@@ -56,10 +56,20 @@ public class LeaderElectionService implements AutoCloseable {
         leaderElection.close();
     }
 
+    /**
+     * Authoritative read of the current leader: if a leader election is in progress, the returned
+     * future completes once it settles (bounded by the default metadata operation timeout). Use
+     * this whenever a decision is made based on who the leader is.
+     */
     public CompletableFuture<Optional<LeaderBroker>> readCurrentLeader() {
         return leaderElection.getLeaderValue();
     }
 
+    /**
+     * Non-blocking snapshot of the current leader; empty while a re-election is settling even
+     * though a leader may technically exist. Only suitable for best-effort uses such as logging —
+     * decision-making callers must use {@link #readCurrentLeader()}.
+     */
     public Optional<LeaderBroker> getCurrentLeader() {
         return leaderElection.getLeaderValueIfPresent();
     }

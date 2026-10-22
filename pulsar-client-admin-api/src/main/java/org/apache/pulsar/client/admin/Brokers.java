@@ -20,11 +20,11 @@ package org.apache.pulsar.client.admin;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
-import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.common.policies.data.BrokerInfo;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 
@@ -35,7 +35,7 @@ public interface Brokers {
     /**
      * Get the list of active brokers in the local cluster.
      * <p/>
-     * Get the list of active brokers (web service addresses) in the local cluster.
+     * Get the list of active brokers (broker ids) in the local cluster.
      * <p/>
      * Response Example:
      *
@@ -44,7 +44,7 @@ public interface Brokers {
      * * * "prod1-broker3.messaging.use.example.com:8080"]</code>
      * </pre>
      *
-     * @return a list of (host:port)
+     * @return a list of broker ids
      * @throws NotAuthorizedException
      *             You don't have admin permission to get the list of active brokers in the cluster
      * @throws PulsarAdminException
@@ -55,7 +55,7 @@ public interface Brokers {
     /**
      * Get the list of active brokers in the local cluster asynchronously.
      * <p/>
-     * Get the list of active brokers (web service addresses) in the local cluster.
+     * Get the list of active brokers (broker ids) in the local cluster.
      * <p/>
      * Response Example:
      *
@@ -64,13 +64,13 @@ public interface Brokers {
      * "prod1-broker3.messaging.use.example.com:8080"]</code>
      * </pre>
      *
-     * @return a list of (host:port)
+     * @return a list of broker ids
      */
     CompletableFuture<List<String>> getActiveBrokersAsync();
     /**
      * Get the list of active brokers in the cluster.
      * <p/>
-     * Get the list of active brokers (web service addresses) in the cluster.
+     * Get the list of active brokers (broker ids) in the cluster.
      * <p/>
      * Response Example:
      *
@@ -81,7 +81,7 @@ public interface Brokers {
      *
      * @param cluster
      *            Cluster name
-     * @return a list of (host:port)
+     * @return a list of broker ids
      * @throws NotAuthorizedException
      *             You don't have admin permission to get the list of active brokers in the cluster
      * @throws NotFoundException
@@ -94,7 +94,7 @@ public interface Brokers {
     /**
      * Get the list of active brokers in the cluster asynchronously.
      * <p/>
-     * Get the list of active brokers (web service addresses) in the cluster.
+     * Get the list of active brokers (broker ids) in the cluster.
      * <p/>
      * Response Example:
      *
@@ -105,7 +105,7 @@ public interface Brokers {
      *
      * @param cluster
      *            Cluster name
-     * @return a list of (host:port)
+     * @return a list of broker ids
      */
     CompletableFuture<List<String>> getActiveBrokersAsync(String cluster);
 
@@ -156,11 +156,11 @@ public interface Brokers {
      * </pre>
      *
      * @param cluster
-     * @param brokerUrl
+     * @param brokerId
      * @return
      * @throws PulsarAdminException
      */
-    Map<String, NamespaceOwnershipStatus> getOwnedNamespaces(String cluster, String brokerUrl)
+    Map<String, NamespaceOwnershipStatus> getOwnedNamespaces(String cluster, String brokerId)
             throws PulsarAdminException;
 
     /**
@@ -176,10 +176,10 @@ public interface Brokers {
      * </pre>
      *
      * @param cluster
-     * @param brokerUrl
+     * @param brokerId
      * @return
      */
-    CompletableFuture<Map<String, NamespaceOwnershipStatus>> getOwnedNamespacesAsync(String cluster, String brokerUrl);
+    CompletableFuture<Map<String, NamespaceOwnershipStatus>> getOwnedNamespacesAsync(String cluster, String brokerId);
 
     /**
      * Update a dynamic configuration value into ZooKeeper.
@@ -304,26 +304,27 @@ public interface Brokers {
      *
      * @throws PulsarAdminException if the healthcheck fails.
      */
-    @Deprecated
     void healthcheck() throws PulsarAdminException;
 
     /**
      * Run a healthcheck on the broker asynchronously.
      */
-    @Deprecated
     CompletableFuture<Void> healthcheckAsync();
 
     /**
-     * Run a healthcheck on the broker.
+     * Run a healthcheck on the target broker or on the broker.
+     * @param brokerId target broker id to check the health. If empty, it checks the health on the connected broker.
      *
      * @throws PulsarAdminException if the healthcheck fails.
      */
-    void healthcheck(TopicVersion topicVersion) throws PulsarAdminException;
+    void healthcheck(Optional<String> brokerId) throws PulsarAdminException;
 
     /**
-     * Run a healthcheck on the broker asynchronously.
+     * Run a healthcheck on the target broker or on the broker asynchronously.
+     * @param brokerId target broker id to check the health. If empty, it checks the health on the connected broker.
      */
-    CompletableFuture<Void> healthcheckAsync(TopicVersion topicVersion);
+    CompletableFuture<Void> healthcheckAsync(Optional<String> brokerId);
+
 
     /**
      * Trigger the current broker to graceful-shutdown asynchronously.

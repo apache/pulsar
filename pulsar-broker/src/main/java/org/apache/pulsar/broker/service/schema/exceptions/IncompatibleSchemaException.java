@@ -33,6 +33,10 @@ public class IncompatibleSchemaException extends SchemaException {
         super(message);
     }
 
+    public IncompatibleSchemaException(String message, Throwable e) {
+        super(message, e);
+    }
+
     public IncompatibleSchemaException(Throwable e) {
         super(e);
     }

@@ -20,7 +20,6 @@ package org.apache.pulsar.client.api;
 
 import java.util.HashMap;
 import java.util.Map;
-
 import lombok.Cleanup;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdmin;
