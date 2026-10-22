@@ -608,6 +608,17 @@ public class ConsumerImplTest {
     }
 
     @Test
+    public void testCloseNotConnectedConsumerClosesInterceptorsOnce() throws Exception {
+        ConsumerInterceptor<byte[]> interceptor = mock(ConsumerInterceptor.class);
+        createConsumer(new ConsumerConfigurationData<>(), topic, interceptor);
+
+        consumer.closeAsync().get(5, TimeUnit.SECONDS);
+        consumer.closeAsync().get(5, TimeUnit.SECONDS);
+
+        verify(interceptor).close();
+    }
+
+    @Test
     public void testMessageEnqueuedAfterCloseIsDiscarded() {
         consumerConf = new ConsumerConfigurationData<>();
         consumerConf.setAutoScaledReceiverQueueSizeEnabled(true);

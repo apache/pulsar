@@ -27,7 +27,6 @@ import com.google.common.collect.Lists;
 import io.github.merlimat.slog.Logger;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -55,7 +54,6 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.commons.lang3.RandomStringUtils;
-import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
@@ -678,6 +676,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 return failPendingReceive();
             }, internalPinnedExecutor)
             .whenComplete((r, ex) -> {
+                closeInterceptors();
                 if (ex == null) {
                     closeFuture.complete(null);
                 } else {
@@ -688,14 +687,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 }
             });
 
-        return closeFuture.whenCompleteAsync((nil, ex) -> {
-            if (interceptors != null) {
-                interceptors.close();
-            }
-            if (ex != null) {
-                ExceptionUtils.rethrow(ex);
-            }
-        }, client.getInternalExecutorService());
+        return closeFuture;
     }
 
     private void cleanupMultiConsumer() {

@@ -1221,7 +1221,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             closeConsumerTasks();
             deregisterFromClientCnx();
             client.cleanupConsumer(this);
-            failPendingReceive().whenComplete((r, t) -> closeFuture.complete(null));
+            failPendingReceive().whenComplete((r, t) -> {
+                closeInterceptors();
+                closeFuture.complete(null);
+            });
             return compositeCloseFuture;
         }
 
@@ -1261,6 +1264,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         // fail all pending-receive futures to notify application
         failPendingReceive().whenComplete((r, t) -> {
+            closeInterceptors();
             if (exception != null) {
                 closeFuture.completeExceptionally(exception);
             } else {

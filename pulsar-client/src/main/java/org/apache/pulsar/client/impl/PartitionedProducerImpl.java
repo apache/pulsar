@@ -39,7 +39,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRouter;
@@ -358,6 +357,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
                         closeFail.compareAndSet(null, ex);
                     }
                     if (completed.decrementAndGet() == 0) {
+                        closeInterceptors();
                         if (closeFail.get() == null) {
                             setState(State.Closed);
                             closeFuture.complete(null);
@@ -371,19 +371,14 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
                                     .log("Could not close Partitioned Producer");
                         }
                     }
+
                     return null;
                 });
             }
+
         }
 
-        return closeFuture.whenCompleteAsync((nil, ex) -> {
-            if (interceptors != null) {
-                interceptors.close();
-            }
-            if (ex != null) {
-                ExceptionUtils.rethrow(ex);
-            }
-        }, client.getInternalExecutorService());
+        return closeFuture;
     }
 
     @Override
@@ -501,7 +496,8 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
             }
 
             @Override
-            public void onSendAcknowledgement(Producer producer, Message message, MessageId msgId, Throwable exception) {
+            public void onSendAcknowledgement(Producer producer, Message message, MessageId msgId,
+                                              Throwable exception) {
                 interceptors.onSendAcknowledgement(producer, message, msgId, exception);
             }
 

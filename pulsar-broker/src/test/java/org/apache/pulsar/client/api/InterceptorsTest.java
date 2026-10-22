@@ -18,7 +18,12 @@
  */
 package org.apache.pulsar.client.api;
 
-import java.io.IOException;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -1115,132 +1120,85 @@ public class InterceptorsTest extends SharedPulsarBaseTest {
     }
 
     @Test(dataProvider = "topicPartition")
-    public void testProducerInterceptorClose(int partitions) throws PulsarClientException, PulsarAdminException {
-        final String topic = "persistent://my-property/my-ns/my-topic";
-        if (partitions > 0) {
-            admin.topics().createPartitionedTopic(topic, partitions);
-        } else {
-            admin.topics().createNonPartitionedTopic(topic);
+    public void testProducerInterceptorClosedOnceOnProducerClose(int topicPartition) throws Exception {
+        String topic = newTopicName();
+        if (topicPartition > 0) {
+            admin.topics().createPartitionedTopic(topic, topicPartition);
         }
-
-        AtomicInteger closeCount = new AtomicInteger(0);
-        org.apache.pulsar.client.api.interceptor.ProducerInterceptor interceptor = new ProducerInterceptorAdaptor() {
-            @Override
-            public void close() {
-                closeCount.incrementAndGet();
-            }
-        };
+        org.apache.pulsar.client.api.interceptor.ProducerInterceptor interceptor =
+                mock(org.apache.pulsar.client.api.interceptor.ProducerInterceptor.class);
+        when(interceptor.eligible(any())).thenReturn(true);
+        when(interceptor.beforeSend(any(), any())).thenAnswer(invocation -> invocation.getArgument(1));
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .topic(topic)
                 .intercept(interceptor)
                 .create();
-        for (int i = 0; i < 10; i++) {
-            producer.newMessage().value("Hello Pulsar!").send();
-        }
-        producer.close();
-        Assert.assertEquals(closeCount.get(), 1);
-    }
+        producer.send("msg");
+        verify(interceptor).beforeSend(any(), any());
+        verify(interceptor, never()).close();
 
-    @Test(dataProvider = "topicPartition")
-    public void testConsumerInterceptorClose(int partitions) throws PulsarClientException, PulsarAdminException {
-        final String topic = "persistent://my-property/my-ns/my-topic";
-        if (partitions > 0) {
-            admin.topics().createPartitionedTopic(topic, partitions);
-        } else {
-            admin.topics().createNonPartitionedTopic(topic);
-        }
-
-        AtomicInteger closeCount = new AtomicInteger(0);
-        ConsumerInterceptor<String> interceptor = new ConsumerInterceptorAdaptor<String>() {
-            @Override
-            public void close() {
-                closeCount.incrementAndGet();
-            }
-        };
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic(topic)
-                .create();
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic(topic)
-                .subscriptionName("my-subscription")
-                .intercept(interceptor)
-                .subscribe();
-        for (int i = 0; i < 10; i++) {
-            producer.newMessage().value("Hello Pulsar!").send();
-        }
-        for (int i = 0; i < 10; i++) {
-            consumer.acknowledge(consumer.receive());
-        }
         producer.close();
-        consumer.close();
-        Assert.assertEquals(closeCount.get(), 1);
+        producer.close();
+
+        verify(interceptor).close();
     }
 
     @Test
-    public void testZeroQueueConsumerInterceptorClose() throws PulsarClientException, PulsarAdminException {
-        final String topic = "persistent://my-property/my-ns/my-topic";
-        admin.topics().createNonPartitionedTopic(topic);
+    public void testProducerInterceptorSharedByTwoProducersClosedForEach() throws Exception {
+        String topic = newTopicName();
+        org.apache.pulsar.client.api.interceptor.ProducerInterceptor interceptor =
+                mock(org.apache.pulsar.client.api.interceptor.ProducerInterceptor.class);
+        ProducerBuilder<String> builder = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .intercept(interceptor);
+        Producer<String> producer1 = builder.create();
+        Producer<String> producer2 = builder.create();
 
-        AtomicInteger closeCount = new AtomicInteger(0);
-        ConsumerInterceptor<String> interceptor = new ConsumerInterceptorAdaptor<String>() {
-            @Override
-            public void close() {
-                closeCount.incrementAndGet();
-            }
-        };
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic(topic)
-                .create();
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic(topic)
-                .subscriptionName("my-subscription")
-                .receiverQueueSize(0)
-                .intercept(interceptor)
-                .subscribe();
-        for (int i = 0; i < 10; i++) {
-            producer.newMessage().value("Hello Pulsar!").send();
-        }
-        for (int i = 0; i < 10; i++) {
-            consumer.acknowledge(consumer.receive());
-        }
-        producer.close();
-        consumer.close();
-        Assert.assertEquals(closeCount.get(), 1);
+        producer1.close();
+        verify(interceptor).close();
+
+        producer2.close();
+        verify(interceptor, times(2)).close();
     }
 
     @Test(dataProvider = "topicPartition")
-    public void testReaderInterceptorClose(int partitions) throws IOException, PulsarAdminException {
-        final String topic = "persistent://my-property/my-ns/my-topic";
-        if (partitions > 0) {
-            admin.topics().createPartitionedTopic(topic, partitions);
-        } else {
-            admin.topics().createNonPartitionedTopic(topic);
+    public void testConsumerInterceptorClosedOnceOnConsumerClose(int topicPartition) throws Exception {
+        String topic = newTopicName();
+        if (topicPartition > 0) {
+            admin.topics().createPartitionedTopic(topic, topicPartition);
         }
-
-        AtomicInteger closeCount = new AtomicInteger(0);
-        ReaderInterceptor<String> interceptor = new ReaderInterceptorAdaptor<String>() {
-            @Override
-            public void close() {
-                closeCount.incrementAndGet();
-            }
-        };
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+        ConsumerInterceptor<String> interceptor = mock(ConsumerInterceptor.class);
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
-                .create();
+                .subscriptionName("my-subscription")
+                .intercept(interceptor)
+                .subscribe();
+        verify(interceptor, never()).close();
+
+        consumer.close();
+        consumer.close();
+
+        verify(interceptor).close();
+    }
+
+    @Test(dataProvider = "topicPartition")
+    public void testReaderInterceptorClosedOnceOnReaderClose(int topicPartition) throws Exception {
+        String topic = newTopicName();
+        if (topicPartition > 0) {
+            admin.topics().createPartitionedTopic(topic, topicPartition);
+        }
+        ReaderInterceptor<String> interceptor = mock(ReaderInterceptor.class);
         Reader<String> reader = pulsarClient.newReader(Schema.STRING)
                 .topic(topic)
                 .startMessageId(MessageId.earliest)
                 .intercept(interceptor)
                 .create();
-        for (int i = 0; i < 10; i++) {
-            producer.newMessage().value("Hello Pulsar!").send();
-        }
-        for (int i = 0; i < 10; i++) {
-            Message<String> discard = reader.readNext();
-        }
-        producer.close();
+        verify(interceptor, never()).close();
+
         reader.close();
-        Assert.assertEquals(closeCount.get(), 1);
+        reader.close();
+
+        verify(interceptor).close();
     }
 
     private void produceAndConsume(int msgCount, Producer<byte[]> producer, Reader<byte[]> reader)
@@ -1255,64 +1213,4 @@ public class InterceptorsTest extends SharedPulsarBaseTest {
         }
     }
 
-    static class ProducerInterceptorAdaptor implements org.apache.pulsar.client.api.interceptor.ProducerInterceptor {
-
-        @Override
-        public void close() {
-        }
-
-        @Override
-        public boolean eligible(Message message) {
-            return true;
-        }
-
-        @Override
-        public Message beforeSend(Producer producer, Message message) {
-            return message;
-        }
-
-        @Override
-        public void onSendAcknowledgement(Producer producer, Message message, MessageId msgId, Throwable exception) {
-        }
-    }
-
-    static class ConsumerInterceptorAdaptor<T> implements ConsumerInterceptor<T> {
-
-        @Override
-        public void close() {
-        }
-
-        @Override
-        public Message<T> beforeConsume(Consumer<T> consumer, Message<T> message) {
-            return message;
-        }
-
-        @Override
-        public void onAcknowledge(Consumer<T> consumer, MessageId messageId, Throwable exception) {
-        }
-
-        @Override
-        public void onAcknowledgeCumulative(Consumer<T> consumer, MessageId messageId, Throwable exception) {
-        }
-
-        @Override
-        public void onNegativeAcksSend(Consumer<T> consumer, Set<MessageId> messageIds) {
-        }
-
-        @Override
-        public void onAckTimeoutSend(Consumer<T> consumer, Set<MessageId> messageIds) {
-        }
-    }
-
-    static class ReaderInterceptorAdaptor<T> implements ReaderInterceptor<T> {
-
-        @Override
-        public void close() {
-        }
-
-        @Override
-        public Message<T> beforeRead(Reader<T> reader, Message<T> message) {
-            return message;
-        }
-    }
 }
