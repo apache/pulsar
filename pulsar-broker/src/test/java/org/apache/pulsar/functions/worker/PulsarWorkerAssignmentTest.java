@@ -31,7 +31,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
@@ -47,7 +47,7 @@ import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.functions.proto.Function.Assignment;
+import org.apache.pulsar.functions.proto.Assignment;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
@@ -59,7 +59,7 @@ import org.testng.annotations.Test;
  * Test Pulsar sink on function.
  *
  */
-@Slf4j
+@CustomLog
 @Test(groups = "functions-worker")
 public class PulsarWorkerAssignmentTest {
     LocalBookkeeperEnsemble bkEnsemble;
@@ -80,10 +80,10 @@ public class PulsarWorkerAssignmentTest {
     @BeforeMethod(timeOut = 60000)
     void setup(Method method) throws Exception {
 
-        log.info("--- Setting up method {} ---", method.getName());
+        log.info().attr("method", method.getName()).log("Setting up method");
 
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble.start();
 
         config = new ServiceConfiguration();
@@ -152,7 +152,7 @@ public class PulsarWorkerAssignmentTest {
                 bkEnsemble = null;
             }
         } catch (Exception e) {
-            log.warn("Encountered errors at shutting down PulsarWorkerAssignmentTest", e);
+            log.warn().exception(e).log("Encountered errors at shutting down PulsarWorkerAssignmentTest");
         } finally {
             if (tempDirectory != null) {
                 tempDirectory.delete();
@@ -160,6 +160,7 @@ public class PulsarWorkerAssignmentTest {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private PulsarWorkerService createPulsarFunctionWorker(ServiceConfiguration config) {
         workerConfig = new WorkerConfig();
         tempDirectory = PulsarFunctionTestTemporaryDirectory.create(getClass().getSimpleName());
@@ -202,7 +203,7 @@ public class PulsarWorkerAssignmentTest {
         final String subscriptionName = "test-sub";
         admin.namespaces().createNamespace(replNamespace);
         final Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
-        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters, false);
 
         final String jarFilePathUrl = getPulsarApiExamplesJar().toURI().toString();
         FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion,
@@ -239,7 +240,9 @@ public class PulsarWorkerAssignmentTest {
             }
         }, 50, 150);
         // validate pulsar sink consumer has started on the topic
-        log.info("admin.topics().getStats(sinkTopic): {}", new Gson().toJson(admin.topics().getStats(sinkTopic)));
+        log.info()
+                .attr("sinkTopic", new Gson().toJson(admin.topics().getStats(sinkTopic)))
+                .log("admin.topics.getStats(sinkTopic");
         assertEquals(admin.topics().getStats(sinkTopic).getSubscriptions()
                 .values().iterator().next().getConsumers().size(), 1);
     }
@@ -257,7 +260,7 @@ public class PulsarWorkerAssignmentTest {
         final int parallelism = 2;
         admin.namespaces().createNamespace(replNamespace);
         final Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
-        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters, false);
         final FunctionRuntimeManager runtimeManager = functionsWorkerService.getFunctionRuntimeManager();
 
         final String jarFilePathUrl = getPulsarApiExamplesJar().toURI().toString();
@@ -341,6 +344,7 @@ public class PulsarWorkerAssignmentTest {
             assertEquals(admin.functions().getFunction(tenant, namespacePortion, functionName).getLogTopic(), logTopic);
         }
     }
+    @SuppressWarnings("deprecation")
 
     protected static FunctionConfig createFunctionConfig(String tenant,
                                                          String namespace,

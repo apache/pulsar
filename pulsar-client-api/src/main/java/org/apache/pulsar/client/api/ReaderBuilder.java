@@ -232,7 +232,7 @@ public interface ReaderBuilder<T> extends Cloneable {
      * @param messageCrypto message Crypto Object
      * @return ReaderBuilder instance
      */
-    ReaderBuilder<T> messageCrypto(MessageCrypto messageCrypto);
+    ReaderBuilder<T> messageCrypto(MessageCrypto<?, ?> messageCrypto);
     /**
      * Sets the size of the consumer receive queue.
      *

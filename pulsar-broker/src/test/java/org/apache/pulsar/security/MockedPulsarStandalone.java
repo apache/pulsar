@@ -73,6 +73,7 @@ public abstract class MockedPulsarStandalone implements AutoCloseable {
         serviceConfiguration.setTlsCertificateFilePath(TLS_EC_SERVER_CERT_PATH);
         serviceConfiguration.setTlsKeyFilePath(TLS_EC_SERVER_KEY_PATH);
     }
+@SuppressWarnings("deprecation")
 
 
     protected static final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
@@ -120,6 +121,7 @@ public abstract class MockedPulsarStandalone implements AutoCloseable {
 
 
 
+    @SuppressWarnings("deprecation")
     @SneakyThrows
     protected void loadECTlsCertificateWithFile() {
         serviceConfiguration.setTlsEnabled(true);
@@ -138,6 +140,7 @@ public abstract class MockedPulsarStandalone implements AutoCloseable {
                 MAPPER1.writeValueAsString(brokerClientAuthParams));
     }
 
+    @SuppressWarnings("deprecation")
     @SneakyThrows
     protected void loadECTlsCertificateWithKeyStore() {
         serviceConfiguration.setTlsEnabled(true);

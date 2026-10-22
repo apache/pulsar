@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.apache.bookkeeper.mledger.ManagedCursor.CURSOR_INTERNAL_PROPERTY_PREFIX;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -30,6 +32,7 @@ import lombok.Cleanup;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.admin.AdminApiTest.MockedPulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -62,12 +65,11 @@ public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
         mockPulsarSetup.setup();
 
         // Setup namespaces
-        admin.clusters().createCluster("use", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("use"));
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
         admin.tenants().createTenant("prop-xyz", tenantInfo);
-        admin.namespaces().createNamespace("prop-xyz/use/ns1");
+        admin.namespaces().createNamespace("prop-xyz/ns1");
 
-        // Setup v2 namespaces
         setupDefaultTenantAndNamespace();
     }
 
@@ -80,7 +82,7 @@ public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testIncrementPartitionsOfTopicOnUnusedTopic() throws Exception {
-        final String partitionedTopicName = "persistent://prop-xyz/use/ns1/test-topic";
+        final String partitionedTopicName = "persistent://prop-xyz/ns1/test-topic";
 
         admin.topics().createPartitionedTopic(partitionedTopicName, 10);
         assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 10);
@@ -91,7 +93,7 @@ public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testIncrementPartitionsOfTopic() throws Exception {
-        final String partitionedTopicName = "persistent://prop-xyz/use/ns1/test-topic-2";
+        final String partitionedTopicName = "persistent://prop-xyz/ns1/test-topic-2";
 
         admin.topics().createPartitionedTopic(partitionedTopicName, 1);
         assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 1);
@@ -151,9 +153,42 @@ public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testIncrementPartitionsDoesNotCopyInternalCursorProperties() throws Exception {
+        String partitionedTopicName = UUID.randomUUID()
+                + "-testIncrementPartitionsDoesNotCopyInternalCursorProperties";
+        String subscriptionName = "sub-1";
+        Map<String, String> subscriptionProperties = Map.of("property", "value");
+
+        admin.topics().createPartitionedTopic(partitionedTopicName, 1);
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(partitionedTopicName)
+                .subscriptionName(subscriptionName)
+                .subscriptionProperties(subscriptionProperties)
+                .subscribe();
+
+        String sourcePartition = TopicName.get(partitionedTopicName).getPartition(0).toString();
+        PersistentTopic sourceTopic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(sourcePartition)
+                .orElseThrow();
+        String internalProperty = CURSOR_INTERNAL_PROPERTY_PREFIX + "test";
+        sourceTopic.getSubscription(subscriptionName).getCursor()
+                .putCursorProperty(internalProperty, "internal-value").get();
+
+        admin.topics().updatePartitionedTopic(partitionedTopicName, 2);
+
+        String newPartition = TopicName.get(partitionedTopicName).getPartition(1).toString();
+        PersistentTopic newTopic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(newPartition)
+                .orElseThrow();
+        Map<String, String> newCursorProperties = newTopic.getSubscription(subscriptionName)
+                .getCursor().getCursorProperties();
+        assertEquals(newCursorProperties, subscriptionProperties);
+        assertFalse(newCursorProperties.containsKey(internalProperty));
+    }
+
+    @Test
     public void testIncrementPartitionsWithNoSubscriptions() throws Exception {
         final String partitionedTopicName =
-                BrokerTestUtil.newUniqueName("persistent://prop-xyz/use/ns1/test-topic");
+                BrokerTestUtil.newUniqueName("persistent://prop-xyz/ns1/test-topic");
 
         admin.topics().createPartitionedTopic(partitionedTopicName, 1);
         assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 1);
@@ -180,7 +215,7 @@ public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testIncrementPartitionsWithReaders() throws Exception {
         TopicName partitionedTopicName = TopicName.get(
-                BrokerTestUtil.newUniqueName("persistent://prop-xyz/use/ns1/test-topic"));
+                BrokerTestUtil.newUniqueName("persistent://prop-xyz/ns1/test-topic"));
 
         admin.topics().createPartitionedTopic(partitionedTopicName.toString(), 1);
         assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName.toString()).partitions, 1);

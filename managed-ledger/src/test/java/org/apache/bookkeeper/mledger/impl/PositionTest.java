@@ -22,7 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
+import org.apache.bookkeeper.mledger.proto.PositionInfo;
 import org.testng.annotations.Test;
 
 public class PositionTest {
@@ -75,8 +75,9 @@ public class PositionTest {
     public void hashes() throws Exception {
         Position p1 = PositionFactory.create(5, 15);
         PositionInfo positionInfo =
-                PositionInfo.newBuilder().setLedgerId(p1.getLedgerId()).setEntryId(p1.getEntryId()).build();
-        PositionInfo parsed = PositionInfo.parseFrom(positionInfo.toByteArray());
+                new PositionInfo().setLedgerId(p1.getLedgerId()).setEntryId(p1.getEntryId());
+        PositionInfo parsed = new PositionInfo();
+        parsed.parseFrom(positionInfo.toByteArray());
         Position p2 = PositionFactory.create(parsed.getLedgerId(), parsed.getEntryId());
         assertEquals(p2.getLedgerId(), 5);
         assertEquals(p2.getEntryId(), 15);

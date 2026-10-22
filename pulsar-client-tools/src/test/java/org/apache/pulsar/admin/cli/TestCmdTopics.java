@@ -262,6 +262,7 @@ public class TestCmdTopics {
         mockTopics = mock(Topics.class);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testSetRetentionCmd() throws Exception {
         cmdTopics.run("set-retention public/default/topic -s 2T -t 200d".split("\\s+"));
@@ -269,6 +270,7 @@ public class TestCmdTopics {
                 new RetentionPolicies(200 * 24 * 60, 2 * 1024 * 1024));
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testSetPersistenceWithDefaultMarkDeleteRate() throws Exception {
         // Test that the default value is now -1 (unset) instead of 0
@@ -277,6 +279,7 @@ public class TestCmdTopics {
                 new PersistencePolicies(2, 2, 2, -1.0, null));
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testSetPersistenceWithNegativeMarkDeleteRate() throws Exception {
         // Test that negative values are now allowed (previously would throw exception)
@@ -285,6 +288,7 @@ public class TestCmdTopics {
                 new PersistencePolicies(2, 2, 2, -5.0, null));
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testSetPersistenceWithZeroMarkDeleteRate() throws Exception {
         // Test that zero is still allowed
@@ -293,6 +297,7 @@ public class TestCmdTopics {
                 new PersistencePolicies(2, 2, 2, 0.0, null));
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testSetPersistenceWithPositiveMarkDeleteRate() throws Exception {
         // Test that positive values still work
@@ -301,6 +306,7 @@ public class TestCmdTopics {
                 new PersistencePolicies(2, 2, 2, 10.5, null));
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testSetPersistenceWithUnsetMarkDeleteRate() throws Exception {
         // Test explicitly setting to -1 (unset)

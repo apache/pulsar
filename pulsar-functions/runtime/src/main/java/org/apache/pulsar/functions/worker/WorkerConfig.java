@@ -33,11 +33,13 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
 import lombok.AccessLevel;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 import lombok.experimental.Accessors;
@@ -46,6 +48,7 @@ import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.configuration.Category;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
+import org.apache.pulsar.common.functions.MemoryLimit;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.sasl.SaslConstants;
@@ -277,7 +280,10 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private String connectorsDirectory = "./connectors";
     @FieldContext(
         category = CATEGORY_CONNECTORS,
-        doc = "The directory where nar packages are extractors"
+        doc = "The directory where nar packages are extracted. Default is java.io.tmpdir. Outside of Kubernetes,"
+            + " OS cleanup of /tmp (for example, by systemd-tmpfiles) can delete extracted files while the functions"
+            + " worker is running, which causes ClassNotFoundException or NoClassDefFoundError errors. In that case,"
+            + " set this to a dedicated directory that isn't cleaned up automatically."
     )
     private String narExtractionDirectory = NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR;
     @FieldContext(
@@ -520,14 +526,45 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private boolean useTls = false;
     @FieldContext(
         category = CATEGORY_SECURITY,
-        doc = "Whether to enable hostname verification on TLS connections"
+        doc = "Whether to enable hostname verification on TLS connections to the broker. Enabled by default "
+                + "since Pulsar 5.0 (PIP-478): a broker whose certificate does not match its hostname/SAN is "
+                + "rejected."
     )
-    private boolean tlsEnableHostnameVerification = false;
+    private boolean tlsEnableHostnameVerification = true;
     @FieldContext(
             category = CATEGORY_SECURITY,
-            doc = "Tls cert refresh duration in seconds (set 0 to check on every new connection)"
+            doc = "Tls cert refresh duration in seconds. Set 0 to disable the background rotation "
+                    + "check, so the TLS material loaded at startup is kept until restart."
         )
         private long tlsCertRefreshCheckDurationSec = 300;
+    @FieldContext(
+            category = CATEGORY_SECURITY,
+            doc = "PIP-478 TLS factory (PulsarTlsFactory) class name for the functions-worker web server "
+                    + "TLS (purpose WEB). When set, the new PIP-478 TLS SPI is used instead of the built-in "
+                    + "file-based TLS loading: an empty value or the literal 'default' selects the built-in "
+                    + "default factory composed from these tls* settings, otherwise the named class is "
+                    + "instantiated via its public no-arg constructor. This is the functions worker's first "
+                    + "TLS-factory pluggability.")
+    private String tlsFactoryClassName = "";
+    @FieldContext(
+            category = CATEGORY_SECURITY,
+            doc = "PIP-478 configuration parameters for tlsFactoryClassName. Accepts a JSON object or a "
+                    + "comma-separated key=value list.")
+    private String tlsFactoryConfig = "";
+    @FieldContext(
+            category = CATEGORY_SECURITY,
+            doc = "PIP-478 TLS factory (PulsarTlsFactory) class name for the functions-worker's own outbound "
+                    + "(worker-to-broker) client connections (purpose BROKER_CLIENT). An empty value or the "
+                    + "literal 'default' selects the built-in default factory composed from the broker-client "
+                    + "tls* settings, otherwise the named class is instantiated via its public no-arg "
+                    + "constructor. This is the only outbound-client TLS-factory path for the functions "
+                    + "worker.")
+    private String brokerClientTlsFactoryClassName = "";
+    @FieldContext(
+            category = CATEGORY_SECURITY,
+            doc = "PIP-478 configuration parameters for brokerClientTlsFactoryClassName. Accepts a JSON object "
+                    + "or a comma-separated key=value list.")
+    private String brokerClientTlsFactoryConfig = "";
 
     /**** --- KeyStore TLS config variables. --- ****/
     @FieldContext(
@@ -540,9 +577,64 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
             category = CATEGORY_KEYSTORE_TLS,
             doc = "Specify the TLS provider for the function worker service: \n"
                     + "When using TLS authentication with CACert, the valid value is either OPENSSL or JDK.\n"
-                    + "When using TLS authentication with KeyStore, available values can be SunJSSE, Conscrypt and etc."
+                    + "When using TLS authentication with KeyStore, available values can be SunJSSE, Conscrypt\n"
+                    + "and etc.\n"
+                    + "For the worker's web listener, leave unset (the default) to use Conscrypt when it is\n"
+                    + "available on this platform, else the JVM's default provider; a configured JSSE provider\n"
+                    + "name is pinned and startup fails if it cannot be resolved. Conscrypt ships native libraries\n"
+                    + "for x86_64 and, since 2.6.1, aarch64 — but not for every platform, which is why the default\n"
+                    + "falls back instead of failing where it cannot load; pinning it there does fail."
     )
     private String tlsProvider = null;
+
+    @FieldContext(
+            category = CATEGORY_SECURITY,
+            doc = "PIP-478: the name of a JSSE (SSLContext) provider — a java.security.Provider that supplies "
+                    + "an SSLContext (TLS) implementation (e.g. the BouncyCastle JSSE provider BCJSSE for FIPS, "
+                    + "with BCFIPS registered separately as the crypto provider it uses) — used to build the "
+                    + "functions worker web-server TLS SSLContext. When set, the default factory builds the JDK "
+                    + "engine with this provider as the SSLContext provider. Resolved by preferring a provider "
+                    + "already registered in the JVM (Security.getProvider), falling back to the ServiceLoader "
+                    + "mechanism, and failing loudly when unresolvable."
+    )
+    private String jsseProvider = null;
+
+    @FieldContext(
+            category = CATEGORY_SECURITY,
+            doc = "PIP-478: the Netty SSL engine provider for the worker's own outbound (worker-to-broker) "
+                    + "client and admin connections — JDK, OPENSSL or OPENSSL_REFCNT. The listener-side "
+                    + "tlsProvider governs the worker's web server only; this is the outbound counterpart, "
+                    + "matching the broker's brokerClientSslProvider. Leave unset to keep the JVM default."
+    )
+    private String brokerClientSslProvider = null;
+
+    @FieldContext(
+            category = CATEGORY_SECURITY,
+            doc = "PIP-478: the name of a JSSE (SSLContext) provider used for the worker's own outbound "
+                    + "(worker-to-broker) client and admin connections (e.g. BCJSSE for FIPS). The "
+                    + "listener-side jsseProvider governs the worker's web server only; this is the outbound "
+                    + "counterpart, matching the broker's brokerClientJsseProvider. Applied independently of "
+                    + "brokerClientTlsFactoryClassName. Leave unset to use the JVM provider search order."
+    )
+    private String brokerClientJsseProvider = null;
+
+    @FieldContext(
+            category = CATEGORY_SECURITY,
+            doc = "PIP-478: the name of a JCA (material) provider — a java.security.Provider supplying the "
+                    + "KeyStore, CertificateFactory and KeyFactory engines that parse the TLS material (e.g. "
+                    + "BCFIPS for FIPS, alongside jsseProvider=BCJSSE). A distinct axis from jsseProvider, "
+                    + "which supplies the SSLContext. Unset uses the JVM provider search order. Applies to "
+                    + "the functions worker's web listener."
+    )
+    private String jcaProvider = null;
+
+    @FieldContext(
+            category = CATEGORY_SECURITY,
+            doc = "PIP-478: the JCA (material) provider for the worker's own outbound (worker-to-broker) "
+                    + "client and admin connections — the outbound counterpart of jcaProvider. An embedded "
+                    + "(broker-hosted) worker inherits the broker's value when this is unset."
+    )
+    private String brokerClientJcaProvider = null;
 
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
@@ -753,13 +845,14 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     @Getter(AccessLevel.NONE)
     private String functionAuthProviderClassName;
 
+    @SuppressWarnings("deprecation")
     public String getFunctionAuthProviderClassName() {
         // if we haven't set a value and are running kubernetes, we default to the SecretsTokenAuthProvider
         // as that matches behavior before this property could be overridden
         if (!StringUtils.isEmpty(functionAuthProviderClassName)) {
             return functionAuthProviderClassName;
         } else {
-            if (StringUtils.equals(this.getFunctionRuntimeFactoryClassName(), KubernetesRuntimeFactory.class.getName())
+            if (Objects.equals(this.getFunctionRuntimeFactoryClassName(), KubernetesRuntimeFactory.class.getName())
                     || getKubernetesContainerFactory() != null) {
                 return KubernetesSecretsTokenAuthProvider.class.getName();
             }
@@ -786,6 +879,15 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
                   + "Only used in AsyncFunction. Default: 1000"
     )
     private int maxPendingAsyncRequests = 1000;
+
+    @FieldContext(
+            category = CATEGORY_FUNC_RUNTIME_MNG,
+            doc = "Default memory limit of the Pulsar client used by each Java function instance, for functions"
+                    + " that don't set their own. If both `limitInBytes` and `percentOfMaxDirectMemory` are set,"
+                    + " the smaller of the two limits is used. The thread runtime uses it when"
+                    + " `functionRuntimeFactoryConfigs.pulsarClientMemoryLimit` is not set."
+    )
+    private MemoryLimit pulsarClientMemoryLimit;
 
     @FieldContext(
         doc = "Whether to forward the source message properties to the output message"
@@ -904,14 +1006,15 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         this.properties = properties;
     }
 
-    /********* DEPRECATED CONFIGS. *********/
+    // --------- DEPRECATED CONFIGS ---------
 
-    @Deprecated
-    @Data
     /**
-     * @Deprecated in favor for using functionRuntimeFactoryClassName and functionRuntimeFactoryConfigs
+     * @deprecated in favor for using functionRuntimeFactoryClassName and functionRuntimeFactoryConfigs
      * for specifying the function runtime and configs to use
      */
+    @Deprecated
+    @Data
+    @EqualsAndHashCode(callSuper = false)
     public static class ThreadContainerFactory extends ThreadRuntimeFactoryConfig {
 
     }
@@ -922,12 +1025,13 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     @Deprecated
     private ThreadContainerFactory threadContainerFactory;
 
-    @Deprecated
-    @Data
     /**
-     * @Deprecated in favor for using functionRuntimeFactoryClassName and functionRuntimeFactoryConfigs
+     * @deprecated in favor for using functionRuntimeFactoryClassName and functionRuntimeFactoryConfigs
      * for specifying the function runtime and configs to use
      */
+    @Deprecated
+    @Data
+    @EqualsAndHashCode(callSuper = false)
     public static class ProcessContainerFactory extends ProcessRuntimeFactoryConfig {
 
     }
@@ -938,12 +1042,13 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     @Deprecated
     private ProcessContainerFactory processContainerFactory;
 
-    @Deprecated
-    @Data
     /**
-     * @Deprecated in favor for using functionRuntimeFactoryClassName and functionRuntimeFactoryConfigs
+     * @deprecated in favor for using functionRuntimeFactoryClassName and functionRuntimeFactoryConfigs
      * for specifying the function runtime and configs to use
      */
+    @Deprecated
+    @Data
+    @EqualsAndHashCode(callSuper = false)
     public static class KubernetesContainerFactory extends KubernetesRuntimeFactoryConfig {
 
     }

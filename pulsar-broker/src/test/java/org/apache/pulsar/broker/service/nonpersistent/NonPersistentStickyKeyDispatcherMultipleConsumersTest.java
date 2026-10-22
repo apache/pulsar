@@ -133,6 +133,7 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumersTest {
     }
 
     @Test(timeOut = 10000)
+    @SuppressWarnings("unchecked")
     public void testSendMessage() throws BrokerServiceException {
         Consumer consumerMock = mock(Consumer.class);
         when(consumerMock.getAvailablePermits()).thenReturn(1000);
@@ -166,6 +167,7 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumersTest {
     }
 
     @Test(timeOut = 10000)
+    @SuppressWarnings("unchecked")
     public void testSendMessageRespectFlowControl() throws BrokerServiceException {
         Consumer consumerMock = mock(Consumer.class);
         nonpersistentDispatcher.addConsumer(consumerMock);

@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.web.plugin.servlet;
 
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_SELF;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.AssertJUnit.assertSame;
@@ -50,9 +51,8 @@ public class AdditionalServletUtilsTest {
         NarClassLoader mockLoader = mock(NarClassLoader.class);
         when(mockLoader.getServiceDefinition(eq(AdditionalServletUtils.ADDITIONAL_SERVLET_FILE)))
                 .thenReturn(ObjectMapperFactory.getYamlMapper().writer().writeValueAsString(def));
-        Class listenerClass = MockAdditionalServlet.class;
-        when(mockLoader.loadClass(eq(MockAdditionalServlet.class.getName())))
-                .thenReturn(listenerClass);
+        Class<?> listenerClass = MockAdditionalServlet.class;
+        doReturn(listenerClass).when(mockLoader).loadClass(eq(MockAdditionalServlet.class.getName()));
 
         final NarClassLoaderBuilder mockedBuilder = mock(NarClassLoaderBuilder.class, RETURNS_SELF);
         when(mockedBuilder.build()).thenReturn(mockLoader);
@@ -80,9 +80,8 @@ public class AdditionalServletUtilsTest {
         NarClassLoader mockLoader = mock(NarClassLoader.class);
         when(mockLoader.getServiceDefinition(eq(AdditionalServletUtils.ADDITIONAL_SERVLET_FILE)))
                 .thenReturn(ObjectMapperFactory.getYamlMapper().writer().writeValueAsString(def));
-        Class listenerClass = MockAdditionalServlet.class;
-        when(mockLoader.loadClass(eq(MockAdditionalServlet.class.getName())))
-                .thenReturn(listenerClass);
+        Class<?> listenerClass = MockAdditionalServlet.class;
+        doReturn(listenerClass).when(mockLoader).loadClass(eq(MockAdditionalServlet.class.getName()));
 
         final NarClassLoaderBuilder mockedBuilder = mock(NarClassLoaderBuilder.class, RETURNS_SELF);
         when(mockedBuilder.build()).thenReturn(mockLoader);
@@ -108,9 +107,8 @@ public class AdditionalServletUtilsTest {
         NarClassLoader mockLoader = mock(NarClassLoader.class);
         when(mockLoader.getServiceDefinition(eq(AdditionalServletUtils.ADDITIONAL_SERVLET_FILE)))
                 .thenReturn(ObjectMapperFactory.getYamlMapper().writer().writeValueAsString(def));
-        Class listenerClass = Runnable.class;
-        when(mockLoader.loadClass(eq(Runnable.class.getName())))
-                .thenReturn(listenerClass);
+        Class<?> listenerClass = Runnable.class;
+        doReturn(listenerClass).when(mockLoader).loadClass(eq(Runnable.class.getName()));
 
         final NarClassLoaderBuilder mockedBuilder = mock(NarClassLoaderBuilder.class, RETURNS_SELF);
         when(mockedBuilder.build()).thenReturn(mockLoader);

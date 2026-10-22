@@ -37,7 +37,7 @@ public class BrokerEventLoopShutdownTest {
 
     @BeforeClass(alwaysRun = true)
     public void setup() throws Exception {
-        bk = new LocalBookkeeperEnsemble(2, 0, () -> 0);
+        bk = new LocalBookkeeperEnsemble(2, 0);
         bk.start();
     }
 

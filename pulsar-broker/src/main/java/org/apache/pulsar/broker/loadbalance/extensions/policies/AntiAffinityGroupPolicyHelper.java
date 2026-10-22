@@ -21,18 +21,19 @@ package org.apache.pulsar.broker.loadbalance.extensions.policies;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannel;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 
-@Slf4j
+@CustomLog
 public class AntiAffinityGroupPolicyHelper {
     PulsarService pulsar;
     Map<String, String> brokerToFailureDomainMap;
     ServiceUnitStateChannel channel;
+    private volatile Runnable cancelFailureDomainListener;
 
     public AntiAffinityGroupPolicyHelper(PulsarService pulsar,
                                   ServiceUnitStateChannel channel){
@@ -54,7 +55,8 @@ public class AntiAffinityGroupPolicyHelper {
             return LoadManagerShared.getNamespaceAntiAffinityGroup(
                     pulsar, LoadManagerShared.getNamespaceNameFromBundleName(bundle)).isPresent();
         } catch (MetadataStoreException e) {
-            log.error("Failed to check unload candidates. Assumes that bundle:{} cannot unload ", bundle, e);
+            log.error().attr("bundle", bundle).exception(e)
+                    .log("Failed to check unload candidates. Assumes that bundle cannot unload");
             return false;
         }
     }
@@ -62,10 +64,19 @@ public class AntiAffinityGroupPolicyHelper {
     public void listenFailureDomainUpdate() {
         LoadManagerShared.refreshBrokerToFailureDomainMap(pulsar, brokerToFailureDomainMap);
         // register listeners for domain changes
-        pulsar.getPulsarResources().getClusterResources().getFailureDomainResources()
-                .registerListener(__ -> {
+        cancelFailureDomainListener = pulsar.getPulsarResources().getClusterResources().getFailureDomainResources()
+                .registerCancellableListener(__ -> {
                     pulsar.getLoadManagerExecutor().execute(() ->
                             LoadManagerShared.refreshBrokerToFailureDomainMap(pulsar, brokerToFailureDomainMap));
                 });
+    }
+
+    /**
+     * Stop following the changes of the failure domains.
+     */
+    public void close() {
+        if (cancelFailureDomainListener != null) {
+            cancelFailureDomainListener.run();
+        }
     }
 }

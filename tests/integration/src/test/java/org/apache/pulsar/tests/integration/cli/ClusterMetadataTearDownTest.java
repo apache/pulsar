@@ -34,7 +34,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.meta.LedgerManager;
@@ -62,12 +62,13 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class ClusterMetadataTearDownTest extends TestRetrySupport {
 
     private final PulsarClusterSpec spec = PulsarClusterSpec.builder()
             .clusterName("ClusterMetadataTearDownTest-" + UUID.randomUUID().toString().substring(0, 8))
-            .numProxies(0)
+            // The client and the admin connect through the proxy
+            .numProxies(1)
             .numFunctionWorkers(0)
             .build();
 
@@ -123,7 +124,7 @@ public class ClusterMetadataTearDownTest extends TestRetrySupport {
         try {
             ledgerManager.close();
         } catch (IOException e) {
-            log.warn("Failed to close ledger manager: ", e);
+            log.warn().exception(e).log("Failed to close ledger manager");
         }
         driver.close();
         try {
@@ -185,8 +186,10 @@ public class ClusterMetadataTearDownTest extends TestRetrySupport {
         pulsarCluster.getBrokers().forEach(ChaosContainer::stop);
 
         assertTrue(getNumOfLedgers() > 0);
-        log.info("Before delete, cluster name: {}, num of ledgers: {}", pulsarCluster.getClusterName(),
-                getNumOfLedgers());
+        log.info()
+                .attr("name", pulsarCluster.getClusterName())
+                .attr("ledgers", getNumOfLedgers())
+                .log("Before delete, cluster name: , num of ledgers");
 
         String[] args = { "-zk", pulsarCluster.getZKConnString(),
                 "-cs", pulsarCluster.getCSConnString(),

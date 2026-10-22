@@ -26,7 +26,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
@@ -44,7 +44,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class AutoScaledReceiverQueueSizeTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod(alwaysRun = true)
     @Override
@@ -78,12 +78,16 @@ public class AutoScaledReceiverQueueSizeTest extends MockedPulsarServiceBaseTest
         producer.send(data);
         Awaitility.await().until(consumer.scaleReceiverQueueHint::get);
         Assert.assertNotNull(consumer.receive());
-        log.info("getCurrentReceiverQueueSize={}", consumer.getCurrentReceiverQueueSize());
+        log.info()
+                .attr("queueSize", consumer.getCurrentReceiverQueueSize())
+                .log("Current receiver queue size");
 
         //this will trigger receiver queue size expanding.
         Assert.assertNull(consumer.receive(0, TimeUnit.MILLISECONDS));
 
-        log.info("getCurrentReceiverQueueSize={}", consumer.getCurrentReceiverQueueSize());
+        log.info()
+                .attr("queueSize", consumer.getCurrentReceiverQueueSize())
+                .log("Current receiver queue size");
         Assert.assertEquals(consumer.getCurrentReceiverQueueSize(), 2);
         Assert.assertFalse(consumer.scaleReceiverQueueHint.get());
 
@@ -131,11 +135,16 @@ public class AutoScaledReceiverQueueSizeTest extends MockedPulsarServiceBaseTest
                 producer.send(data);
             }
             Awaitility.await().until(() -> consumer.incomingMessages.size() == 5);
-            log.info("i={},expandReceiverQueueHint:{},local permits:{}",
-                    i, consumer.scaleReceiverQueueHint.get(), consumer.getAvailablePermits());
+            log.info()
+                    .attr("i", i)
+                    .attr("expandReceiverQueueHint", consumer.scaleReceiverQueueHint.get())
+                    .attr("permits", consumer.getAvailablePermits())
+                    .log("i= ,expandReceiverQueueHint: ,local permits");
             Assert.assertEquals(consumer.batchReceive().size(), 5);
             Assert.assertEquals(consumer.getCurrentReceiverQueueSize(), currentSize);
-            log.info("getCurrentReceiverQueueSize={}", consumer.getCurrentReceiverQueueSize());
+            log.info()
+                    .attr("getCurrentReceiverQueueSize", consumer.getCurrentReceiverQueueSize())
+                    .log("getCurrentReceiverQueueSize");
         }
 
         //clear local available permits.
@@ -156,7 +165,9 @@ public class AutoScaledReceiverQueueSizeTest extends MockedPulsarServiceBaseTest
         //trigger expanding
         consumer.batchReceiveAsync();
         Awaitility.await().until(() -> consumer.getCurrentReceiverQueueSize() == currentSize * 2);
-        log.info("getCurrentReceiverQueueSize={}", consumer.getCurrentReceiverQueueSize());
+        log.info()
+                .attr("queueSize", consumer.getCurrentReceiverQueueSize())
+                .log("Current receiver queue size");
     }
 
     @Test
@@ -186,13 +197,17 @@ public class AutoScaledReceiverQueueSizeTest extends MockedPulsarServiceBaseTest
             Assert.assertNotNull(consumer.receive());
         }
         Assert.assertTrue(consumer.scaleReceiverQueueHint.get());
-        log.info("getCurrentReceiverQueueSize={}", consumer.getCurrentReceiverQueueSize());
+        log.info()
+                .attr("queueSize", consumer.getCurrentReceiverQueueSize())
+                .log("Current receiver queue size");
         Assert.assertEquals(consumer.getCurrentReceiverQueueSize(), 3); // queue size no change
 
         //this will trigger receiver queue size expanding.
         Assert.assertNull(consumer.receive(0, TimeUnit.MILLISECONDS));
 
-        log.info("getCurrentReceiverQueueSize={}", consumer.getCurrentReceiverQueueSize());
+        log.info()
+                .attr("queueSize", consumer.getCurrentReceiverQueueSize())
+                .log("Current receiver queue size");
         Assert.assertEquals(consumer.getCurrentReceiverQueueSize(), 6);
         Assert.assertFalse(consumer.scaleReceiverQueueHint.get()); //expandReceiverQueueHint is reset.
 
@@ -203,8 +218,11 @@ public class AutoScaledReceiverQueueSizeTest extends MockedPulsarServiceBaseTest
             for (int j = 0; j < 6; j++) {
                 Assert.assertNotNull(consumer.receive());
             }
-            log.info("i={},currentReceiverQueueSize={},expandReceiverQueueHint={}", i,
-                    consumer.getCurrentReceiverQueueSize(), consumer.scaleReceiverQueueHint);
+            log.info()
+                    .attr("i", i)
+                    .attr("currentReceiverQueueSize", consumer.getCurrentReceiverQueueSize())
+                    .attr("expandReceiverQueueHint", consumer.scaleReceiverQueueHint)
+                    .log("i= ,currentReceiverQueueSize= ,expandReceiverQueueHint");
             // queue maybe full, but no empty receive, so no expanding
             Assert.assertEquals(consumer.getCurrentReceiverQueueSize(), 6);
         }
@@ -218,7 +236,9 @@ public class AutoScaledReceiverQueueSizeTest extends MockedPulsarServiceBaseTest
         }
         Assert.assertNull(consumer.receive(0, TimeUnit.MILLISECONDS));
         // queue is full, with empty receive, expanding to max size
-        log.info("getCurrentReceiverQueueSize={}", consumer.getCurrentReceiverQueueSize());
+        log.info()
+                .attr("queueSize", consumer.getCurrentReceiverQueueSize())
+                .log("Current receiver queue size");
         Assert.assertEquals(consumer.getCurrentReceiverQueueSize(), 10);
     }
 
@@ -247,12 +267,17 @@ public class AutoScaledReceiverQueueSizeTest extends MockedPulsarServiceBaseTest
             for (int j = 0; j < 5; j++) {
                 producer.send(data);
             }
-            log.info("i={},expandReceiverQueueHint:{},local permits:{}",
-                    i, consumer.scaleReceiverQueueHint.get(), consumer.getAvailablePermits());
+            log.info()
+                    .attr("i", i)
+                    .attr("expandReceiverQueueHint", consumer.scaleReceiverQueueHint.get())
+                    .attr("permits", consumer.getAvailablePermits())
+                    .log("i= ,expandReceiverQueueHint: ,local permits");
             Awaitility.await().until(consumer::hasEnoughMessagesForBatchReceive);
             Assert.assertEquals(consumer.batchReceive().size(), 5);
             Assert.assertEquals(consumer.getCurrentReceiverQueueSize(), currentSize);
-            log.info("getCurrentReceiverQueueSize={}", consumer.getCurrentReceiverQueueSize());
+            log.info()
+                    .attr("getCurrentReceiverQueueSize", consumer.getCurrentReceiverQueueSize())
+                    .log("getCurrentReceiverQueueSize");
         }
 
         for (int i = 0; i < currentSize; i++) {
@@ -265,7 +290,9 @@ public class AutoScaledReceiverQueueSizeTest extends MockedPulsarServiceBaseTest
         //trigger expanding
         consumer.batchReceiveAsync();
         Awaitility.await().until(() -> consumer.getCurrentReceiverQueueSize() == currentSize * 2);
-        log.info("getCurrentReceiverQueueSize={}", consumer.getCurrentReceiverQueueSize());
+        log.info()
+                .attr("queueSize", consumer.getCurrentReceiverQueueSize())
+                .log("Current receiver queue size");
     }
 
     @Test
@@ -301,7 +328,7 @@ public class AutoScaledReceiverQueueSizeTest extends MockedPulsarServiceBaseTest
 
         Awaitility.await().untilAsserted(() -> {
             long size = ((ConsumerBase<byte[]>) consumer).getIncomingMessageSize();
-            log.info("Check the incoming message size should greater that 0, current size is {}", size);
+            log.info().attr("size", size).log("Check the incoming message size should greater that 0, current size is");
             Assert.assertTrue(size > 0);
         });
 
@@ -312,7 +339,7 @@ public class AutoScaledReceiverQueueSizeTest extends MockedPulsarServiceBaseTest
 
         Awaitility.await().untilAsserted(() -> {
             long size = ((ConsumerBase<byte[]>) consumer).getIncomingMessageSize();
-            log.info("Check the incoming message size should be 0, current size is {}", size);
+            log.info().attr("size", size).log("Check the incoming message size should be 0, current size is");
             Assert.assertEquals(size, 0);
         });
 

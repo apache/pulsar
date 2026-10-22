@@ -19,13 +19,13 @@
 package org.apache.pulsar.tests.integration.auth.token;
 
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.containers.ProxyContainer;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 
-@Slf4j
+@CustomLog
 public class TokenAuthWithSymmetricKeys extends PulsarTokenAuthenticationBaseSuite {
 
     private String secretKey;
@@ -36,28 +36,28 @@ public class TokenAuthWithSymmetricKeys extends PulsarTokenAuthenticationBaseSui
         secretKey = container
                 .execCmd(PulsarCluster.PULSAR_COMMAND_SCRIPT, "tokens", "create-secret-key", "--base64")
                 .getStdout();
-        log.info("Created secret key: {}", secretKey);
+        log.info().attr("key", secretKey).log("Created secret key");
 
         clientAuthToken = container
                 .execCmd(PulsarCluster.PULSAR_COMMAND_SCRIPT, "tokens", "create",
                         "--secret-key", "data:;base64," + secretKey,
                         "--subject", REGULAR_USER_ROLE)
                 .getStdout().trim();
-        log.info("Created client token: {}", clientAuthToken);
+        log.info().attr("token", clientAuthToken).log("Created client token");
 
         superUserAuthToken = container
                 .execCmd(PulsarCluster.PULSAR_COMMAND_SCRIPT, "tokens", "create",
                         "--secret-key", "data:;base64," + secretKey,
                         "--subject", SUPER_USER_ROLE)
                 .getStdout().trim();
-        log.info("Created super-user token: {}", superUserAuthToken);
+        log.info().attr("token", superUserAuthToken).log("Created super-user token");
 
         proxyAuthToken = container
                 .execCmd(PulsarCluster.PULSAR_COMMAND_SCRIPT, "tokens", "create",
                         "--secret-key", "data:;base64," + secretKey,
                         "--subject", PROXY_ROLE)
                 .getStdout().trim();
-        log.info("Created proxy token: {}", proxyAuthToken);
+        log.info().attr("token", proxyAuthToken).log("Created proxy token");
     }
 
     @Override

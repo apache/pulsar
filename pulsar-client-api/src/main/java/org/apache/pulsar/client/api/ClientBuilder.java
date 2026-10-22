@@ -29,7 +29,6 @@ import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
-
 /**
  * Builder interface that is used to configure and construct a {@link PulsarClient} instance.
  *
@@ -168,7 +167,7 @@ public interface ClientBuilder extends Serializable, Cloneable {
 
     /**
      * Release the connection if it is not used for more than {@param connectionMaxIdleSeconds} seconds.
-     * Defaults to 25 seconds.
+     * Defaults to 60 seconds.
      *
      * @return the client builder instance
      */
@@ -382,7 +381,12 @@ public interface ClientBuilder extends Serializable, Cloneable {
      * certificate and matches provided hostname(CN/SAN) with expected broker's host name. It follows RFC 2818, 3.1.
      * Server Identity hostname verification.
      *
-     * @see <a href="https://tools.ietf.org/html/rfc2818">RFC 818</a>
+     * <p>The CN is only a fallback, and only on the default engines: it is consulted when the client connects by
+     * hostname and the certificate carries no {@code dNSName} SAN, and ignored once any is present. A client that
+     * pins Conscrypt as its JSSE provider verifies against the SAN alone and never falls back to the CN (Pulsar
+     * 5.0, PIP-478). A connection to an IP literal is matched against {@code iPAddress} SANs, never the CN.
+     *
+     * @see <a href="https://tools.ietf.org/html/rfc2818">RFC 2818</a>
      *
      * @param enableTlsHostnameVerification whether to enable TLS hostname verification
      * @return the client builder instance
@@ -616,6 +620,44 @@ public interface ClientBuilder extends Serializable, Cloneable {
     ClientBuilder openTelemetry(io.opentelemetry.api.OpenTelemetry openTelemetry);
 
     /**
+     * Enable OpenTelemetry distributed tracing.
+     *
+     * <p>When enabled, interceptors are automatically added to all producers and consumers
+     * to create spans for message publishing and consumption, and automatically propagate trace context
+     * via message properties.
+     *
+     * <p>This method is useful when OpenTelemetry is configured globally (e.g., via Java Agent or
+     * {@link io.opentelemetry.api.GlobalOpenTelemetry}) and you just want to enable tracing interceptors
+     * without explicitly setting an OpenTelemetry instance.
+     *
+     * <p>Example with Java Agent:
+     * <pre>{@code
+     * // When using -javaagent:opentelemetry-javaagent.jar
+     * PulsarClient client = PulsarClient.builder()
+     *     .serviceUrl("pulsar://localhost:6650")
+     *     .enableTracing(true)  // Use GlobalOpenTelemetry
+     *     .build();
+     * }</pre>
+     *
+     * <p>Example with GlobalOpenTelemetry:
+     * <pre>{@code
+     * // Configure GlobalOpenTelemetry elsewhere in your application
+     * GlobalOpenTelemetry.set(myOpenTelemetry);
+     *
+     * // Just enable tracing in the client
+     * PulsarClient client = PulsarClient.builder()
+     *     .serviceUrl("pulsar://localhost:6650")
+     *     .enableTracing(true)
+     *     .build();
+     * }</pre>
+     *
+     * @param tracingEnabled whether to enable tracing (default: false)
+     * @return the client builder instance
+     * @since 4.2.0
+     */
+    ClientBuilder enableTracing(boolean tracingEnabled);
+
+    /**
      * The clock used by the pulsar client.
      *
      * <p>The clock is currently used by producer for setting publish timestamps.
@@ -686,18 +728,41 @@ public interface ClientBuilder extends Serializable, Cloneable {
     ClientBuilder socks5ProxyPassword(String socks5ProxyPassword);
 
     /**
-     * Set the SSL Factory Plugin for custom implementation to create SSL Context and SSLEngine.
-     * @param sslFactoryPlugin ssl factory class name
+     * Set the scope that controls which connections are routed through the SOCKS5 proxy.
+     *
+     * <p>The default is {@link Socks5ProxyScope#BINARY_ONLY}, which preserves the pre-existing
+     * behavior where the SOCKS5 proxy only applied to Pulsar binary protocol connections to brokers.
+     * HTTP lookup and failover HTTP clients inside {@code PulsarClient} were not affected.
+     *
+     * <p>Set to {@link Socks5ProxyScope#HTTP_ONLY} or {@link Socks5ProxyScope#BOTH} to also route
+     * HTTP/HTTPS lookup traffic and failover HTTP clients through the SOCKS5 proxy.
+     *
+     * @param socks5ProxyScope the scope selector; must not be {@code null}
      * @return the client builder instance
+     * @see Socks5ProxyScope
      */
-    ClientBuilder sslFactoryPlugin(String sslFactoryPlugin);
+    ClientBuilder socks5ProxyScope(Socks5ProxyScope socks5ProxyScope);
 
     /**
-     * Set the SSL Factory Plugin params for the ssl factory plugin to use.
-     * @param sslFactoryPluginParams Params in String format that will be inputted to the SSL Factory Plugin
+     * Set the class name of a custom {@code PulsarTlsFactory} (PIP-478) used to build the client's TLS
+     * engines. An empty value or the literal {@code "default"} selects the built-in file-based factory
+     * composed from the {@code tls*} settings; any other value is instantiated reflectively via its public
+     * no-arg constructor. This is the by-name successor of the removed PIP-337 {@code sslFactoryPlugin}.
+     *
+     * @param tlsFactoryClassName the {@code PulsarTlsFactory} class name (blank/{@code default} for built-in)
      * @return the client builder instance
      */
-    ClientBuilder sslFactoryPluginParams(String sslFactoryPluginParams);
+    ClientBuilder tlsFactoryClassName(String tlsFactoryClassName);
+
+    /**
+     * Set the configuration parameters passed to a custom {@link #tlsFactoryClassName(String)} as its init
+     * params (PIP-478). Accepts a JSON object or a comma-separated {@code key=value} list; ignored by the
+     * built-in file-based factory.
+     *
+     * @param tlsFactoryConfig the factory configuration (JSON object or {@code key=value} list)
+     * @return the client builder instance
+     */
+    ClientBuilder tlsFactoryConfig(String tlsFactoryConfig);
 
     /**
      * Set Cert Refresh interval in seconds.

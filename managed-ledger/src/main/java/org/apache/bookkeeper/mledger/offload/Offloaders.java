@@ -21,20 +21,20 @@ package org.apache.bookkeeper.mledger.offload;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import lombok.CustomLog;
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.LedgerOffloaderFactory;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.nar.NarClassLoader;
 
-@Slf4j
+@CustomLog
 @Data
 public class Offloaders implements AutoCloseable {
 
-    private final List<Pair<NarClassLoader, LedgerOffloaderFactory>> offloaders = new ArrayList<>();
+    private final List<Pair<NarClassLoader, LedgerOffloaderFactory<?>>> offloaders = new ArrayList<>();
 
-    public LedgerOffloaderFactory getOffloaderFactory(String driverName) throws IOException {
-        for (Pair<NarClassLoader, LedgerOffloaderFactory> factory : offloaders) {
+    public LedgerOffloaderFactory<?> getOffloaderFactory(String driverName) throws IOException {
+        for (Pair<NarClassLoader, LedgerOffloaderFactory<?>> factory : offloaders) {
             if (factory.getRight().isDriverSupported(driverName)) {
                 return factory.getRight();
             }
@@ -49,14 +49,16 @@ public class Offloaders implements AutoCloseable {
             try {
                 offloader.getRight().close();
             } catch (Exception e) {
-                log.warn("Failed to close offloader '{}': {}",
-                        offloader.getRight().getClass(), e.getMessage());
+                log.warn().attr("offloaderClass", offloader.getRight().getClass())
+                        .attr("errorMessage", e.getMessage())
+                        .log("Failed to close offloader");
             }
             try {
                 offloader.getLeft().close();
             } catch (IOException e) {
-                log.warn("Failed to close nar class loader for offloader '{}': {}",
-                    offloader.getRight().getClass(), e.getMessage());
+                log.warn().attr("offloaderClass", offloader.getRight().getClass())
+                        .attr("errorMessage", e.getMessage())
+                        .log("Failed to close nar class loader for offloader");
             }
         });
     }

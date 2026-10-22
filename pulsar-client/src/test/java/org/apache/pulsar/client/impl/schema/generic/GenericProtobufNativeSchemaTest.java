@@ -34,6 +34,7 @@ public class GenericProtobufNativeSchemaTest {
     private ProtobufNativeSchema<TestMessage> clazzBasedProtobufNativeSchema;
 
     @BeforeMethod
+    @SuppressWarnings("unchecked")
     public void init() {
         clazzBasedProtobufNativeSchema = ProtobufNativeSchema.of(SchemaDefinition.<TestMessage>builder()
                 .withPojo(TestMessage.class).build());

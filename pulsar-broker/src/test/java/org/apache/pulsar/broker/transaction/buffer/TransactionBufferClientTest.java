@@ -20,8 +20,10 @@ package org.apache.pulsar.broker.transaction.buffer;
 
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -45,10 +47,13 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.PrometheusMetricsTestUtil;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferHandlerImpl;
@@ -65,25 +70,25 @@ import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.api.proto.TxnAction;
+import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
+@CustomLog
 public class TransactionBufferClientTest extends TransactionTestBase {
 
-    private static final Logger log = LoggerFactory.getLogger(TransactionBufferClientTest.class);
     private TransactionBufferClient tbClient;
     TopicName partitionedTopicName = TopicName.get("persistent", "public", "test", "tb-client");
     int partitions = 10;
@@ -127,11 +132,43 @@ public class TransactionBufferClientTest extends TransactionTestBase {
     }
 
     @Test
+    public void testCommitOnTopicTimeoutReturnsServiceNotReady() throws Exception {
+        String topicName = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/tp");
+        admin.topics().createNonPartitionedTopic(topicName);
+        String ownerUrl = admin.lookups().lookupTopic(topicName);
+        PulsarService topicOwner = pulsarServiceList.stream()
+                .filter(pulsarService -> pulsarService.getBrokerServiceUrl().equals(ownerUrl))
+                .findFirst()
+                .orElseThrow();
+
+        Topic topic = mock(Topic.class);
+        CompletableFuture<Void> endTxnFuture = new CompletableFuture<>();
+        when(topic.endTxn(any(TxnID.class), anyInt(), anyLong()))
+                .thenReturn(endTxnFuture.orTimeout(100, TimeUnit.MILLISECONDS));
+        CompletableFuture<Optional<Topic>> originalTopicFuture = topicOwner.getBrokerService().getTopics()
+                .put(topicName, CompletableFuture.completedFuture(Optional.of(topic)));
+        try {
+            CompletableFuture<TxnID> commitFuture = tbClient.commitTxnOnTopic(topicName, 12L, 1L, 1L);
+
+            try {
+                commitFuture.get();
+                fail("Commit should fail when the topic transaction buffer times out");
+            } catch (Exception e) {
+                Throwable actEx = FutureUtil.unwrapCompletionException(e);
+                assertTrue(actEx instanceof PulsarClientException.ServiceNotReadyException,
+                        actEx.getClass().getName());
+            }
+        } finally {
+            topicOwner.getBrokerService().getTopics().put(topicName, originalTopicFuture);
+        }
+    }
+
+    @Test
     public void testRecoveryTransactionBufferWhenCommonTopicAndSystemTopicAtDifferentBroker() throws Exception {
         for (int i = 0; i < getPulsarServiceList().size(); i++) {
             getPulsarServiceList().get(i).getConfig().setTransactionBufferSegmentedSnapshotEnabled(true);
         }
-        String topic1 = NAMESPACE1 +  "/testRecoveryTransactionBufferWhenCommonTopicAndSystemTopicAtDifferentBroker";
+        String topic1 = NAMESPACE1 + "/testRecoveryTransactionBufferWhenCommonTopicAndSystemTopicAtDifferentBroker";
         admin.tenants().createTenant(TENANT,
                 new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace(NAMESPACE1, 4);
@@ -143,23 +180,30 @@ public class TransactionBufferClientTest extends TransactionTestBase {
                 .getPartitionedTopicResources()
                 .createPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
                         new PartitionedTopicMetadata(3));
-        assertTrue(admin.namespaces().getBundles(NAMESPACE1).getNumBundles() > 1);
-        for (int i = 0; true; i++) {
-            topic1 = topic1 + i;
-            admin.topics().createNonPartitionedTopic(topic1);
-            String segmentTopicBroker = admin.lookups()
-                    .lookupTopic(NAMESPACE1 + "/" + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
-            String indexTopicBroker = admin.lookups()
-                    .lookupTopic(NAMESPACE1 + "/" + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_INDEXES);
-            if (segmentTopicBroker.equals(indexTopicBroker)) {
-                String topicBroker = admin.lookups().lookupTopic(topic1);
-                if (!topicBroker.equals(segmentTopicBroker)) {
-                    break;
-                }
-            } else {
-                break;
+        PulsarService topicBroker = pulsarServiceList.get(0);
+        PulsarService snapshotBroker = pulsarServiceList.get(1);
+        NamespaceBundle topicBundle = topicBroker.getNamespaceService().getBundle(TopicName.get(topic1));
+        // Assign ownership before any lookup can place all bundles on the same broker.
+        topicBroker.getNamespaceService().getOwnershipCache().tryAcquiringOwnership(topicBundle)
+                .get(10, TimeUnit.SECONDS);
+        for (String snapshotTopic : List.of(SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT,
+                SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS,
+                SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_INDEXES)) {
+            String snapshotTopicName = NAMESPACE1 + "/" + snapshotTopic;
+            NamespaceBundle snapshotBundle = snapshotBroker.getNamespaceService()
+                    .getBundle(TopicName.get(snapshotTopicName));
+            assertThat(snapshotBundle).as("Snapshot topic %s must be in a different bundle", snapshotTopicName)
+                    .isNotEqualTo(topicBundle);
+            if (!snapshotBroker.getNamespaceService().getOwnershipCache().isNamespaceBundleOwned(snapshotBundle)) {
+                snapshotBroker.getNamespaceService().getOwnershipCache().tryAcquiringOwnership(snapshotBundle)
+                        .get(10, TimeUnit.SECONDS);
             }
+            assertThat(admin.lookups().lookupTopic(snapshotTopicName)).isEqualTo(snapshotBroker.getBrokerServiceUrl());
         }
+        // Exercise the existence check for a snapshot topic owned by another broker.
+        admin.topics().createNonPartitionedTopic(NAMESPACE1 + "/" + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
+        admin.topics().createNonPartitionedTopic(topic1);
+        assertThat(admin.lookups().lookupTopic(topic1)).isEqualTo(topicBroker.getBrokerServiceUrl());
         @Cleanup
         PulsarClient localPulsarClient = PulsarClient.builder()
                 .serviceUrl(pulsarServiceList.get(0).getBrokerServiceUrl())
@@ -210,7 +254,6 @@ public class TransactionBufferClientTest extends TransactionTestBase {
             assertEquals(futures.get(i).get().getLeastSigBits(), i);
         }
     }
-
 
     @Test
     public void testTransactionBufferMetrics() throws Exception {
@@ -301,6 +344,7 @@ public class TransactionBufferClientTest extends TransactionTestBase {
 
         Field field = TransactionBufferHandlerImpl.class.getDeclaredField("outstandingRequests");
         field.setAccessible(true);
+        @SuppressWarnings("unchecked")
         ConcurrentSkipListMap<Long, Object> outstandingRequests =
                 (ConcurrentSkipListMap<Long, Object>) field.get(transactionBufferHandler);
 

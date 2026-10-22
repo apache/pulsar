@@ -22,7 +22,7 @@ import static org.testng.Assert.fail;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertTrue;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.MultiBrokerBaseTest;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.client.impl.LookupService;
@@ -33,7 +33,7 @@ import org.testng.annotations.Test;
 /**
  * Test multi-broker admin api.
  */
-@Slf4j
+@CustomLog
 @Test(groups = "broker-admin")
 public class PulsarClientImplMultiBrokersTest extends MultiBrokerBaseTest {
     @Override
