@@ -28,13 +28,18 @@ import (
 	log "github.com/apache/pulsar/pulsar-function-go/logutil"
 )
 
+// logFlushInterval is how often the captured log entries are sent to the log topic.
+const logFlushInterval = 100 * time.Millisecond
+
 type LogAppender struct {
 	pulsarClient pulsar.Client
 	logTopic     string
 	fqn          string
 	producer     pulsar.Producer
-	mutex        sync.Mutex
-	stopChan     chan struct{}
+	// flushMutex keeps the entries in order when the instance and the flush goroutine flush at the same time.
+	flushMutex sync.Mutex
+	stopCh     chan struct{}
+	doneCh     chan struct{}
 }
 
 func NewLogAppender(client pulsar.Client, logTopic, fqn string) *LogAppender {
@@ -42,8 +47,6 @@ func NewLogAppender(client pulsar.Client, logTopic, fqn string) *LogAppender {
 		pulsarClient: client,
 		logTopic:     logTopic,
 		fqn:          fqn,
-		mutex:        sync.Mutex{},
-		stopChan:     make(chan struct{}),
 	}
 	return logAppender
 }
@@ -62,7 +65,36 @@ func (la *LogAppender) Start() error {
 		return err
 	}
 	la.producer = producer
+	la.startFlushing(logFlushInterval)
 	return nil
+}
+
+// startFlushing sends the captured log entries every interval, so they don't wait for the next message.
+func (la *LogAppender) startFlushing(interval time.Duration) {
+	la.stopCh = make(chan struct{})
+	la.doneCh = make(chan struct{})
+	go func() {
+		defer close(la.doneCh)
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				la.Flush()
+			case <-la.stopCh:
+				return
+			}
+		}
+	}()
+}
+
+// Flush sends the log entries captured since the previous flush to the log topic.
+func (la *LogAppender) Flush() {
+	la.flushMutex.Lock()
+	defer la.flushMutex.Unlock()
+	for _, entry := range log.DrainEntries() {
+		la.Append([]byte(entry))
+	}
 }
 
 func (la *LogAppender) Append(logByte []byte) {
@@ -81,9 +113,12 @@ func (la *LogAppender) GetName() string {
 	return la.fqn
 }
 
+// Stop waits for the flush goroutine to exit, sends the remaining log entries and closes the producer,
+// which waits for the pending sends.
 func (la *LogAppender) Stop() {
-	close(la.stopChan)
-	time.Sleep(10 * time.Millisecond)
+	close(la.stopCh)
+	<-la.doneCh
+	la.Flush()
 	la.producer.Close()
 	la.producer = nil
 }

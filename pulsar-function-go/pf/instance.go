@@ -167,7 +167,7 @@ CLOSE:
 				gi.ackInputMessage(msgInput)
 			}
 			gi.stats.incrTotalReceived()
-			gi.flushLogsToTopicHandler()
+			gi.addLogTopicHandler()
 
 			gi.stats.setLastInvocation()
 			gi.stats.processTimeStart()
@@ -519,45 +519,19 @@ func (gi *goInstance) setupLogHandler() error {
 				gi.context.instanceConf.funcDetails.Namespace,
 				gi.context.instanceConf.funcDetails.Name),
 		)
-		if err := gi.context.logAppender.Start(); err != nil {
-			return err
-		}
-		gi.setupLogHandlerTicker()
+		return gi.context.logAppender.Start()
 	}
 	return nil
 }
 
-func (gi *goInstance) setupLogHandlerTicker() {
-	go func() {
-		ticker := time.NewTicker(100 * time.Millisecond)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ticker.C:
-				gi.flushLogsToTopicHandler()
-			case <-gi.context.logAppender.stopChan:
-				gi.flushLogsToTopicHandler()
-				return
-			}
-		}
-	}()
-}
-
-func (gi *goInstance) flushLogsToTopicHandler() {
-	// Clear StrEntry regardless gi.context.logAppender is set or not
-	gi.context.logAppender.mutex.Lock()
-	defer func() {
-		log.StrEntry = nil
-		gi.context.logAppender.mutex.Unlock()
-	}()
-
+func (gi *goInstance) addLogTopicHandler() {
+	// Drain the captured entries regardless gi.context.logAppender is set or not
 	if gi.context.logAppender == nil {
+		log.DrainEntries()
 		return
 	}
 
-	for _, logByte := range log.StrEntry {
-		gi.context.logAppender.Append([]byte(logByte))
-	}
+	gi.context.logAppender.Flush()
 }
 
 func (gi *goInstance) closeLogTopic() {
