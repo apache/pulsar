@@ -49,6 +49,8 @@ import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandGetSchema;
+import org.apache.pulsar.common.api.proto.CommandLookupTopic;
+import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadata;
 import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse;
 import org.apache.pulsar.common.api.proto.ServerError;
@@ -390,6 +392,95 @@ public class LookupProxyHandlerTest {
         handler.handleGetSchema(new CommandGetSchema().setTopic(TOPIC).setRequestId(CLIENT_REQUEST_ID));
 
         assertGenericErrorResponse(ServerError.MetadataError);
+    }
+
+    @Test
+    public void testLookupDiscoveryFailureResponse() throws Exception {
+        BrokerDiscoveryProvider discoveryProvider = mock(BrokerDiscoveryProvider.class);
+        when(discoveryProvider.nextBroker()).thenThrow(new PulsarServerException("No active broker is available"));
+        configuration.setBrokerServiceURL(null);
+        when(proxyService.getDiscoveryProvider()).thenReturn(discoveryProvider);
+        handler = new LookupProxyHandler(proxyService, proxyConnection);
+
+        handler.handleLookup(newLookupRequest());
+
+        assertThat(readLookupErrorResponse(ServerError.ServiceNotReady).getMessage())
+                .as("Lookup error message").isEqualTo("No active broker is available");
+        verify(connectionPool, never()).getConnection(any(InetSocketAddress.class));
+    }
+
+    @Test(dataProvider = "missingBrokerServiceUrls")
+    public void testLookupMissingBrokerServiceUrl(boolean useTls, String serviceUrl) throws Exception {
+        BrokerDiscoveryProvider discoveryProvider = mock(BrokerDiscoveryProvider.class);
+        LoadManagerReport broker = mock(LoadManagerReport.class);
+        when(broker.getPulsarServiceUrl()).thenReturn(useTls ? "pulsar://broker:6650" : serviceUrl);
+        when(broker.getPulsarServiceUrlTls()).thenReturn(useTls ? serviceUrl : "pulsar+ssl://broker:6651");
+        when(discoveryProvider.nextBroker()).thenReturn(broker);
+        when(proxyService.getDiscoveryProvider()).thenReturn(discoveryProvider);
+        configuration.setBrokerServiceURL(null);
+        configuration.setTlsEnabledWithBroker(useTls);
+        handler = new LookupProxyHandler(proxyService, proxyConnection);
+
+        handler.handleLookup(newLookupRequest());
+
+        readLookupErrorResponse(ServerError.ServiceNotReady);
+        verify(connectionPool, never()).getConnection(any(InetSocketAddress.class));
+    }
+
+    @Test(dataProvider = "invalidBrokerServiceUrls")
+    public void testLookupInvalidBrokerServiceUrl(String serviceUrl) {
+        configuration.setBrokerServiceURL(serviceUrl);
+        handler = new LookupProxyHandler(proxyService, proxyConnection);
+
+        handler.handleLookup(newLookupRequest());
+
+        readLookupErrorResponse(ServerError.MetadataError);
+        verify(connectionPool, never()).getConnection(any(InetSocketAddress.class));
+    }
+
+    @DataProvider
+    public Object[][] invalidRedirectBrokerUrls() {
+        return new Object[][] {{null, ServerError.ServiceNotReady}, {"pulsar://broker2", ServerError.MetadataError}};
+    }
+
+    @Test(dataProvider = "invalidRedirectBrokerUrls")
+    public void testLookupRedirectToInvalidBrokerUrl(String redirectUrl, ServerError expectedError) {
+        handler.handleLookup(newLookupRequest());
+        connectionFuture.complete(clientCnx);
+        CommandLookupTopicResponse redirect = new CommandLookupTopicResponse()
+                .setRequestId(BROKER_REQUEST_ID)
+                .setResponse(CommandLookupTopicResponse.LookupType.Redirect);
+        if (redirectUrl != null) {
+            redirect.setBrokerServiceUrl(redirectUrl);
+        }
+        metadataFuture.complete(new LookupDataResult(redirect));
+
+        readLookupErrorResponse(expectedError);
+        verify(connectionPool).releaseConnection(clientCnx);
+    }
+
+    private CommandLookupTopic newLookupRequest() {
+        return new CommandLookupTopic().setTopic(TOPIC).setRequestId(CLIENT_REQUEST_ID);
+    }
+
+    private CommandLookupTopicResponse readLookupErrorResponse(ServerError expectedError) {
+        ByteBuf buffer = channel.readOutbound();
+        assertThat(buffer).as("Lookup response").isNotNull();
+        try {
+            BaseCommand command = decodeCommand(buffer);
+            assertThat(command.getType()).as("Response command type")
+                    .isEqualTo(BaseCommand.Type.LOOKUP_RESPONSE);
+            CommandLookupTopicResponse response = command.getLookupTopicResponse();
+            assertThat(response.getRequestId()).as("Client request ID").isEqualTo(CLIENT_REQUEST_ID);
+            assertThat(response.getResponse()).as("Lookup result")
+                    .isEqualTo(CommandLookupTopicResponse.LookupType.Failed);
+            assertThat(response.getError()).as("Lookup error code").isEqualTo(expectedError);
+            assertThat(response.getMessage()).as("Lookup error message").isNotBlank();
+            assertThat(channel.outboundMessages()).as("Additional responses").isEmpty();
+            return new CommandLookupTopicResponse().copyFrom(response);
+        } finally {
+            buffer.release();
+        }
     }
 
     private void assertGenericErrorResponse(ServerError expectedError) {

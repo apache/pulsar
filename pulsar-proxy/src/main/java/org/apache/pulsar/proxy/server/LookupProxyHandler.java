@@ -128,7 +128,7 @@ public class LookupProxyHandler {
         if (lookupRequestSemaphore.tryAcquire()) {
             try {
                 LOOKUP_REQUESTS.inc();
-                String serviceUrl = getBrokerServiceUrl(clientRequestId);
+                String serviceUrl = getBrokerServiceUrl(lookupErrorResponse(clientRequestId));
                 if (serviceUrl != null) {
                     performLookup(clientRequestId, lookup.getTopic(), serviceUrl, false, 10);
                 }
@@ -156,16 +156,10 @@ public class LookupProxyHandler {
             return;
         }
 
-        URI brokerURI;
-        try {
-            brokerURI = new URI(brokerServiceUrl);
-        } catch (URISyntaxException e) {
-            writeAndFlush(
-                    Commands.newLookupErrorResponse(ServerError.MetadataError, e.getMessage(), clientRequestId));
+        InetSocketAddress addr = getAddr(brokerServiceUrl, lookupErrorResponse(clientRequestId));
+        if (addr == null) {
             return;
         }
-
-        InetSocketAddress addr = InetSocketAddress.createUnresolved(brokerURI.getHost(), brokerURI.getPort());
         log.debug()
                 .attr("addr", addr)
                 .attr("topic", topic)
@@ -298,6 +292,10 @@ public class LookupProxyHandler {
                         }
                     });
         });
+    }
+
+    private BiConsumer<ServerError, String> lookupErrorResponse(long clientRequestId) {
+        return (error, message) -> writeAndFlush(Commands.newLookupErrorResponse(error, message, clientRequestId));
     }
 
     private void writePartitionMetadataError(Throwable error, long clientRequestId, ServerError fallbackError) {
@@ -622,6 +620,10 @@ public class LookupProxyHandler {
     }
 
     private InetSocketAddress getAddr(String brokerServiceUrl, BiConsumer<ServerError, String> onError) {
+        if (StringUtils.isBlank(brokerServiceUrl)) {
+            onError.accept(ServerError.ServiceNotReady, "No broker service URL available");
+            return null;
+        }
         try {
             URI brokerURI = new URI(brokerServiceUrl);
             if (StringUtils.isBlank(brokerURI.getHost()) || brokerURI.getPort() <= 0) {
