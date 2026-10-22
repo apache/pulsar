@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.broker.loadbalance.ModularLoadManagerStrategy;
@@ -30,15 +31,12 @@ import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.TimeAverageBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.TimeAverageMessageData;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Placement strategy which selects a broker based on which one has the least long term message rate.
  */
+@CustomLog
 public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
-    private static Logger log = LoggerFactory.getLogger(LeastLongTermMessageRate.class);
-
     // Maintain this list to reduce object creation.
     private ArrayList<String> bestBrokers;
 
@@ -58,7 +56,8 @@ public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
                 conf.getLoadBalancerBandwidthInResourceWeight(),
                 conf.getLoadBalancerBandwidthOutResourceWeight());
         if (maxUsage > overloadThreshold) {
-            log.warn("Broker {} is overloaded: max usage={}", brokerData.getLocalData().getWebServiceUrl(), maxUsage);
+            log.warn().attr("broker", brokerData.getLocalData().getWebServiceUrl()).attr("maxUsage", maxUsage)
+                    .log("Broker is overloaded");
             return Double.POSITIVE_INFINITY;
         }
 
@@ -74,10 +73,9 @@ public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
                 + timeAverageData.getLongTermMsgRateOut();
         final double totalMessageRateEstimate = totalMessageRate + timeAverageLongTermMessageRate;
 
-        if (log.isDebugEnabled()) {
-            log.debug("Broker {} has long term message rate {}",
-                    brokerData.getLocalData().getWebServiceUrl(), totalMessageRateEstimate);
-        }
+        log.debug().attr("broker", brokerData.getLocalData().getWebServiceUrl())
+                .attr("rate", totalMessageRateEstimate)
+                .log("Broker has long term message rate");
         return totalMessageRateEstimate;
     }
 
@@ -107,13 +105,14 @@ public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
             final double score = getScore(brokerData, conf);
             if (score == Double.POSITIVE_INFINITY) {
                 final LocalBrokerData localData = brokerData.getLocalData();
-                log.warn(
-                        "Broker {} is overloaded: CPU: {}%, MEMORY: {}%, DIRECT MEMORY: {}%, BANDWIDTH IN: {}%, "
-                                + "BANDWIDTH OUT: {}%",
-                        broker, localData.getCpu().percentUsage(), localData.getMemory().percentUsage(),
-                        localData.getDirectMemory().percentUsage(), localData.getBandwidthIn().percentUsage(),
-                        localData.getBandwidthOut().percentUsage());
-
+                log.warn()
+                        .attr("broker", broker)
+                        .attr("cpuPercentage", localData.getCpu().percentUsage())
+                        .attr("memoryPercentage", localData.getMemory().percentUsage())
+                        .attr("directMemoryPercentage", localData.getDirectMemory().percentUsage())
+                        .attr("bandwidthInPercentage", localData.getBandwidthIn().percentUsage())
+                        .attr("bandwidthOutPercentage", localData.getBandwidthOut().percentUsage())
+                        .log("Broker is overloaded");
             }
             if (score < minScore) {
                 // Clear best brokers since this score beats the other brokers.

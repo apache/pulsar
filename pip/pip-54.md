@@ -3,7 +3,7 @@
 * **Status**: Proposal
 * **Author**: Penghui Li
 * **Pull Request**: https://github.com/apache/pulsar/pull/6052
-* **Mailing List discussion**: https://lists.apache.org/thread.html/rdcc306653be6ac6d910e7302096ddae8e1a9e563df20cf6ca73085de%40%3Cdev.pulsar.apache.org%3E
+* **Mailing List discussion**: https://lists.apache.org/thread/xxyxokwvq1swvo2rkckny98yxngn27zm
 * **Release**:2.6.0
 
 
@@ -17,7 +17,7 @@ So this PIP is to support the ability to track the ack status of each batch inde
 
 This approach requires the cooperation of the client and server. When the broker dispatch messages, it will carry the batch index that has been acked. The client will filter out the batch index that has been acked.
 
-The client needs to send the batch index ack information to the broker so that the broker can maintain the batch index ack status. 
+The client needs to send the batch index ack information to the broker so that the broker can maintain the batch index ack status.
 
 The managed cursor maintains the batch index ack status in memory by using a BitSet and the BitSet can be persisted to a ledger and the metastore, so that can avoid broker crash. When the broker receives the batch index ack request, the acked batch index will be adding to the BitSet. When broker dispatch messages to the client will get the batch message index ack status from the managed cursor and send it to the client. When all indexes of the batch message are acked, the cursor will delete the batch message.
 

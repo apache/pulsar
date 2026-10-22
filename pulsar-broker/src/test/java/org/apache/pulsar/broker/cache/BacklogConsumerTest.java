@@ -24,8 +24,9 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -39,7 +40,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
-@Slf4j
+@CustomLog
 public class BacklogConsumerTest extends ProducerConsumerBase {
     private static final int RECEIVE_TIMEOUT_SHORT_MILLIS = 200;
 
@@ -57,6 +58,13 @@ public class BacklogConsumerTest extends ProducerConsumerBase {
         internalCleanup();
     }
 
+    @Override
+    protected ServiceConfiguration getDefaultConf() {
+        ServiceConfiguration defaultConf = super.getDefaultConf();
+        defaultConf.setCacheEvictionByExpectedReadCount(false);
+        return defaultConf;
+    }
+
     @DataProvider(name = "ackReceiptEnabled")
     public Object[][] ackReceiptEnabled() {
         return new Object[][] { { true }, { false } };
@@ -64,7 +72,7 @@ public class BacklogConsumerTest extends ProducerConsumerBase {
 
     @Test(timeOut = 100000, dataProvider = "ackReceiptEnabled")
     public void testDeactivatingBacklogConsumer(boolean ackReceiptEnabled) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("test", methodName).log("-- Starting test --");
 
         final long batchMessageDelayMs = 100;
         final int receiverSize = 10;

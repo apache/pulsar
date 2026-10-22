@@ -2,9 +2,8 @@
 
 * **Status**: Merged
 * **Author**: Ivan Kelly, Matteo Merli
-* **Pull Request**:
-* **Mailing List discussion**:
 * **Release**: 2.4.0
+* **Mailing List discussion**: https://lists.apache.org/thread/pv84t1joyzgb0jdcvkqlofnmj0xdb1bd
 
 ## Goal
 
@@ -203,7 +202,7 @@ The snapshot content will be like:
     "snapshot_id" : "444D3632-F96C-48D7-83DB-041C32164EC1",
     "local_message_id" : {
         "ledger_id" : 192,
-        "endtry_id" : 123123    
+        "endtry_id" : 123123
     },
     "clusters" : [
         {

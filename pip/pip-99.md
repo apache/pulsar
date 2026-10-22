@@ -4,16 +4,15 @@
 
 **Author**: Enrico Olivelli
 
-**Pull Request**: https://github.com/apache/pulsar/pull/11838 
+**Pull Request**: https://github.com/apache/pulsar/pull/11838
 
-**Mailing List discussion**: 
-https://lists.apache.org/x/thread.html/r259cfd0d20162e5e24290bc2ea8f8ac74d53489975e0c7b40d326fec@%3Cdev.pulsar.apache.org%3E 
+**Mailing List discussion**: https://lists.apache.org/thread/9vzqqr60s62jc3zgkzc0syvltygsq38m
 
 **Release**: 2.9.0
 
 ## Motivation
 
-In Pulsar 2.5.0 Pulsar has been enriched by Broker Protocol Handlers (see https://github.com/apache/pulsar/wiki/PIP-41%3A-Pluggable-Protocol-Handler ).
+In Pulsar 2.5.0 Pulsar has been enriched by Broker Protocol Handlers (see [PIP-41](pip-41.md) ).
 With Broker Protocol Handlers it is possible to add to the Pulsar Broker new implementations of other binary protocols, and such implementation can access the internals of the Pulsar Broker:
 
 - in a very efficient way (zero-copy)
@@ -36,7 +35,7 @@ Adding **Proxy Extensions** (PE) to the Pulsar proxy, you will see these benefit
 We are going to follow the same conventions of the Broker Protocol Handlers and of the Pulsar Proxy, in order to make the installation of Proxy Extensions very intuitive and straightforward for the users:
 - Configuration in proxy.conf
 - Using NAR packaging
-- Use a dedicated directory pulsar/proxyextensions 
+- Use a dedicated directory pulsar/proxyextensions
 
 ## Public Interfaces
 This PIP will add the same set of Interterfaces we have for the Broker Protocol Handlers, with these differences:
@@ -63,7 +62,7 @@ On the proxy configuration we are going to add two new entries “proxyExtension
 ## Proposed Changes
 
 We will introduce a new set of classes that implement the Proxy Extensions, the code will look like the code of the Pulsar Broker.
-See [PIP-41 A-Pluggable-Protocol-Handler ](https://github.com/apache/pulsar/wiki/PIP-41%3A-Pluggable-Protocol-Handler )
+See [PIP-41 A-Pluggable-Protocol-Handler ](pip-41.md)
 
 The Proxy Extensions will not have support for Advertising Custom Protocol Metadata (paragraph “ADVERTISE”, function `getProtocolDataToAdvertise`), as there is currently no support in Pulsar for advertising the presence of Pulsar Proxy and this is not likely to be needed in the short term.
 The code base of the Pulsar Proxy and the Pulsar Broker are in different Maven Modules and the amount of code is very small, so the classes will be basically copied and adjusted:
@@ -84,3 +83,7 @@ We will add new unit tests that cover the new code.
 ## Rejected Alternatives
 Let users implement their own proxy and deploy next to the proxy process/container/pod.
 This is rejected because it will make it harder to deploy Pulsar in Kubernetes and also it will make developers code more and more mechanisms for Broker Discovery, Topic Lookup, Authentication and Authorization.
+
+# Links
+
+* Mailing List voting thread: https://lists.apache.org/thread/14wx2m4tdmqghwbdr48mopq5h51cnnt8

@@ -57,6 +57,7 @@ public class SchemaDeleteTest extends MockedPulsarServiceBaseTest {
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void createTopicDeleteTopicCreateTopic() throws Exception {

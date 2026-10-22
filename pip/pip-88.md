@@ -3,8 +3,7 @@
 - Status: Proposal
 - Authors: Lin Lin, Hang Chen, Penghui Li
 - Pull Request: https://github.com/apache/pulsar/pull/11441
-- Mailing List discussion: https://lists.apache.org/thread.html/rd35af2122782d374ff819b9b14386851742622661107fa6229973851%40%3Cdev.pulsar.apache.org%3E
-- Release:
+- Mailing List discussion: https://lists.apache.org/thread/opbl0qj1xb3m23x5t5co63o0357p0kms (posted as PIP 87)
 
 ### Background
 
@@ -31,7 +30,7 @@ So, let us discuss the details of the third approach in the next section.
 
 In this section, we will focus on the third approach introduced in the previous section. So the key point we will discuss later is how to replicate schema to the remote cluster and how to deal with the impact of this on the current schema compatibility check.
 
-The replicator using a durable cursor for reading the data(entry/batch) from the ManagedLedger and then using a producer to publish data to the remote cluster. This solution is very similar to the AUTO_PRODUCE_BYTES schema introduced by PIP 43 https://github.com/apache/pulsar/wiki/PIP-43%3A-producer-send-message-with-different-schema. If the message with a new schema has not registered to the remote cluster, the producer will create the schema to the remote cluster first and then use the schema version of the newly added schema to publish messages to the remote cluster.
+The replicator using a durable cursor for reading the data(entry/batch) from the ManagedLedger and then using a producer to publish data to the remote cluster. This solution is very similar to the AUTO_PRODUCE_BYTES schema introduced by PIP 43 [PIP-43](pip-43.md) If the message with a new schema has not registered to the remote cluster, the producer will create the schema to the remote cluster first and then use the schema version of the newly added schema to publish messages to the remote cluster.
 
 So, the schema version of the message that will replicate to the remote cluster will be rewritten during the replication process. Since we already deserialize the message metadata for setting the replicate_from field, so rewrite the schema version will not bring more resource consumption. So the same message in different clusters might have different schema versions but the same schema, of course, this doesn’t happen normally.
 

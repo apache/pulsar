@@ -2,21 +2,19 @@
 
 - Status: Draft
 - Author: [Xiaolong Ran](https://github.com/wolfstudy)([@wolf4j](https://twitter.com/wolf4j1))
-- Pull request:
-- Mailing list discussion:
-- Release:
+- Mailing list discussion: https://lists.apache.org/thread/bry6w4btn0dbwbqdlc0o6t2csg7rfnyn
 
 ## Motivation
 
-The current pulsar admin's permission mechanism is somewhat confusing. There are some commands that have unreasonable permission verification, which causes pulsar's permission management to be incorrectly applied in pulsar admin. 
+The current pulsar admin's permission mechanism is somewhat confusing. There are some commands that have unreasonable permission verification, which causes pulsar's permission management to be incorrectly applied in pulsar admin.
 
-This PIP proposes the following permission changes for each admin API. 
+This PIP proposes the following permission changes for each admin API.
 
 ### clusters
 
 Command |Current Permissions | Proposed Permissions
 ----|---|---
-get | super-user | super-user 
+get | super-user | super-user
 create | super-user | super-user
 update | super-user | super-user
 delete | super-user | super-user
@@ -39,8 +37,8 @@ update-dynamic-config | super-user | super-user
 delete-dynamic-config | super-user | super-user
 list-dynamic-config | super-user | super-user
 get-all-dynamic-config | super-user | super-user
-get-internal-config | super-user | super-user 
-get-runtime-config | super-user | super-user 
+get-internal-config | super-user | super-user
+get-runtime-config | super-user | super-user
 healthcheck | super-user | super-user
 
 ### broker-stats

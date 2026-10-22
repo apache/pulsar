@@ -3,7 +3,7 @@
 * **Status**: Implemented
 * **Author**: [Matteo Merli](https://github.com/merlimat), [Sijie Guo](https://github.com/sijie)
 * **Pull Request**: [#1536](https://github.com/apache/incubator-pulsar/pull/1535)
-* **Mailing List discussion**:
+* **Mailing List discussion**: https://lists.apache.org/thread/dgqdohrbdy666w57tjd268ymj5oxyr3v
 
 
 ## Motivation
@@ -20,7 +20,7 @@ The topic name is composed of all the names:
 persistent://my-tenant/my-cluster/my-namespace/my-topic
 ```
 
-In [PIP-10](https://github.com/apache/incubator-pulsar/wiki/PIP-10:-Remove-cluster-for-namespace-and-topic-names), we have already introduced the proposal to hide the cluster name from
+In [PIP-10](pip-10.md), we have already introduced the proposal to hide the cluster name from
 the topic name, resulting in a topic name such as:
 
 ```

@@ -3,8 +3,6 @@
 - Status: Proposal
 - Author: [@hnail](https://github.com/hnail)
 - Pull Request: https://github.com/apache/pulsar/pull/8422
-- Mailing List discussion:
-- Release:
 
 ## Motivation
 
@@ -28,15 +26,15 @@ The **motivations** of this pull request :
 PulsarDispatchingRowDecoderFactory is a factory of PulsarRowDecoderFactory based  SchemaInfo.SchemaType, all pulsar-presto core modules interact with the decoder by this interface.
 
 ```
-public PulsarRowDecoder createRowDecoder(TopicName topicName, SchemaInfo schemaInfo, Set<DecoderColumnHandle> columns) 
-  public List<ColumnMetadata> extractColumnMetadata(TopicName topicName, SchemaInfo schemaInfo, PulsarColumnHandle.HandleKeyValueType handleKeyValueType) 
+public PulsarRowDecoder createRowDecoder(TopicName topicName, SchemaInfo schemaInfo, Set<DecoderColumnHandle> columns)
+  public List<ColumnMetadata> extractColumnMetadata(TopicName topicName, SchemaInfo schemaInfo, PulsarColumnHandle.HandleKeyValueType handleKeyValueType)
 ```
 
 ## PulsarRowDecoderFactory
 
 PulsarRowDecoderFactory is a factory to extract ColumnMetadata and create RowDecoder by SchemaInfo.
 
-```	
+```
 	// extract ColumnMetadata from pulsar SchemaInfo and HandleKeyValueType
 public List<ColumnMetadata> extractColumnMetadata(TopicName topicName, SchemaInfo schemaInfo, PulsarColumnHandle.HandleKeyValueType handleKeyValueType);
 // createRowDecoder RowDecoder by pulsar SchemaInfo and column DecoderColumnHandles
@@ -58,7 +56,7 @@ ColumnDecoder is the factory create FieldValueProviders by row meta , FieldValue
 - PulsarAvroColumnDecoder : add support TIMESTAMP,DATE,TIME,Real
 - PulsarJsonFieldDecoder : add support array,map,row,TIMESTAMP,DATE,TIME,Real
 
-### DecoderTest 
+### DecoderTest
 
 Add separate decoder unit-tests to work with our puslar customized interface.
 

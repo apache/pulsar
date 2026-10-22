@@ -49,6 +49,7 @@ public class CompactorToolTest {
      * @throws Exception
      */
     @Test
+    @SuppressWarnings("unchecked")
     public void testGenerateDocs() throws Exception {
         PrintStream oldStream = System.out;
         try {

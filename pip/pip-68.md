@@ -2,9 +2,7 @@
 
 * **Status**: Proposal
 * **Author**: Matteo Merli
-* **Pull Request**:
-* **Mailing List discussion**:
-* **Release**:
+* **Mailing List discussion**: https://lists.apache.org/thread/jsoygn5b5yxpcc04xcnc45z2cy60ctpl
 
 ## Goal
 
@@ -81,7 +79,7 @@ public interface ProducerBuilder<T> {
    *            The type of access to the topic that the producer requires
    * @return the producer builder instance
    */
-  ProducerBuilder<T> accessMode(ProducerAccessMode accessMode);  
+  ProducerBuilder<T> accessMode(ProducerAccessMode accessMode);
 }
 ```
 

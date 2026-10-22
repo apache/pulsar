@@ -3,14 +3,14 @@
 * Status: **Implemented**
 * Author: [Samuel Sun](https://github.com/foreversunyao)
 * Pull Request: [3915](https://github.com/apache/pulsar/pull/3915)
-* Mailing List Discussion: [PIP-28](https://lists.apache.org/thread.html/37d91f72698ef51a0b6cfc65ac82b0e39314cadbb73c4d8ba4d02659@%3Ccommits.pulsar.apache.org%3E)
+* Mailing List Discussion: [PIP-28](https://lists.apache.org/thread/l90m3ncw6drjrqy1fjjpllj78gcwc00m)
 * Release: 2.4.0
 
 ## Motivation
 
 Pulsar Proxy is almost a gateway for all pulsar requests, it could be useful if it can record more details for the traffic, like source, target, session id, response time for each request, even for request message body. For request message body, we need a "switch" to enable/disable this, due to it could make proxy a bit slower.
 
-Currently we have for proxy: 
+Currently we have for proxy:
  - pulsar_proxy_active_connections
  - pulsar_proxy_new_connections
  - pulsar_proxy_rejected_connections
@@ -26,7 +26,7 @@ What we will have in proxy log for each request to Proxy from client:
  - **response_time** from proxy sending request to broker to proxy received ack from broker, basically processing time cost, including producer/consumer
  - **topic name**
  - **msg body** could be plain text after decryption
- 
+
 And also a new config for enable/disable msg body
 - proxyLogLevel in proxy.conf
 ```

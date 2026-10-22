@@ -41,6 +41,15 @@ public interface Dispatcher {
      */
     void consumerFlow(Consumer consumer, int additionalNumberOfMessages);
 
+    /**
+     * Called on the connection's event loop when its write buffer becomes writable again.
+     * Writability is only a hint and must be checked again before reading. Implementations must
+     * defer work that can write to the channel, avoiding recursive writability callbacks, and
+     * must not block the event loop while resuming dispatch.
+     */
+    default void notifyChannelWritable(Consumer consumer) {
+    }
+
     boolean isConsumerConnected();
 
     List<Consumer> getConsumers();
@@ -131,6 +140,15 @@ public interface Dispatcher {
         //No-op
     }
 
+    /**
+     * This hook is invoked after cursor mark-delete operations triggered by
+     * message removal flows such as expiry, skip, or clear backlog, but not for
+     * regular ack-driven mark-delete operations due to their higher frequency.
+     *
+     * <p>Since the cursor ack set may no longer be available after mark-delete,
+     * the cleanup logic relies on the remaining unacked count stored in
+     * {@code PendingAcksMap} entries.
+     */
     default void markDeletePositionMoveForward() {
         // No-op
     }

@@ -2,13 +2,11 @@
 
 - Status: Proposal
 - Authors: Penghui Li、Chen Hang、 Lin Lin
-- Pull Request:
-- Mailing List discussion:
-- Release:
+- Mailing List discussion: https://lists.apache.org/thread/2fv1ppgc3tf86t3d406fbwsyzt5d3m45
 # Motivation
 When setting the topic policy for a geo-replicated cluster, some policies want to affect the whole geo-replicated cluster but some only want to affect the local cluster. So the proposal is to support global topic policy and local topic policy.
 # Approach
-Currently, we are using the TopicPolicies construction to store the topic policy for a topic. An easy way to achieve different topic policies for multiple clusters is to add a global flag to TopicPolicies .Replicator will replicate policies with a global flag to other clusters 
+Currently, we are using the TopicPolicies construction to store the topic policy for a topic. An easy way to achieve different topic policies for multiple clusters is to add a global flag to TopicPolicies .Replicator will replicate policies with a global flag to other clusters
 
 ```
 public class TopicPolicies {

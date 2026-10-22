@@ -50,6 +50,7 @@ import org.testng.annotations.Test;
  */
 public class BatchSourceExecutorTest {
 
+  @SuppressWarnings("try")
   public static class TestBatchSource implements BatchSource<String> {
     @Getter
     public static int prepareCount;
@@ -82,6 +83,7 @@ public class BatchSourceExecutorTest {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public Record<String> readNext() throws Exception {
       if (++recordCount % 5 == 0) {
         return null;
@@ -96,6 +98,7 @@ public class BatchSourceExecutorTest {
     }
   }
 
+  @SuppressWarnings("try")
   public static class TestBatchSourceFailDiscovery extends TestBatchSource {
     @Override
     public void discover(Consumer<byte[]> taskEater) throws Exception {
@@ -103,6 +106,7 @@ public class BatchSourceExecutorTest {
     }
   }
 
+  @SuppressWarnings("try")
   public static class TestBatchPushSource extends BatchPushSource<String> {
     @Getter
     public static int prepareCount;
@@ -130,6 +134,7 @@ public class BatchSourceExecutorTest {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public void prepare(byte[] task) throws Exception {
       prepareCount++;
       for (int i = 0; i < 5; ++i) {
@@ -219,6 +224,7 @@ public class BatchSourceExecutorTest {
   }
 
   @BeforeMethod
+  @SuppressWarnings("unchecked")
   public void setUp() throws Exception {
     TestBatchSource.closeCount = 0;
     TestBatchSource.discoverCount = 0;
@@ -369,43 +375,43 @@ public class BatchSourceExecutorTest {
   @Test
   public void testLifeCycle() throws Exception {
     batchSourceExecutor.open(config, context);
-    Assert.assertEquals(testBatchSource.getDiscoverCount(), 0);
+    Assert.assertEquals(TestBatchSource.getDiscoverCount(), 0);
     triggerQueue.put("trigger");
     completedQueue.take();
-    Assert.assertEquals(testBatchSource.getDiscoverCount(), 1);
+    Assert.assertEquals(TestBatchSource.getDiscoverCount(), 1);
     for (int i = 0; i < 5; ++i) {
       batchSourceExecutor.read();
     }
-    Assert.assertEquals(testBatchSource.getRecordCount(), 6);
-    Assert.assertEquals(testBatchSource.getDiscoverCount(), 1);
+    Assert.assertEquals(TestBatchSource.getRecordCount(), 6);
+    Assert.assertEquals(TestBatchSource.getDiscoverCount(), 1);
 
     awaitDiscoverNotInProgress();
     triggerQueue.put("trigger");
     completedQueue.take();
-    Assert.assertTrue(testBatchSource.getDiscoverCount() == 2);
+    Assert.assertTrue(TestBatchSource.getDiscoverCount() == 2);
     batchSourceExecutor.close();
-    Assert.assertEquals(testBatchSource.getCloseCount(), 1);
+    Assert.assertEquals(TestBatchSource.getCloseCount(), 1);
   }
 
   @Test
   public void testPushLifeCycle() throws Exception {
     batchSourceExecutor.open(pushConfig, context);
-    Assert.assertEquals(testBatchPushSource.getDiscoverCount(), 0);
+    Assert.assertEquals(TestBatchPushSource.getDiscoverCount(), 0);
     triggerQueue.put("trigger");
     completedQueue.take();
-    Assert.assertEquals(testBatchPushSource.getDiscoverCount(), 1);
+    Assert.assertEquals(TestBatchPushSource.getDiscoverCount(), 1);
     for (int i = 0; i < 5; ++i) {
       batchSourceExecutor.read();
     }
-    Assert.assertEquals(testBatchPushSource.getRecordCount(), 5);
-    Assert.assertEquals(testBatchPushSource.getDiscoverCount(), 1);
+    Assert.assertEquals(TestBatchPushSource.getRecordCount(), 5);
+    Assert.assertEquals(TestBatchPushSource.getDiscoverCount(), 1);
 
     awaitDiscoverNotInProgress();
     triggerQueue.put("trigger");
     completedQueue.take();
-    Assert.assertEquals(testBatchPushSource.getDiscoverCount(), 2);
+    Assert.assertEquals(TestBatchPushSource.getDiscoverCount(), 2);
     batchSourceExecutor.close();
-    Assert.assertEquals(testBatchPushSource.getCloseCount(), 1);
+    Assert.assertEquals(TestBatchPushSource.getCloseCount(), 1);
   }
 
   @Test(expectedExceptions = Exception.class, expectedExceptionsMessageRegExp = "discovery failed")

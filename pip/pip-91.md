@@ -19,7 +19,7 @@ Lookup requests timeouts are handled similarly. There is retry logic there, but 
 
 PMR and lookup are different to produce and consume requests. They can be handled by any broker as stated earlier. Their frequency is not proportional to the traffic in the system, but to movement of topics around the cluster. For example, if there is a rolling restart of brokers, all clients will have to lookup all topics again though the number of the messages moving through the system remains constant.
 
-PMR and lookups are side effect free. Multiple requests for the same topic do not change the state of the system. 
+PMR and lookups are side effect free. Multiple requests for the same topic do not change the state of the system.
 
 For the above reason, PMR and Lookup should be more resilient to transient errors than other requests. To achieve this, I propose:
 - Create a separate lookup timeout, which is a multiple of operation timeout.

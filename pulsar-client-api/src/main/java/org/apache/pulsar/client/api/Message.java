@@ -185,7 +185,7 @@ public interface Message<T> {
      * {@link EncryptionContext} contains encryption and compression information in it using which application can
      * decrypt consumed message with encrypted-payload.
      *
-     * @return the optiona encryption context
+     * @return the optional encryption context
      */
     Optional<EncryptionContext> getEncryptionCtx();
 
@@ -207,6 +207,15 @@ public interface Message<T> {
      * @return Schema version of the message if the message is produced with schema otherwise null.
      */
     byte[] getSchemaVersion();
+
+    /**
+     * Get schema ID of the message.
+     * PIP-420 provides a way to produce messages with external schema,
+     * and the schema ID will be set to the message metadata.
+     *
+     * @return the schema ID if the message is produced with external schema and schema ID is set, otherwise empty.
+     */
+    Optional<byte[]> getSchemaId();
 
     /**
      * Get the schema associated to the message.

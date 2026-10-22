@@ -30,22 +30,27 @@ import lombok.ToString;
 @EqualsAndHashCode
 @ToString
 public class ImpactedConsumersResult {
-    public interface RemovedHashRangesProcessor {
-        void process(Consumer consumer, RemovedHashRanges removedHashRanges);
+    public interface UpdatedHashRangesProcessor {
+        void process(Consumer consumer, UpdatedHashRanges updatedHashRanges, OperationType operationType);
     }
 
-    private final Map<Consumer, RemovedHashRanges> removedHashRanges;
+    private final Map<Consumer, UpdatedHashRanges> removedHashRanges;
+    private final Map<Consumer, UpdatedHashRanges> addedHashRanges;
 
-    private ImpactedConsumersResult(Map<Consumer, RemovedHashRanges> removedHashRanges) {
+    private ImpactedConsumersResult(Map<Consumer, UpdatedHashRanges> removedHashRanges,
+                                    Map<Consumer, UpdatedHashRanges> addedHashRanges) {
         this.removedHashRanges = removedHashRanges;
+        this.addedHashRanges = addedHashRanges;
     }
 
-    public static ImpactedConsumersResult of(Map<Consumer, RemovedHashRanges> removedHashRanges) {
-        return new ImpactedConsumersResult(removedHashRanges);
+    public static ImpactedConsumersResult of(Map<Consumer, UpdatedHashRanges> removedHashRanges,
+                                             Map<Consumer, UpdatedHashRanges> addedHashRanges) {
+        return new ImpactedConsumersResult(removedHashRanges, addedHashRanges);
     }
 
-    public void processRemovedHashRanges(RemovedHashRangesProcessor processor) {
-        removedHashRanges.forEach((c, r) -> processor.process(c, r));
+    public void processUpdatedHashRanges(UpdatedHashRangesProcessor processor) {
+        removedHashRanges.forEach((c, r) -> processor.process(c, r, OperationType.REMOVE));
+        addedHashRanges.forEach((c, r) -> processor.process(c, r, OperationType.ADD));
     }
 
     public boolean isEmpty() {
@@ -53,7 +58,16 @@ public class ImpactedConsumersResult {
     }
 
     @VisibleForTesting
-    Map<Consumer, RemovedHashRanges> getRemovedHashRanges() {
+    Map<Consumer, UpdatedHashRanges> getRemovedHashRanges() {
         return removedHashRanges;
+    }
+
+    @VisibleForTesting
+    Map<Consumer, UpdatedHashRanges> getAddedHashRanges() {
+        return addedHashRanges;
+    }
+
+    public enum OperationType {
+        ADD, REMOVE
     }
 }

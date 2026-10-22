@@ -23,13 +23,13 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.proto.BookkeeperInternalCallbacks;
 import org.apache.bookkeeper.util.StringUtils;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.zookeeper.AsyncCallback;
 
-@Slf4j
+@CustomLog
 abstract class AbstractHierarchicalLedgerManager {
     protected final MetadataStore store;
     protected final ScheduledExecutorService scheduler;
@@ -68,7 +68,8 @@ abstract class AbstractHierarchicalLedgerManager {
             final AsyncCallback.VoidCallback finalCb, final Object context,
             final int successRc, final int failureRc) {
 
-        store.getChildren(path)
+        store.sync(path)
+                .thenCompose(__ -> store.getChildrenFromStore(path))
                 .thenAccept(levelNodes -> {
                     if (levelNodes.isEmpty()) {
                         finalCb.processResult(successRc, null, context);
@@ -79,7 +80,7 @@ abstract class AbstractHierarchicalLedgerManager {
                     // process its children
                     listProcessor.process(levelNodes, processor, finalCb, context, successRc, failureRc);
                 }).exceptionally(ex -> {
-                    log.error("Error polling hash nodes of {}: {}", path, ex.getMessage());
+                    log.error().attr("path", path).exceptionMessage(ex).log("Error polling hash nodes");
                     finalCb.processResult(failureRc, null, context);
                     return null;
                 });
@@ -162,7 +163,7 @@ abstract class AbstractHierarchicalLedgerManager {
      * Process ledgers in a single zk node.
      *
      * <p>
-     * for each ledger found in this zk node, processor#process(ledgerId) will be triggerred
+     * for each ledger found in this zk node, processor#process(ledgerId) will be triggered
      * to process a specific ledger. after all ledgers has been processed, the finalCb will
      * be called with provided context object. The RC passed to finalCb is decided by :
      * <ul>
@@ -188,13 +189,12 @@ abstract class AbstractHierarchicalLedgerManager {
             final String path, final BookkeeperInternalCallbacks.Processor<Long> processor,
             final AsyncCallback.VoidCallback finalCb, final Object ctx,
             final int successRc, final int failureRc) {
-        store.getChildren(path)
+        store.sync(path)
+                .thenCompose(__ -> store.getChildrenFromStore(path))
                 .thenAccept(ledgerNodes -> {
                     Set<Long> activeLedgers = HierarchicalLedgerUtils.ledgerListToSet(ledgerNodes,
                             ledgerRootPath, path);
-                    if (log.isDebugEnabled()) {
-                        log.debug("Processing ledgers: {}", activeLedgers);
-                    }
+                    log.debug().attr("ledgers", activeLedgers).log("Processing ledgers");
 
                     // no ledgers found, return directly
                     if (activeLedgers.isEmpty()) {

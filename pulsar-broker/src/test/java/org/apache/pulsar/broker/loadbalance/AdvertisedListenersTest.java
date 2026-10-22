@@ -24,7 +24,7 @@ import static org.testng.Assert.assertNotNull;
 import java.net.URI;
 import java.util.Optional;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -42,7 +42,7 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class AdvertisedListenersTest extends MultiBrokerBaseTest {
     @Override
@@ -65,16 +65,21 @@ public class AdvertisedListenersTest extends MultiBrokerBaseTest {
     }
 
     private void updateConfig(ServiceConfiguration conf, String advertisedAddress) {
+        // Pre-allocate ports because the advertised listener URLs are baked into config
+        // before the broker starts. The broker then binds to the same ports.
         int pulsarPort = nextLockedFreePort();
         int httpPort = nextLockedFreePort();
         int httpsPort = nextLockedFreePort();
 
         // Use invalid domain name as identifier and instead make sure the advertised listeners work as intended
         conf.setAdvertisedAddress(advertisedAddress);
+        // let it be detected from advertised listeners
+        conf.setInternalListenerName(null);
+        // set advertised listeners
         conf.setAdvertisedListeners(
                 "public:pulsar://localhost:" + pulsarPort
-                        + ",public_http:http://localhost:" + httpPort
-                        + ",public_https:https://localhost:" + httpsPort);
+                        + ",public:http://localhost:" + httpPort
+                        + ",public:https://localhost:" + httpsPort);
         conf.setBrokerServicePort(Optional.of(pulsarPort));
         conf.setWebServicePort(Optional.of(httpPort));
     }

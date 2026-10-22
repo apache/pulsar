@@ -47,7 +47,7 @@ All topic-level use null, which can be consistent.
 
 2. To solve problem 2. We will add `applied` interfaces at the topic level:
 `Integer getMessageTTL(String topic, boolean applied)`
-When applied = true, if the topic-level has a policy, it will return, otherwise it will return the broker-level, if not, it will return the 
+When applied = true, if the topic-level has a policy, it will return, otherwise it will return the broker-level, if not, it will return the
 
 broker-level
 
@@ -82,3 +82,7 @@ Interfaces that are incompatible and `disabled` will take effect：
 ## Test Plan
 1. Test whether the API at each level is working properly
 2. When policies of different levels exist at the same time, test whether the priority is correct
+
+# Links
+
+* Mailing List discussion thread: https://lists.apache.org/thread/8vck4cz9d508gm1s9g2gqtbfd79wk4fv

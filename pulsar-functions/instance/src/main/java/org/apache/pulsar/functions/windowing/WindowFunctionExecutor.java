@@ -26,7 +26,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import net.jodah.typetools.TypeResolver;
 import org.apache.pulsar.common.functions.WindowConfig;
 import org.apache.pulsar.common.util.Reflections;
@@ -44,7 +44,7 @@ import org.apache.pulsar.functions.windowing.triggers.TimeTriggerPolicy;
 import org.apache.pulsar.functions.windowing.triggers.WatermarkCountTriggerPolicy;
 import org.apache.pulsar.functions.windowing.triggers.WatermarkTimeTriggerPolicy;
 
-@Slf4j
+@CustomLog
 public class WindowFunctionExecutor<T, X> implements Function<T, X> {
 
     private boolean initialized;
@@ -59,12 +59,13 @@ public class WindowFunctionExecutor<T, X> implements Function<T, X> {
     public void initialize(Context context) {
         this.windowConfig = this.getWindowConfigs(context);
         initializeUserFunction(this.windowConfig);
-        log.info("Window Config: {}", this.windowConfig);
+        log.info().attr("windowConfig", this.windowConfig).log("Window Config");
         this.windowManager = this.getWindowManager(this.windowConfig, context);
         this.initialized = true;
         this.start();
     }
 
+    @SuppressWarnings("unchecked")
     private void initializeUserFunction(WindowConfig windowConfig) {
         String actualWindowFunctionClassName = windowConfig.getActualWindowFunctionClassName();
         ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
@@ -75,12 +76,12 @@ public class WindowFunctionExecutor<T, X> implements Function<T, X> {
             Class<?>[] typeArgs = TypeResolver.resolveRawArguments(
                     java.util.function.Function.class, userClassObject.getClass());
             if (typeArgs[0].equals(Collection.class)) {
-                bareWindowFunction = (java.util.function.Function) userClassObject;
+                bareWindowFunction = (java.util.function.Function<Collection<T>, X>) userClassObject;
             } else {
                 throw new IllegalArgumentException("Window function must take a collection as input");
             }
         } else if (userClassObject instanceof WindowFunction) {
-            windowFunction = (WindowFunction) userClassObject;
+            windowFunction = (WindowFunction<T, X>) userClassObject;
         } else {
             throw new IllegalArgumentException("Window function does not implement the correct interface");
         }
@@ -125,6 +126,7 @@ public class WindowFunctionExecutor<T, X> implements Function<T, X> {
         return manager;
     }
 
+    @SuppressWarnings("unchecked")
     private TimestampExtractor<T> getTimeStampExtractor(WindowConfig windowConfig) {
 
         Class<?> theCls;
@@ -219,6 +221,7 @@ public class WindowFunctionExecutor<T, X> implements Function<T, X> {
         };
     }
 
+    @SuppressWarnings("deprecation")
     private void processWindow(Context context, List<Record<T>> tuples, List<Record<T>> newTuples, List<Record<T>>
             expiredTuples, Long referenceTime) {
 
@@ -279,6 +282,7 @@ public class WindowFunctionExecutor<T, X> implements Function<T, X> {
         return this.timestampExtractor != null;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public X process(T input, Context context) throws Exception {
         if (!this.initialized) {
@@ -301,9 +305,10 @@ public class WindowFunctionExecutor<T, X> implements Function<T, X> {
                 if (this.windowConfig.getLateDataTopic() != null) {
                     context.newOutputMessage(this.windowConfig.getLateDataTopic(), null).value(input).sendAsync();
                 } else {
-                    log.info(String.format(
-                            "Received a late tuple %s with ts %d. This will not be " + "processed"
-                                    + ".", input, ts));
+                    log.info()
+                            .attr("input", input)
+                            .attr("timestamp", ts)
+                            .log("Received a late tuple. This will not be processed");
                 }
             }
         } else {

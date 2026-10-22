@@ -75,6 +75,10 @@ public class SystemTopic extends PersistentTopic {
         if (SystemTopicNames.isTopicPoliciesSystemTopic(topic)) {
             return super.checkReplication();
         }
+        // Since the txn system topic is not allowed to access anymore, we should delete data.
+        if (SystemTopicNames.isTransactionBufferOrPendingAckSystemTopicName(TopicName.get(topic))) {
+            return super.removeTopicIfLocalClusterNotAllowed().thenAccept(__ -> {});
+        }
         return CompletableFuture.completedFuture(null);
     }
 

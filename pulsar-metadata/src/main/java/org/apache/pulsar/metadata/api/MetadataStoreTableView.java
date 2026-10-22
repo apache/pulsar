@@ -32,6 +32,8 @@ import java.util.concurrent.CompletableFuture;
 public interface MetadataStoreTableView<T> {
 
     class ConflictException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+
         public ConflictException(String msg) {
             super(msg);
         }
@@ -83,5 +85,10 @@ public interface MetadataStoreTableView<T> {
      * @return entry set
      */
     Set<Map.Entry<String, T>> entrySet();
-}
 
+    /**
+     * Close the tableview: it stops following the changes of the metadata store.
+     */
+    default void close() {
+    }
+}
