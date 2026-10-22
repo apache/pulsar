@@ -21,6 +21,7 @@ package pf
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -264,4 +265,28 @@ func TestGetMetricsRegistry_NameCollision(t *testing.T) {
 	assert.Panics(t, func() {
 		gi.context.GetMetricsRegistry().MustRegister(colliding)
 	})
+}
+
+func TestStatsTimestampsAreMillis(t *testing.T) {
+	gi := newGoInstance()
+	t.Cleanup(gi.close)
+
+	before := time.Now().UnixMilli()
+	gi.stats.setLastInvocation()
+	gi.stats.incrTotalUserExceptions(errors.New("user error"))
+	gi.stats.incrTotalSysExceptions(errors.New("system error"))
+	after := time.Now().UnixMilli()
+
+	status := gi.getFunctionStatus()
+	assert.GreaterOrEqual(t, status.LastInvocationTime, before)
+	assert.LessOrEqual(t, status.LastInvocationTime, after)
+	assert.Len(t, status.LatestUserExceptions, 1)
+	assert.GreaterOrEqual(t, status.LatestUserExceptions[0].MsSinceEpoch, before)
+	assert.LessOrEqual(t, status.LatestUserExceptions[0].MsSinceEpoch, after)
+	assert.Len(t, status.LatestSystemExceptions, 1)
+	assert.GreaterOrEqual(t, status.LatestSystemExceptions[0].MsSinceEpoch, before)
+	assert.LessOrEqual(t, status.LatestSystemExceptions[0].MsSinceEpoch, after)
+
+	metrics := gi.getMetrics()
+	assert.Equal(t, status.LastInvocationTime, metrics.LastInvocation)
 }

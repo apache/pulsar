@@ -1750,6 +1750,24 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testNamespaceSplitBundleWithFlowOrQpsAlgorithmUsesRequestedAlgorithm() throws Exception {
+        final String namespace = "prop-xyz/flow-or-qps-split";
+        final String topicName = "persistent://" + namespace + "/topic-1";
+        admin.namespaces().createNamespace(namespace, 1);
+        admin.topics().createNonPartitionedTopic(topicName);
+        admin.lookups().lookupTopic(topicName);
+
+        try {
+            admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0xffffffff", true,
+                    NamespaceBundleSplitAlgorithm.FLOW_OR_QPS_EQUALLY_DIVIDE);
+        } catch (Exception e) {
+            fail("split bundle with flow_or_qps_equally_divide shouldn't have thrown exception", e);
+        }
+
+        assertEquals(admin.namespaces().getBundles(namespace).getNumBundles(), 1);
+    }
+
+    @Test
     public void testNamespacesGetTopicHashPositions() throws Exception {
         // Force to create a namespace with only one bundle and create a topic
         final String namespace = "prop-xyz/ns-one-bundle";
@@ -4114,6 +4132,31 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             // reset config
             pulsar.getConfiguration().setAllowAclChangesOnNonExistentTopics(false);
         }
+    }
+
+    @Test
+    @SneakyThrows
+    public void testDeleteTopicAlsoDeletePermissionGranted() {
+        String namespace = BrokerTestUtil.newUniqueName("prop-xyz/ns");
+        admin.namespaces().createNamespace(namespace);
+        String topic = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/tp");
+        String role = "test-role";
+        Set<AuthAction> permissions = EnumSet.of(AuthAction.produce, AuthAction.consume);
+
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topics().grantPermission(topic, role, permissions);
+        Awaitility.await().untilAsserted(() -> {
+            Policies nsPolicies = admin.namespaces().getPolicies(namespace);
+            assertTrue(nsPolicies.auth_policies.getTopicAuthentication().containsKey(topic));
+            assertThat(admin.topics().getPermissions(topic)).containsEntry(role, permissions);
+        });
+
+        // Verify: the permission record will be removed after the topic was removed.
+        admin.topics().delete(topic);
+        Awaitility.await().untilAsserted(() -> {
+            Policies nsPolicies = admin.namespaces().getPolicies(namespace);
+            assertFalse(nsPolicies.auth_policies.getTopicAuthentication().containsKey(topic));
+        });
     }
 
     @Test

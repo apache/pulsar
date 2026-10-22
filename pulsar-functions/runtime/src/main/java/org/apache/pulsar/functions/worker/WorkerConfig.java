@@ -48,6 +48,7 @@ import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.configuration.Category;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
+import org.apache.pulsar.common.functions.MemoryLimit;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.sasl.SaslConstants;
@@ -279,7 +280,10 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private String connectorsDirectory = "./connectors";
     @FieldContext(
         category = CATEGORY_CONNECTORS,
-        doc = "The directory where nar packages are extractors"
+        doc = "The directory where nar packages are extracted. Default is java.io.tmpdir. Outside of Kubernetes,"
+            + " OS cleanup of /tmp (for example, by systemd-tmpfiles) can delete extracted files while the functions"
+            + " worker is running, which causes ClassNotFoundException or NoClassDefFoundError errors. In that case,"
+            + " set this to a dedicated directory that isn't cleaned up automatically."
     )
     private String narExtractionDirectory = NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR;
     @FieldContext(
@@ -875,6 +879,15 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
                   + "Only used in AsyncFunction. Default: 1000"
     )
     private int maxPendingAsyncRequests = 1000;
+
+    @FieldContext(
+            category = CATEGORY_FUNC_RUNTIME_MNG,
+            doc = "Default memory limit of the Pulsar client used by each Java function instance, for functions"
+                    + " that don't set their own. If both `limitInBytes` and `percentOfMaxDirectMemory` are set,"
+                    + " the smaller of the two limits is used. The thread runtime uses it when"
+                    + " `functionRuntimeFactoryConfigs.pulsarClientMemoryLimit` is not set."
+    )
+    private MemoryLimit pulsarClientMemoryLimit;
 
     @FieldContext(
         doc = "Whether to forward the source message properties to the output message"

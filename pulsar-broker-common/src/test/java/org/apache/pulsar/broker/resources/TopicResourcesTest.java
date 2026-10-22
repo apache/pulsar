@@ -47,7 +47,21 @@ public class TopicResourcesTest {
 
     @Test
     public void testConstructorRegistersAsListener() {
-        verify(metadataStore).registerListener(any());
+        verify(metadataStore).registerCancellableListener(any());
+    }
+
+    @Test
+    public void testCloseUnregistersListeners() {
+        Runnable cancelListener = mock(Runnable.class);
+        Runnable cancelSessionListener = mock(Runnable.class);
+        when(metadataStore.registerCancellableListener(any())).thenReturn(cancelListener);
+        when(metadataStore.registerCancellableSessionListener(any())).thenReturn(cancelSessionListener);
+        TopicResources resources = new TopicResources(metadataStore);
+
+        resources.close();
+
+        verify(cancelListener).run();
+        verify(cancelSessionListener).run();
     }
 
     @Test
