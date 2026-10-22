@@ -35,6 +35,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableSet;
@@ -134,6 +135,10 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
     private CompletableFuture<Void> pendingLoad = null;
 
     private final Set<CompletableFuture<Void>> pendingDeletes = ConcurrentHashMap.newKeySet();
+
+    // Buckets no longer in immutableBuckets whose snapshot is still stored: a failed delete, or the source
+    // buckets of a failed merge. clear() deletes them.
+    private final Set<ImmutableBucket> uncleanedBuckets = new HashSet<>();
 
     private volatile CompletableFuture<Void> trimFuture;
 
@@ -304,7 +309,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                     Range<Long> key = mapEntry.getKey();
                     ImmutableBucket immutableBucket = mapEntry.getValue();
                     removeBucket(key);
-                    trackDelete(immutableBucket.asyncDeleteBucketSnapshot(stats));
+                    trackDelete(immutableBucket, immutableBucket.asyncDeleteBucketSnapshot(stats));
                 }
 
                 long totalLength = 0;
@@ -661,14 +666,16 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                             }
 
                             // A failed merged-bucket creation completes with INVALID_BUCKET_ID: keep
-                            // the source snapshots so their delayed indexes stay recoverable.
+                            // the source snapshots so their delayed indexes stay recoverable, and let
+                            // clear() delete them.
                             return immutableBucketDelayedIndexPair.getLeft().getSnapshotCreateFuture()
                                     .orElse(NULL_LONG_PROMISE)
                                     .thenCompose(mergedBucketId -> INVALID_BUCKET_ID.equals(mergedBucketId)
-                                            ? CompletableFuture.<Void>completedFuture(null)
+                                            ? keepUncleaned(buckets)
                                             : FutureUtil.waitForAll(
                                             buckets.stream()
-                                                    .map(bucket -> bucket.asyncDeleteBucketSnapshot(stats))
+                                                    .map(bucket -> trackDelete(bucket,
+                                                            bucket.asyncDeleteBucketSnapshot(stats)))
                                                     .toList()));
                         }
                     });
@@ -770,12 +777,14 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                 long loadStartTime = System.currentTimeMillis();
                 stats.recordTriggerEvent(BucketDelayedMessageIndexStats.Type.load);
                 CompletableFuture<Void> loadFuture = pendingLoad = bucket.asyncLoadNextBucketSnapshotEntry()
-                        .thenCompose(indexList -> {
+                        .thenAccept(indexList -> {
                     synchronized (BucketDelayedDeliveryTracker.this) {
                         this.snapshotSegmentLastIndexMap.remove(snapshotKey);
                         if (CollectionUtils.isEmpty(indexList)) {
                             removeBucket(Range.closed(bucket.getStartLedgerId(), bucket.getEndLedgerId()));
-                            return bucket.asyncDeleteBucketSnapshot(stats);
+                            // Don't hold pendingLoad (and so delivery) on the delete; clear() waits for it.
+                            trackDelete(bucket, bucket.asyncDeleteBucketSnapshot(stats));
+                            return;
                         }
                         DelayedIndex
                                 lastDelayedIndex = indexList.get(indexList.size() - 1);
@@ -786,7 +795,6 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                             sharedBucketPriorityQueue.add(index.getTimestamp(), index.getLedgerId(),
                                     index.getEntryId());
                         }
-                        return CompletableFuture.completedFuture(null);
                     }
                 }).whenComplete((__, ex) -> {
                     if (ex != null) {
@@ -841,15 +849,29 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         return false;
     }
 
-    private void trackDelete(CompletableFuture<Void> deleteFuture) {
-        synchronized (this) {
-            pendingDeletes.add(deleteFuture);
-        }
-        deleteFuture.whenComplete((__, ex) -> {
+    private synchronized CompletableFuture<Void> keepUncleaned(List<ImmutableBucket> buckets) {
+        uncleanedBuckets.addAll(buckets);
+        return CompletableFuture.completedFuture(null);
+    }
+
+    /**
+     * Track the snapshot delete of a bucket that is no longer in {@code immutableBuckets}, so that
+     * {@link #clear()} waits for it and retries it if it failed.
+     */
+    private CompletableFuture<Void> trackDelete(ImmutableBucket bucket, CompletableFuture<Void> deleteFuture) {
+        // Record the failure in the returned stage itself, so that it is visible to whoever waits on it.
+        CompletableFuture<Void> tracked = deleteFuture.whenComplete((__, ex) -> {
             synchronized (BucketDelayedDeliveryTracker.this) {
-                pendingDeletes.remove(deleteFuture);
+                if (ex != null) {
+                    uncleanedBuckets.add(bucket);
+                }
             }
         });
+        synchronized (this) {
+            pendingDeletes.add(tracked);
+        }
+        tracked.whenComplete((__, ex) -> pendingDeletes.remove(tracked));
+        return tracked;
     }
 
     @Override
@@ -875,10 +897,11 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                         }
                         pending.addAll(pendingDeletes);
                     }
+                    // A failed delete is retried below, so only wait for the pending work to settle.
                     return FutureUtil.waitForAll(pending)
                             .exceptionally(t -> {
                                 log.warn().exception(t)
-                                        .log("Failed to wait for pending delayed delivery work, but still clear");
+                                        .log("Pending delayed delivery work failed, but still clear");
                                 return null;
                             })
                             .thenCompose(ignore -> {
@@ -925,8 +948,17 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         List<CompletableFuture<Void>> futures = new ArrayList<>();
         bucketsToDelete.forEach((range, bucket) -> {
             removeBucket(range);
-            futures.add(bucket.clear(stats));
+            futures.add(trackDelete(bucket, bucket.clear(stats)));
         });
+
+        // Delete the snapshots of buckets that are no longer tracked. A bucket whose delete fails again is
+        // kept for the next clear(), and clear() fails so that the caller does not assume the old delayed
+        // state is gone.
+        List<ImmutableBucket> retries = new ArrayList<>(uncleanedBuckets);
+        uncleanedBuckets.clear();
+        for (ImmutableBucket bucket : retries) {
+            futures.add(trackDelete(bucket, bucket.asyncDeleteBucketSnapshot(stats)));
+        }
 
         return FutureUtil.waitForAll(futures);
     }

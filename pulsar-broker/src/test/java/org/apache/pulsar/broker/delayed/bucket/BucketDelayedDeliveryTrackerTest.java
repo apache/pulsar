@@ -690,8 +690,14 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         }
     }
 
+    /**
+     * Holds the delete of the first merge source bucket until {@link #deleteGate} completes, then fails
+     * it (retries included) while {@link #failDeletes} is set.
+     */
     private static class FailingMergeDeleteStorage extends MockBucketSnapshotStorage {
         final AtomicBoolean firstMergeDeleteStarted = new AtomicBoolean();
+        final CompletableFuture<Void> deleteGate = new CompletableFuture<>();
+        volatile boolean failDeletes = true;
         private final AtomicLong failedBucketId = new AtomicLong(-1);
 
         @Override
@@ -700,7 +706,9 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
                 failedBucketId.set(bucketId);
             }
             if (bucketId == failedBucketId.get()) {
-                return FutureUtil.failedFuture(new BucketSnapshotPersistenceException("Merge delete failed"));
+                return deleteGate.thenCompose(__ -> failDeletes
+                        ? FutureUtil.failedFuture(new BucketSnapshotPersistenceException("Merge delete failed"))
+                        : super.deleteBucketSnapshot(bucketId));
             }
             return super.deleteBucketSnapshot(bucketId);
         }
@@ -731,6 +739,22 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
                 return firstDeleteGate;
             }
             return super.deleteBucketSnapshot(bucketId);
+        }
+    }
+
+    /**
+     * Fails the creation of the bucket [1, 10] that merges the buckets [1, 5] and [6, 10].
+     */
+    private static class FailingMergedCreateStorage extends MockBucketSnapshotStorage {
+        @Override
+        public CompletableFuture<Long> createBucketSnapshot(SnapshotMetadata snapshotMetadata,
+                                                            List<SnapshotSegment> bucketSnapshotSegments,
+                                                            String bucketKey, String topicName, String cursorName) {
+            if (bucketKey.endsWith("_1_10")) {
+                return FutureUtil.failedFuture(new BucketSnapshotPersistenceException("Merged create failed"));
+            }
+            return super.createBucketSnapshot(snapshotMetadata, bucketSnapshotSegments, bucketKey, topicName,
+                    cursorName);
         }
     }
 
@@ -1054,7 +1078,33 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
     }
 
     @Test
-    public void testClearCompletesWhenTerminalSegmentLoadDeleteFails() throws Exception {
+    public void testTerminalSegmentLoadDeleteDoesNotBlockDelivery() throws Exception {
+        GatedDeleteStorage storage = new GatedDeleteStorage();
+        TrackerWithStorage ts = createTrackerWithMockLedger(0L, 50, storage, 2);
+        try {
+            for (int i = 1; i <= 6; i++) {
+                assertTrue(ts.tracker.addMessage(i, i, i * 100));
+            }
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertTrue(ts.tracker.getImmutableBuckets().asMapOfRanges().values().stream()
+                            .noneMatch(x -> x.merging || !x.getSnapshotCreateFuture().get().isDone())));
+
+            ts.clockTime.set(600);
+            NavigableSet<Position> delivered = new TreeSet<>();
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                delivered.addAll(ts.tracker.getScheduledMessages(10));
+                assertEquals(delivered.size(), 6);
+            });
+            assertEquals(storage.deleteCalls.get(), 1, "The terminal segment load should start the snapshot delete");
+            assertFalse("The terminal delete should still be in flight", storage.deleteGate.isDone());
+        } finally {
+            storage.deleteGate.complete(null);
+            ts.close();
+        }
+    }
+
+    @Test
+    public void testClearRetriesFailedTerminalSegmentLoadDelete() throws Exception {
         TrackerWithStorage ts = createTrackerWithMockLedger(0L, 50, new MockBucketSnapshotStorage(), 2);
         try {
             for (int i = 1; i <= 6; i++) {
@@ -1076,10 +1126,13 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
                         "The terminal delete should have consumed all injected failures");
             });
 
+            // The injected failures are used up, so the retry in clear() removes the bucket for good.
             assertThat(ts.tracker.clear()).succeedsWithin(Duration.ofSeconds(3));
             assertEquals(ts.tracker.getNumberOfDelayedMessages(), 0);
             assertEquals(ts.tracker.getImmutableBuckets().asMapOfRanges().size(), 0);
             assertEquals(ts.tracker.getSharedBucketPriorityQueue().size(), 0);
+            assertTrue(ts.tracker.getCtx().cursor().getCursorProperties().keySet().stream()
+                    .noneMatch(key -> key.startsWith(BucketDelayedDeliveryTracker.DELAYED_BUCKET_KEY_PREFIX)));
         } finally {
             ts.close();
         }
@@ -1089,135 +1142,141 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
     public void testRecoveryLoadsBucketWhenTerminalDeleteFailed() throws Exception {
         MockBucketSnapshotStorage storage = new MockBucketSnapshotStorage();
         storage.start();
-
-        ManagedCursor cursor = new MockManagedCursor("test_residual_snapshot_cursor");
-        AbstractPersistentDispatcherMultipleConsumers testDispatcher =
-                mock(AbstractPersistentDispatcherMultipleConsumers.class);
-        Clock testClock = mock(Clock.class);
-        AtomicLong testClockTime = new AtomicLong();
-        when(testClock.millis()).then(x -> testClockTime.get());
-        doReturn(cursor).when(testDispatcher).getCursor();
-        doReturn("persistent://public/default/testResidualSnapshot / " + cursor.getName())
-                .when(testDispatcher).getName();
-
-        BucketDelayedDeliveryTracker producer = new BucketDelayedDeliveryTracker(
-                testDispatcher, timer, 100000, testClock, true, storage,
-                5, TimeUnit.MILLISECONDS.toMillis(10), -1, 50);
         try {
-            for (int i = 1; i <= 6; i++) {
-                producer.addMessage(i, i, 10L * i);
+
+            ManagedCursor cursor = new MockManagedCursor("test_residual_snapshot_cursor");
+            AbstractPersistentDispatcherMultipleConsumers testDispatcher =
+                    mock(AbstractPersistentDispatcherMultipleConsumers.class);
+            Clock testClock = mock(Clock.class);
+            AtomicLong testClockTime = new AtomicLong();
+            when(testClock.millis()).then(x -> testClockTime.get());
+            doReturn(cursor).when(testDispatcher).getCursor();
+            doReturn("persistent://public/default/testResidualSnapshot / " + cursor.getName())
+                    .when(testDispatcher).getName();
+
+            BucketDelayedDeliveryTracker producer = new BucketDelayedDeliveryTracker(
+                    testDispatcher, timer, 100000, testClock, true, storage,
+                    5, TimeUnit.MILLISECONDS.toMillis(10), -1, 50);
+            try {
+                for (int i = 1; i <= 6; i++) {
+                    producer.addMessage(i, i, 10L * i);
+                }
+                Awaitility.await().untilAsserted(() ->
+                        assertTrue(producer.getImmutableBuckets().asMapOfRanges().values().stream()
+                                .noneMatch(x -> x.merging || !x.getSnapshotCreateFuture().get().isDone())));
+            } finally {
+                producer.close();
             }
-            Awaitility.await().untilAsserted(() ->
-                    assertTrue(producer.getImmutableBuckets().asMapOfRanges().values().stream()
-                            .noneMatch(x -> x.merging || !x.getSnapshotCreateFuture().get().isDone())));
-        } finally {
-            producer.close();
-        }
 
-        // The terminal delete exhausts its retries, so the snapshot and the cursor property survive
-        // together as a consistent pair.
-        BucketDelayedDeliveryTracker tracker = new BucketDelayedDeliveryTracker(
-                testDispatcher, timer, 100000, testClock, true, storage,
-                5, TimeUnit.MILLISECONDS.toMillis(10), -1, 50);
-        try {
-            for (int i = 0; i < 4; i++) {
-                storage.injectDeleteException(
-                        new BucketSnapshotPersistenceException("Terminal delete failed"));
+            // The terminal delete exhausts its retries, so the snapshot and the cursor property survive
+            // together as a consistent pair.
+            BucketDelayedDeliveryTracker tracker = new BucketDelayedDeliveryTracker(
+                    testDispatcher, timer, 100000, testClock, true, storage,
+                    5, TimeUnit.MILLISECONDS.toMillis(10), -1, 50);
+            try {
+                for (int i = 0; i < 4; i++) {
+                    storage.injectDeleteException(
+                            new BucketSnapshotPersistenceException("Terminal delete failed"));
+                }
+                testClockTime.set(1000);
+                Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                    tracker.getScheduledMessages(10);
+                    assertTrue(storage.deleteExceptionQueue.isEmpty());
+                });
+            } finally {
+                tracker.close();
             }
-            testClockTime.set(1000);
-            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
-                tracker.getScheduledMessages(10);
-                assertTrue(storage.deleteExceptionQueue.isEmpty());
-            });
-        } finally {
-            tracker.close();
-        }
 
-        // A tracker recreated with the same cursor/storage recovers the bucket normally.
-        testClockTime.set(0);
-        BucketDelayedDeliveryTracker recovered = new BucketDelayedDeliveryTracker(
-                testDispatcher, timer, 100000, testClock, true, storage,
-                5, TimeUnit.MILLISECONDS.toMillis(10), -1, 50);
-        try {
-            assertTrue(recovered.getImmutableBuckets().asMapOfRanges()
-                    .containsKey(Range.closed(1L, 5L)));
-            assertEquals(recovered.getNumberOfDelayedMessages(), 5);
+            // A tracker recreated with the same cursor/storage recovers the bucket normally.
+            testClockTime.set(0);
+            BucketDelayedDeliveryTracker recovered = new BucketDelayedDeliveryTracker(
+                    testDispatcher, timer, 100000, testClock, true, storage,
+                    5, TimeUnit.MILLISECONDS.toMillis(10), -1, 50);
+            try {
+                assertTrue(recovered.getImmutableBuckets().asMapOfRanges()
+                        .containsKey(Range.closed(1L, 5L)));
+                assertEquals(recovered.getNumberOfDelayedMessages(), 5);
+            } finally {
+                recovered.close();
+            }
         } finally {
-            recovered.close();
+            storage.close();
         }
-        storage.close();
     }
 
     @Test
     public void testRecoveryRemovesResidualPropertyWhenSnapshotDeleted() throws Exception {
         MissingBucketAsNotExistStorage storage = new MissingBucketAsNotExistStorage();
         storage.start();
+        try {
 
-        AtomicLong propertyRemoveCalls = new AtomicLong();
-        ManagedCursor cursor = new MockManagedCursor("test_residual_property_cursor") {
-            @Override
-            public CompletableFuture<Void> removeCursorProperty(String key) {
-                if (propertyRemoveCalls.incrementAndGet() <= 4) {
-                    return FutureUtil.failedFuture(
-                            new ManagedLedgerException.BadVersionException("version conflict"));
+            AtomicLong propertyRemoveCalls = new AtomicLong();
+            ManagedCursor cursor = new MockManagedCursor("test_residual_property_cursor") {
+                @Override
+                public CompletableFuture<Void> removeCursorProperty(String key) {
+                    if (propertyRemoveCalls.incrementAndGet() <= 4) {
+                        return FutureUtil.failedFuture(
+                                new ManagedLedgerException.BadVersionException("version conflict"));
+                    }
+                    return super.removeCursorProperty(key);
                 }
-                return super.removeCursorProperty(key);
+            };
+            AbstractPersistentDispatcherMultipleConsumers testDispatcher =
+                    mock(AbstractPersistentDispatcherMultipleConsumers.class);
+            Clock testClock = mock(Clock.class);
+            AtomicLong testClockTime = new AtomicLong();
+            when(testClock.millis()).then(x -> testClockTime.get());
+            doReturn(cursor).when(testDispatcher).getCursor();
+            doReturn("persistent://public/default/testResidualProperty / " + cursor.getName())
+                    .when(testDispatcher).getName();
+
+            BucketDelayedDeliveryTracker producer = new BucketDelayedDeliveryTracker(
+                    testDispatcher, timer, 100000, testClock, true, storage,
+                    5, TimeUnit.MILLISECONDS.toMillis(10), -1, 50);
+            try {
+                for (int i = 1; i <= 6; i++) {
+                    producer.addMessage(i, i, 10L * i);
+                }
+                Awaitility.await().untilAsserted(() ->
+                        assertTrue(producer.getImmutableBuckets().asMapOfRanges().values().stream()
+                                .noneMatch(x -> x.merging || !x.getSnapshotCreateFuture().get().isDone())));
+            } finally {
+                producer.close();
             }
-        };
-        AbstractPersistentDispatcherMultipleConsumers testDispatcher =
-                mock(AbstractPersistentDispatcherMultipleConsumers.class);
-        Clock testClock = mock(Clock.class);
-        AtomicLong testClockTime = new AtomicLong();
-        when(testClock.millis()).then(x -> testClockTime.get());
-        doReturn(cursor).when(testDispatcher).getCursor();
-        doReturn("persistent://public/default/testResidualProperty / " + cursor.getName())
-                .when(testDispatcher).getName();
 
-        BucketDelayedDeliveryTracker producer = new BucketDelayedDeliveryTracker(
-                testDispatcher, timer, 100000, testClock, true, storage,
-                5, TimeUnit.MILLISECONDS.toMillis(10), -1, 50);
-        try {
-            for (int i = 1; i <= 6; i++) {
-                producer.addMessage(i, i, 10L * i);
+            // The snapshot delete succeeds but every property-removal attempt hits BadVersion, so only
+            // the cursor property is left behind.
+            String bucketKey = BucketDelayedDeliveryTracker.DELAYED_BUCKET_KEY_PREFIX + "_1_5";
+            BucketDelayedDeliveryTracker tracker = new BucketDelayedDeliveryTracker(
+                    testDispatcher, timer, 100000, testClock, true, storage,
+                    5, TimeUnit.MILLISECONDS.toMillis(10), -1, 50);
+            try {
+                testClockTime.set(1000);
+                Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                    tracker.getScheduledMessages(10);
+                    assertTrue(propertyRemoveCalls.get() >= 4);
+                });
+                assertTrue(cursor.getCursorProperties().containsKey(bucketKey),
+                        "The property should survive the failed removal");
+            } finally {
+                tracker.close();
             }
-            Awaitility.await().untilAsserted(() ->
-                    assertTrue(producer.getImmutableBuckets().asMapOfRanges().values().stream()
-                            .noneMatch(x -> x.merging || !x.getSnapshotCreateFuture().get().isDone())));
-        } finally {
-            producer.close();
-        }
 
-        // The snapshot delete succeeds but every property-removal attempt hits BadVersion, so only
-        // the cursor property is left behind.
-        String bucketKey = BucketDelayedDeliveryTracker.DELAYED_BUCKET_KEY_PREFIX + "_1_5";
-        BucketDelayedDeliveryTracker tracker = new BucketDelayedDeliveryTracker(
-                testDispatcher, timer, 100000, testClock, true, storage,
-                5, TimeUnit.MILLISECONDS.toMillis(10), -1, 50);
-        try {
-            testClockTime.set(1000);
-            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
-                tracker.getScheduledMessages(10);
-                assertTrue(propertyRemoveCalls.get() >= 4);
-            });
-            assertTrue(cursor.getCursorProperties().containsKey(bucketKey),
-                    "The property should survive the failed removal");
+            // A tracker recreated with the same cursor/storage resolves the stale property, hits
+            // BucketNotExist, and removes it.
+            BucketDelayedDeliveryTracker recovered = new BucketDelayedDeliveryTracker(
+                    testDispatcher, timer, 100000, testClock, true, storage,
+                    5, TimeUnit.MILLISECONDS.toMillis(10), -1, 50);
+            try {
+                Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                        assertFalse(cursor.getCursorProperties().containsKey(bucketKey)));
+                assertEquals(recovered.getImmutableBuckets().asMapOfRanges().size(), 0);
+            } finally {
+                recovered.close();
+            }
         } finally {
-            tracker.close();
+            storage.close();
         }
-
-        // A tracker recreated with the same cursor/storage resolves the stale property, hits
-        // BucketNotExist, and removes it.
-        BucketDelayedDeliveryTracker recovered = new BucketDelayedDeliveryTracker(
-                testDispatcher, timer, 100000, testClock, true, storage,
-                5, TimeUnit.MILLISECONDS.toMillis(10), -1, 50);
-        try {
-            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                    assertFalse(cursor.getCursorProperties().containsKey(bucketKey)));
-            assertEquals(recovered.getImmutableBuckets().asMapOfRanges().size(), 0);
-        } finally {
-            recovered.close();
-        }
-        storage.close();
     }
 
     @Test
@@ -1239,14 +1298,14 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
             storage.deleteGate.complete(null);
             assertThat(clearFuture).succeedsWithin(Duration.ofSeconds(3));
-            assertTrue(ts.tracker.getImmutableBuckets().asMapOfRanges().size() <= 1);
+            assertEquals(ts.tracker.getImmutableBuckets().asMapOfRanges().size(), 0);
         } finally {
             ts.close();
         }
     }
 
     @Test
-    public void testClearCompletesWhenMergeSourceBucketDeleteFails() throws Exception {
+    public void testClearRetriesFailedMergeSourceBucketDelete() throws Exception {
         FailingMergeDeleteStorage storage = new FailingMergeDeleteStorage();
         TrackerWithStorage ts = createTrackerWithMockLedger(0L, 1, storage);
         try {
@@ -1258,7 +1317,19 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
                     assertTrue(storage.firstMergeDeleteStarted.get(),
                             "The first merge source-bucket delete should have started"));
 
+            CompletableFuture<Void> clearFuture = ts.tracker.clear();
+            assertFalse("clear() must wait for the failing merge source-bucket delete", clearFuture.isDone());
+
+            // The delete fails again when clear() retries it, so clear() reports the failure.
+            storage.deleteGate.complete(null);
+            assertThat(clearFuture).failsWithin(Duration.ofSeconds(3));
+
+            // The failed delete is kept, and the next clear() retries it.
+            storage.failDeletes = false;
             assertThat(ts.tracker.clear()).succeedsWithin(Duration.ofSeconds(3));
+            assertEquals(ts.tracker.getImmutableBuckets().asMapOfRanges().size(), 0);
+            assertTrue(ts.tracker.getCtx().cursor().getCursorProperties().keySet().stream()
+                    .noneMatch(key -> key.startsWith(BucketDelayedDeliveryTracker.DELAYED_BUCKET_KEY_PREFIX)));
         } finally {
             ts.close();
         }
@@ -1266,67 +1337,82 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
     @Test
     public void testMergeCreateFailureKeepsSourceBucketsRecoverable() throws Exception {
-        MockBucketSnapshotStorage storage = new MockBucketSnapshotStorage() {
-            final AtomicLong mergedCreateFailures = new AtomicLong();
-
-            @Override
-            public CompletableFuture<Long> createBucketSnapshot(SnapshotMetadata snapshotMetadata,
-                                                                List<SnapshotSegment> bucketSnapshotSegments,
-                                                                String bucketKey, String topicName,
-                                                                String cursorName) {
-                if (bucketKey.endsWith("_1_10") && mergedCreateFailures.incrementAndGet() > 0) {
-                    return FutureUtil.failedFuture(
-                            new BucketSnapshotPersistenceException("Merged create failed"));
-                }
-                return super.createBucketSnapshot(snapshotMetadata, bucketSnapshotSegments,
-                        bucketKey, topicName, cursorName);
-            }
-        };
+        MockBucketSnapshotStorage storage = new FailingMergedCreateStorage();
         storage.start();
+        try {
 
-        ManagedCursor cursor = new MockManagedCursor("test_merge_fail_cursor");
-        AbstractPersistentDispatcherMultipleConsumers testDispatcher =
-                mock(AbstractPersistentDispatcherMultipleConsumers.class);
-        Clock testClock = mock(Clock.class);
-        AtomicLong testClockTime = new AtomicLong();
-        when(testClock.millis()).then(x -> testClockTime.get());
-        doReturn(cursor).when(testDispatcher).getCursor();
-        doReturn("persistent://public/default/testMergeFail / " + cursor.getName())
-                .when(testDispatcher).getName();
+            ManagedCursor cursor = new MockManagedCursor("test_merge_fail_cursor");
+            AbstractPersistentDispatcherMultipleConsumers testDispatcher =
+                    mock(AbstractPersistentDispatcherMultipleConsumers.class);
+            Clock testClock = mock(Clock.class);
+            AtomicLong testClockTime = new AtomicLong();
+            when(testClock.millis()).then(x -> testClockTime.get());
+            doReturn(cursor).when(testDispatcher).getCursor();
+            doReturn("persistent://public/default/testMergeFail / " + cursor.getName())
+                    .when(testDispatcher).getName();
 
-        BucketDelayedDeliveryTracker tracker = new BucketDelayedDeliveryTracker(
-                testDispatcher, timer, 100000, testClock, true, storage,
-                5, TimeUnit.MILLISECONDS.toMillis(10), -1, 1);
+            BucketDelayedDeliveryTracker tracker = new BucketDelayedDeliveryTracker(
+                    testDispatcher, timer, 100000, testClock, true, storage,
+                    5, TimeUnit.MILLISECONDS.toMillis(10), -1, 1);
+            try {
+                for (int i = 1; i <= 11; i++) {
+                    assertTrue(tracker.addMessage(i, i, 10L * i));
+                }
+
+                Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                        assertTrue(tracker.getImmutableBuckets().asMapOfRanges().values().stream()
+                                .noneMatch(x -> x.merging)));
+                // The source cursor properties survive the failed merged creation.
+                Map<String, String> properties = cursor.getCursorProperties();
+                assertTrue(properties.containsKey(BucketDelayedDeliveryTracker.DELAYED_BUCKET_KEY_PREFIX + "_1_5"));
+                assertTrue(properties.containsKey(BucketDelayedDeliveryTracker.DELAYED_BUCKET_KEY_PREFIX + "_6_10"));
+            } finally {
+                tracker.close();
+            }
+
+            // A tracker recreated with the same cursor/storage recovers both source buckets.
+            BucketDelayedDeliveryTracker recovered = new BucketDelayedDeliveryTracker(
+                    testDispatcher, timer, 100000, testClock, true, storage,
+                    5, TimeUnit.MILLISECONDS.toMillis(10), -1, 50);
+            try {
+                assertTrue(recovered.getImmutableBuckets().asMapOfRanges()
+                        .containsKey(Range.closed(1L, 5L)));
+                assertTrue(recovered.getImmutableBuckets().asMapOfRanges()
+                        .containsKey(Range.closed(6L, 10L)));
+                assertEquals(recovered.getNumberOfDelayedMessages(), 10);
+            } finally {
+                recovered.close();
+            }
+        } finally {
+            storage.close();
+        }
+    }
+
+    @Test
+    public void testClearDeletesSourceBucketsOfFailedMerge() throws Exception {
+        TrackerWithStorage ts = createTrackerWithMockLedger(0L, 1, new FailingMergedCreateStorage());
         try {
             for (int i = 1; i <= 11; i++) {
-                assertTrue(tracker.addMessage(i, i, 10L * i));
+                assertTrue(ts.tracker.addMessage(i, i, 10L * i));
             }
-
-            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                    assertTrue(tracker.getImmutableBuckets().asMapOfRanges().values().stream()
-                            .noneMatch(x -> x.merging)));
-            // The source cursor properties survive the failed merged creation.
-            Map<String, String> properties = cursor.getCursorProperties();
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                synchronized (ts.tracker) {
+                    assertTrue(ts.tracker.getImmutableBuckets().asMapOfRanges().isEmpty(),
+                            "The failed merge should have removed the source buckets from the tracker");
+                }
+            });
+            Map<String, String> properties = ts.tracker.getCtx().cursor().getCursorProperties();
             assertTrue(properties.containsKey(BucketDelayedDeliveryTracker.DELAYED_BUCKET_KEY_PREFIX + "_1_5"));
             assertTrue(properties.containsKey(BucketDelayedDeliveryTracker.DELAYED_BUCKET_KEY_PREFIX + "_6_10"));
-        } finally {
-            tracker.close();
-        }
 
-        // A tracker recreated with the same cursor/storage recovers both source buckets.
-        BucketDelayedDeliveryTracker recovered = new BucketDelayedDeliveryTracker(
-                testDispatcher, timer, 100000, testClock, true, storage,
-                5, TimeUnit.MILLISECONDS.toMillis(10), -1, 50);
-        try {
-            assertTrue(recovered.getImmutableBuckets().asMapOfRanges()
-                    .containsKey(Range.closed(1L, 5L)));
-            assertTrue(recovered.getImmutableBuckets().asMapOfRanges()
-                    .containsKey(Range.closed(6L, 10L)));
-            assertEquals(recovered.getNumberOfDelayedMessages(), 10);
+            // clear() also deletes the source snapshots that the failed merge left behind, so a recreated
+            // tracker does not recover them.
+            assertThat(ts.tracker.clear()).succeedsWithin(Duration.ofSeconds(3));
+            assertTrue(ts.tracker.getCtx().cursor().getCursorProperties().keySet().stream()
+                    .noneMatch(key -> key.startsWith(BucketDelayedDeliveryTracker.DELAYED_BUCKET_KEY_PREFIX)));
         } finally {
-            recovered.close();
+            ts.close();
         }
-        storage.close();
     }
 
     @Test
