@@ -192,18 +192,18 @@ public interface BrokerStats {
     /**
      * Get the stats for the Netty allocator of the given broker.
      *
-     * @param allocatorName
      * @param brokerId broker id, as returned by the brokers list
+     * @param allocatorName
      */
-    AllocatorStats getAllocatorStats(String allocatorName, String brokerId) throws PulsarAdminException;
+    AllocatorStats getAllocatorStats(String brokerId, String allocatorName) throws PulsarAdminException;
 
     /**
      * Get the stats for the Netty allocator of the given broker asynchronously.
      *
-     * @param allocatorName
      * @param brokerId broker id, as returned by the brokers list
+     * @param allocatorName
      */
-    CompletableFuture<AllocatorStats> getAllocatorStatsAsync(String allocatorName, String brokerId);
+    CompletableFuture<AllocatorStats> getAllocatorStatsAsync(String brokerId, String allocatorName);
 
     /**
      * Get load of the given broker.

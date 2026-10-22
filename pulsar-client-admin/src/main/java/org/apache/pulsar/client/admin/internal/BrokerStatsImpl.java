@@ -65,21 +65,21 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
 
     @Override
     public AllocatorStats getAllocatorStats(String allocatorName) throws PulsarAdminException {
-        return getAllocatorStats(allocatorName, null);
+        return getAllocatorStats(null, allocatorName);
     }
 
     @Override
     public CompletableFuture<AllocatorStats> getAllocatorStatsAsync(String allocatorName) {
-        return getAllocatorStatsAsync(allocatorName, null);
+        return getAllocatorStatsAsync(null, allocatorName);
     }
 
     @Override
-    public AllocatorStats getAllocatorStats(String allocatorName, String brokerId) throws PulsarAdminException {
-        return sync(() -> getAllocatorStatsAsync(allocatorName, brokerId));
+    public AllocatorStats getAllocatorStats(String brokerId, String allocatorName) throws PulsarAdminException {
+        return sync(() -> getAllocatorStatsAsync(brokerId, allocatorName));
     }
 
     @Override
-    public CompletableFuture<AllocatorStats> getAllocatorStatsAsync(String allocatorName, String brokerId) {
+    public CompletableFuture<AllocatorStats> getAllocatorStatsAsync(String brokerId, String allocatorName) {
         WebTarget path = brokerStats(brokerId).path("/allocator-stats").path(allocatorName);
         return asyncGetRequest(path, new FutureCallback<AllocatorStats>(){});
     }

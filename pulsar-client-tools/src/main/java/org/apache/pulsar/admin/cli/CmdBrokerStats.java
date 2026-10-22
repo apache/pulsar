@@ -144,7 +144,7 @@ public class CmdBrokerStats extends CmdBase {
 
         @Override
         void run() throws Exception {
-            AllocatorStats stats = getAdmin().brokerStats().getAllocatorStats(allocatorName, brokerId);
+            AllocatorStats stats = getAdmin().brokerStats().getAllocatorStats(brokerId, allocatorName);
             ObjectMapper mapper = ObjectMapperFactory.create();
             ObjectWriter writer = mapper.writerWithDefaultPrettyPrinter();
             try (Writer out = new OutputStreamWriter(System.out, StandardCharsets.UTF_8)) {

@@ -203,14 +203,14 @@ public class PulsarAdminToolTest {
         brokerStats.run(split("monitoring-metrics"));
         verify(mockBrokerStats).getMetrics(null);
 
-        doReturn(null).when(mockBrokerStats).getAllocatorStats("default", null);
+        doReturn(null).when(mockBrokerStats).getAllocatorStats(null, "default");
         brokerStats.run(split("allocator-stats default"));
-        verify(mockBrokerStats).getAllocatorStats("default", null);
+        verify(mockBrokerStats).getAllocatorStats(null, "default");
 
         brokerStats.run(split("load-report --broker-id host:8080"));
         verify(mockBrokerStats).getLoadReport("host:8080");
         brokerStats.run(split("allocator-stats default -b host:8080"));
-        verify(mockBrokerStats).getAllocatorStats("default", "host:8080");
+        verify(mockBrokerStats).getAllocatorStats("host:8080", "default");
     }
 
     @Test

@@ -227,7 +227,7 @@ public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
             LoadManagerReport report = admin0.brokerStats().getLoadReport(brokerId);
             assertEquals(brokersById.get(brokerId).getWebServiceAddress(), report.getWebServiceUrl());
             Assert.assertNotNull(admin0.brokerStats().getMetrics(brokerId));
-            Assert.assertNotNull(admin0.brokerStats().getAllocatorStats("default", brokerId));
+            Assert.assertNotNull(admin0.brokerStats().getAllocatorStats(brokerId, "default"));
         }
 
         Assert.assertThrows(PulsarAdminException.NotFoundException.class,
