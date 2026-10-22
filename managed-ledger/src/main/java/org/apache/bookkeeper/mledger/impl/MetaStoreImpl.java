@@ -518,6 +518,7 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
                 try {
                     ManagedCursorInfo info = new ManagedCursorInfo();
                     info.parseFrom(uncompressed, uncompressed.readableBytes());
+                    info.materialize();
                     return info;
                 } finally {
                     uncompressed.release();
