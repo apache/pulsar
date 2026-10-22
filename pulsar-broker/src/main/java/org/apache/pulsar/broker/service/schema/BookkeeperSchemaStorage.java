@@ -522,7 +522,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
      * Returns the schema identifier for a schema metadata path, or an empty value when the path is unrelated.
      */
     public static Optional<String> schemaIdFromPath(String path) {
-        if (!path.startsWith(SchemaPathPrefix)) {
+        if (!path.startsWith(SchemaPathPrefix) || path.split("/").length != 5) {
             return Optional.empty();
         }
         return Optional.of(path.substring(SchemaPathPrefix.length()));
