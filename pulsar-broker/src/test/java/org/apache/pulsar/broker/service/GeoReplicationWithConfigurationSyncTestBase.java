@@ -19,10 +19,11 @@
 package org.apache.pulsar.broker.service;
 
 import com.google.common.collect.Sets;
+import com.google.common.io.Resources;
 import java.net.URL;
 import java.util.Collections;
 import java.util.Optional;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -34,11 +35,17 @@ import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 
-@Slf4j
+@CustomLog
 public abstract class GeoReplicationWithConfigurationSyncTestBase extends TestRetrySupport {
 
     protected final String defaultTenant = "public";
     protected final String defaultNamespace = defaultTenant + "/default";
+    private static final String caCertPath = Resources.getResource("certificate-authority/certs/ca.cert.pem")
+            .getPath();
+    private static final String brokerCertPath =
+            Resources.getResource("certificate-authority/server-keys/broker.cert.pem").getPath();
+    private static final String brokerKeyPath =
+            Resources.getResource("certificate-authority/server-keys/broker.key-pk8.pem").getPath();
 
     protected final String cluster1 = "r1";
     protected URL url1;
@@ -64,39 +71,16 @@ public abstract class GeoReplicationWithConfigurationSyncTestBase extends TestRe
 
     protected void startZKAndBK() throws Exception {
         // Start ZK.
-        tryInitBrokerConfigZK();
-
-        // Start BK.
-        bkEnsemble1 = new LocalBookkeeperEnsemble(3, 0, () -> 0);
-        bkEnsemble1.start();
-        bkEnsemble2 = new LocalBookkeeperEnsemble(3, 0, () -> 0);
-        bkEnsemble2.start();
-    }
-
-    protected void tryInitBrokerConfigZK() throws Exception {
         brokerConfigZk1 = new ZookeeperServerTest(0);
         brokerConfigZk1.start();
         brokerConfigZk2 = new ZookeeperServerTest(0);
         brokerConfigZk2.start();
-    }
 
-    protected void stopZKAndBK() throws Exception {
-        if (bkEnsemble1 != null) {
-            bkEnsemble1.stop();
-            bkEnsemble1 = null;
-        }
-        if (bkEnsemble2 != null) {
-            bkEnsemble2.stop();
-            bkEnsemble2 = null;
-        }
-        if (brokerConfigZk1 != null) {
-            brokerConfigZk1.stop();
-            brokerConfigZk1 = null;
-        }
-        if (brokerConfigZk2 != null) {
-            brokerConfigZk2.stop();
-            brokerConfigZk2 = null;
-        }
+        // Start BK.
+        bkEnsemble1 = new LocalBookkeeperEnsemble(3, 0);
+        bkEnsemble1.start();
+        bkEnsemble2 = new LocalBookkeeperEnsemble(3, 0);
+        bkEnsemble2.start();
     }
 
     protected void startBrokers() throws Exception {
@@ -185,11 +169,7 @@ public abstract class GeoReplicationWithConfigurationSyncTestBase extends TestRe
         config.setWebServicePort(Optional.of(0));
         config.setWebServicePortTls(Optional.of(0));
         config.setMetadataStoreUrl("zk:127.0.0.1:" + bookkeeperEnsemble.getZookeeperPort());
-        if (brokerConfigZk != null) {
-            config.setConfigurationMetadataStoreUrl("zk:127.0.0.1:" + brokerConfigZk.getZookeeperPort());
-        } else {
-            config.setConfigurationMetadataStoreUrl("zk:127.0.0.1:" + bookkeeperEnsemble.getZookeeperPort());
-        }
+        config.setConfigurationMetadataStoreUrl("zk:127.0.0.1:" + brokerConfigZk.getZookeeperPort() + "/foo");
         config.setBrokerDeleteInactiveTopicsEnabled(false);
         config.setBrokerDeleteInactiveTopicsFrequencySeconds(60);
         config.setBrokerShutdownTimeoutMs(0L);
@@ -202,6 +182,9 @@ public abstract class GeoReplicationWithConfigurationSyncTestBase extends TestRe
         config.setEnableReplicatedSubscriptions(true);
         config.setReplicatedSubscriptionsSnapshotFrequencyMillis(1000);
         config.setLoadBalancerSheddingEnabled(false);
+        config.setTlsTrustCertsFilePath(caCertPath);
+        config.setTlsCertificateFilePath(brokerCertPath);
+        config.setTlsKeyFilePath(brokerKeyPath);
     }
 
     @Override
@@ -237,7 +220,22 @@ public abstract class GeoReplicationWithConfigurationSyncTestBase extends TestRe
         }
 
         // Stop ZK and BK.
-        stopZKAndBK();
+        if (bkEnsemble1 != null) {
+            bkEnsemble1.stop();
+            bkEnsemble1 = null;
+        }
+        if (bkEnsemble2 != null) {
+            bkEnsemble2.stop();
+            bkEnsemble2 = null;
+        }
+        if (brokerConfigZk1 != null) {
+            brokerConfigZk1.stop();
+            brokerConfigZk1 = null;
+        }
+        if (brokerConfigZk2 != null) {
+            brokerConfigZk2.stop();
+            brokerConfigZk2 = null;
+        }
 
         // Reset configs.
         config1 = new ServiceConfiguration();

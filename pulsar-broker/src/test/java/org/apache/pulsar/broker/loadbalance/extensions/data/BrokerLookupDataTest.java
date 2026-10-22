@@ -21,9 +21,9 @@ package org.apache.pulsar.broker.loadbalance.extensions.data;
 import static org.testng.Assert.fail;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertTrue;
-
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -39,6 +39,7 @@ public class BrokerLookupDataTest {
 
     @Test
     public void testConstructors() throws PulsarServerException, URISyntaxException {
+        String brokerId = "localhost:8080";
         String webServiceUrl = "http://localhost:8080";
         String webServiceUrlTls = "https://localhoss:8081";
         String pulsarServiceUrl = "pulsar://localhost:6650";
@@ -55,10 +56,11 @@ public class BrokerLookupDataTest {
         Map<String, String> protocols = new HashMap<>(){{
             put("kafka", "9092");
         }};
-        BrokerLookupData lookupData = new BrokerLookupData(
+        BrokerLookupData lookupData = new BrokerLookupData(brokerId,
                 webServiceUrl, webServiceUrlTls, pulsarServiceUrl,
                 pulsarServiceUrlTls, advertisedListeners, protocols, true, true,
-                ExtensibleLoadManagerImpl.class.getName(), System.currentTimeMillis(),"3.0");
+                ExtensibleLoadManagerImpl.class.getName(), System.currentTimeMillis(), "3.0",
+                Collections.emptyMap());
         assertEquals(webServiceUrl, lookupData.webServiceUrl());
         assertEquals(webServiceUrlTls, lookupData.webServiceUrlTls());
         assertEquals(pulsarServiceUrl, lookupData.pulsarServiceUrl());

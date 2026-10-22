@@ -18,32 +18,15 @@
  */
 package org.apache.pulsar.proxy.server;
 
+import static org.mockito.Mockito.doReturn;
+import static org.testng.Assert.assertEquals;
 import com.google.common.collect.Sets;
-import lombok.extern.slf4j.Slf4j;
-import okhttp3.OkHttpClient;
-import okhttp3.Response;
-import org.apache.commons.lang3.RandomUtils;
-import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-import org.apache.pulsar.broker.authentication.AuthenticationService;
-import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
-import org.apache.pulsar.metadata.impl.ZKMetadataStore;
-import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithClassLoader;
-import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlets;
-import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlet;
-import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.servlet.ServletHolder;
-import org.mockito.Mockito;
-import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
-
-import javax.servlet.Servlet;
-import javax.servlet.ServletConfig;
-import javax.servlet.ServletException;
-import javax.servlet.ServletOutputStream;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
+import jakarta.servlet.Servlet;
+import jakarta.servlet.ServletConfig;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletOutputStream;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Path;
@@ -52,19 +35,39 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import lombok.CustomLog;
+import okhttp3.OkHttpClient;
+import okhttp3.Response;
+import org.apache.commons.lang3.RandomUtils;
+import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlet;
+import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithClassLoader;
+import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlets;
+import org.apache.pulsar.broker.web.plugin.servlet.LegacyJavaxAdditionalServlet;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationFactory;
+import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
+import org.mockito.Mockito;
+import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
-import static org.mockito.Mockito.doReturn;
-import static org.testng.Assert.assertEquals;
-
-@Slf4j
+@CustomLog
 public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
 
-    private final String BASE_PATH = "/metrics/broker";
-    private final String QUERY_PARAM = "param";
+    private static final String BASE_PATH = "/metrics/broker";
+    private static final String JAVAX_BASE_PATH = "/metrics/javax";
+    private static final String QUERY_PARAM = "param";
 
     private ProxyService proxyService;
     private WebServer proxyWebServer;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
+    private Authentication proxyClientAuthentication;
+    private Map<String, String> responseHeaders = new HashMap<>();
 
     @Override
     @BeforeClass
@@ -79,12 +82,20 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
         // enable full parsing feature
         proxyConfig.setProxyLogLevel(Optional.of(2));
         proxyConfig.setClusterName(configClusterName);
+        responseHeaders.put("header1", "value1");
+        proxyConfig.setProxyHttpResponseHeadersJson(
+                ObjectMapperFactory.getMapper().writer().writeValueAsString(responseHeaders));
 
         // this is for nar package test
 //        addServletNar();
 
+        proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                proxyConfig.getBrokerClientAuthenticationParameters());
+        proxyClientAuthentication.start();
+
         proxyService = Mockito.spy(new ProxyService(proxyConfig,
-                new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig))));
+                new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig)),
+                proxyClientAuthentication));
         doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeper))).when(proxyService).createLocalMetadataStore();
         doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal))).when(proxyService)
                 .createConfigurationMetadataStore();
@@ -99,11 +110,13 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
         mockAdditionalServlet();
 
         proxyWebServer = new WebServer(proxyConfig, authService);
-        ProxyServiceStarter.addWebServerHandlers(proxyWebServer, proxyConfig, proxyService, null);
+        ProxyServiceStarter.addWebServerHandlers(proxyWebServer, proxyConfig, proxyService, null,
+                proxyClientAuthentication);
         proxyWebServer.start();
     }
 
     // this is for nar package test
+    @SuppressWarnings("deprecation")
     private void addServletNar() {
         Properties properties = new Properties();
         properties.setProperty("basePath", "/metrics-prometheus/broker");
@@ -112,12 +125,16 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setProperties(properties);
 
         // set protocol related config
-        URL testHandlerUrl = this.getClass().getClassLoader().getResource("proxy-additional-servlet-plugin-1.0-SNAPSHOT.nar");
+        URL testHandlerUrl = this.getClass().getClassLoader().getResource(
+                "proxy-additional-servlet-plugin-1.0-SNAPSHOT.nar");
         Path handlerPath;
         try {
             handlerPath = Paths.get(testHandlerUrl.toURI());
         } catch (Exception e) {
-            log.error("failed to get handler Path, handlerUrl: {}. Exception: ", testHandlerUrl, e);
+            log.error()
+                    .attr("handlerUrl", testHandlerUrl)
+                    .exception(e)
+                    .log("failed to get handler Path, . Exception");
             return;
         }
         String servletDirectory = handlerPath.toFile().getParent();
@@ -140,8 +157,11 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
             }
 
             @Override
-            public void service(ServletRequest servletRequest, ServletResponse servletResponse) throws ServletException, IOException {
-                log.info("[service] path: {}", ((Request) servletRequest).getOriginalURI());
+            public void service(ServletRequest servletRequest, ServletResponse servletResponse)
+                    throws ServletException, IOException {
+                log.info()
+                        .attr("path", ((jakarta.servlet.http.HttpServletRequest) servletRequest).getRequestURI())
+                        .log("service]");
                 String value = servletRequest.getParameterMap().get(QUERY_PARAM)[0];
                 ServletOutputStream servletOutputStream = servletResponse.getOutputStream();
                 servletResponse.setContentLength(value.getBytes().length);
@@ -163,11 +183,15 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
 
         AdditionalServlet proxyAdditionalServlet = Mockito.mock(AdditionalServlet.class);
         Mockito.when(proxyAdditionalServlet.getBasePath()).thenReturn(BASE_PATH);
-        Mockito.when(proxyAdditionalServlet.getServletHolder()).thenReturn(new ServletHolder(servlet));
+        Mockito.when(proxyAdditionalServlet.getServletInstance()).thenReturn(servlet);
+        Mockito.when(proxyAdditionalServlet.getServletType()).thenReturn(
+                AdditionalServlet.AdditionalServletType.JAKARTA_SERVLET);
 
         AdditionalServlets proxyAdditionalServlets = Mockito.mock(AdditionalServlets.class);
         Map<String, AdditionalServletWithClassLoader> map = new HashMap<>();
         map.put("prometheus-proxy-servlet", new AdditionalServletWithClassLoader(proxyAdditionalServlet, null));
+        map.put("javax-proxy-servlet", new AdditionalServletWithClassLoader(
+                new LegacyJavaxAdditionalServlet(JAVAX_BASE_PATH), null));
         Mockito.when(proxyAdditionalServlets.getServlets()).thenReturn(map);
 
         Mockito.when(proxyService.getProxyAdditionalServlets()).thenReturn(proxyAdditionalServlets);
@@ -180,18 +204,38 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
 
         proxyService.close();
         proxyWebServer.stop();
+        if (proxyClientAuthentication != null) {
+            proxyClientAuthentication.close();
+        }
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void test() throws IOException {
         int httpPort = proxyWebServer.getListenPortHTTP().get();
-        log.info("proxy service httpPort {}", httpPort);
+        log.info()
+                .attr("httpPort", httpPort)
+                .log("proxy service httpPort");
         String paramValue = "value - " + RandomUtils.nextInt();
-        String response = httpGet("http://localhost:" + httpPort + BASE_PATH + "?" + QUERY_PARAM + "=" + paramValue);
+        final Map<String, String> headers = new HashMap<>();
+        String response = httpGet("http://localhost:" + httpPort + BASE_PATH + "?" + QUERY_PARAM + "=" + paramValue,
+                headers);
         Assert.assertEquals(response, paramValue);
+        String headerKey = "header1";
+        Assert.assertEquals(headers.get(headerKey), responseHeaders.get(headerKey));
+
+        // A servlet written against the legacy javax.servlet API is adapted to jakarta.servlet and serves
+        // requests through the same Jetty environment, and therefore the same filters, as the jakarta ones
+        String javaxParamValue = "value - " + RandomUtils.nextInt();
+        final Map<String, String> javaxHeaders = new HashMap<>();
+        String javaxResponse = httpGet("http://localhost:" + httpPort + JAVAX_BASE_PATH
+                + "?" + QUERY_PARAM + "=" + javaxParamValue, javaxHeaders);
+        Assert.assertEquals(javaxResponse.trim(),
+                LegacyJavaxAdditionalServlet.expectedResponse(JAVAX_BASE_PATH, javaxParamValue));
+        Assert.assertEquals(javaxHeaders.get(headerKey), responseHeaders.get(headerKey));
     }
 
-    String httpGet(String url) throws IOException {
+    String httpGet(String url, Map<String, String> headers) throws IOException {
         OkHttpClient client = new OkHttpClient();
         okhttp3.Request request = new okhttp3.Request.Builder()
                 .get()
@@ -199,6 +243,9 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
                 .build();
 
         try (Response response = client.newCall(request).execute()) {
+            response.headers().forEach(pair -> {
+                headers.put(pair.getFirst(), pair.getSecond());
+            });
             return response.body().string();
         }
     }

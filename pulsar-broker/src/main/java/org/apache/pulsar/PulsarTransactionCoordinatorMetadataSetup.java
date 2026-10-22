@@ -44,6 +44,11 @@ public class PulsarTransactionCoordinatorMetadataSetup {
                 "--configuration-store" }, description = "Configuration Store connection string", required = true)
         private String configurationStore;
 
+        @Option(names = {"-cmscp",
+                "--configuration-metadata-store-config-path"}, description = "Configuration Metadata Store config path",
+                hidden = false)
+        private String configurationStoreConfigPath;
+
         @Option(names = {
                 "--zookeeper-session-timeout-ms"
         }, description = "Local zookeeper session timeout ms")
@@ -53,6 +58,13 @@ public class PulsarTransactionCoordinatorMetadataSetup {
                 "--initial-num-transaction-coordinators"
         }, description = "Num transaction coordinators will assigned in cluster")
         private int numTransactionCoordinators = 16;
+
+        @Option(names = {"-sbn",
+                "--system-namespace-bundle-number"},
+                description = "The bundle numbers for the system namespace (pulsar/system) if it does not exist yet,"
+                        + " default is " + PulsarClusterMetadataSetup.SYSTEM_NAMESPACE_BUNDLE_NUMBER,
+                required = false)
+        private int numberOfSystemNamespaceBundles;
 
         @Option(names = { "-h", "--help" }, description = "Show this help message")
         private boolean help = false;
@@ -92,8 +104,10 @@ public class PulsarTransactionCoordinatorMetadataSetup {
             System.exit(1);
         }
 
-        try (MetadataStoreExtended configStore = PulsarClusterMetadataSetup
-                .initConfigMetadataStore(arguments.configurationStore, arguments.zkSessionTimeoutMillis)) {
+        try (MetadataStoreExtended configStore = PulsarClusterMetadataSetup.initConfigMetadataStore(
+                arguments.configurationStore,
+                arguments.configurationStoreConfigPath,
+                arguments.zkSessionTimeoutMillis)) {
             PulsarResources pulsarResources = new PulsarResources(null, configStore);
             // Create system tenant
             PulsarClusterMetadataSetup
@@ -102,7 +116,9 @@ public class PulsarTransactionCoordinatorMetadataSetup {
 
             // Create system namespace
             PulsarClusterMetadataSetup.createNamespaceIfAbsent(pulsarResources, NamespaceName.SYSTEM_NAMESPACE,
-                    arguments.cluster);
+                    arguments.cluster, arguments.numberOfSystemNamespaceBundles > 0
+                            ? arguments.numberOfSystemNamespaceBundles
+                            : PulsarClusterMetadataSetup.SYSTEM_NAMESPACE_BUNDLE_NUMBER);
 
             // Create transaction coordinator assign partitioned topic
             PulsarClusterMetadataSetup.createPartitionedTopic(configStore,

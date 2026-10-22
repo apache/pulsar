@@ -20,18 +20,17 @@ package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
+@CustomLog
 public class TopicPublishThrottlingInitTest extends ProducerConsumerBase {
-    private static final Logger log = LoggerFactory.getLogger(TopicPublishThrottlingInitTest.class);
 
     @BeforeMethod
     @Override
@@ -58,7 +57,7 @@ public class TopicPublishThrottlingInitTest extends ProducerConsumerBase {
      */
     @Test
     public void testBrokerPublishMessageThrottlingInit() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
 
         final String namespace = "my-property/throttling_publish_init";
         final String topicName = "persistent://" + namespace + "/brokerThrottlingMessageBlock";
@@ -72,10 +71,11 @@ public class TopicPublishThrottlingInitTest extends ProducerConsumerBase {
             .maxPendingMessages(30000).create();
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
 
-        log.info("Get broker configuration: brokerTick {},  MaxMessageRate {}, MaxByteRate {}",
-            pulsar.getConfiguration().getBrokerPublisherThrottlingTickTimeMillis(),
-            pulsar.getConfiguration().getBrokerPublisherThrottlingMaxMessageRate(),
-            pulsar.getConfiguration().getBrokerPublisherThrottlingMaxByteRate());
+        log.info()
+                .attr("brokerTick", pulsar.getConfiguration().getBrokerPublisherThrottlingTickTimeMillis())
+                .attr("maxMessageRate", pulsar.getConfiguration().getBrokerPublisherThrottlingMaxMessageRate())
+                .attr("maxByteRate", pulsar.getConfiguration().getBrokerPublisherThrottlingMaxByteRate())
+                .log("Get broker configuration: brokerTick , MaxMessageRate , MaxByteRate");
 
         Producer prod = topic.getProducers().values().iterator().next();
         // reset counter
@@ -87,7 +87,7 @@ public class TopicPublishThrottlingInitTest extends ProducerConsumerBase {
         // calculate rates and due to throttling rate should be < total per-second
         prod.updateRates();
         double rateIn = prod.getStats().msgRateIn;
-        log.info("1-st rate in: {}, total: {} ", rateIn, total);
+        log.info().attr("rate", rateIn).attr("total", total).log("1-st rate in: , total");
         assertTrue(rateIn < total);
 
         // disable throttling
@@ -102,7 +102,7 @@ public class TopicPublishThrottlingInitTest extends ProducerConsumerBase {
 
         prod.updateRates();
         rateIn = prod.getStats().msgRateIn;
-        log.info("2-nd rate in: {}, total: {} ", rateIn, total);
+        log.info().attr("rate", rateIn).attr("total", total).log("2-nd rate in: , total");
         assertTrue(rateIn > total);
 
         producer.close();

@@ -29,7 +29,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataSerde;
@@ -44,7 +44,7 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.cache.impl.JSONMetadataSerdeSimpleType;
 
-@Slf4j
+@CustomLog
 class LockManagerImpl<T> implements LockManager<T> {
 
     private final Map<String, ResourceLockImpl<T>> locks = new ConcurrentHashMap<>();
@@ -53,6 +53,8 @@ class LockManagerImpl<T> implements LockManager<T> {
     private final MetadataSerde<T> serde;
     private final FutureUtil.Sequencer<Void> sequencer;
     private final ScheduledExecutorService executor;
+    private final Runnable cancelSessionListener;
+    private final Runnable cancelListener;
 
     private enum State {
         Ready, Closed
@@ -72,8 +74,8 @@ class LockManagerImpl<T> implements LockManager<T> {
         this.serde = serde;
         this.executor = executor;
         this.sequencer = FutureUtil.Sequencer.create();
-        store.registerSessionListener(this::handleSessionEvent);
-        store.registerListener(this::handleDataNotification);
+        cancelSessionListener = store.registerCancellableSessionListener(this::handleSessionEvent);
+        cancelListener = store.registerCancellableListener(this::handleDataNotification);
     }
 
     @Override
@@ -91,7 +93,7 @@ class LockManagerImpl<T> implements LockManager<T> {
                 if (state == State.Ready) {
                     locks.put(path, lock);
                     lock.getLockExpiredFuture().thenRun(() -> {
-                        log.info("Released resource lock on {}", path);
+                        log.info().attr("path", path).log("Released resource lock");
                         synchronized (LockManagerImpl.this) {
                             locks.remove(path, lock);
                         }
@@ -134,7 +136,7 @@ class LockManagerImpl<T> implements LockManager<T> {
             }
             return FutureUtil.waitForAll(futures)
                     .exceptionally(ex -> {
-                        log.warn("Failure when processing session event", ex);
+                        log.warn().exception(ex).log("Failure when processing session event");
                         return null;
                     });
         }, executor));
@@ -174,6 +176,8 @@ class LockManagerImpl<T> implements LockManager<T> {
             locks = new HashMap<>(this.locks);
             this.state = State.Closed;
         }
+        cancelSessionListener.run();
+        cancelListener.run();
 
         return FutureUtil.waitForAll(locks.values().stream()
                 .map(ResourceLock::release)
