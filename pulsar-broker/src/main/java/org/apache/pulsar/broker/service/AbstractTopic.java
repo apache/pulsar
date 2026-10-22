@@ -352,6 +352,22 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
         updateEntryFilters();
     }
 
+    /**
+     * Clear both local and global topic policy values.
+     *
+     * <p>A topic policy deletion is delivered as {@code onUpdate(null)} without its original scope. Clearing both
+     * scopes matches {@link TopicPolicyListenerWrapper}'s delete handling and lets the effective policy fall back to
+     * namespace and broker values.</p>
+     */
+    protected void clearTopicPolicies() {
+        TopicPolicies localPolicies = new TopicPolicies();
+        localPolicies.setIsGlobal(false);
+        updateTopicPolicy(localPolicies);
+        TopicPolicies globalPolicies = new TopicPolicies();
+        globalPolicies.setIsGlobal(true);
+        updateTopicPolicy(globalPolicies);
+    }
+
     // Merges the global and local per-subscription policies with local precedence: a subscription present in the
     // local policies keeps its local value; otherwise the global value (if any) is used.
     private static Map<String, SubscriptionPolicies> mergeSubscriptionPolicies(

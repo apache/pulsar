@@ -2301,6 +2301,127 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
     }
 
     @Test(timeOut = 120_000)
+    public void testReplicationResumesAfterRemovingTopicPolicies() throws Exception {
+        String topicName = BrokerTestUtil.newUniqueName("persistent://"
+                + sourceClusterAlwaysSchemaCompatibleNamespace + "/remove-topic-policies-");
+        RecordSchemaBuilder oldKeyBuilder = SchemaBuilder.record("Key");
+        oldKeyBuilder.field("id").type(SchemaType.INT64);
+        RecordSchemaBuilder forwardCompatibleKeyBuilder = SchemaBuilder.record("Key");
+        forwardCompatibleKeyBuilder.field("id").type(SchemaType.INT64);
+        forwardCompatibleKeyBuilder.field("game_id").type(SchemaType.INT64);
+        GenericSchema<GenericRecord> oldKey = Schema.generic(oldKeyBuilder.build(SchemaType.AVRO));
+        GenericSchema<GenericRecord> forwardCompatibleKey =
+                Schema.generic(forwardCompatibleKeyBuilder.build(SchemaType.AVRO));
+        Schema<KeyValue<GenericRecord, String>> schema = Schema.KeyValue(forwardCompatibleKey, Schema.STRING);
+
+        admin2.topics().createNonPartitionedTopic(topicName);
+        admin2.topicPolicies().setSchemaCompatibilityStrategy(topicName, SchemaCompatibilityStrategy.FULL);
+        admin2.schemas().createSchema(topicName, Schema.KeyValue(oldKey, Schema.STRING).getSchemaInfo());
+        try (Consumer<byte[]> consumer = client2.newConsumer(Schema.BYTES).topic(topicName)
+                .subscriptionName("remove-topic-policies")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+             Producer<byte[]> producer = client1.newProducer(Schema.AUTO_PRODUCE_BYTES()).topic(topicName)
+                     .enableBatching(false).create()) {
+            waitReplicatorStarted(topicName);
+            PersistentTopic destination = (PersistentTopic) broker2.getTopic(topicName, false).join().orElseThrow();
+            Awaitility.await().untilAsserted(() -> assertThat(destination.getSchemaCompatibilityStrategy())
+                    .isEqualTo(SchemaCompatibilityStrategy.FULL));
+            PersistentTopic source = (PersistentTopic) broker1.getTopic(topicName, false).join().orElseThrow();
+            PersistentReplicator replicator = (PersistentReplicator) source.getReplicators().get(cluster2);
+            ProducerImpl<?> replicationProducer = replicator.getProducer();
+            long producerEpoch = replicationProducer.getConnectionHandler().getEpoch();
+            KeyValue<GenericRecord, String> value = new KeyValue<>(
+                    forwardCompatibleKey.newRecordBuilder().set("id", 1L).set("game_id", 1L).build(), "game");
+            producer.newMessage(schema).value(value).send();
+            assertThat(replicator.getCursor().getNumberOfEntriesInBacklog(false)).isOne();
+            assertThat(consumer.receive(1, TimeUnit.SECONDS)).isNull();
+
+            admin2.topicPolicies().deleteTopicPolicies(topicName);
+
+            Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
+                assertThat(destination.getSchemaCompatibilityStrategy()).isEqualTo(SchemaCompatibilityStrategy.FORWARD);
+                assertThat(replicationProducer.getConnectionHandler().getEpoch()).isGreaterThan(producerEpoch);
+                assertThat(replicator.getCursor().getNumberOfEntriesInBacklog(false)).isZero();
+            });
+            assertThat(consumer.receive(5, TimeUnit.SECONDS)).isNotNull();
+        } finally {
+            admin1.topics().setReplicationClusters(topicName, Collections.singletonList(cluster1));
+            waitReplicatorStopped(topicName, false);
+            Awaitility.await().atMost(Duration.ofSeconds(30)).ignoreExceptions().untilAsserted(() ->
+                    admin1.topics().delete(topicName, true));
+            Awaitility.await().atMost(Duration.ofSeconds(30)).ignoreExceptions().untilAsserted(() ->
+                    admin2.topics().delete(topicName, true));
+        }
+    }
+
+    @Test(timeOut = 120_000)
+    public void testReplicationResumesAfterRemovingNamespaceSchemaPolicy() throws Exception {
+        String topicName = BrokerTestUtil.newUniqueName("persistent://"
+                + sourceClusterAlwaysSchemaCompatibleNamespace + "/remove-namespace-schema-policy-");
+        RecordSchemaBuilder oldKeyBuilder = SchemaBuilder.record("Key");
+        oldKeyBuilder.field("id").type(SchemaType.INT64);
+        RecordSchemaBuilder forwardCompatibleKeyBuilder = SchemaBuilder.record("Key");
+        forwardCompatibleKeyBuilder.field("id").type(SchemaType.INT64);
+        forwardCompatibleKeyBuilder.field("game_id").type(SchemaType.INT64);
+        GenericSchema<GenericRecord> oldKey = Schema.generic(oldKeyBuilder.build(SchemaType.AVRO));
+        GenericSchema<GenericRecord> forwardCompatibleKey =
+                Schema.generic(forwardCompatibleKeyBuilder.build(SchemaType.AVRO));
+        Schema<KeyValue<GenericRecord, String>> schema = Schema.KeyValue(forwardCompatibleKey, Schema.STRING);
+
+        SchemaCompatibilityStrategy originalBrokerStrategy =
+                pulsar2.getConfiguration().getSchemaCompatibilityStrategy();
+        pulsar2.getConfiguration().setSchemaCompatibilityStrategy(SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+        admin2.topics().createNonPartitionedTopic(topicName);
+        SchemaCompatibilityStrategy originalNamespaceStrategy =
+                admin2.namespaces().getSchemaCompatibilityStrategy(sourceClusterAlwaysSchemaCompatibleNamespace);
+        admin2.namespaces().setSchemaCompatibilityStrategy(sourceClusterAlwaysSchemaCompatibleNamespace,
+                SchemaCompatibilityStrategy.FULL);
+        admin2.schemas().createSchema(topicName, Schema.KeyValue(oldKey, Schema.STRING).getSchemaInfo());
+        try (Consumer<byte[]> consumer = client2.newConsumer(Schema.BYTES).topic(topicName)
+                .subscriptionName("remove-namespace-schema-policy")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe();
+             Producer<byte[]> producer = client1.newProducer(Schema.AUTO_PRODUCE_BYTES()).topic(topicName)
+                     .enableBatching(false).create()) {
+            waitReplicatorStarted(topicName);
+            PersistentTopic destination = (PersistentTopic) broker2.getTopic(topicName, false).join().orElseThrow();
+            Awaitility.await().untilAsserted(() -> assertThat(destination.getSchemaCompatibilityStrategy())
+                    .isEqualTo(SchemaCompatibilityStrategy.FULL));
+            PersistentTopic source = (PersistentTopic) broker1.getTopic(topicName, false).join().orElseThrow();
+            PersistentReplicator replicator = (PersistentReplicator) source.getReplicators().get(cluster2);
+            ProducerImpl<?> replicationProducer = replicator.getProducer();
+            long producerEpoch = replicationProducer.getConnectionHandler().getEpoch();
+            KeyValue<GenericRecord, String> value = new KeyValue<>(
+                    forwardCompatibleKey.newRecordBuilder().set("id", 1L).set("game_id", 1L).build(), "game");
+            producer.newMessage(schema).value(value).send();
+            assertThat(replicator.getCursor().getNumberOfEntriesInBacklog(false)).isOne();
+            assertThat(consumer.receive(1, TimeUnit.SECONDS)).isNull();
+
+            // Removing FULL falls back to the broker's AlwaysCompatible strategy, which accepts this schema.
+            admin2.namespaces().setSchemaCompatibilityStrategy(sourceClusterAlwaysSchemaCompatibleNamespace,
+                    SchemaCompatibilityStrategy.UNDEFINED);
+
+            Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
+                assertThat(destination.getSchemaCompatibilityStrategy())
+                        .isEqualTo(SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+                assertThat(replicationProducer.getConnectionHandler().getEpoch()).isGreaterThan(producerEpoch);
+                assertThat(replicator.getCursor().getNumberOfEntriesInBacklog(false)).isZero();
+            });
+            assertThat(consumer.receive(5, TimeUnit.SECONDS)).isNotNull();
+        } finally {
+            admin2.namespaces().setSchemaCompatibilityStrategy(sourceClusterAlwaysSchemaCompatibleNamespace,
+                    originalNamespaceStrategy);
+            pulsar2.getConfiguration().setSchemaCompatibilityStrategy(originalBrokerStrategy);
+            admin1.topics().setReplicationClusters(topicName, Collections.singletonList(cluster1));
+            waitReplicatorStopped(topicName, false);
+            Awaitility.await().atMost(Duration.ofSeconds(30)).ignoreExceptions().untilAsserted(() ->
+                    admin1.topics().delete(topicName, true));
+            Awaitility.await().atMost(Duration.ofSeconds(30)).ignoreExceptions().untilAsserted(() ->
+                    admin2.topics().delete(topicName, true));
+        }
+    }
+
+    @Test(timeOut = 120_000)
     public void testSchemaCreationReconnectsBlockedPartitionedReplicationProducer() throws Exception {
         String topicName = BrokerTestUtil.newUniqueName("persistent://"
                 + sourceClusterAlwaysSchemaCompatibleNamespace + "/partitioned-schema-retry-");
