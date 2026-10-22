@@ -201,6 +201,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private final Counter producersOpenedCounter;
     private final Counter producersClosedCounter;
     private final boolean pauseSendingToPreservePublishOrderOnSchemaRegFailure;
+    private final Backoff schemaRegistrationBackoff;
+    // Guarded by the producer lock, including schema callbacks and retry tasks.
+    private long schemaRegistrationGeneration;
+    private ScheduledFuture<?> schemaRegistrationRetryTask;
+    private boolean schemaRegistrationFailed;
     // This variable can be exposed as a metrics in the future, a PIP is needed.
     private final AtomicInteger pendingQueueFullCounter;
 
@@ -218,6 +223,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         // Otherwise, it may cause an out-of-order issue, and it may lead to a messages lost issue if users enabled
         // deduplication on the remote side.
         this.pauseSendingToPreservePublishOrderOnSchemaRegFailure = conf.isReplProducer();
+        this.schemaRegistrationBackoff = Backoff.builder()
+                .initialDelay(Duration.ofNanos(client.getConfiguration().getInitialBackoffIntervalNanos()))
+                .maxBackoff(Duration.ofNanos(client.getConfiguration().getMaxBackoffIntervalNanos()))
+                .build();
         if (conf.getMaxPendingMessages() > 0) {
             // With admission done upstream the permit is never taken but would still be released.
             checkArgument(!conf.isMemoryLimitAdmittedUpstream(),
@@ -982,53 +991,87 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         return true;
     }
 
-    private void tryRegisterSchema(ClientCnx cnx, final MessageImpl<?> msg, SendCallback callback,
-                                    long expectedCnxEpoch) {
+    private void tryRegisterSchema(ClientCnx cnx, OpSendMsg op, long expectedCnxEpoch) {
         if (!changeToRegisteringSchemaState()) {
             return;
         }
+        long generation = ++schemaRegistrationGeneration;
+        cancelSchemaRegistrationRetry();
+        MessageImpl<?> msg = op.msg;
+        long sequenceId = op.sequenceId;
         SchemaInfo schemaInfo = msg.hasReplicateFrom() ? msg.getSchemaInfoForReplicator() : msg.getSchemaInfo();
         schemaInfo = Optional.ofNullable(schemaInfo)
                 .filter(si -> si.getType().getValue() > 0)
                 .orElse(Schema.BYTES.getSchemaInfo());
-        getOrCreateSchemaAsync(cnx, schemaInfo).handle((v, ex) -> {
-            if (ex != null) {
-                Throwable t = FutureUtil.unwrapCompletionException(ex);
-                log.warn()
-                        .exception(t)
-                        .log("GetOrCreateSchema error");
-                if (t instanceof PulsarClientException.IncompatibleSchemaException) {
-                    // Only the first time of failed schema registration will trigger a "recoverProcessOpSendMsgFrom".
-                    if (!Broken.equals(msg.getSchemaState())) {
-                        cnx.ctx().channel().eventLoop().execute(() -> {
-                            synchronized (ProducerImpl.this) {
+        getOrCreateSchemaAsync(cnx, schemaInfo).whenComplete((v, ex) ->
+                cnx.ctx().channel().eventLoop().execute(() -> {
+                    synchronized (ProducerImpl.this) {
+                        if (generation != schemaRegistrationGeneration || cnx() != cnx
+                                || expectedCnxEpoch != connectionHandler.getEpoch()
+                                || getState() != State.RegisteringSchema) {
+                            return;
+                        }
+                        // A send timeout can dispose and recycle the operation while registration is outstanding.
+                        if (op.msg != msg || op.sequenceId != sequenceId) {
+                            recoverProcessOpSendMsgFrom(cnx, null, false, expectedCnxEpoch);
+                            return;
+                        }
+                        if (ex == null) {
+                            log.debug("GetOrCreateSchema succeed");
+                            if (v.length != 0) {
+                                schemaCache.putIfAbsent(msg.getSchemaHash(), v);
+                                msg.getMessageBuilder().setSchemaVersion(v);
+                            } else {
+                                schemaCache.putIfAbsent(msg.getSchemaHash(), SchemaVersion.Empty.bytes());
+                            }
+                            msg.setSchemaState(MessageImpl.SchemaState.Ready);
+                            schemaRegistrationBackoff.reset();
+                            schemaRegistrationFailed = false;
+                            recoverProcessOpSendMsgFrom(cnx, msg, false, expectedCnxEpoch);
+                            return;
+                        }
+                        Throwable t = FutureUtil.unwrapCompletionException(ex);
+                        if (schemaRegistrationFailed) {
+                            log.debug().exceptionMessage(t).log("GetOrCreateSchema retry failed");
+                        } else {
+                            log.warn().exception(t).log("GetOrCreateSchema error");
+                        }
+                        schemaRegistrationFailed = true;
+                        if (t instanceof IncompatibleSchemaException) {
+                            if (!pauseSendingToPreservePublishOrderOnSchemaRegFailure) {
+                                schemaRegistrationBackoff.reset();
+                                schemaRegistrationFailed = false;
+                                recoverProcessOpSendMsgFrom(cnx, msg, true, expectedCnxEpoch);
+                            } else {
+                                // A replication producer stays paused until the destination broker disconnects it
+                                // after a relevant schema metadata change.
                                 recoverProcessOpSendMsgFrom(cnx, msg, true, expectedCnxEpoch);
                             }
-                        });
+                            return;
+                        }
+                        schemaRegistrationRetryTask = cnx.ctx().channel().eventLoop().schedule(() -> {
+                            synchronized (ProducerImpl.this) {
+                                if (generation != schemaRegistrationGeneration) {
+                                    return;
+                                }
+                                schemaRegistrationRetryTask = null;
+                                if (cnx() == cnx && expectedCnxEpoch == connectionHandler.getEpoch()
+                                        && getState() == State.RegisteringSchema) {
+                                    MessageImpl<?> retryFrom =
+                                            op.msg == msg && op.sequenceId == sequenceId ? msg : null;
+                                    recoverProcessOpSendMsgFrom(cnx, retryFrom, false, expectedCnxEpoch);
+                                }
+                            }
+                        }, schemaRegistrationBackoff.next().toMillis(), TimeUnit.MILLISECONDS);
                     }
-                    return null;
-                }
-            } else {
-                log.info("GetOrCreateSchema succeed");
-                // In broker, if schema version is an empty byte array, it means the topic doesn't have schema.
-                // In this case, we cache the schema version to `SchemaVersion.Empty.bytes()`.
-                // When we need to set the schema version of the message metadata,
-                // we should check if the cached schema version is `SchemaVersion.Empty.bytes()`
-                if (v.length != 0) {
-                    schemaCache.putIfAbsent(msg.getSchemaHash(), v);
-                    msg.getMessageBuilder().setSchemaVersion(v);
-                } else {
-                    schemaCache.putIfAbsent(msg.getSchemaHash(), SchemaVersion.Empty.bytes());
-                }
-                msg.setSchemaState(MessageImpl.SchemaState.Ready);
-            }
-            cnx.ctx().channel().eventLoop().execute(() -> {
-                synchronized (ProducerImpl.this) {
-                    recoverProcessOpSendMsgFrom(cnx, msg, false, expectedCnxEpoch);
-                }
-            });
-            return null;
-        });
+                }));
+    }
+
+    private void cancelSchemaRegistrationRetry() {
+        if (schemaRegistrationRetryTask != null) {
+            schemaRegistrationRetryTask.cancel(false);
+            schemaRegistrationRetryTask = null;
+        }
     }
 
     private CompletableFuture<byte[]> getOrCreateSchemaAsync(ClientCnx cnx, SchemaInfo schemaInfo) {
@@ -1041,7 +1084,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
         long requestId = client.newRequestId();
         ByteBuf request = Commands.newGetOrCreateSchema(requestId, topic, producerName, schemaInfo);
-        log.info("GetOrCreateSchema request");
+        log.debug("GetOrCreateSchema request");
         return cnx.sendGetOrCreateSchema(request, requestId);
     }
 
@@ -2404,7 +2447,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         return true;
     }
 
-    private void closeProducerTasks() {
+    private synchronized void closeProducerTasks() {
+        schemaRegistrationGeneration++;
+        cancelSchemaRegistrationRetry();
         Timeout timeout = sendTimeout;
         if (timeout != null) {
             timeout.cancel();
@@ -2814,7 +2859,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             final ClientCnx cnx = getCnxIfReady();
             if (cnx != null) {
                 if (op.msg != null && op.msg.getSchemaState() == None) {
-                    tryRegisterSchema(cnx, op.msg, op.callback, this.connectionHandler.getEpoch());
+                    tryRegisterSchema(cnx, op, this.connectionHandler.getEpoch());
                     return;
                 }
                 // If we do have a connection, the message is sent immediately, otherwise we'll try again once a new
@@ -3048,8 +3093,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 // "Event 1-1" happens after "Event 3-1-1".
                 // After a topic unload, ask the producer retry to register schema, which avoids restart client
                 // after users changed the compatibility strategy to make the schema is compatible.
-                tryRegisterSchema(cnx, loopEndDueToSchemaRegisterNeeded.msg, loopEndDueToSchemaRegisterNeeded.callback,
-                    expectedEpoch);
+                tryRegisterSchema(cnx, loopEndDueToSchemaRegisterNeeded, expectedEpoch);
             } else if (pausedSendingToPreservePublishOrderOnSchemaRegFailure) {
                 // Nothing to do if the event is "Event 3-1-1", just keep stuck.
                 return;
@@ -3058,8 +3102,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 // "pendingMessages" has more messages to register new schema.
                 // This operation will not be conflict with another schema registration because both operations are
                 // attempt to acquire the same lock "ProducerImpl.this".
-                tryRegisterSchema(cnx, loopEndDueToSchemaRegisterNeeded.msg, loopEndDueToSchemaRegisterNeeded.callback,
-                        expectedEpoch);
+                tryRegisterSchema(cnx, loopEndDueToSchemaRegisterNeeded, expectedEpoch);
             }
             // Schema registration will trigger a new "recoverProcessOpSendMsgFrom", so return here. If failed to switch
             // state, it means another task will trigger a new "recoverProcessOpSendMsgFrom".

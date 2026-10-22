@@ -31,7 +31,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
@@ -80,6 +79,15 @@ public class SchemasResourceBase extends AdminResource {
         }
     }
 
+    private void disconnectProducersBlockedByIncompatibleSchema() {
+        String schemaId = getSchemaId();
+        pulsar().getBrokerService().forEachTopic(topic -> {
+            if (TopicName.get(topic.getName()).getSchemaName().equals(schemaId)) {
+                topic.disconnectProducersBlockedByIncompatibleSchema();
+            }
+        });
+    }
+
     public CompletableFuture<SchemaAndMetadata> getSchemaAsync(boolean authoritative) {
         return validateOwnershipAndOperationAsync(authoritative, TopicOperation.GET_METADATA)
                 .thenApply(__ -> getSchemaId())
@@ -119,11 +127,10 @@ public class SchemasResourceBase extends AdminResource {
                     String schemaId = getSchemaId();
                     return pulsar().getSchemaRegistryService()
                             .deleteSchema(schemaId, defaultIfEmpty(clientAppId(), ""), force);
-                }).thenCompose(version -> pulsar().getBrokerService().getTopicIfExists(topicName.toString())
-                        .thenApply(topic -> {
-                            topic.ifPresent(Topic::disconnectProducersBlockedByIncompatibleSchema);
-                            return version;
-                        }));
+                }).thenApply(version -> {
+                    disconnectProducersBlockedByIncompatibleSchema();
+                    return version;
+                });
     }
 
     public CompletableFuture<SchemaVersion> postSchemaAsync(PostSchemaPayload payload, boolean authoritative) {
@@ -154,11 +161,8 @@ public class SchemasResourceBase extends AdminResource {
                                 if (!result.created()) {
                                     return CompletableFuture.completedFuture(result.version());
                                 }
-                                return pulsar().getBrokerService().getTopicIfExists(topicName.toString())
-                                        .thenApply(topic -> {
-                                            topic.ifPresent(Topic::disconnectProducersBlockedByIncompatibleSchema);
-                                            return result.version();
-                                        });
+                                disconnectProducersBlockedByIncompatibleSchema();
+                                return CompletableFuture.completedFuture(result.version());
                             });
                 });
     }

@@ -1192,17 +1192,20 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     @Override
     public CompletableFuture<Void> onPoliciesUpdate(Policies data) {
         SchemaCompatibilityStrategy previousSchemaCompatibilityStrategy = getSchemaCompatibilityStrategy();
+        Boolean previousAllowAutoUpdateSchema = isAllowAutoUpdateSchema;
+        Boolean previousAllowAutoUpdateSchemaWithReplicator = isAllowAutoUpdateSchemaWithReplicator;
         log.debug()
                 .attr("isEncryptionRequired", isEncryptionRequired)
                 .attr("encryption_required", data.encryption_required)
                 .log("isEncryptionRequired changes: ->");
 
         updateTopicPolicyByNamespacePolicy(data);
-        disconnectProducersBlockedByIncompatibleSchemaIfStrategyChanged(previousSchemaCompatibilityStrategy);
 
         isEncryptionRequired = data.encryption_required;
         isAllowAutoUpdateSchema = data.is_allow_auto_update_schema;
         isAllowAutoUpdateSchemaWithReplicator = data.is_allow_auto_update_schema_with_replicator;
+        disconnectProducersBlockedByIncompatibleSchemaIfSchemaValidationChanged(previousSchemaCompatibilityStrategy,
+                previousAllowAutoUpdateSchema, previousAllowAutoUpdateSchemaWithReplicator);
 
         List<CompletableFuture<Void>> producerCheckFutures = new ArrayList<>(producers.size());
         producers.values().forEach(producer -> producerCheckFutures.add(
@@ -1232,8 +1235,11 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
             return;
         }
         SchemaCompatibilityStrategy previousSchemaCompatibilityStrategy = getSchemaCompatibilityStrategy();
+        Boolean previousAllowAutoUpdateSchema = isAllowAutoUpdateSchema;
+        Boolean previousAllowAutoUpdateSchemaWithReplicator = isAllowAutoUpdateSchemaWithReplicator;
         updateTopicPolicy(data);
-        disconnectProducersBlockedByIncompatibleSchemaIfStrategyChanged(previousSchemaCompatibilityStrategy);
+        disconnectProducersBlockedByIncompatibleSchemaIfSchemaValidationChanged(previousSchemaCompatibilityStrategy,
+                previousAllowAutoUpdateSchema, previousAllowAutoUpdateSchemaWithReplicator);
     }
 
     /**

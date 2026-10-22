@@ -2239,8 +2239,8 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             switch (trigger) {
                 case DELETE_SCHEMA:
                     admin2.schemas().deleteSchema(topicName);
-                    // Deleted schema versions still participate in FULL compatibility checks. Verify deletion
-                    // triggers the reconnect, then relax the policy so the replication can resume.
+                    // Verify deletion triggers the reconnect. The producer remains blocked until the schema policy
+                    // permits the source schema to be registered again.
                     Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() ->
                             assertThat(replicationProducer.getConnectionHandler().getEpoch())
                                     .isGreaterThan(producerEpoch));
@@ -2297,6 +2297,57 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             waitReplicatorStopped(topicName, false);
             admin1.topics().delete(topicName, true);
             admin2.topics().delete(topicName, true);
+        }
+    }
+
+    @Test(timeOut = 120_000)
+    public void testSchemaCreationReconnectsBlockedPartitionedReplicationProducer() throws Exception {
+        String topicName = BrokerTestUtil.newUniqueName("persistent://"
+                + sourceClusterAlwaysSchemaCompatibleNamespace + "/partitioned-schema-retry-");
+        String partitionName = TopicName.get(topicName).getPartition(0).toString();
+        RecordSchemaBuilder oldKeyBuilder = SchemaBuilder.record("Key");
+        oldKeyBuilder.field("id").type(SchemaType.INT64);
+        RecordSchemaBuilder newKeyBuilder = SchemaBuilder.record("Key");
+        newKeyBuilder.field("game_id").type(SchemaType.INT64);
+        RecordSchemaBuilder compatibleKeyBuilder = SchemaBuilder.record("Key");
+        compatibleKeyBuilder.field("id").type(SchemaType.INT64);
+        compatibleKeyBuilder.field("description").type(SchemaType.STRING).optional();
+        GenericSchema<GenericRecord> oldKey = Schema.generic(oldKeyBuilder.build(SchemaType.AVRO));
+        GenericSchema<GenericRecord> newKey = Schema.generic(newKeyBuilder.build(SchemaType.AVRO));
+        GenericSchema<GenericRecord> compatibleKey =
+                Schema.generic(compatibleKeyBuilder.build(SchemaType.AVRO));
+        Schema<KeyValue<GenericRecord, String>> schema = Schema.KeyValue(newKey, Schema.STRING);
+
+        admin2.topics().createPartitionedTopic(topicName, 1);
+        SchemaCompatibilityStrategy originalNamespaceStrategy =
+                admin2.namespaces().getSchemaCompatibilityStrategy(sourceClusterAlwaysSchemaCompatibleNamespace);
+        admin2.namespaces().setSchemaCompatibilityStrategy(sourceClusterAlwaysSchemaCompatibleNamespace,
+                SchemaCompatibilityStrategy.FULL);
+        admin2.schemas().createSchema(topicName, Schema.KeyValue(oldKey, Schema.STRING).getSchemaInfo());
+        try (Producer<byte[]> producer = client1.newProducer(Schema.AUTO_PRODUCE_BYTES()).topic(topicName)
+                .enableBatching(false).create()) {
+            waitReplicatorStarted(partitionName);
+            PersistentTopic source = (PersistentTopic) broker1.getTopic(partitionName, false).join().orElseThrow();
+            PersistentReplicator replicator = (PersistentReplicator) source.getReplicators().get(cluster2);
+            ProducerImpl<?> replicationProducer = replicator.getProducer();
+            long producerEpoch = replicationProducer.getConnectionHandler().getEpoch();
+            KeyValue<GenericRecord, String> value = new KeyValue<>(
+                    newKey.newRecordBuilder().set("game_id", 1L).build(), "game-1");
+            producer.newMessage(schema).value(value).send();
+            Awaitility.await().untilAsserted(() ->
+                    assertThat(replicator.getCursor().getNumberOfEntriesInBacklog(false)).isEqualTo(1));
+
+            // The REST operation uses the base topic name, while the blocked replication producer is on its partition.
+            admin2.schemas().createSchema(topicName, Schema.KeyValue(compatibleKey, Schema.STRING).getSchemaInfo());
+            Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() ->
+                    assertThat(replicationProducer.getConnectionHandler().getEpoch()).isGreaterThan(producerEpoch));
+        } finally {
+            admin2.namespaces().setSchemaCompatibilityStrategy(sourceClusterAlwaysSchemaCompatibleNamespace,
+                    originalNamespaceStrategy);
+            admin1.topics().setReplicationClusters(topicName, Collections.singletonList(cluster1));
+            waitReplicatorStopped(partitionName, false);
+            admin1.topics().deletePartitionedTopic(topicName, true);
+            admin2.topics().deletePartitionedTopic(topicName, true);
         }
     }
 

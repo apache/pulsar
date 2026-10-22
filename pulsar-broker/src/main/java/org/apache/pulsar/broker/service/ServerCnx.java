@@ -3948,8 +3948,15 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 // schema-state change can be observed synchronously while tryAddSchema is still being invoked.
                 CompletableFuture<Void> inProgressSchemaRegistrationMarker =
                         topic.addInProgressSchemaRegistrationMarker();
-                CompletableFuture<SchemaVersion> schemaVersionFuture =
-                        tryAddSchema(topic, schema, isReplicatorProducer);
+                CompletableFuture<SchemaVersion> schemaVersionFuture;
+                try {
+                    schemaVersionFuture = tryAddSchema(topic, schema, isReplicatorProducer);
+                } catch (Throwable t) {
+                    topic.completeInProgressSchemaRegistrationMarker(inProgressSchemaRegistrationMarker);
+                    commandSender.sendGetOrCreateSchemaErrorResponse(requestId,
+                            BrokerServiceException.getClientErrorCode(t), t.getMessage());
+                    return;
+                }
                 schemaVersionFuture.whenComplete((schemaVersion, ex) -> {
                     if (ex != null) {
                         Throwable cause = FutureUtil.unwrapCompletionException(ex);

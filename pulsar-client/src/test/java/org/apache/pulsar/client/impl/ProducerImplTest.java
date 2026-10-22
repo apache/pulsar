@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.any;
@@ -58,6 +59,7 @@ import java.util.Optional;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.commons.lang3.reflect.FieldUtils;
@@ -377,10 +379,65 @@ public class ProducerImplTest {
         }
     }
 
+    @DataProvider
+    public Object[][] transientSchemaErrors() {
+        return new Object[][] {
+                {new PulsarClientException("registration failed")},
+                {new PulsarClientException.NotSupportedException("unsupported")}
+        };
+    }
+
+    @Test(dataProvider = "transientSchemaErrors")
+    public void testSchemaRegistrationErrorsUseBackoff(PulsarClientException error) {
+        try (SchemaRegistrationFixture fixture = new SchemaRegistrationFixture()) {
+            CompletableFuture<?> blocked = fixture.producer.newMessage(Schema.STRING).value("blocked").sendAsync();
+
+            fixture.requests.get(0).completeExceptionally(error);
+
+            assertThat(fixture.retries).hasSize(1);
+            assertThat(blocked).isNotDone();
+            assertThat(fixture.writes).hasValue(0);
+            fixture.retries.get(0).run();
+            assertThat(fixture.requests).hasSize(2);
+        }
+    }
+
+    @Test
+    public void testSchemaResponseAfterCloseIsIgnored() throws Exception {
+        try (SchemaRegistrationFixture fixture = new SchemaRegistrationFixture()) {
+            CompletableFuture<?> blocked = fixture.producer.newMessage(Schema.STRING).value("blocked").sendAsync();
+            fixture.producer.closeAsync().get(5, TimeUnit.SECONDS);
+
+            fixture.completeSchema(0);
+
+            assertThat(blocked).isCompletedExceptionally();
+            assertEquals(fixture.producer.getState(), HandlerState.State.Closed);
+            assertThat(fixture.writes).hasValue(0);
+            verify(fixture.cnx.channel(), never()).close();
+        }
+    }
+
+    @Test
+    public void testSchemaResponseRecoversAfterPendingMessageFails() {
+        try (SchemaRegistrationFixture fixture = new SchemaRegistrationFixture()) {
+            CompletableFuture<?> expired = fixture.producer.newMessage(Schema.STRING).value("expired").sendAsync();
+            fixture.producer.failPendingMessages(null, new PulsarClientException.TimeoutException("send timed out"));
+            fixture.producer.newMessage().value(new byte[] {1}).sendAsync();
+
+            fixture.completeSchema(0);
+
+            assertThat(expired).isCompletedExceptionally();
+            assertEquals(fixture.producer.getState(), HandlerState.State.Ready);
+            assertThat(fixture.writes).hasValue(1);
+        }
+    }
+
     private static final class SchemaRegistrationFixture implements AutoCloseable {
         private final ClientCnx cnx = mock(ClientCnx.class);
         private final ProducerImpl<byte[]> producer;
         private final List<CompletableFuture<byte[]>> requests = new ArrayList<>();
+        private final List<Runnable> retries = new ArrayList<>();
+        private final AtomicInteger writes = new AtomicInteger();
 
         private SchemaRegistrationFixture() {
             PulsarClientImpl client = mockedPulsarClient();
@@ -396,6 +453,10 @@ public class ProducerImplTest {
                 invocation.<Runnable>getArgument(0).run();
                 return null;
             }).when(eventLoop).execute(any(Runnable.class));
+            doAnswer(invocation -> {
+                retries.add(invocation.getArgument(0));
+                return mock(ScheduledFuture.class);
+            }).when(eventLoop).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
             Channel channel = mock(Channel.class);
             when(channel.eventLoop()).thenReturn(eventLoop);
             ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
@@ -405,10 +466,19 @@ public class ProducerImplTest {
             when(cnx.getRemoteEndpointProtocolVersion()).thenReturn(Commands.getCurrentProtocolVersion());
             doAnswer(invocation -> {
                 ReferenceCountUtil.release(invocation.getArgument(0));
+                writes.incrementAndGet();
+                return null;
+            }).when(ctx).write(any(), any());
+            doAnswer(invocation -> {
+                ReferenceCountUtil.release(invocation.getArgument(0));
                 CompletableFuture<byte[]> response = new CompletableFuture<>();
                 requests.add(response);
                 return response;
             }).when(cnx).sendGetOrCreateSchema(any(), anyLong());
+            doAnswer(invocation -> {
+                ReferenceCountUtil.release(invocation.getArgument(0));
+                return CompletableFuture.completedFuture(null);
+            }).when(cnx).sendRequestWithId(any(), anyLong());
             producer.getConnectionHandler().switchClientCnx(cnx);
             producer.setState(HandlerState.State.Ready);
         }
@@ -416,6 +486,10 @@ public class ProducerImplTest {
         private void rejectSchema() {
             requests.get(0).completeExceptionally(
                     new PulsarClientException.IncompatibleSchemaException("incompatible key schema"));
+        }
+
+        private void completeSchema(int requestIndex) {
+            requests.get(requestIndex).complete(new byte[] {1});
         }
 
         @Override

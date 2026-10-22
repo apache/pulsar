@@ -851,9 +851,13 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
                 .forEach(Producer::disconnect);
     }
 
-    protected void disconnectProducersBlockedByIncompatibleSchemaIfStrategyChanged(
-            SchemaCompatibilityStrategy previousStrategy) {
-        if (previousStrategy != getSchemaCompatibilityStrategy()) {
+    protected void disconnectProducersBlockedByIncompatibleSchemaIfSchemaValidationChanged(
+            SchemaCompatibilityStrategy previousStrategy, Boolean previousAllowAutoUpdateSchema,
+            Boolean previousAllowAutoUpdateSchemaWithReplicator) {
+        if (previousStrategy != getSchemaCompatibilityStrategy()
+                || !Objects.equals(previousAllowAutoUpdateSchema, isAllowAutoUpdateSchema)
+                || !Objects.equals(previousAllowAutoUpdateSchemaWithReplicator,
+                        isAllowAutoUpdateSchemaWithReplicator)) {
             disconnectProducersBlockedByIncompatibleSchema();
         }
     }

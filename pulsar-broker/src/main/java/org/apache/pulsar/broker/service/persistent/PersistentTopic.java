@@ -4084,6 +4084,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     public CompletableFuture<Void> onPoliciesUpdate(@NonNull Policies data) {
         requireNonNull(data);
         SchemaCompatibilityStrategy previousSchemaCompatibilityStrategy = getSchemaCompatibilityStrategy();
+        Boolean previousAllowAutoUpdateSchema = isAllowAutoUpdateSchema;
+        Boolean previousAllowAutoUpdateSchemaWithReplicator = isAllowAutoUpdateSchemaWithReplicator;
         log.debug()
                 .attr("isEncryptionRequired", isEncryptionRequired)
                 .attr("encryption_required", data.encryption_required)
@@ -4097,11 +4099,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         // The component "EntryFilters" is update in the method "updateTopicPolicyByNamespacePolicy(data)".
         //   see more detail: https://github.com/apache/pulsar/pull/19364.
         updateTopicPolicyByNamespacePolicy(data);
-        disconnectProducersBlockedByIncompatibleSchemaIfStrategyChanged(previousSchemaCompatibilityStrategy);
         checkReplicatedSubscriptionControllerState();
         isEncryptionRequired = data.encryption_required;
         isAllowAutoUpdateSchema = data.is_allow_auto_update_schema;
         isAllowAutoUpdateSchemaWithReplicator = data.is_allow_auto_update_schema_with_replicator;
+        disconnectProducersBlockedByIncompatibleSchemaIfSchemaValidationChanged(previousSchemaCompatibilityStrategy,
+                previousAllowAutoUpdateSchema, previousAllowAutoUpdateSchemaWithReplicator);
 
         // Apply policies for components.
         List<CompletableFuture<Void>> applyPolicyTasks = applyUpdatedTopicPolicies();
@@ -5445,11 +5448,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return;
         }
         SchemaCompatibilityStrategy previousSchemaCompatibilityStrategy = getSchemaCompatibilityStrategy();
+        Boolean previousAllowAutoUpdateSchema = isAllowAutoUpdateSchema;
+        Boolean previousAllowAutoUpdateSchemaWithReplicator = isAllowAutoUpdateSchemaWithReplicator;
         // Update props.
         // The component "EntryFilters" is update in the method "updateTopicPolicy(data)".
         //   see more detail: https://github.com/apache/pulsar/pull/19364.
         updateTopicPolicy(policies);
-        disconnectProducersBlockedByIncompatibleSchemaIfStrategyChanged(previousSchemaCompatibilityStrategy);
+        disconnectProducersBlockedByIncompatibleSchemaIfSchemaValidationChanged(previousSchemaCompatibilityStrategy,
+                previousAllowAutoUpdateSchema, previousAllowAutoUpdateSchemaWithReplicator);
         shadowTopics = policies.getShadowTopics();
         checkReplicatedSubscriptionControllerState();
 
