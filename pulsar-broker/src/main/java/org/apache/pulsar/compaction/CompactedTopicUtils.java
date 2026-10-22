@@ -50,7 +50,8 @@ public class CompactedTopicUtils {
      * <p>Positions up to the compaction horizon are read from the compacted ledger, later positions from the
      * original ledger. A reader that has already moved on to the original ledger must stay there even when a later
      * compaction moves the horizon past its read position, or it would skip the messages compaction removed since,
-     * tombstones included.
+     * tombstones included. As in the original ledger, the entries that the cursor acknowledged individually are
+     * skipped.
      *
      * @param originalLedgerReadPosition the position from which this reader has been reading the original ledger,
      *                                   or {@code null}. Positions at or after it are read from the original ledger
@@ -129,13 +130,15 @@ public class CompactedTopicUtils {
                             }
                         }
 
+                        Position nextPosition = result.get(result.size() - 1).getPosition().getNext();
+                        result = removeIndividuallyAcknowledged(cursor, result);
+
                         long entriesSize = 0;
                         for (Entry entry : result) {
                             entriesSize += entry.getLength();
                         }
                         cursor.updateReadStats(result.size(), entriesSize);
 
-                        Position nextPosition = result.get(result.size() - 1).getPosition().getNext();
                         cursor.seek(nextPosition, true);
                         notifyIfPastHorizon(nextPosition, lastCompactedPosition, onOriginalLedgerRead);
                         return result;
@@ -151,6 +154,23 @@ public class CompactedTopicUtils {
         } else {
             return readEntries(cursor, maxEntries, bytesToRead, maxReadPosition);
         }
+    }
+
+    // Unlike the reads of the original ledger, the reads of the compacted ledger don't skip the entries that the
+    // subscription acknowledged individually. The entries up to the mark-delete position stay: a read from the
+    // earliest position, such as the compactor's, must return them.
+    private static List<Entry> removeIndividuallyAcknowledged(ManagedCursor cursor, List<Entry> entries) {
+        Position markDeletePosition = cursor.getMarkDeletedPosition();
+        List<Entry> result = new ArrayList<>(entries.size());
+        for (Entry entry : entries) {
+            if (cursor.isMessageDeleted(entry.getPosition())
+                    && entry.getPosition().compareTo(markDeletePosition) > 0) {
+                entry.release();
+            } else {
+                result.add(entry);
+            }
+        }
+        return result;
     }
 
     // The snapshot ends when the cursor moves past the horizon: the next read goes to the original ledger.
