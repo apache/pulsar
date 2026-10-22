@@ -33,6 +33,10 @@ plugins {
 // bundled in each NAR that uses it (e.g., IOConfigUtils).
 val pulsarPlatformModules = setOf(
     "pulsar-client-api",
+    "pulsar-client-api-v5",
+    "pulsar-client-v5",
+    "pulsar-tls-factory-api",
+    "pulsar-http-client-api",
     "pulsar-client-admin-api",
     "pulsar-client-original",
     "pulsar-client",

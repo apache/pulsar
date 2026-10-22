@@ -235,6 +235,12 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
                             } catch (InterruptedException e) {
                             }
                         }
+                        CompletableFuture<Void> responseGate = bk.getNextAddEntryResponseGate();
+                        if (responseGate != null) {
+                            responseGate.thenRunAsync(() -> cb.addComplete(BKException.Code.OK,
+                                    PulsarMockLedgerHandle.this, entryId, ctx), bk.executor);
+                            return;
+                        }
                         cb.addComplete(BKException.Code.OK, PulsarMockLedgerHandle.this, entryId, ctx);
                     }
                 }, bk.executor);

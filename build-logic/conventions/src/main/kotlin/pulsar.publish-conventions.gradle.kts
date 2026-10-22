@@ -63,6 +63,16 @@ pluginManager.withPlugin("java-library") {
     val mavenPublication = publishing.publications.create<MavenPublication>("maven") {
         artifact(sourcesJar)
         artifact(javadocJar)
+        // Preserve the test JAR publications from the branch-4.2 Maven build in both modes.
+        if (project.path in setOf(
+                ":managed-ledger",
+                ":pulsar-broker",
+                ":pulsar-broker-common",
+                ":pulsar-metadata",
+                ":pulsar-package-management:pulsar-package-core",
+            )) {
+            artifact(tasks.named("testJar"))
+        }
     }
 
     // Shaded modules: the shadow plugin registers components["shadow"] in its own afterEvaluate, so

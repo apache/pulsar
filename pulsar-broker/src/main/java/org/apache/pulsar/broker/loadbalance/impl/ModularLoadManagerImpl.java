@@ -34,6 +34,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -188,6 +189,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     private Map<String, String> bundleBrokerAffinityMap;
     // array used for sorting and select topK bundles
     private final List<Map.Entry<String, ? extends Comparable>> bundleArr = new ArrayList<>();
+    // The callbacks that unregister the listeners of the metadata store
+    private final List<Runnable> metadataStoreListenerCleanups = new CopyOnWriteArrayList<>();
 
 
     /**
@@ -231,8 +234,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         this.pulsar = pulsar;
         this.pulsarResources = pulsar.getPulsarResources();
         brokersData = pulsar.getCoordinationService().getLockManager(LocalBrokerData.class);
-        pulsar.getLocalMetadataStore().registerListener(this::handleDataNotification);
-        pulsar.getLocalMetadataStore().registerSessionListener(this::handleMetadataSessionEvent);
+        metadataStoreListenerCleanups.add(
+                pulsar.getLocalMetadataStore().registerCancellableListener(this::handleDataNotification));
+        metadataStoreListenerCleanups.add(
+                pulsar.getLocalMetadataStore().registerCancellableSessionListener(this::handleMetadataSessionEvent));
 
         if (SystemUtils.IS_OS_LINUX) {
             brokerHostUsage = new LinuxBrokerHostUsageImpl(pulsar);
@@ -250,7 +255,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         defaultStats.msgRateIn = DEFAULT_MESSAGE_RATE;
         defaultStats.msgRateOut = DEFAULT_MESSAGE_RATE;
 
-        placementStrategy = ModularLoadManagerStrategy.create(conf);
+        final LoadBalanceStrategies strategies = createLoadBalanceStrategies(conf);
+        placementStrategy = strategies.placementStrategy();
+        loadSheddingStrategy = strategies.loadSheddingStrategy();
         sheddingExcludedNamespaceSelectionStrategy = new RoundRobinBrokerSelector();
         policies = new SimpleResourceAllocationPolicies(pulsar);
         filterPipeline.add(new BrokerLoadManagerClassFilter());
@@ -258,27 +265,58 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
         LoadManagerShared.refreshBrokerToFailureDomainMap(pulsar, brokerToFailureDomainMap);
         // register listeners for domain changes
-        pulsarResources.getClusterResources().getFailureDomainResources()
-                .registerListener(__ -> {
+        metadataStoreListenerCleanups.add(pulsarResources.getClusterResources().getFailureDomainResources()
+                .registerCancellableListener(__ -> {
                     executors.execute(
                             () -> LoadManagerShared.refreshBrokerToFailureDomainMap(pulsar, brokerToFailureDomainMap));
-                });
+                }));
+    }
 
+    /**
+     * The placement strategy and the load shedding strategy resolved from the configuration.
+     */
+    record LoadBalanceStrategies(ModularLoadManagerStrategy placementStrategy,
+                                 LoadSheddingStrategy loadSheddingStrategy) {
+    }
+
+    /**
+     * Creates the placement and the load shedding strategy from the configuration and pairs them.
+     * <p>
+     * A placement strategy that is also a load shedding strategy (AvgShedder, the default) plans the destination of
+     * every bundle it unloads, so it is only used when the same class is configured as the shedding strategy. If a
+     * different shedding strategy is configured explicitly, the configured shedder is kept and placement falls back
+     * to {@link LeastLongTermMessageRate}, the default placement strategy before AvgShedder, so configurations that
+     * only set {@code loadBalancerLoadSheddingStrategy} keep the behavior they had.
+     */
+    @VisibleForTesting
+    static LoadBalanceStrategies createLoadBalanceStrategies(ServiceConfiguration conf) {
+        ModularLoadManagerStrategy placementStrategy = ModularLoadManagerStrategy.create(conf);
         if (placementStrategy instanceof LoadSheddingStrategy) {
-            // if the placement strategy is also a load shedding strategy
-            // we need to check two strategies are the same
-            if (!conf.getLoadBalancerLoadSheddingStrategy().equals(
-                    conf.getLoadBalancerLoadPlacementStrategy())) {
-                throw new IllegalArgumentException("The load shedding strategy: "
-                        + conf.getLoadBalancerLoadSheddingStrategy()
-                        + " can't work with the placement strategy: "
-                        + conf.getLoadBalancerLoadPlacementStrategy());
+            if (conf.getLoadBalancerLoadSheddingStrategy().equals(conf.getLoadBalancerLoadPlacementStrategy())) {
+                // bind the load shedding strategy and the placement strategy
+                return new LoadBalanceStrategies(placementStrategy, (LoadSheddingStrategy) placementStrategy);
             }
-            // bind the load shedding strategy and the placement strategy
-            loadSheddingStrategy = (LoadSheddingStrategy) placementStrategy;
-        } else {
-            loadSheddingStrategy = createLoadSheddingStrategy();
+            log.warn()
+                    .attr("sheddingStrategy", conf.getLoadBalancerLoadSheddingStrategy())
+                    .attr("placementStrategy", conf.getLoadBalancerLoadPlacementStrategy())
+                    .attr("fallbackPlacementStrategy", LeastLongTermMessageRate.class.getName())
+                    .log("The configured load shedding strategy cannot be paired with the placement strategy,"
+                            + " which requires the same class as the shedding strategy. Using the fallback"
+                            + " placement strategy instead. Set loadBalancerLoadPlacementStrategy explicitly"
+                            + " to choose the placement strategy");
+            return new LoadBalanceStrategies(new LeastLongTermMessageRate(), createLoadSheddingStrategy(conf));
         }
+        LoadSheddingStrategy loadSheddingStrategy = createLoadSheddingStrategy(conf);
+        if (loadSheddingStrategy instanceof ModularLoadManagerStrategy) {
+            log.warn()
+                    .attr("sheddingStrategy", conf.getLoadBalancerLoadSheddingStrategy())
+                    .attr("placementStrategy", conf.getLoadBalancerLoadPlacementStrategy())
+                    .log("The load shedding strategy also implements bundle placement but a different"
+                            + " placement strategy is configured; bundles it unloads are placed by the"
+                            + " configured placement strategy, not where the shedder planned them. Set"
+                            + " loadBalancerLoadPlacementStrategy to the same class to pair them");
+        }
+        return new LoadBalanceStrategies(placementStrategy, loadSheddingStrategy);
     }
 
     public void handleDataNotification(Notification t) {
@@ -328,7 +366,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         return lastMetadataSessionEvent != null && lastMetadataSessionEvent.isConnected();
     }
 
-    private LoadSheddingStrategy createLoadSheddingStrategy() {
+    private static LoadSheddingStrategy createLoadSheddingStrategy(ServiceConfiguration conf) {
         return Reflections.createInstance(conf.getLoadBalancerLoadSheddingStrategy(), LoadSheddingStrategy.class,
                 Thread.currentThread().getContextClassLoader());
     }
@@ -1127,6 +1165,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
      */
     @Override
     public void stop() throws PulsarServerException {
+        metadataStoreListenerCleanups.forEach(Runnable::run);
+        metadataStoreListenerCleanups.clear();
         executors.shutdownNow();
 
         try {

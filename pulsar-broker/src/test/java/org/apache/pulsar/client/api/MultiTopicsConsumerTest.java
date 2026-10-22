@@ -18,11 +18,6 @@
  */
 package org.apache.pulsar.client.api;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
@@ -40,7 +35,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -58,12 +54,11 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.util.ScheduledExecutorProvider;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.utils.TestLogAppender;
 import org.awaitility.Awaitility;
-import org.mockito.AdditionalAnswers;
-import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -72,8 +67,6 @@ import org.testng.annotations.Test;
 @CustomLog
 @Test(groups = "broker")
 public class MultiTopicsConsumerTest extends SharedPulsarBaseTest {
-    private ScheduledExecutorService internalExecutorServiceDelegate;
-
     protected String methodName;
 
     @BeforeMethod(alwaysRun = true)
@@ -90,23 +83,22 @@ public class MultiTopicsConsumerTest extends SharedPulsarBaseTest {
         ClientConfigurationData conf = ((ClientBuilderImpl) PulsarClient.builder().serviceUrl(getBrokerServiceUrl()))
                 .getClientConfigurationData();
 
-        @Cleanup
-        PulsarClientImpl client = new PulsarClientImpl(conf) {
-            {
-                ScheduledExecutorService internalExecutorService =
-                        (ScheduledExecutorService) super.getScheduledExecutorProvider().getExecutor();
-                internalExecutorServiceDelegate = mock(ScheduledExecutorService.class,
-                        // a spy isn't used since that doesn't work for private classes, instead
-                        // the mock delegatesTo an existing instance. A delegate is sufficient for verifying
-                        // method calls on the interface.
-                        Mockito.withSettings().defaultAnswer(AdditionalAnswers.delegatesTo(internalExecutorService)));
-            }
-
+        AtomicInteger schedulingOperations = new AtomicInteger();
+        @Cleanup("shutdownNow")
+        ScheduledExecutorProvider scheduledExecutors = new ScheduledExecutorProvider(1, "multi-topics-test") {
             @Override
-            public ExecutorService getInternalExecutorService() {
-                return internalExecutorServiceDelegate;
+            protected ExecutorService createExecutor(ExtendedThreadFactory threadFactory) {
+                return new ScheduledThreadPoolExecutor(1, threadFactory) {
+                    @Override
+                    public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
+                        schedulingOperations.incrementAndGet();
+                        return super.schedule(command, delay, unit);
+                    }
+                };
             }
         };
+        @Cleanup
+        PulsarClientImpl client = new PulsarClientImpl(conf, null, null, null, null, null, scheduledExecutors);
         @Cleanup
         Producer<byte[]> producer1 = client.newProducer()
                 .topic(topicNameBase + "1")
@@ -140,8 +132,7 @@ public class MultiTopicsConsumerTest extends SharedPulsarBaseTest {
         Thread.sleep(1000L);
 
         // then verify that no scheduling operation has happened
-        verify(internalExecutorServiceDelegate, times(0))
-                .schedule(any(Runnable.class), anyLong(), any());
+        assertEquals(schedulingOperations.get(), 0);
     }
     @SuppressWarnings({"deprecation", "unchecked"})
 

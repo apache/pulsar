@@ -2,8 +2,7 @@
 
 - **Status**: Proposed
 - **Author**: [David Kjerrumgaard](https://github.com/orgs/streamlio/people/david-streamlio)
-- **Pull Request**: -
-- **Mailing List discussion**:
+- **Mailing List discussion**: https://lists.apache.org/thread/56gv90gcfj54yd1jq73qm8jxf297vw79
 
 I am proposing the creation of a lightweight, small-resource footprint software component that can be deployed on “edge” devices such as IoT Gateway boxes or similar. Target environment resource specifications are; 1 CPUs, 1 GB RAM, 4GB Flash storage, and a 1 Gbps NIC.
 

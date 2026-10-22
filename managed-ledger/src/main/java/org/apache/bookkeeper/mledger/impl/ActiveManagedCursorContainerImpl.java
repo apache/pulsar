@@ -387,8 +387,10 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
                 return;
             }
             if (newPosition == null) {
-                pendingRemovedCursors.put(cursor.getName(), node);
-                node.pendingRemove = true;
+                if (node.position != null) {
+                    pendingRemovedCursors.put(cursor.getName(), node);
+                    node.pendingRemove = true;
+                }
                 node.pendingPosition = null;
             } else {
                 if (node.pendingRemove) {
@@ -431,6 +433,7 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
         if (!pendingRemovedCursors.isEmpty()) {
             for (Node node : pendingRemovedCursors.values()) {
                 removeNodeFromList(node);
+                node.position = null;
                 node.pendingRemove = false;
             }
             pendingRemovedCursors.clear();
@@ -481,7 +484,12 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
                 node.position = node.pendingPosition;
                 node.pendingPosition = null;
             }
-            if (node.position != null && !node.pendingRemove) {
+            if (node.pendingRemove) {
+                // Untracked cursors stay in the map and may later be inserted incrementally.
+                node.position = null;
+                node.prev = null;
+                node.next = null;
+            } else if (node.position != null) {
                 activeNodes.add(node);
                 trackedNodeCount++;
             }
@@ -857,6 +865,29 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
                 return 0;
             }
             return node.numberOfCursorsAtSamePositionOrBefore.intValue();
+        } finally {
+            rwLock.unlockWrite(stamp);
+        }
+    }
+
+    @Override
+    public int getNumberOfCursorsAtPositionOrBefore(ManagedCursor from, Position position) {
+        long stamp = rwLock.writeLock();
+        try {
+            processPendingPositions();
+            // The nodes are sorted by position, and the nodes at the same position share the count of the cursors at
+            // their position or before: walk from the given cursor's node when it's at the position or before it,
+            // usually past few nodes, instead of from the head
+            Node start = from != null ? cursors.get(from.getName()) : null;
+            if (start == null || start.position == null || start.position.compareTo(position) > 0) {
+                start = head;
+            }
+            int count = 0;
+            for (Node current = start; current != null && current.position.compareTo(position) <= 0;
+                 current = current.next) {
+                count = current.numberOfCursorsAtSamePositionOrBefore.intValue();
+            }
+            return count;
         } finally {
             rwLock.unlockWrite(stamp);
         }

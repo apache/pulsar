@@ -178,8 +178,11 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
         if (STATE_UPDATER.compareAndSet(OpAddEntry.this, State.OPEN, State.INITIATED)) {
             addOpCount = ManagedLedgerImpl.ADD_OP_COUNT_UPDATER.incrementAndGet(ml);
             lastInitTime = System.nanoTime();
-            //Use entryId in PublishContext and call addComplete directly.
-            this.addComplete(BKException.Code.OK, ledger, ((Position) ctx).getEntryId(), addOpCount);
+            // Use the entryId from the PublishContext. This runs inside the shadow ledger's own synchronized add
+            // path, so the completion is queued on the ledger thread instead of calling addComplete directly:
+            // run() reaches topic-level locks through the AddEntryCallback and must not execute under the monitor.
+            long entryId = ((Position) ctx).getEntryId();
+            ml.getExecutor().execute(() -> addComplete(BKException.Code.OK, ledger, entryId, addOpCount));
         } else {
             log.warn().attr("managedLedger", ml.getName())
                     .attr("state", state)
@@ -240,8 +243,9 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
         if (rc != BKException.Code.OK || timeoutTriggered.get()) {
             handleAddFailure(lh, rc);
         } else {
-            // Trigger addComplete callback in a thread hashed on the managed ledger name
-            ml.getExecutor().execute(this);
+            // Complete on the managed ledger thread. The ledger callbacks are pinned to that thread, so this normally
+            // runs inline instead of going through the executor queue.
+            ml.getExecutor().executeOrRun(this);
         }
     }
 
@@ -270,7 +274,8 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
 
         // Handle caching for tailing reads
         if (ml.shouldCacheAddedEntry()) {
-            int expectedReadCount = 0;
+            // no read count handler, unless the cache evicts entries by their expected read count
+            int expectedReadCount = EntryImpl.NO_EXPECTED_READ_COUNT;
             // only use expectedReadCount if cache eviction is enabled by expected read count
             if (ml.getConfig().isCacheEvictionByExpectedReadCount()) {
                 // use the number of active cursors as the expected read count
@@ -297,7 +302,10 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
             }
         } else {
             updateLatency();
+            ManagedLedgerImpl ml = this.ml;
+            // Recycles this op
             completeAdd(lastEntry, ctx);
+            ml.failAddsQueuedAfterTermination();
         }
     }
 

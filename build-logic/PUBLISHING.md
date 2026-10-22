@@ -30,6 +30,13 @@ By default (`publishApiAndSpiOnly` unset or `false`), Gradle publishes the modul
 publishing conventions, including the root `pulsar` parent POM and the full `pulsar-bom`. The
 repository's `gradle.properties` supplies the default group (`org.apache.pulsar`) and version.
 
+As in the `branch-4.2` Maven build, publications for `managed-ledger`, `pulsar-broker`,
+`pulsar-broker-common`, `pulsar-metadata`, and `pulsar-package-core` include a `tests` classifier
+JAR. These test JARs are published in both ordinary and API/SPI mode. In Maven,
+`<type>test-jar</type>` and `<classifier>tests</classifier>` refer to the same test JAR; declare
+only one dependency per module. Test JARs share their module's POM and do not expose its test
+dependencies transitively, so consumers must declare any additional test dependencies they need.
+
 Choose the task for the intended destination:
 
 | Task | Destination | Version requirement |
@@ -221,6 +228,9 @@ API/SPI publication provides the Maven dependencies needed by applications using
 client, Pulsar Functions, and Pulsar plugins such as interceptors and additional servlets. The set
 includes the client implementations (including v5), API and service provider interface (SPI)
 libraries, and their transitive Pulsar dependencies.
+
+The selection also includes the `buildtools` JAR and all five test JAR publications described
+above to support external tests.
 
 A typical use case is distributing a custom Pulsar Java client build to your own Maven repository
 so applications can quickly adopt a bug fix or security fix in Pulsar itself. Publishing this subset

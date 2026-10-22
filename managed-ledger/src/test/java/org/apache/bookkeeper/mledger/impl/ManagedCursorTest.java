@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static org.apache.bookkeeper.mledger.impl.EntryCountEstimator.estimateEntryCountByBytesSize;
 import static org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl.BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultConfig;
 import static org.apache.bookkeeper.mledger.util.ManagedLedgerUtils.NO_MAX_SIZE_LIMIT;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -66,6 +67,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
@@ -85,6 +87,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -104,6 +107,7 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.impl.OpenBuilderBase;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
+import org.apache.bookkeeper.common.util.ThreadBoundExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
@@ -128,6 +132,7 @@ import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.PositionInfo;
 import org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil;
 import org.apache.bookkeeper.mledger.util.ManagedLedgerUtils;
+import org.apache.bookkeeper.mledger.util.MockClock;
 import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.commons.collections4.iterators.EmptyIterator;
@@ -171,7 +176,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testCloseCursor() throws Exception {
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = defaultConfig();
         config.setMaxUnackedRangesToPersistInMetadataStore(0);
         config.setThrottleMarkDelete(0);
         ManagedLedger ledger = factory.open("my_test_ledger", config);
@@ -193,7 +198,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testRepeatCloseCursor() throws Exception {
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = defaultConfig();
         config.setMaxUnackedRangesToPersistInMetadataStore(0);
         config.setThrottleMarkDelete(0);
         ManagedLedger ledger = factory.open("my_test_ledger", config);
@@ -208,7 +213,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testOpenCursorWithNullInitialPosition() throws Exception {
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = defaultConfig();
         ManagedLedger ledger = factory.open("testOpenCursorWithNullInitialPosition", config);
         // Write some data.
         ledger.addEntry(new byte[]{1});
@@ -224,7 +229,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testConcurrentPropertyOperationsThreadSafety() throws Exception {
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = defaultConfig();
         ManagedLedger ledger = factory.open("testConcurrentPropertyOperationsThreadSafety", config);
         ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c_concurrent", null);
 
@@ -339,7 +344,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void readFromEmptyLedger() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
 
         ManagedCursor c1 = ledger.openCursor("c1");
         List<Entry> entries = c1.readEntries(10);
@@ -361,7 +366,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void readTwice() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(1));
+        ManagedLedger ledger = factory.open("my_test_ledger", defaultConfig().setMaxEntriesPerLedger(1));
 
         ManagedCursor c1 = ledger.openCursor("c1");
         ManagedCursor c2 = ledger.openCursor("c2");
@@ -392,7 +397,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         final String cursorName = "c1";
         final String mlName = "ml_test";
         // Avoid creating new empty ledger after the last ledger is full and remove fail future.
-        final ManagedLedgerConfig mlConfig = new ManagedLedgerConfig().setMaxEntriesPerLedger(2);
+        final ManagedLedgerConfig mlConfig = defaultConfig().setMaxEntriesPerLedger(2);
         ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(mlName, mlConfig);
 
         ManagedCursor cursor = ml.openCursor("c1");
@@ -429,7 +434,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     void testSwitchLedgerFailed() throws Exception {
         final String cursorName = "c1";
         final String mlName = UUID.randomUUID().toString().replaceAll("-", "");
-        final ManagedLedgerConfig mlConfig = new ManagedLedgerConfig();
+        final ManagedLedgerConfig mlConfig = defaultConfig();
         mlConfig.setMaxEntriesPerLedger(1);
         mlConfig.setMetadataMaxEntriesPerLedger(1);
         mlConfig.setThrottleMarkDelete(Double.MAX_VALUE);
@@ -472,7 +477,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         final int entryCount = 10;
         final String cursorName = "c1";
         final String mlName = "ml_test";
-        final ManagedLedgerConfig mlConfig = new ManagedLedgerConfig().setMaxEntriesPerLedger(1);
+        final ManagedLedgerConfig mlConfig = defaultConfig().setMaxEntriesPerLedger(1);
         ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(mlName, mlConfig);
 
         final ManagedCursorImpl cursor = (ManagedCursorImpl) ml.openCursor(cursorName);
@@ -534,7 +539,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         @Cleanup("shutdown")
         ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc, config);
-        ManagedLedger ledger = factory2.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(1));
+        ManagedLedger ledger = factory2.open("my_test_ledger", defaultConfig().setMaxEntriesPerLedger(1));
 
         ManagedCursor c1 = ledger.openCursor("c1");
         ManagedCursor c2 = ledger.openCursor("c2");
@@ -563,7 +568,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void getEntryDataTwice() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
 
         ManagedCursor c1 = ledger.openCursor("c1");
 
@@ -582,7 +587,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void readFromClosedLedger() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(1));
+        ManagedLedger ledger = factory.open("my_test_ledger", defaultConfig().setMaxEntriesPerLedger(1));
 
         ManagedCursor c1 = ledger.openCursor("c1");
 
@@ -598,7 +603,11 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void testNumberOfEntries() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(2));
+        ManagedLedger ledger = factory.open("my_test_ledger", defaultConfig().setMaxEntriesPerLedger(2));
+
+        ManagedCursor c0 = ledger.openCursor("c0");
+        assertEquals(c0.getNumberOfEntries(), 0);
+        assertFalse(c0.hasMoreEntries());
 
         ManagedCursor c1 = ledger.openCursor("c1");
         ledger.addEntry("dummy-entry-1".getBytes(Encoding));
@@ -634,7 +643,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void testNumberOfEntriesInBacklog() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(2));
+        ManagedLedger ledger = factory.open("my_test_ledger", defaultConfig().setMaxEntriesPerLedger(2));
 
         ManagedCursor c1 = ledger.openCursor("c1");
         Position p1 = ledger.addEntry("dummy-entry-1".getBytes(Encoding));
@@ -675,7 +684,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void testNumberOfEntriesInBacklogWithFallback() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(2));
+        ManagedLedger ledger = factory.open("my_test_ledger", defaultConfig().setMaxEntriesPerLedger(2));
 
         ManagedCursor c1 = ledger.openCursor("c1");
         ledger.addEntry("dummy-entry-1".getBytes(Encoding));
@@ -705,7 +714,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void testNumberOfEntriesWithReopen() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(1));
+        ManagedLedger ledger = factory.open("my_test_ledger", defaultConfig().setMaxEntriesPerLedger(1));
 
         ManagedCursor c1 = ledger.openCursor("c1");
         ledger.addEntry("dummy-entry-1".getBytes(Encoding));
@@ -717,7 +726,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         // Add retry logic here to prove open operation will finally success despite race condition.
         ledger = ManagedLedgerTestUtil.retry(
-                () -> factory2.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(1)));
+                () -> factory2.open("my_test_ledger", defaultConfig().setMaxEntriesPerLedger(1)));
 
 
         c1 = ledger.openCursor("c1");
@@ -736,7 +745,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void asyncReadWithoutErrors() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
         ManagedCursor cursor = ledger.openCursor("c1");
 
         ledger.addEntry("dummy-entry-1".getBytes(Encoding));
@@ -764,7 +773,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void asyncReadWithErrors() throws Exception {
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger");
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger",
+                initManagedLedgerConfig(defaultConfig()));
         ManagedCursor cursor = ledger.openCursor("c1");
 
         ledger.addEntry("dummy-entry-1".getBytes(Encoding));
@@ -814,7 +824,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000, expectedExceptions = IllegalArgumentException.class)
     void asyncReadWithInvalidParameter() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
         ManagedCursor cursor = ledger.openCursor("c1");
 
         ledger.addEntry("dummy-entry-1".getBytes(Encoding));
@@ -841,7 +851,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void testAsyncReadWithMaxSizeByte() throws Exception {
-        ManagedLedger ledger = factory.open("testAsyncReadWithMaxSizeByte");
+        ManagedLedger ledger = factory.open("testAsyncReadWithMaxSizeByte", initManagedLedgerConfig(defaultConfig()));
         ManagedCursor cursor = ledger.openCursor("c1");
 
         for (int i = 0; i < 100; i++) {
@@ -879,7 +889,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void markDeleteWithErrors() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
         ManagedCursor cursor = ledger.openCursor("c1");
         ledger.addEntry("dummy-entry-1".getBytes(Encoding));
         List<Entry> entries = cursor.readEntries(100);
@@ -897,7 +907,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void markDeleteWithZKErrors() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
         ManagedCursor cursor = ledger.openCursor("c1");
         ledger.addEntry("dummy-entry-1".getBytes(Encoding));
         List<Entry> entries = cursor.readEntries(100);
@@ -919,7 +929,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void markDeleteAcrossLedgers() throws Exception {
-        ManagedLedger ml1 = factory.open("my_test_ledger");
+        ManagedLedger ml1 = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
         ManagedCursor mc1 = ml1.openCursor("c1");
 
         // open ledger id 3 for ml1
@@ -932,7 +942,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         // force removal of this ledger from the cache
         factory.close(ml1);
 
-        ManagedLedger ml2 = factory.open("my_test_ledger");
+        ManagedLedger ml2 = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
         ManagedCursor mc2 = ml2.openCursor("c1");
 
         // open ledger id 5 for ml2
@@ -954,7 +964,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     @Test(timeOut = 20000)
     void testResetCursor() throws Exception {
         ManagedLedger ledger = factory.open("my_test_move_cursor_ledger",
-                new ManagedLedgerConfig().setMaxEntriesPerLedger(10));
+                defaultConfig().setMaxEntriesPerLedger(10));
         ManagedCursor cursor = ledger.openCursor("trc1");
         ledger.addEntry("dummy-entry-1".getBytes(Encoding));
         ledger.addEntry("dummy-entry-2".getBytes(Encoding));
@@ -978,7 +988,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     @Test(timeOut = 20000)
     void testResetCursor1() throws Exception {
         ManagedLedger ledger = factory.open("my_test_move_cursor_ledger",
-                new ManagedLedgerConfig().setMaxEntriesPerLedger(2));
+                defaultConfig().setMaxEntriesPerLedger(2));
         ManagedCursor cursor = ledger.openCursor("trc1");
         Position actualEarliest = ledger.addEntry("dummy-entry-1".getBytes(Encoding));
         ledger.addEntry("dummy-entry-2".getBytes(Encoding));
@@ -1051,7 +1061,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     @Test(timeOut = 20000)
     void testasyncResetCursor() throws Exception {
         ManagedLedger ledger = factory.open("my_test_move_cursor_ledger",
-                new ManagedLedgerConfig().setMaxEntriesPerLedger(10));
+                defaultConfig().setMaxEntriesPerLedger(10));
         ManagedCursor cursor = ledger.openCursor("tarc1");
         ledger.addEntry("dummy-entry-1".getBytes(Encoding));
         ledger.addEntry("dummy-entry-2".getBytes(Encoding));
@@ -1083,7 +1093,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void testConcurrentResetCursor() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_concurrent_move_ledger");
+        ManagedLedger ledger = factory.open("my_test_concurrent_move_ledger",
+                initManagedLedgerConfig(defaultConfig()));
 
         final int messages = 100;
         final int consumers = 5;
@@ -1148,7 +1159,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void testLastActiveAfterResetCursor() throws Exception {
-        ManagedLedger ledger = factory.open("test_cursor_ledger");
+        ManagedLedger ledger = factory.open("test_cursor_ledger", initManagedLedgerConfig(defaultConfig()));
         ManagedCursor cursor = ledger.openCursor("tla");
 
         Position lastPosition = null;
@@ -1192,7 +1203,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void seekPosition() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(10));
+        ManagedLedger ledger = factory.open("my_test_ledger", defaultConfig().setMaxEntriesPerLedger(10));
         ManagedCursor cursor = ledger.openCursor("c1");
         ledger.addEntry("dummy-entry-1".getBytes(Encoding));
         ledger.addEntry("dummy-entry-2".getBytes(Encoding));
@@ -1204,7 +1215,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void seekPosition2() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(2));
+        ManagedLedger ledger = factory.open("my_test_ledger", defaultConfig().setMaxEntriesPerLedger(2));
         ManagedCursor cursor = ledger.openCursor("c1");
         ledger.addEntry("dummy-entry-1".getBytes(Encoding));
         ledger.addEntry("dummy-entry-2".getBytes(Encoding));
@@ -1218,7 +1229,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void seekPosition3() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(2));
+        ManagedLedger ledger = factory.open("my_test_ledger", defaultConfig().setMaxEntriesPerLedger(2));
         ManagedCursor cursor = ledger.openCursor("c1");
         ledger.addEntry("dummy-entry-1".getBytes(Encoding));
         ledger.addEntry("dummy-entry-2".getBytes(Encoding));
@@ -1245,7 +1256,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void seekPosition4() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
         ManagedCursor cursor = ledger.openCursor("c1");
         Position p1 = ledger.addEntry("dummy-entry-1".getBytes(Encoding));
         Position p2 = ledger.addEntry("dummy-entry-2".getBytes(Encoding));
@@ -1268,7 +1279,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void rewind() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(2));
+        ManagedLedger ledger = factory.open("my_test_ledger", defaultConfig().setMaxEntriesPerLedger(2));
         ManagedCursor c1 = ledger.openCursor("c1");
         Position p1 = ledger.addEntry("dummy-entry-1".getBytes(Encoding));
         Position p2 = ledger.addEntry("dummy-entry-2".getBytes(Encoding));
@@ -1319,7 +1330,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void markDeleteSkippingMessage() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(10));
+        ManagedLedger ledger = factory.open("my_test_ledger", defaultConfig().setMaxEntriesPerLedger(10));
         ManagedCursor cursor = ledger.openCursor("c1");
         Position p1 = ledger.addEntry("dummy-entry-1".getBytes(Encoding));
         Position p2 = ledger.addEntry("dummy-entry-2".getBytes(Encoding));
@@ -1348,7 +1359,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void removingCursor() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(1));
+        ManagedLedger ledger = factory.open("my_test_ledger", defaultConfig().setMaxEntriesPerLedger(1));
         ManagedCursor cursor = ledger.openCursor("c1");
         ledger.addEntry("dummy-entry-1".getBytes(Encoding));
         ledger.addEntry("dummy-entry-2".getBytes(Encoding));
@@ -1374,7 +1385,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     void testRemoveCursorFail() throws Exception {
         String mlName = UUID.randomUUID().toString().replaceAll("-", "");
         String cursorName = "c1";
-        ManagedLedger ledger = factory.open(mlName);
+        ManagedLedger ledger = factory.open(mlName, initManagedLedgerConfig(defaultConfig()));
         ledger.openCursor(cursorName);
         metadataStore.setAlwaysFail(new MetadataStoreException("123"));
         try {
@@ -1388,7 +1399,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     @Test(timeOut = 20000)
     void cursorPersistence() throws Exception {
         // Open cursor_persistence_ledger ledger, create ledger 3.
-        ManagedLedger ledger = factory.open("cursor_persistence_ledger");
+        ManagedLedger ledger = factory.open("cursor_persistence_ledger", initManagedLedgerConfig(defaultConfig()));
         ManagedCursor c1 = ledger.openCursor("c1");
         ManagedCursor c2 = ledger.openCursor("c2");
         ledger.addEntry("dummy-entry-1".getBytes(Encoding));
@@ -1415,7 +1426,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         // Recovery open cursor_persistence_ledger ledger, create ledger 6, and move mark delete position to 6:-1.
         // See PR https://github.com/apache/pulsar/pull/25087.
-        ledger = factory2.open("cursor_persistence_ledger");
+        ledger = factory2.open("cursor_persistence_ledger", defaultConfig());
         c1 = ledger.openCursor("c1");
         c2 = ledger.openCursor("c2");
 
@@ -1426,7 +1437,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     public void cursorPersistenceWithLedgerForceRecovery() throws Exception {
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = defaultConfig();
         config.setLedgerForceRecovery(true);
 
         ManagedLedger ledger = factory.open("my_test_ledger", config);
@@ -1455,7 +1466,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     @Test(timeOut = 20000)
     void cursorPersistence2() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger",
-                new ManagedLedgerConfig().setMetadataMaxEntriesPerLedger(1));
+                defaultConfig().setMetadataMaxEntriesPerLedger(1));
         ManagedCursor c1 = ledger.openCursor("c1");
         ManagedCursor c2 = ledger.openCursor("c2");
         ManagedCursor c3 = ledger.openCursor("c3");
@@ -1480,7 +1491,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         @Cleanup("shutdown")
         ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
-        ledger = factory2.open("my_test_ledger");
+        ledger = factory2.open("my_test_ledger", defaultConfig());
         c1 = ledger.openCursor("c1");
         c2 = ledger.openCursor("c2");
         c3 = ledger.openCursor("c3");
@@ -1494,7 +1505,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     public void asyncMarkDeleteBlocking() throws Exception {
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = defaultConfig();
         config.setMaxEntriesPerLedger(10);
         config.setMetadataMaxEntriesPerLedger(5);
         ManagedLedger ledger = factory.open("my_test_ledger", config);
@@ -1539,7 +1550,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         //    into metaStore, then throws BadVersionException and moves my_test_ledger ledger to fenced state.
         // Recovery open async_mark_delete_blocking_test_ledger ledger, ledgerId++
         // Add retry logic here to prove open operation will finally success despite race condition.
-        ledger = ManagedLedgerTestUtil.retry(() -> factory2.open("my_test_ledger"));
+        ledger = ManagedLedgerTestUtil.retry(() -> factory2.open("my_test_ledger", defaultConfig()));
         ManagedCursor c2 = ledger.openCursor("c1");
 
         // Three cases:
@@ -1554,7 +1565,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     public void asyncMarkDeleteBlockingWithOneShot() throws Exception {
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = defaultConfig();
         config.setMaxEntriesPerLedger(10);
         // open async_mark_delete_blocking_test_ledger ledger, create ledger 3.
         ManagedLedger ledger = factory.open("async_mark_delete_blocking_test_ledger", config);
@@ -1629,7 +1640,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         // When executing ManagedLedgerImpl.maybeUpdateCursorBeforeTrimmingConsumedLedger(), the curPointedLedger is 13,
         // the nextPointedLedger is 15, ledger 13 only has 1 consumed entry 13:0,
         // so we will move markDeletePosition to 15:-1, see PR https://github.com/apache/pulsar/pull/25087.
-        ledger = factory2.open("async_mark_delete_blocking_test_ledger");
+        ledger = factory2.open("async_mark_delete_blocking_test_ledger", defaultConfig());
         ManagedCursor c2 = ledger.openCursor("c1");
 
         log.info().attr("size", positions.size()).attr("positions", positions).log("positions info");
@@ -1641,7 +1652,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     public void asyncMarkDeleteBlockingWithMultiShots() throws Exception {
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = defaultConfig();
         config.setMaxEntriesPerLedger(10);
         config.setMetadataMaxEntriesPerLedger(5);
         ManagedLedger ledger = factory.open("async_mark_delete_blocking_test_ledger", config);
@@ -1679,7 +1690,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         // Reopen
         @Cleanup("shutdown") ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
-        ledger = factory2.open("async_mark_delete_blocking_test_ledger");
+        ledger = factory2.open("async_mark_delete_blocking_test_ledger", defaultConfig());
         ManagedCursor c2 = ledger.openCursor("c1");
 
         // flaky test case: c2.getMarkDeletedPosition() may be equals lastPositionLedgerId+1 or lastPositionLedgerId+2,
@@ -1692,7 +1703,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     @Test(timeOut = 20000)
     void cursorPersistenceAsyncMarkDeleteSameThread() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger",
-                new ManagedLedgerConfig().setMetadataMaxEntriesPerLedger(5));
+                defaultConfig().setMetadataMaxEntriesPerLedger(5));
         final ManagedCursor c1 = ledger.openCursor("c1");
 
         final int num = 100;
@@ -1726,7 +1737,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         @Cleanup("shutdown")
         ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         // Add retry logic here to prove open operation will finally success despite race condition.
-        ledger = ManagedLedgerTestUtil.retry(() -> factory2.open("my_test_ledger"));
+        ledger = ManagedLedgerTestUtil.retry(() -> factory2.open("my_test_ledger", defaultConfig()));
         ManagedCursor c2 = ledger.openCursor("c1");
 
         assertThat(c2.getMarkDeletedPosition()).isGreaterThanOrEqualTo(lastPosition);
@@ -1734,7 +1745,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void unorderedMarkDelete() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
         final ManagedCursor c1 = ledger.openCursor("c1");
 
         Position p1 = ledger.addEntry("entry-1".getBytes(Encoding));
@@ -1753,7 +1764,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void unorderedAsyncMarkDelete() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
         final ManagedCursor c1 = ledger.openCursor("c1");
 
         Position p1 = ledger.addEntry("entry-1".getBytes(Encoding));
@@ -1791,7 +1802,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void deleteCursor() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
         ManagedCursor c1 = ledger.openCursor("c1");
 
         ledger.addEntry("entry-1".getBytes(Encoding));
@@ -1832,7 +1843,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void errorCreatingCursor() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
 
         bkc.failAfter(1, BKException.Code.NotEnoughBookiesException);
         metadataStore.failConditional(new MetadataStoreException("error"), (op, path) ->
@@ -1850,7 +1861,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     void failDuringRecoveryWithEmptyLedger() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
         ManagedCursor cursor = ledger.openCursor("cursor");
 
         ledger.addEntry("entry-1".getBytes());
@@ -1862,7 +1873,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ledger.close();
 
         // Re-open
-        ledger = factory.open("my_test_ledger");
+        ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
         cursor = ledger.openCursor("cursor");
         cursor.markDelete(p3);
 
@@ -1872,7 +1883,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         @Cleanup("shutdown")
         ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc, conf);
-        ledger = factory2.open("my_test_ledger");
+        ledger = factory2.open("my_test_ledger", defaultConfig());
         cursor = ledger.openCursor("cursor");
 
         // Cursor was rolled back to p2 because of the ledger recovery failure
@@ -1909,7 +1920,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     @Test(timeOut = 20000)
     void recoverCursorPropertiesWhenCursorLedgerCannotBeOpened() throws Exception {
         String ledgerName = "recover_cursor_properties_open_failure";
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = defaultConfig();
         // Force a cursor-ledger rollover on the second persist, so that the metadata-store
         // snapshot ends up carrying the cursor properties together with a live cursor ledger id.
         config.setMetadataMaxEntriesPerLedger(1);
@@ -1973,7 +1984,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     void recoverCursorPropertiesWhenCursorLedgerIsEmpty() throws Exception {
         String ledgerName = "recover_cursor_properties_empty_ledger";
 
-        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(ledgerName);
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(ledgerName, initManagedLedgerConfig(defaultConfig()));
         ManagedCursor cursor = ml.openCursor("cursor");
 
         ml.addEntry("entry-1".getBytes(Encoding));
@@ -1986,7 +1997,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ml.close();
 
         // Re-open
-        ManagedLedgerImpl mlReopened = (ManagedLedgerImpl) factory.open(ledgerName);
+        ManagedLedgerImpl mlReopened = (ManagedLedgerImpl) factory.open(ledgerName,
+                initManagedLedgerConfig(defaultConfig()));
         cursor = mlReopened.openCursor("cursor");
         cursor.markDelete(p3, properties);
 
@@ -2000,7 +2012,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         @Cleanup("shutdown")
         ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc, conf);
-        ManagedLedgerImpl mlAfterFailure = (ManagedLedgerImpl) factory2.open(ledgerName);
+        ManagedLedgerImpl mlAfterFailure = (ManagedLedgerImpl) factory2.open(ledgerName, defaultConfig());
         cursor = mlAfterFailure.openCursor("cursor");
 
         // Cursor was rolled back to p2 because of the ledger recovery failure
@@ -2022,7 +2034,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     @Test(timeOut = 20000)
     void recoverCursorPropertiesWhenCursorLedgerReadFails() throws Exception {
         String ledgerName = "recover_cursor_properties_read_failure";
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = defaultConfig();
         // Force a cursor-ledger rollover on the second persist, so that the metadata-store
         // snapshot ends up carrying the cursor properties together with a live cursor ledger id.
         config.setMetadataMaxEntriesPerLedger(1);
@@ -2092,7 +2104,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     @Test(timeOut = 20000)
     void recoverCursorPropertiesFromClosedSnapshot() throws Exception {
         String ledgerName = "recover_cursor_properties_closed_snapshot";
-        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(ledgerName);
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(ledgerName, initManagedLedgerConfig(defaultConfig()));
         ManagedCursor cursor = ml.openCursor("c1");
         Position p1 = ml.addEntry("entry-1".getBytes(Encoding));
         Position p2 = ml.addEntry("entry-2".getBytes(Encoding));
@@ -2107,7 +2119,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ml.close();
 
         // Re-open: the cursor is recovered from the closed snapshot in the metadata store
-        ManagedLedgerImpl mlReopened = (ManagedLedgerImpl) factory.open(ledgerName);
+        ManagedLedgerImpl mlReopened = (ManagedLedgerImpl) factory.open(ledgerName,
+                initManagedLedgerConfig(defaultConfig()));
         cursor = mlReopened.openCursor("c1");
 
         assertEquals(cursor.getMarkDeletedPosition(), p2);
@@ -2122,7 +2135,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     @Test(timeOut = 20000)
     void recoverNoCursorPropertiesWhenSnapshotHasNone() throws Exception {
         String ledgerName = "recover_no_cursor_properties";
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = defaultConfig();
         config.setMetadataMaxEntriesPerLedger(1);
 
         ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(ledgerName, config);
@@ -2165,7 +2178,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void errorRecoveringCursor() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
         Position p1 = ledger.addEntry("entry".getBytes());
         ledger.addEntry("entry".getBytes());
         ManagedCursor c1 = ledger.openCursor("c1");
@@ -2178,7 +2191,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         bkc.failAfter(3, BKException.Code.LedgerRecoveryException);
 
-        ledger = factory2.open("my_test_ledger");
+        ledger = factory2.open("my_test_ledger", defaultConfig());
         c1 = ledger.openCursor("c1");
 
         // Verify the ManagedCursor was rewind back to the snapshotted position
@@ -2187,14 +2200,14 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void errorRecoveringCursor2() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
         ledger.openCursor("c1");
 
         @Cleanup("shutdown")
         ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
 
         bkc.failAfter(4, BKException.Code.MetadataVersionException);
-        ledger = factory2.open("my_test_ledger");
+        ledger = factory2.open("my_test_ledger", defaultConfig());
         ManagedCursor cursor = ledger.openCursor("c1");
         Position position = ledger.addEntry("test".getBytes());
         // Make persist zk fail once.
@@ -2218,7 +2231,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void errorRecoveringCursor3() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
         Position p1 = ledger.addEntry("entry".getBytes());
         ledger.addEntry("entry".getBytes());
         ManagedCursor c1 = ledger.openCursor("c1");
@@ -2231,7 +2244,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         bkc.failAfter(4, BKException.Code.ReadException);
 
-        ledger = factory2.open("my_test_ledger");
+        ledger = factory2.open("my_test_ledger", defaultConfig());
         c1 = ledger.openCursor("c1");
 
         // Verify the ManagedCursor was rewind back to the snapshotted position
@@ -2240,7 +2253,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void testSingleDelete() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(3));
+        ManagedLedger ledger = factory.open("my_test_ledger", defaultConfig().setMaxEntriesPerLedger(3));
         ManagedCursor cursor = ledger.openCursor("c1");
 
         Position p1 = ledger.addEntry("entry1".getBytes());
@@ -2281,7 +2294,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     @Test(timeOut = 20000)
     void testGroupedDeleteAcrossLedgerBoundaries() throws Exception {
         ManagedLedger ledger = factory.open("grouped_delete_boundaries",
-                new ManagedLedgerConfig().setMaxEntriesPerLedger(3));
+                defaultConfig().setMaxEntriesPerLedger(3));
         ManagedCursor cursor = ledger.openCursor("c1");
         List<Position> positions = new ArrayList<>();
         for (int i = 0; i < 9; i++) {
@@ -2308,7 +2321,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     @Test(timeOut = 20000)
     void testIndividualDeleteNegativeEntryAcrossLedgers() throws Exception {
         ManagedLedger ledger = factory.open("delete_negative_entry",
-                new ManagedLedgerConfig().setMaxEntriesPerLedger(3));
+                defaultConfig().setMaxEntriesPerLedger(3));
         ManagedCursor cursor = ledger.openCursor("c1");
         List<Position> positions = new ArrayList<>();
         for (int i = 0; i < 6; i++) {
@@ -2329,7 +2342,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void testFilteringReadEntries() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(3));
+        ManagedLedger ledger = factory.open("my_test_ledger", defaultConfig().setMaxEntriesPerLedger(3));
         ManagedCursor cursor = ledger.openCursor("c1");
 
         /* Position p1 = */ledger.addEntry("entry1".getBytes());
@@ -2364,7 +2377,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void testReadingAllFilteredEntries() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(3));
+        ManagedLedger ledger = factory.open("my_test_ledger", defaultConfig().setMaxEntriesPerLedger(3));
         ledger.openCursor("c1");
         ManagedCursor c2 = ledger.openCursor("c2");
 
@@ -2387,7 +2400,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void testCountingWithDeletedEntries() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(2));
+        ManagedLedger ledger = factory.open("my_test_ledger", defaultConfig().setMaxEntriesPerLedger(2));
         ManagedCursor cursor = ledger.openCursor("c1");
 
         Position p1 = ledger.addEntry("entry1".getBytes());
@@ -2419,7 +2432,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000, dataProvider = "useOpenRangeSet")
     void testMarkDeleteTwice(boolean useOpenRangeSet) throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig()
+        ManagedLedger ledger = factory.open("my_test_ledger", defaultConfig()
                 .setMaxEntriesPerLedger(2));
         ManagedCursor cursor = ledger.openCursor("c1");
 
@@ -2432,7 +2445,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000, dataProvider = "useOpenRangeSet")
     void testSkipEntries(boolean useOpenRangeSet) throws Exception {
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger", new ManagedLedgerConfig()
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger", defaultConfig()
                 .setMaxEntriesPerLedger(2));
         Position pos;
 
@@ -2484,7 +2497,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000, dataProvider = "useOpenRangeSet")
     void testSkipEntriesWithIndividualDeletedMessages(boolean useOpenRangeSet) throws Exception {
-        ManagedLedger ledger = factory.open("testSkipEntriesWithIndividualDeletedMessages", new ManagedLedgerConfig()
+        ManagedLedger ledger = factory.open("testSkipEntriesWithIndividualDeletedMessages", defaultConfig()
                 .setMaxEntriesPerLedger(5));
         ManagedCursor c1 = ledger.openCursor("c1");
 
@@ -2532,7 +2545,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000, dataProvider = "useOpenRangeSet")
     void testClearBacklog(boolean useOpenRangeSet) throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig()
+        ManagedLedger ledger = factory.open("my_test_ledger", defaultConfig()
                 .setMaxEntriesPerLedger(1));
 
         ManagedCursor c1 = ledger.openCursor("c1");
@@ -2563,7 +2576,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         @Cleanup("shutdown")
         ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
-        ledger = factory2.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(1));
+        ledger = factory2.open("my_test_ledger", defaultConfig().setMaxEntriesPerLedger(1));
 
         c1 = ledger.openCursor("c1");
         c2 = ledger.openCursor("c2");
@@ -2584,7 +2597,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000, dataProvider = "useOpenRangeSet")
     void testRateLimitMarkDelete(boolean useOpenRangeSet) throws Exception {
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = defaultConfig();
         config.setThrottleMarkDelete(1); // Throttle to 1/s
         ManagedLedger ledger = factory.open("my_test_ledger", config);
 
@@ -2603,7 +2616,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         // Re-open to recover from storage
         @Cleanup("shutdown")
         ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
-        ledger = factory2.open("my_test_ledger", new ManagedLedgerConfig());
+        ledger = factory2.open("my_test_ledger", defaultConfig());
 
         c1 = ledger.openCursor("c1");
 
@@ -2614,7 +2627,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     @Test(timeOut = 20000, dataProvider = "useOpenRangeSet")
     void deleteSingleMessageTwice(boolean useOpenRangeSet) throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger",
-                new ManagedLedgerConfig());
+                defaultConfig());
 
         ManagedCursor c1 = ledger.openCursor("c1");
 
@@ -2682,7 +2695,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     @Test(timeOut = 20000, dataProvider = "useOpenRangeSet")
     void hasBacklogAccountsForIndividuallyDeletedMessages(boolean useOpenRangeSet) throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger",
-                new ManagedLedgerConfig()
+                defaultConfig()
 
                         .setMaxEntriesPerLedger(2));
 
@@ -2707,7 +2720,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     @Test(timeOut = 20000, dataProvider = "useOpenRangeSet")
     void hasBacklogReturnsFalseForEmptyAndCaughtUpCursor(boolean useOpenRangeSet) throws Exception {
         ManagedLedger ledger = factory.open("has_backlog_empty_caught_up_" + useOpenRangeSet,
-                new ManagedLedgerConfig());
+                defaultConfig());
 
         ManagedCursor c1 = ledger.openCursor("c1");
 
@@ -2723,7 +2736,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     @Test(timeOut = 20000, dataProvider = "useOpenRangeSet")
     void hasBacklogTracksEntriesAcrossLedgerRollovers(boolean useOpenRangeSet) throws Exception {
         ManagedLedger ledger = factory.open("has_backlog_across_ledgers_" + useOpenRangeSet,
-                new ManagedLedgerConfig()
+                defaultConfig()
 
                         .setMaxEntriesPerLedger(1));
 
@@ -2744,7 +2757,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     @Test(timeOut = 20000, dataProvider = "useOpenRangeSet")
     void hasBacklogAccountsForPartiallyDeletedBatchEntries(boolean useOpenRangeSet) throws Exception {
         ManagedLedger ledger = factory.open("has_backlog_partial_batch_" + useOpenRangeSet,
-                new ManagedLedgerConfig());
+                defaultConfig());
 
         ManagedCursor c1 = ledger.openCursor("c1");
         Position p1 = ledger.addEntry("entry-1".getBytes(Encoding));
@@ -2761,7 +2774,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     @Test(timeOut = 20000, dataProvider = "useOpenRangeSet")
     void hasBacklogSkipsDeletedRangesThroughLastPosition(boolean useOpenRangeSet) throws Exception {
         ManagedLedger ledger = factory.open("has_backlog_deleted_range_through_last_" + useOpenRangeSet,
-                new ManagedLedgerConfig()
+                defaultConfig()
 
                         .setMaxEntriesPerLedger(10));
 
@@ -2785,7 +2798,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     @Test(timeOut = 20000, dataProvider = "useOpenRangeSet")
     void hasBacklogFalseFallsBackToPreciseBacklogWhenCounterIsNegative(boolean useOpenRangeSet) throws Exception {
         ManagedLedger ledger = factory.open("has_backlog_negative_counter_" + useOpenRangeSet,
-                new ManagedLedgerConfig());
+                defaultConfig());
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
         ledger.addEntry("entry-1".getBytes(Encoding));
@@ -2807,7 +2820,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     @Test(timeOut = 20000, dataProvider = "useOpenRangeSet")
     void hasBacklogReturnsFalseWhenMarkDeletePositionIsNotInitialized(boolean useOpenRangeSet) throws Exception {
         ManagedLedger ledger = factory.open("has_backlog_uninitialized_mark_delete_" + useOpenRangeSet,
-                new ManagedLedgerConfig());
+                defaultConfig());
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
         ledger.addEntry("entry-1".getBytes(Encoding));
@@ -2820,7 +2833,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     @Test(timeOut = 20000, dataProvider = "useOpenRangeSet")
     void hasBacklogMatchesBacklogCountsThroughMixedAcknowledgements(boolean useOpenRangeSet) throws Exception {
         ManagedLedger ledger = factory.open("has_backlog_mixed_acks_" + useOpenRangeSet,
-                new ManagedLedgerConfig()
+                defaultConfig()
 
                         .setMaxEntriesPerLedger(2));
 
@@ -2854,7 +2867,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     @Test(timeOut = 20000, dataProvider = "useOpenRangeSet")
     void hasBacklogMatchesBacklogCountsAfterResetCursor(boolean useOpenRangeSet) throws Exception {
         ManagedLedger ledger = factory.open("has_backlog_reset_" + useOpenRangeSet,
-                new ManagedLedgerConfig()
+                defaultConfig()
 
                         .setMaxEntriesPerLedger(2));
 
@@ -2887,7 +2900,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     @Test(timeOut = 20000, dataProvider = "useOpenRangeSet")
     void hasBacklogMatchesBacklogCountsAfterCursorRecovery(boolean useOpenRangeSet) throws Exception {
         String ledgerName = "has_backlog_recovery_" + useOpenRangeSet;
-        ManagedLedgerConfig config = new ManagedLedgerConfig()
+        ManagedLedgerConfig config = defaultConfig()
 
                 .setMaxEntriesPerLedger(2);
         ManagedLedger ledger = factory.open(ledgerName, config);
@@ -2937,9 +2950,12 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     private void assertHasBacklogMatchesBacklogCountsAcrossGeneratedOperationSequence(boolean useOpenRangeSet,
                                                                                      long seed) throws Exception {
         String ledgerName = "has_backlog_generated_" + useOpenRangeSet + "_" + Long.toHexString(seed);
-        ManagedLedgerConfig config = new ManagedLedgerConfig()
-
-                .setMaxEntriesPerLedger(3);
+        // Resets select from the full generated history. Retain it so background trimming cannot
+        // delete a reset target or change the backlog between the count and boolean assertions.
+        ManagedLedgerConfig config = defaultConfig()
+                .setMaxEntriesPerLedger(3)
+                .setRetentionTime(-1, TimeUnit.MILLISECONDS)
+                .setRetentionSizeInMB(-1);
         ManagedLedger ledger = factory.open(ledgerName, config);
         ManagedCursor cursor = ledger.openCursor("c1");
         List<Position> positions = new ArrayList<>();
@@ -3047,7 +3063,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     @Test(timeOut = 10000, dataProvider = "useOpenRangeSet")
     void testReadEntriesOrWait(boolean useOpenRangeSet) throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger",
-                new ManagedLedgerConfig());
+                defaultConfig());
 
         final int consumers = 10;
         final CountDownLatch counter = new CountDownLatch(consumers);
@@ -3076,7 +3092,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void testReadEntriesOrWaitBlocking() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
 
         final int messages = 100;
         final int consumers = 10;
@@ -3119,7 +3135,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void testFindNewestMatching() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
 
@@ -3144,10 +3160,43 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         };
     }
 
+    @Test(timeOut = 60000)
+    void testScanFromLedgerThreadOverCachedEntries() throws Exception {
+        ManagedLedger ledger = factory.open("my_test_ledger_scan_inline",
+                defaultConfig());
+        ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
+        int numEntries = 2000;
+        for (int i = 0; i < numEntries; i++) {
+            ledger.addEntry(("a" + i).getBytes(Encoding));
+        }
+
+        // Drive a single-entry-batch scan from the managed ledger thread: every batch is a synchronous cache hit
+        // whose completion runs inline, so without the nesting cap the stack depth seen by the last entries would
+        // grow with the number of batches.
+        AtomicInteger seen = new AtomicInteger();
+        AtomicInteger firstDepth = new AtomicInteger(-1);
+        AtomicInteger maxDepth = new AtomicInteger();
+        CompletableFuture<ScanOutcome> outcome = CompletableFuture.supplyAsync(() -> c1.scan(Optional.empty(),
+                entry -> {
+                    int depth = Thread.currentThread().getStackTrace().length;
+                    firstDepth.compareAndSet(-1, depth);
+                    maxDepth.accumulateAndGet(depth, Math::max);
+                    seen.incrementAndGet();
+                    return true;
+                }, 1, Long.MAX_VALUE, Long.MAX_VALUE), ((ManagedLedgerImpl) ledger).getExecutor())
+                .thenCompose(f -> f);
+        assertEquals(outcome.get(30, TimeUnit.SECONDS), ScanOutcome.COMPLETED);
+        assertEquals(seen.get(), numEntries);
+        // at most MAX_NESTED_INLINE_COMPLETIONS batches nest before a completion is queued, so the depth is bounded
+        // by that many batches' worth of frames rather than by the number of batches
+        assertTrue(maxDepth.get() - firstDepth.get() < OpReadEntry.MAX_NESTED_INLINE_COMPLETIONS * 40,
+                "stack depth grew from " + firstDepth.get() + " to " + maxDepth.get() + " across batches");
+    }
+
     @Test(dataProvider = "testScanValues", timeOut = 30000)
     void testScan(int numEntries, int batchSize) throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger_scan_" + numEntries
-                + "_" + batchSize);
+                + "_" + batchSize, defaultConfig());
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
         List<Position> positions = new ArrayList<>();
@@ -3254,7 +3303,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void testFindNewestMatchingOdd1() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
 
@@ -3271,7 +3320,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void testFindNewestMatchingOdd2() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
 
@@ -3288,7 +3337,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void testFindNewestMatchingOdd3() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
 
@@ -3305,7 +3354,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void testFindNewestMatchingOdd4() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
 
@@ -3322,7 +3371,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void testFindNewestMatchingOdd5() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
 
@@ -3339,7 +3388,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void testFindNewestMatchingEven1() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
 
@@ -3355,7 +3404,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void testFindNewestMatchingEven2() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
 
@@ -3371,7 +3420,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void testFindNewestMatchingEven3() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
 
@@ -3387,7 +3436,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void testFindNewestMatchingEven4() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
 
@@ -3403,7 +3452,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void testFindNewestMatchingEdgeCase1() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
         assertNull(c1.findNewestMatching(
@@ -3412,7 +3461,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void testFindNewestMatchingEdgeCase2() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
         Position p1 = ledger.addEntry("expired".getBytes(Encoding));
@@ -3423,7 +3472,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void testFindNewestMatchingEdgeCase3() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
         Position p1 = ledger.addEntry("expired".getBytes(Encoding));
@@ -3435,7 +3484,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void testFindNewestMatchingEdgeCase4() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
         Position p1 = ledger.addEntry("expired".getBytes(Encoding));
@@ -3448,7 +3497,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void testFindNewestMatchingEdgeCase5() throws Exception {
-        ManagedLedger ledger = factory.open("testFindNewestMatchingEdgeCase5");
+        ManagedLedger ledger = factory.open("testFindNewestMatchingEdgeCase5",
+                initManagedLedgerConfig(defaultConfig()));
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
         ledger.addEntry("expired".getBytes(Encoding));
@@ -3461,7 +3511,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000, dataProvider = "useOpenRangeSet")
     void testFindNewestMatchingEdgeCase6(boolean useOpenRangeSet) throws Exception {
-        ManagedLedger ledger = factory.open("testFindNewestMatchingEdgeCase6", new ManagedLedgerConfig()
+        ManagedLedger ledger = factory.open("testFindNewestMatchingEdgeCase6", defaultConfig()
                 .setMaxEntriesPerLedger(3));
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
@@ -3481,7 +3531,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     @Test(timeOut = 20000, dataProvider = "useOpenRangeSet")
     void testFindNewestMatchingEdgeCase7(boolean useOpenRangeSet) throws Exception {
         ManagedLedger ledger = factory.open("testFindNewestMatchingEdgeCase7",
-                new ManagedLedgerConfig());
+                defaultConfig());
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
         ledger.addEntry("expired".getBytes(Encoding));
@@ -3503,7 +3553,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void testFindNewestMatchingEdgeCase8() throws Exception {
-        ManagedLedger ledger = factory.open("testFindNewestMatchingEdgeCase8");
+        ManagedLedger ledger = factory.open("testFindNewestMatchingEdgeCase8",
+                initManagedLedgerConfig(defaultConfig()));
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
         ledger.addEntry("expired".getBytes(Encoding));
@@ -3526,7 +3577,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void testFindNewestMatchingEdgeCase9() throws Exception {
-        ManagedLedger ledger = factory.open("testFindNewestMatchingEdgeCase9");
+        ManagedLedger ledger = factory.open("testFindNewestMatchingEdgeCase9",
+                initManagedLedgerConfig(defaultConfig()));
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
         ledger.addEntry("expired".getBytes(Encoding));
@@ -3550,7 +3602,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void testFindNewestMatchingEdgeCase10() throws Exception {
-        ManagedLedger ledger = factory.open("testFindNewestMatchingEdgeCase10");
+        ManagedLedger ledger = factory.open("testFindNewestMatchingEdgeCase10",
+                initManagedLedgerConfig(defaultConfig()));
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
         ledger.addEntry("expired".getBytes(Encoding));
@@ -3576,7 +3629,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     @Test(timeOut = 20000, dataProvider = "useOpenRangeSet")
     void testIndividuallyDeletedMessages(boolean useOpenRangeSet) throws Exception {
         ManagedLedger ledger = factory.open("testIndividuallyDeletedMessages",
-                new ManagedLedgerConfig());
+                defaultConfig());
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
         ledger.addEntry("entry-0".getBytes(Encoding));
@@ -3596,7 +3649,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void testIndividuallyDeletedMessages1() throws Exception {
-        ManagedLedger ledger = factory.open("testIndividuallyDeletedMessages1");
+        ManagedLedger ledger = factory.open("testIndividuallyDeletedMessages1",
+                initManagedLedgerConfig(defaultConfig()));
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
         ledger.addEntry("entry-0".getBytes(Encoding));
@@ -3616,7 +3670,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     @Test(timeOut = 20000, dataProvider = "useOpenRangeSet")
     void testIndividuallyDeletedMessages2(boolean useOpenRangeSet) throws Exception {
         ManagedLedger ledger = factory.open("testIndividuallyDeletedMessages2",
-                new ManagedLedgerConfig());
+                defaultConfig());
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
         ledger.addEntry("entry-0".getBytes(Encoding));
@@ -3637,7 +3691,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     @Test(timeOut = 20000, dataProvider = "useOpenRangeSet")
     void testIndividuallyDeletedMessages3(boolean useOpenRangeSet) throws Exception {
         ManagedLedger ledger = factory.open("testIndividuallyDeletedMessages3",
-                new ManagedLedgerConfig());
+                defaultConfig());
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
         ledger.addEntry("entry-0".getBytes(Encoding));
@@ -3657,7 +3711,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void testFindNewestMatchingAfterLedgerRollover() throws Exception {
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger");
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger",
+                initManagedLedgerConfig(defaultConfig()));
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
         ledger.addEntry("first-expired".getBytes(Encoding));
         ledger.addEntry("second".getBytes(Encoding));
@@ -3744,7 +3799,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     void internalTestFindNewestMatchingAllEntries(final String name, final int entriesPerLedger,
                                                   final int expectedEntryId) throws Exception {
         final String ledgerAndCursorName = name;
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = defaultConfig();
         config.setRetentionSizeInMB(10);
         config.setMaxEntriesPerLedger(entriesPerLedger);
         config.setRetentionTime(1, TimeUnit.HOURS);
@@ -3806,7 +3861,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     @Test(timeOut = 20000)
     void testFindNewestMatchingAllEntriesSingleLedger() throws Exception {
         final String ledgerAndCursorName = "testFindNewestMatchingAllEntriesSingleLedger";
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = defaultConfig();
         // needs to be changed if entries per ledger is changed
         int expectedEntryId = 3;
         int entriesPerLedger = config.getMaxEntriesPerLedger();
@@ -3815,7 +3870,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void testReplayEntries() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
         Position p1 = ledger.addEntry("entry1".getBytes(Encoding));
@@ -3863,8 +3918,317 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     }
 
     @Test(timeOut = 20000)
+    void testReplayEntriesReadsRunsOfClosePositionsTogether() throws Exception {
+        replayRunsOfClosePositions("test_replay_runs", false, true);
+    }
+
+    @Test(timeOut = 20000)
+    void testReplayEntriesReadsCachedPositionsAndRunsOfTheOthers() throws Exception {
+        replayRunsOfClosePositions("test_replay_runs_partly_cached", true, true);
+    }
+
+    @Test(timeOut = 20000)
+    void testReplayEntriesReadsRunsOfClosePositionsWithReadPositionBasedEviction() throws Exception {
+        replayRunsOfClosePositions("test_replay_runs_read_position_eviction", false, false);
+    }
+
+    @Test
+    void testReplayRunsAreBoundedByTheGapAndTheSizeOfTheEntries() {
+        List<Position> positions = new ArrayList<>();
+        for (long entryId : new long[]{0, 2, 4, 12, 30, 600, 601}) {
+            positions.add(PositionFactory.create(1, entryId));
+        }
+        positions.add(PositionFactory.create(2, 0));
+        // small entries: the positions in a ledger at most 8 entries apart
+        assertEquals(runEntryIds(ManagedCursorImpl.replayRuns(positions, 100, ledgerId -> 100, Long.MAX_VALUE)),
+                List.of(List.of(0L, 2L, 4L, 12L), List.of(30L), List.of(600L, 601L), List.of(0L)));
+        // 100 KiB entries: one entry in between fits the 192 KiB gap, and 10 entries the 1 MiB span
+        assertEquals(runEntryIds(ManagedCursorImpl.replayRuns(positions, 100 * 1024, ledgerId -> 100 * 1024,
+                        Long.MAX_VALUE)),
+                List.of(List.of(0L, 2L, 4L), List.of(12L), List.of(30L), List.of(600L, 601L), List.of(0L)));
+        assertEquals(runEntryIds(ManagedCursorImpl.replayRuns(List.of(PositionFactory.create(1, 0),
+                        PositionFactory.create(1, 3)), 100 * 1024, ledgerId -> 100 * 1024, Long.MAX_VALUE)),
+                List.of(List.of(0L), List.of(3L)));
+        // entries larger than the gap: only adjacent positions are read together
+        assertEquals(runEntryIds(ManagedCursorImpl.replayRuns(positions, 200 * 1024, ledgerId -> 200 * 1024,
+                        Long.MAX_VALUE)),
+                List.of(List.of(0L), List.of(2L), List.of(4L), List.of(12L), List.of(30L), List.of(600L, 601L),
+                        List.of(0L)));
+        // a replay's runs take at most the given bytes of entries in between in all, by the estimated entry size of
+        // their ledger; adjacent positions still make a run
+        assertEquals(runEntryIds(ManagedCursorImpl.replayRuns(positions, 100, ledgerId -> 100, 800)),
+                List.of(List.of(0L, 2L, 4L), List.of(12L), List.of(30L), List.of(600L, 601L), List.of(0L)));
+        assertEquals(runEntryIds(ManagedCursorImpl.replayRuns(positions, 100, ledgerId -> ledgerId == 1 ? 1000 : 100,
+                        8000)),
+                List.of(List.of(0L, 2L, 4L), List.of(12L), List.of(30L), List.of(600L, 601L), List.of(0L)));
+        // without an estimate, no entries in between
+        assertEquals(runEntryIds(ManagedCursorImpl.replayRuns(positions, 100, ledgerId -> -1, Long.MAX_VALUE)),
+                List.of(List.of(0L), List.of(2L), List.of(4L), List.of(12L), List.of(30L), List.of(600L, 601L),
+                        List.of(0L)));
+    }
+
+    // A range read holds its permits on the inflight reads limiter until its wanted entries are released, which the
+    // replay keeps until its other reads complete. With a limit that the wanted entries' own reads fit, the replay's
+    // runs of 16 KiB entries, 8 entries apart, would take more than the limit together, and the last one would time
+    // out waiting for permits, if the entries in between weren't bounded by the limiter's bytes that the wanted
+    // entries leave.
+    @Test
+    void testReplayRangeReadsFitTheInflightReadsLimit() throws Exception {
+        replayUnderInflightReadsLimit("test_replay_inflight_limit", false);
+    }
+
+    // The same, with a ledger of small entries after the ledger of the replayed 16 KiB entries, which makes the
+    // managed ledger's average entry size smaller than the replayed ledger's: the limiter acquires the permits by the
+    // replayed ledger's own entry size.
+    @Test
+    void testReplayRangeReadsFitTheInflightReadsLimitWithLedgersOfDifferentEntrySizes() throws Exception {
+        replayUnderInflightReadsLimit("test_replay_inflight_limit_mixed", true);
+    }
+
+    private void replayUnderInflightReadsLimit(String name, boolean smallEntriesInTheNextLedger) throws Exception {
+        ManagedLedgerFactoryConfig factoryConfig = new ManagedLedgerFactoryConfig();
+        factoryConfig.setMaxCacheSize(0);
+        factoryConfig.setManagedLedgerMaxReadsInFlightSize(5 * 1024 * 1024);
+        factoryConfig.setManagedLedgerMaxReadsInFlightPermitsAcquireTimeoutMillis(500);
+        ManagedLedgerFactoryImpl limitedFactory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConfig);
+        try {
+            ManagedLedgerConfig config = defaultConfig();
+            config.setMaxEntriesPerLedger(377);
+            ManagedLedgerImpl ledger = (ManagedLedgerImpl) limitedFactory.open(name, config);
+            ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+            byte[] data = new byte[16 * 1024];
+            Set<Position> positions = new TreeSet<>();
+            for (int i = 0; i <= 376; i++) {
+                Position position = ledger.addEntry(data);
+                if (i % 8 == 0) {
+                    positions.add(position);
+                }
+            }
+            if (smallEntriesInTheNextLedger) {
+                for (int i = 0; i <= 376; i++) {
+                    ledger.addEntry(new byte[128]);
+                }
+                assertEquals(ledger.getLedgersInfo().size(), 2);
+            }
+            CompletableFuture<List<Entry>> replayed = new CompletableFuture<>();
+            cursor.asyncReplayEntries(positions, new AsyncCallbacks.ReadEntriesCallback() {
+                @Override
+                public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                    replayed.complete(entries);
+                }
+
+                @Override
+                public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                    replayed.completeExceptionally(exception);
+                }
+            }, null);
+            List<Entry> entries = replayed.get(10, TimeUnit.SECONDS);
+            try {
+                assertEquals(entries.stream().map(Entry::getPosition).sorted().toList(), List.copyOf(positions));
+            } finally {
+                entries.forEach(Entry::release);
+            }
+        } finally {
+            limitedFactory.shutdown();
+        }
+    }
+
+    private static List<List<Long>> runEntryIds(List<List<Position>> runs) {
+        return runs.stream().map(run -> run.stream().map(Position::getEntryId).toList()).toList();
+    }
+
+    // Replays runs of close positions whose entries aren't cached, or of which every third one is cached, which is read
+    // from the cache, with some entries in between the others cached too, which their range reads take from the cache.
+    // With the expected read count based eviction, it checks the expected read counts too, which the read position
+    // based eviction doesn't use: it can evict a replayed entry once the cursor's read position has passed it.
+    private void replayRunsOfClosePositions(String name, boolean partlyCached, boolean evictionByExpectedReadCount)
+            throws Exception {
+        ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig());
+        config.setCacheEvictionByExpectedReadCount(evictionByExpectedReadCount);
+        config.setMaxEntriesPerLedger(300);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(name, config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+        List<Position> added = new ArrayList<>();
+        for (int i = 0; i < 600; i++) {
+            added.add(ledger.addEntry(("entry-" + i).getBytes(Encoding)));
+        }
+        // a run of every 8th entry longer than a range read takes, positions in both ledgers, and lone positions in
+        // the second ledger, further apart than a range read's gap
+        Set<Position> positions = new TreeSet<>();
+        for (int i = 0; i < 296; i += 8) {
+            positions.add(added.get(i));
+        }
+        positions.add(added.get(299));
+        positions.add(added.get(300));
+        positions.add(added.get(590));
+        // the replay reads the entries from storage, unless they're cached
+        ledger.entryCache.clear();
+        if (partlyCached) {
+            List<Position> toCache = new ArrayList<>();
+            int i = 0;
+            for (Position position : positions) {
+                if (i++ % 3 == 0) {
+                    toCache.add(position);
+                }
+            }
+            // entries in between the uncached positions 8 and 16, and 32 and 40, which other cursors will read
+            toCache.add(added.get(12));
+            toCache.add(added.get(36));
+            for (Position position : toCache) {
+                // the replay positions with the expected read that the dispatcher adds for the replay
+                int expectedReadCount = positions.contains(position) ? 1 : 2;
+                CompletableFuture<Entry> read = new CompletableFuture<>();
+                ledger.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
+                    @Override
+                    public void readEntryComplete(Entry entry, Object ctx) {
+                        read.complete(entry);
+                    }
+
+                    @Override
+                    public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                        read.completeExceptionally(exception);
+                    }
+                }, null);
+                Entry entry = read.get(10, TimeUnit.SECONDS);
+                EntryImpl toInsert = EntryImpl.create(position, entry.getDataBuffer(), expectedReadCount);
+                ledger.entryCache.insert(toInsert);
+                toInsert.setDecreaseReadCountOnRelease(false);
+                toInsert.release();
+                entry.release();
+                assertEquals(cachedExpectedReadCount(ledger, position), expectedReadCount);
+            }
+        }
+        assertFalse(ledger.entryCache.hasEntry(added.get(1)));
+
+        CompletableFuture<List<Entry>> replayed = new CompletableFuture<>();
+        cursor.asyncReplayEntries(positions, new AsyncCallbacks.ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                replayed.complete(entries);
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                replayed.completeExceptionally(exception);
+            }
+        }, null, true);
+
+        List<Entry> entries = replayed.get(10, TimeUnit.SECONDS);
+        // exactly the positions, in order, with their data, each with an expected read for the replay
+        assertEquals(entries.stream().map(Entry::getPosition).toList(), new ArrayList<>(positions));
+        for (Entry entry : entries) {
+            assertEquals(new String(entry.getData(), Encoding), "entry-" + added.indexOf(entry.getPosition()));
+        }
+        if (!evictionByExpectedReadCount) {
+            entries.forEach(Entry::release);
+            return;
+        }
+        for (Entry entry : entries) {
+            assertEquals(entry.getReadCountHandler().getExpectedReadCount(), 1,
+                    "expected read count of " + entry.getPosition());
+        }
+        // the dispatcher adds the position 8 to the replay queue again, and releases the entries
+        entries.get(1).getReadCountHandler().incrementExpectedReadCount();
+        entries.forEach(Entry::release);
+        // the replay's read is done, and the position added again keeps an expected read
+        assertEquals(cachedExpectedReadCount(ledger, added.get(0)), 0);
+        assertEquals(cachedExpectedReadCount(ledger, added.get(8)), 1);
+        assertEquals(cachedExpectedReadCount(ledger, added.get(590)), 0);
+        if (partlyCached) {
+            // the entries in between that the cache had keep the other cursors' expected reads
+            assertEquals(cachedExpectedReadCount(ledger, added.get(12)), 2);
+            assertEquals(cachedExpectedReadCount(ledger, added.get(36)), 2);
+        } else {
+            // the entries in between that a range read took from storage are cached without expected reads, and the
+            // entries outside the ranges aren't read
+            assertEquals(cachedExpectedReadCount(ledger, added.get(1)), 0);
+            assertFalse(ledger.entryCache.hasEntry(added.get(589)));
+            // another cursor's read of the entry 1 has no expected read to take
+            CompletableFuture<Entry> read = new CompletableFuture<>();
+            ledger.asyncReadEntry(added.get(1), new AsyncCallbacks.ReadEntryCallback() {
+                @Override
+                public void readEntryComplete(Entry entry, Object ctx) {
+                    read.complete(entry);
+                }
+
+                @Override
+                public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                    read.completeExceptionally(exception);
+                }
+            }, null);
+            read.get(10, TimeUnit.SECONDS).release();
+            assertEquals(cachedExpectedReadCount(ledger, added.get(1)), 0);
+            // and a replay of it adds an expected read for the replay
+            CompletableFuture<List<Entry>> replayedAgain = new CompletableFuture<>();
+            cursor.asyncReplayEntries(Set.of(added.get(1)), new AsyncCallbacks.ReadEntriesCallback() {
+                @Override
+                public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                    replayedAgain.complete(entries);
+                }
+
+                @Override
+                public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                    replayedAgain.completeExceptionally(exception);
+                }
+            }, null, true);
+            Entry entry = replayedAgain.get(10, TimeUnit.SECONDS).get(0);
+            assertEquals(entry.getReadCountHandler().getExpectedReadCount(), 1);
+            entry.release();
+            assertEquals(cachedExpectedReadCount(ledger, added.get(1)), 0);
+        }
+    }
+
+    @Test(timeOut = 20000)
+    void testReadsOfAnInactiveCursorAreNotCached() throws Exception {
+        ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig());
+        config.setCacheEvictionByExpectedReadCount(true);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("test_inactive_cursor_reads", config);
+        ManagedCursorImpl active = (ManagedCursorImpl) ledger.openCursor("active");
+        ManagedCursorImpl inactive = (ManagedCursorImpl) ledger.openCursor("inactive");
+        List<Position> added = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            added.add(ledger.addEntry(("entry-" + i).getBytes(Encoding)));
+        }
+        ledger.entryCache.clear();
+        inactive.setInactive();
+        // an active cursor's reads are cached with an expected read, and an inactive cursor's aren't cached
+        assertEquals(active.getNumberOfCursorsAtSamePositionOrBefore(), 1);
+        assertEquals(inactive.getNumberOfCursorsAtSamePositionOrBefore(), EntryImpl.NO_EXPECTED_READ_COUNT);
+
+        List<Entry> entries = inactive.readEntries(10);
+        assertEquals(entries.size(), 10);
+        entries.forEach(Entry::release);
+        for (Position position : added) {
+            assertFalse(ledger.entryCache.hasEntry(position));
+        }
+    }
+
+    // The expected read count of the cached entry, which reading it doesn't change
+    private static int cachedExpectedReadCount(ManagedLedgerImpl ledger, Position position) throws Exception {
+        assertTrue(ledger.entryCache.hasEntry(position));
+        CompletableFuture<Entry> read = new CompletableFuture<>();
+        ledger.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
+            @Override
+            public void readEntryComplete(Entry entry, Object ctx) {
+                read.complete(entry);
+            }
+
+            @Override
+            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                read.completeExceptionally(exception);
+            }
+        }, null);
+        EntryImpl entry = (EntryImpl) read.get(10, TimeUnit.SECONDS);
+        int expectedReadCount = entry.getReadCountHandler() != null
+                ? entry.getReadCountHandler().getExpectedReadCount() : -1;
+        entry.setDecreaseReadCountOnRelease(false);
+        entry.release();
+        return expectedReadCount;
+    }
+
+    @Test(timeOut = 20000)
     void testGetLastIndividualDeletedRange() throws Exception {
-        ManagedLedger ledger = factory.open("test_last_individual_deleted");
+        ManagedLedger ledger = factory.open("test_last_individual_deleted", initManagedLedgerConfig(defaultConfig()));
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
         Position markDeletedPosition = c1.getMarkDeletedPosition();
@@ -3891,7 +4255,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void testTrimDeletedEntries() throws ManagedLedgerException, InterruptedException {
-        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
         Position markDeletedPosition = c1.getMarkDeletedPosition();
@@ -3939,7 +4303,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void outOfOrderAcks() throws Exception {
-        ManagedLedger ledger = factory.open("outOfOrderAcks");
+        ManagedLedger ledger = factory.open("outOfOrderAcks", initManagedLedgerConfig(defaultConfig()));
         ManagedCursor c1 = ledger.openCursor("c1");
 
         int num = 10;
@@ -3966,7 +4330,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void randomOrderAcks() throws Exception {
-        ManagedLedger ledger = factory.open("outOfOrderAcks");
+        ManagedLedger ledger = factory.open("outOfOrderAcks", initManagedLedgerConfig(defaultConfig()));
         ManagedCursor c1 = ledger.openCursor("c1");
 
         int num = 10;
@@ -3992,7 +4356,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void testGetEntryAfterN() throws Exception {
-        ManagedLedger ledger = factory.open("testGetEntryAfterN");
+        ManagedLedger ledger = factory.open("testGetEntryAfterN", initManagedLedgerConfig(defaultConfig()));
 
         ManagedCursor c1 = ledger.openCursor("c1");
 
@@ -4042,9 +4406,78 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertNull(e);
     }
 
+    @DataProvider(name = "skipOrGetNthEntry")
+    public static Object[][] skipOrGetNthEntry() {
+        return new Object[][] {{true}, {false}};
+    }
+
+    /**
+     * An acknowledgment that moves the mark-delete position over the individually deleted entries must not land
+     * between reading the mark-delete position and counting the individually deleted entries. Otherwise the
+     * deleted entries counted from the old state get skipped again from the new mark-delete position, and entries
+     * that were never acknowledged get skipped.
+     */
+    @Test(timeOut = 20000, dataProvider = "skipOrGetNthEntry")
+    void testPositionAfterNIsComputedFromConsistentCursorState(boolean skip) throws Exception {
+        ManagedLedgerImpl ledger = spy((ManagedLedgerImpl) factory.open(
+                "testPositionAfterNIsComputedFromConsistentCursorState-" + skip,
+                initManagedLedgerConfig(defaultConfig())));
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            positions.add(ledger.addEntry(("entry-" + i).getBytes(Encoding)));
+        }
+        cursor.delete(positions.get(1));
+        cursor.delete(positions.get(2));
+
+        // While the position after N is being computed, acknowledge entry 0 from another thread. That moves the
+        // mark-delete position to entry 2 and removes the individually deleted range (0, 2].
+        ReentrantReadWriteLock cursorLock = (ReentrantReadWriteLock) cursor.lock;
+        Thread callerThread = Thread.currentThread();
+        AtomicBoolean armed = new AtomicBoolean(true);
+        AtomicReference<Thread> ackThread = new AtomicReference<>();
+        AtomicReference<Throwable> ackFailure = new AtomicReference<>();
+        AtomicBoolean ackBlockedByCursorLock = new AtomicBoolean();
+        doAnswer(invocation -> {
+            if (Thread.currentThread() == callerThread && armed.compareAndSet(true, false)) {
+                Thread thread = new Thread(() -> {
+                    try {
+                        cursor.delete(positions.get(0));
+                    } catch (Throwable t) {
+                        ackFailure.set(t);
+                    }
+                }, "concurrent-ack");
+                ackThread.set(thread);
+                thread.start();
+                Awaitility.await().until(() -> cursorLock.hasQueuedThread(thread) || !thread.isAlive());
+                ackBlockedByCursorLock.set(cursorLock.hasQueuedThread(thread));
+            }
+            return invocation.callRealMethod();
+        }).when(ledger).getPositionAfterN(any(), anyLong(), any());
+
+        // skip or read the 2nd entry that isn't individually deleted: entry 3
+        if (skip) {
+            cursor.skipEntries(2, IndividualDeletedEntries.Exclude);
+        } else {
+            Entry entry = cursor.getNthEntry(2, IndividualDeletedEntries.Exclude);
+            assertNotNull(entry);
+            assertEquals(entry.getPosition(), positions.get(3));
+            entry.release();
+        }
+        assertNotNull(ackThread.get());
+        ackThread.get().join();
+        assertNull(ackFailure.get());
+
+        assertTrue(ackBlockedByCursorLock.get(),
+                "the acknowledgment should wait until the position after N has been computed");
+        assertEquals(cursor.getMarkDeletedPosition(), positions.get(skip ? 3 : 2));
+        assertEquals(cursor.getNumberOfEntries(), skip ? 6 : 7);
+    }
+
     @Test(timeOut = 20000)
     void testGetEntryAfterNWithIndividualDeletedMessages() throws Exception {
-        ManagedLedger ledger = factory.open("testGetEnteryAfterNWithIndividualDeletedMessages");
+        ManagedLedger ledger = factory.open("testGetEnteryAfterNWithIndividualDeletedMessages",
+                initManagedLedgerConfig(defaultConfig()));
 
         ManagedCursor c1 = ledger.openCursor("c1");
 
@@ -4066,7 +4499,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void cancelReadOperation() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(1));
+        ManagedLedger ledger = factory.open("my_test_ledger", defaultConfig().setMaxEntriesPerLedger(1));
 
         ManagedCursor c1 = ledger.openCursor("c1");
 
@@ -4115,7 +4548,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     public void testReopenMultipleTimes() throws Exception {
-        ManagedLedger ledger = factory.open("testReopenMultipleTimes");
+        ManagedLedger ledger = factory.open("testReopenMultipleTimes", initManagedLedgerConfig(defaultConfig()));
         ManagedCursor c1 = ledger.openCursor("c1");
 
         Position mdPosition = c1.getMarkDeletedPosition();
@@ -4123,7 +4556,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         c1.close();
         ledger.close();
 
-        ledger = factory.open("testReopenMultipleTimes");
+        ledger = factory.open("testReopenMultipleTimes", initManagedLedgerConfig(defaultConfig()));
         c1 = ledger.openCursor("c1");
 
         // since the empty data ledger will be deleted, the cursor position should also be updated
@@ -4132,13 +4565,13 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         c1.close();
         ledger.close();
 
-        ledger = factory.open("testReopenMultipleTimes");
+        ledger = factory.open("testReopenMultipleTimes", initManagedLedgerConfig(defaultConfig()));
         c1 = ledger.openCursor("c1");
     }
 
     @Test(timeOut = 20000)
     public void testOutOfOrderDeletePersistenceWithClose() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig());
+        ManagedLedger ledger = factory.open("my_test_ledger", defaultConfig());
 
         ManagedCursor c1 = ledger.openCursor("c1");
         List<Position> addedPositions = new ArrayList<>();
@@ -4161,7 +4594,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         // Re-Open
         factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
-        ledger = factory.open("my_test_ledger", new ManagedLedgerConfig());
+        ledger = factory.open("my_test_ledger", defaultConfig());
         c1 = ledger.openCursor("c1");
         assertEquals(c1.getNumberOfEntriesInBacklog(false), 20 - 5);
 
@@ -4183,7 +4616,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     public void testOutOfOrderDeletePersistenceAfterCrash() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig());
+        ManagedLedger ledger = factory.open("my_test_ledger", defaultConfig());
 
         ManagedCursor c1 = ledger.openCursor("c1");
         List<Position> addedPositions = new ArrayList<>();
@@ -4204,7 +4637,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         // Re-Open
         @Cleanup("shutdown")
         ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
-        ledger = factory2.open("my_test_ledger", new ManagedLedgerConfig());
+        ledger = factory2.open("my_test_ledger", defaultConfig());
         c1 = ledger.openCursor("c1");
         assertEquals(c1.getNumberOfEntriesInBacklog(false), 20 - 5);
 
@@ -4234,7 +4667,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     @Test(timeOut = 5000)
     public void testLeakFailedLedgerOfManageCursor() throws Exception {
 
-        ManagedLedgerConfig mlConfig = new ManagedLedgerConfig();
+        ManagedLedgerConfig mlConfig = defaultConfig();
         ManagedLedger ledger = factory.open("my_test_ledger", mlConfig);
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
@@ -4296,7 +4729,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         final int totalAddEntries = 100;
         String ledgerName = "my_test_ledger";
         String cursorName = "c1";
-        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        ManagedLedgerConfig managedLedgerConfig = defaultConfig();
         // metaStore is allowed to store only up to 10 deleted entries range
         managedLedgerConfig.setMaxUnackedRangesToPersistInMetadataStore(10);
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(ledgerName, managedLedgerConfig);
@@ -4384,7 +4817,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         final int totalAddEntries = 100;
         String ledgerName = "my_test_ledger_zk";
         String cursorName = "c1";
-        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        ManagedLedgerConfig managedLedgerConfig = defaultConfig();
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(ledgerName, managedLedgerConfig);
 
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor(cursorName);
@@ -4437,7 +4870,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testInvalidMarkDelete() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig());
+        ManagedLedger ledger = factory.open("my_test_ledger", defaultConfig());
 
         ManagedCursor cursor = ledger.openCursor("c1");
         Position readPosition = cursor.getReadPosition();
@@ -4492,9 +4925,9 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testEstimatedUnackedSize() throws Exception {
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = defaultConfig();
         config.setMaxEntriesPerLedger(10);
-        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig());
+        ManagedLedger ledger = factory.open("my_test_ledger", defaultConfig());
 
         ManagedCursor cursor = ledger.openCursor("c1");
 
@@ -4519,7 +4952,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testEstimatedUnackedSizeWhenLatestLedgerIsEmpty() throws Exception {
-        ManagedLedger ledger = factory.open("test_estimated_unacked_size_empty_latest_ledger");
+        ManagedLedger ledger = factory.open("test_estimated_unacked_size_empty_latest_ledger",
+                initManagedLedgerConfig(defaultConfig()));
         ManagedCursor cursor = ledger.openCursor("c1");
 
         assertEquals(cursor.getEstimatedSizeSinceMarkDeletePosition(), 0);
@@ -4527,7 +4961,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testEstimatedUnackedSizeWhenCursorCaughtUpWithLastPosition() throws Exception {
-        ManagedLedger ledger = factory.open("test_estimated_unacked_size_cursor_caught_up");
+        ManagedLedger ledger = factory.open("test_estimated_unacked_size_cursor_caught_up",
+                initManagedLedgerConfig(defaultConfig()));
         ManagedCursor cursor = ledger.openCursor("c1");
 
         Position lastPosition = ledger.addEntry("entry".getBytes(Encoding));
@@ -4539,10 +4974,10 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     @Test
     public void testScheduleReadCallbackUsesManagedLedgerExecutionContext() {
         ManagedLedgerImpl ledger = mock(ManagedLedgerImpl.class);
-        when(ledger.getConfig()).thenReturn(new ManagedLedgerConfig());
+        when(ledger.getConfig()).thenReturn(defaultConfig());
         when(ledger.getLogger()).thenReturn(log);
         OrderedScheduler scheduledExecutor = mock(OrderedScheduler.class);
-        ExecutorService executor = mock(ExecutorService.class);
+        ThreadBoundExecutor executor = mock(ThreadBoundExecutor.class);
         when(ledger.getScheduledExecutor()).thenReturn(scheduledExecutor);
         when(ledger.getExecutor()).thenReturn(executor);
         ManagedCursorImpl cursor = new ManagedCursorImpl(mock(BookKeeper.class), ledger, "c1");
@@ -4570,7 +5005,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     public void testEstimatedUnackedSizeWhenCursorAdvancedToEmptyCurrentLedger() {
         ManagedLedgerImpl ledger = mock(ManagedLedgerImpl.class);
         when(ledger.getName()).thenReturn("test_estimated_unacked_size_empty_current_ledger");
-        when(ledger.getConfig()).thenReturn(new ManagedLedgerConfig());
+        when(ledger.getConfig()).thenReturn(defaultConfig());
         when(ledger.getLogger()).thenReturn(log);
 
         long currentLedgerId = 4;
@@ -4595,7 +5030,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     public void testEstimatedUnackedSizeWhenLastPositionLedgerIsNoLongerInLedgerList() {
         ManagedLedgerImpl ledger = mock(ManagedLedgerImpl.class);
         when(ledger.getName()).thenReturn("test_estimated_unacked_size_last_position_ledger_removed");
-        when(ledger.getConfig()).thenReturn(new ManagedLedgerConfig());
+        when(ledger.getConfig()).thenReturn(defaultConfig());
         when(ledger.getLogger()).thenReturn(log);
 
         Position lastPosition = PositionFactory.create(3, 0);
@@ -4613,7 +5048,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     public void testEstimatedUnackedSizeFailsWhenCursorIsUnexpectedlyAheadOfLastPosition() {
         ManagedLedgerImpl ledger = mock(ManagedLedgerImpl.class);
         when(ledger.getName()).thenReturn("test_estimated_unacked_size_unexpected_position");
-        when(ledger.getConfig()).thenReturn(new ManagedLedgerConfig());
+        when(ledger.getConfig()).thenReturn(defaultConfig());
         when(ledger.getLogger()).thenReturn(log);
 
         Position lastPosition = PositionFactory.create(1, 10);
@@ -4639,7 +5074,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
      */
     @Test(timeOut = 20000)
     public void testEstimatedSizeWithIndividualAcks() throws Exception {
-        ManagedLedger ledger = factory.open("test_cursor_backlog_size_individual_acks");
+        ManagedLedger ledger = factory.open("test_cursor_backlog_size_individual_acks",
+                initManagedLedgerConfig(defaultConfig()));
         ManagedCursor cursor = ledger.openCursor("c1");
 
         // Each entry is 100 bytes
@@ -4741,7 +5177,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         when(ml.getNextValidLedger(markDeleteLedgerId)).thenReturn(3L);
         when(ml.getNextValidPosition(lastPosition)).thenReturn(nextPosition);
         when(ml.ledgerExists(markDeleteLedgerId)).thenReturn(false);
-        when(ml.getConfig()).thenReturn(new ManagedLedgerConfig());
+        when(ml.getConfig()).thenReturn(defaultConfig());
 
         BookKeeper mockBookKeeper = mock(BookKeeper.class);
         final ManagedCursorImpl cursor = new ManagedCursorImpl(mockBookKeeper, ml, cursorName);
@@ -4763,7 +5199,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     public void testRecoverCursorAfterResetToLatestForNewEntry() throws Exception {
-        ManagedLedger ml = factory.open("testRecoverCursorAfterResetToLatestForNewEntry");
+        ManagedLedger ml = factory.open("testRecoverCursorAfterResetToLatestForNewEntry",
+                initManagedLedgerConfig(defaultConfig()));
         ManagedCursorImpl c = (ManagedCursorImpl) ml.openCursor("sub", CommandSubscribe.InitialPosition.Latest);
 
         // A new cursor starts out with these values. The rest of the test assumes this, so we assert it here.
@@ -4816,7 +5253,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     public void testRecoverCursorAfterResetToLatestForMultipleEntries() throws Exception {
-        ManagedLedger ml = factory.open("testRecoverCursorAfterResetToLatestForMultipleEntries");
+        ManagedLedger ml = factory.open("testRecoverCursorAfterResetToLatestForMultipleEntries",
+                initManagedLedgerConfig(defaultConfig()));
         ManagedCursorImpl c = (ManagedCursorImpl) ml.openCursor("sub", CommandSubscribe.InitialPosition.Latest);
 
         // A new cursor starts out with these values. The rest of the test assumes this, so we assert it here.
@@ -4881,7 +5319,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     }
     @Test
     void testAlwaysInactive() throws Exception {
-        ManagedLedger ml = factory.open("testAlwaysInactive");
+        ManagedLedger ml = factory.open("testAlwaysInactive", initManagedLedgerConfig(defaultConfig()));
         ManagedCursor cursor = ml.openCursor("c1");
 
         assertTrue(cursor.isActive());
@@ -4896,7 +5334,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     void testNonDurableCursorActive() throws Exception {
-        ManagedLedger ml = factory.open("testInactive");
+        ManagedLedger ml = factory.open("testInactive", initManagedLedgerConfig(defaultConfig()));
         ManagedCursor cursor = ml.newNonDurableCursor(PositionFactory.LATEST, "c1");
 
         assertTrue(cursor.isActive());
@@ -4907,7 +5345,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     public void deleteMessagesCheckhMarkDelete() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
         final int totalEntries = 1000;
         final Position[] positions = new Position[totalEntries];
@@ -4946,7 +5384,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testBatchIndexMarkdelete() throws ManagedLedgerException, InterruptedException {
-        ManagedLedger ledger = factory.open("test_batch_index_delete");
+        ManagedLedger ledger = factory.open("test_batch_index_delete", initManagedLedgerConfig(defaultConfig()));
         ManagedCursor cursor = ledger.openCursor("c1");
 
         final int totalEntries = 100;
@@ -4978,7 +5416,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     @Test
     public void testBatchIndexLookupByIdsPreservesSubclassOverride() {
         ManagedLedgerImpl ledger = mock(ManagedLedgerImpl.class);
-        when(ledger.getConfig()).thenReturn(new ManagedLedgerConfig());
+        when(ledger.getConfig()).thenReturn(defaultConfig());
         when(ledger.getLogger()).thenReturn(log);
         long[] expected = {7};
         ManagedCursorImpl cursor = new ManagedCursorImpl(mock(BookKeeper.class), ledger, "c1") {
@@ -5004,7 +5442,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testBatchIndexLookupByLedgerAndEntryIds() throws Exception {
-        ManagedLedger ledger = factory.open("batch_index_lookup_ids");
+        ManagedLedger ledger = factory.open("batch_index_lookup_ids", initManagedLedgerConfig(defaultConfig()));
         ManagedCursor cursor = ledger.openCursor("c1");
         Position position = ledger.addEntry("entry".getBytes(Encoding));
         long ledgerId = position.getLedgerId();
@@ -5024,7 +5462,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testBatchIndexDelete() throws ManagedLedgerException, InterruptedException {
-        ManagedLedger ledger = factory.open("test_batch_index_delete");
+        ManagedLedger ledger = factory.open("test_batch_index_delete", initManagedLedgerConfig(defaultConfig()));
         ManagedCursor cursor = ledger.openCursor("c1");
 
         final int totalEntries = 100;
@@ -5079,7 +5517,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testBatchIndexesDeletionPersistAndRecover() throws ManagedLedgerException, InterruptedException {
-        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        ManagedLedgerConfig managedLedgerConfig = defaultConfig();
         // Make sure the cursor metadata updated by the cursor ledger ID.
         managedLedgerConfig.setMaxUnackedRangesToPersistInMetadataStore(-1);
         ManagedLedger ledger = factory.open("test_batch_indexes_deletion_persistent", managedLedgerConfig);
@@ -5199,7 +5637,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testReadEntriesOrWaitWithMaxSize() throws Exception {
-        ManagedLedger ledger = factory.open("testReadEntriesOrWaitWithMaxSize");
+        ManagedLedger ledger = factory.open("testReadEntriesOrWaitWithMaxSize",
+                initManagedLedgerConfig(defaultConfig()));
         ManagedCursor c = ledger.openCursor("c");
 
         for (int i = 0; i < 20; i++) {
@@ -5228,7 +5667,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     public void testReadEntriesOrWaitWithMaxPosition() throws Exception {
         int readMaxNumber = 10;
         int sendNumber = 20;
-        ManagedLedger ledger = factory.open("testReadEntriesOrWaitWithMaxPosition");
+        ManagedLedger ledger = factory.open("testReadEntriesOrWaitWithMaxPosition",
+                initManagedLedgerConfig(defaultConfig()));
         ManagedCursor c = ledger.openCursor("c");
         Position position = PositionFactory.EARLIEST;
         Position maxCanReadPosition = PositionFactory.EARLIEST;
@@ -5276,7 +5716,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testFlushCursorAfterInactivity() throws Exception {
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = defaultConfig();
         config.setThrottleMarkDelete(1.0);
 
         ManagedLedgerFactoryConfig factoryConfig = new ManagedLedgerFactoryConfig();
@@ -5327,7 +5767,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testFlushCursorAfterIndividualDeleteInactivity() throws Exception {
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = defaultConfig();
         config.setThrottleMarkDelete(1.0);
 
         ManagedLedgerFactoryConfig factoryConfig = new ManagedLedgerFactoryConfig();
@@ -5388,7 +5828,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testFlushCursorAfterError() throws Exception {
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = defaultConfig();
         config.setThrottleMarkDelete(1.0);
 
         ManagedLedgerFactoryConfig factoryConfig = new ManagedLedgerFactoryConfig();
@@ -5438,7 +5878,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testConsistencyOfIndividualMessages() throws Exception {
-        ManagedLedger ledger1 = factory.open("testConsistencyOfIndividualMessages");
+        ManagedLedger ledger1 = factory.open("testConsistencyOfIndividualMessages",
+                initManagedLedgerConfig(defaultConfig()));
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger1.openCursor("c");
 
         Position p1 = ledger1.addEntry(new byte[1024]);
@@ -5463,7 +5904,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testCursorCheckReadPositionChanged() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig());
+        ManagedLedger ledger = factory.open("my_test_ledger", defaultConfig());
         ManagedCursor c1 = ledger.openCursor("c1");
 
         // check empty ledger
@@ -5496,7 +5937,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         c1.close();
         ledger.close();
 
-        ledger = factory.open("my_test_ledger", new ManagedLedgerConfig());
+        ledger = factory.open("my_test_ledger", defaultConfig());
         // recover cursor
         ManagedCursor c2 = ledger.openCursor("c1");
         assertTrue(c2.checkAndUpdateReadPositionChanged());
@@ -5523,7 +5964,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testCursorGetBacklog() throws Exception {
-        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        ManagedLedgerConfig managedLedgerConfig = defaultConfig();
         managedLedgerConfig.setMaxEntriesPerLedger(2);
         managedLedgerConfig.setMinimumRolloverTime(0, TimeUnit.MILLISECONDS);
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("get-backlog", managedLedgerConfig);
@@ -5554,7 +5995,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testCursorNoRolloverIfNoMetadataSession() throws Exception {
-        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        ManagedLedgerConfig managedLedgerConfig = defaultConfig();
         managedLedgerConfig.setMaxEntriesPerLedger(2);
         managedLedgerConfig.setMetadataMaxEntriesPerLedger(2);
         managedLedgerConfig.setMinimumRolloverTime(0, TimeUnit.MILLISECONDS);
@@ -5600,8 +6041,78 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testShouldCloseLedgerObservesUpdatedMetadataMaxEntriesPerLedger() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMetadataMaxEntriesPerLedger(10_000);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "testShouldCloseLedgerObservesUpdatedMetadataMaxEntriesPerLedger", config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+
+        LedgerHandle lh = mock(LedgerHandle.class);
+        when(lh.getLastAddConfirmed()).thenReturn(1L);
+
+        // Cursor was created with a large rollover threshold, so a single persisted entry is not enough.
+        assertFalse(cursor.shouldCloseLedger(lh));
+
+        ManagedLedgerConfig updated = new ManagedLedgerConfig();
+        updated.setMetadataMaxEntriesPerLedger(1);
+        ledger.setConfig(updated);
+
+        // shouldCloseLedger must read the live config, not a cached derived threshold.
+        assertTrue(cursor.shouldCloseLedger(lh));
+    }
+
+    @Test
+    public void testShouldCloseLedgerObservesUpdatedLedgerRolloverTimeout() throws Exception {
+        MockClock clock = new MockClock();
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setClock(clock);
+        config.setLedgerRolloverTimeout(14400);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "testShouldCloseLedgerObservesUpdatedLedgerRolloverTimeout", config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+
+        LedgerHandle lh = mock(LedgerHandle.class);
+        // Keep lastAddConfirmed below the entries threshold so only the time check can close.
+        when(lh.getLastAddConfirmed()).thenReturn(0L);
+
+        assertFalse(cursor.shouldCloseLedger(lh));
+
+        // 2s is far below 14400s, but past the 1s timeout even with 5% jitter.
+        clock.advance(2, TimeUnit.SECONDS);
+        assertFalse(cursor.shouldCloseLedger(lh));
+
+        ManagedLedgerConfig updated = new ManagedLedgerConfig();
+        updated.setClock(clock);
+        updated.setLedgerRolloverTimeout(1);
+        ledger.setConfig(updated);
+
+        assertTrue(cursor.shouldCloseLedger(lh));
+    }
+
+    @Test
+    public void testShouldCloseLedgerEntriesJitterStaysWithinConfiguredMax() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMetadataMaxEntriesPerLedger(1000);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "testShouldCloseLedgerEntriesJitterStaysWithinConfiguredMax", config);
+
+        LedgerHandle belowJitterRange = mock(LedgerHandle.class);
+        when(belowJitterRange.getLastAddConfirmed()).thenReturn(949L);
+        LedgerHandle atConfiguredMax = mock(LedgerHandle.class);
+        when(atConfiguredMax.getLastAddConfirmed()).thenReturn(1000L);
+
+        // Every cursor draws its own jitter: none may roll over before 95% of the limit or go past the limit.
+        for (int i = 0; i < 50; i++) {
+            ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c" + i);
+            assertFalse(cursor.shouldCloseLedger(belowJitterRange));
+            assertTrue(cursor.shouldCloseLedger(atConfiguredMax));
+        }
+    }
+
+    @Test
     public void testReadEmptyEntryList() throws Exception {
-        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        ManagedLedgerConfig managedLedgerConfig = defaultConfig();
         managedLedgerConfig.setMaxEntriesPerLedger(1);
         managedLedgerConfig.setMetadataMaxEntriesPerLedger(1);
         managedLedgerConfig.setMinimumRolloverTime(0, TimeUnit.MILLISECONDS);
@@ -5655,7 +6166,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         mockedStaticOpReadEntry.when(() -> OpReadEntry.create(any(), any(), anyInt(), anyLong(), any(),
                         any(), any(), any(), anyBoolean())).thenAnswer(__ -> createOpReadEntry.get());
 
-        final ManagedLedgerConfig ledgerConfig = new ManagedLedgerConfig();
+        final ManagedLedgerConfig ledgerConfig = defaultConfig();
         ledgerConfig.setNewEntriesCheckDelayInMillis(10);
         final ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger", ledgerConfig);
         final ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("my_cursor");
@@ -5698,7 +6209,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testEagerCursorLedgerCreation() throws Exception {
-        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        ManagedLedgerConfig managedLedgerConfig = defaultConfig();
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory
                 .open("testLazyCursorLedgerCreation", managedLedgerConfig);
         ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test");
@@ -5743,7 +6254,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     public void testLazyCursorLedgerCreationForSubscriptionCreation() throws Exception {
-        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        ManagedLedgerConfig managedLedgerConfig = defaultConfig();
         ManagedLedgerImpl ledger =
                 (ManagedLedgerImpl) factory.open("testLazyCursorLedgerCreation", managedLedgerConfig);
         Position p1 = ledger.addEntry("test".getBytes());
@@ -5762,7 +6273,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     public void testReadEntriesWithSkip() throws ManagedLedgerException, InterruptedException, ExecutionException {
         int readMaxNumber = 10;
         int sendNumber = 20;
-        ManagedLedger ledger = factory.open("testReadEntriesWithSkip");
+        ManagedLedger ledger = factory.open("testReadEntriesWithSkip", initManagedLedgerConfig(defaultConfig()));
         ManagedCursor cursor = ledger.openCursor("c");
         Position position = PositionFactory.EARLIEST;
         Position maxCanReadPosition = PositionFactory.EARLIEST;
@@ -5874,7 +6385,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     public void testFilterReadEntriesSkipsFilteringForGapBetweenIndividualAcks() throws Exception {
         @Cleanup
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
-                "testFilterReadEntriesSkipsFilteringForGapBetweenIndividualAcks");
+                "testFilterReadEntriesSkipsFilteringForGapBetweenIndividualAcks", defaultConfig());
         @Cleanup
         ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c");
 
@@ -5914,7 +6425,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     public void testFilterReadEntriesFallsBackForCrossLedgerBatch() throws Exception {
         @Cleanup
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
-                "testFilterReadEntriesFallsBackForCrossLedgerBatch");
+                "testFilterReadEntriesFallsBackForCrossLedgerBatch", defaultConfig());
         @Cleanup
         ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c");
 
@@ -5958,7 +6469,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     public void testFilterReadEntriesFallsBackForDescendingBatch() throws Exception {
         @Cleanup
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
-                "testFilterReadEntriesFallsBackForDescendingBatch");
+                "testFilterReadEntriesFallsBackForDescendingBatch", defaultConfig());
         @Cleanup
         ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c");
 
@@ -6001,7 +6512,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     @Test
     public void testReadEntriesWithSkipDeletedEntries() throws Exception {
         @Cleanup
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testReadEntriesWithSkipDeletedEntries");
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testReadEntriesWithSkipDeletedEntries",
+                initManagedLedgerConfig(defaultConfig()));
         ledger = Mockito.spy(ledger);
         List<Long> actualReadEntryIds = new ArrayList<>();
         Mockito.doAnswer(inv -> {
@@ -6106,7 +6618,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     public void testReadEntriesWithSkipDeletedEntriesAndWithSkipConditions() throws Exception {
         @Cleanup
         ManagedLedgerImpl ledger = (ManagedLedgerImpl)
-                factory.open("testReadEntriesWithSkipDeletedEntriesAndWithSkipConditions");
+                factory.open("testReadEntriesWithSkipDeletedEntriesAndWithSkipConditions",
+                        initManagedLedgerConfig(defaultConfig()));
         ledger = Mockito.spy(ledger);
 
         List<Long> actualReadEntryIds = new ArrayList<>();
@@ -6198,7 +6711,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testSkipNonRecoverableEntries() throws ManagedLedgerException, InterruptedException {
-        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        ManagedLedgerConfig managedLedgerConfig = defaultConfig();
         int maxMessagePerLedger = 10;
         managedLedgerConfig.setMaxEntriesPerLedger(maxMessagePerLedger);
         ManagedLedger ledger = factory.open("testSkipNonRecoverableEntries", managedLedgerConfig);
@@ -6246,7 +6759,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     @Test(timeOut = 20000)
     public void testSkipNonRecoverableEntriesDoesNotHoldCursorLockWhilePersisting() throws Exception {
         ManagedLedger ledger = factory.open("testSkipNonRecoverableEntriesDoesNotHoldCursorLockWhilePersisting",
-                new ManagedLedgerConfig());
+                defaultConfig());
         ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("my-cursor");
         Position firstPosition = ledger.addEntry("entry-0".getBytes(Encoding));
         Position nextPosition = ledger.addEntry("entry-1".getBytes(Encoding));
@@ -6286,7 +6799,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         String mlName = "my_test_ledger";
         String cursorName = "c1";
 
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = defaultConfig();
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(mlName, config);
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor(cursorName);
 
@@ -6343,7 +6856,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testFindNewestMatching_SearchAllAvailableEntries_ByStartAndEnd() throws Exception {
-        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        ManagedLedgerConfig managedLedgerConfig = defaultConfig();
         managedLedgerConfig.setMaxEntriesPerLedger(2);
         managedLedgerConfig.setMinimumRolloverTime(0, TimeUnit.MILLISECONDS);
         @Cleanup
@@ -6498,7 +7011,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testFindNewestMatching_SearchActiveEntries_ByStartAndEnd() throws Exception {
-        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        ManagedLedgerConfig managedLedgerConfig = defaultConfig();
         managedLedgerConfig.setMaxEntriesPerLedger(2);
         managedLedgerConfig.setMinimumRolloverTime(0, TimeUnit.MILLISECONDS);
         @Cleanup
@@ -6656,7 +7169,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testDeleteBatchedMessageWithEmptyAckSet() throws Exception {
-        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        ManagedLedgerConfig managedLedgerConfig = defaultConfig();
         managedLedgerConfig.setDeletionAtBatchIndexLevelEnabled(false);
         ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("testDeleteBatchedMessageWithEmptyAckSet",
             managedLedgerConfig);
@@ -6670,9 +7183,56 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testDeleteWholeEntryOnce() throws Exception {
+        ManagedLedgerConfig managedLedgerConfig = defaultConfig();
+        managedLedgerConfig.setDeletionAtBatchIndexLevelEnabled(true);
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("testDeleteWholeEntryOnce", managedLedgerConfig);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ml.openCursor("c1");
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < 4; i++) {
+            positions.add(ml.addEntry(new byte[1]));
+        }
+        long consumed = cursor.getMessagesConsumedCounter();
+
+        // Deleting an entry twice counts it once and leaves the deleted messages as they were
+        cursor.delete(positions.get(2));
+        assertEquals(cursor.getMessagesConsumedCounter(), consumed + 1);
+        String deleted = cursor.getIndividuallyDeletedMessagesSet().toString();
+        cursor.delete(positions.get(2));
+        assertEquals(cursor.getMessagesConsumedCounter(), consumed + 1);
+        assertEquals(cursor.getIndividuallyDeletedMessagesSet().toString(), deleted);
+
+        // A batch acknowledged in part, and then as a whole
+        Position batch = positions.get(1);
+        cursor.delete(AckSetStateUtil.createPositionWithAckSet(batch.getLedgerId(), batch.getEntryId(),
+                new long[]{0b1110L}));
+        assertNotNull(cursor.getBatchPositionAckSet(batch));
+        assertFalse(cursor.isMessageDeleted(batch));
+        cursor.delete(batch);
+        assertNull(cursor.getBatchPositionAckSet(batch));
+        assertTrue(cursor.isMessageDeleted(batch));
+        assertEquals(cursor.getMessagesConsumedCounter(), consumed + 2);
+
+        // An entry at or before the mark-delete position was deleted already
+        cursor.markDelete(positions.get(0));
+        assertEquals(cursor.getMarkDeletedPosition(), positions.get(2));
+        long consumedBeforeDeletingAgain = cursor.getMessagesConsumedCounter();
+        cursor.delete(positions.get(1));
+        cursor.delete(positions.get(2));
+        assertEquals(cursor.getMessagesConsumedCounter(), consumedBeforeDeletingAgain);
+        assertTrue(cursor.getIndividuallyDeletedMessagesSet().isEmpty());
+
+        // In one call: an entry twice and one before the mark-delete position count once
+        cursor.delete(List.of(positions.get(3), positions.get(3), positions.get(1)));
+        assertEquals(cursor.getMessagesConsumedCounter(), consumedBeforeDeletingAgain + 1);
+        assertEquals(cursor.getMarkDeletedPosition(), positions.get(3));
+        ml.delete();
+    }
+
+    @Test
     public void testEstimateEntryCountBySize() throws Exception {
         final String mlName = "ml-" + UUID.randomUUID().toString().replaceAll("-", "");
-        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(mlName);
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(mlName, initManagedLedgerConfig(defaultConfig()));
         int maxEntries = Integer.MAX_VALUE;
         long entryCount0 =
                 estimateEntryCountByBytesSize(maxEntries, 16,
@@ -6759,7 +7319,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testApplyMaxSizeCap() throws Exception {
-        var ml = factory.open("testApplyMaxSizeCap");
+        var ml = factory.open("testApplyMaxSizeCap", initManagedLedgerConfig(defaultConfig()));
         var cursor = ml.openCursor("c1");
         ml.addEntry(new byte[1000]);
         assertEquals(cursor.applyMaxSizeCap(200, Long.MAX_VALUE), 200);
@@ -6769,7 +7329,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testCallbackTimes() throws Exception {
-        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("testCallbackTimes");
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("testCallbackTimes",
+                initManagedLedgerConfig(defaultConfig()));
         ManagedCursorImpl cursor = (ManagedCursorImpl) ml.openCursor("c1");
         Position position1 = ml.addEntry(new byte[1]);
         Position position2 = ml.addEntry(new byte[2]);
@@ -6800,7 +7361,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         TestPulsarMockBookKeeper bk = new TestPulsarMockBookKeeper(bkExecutor);
         factory.shutdown();
         factory = new ManagedLedgerFactoryImpl(metadataStore, bk);
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = defaultConfig();
         config.setLedgerForceRecovery(true);
         ManagedLedger ledger = factory.open("my_test_ledger", config);
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
@@ -6859,7 +7420,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                 }
             }
         });
-        final var ml = factory.open("testReadNoEntries");
+        final var ml = factory.open("testReadNoEntries", initManagedLedgerConfig(defaultConfig()));
         final var cursor = ml.openCursor("cursor");
         cursor.setInactive(); // disable caching when adding entries
         for (int i = 0; i < 10; i++) {
@@ -6876,7 +7437,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testSkipOpenLedgerFullyAcked() throws Exception {
-        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        ManagedLedgerConfig managedLedgerConfig = defaultConfig();
         managedLedgerConfig.setMaxEntriesPerLedger(10);
         managedLedgerConfig.setMinimumRolloverTime(0, TimeUnit.MILLISECONDS);
         ManagedLedger ledger = factory.open("testSkipOpenLedgerFullyAcked", managedLedgerConfig);
@@ -6948,7 +7509,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testConcurrentRead() throws Exception {
-        final var config = new ManagedLedgerConfig();
+        final var config = defaultConfig();
         config.setReadEntryTimeoutSeconds(0);
         config.setNewEntriesCheckDelayInMillis(1000);
         @Cleanup final var ledger = factory.open("testConcurrentRead", config);
@@ -6970,7 +7531,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     public void testAsyncMarkDeleteNeverLoseProperties() throws Exception {
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = defaultConfig();
         config.setMaxEntriesPerLedger(3);
         config.setRetentionTime(20, TimeUnit.SECONDS);
         config.setRetentionSizeInMB(5);
@@ -7015,7 +7576,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     public void testAsyncDeleteNeverLoseMarkDeleteProperties() throws Exception {
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = defaultConfig();
         config.setMaxEntriesPerLedger(11);
 
         @Cleanup ManagedLedgerImpl ledger =
@@ -7099,7 +7660,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                 (policyConfig) -> CompletableFuture.completedFuture(bkc),
                 new ManagedLedgerFactoryConfig(), NullStatsLogger.INSTANCE, openTelemetry);
 
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = defaultConfig();
         config.setMaxUnackedRangesToPersist(maxRanges);
         // Force persistence through the ledger path (not metadata store).
         config.setMaxUnackedRangesToPersistInMetadataStore(0);
@@ -7169,7 +7730,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                 (policyConfig) -> CompletableFuture.completedFuture(bkc),
                 new ManagedLedgerFactoryConfig(), NullStatsLogger.INSTANCE, openTelemetry);
 
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = defaultConfig();
         config.setMaxBatchDeletedIndexToPersist(maxBatchIndexes);
         config.setDeletionAtBatchIndexLevelEnabled(true);
         config.setMaxUnackedRangesToPersistInMetadataStore(0);
@@ -7215,7 +7776,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         @Cleanup
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
                 "testCompactionCursorResetNeverLoseMarkDeleteProperties",
-                new ManagedLedgerConfig().setMaxEntriesPerLedger(10));
+                defaultConfig().setMaxEntriesPerLedger(10));
         ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("__compaction");
         ManagedCursorImpl spyCursor = spy(cursor);
         ledger.getCursors().removeCursor(cursor.getName());
@@ -7290,6 +7851,88 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         assertEquals(spyCursor.getMarkDeletedPosition(), markDeletePosition);
         assertEquals(spyCursor.getProperties(), properties);
+    }
+
+    @Test(timeOut = 30000)
+    public void testResetCursorIsNotDroppedByAckQueuedBehindIt() throws Exception {
+        CompletableFuture<Void> releaseReads = new CompletableFuture<>();
+        AtomicBoolean holdReads = new AtomicBoolean(false);
+        bkc.setReadHandleInterceptor((ledgerId, firstEntry, lastEntry, entries) ->
+                holdReads.get() ? releaseReads.thenApply(__ -> entries) : CompletableFuture.completedFuture(entries));
+
+        String ledgerName = "testResetCursorIsNotDroppedByAckQueuedBehindIt";
+        ManagedLedger ledger = factory.open(ledgerName, defaultConfig());
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+        cursor.setInactive(); // disable caching when adding entries, so reads go to the bookie
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            positions.add(ledger.addEntry(("entry-" + i).getBytes(Encoding)));
+        }
+        cursor.markDelete(positions.get(4));
+
+        // Keep a read in flight, so mark-delete requests are queued
+        holdReads.set(true);
+        CompletableFuture<List<Entry>> readFuture = new CompletableFuture<>();
+        cursor.asyncReadEntries(1, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                readFuture.complete(entries);
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                readFuture.completeExceptionally(exception);
+            }
+        }, null, PositionFactory.LATEST);
+        Awaitility.await().until(() -> cursor.getPendingReadOpsCount() == 1);
+
+        // Queue a reset, then an ack that advances the mark-delete position behind it
+        CompletableFuture<Void> resetFuture = new CompletableFuture<>();
+        cursor.asyncResetCursor(positions.get(0), false, new AsyncCallbacks.ResetCursorCallback() {
+            @Override
+            public void resetComplete(Object ctx) {
+                resetFuture.complete(null);
+            }
+
+            @Override
+            public void resetFailed(ManagedLedgerException exception, Object ctx) {
+                resetFuture.completeExceptionally(exception);
+            }
+        });
+        Awaitility.await().until(() -> cursor.pendingMarkDeleteOps.size() == 1);
+        cursor.asyncDelete(positions.get(5), new DeleteCallback() {
+            @Override
+            public void deleteComplete(Object ctx) {
+            }
+
+            @Override
+            public void deleteFailed(ManagedLedgerException exception, Object ctx) {
+            }
+        }, null);
+        assertEquals(cursor.pendingMarkDeleteOps.size(), 2);
+        assertEquals(cursor.pendingMarkDeleteOps.getLast().newPosition, positions.get(5));
+
+        // Completing the read flushes the queued mark-delete requests
+        releaseReads.complete(null);
+        readFuture.get(10, TimeUnit.SECONDS).forEach(Entry::release);
+        resetFuture.get(10, TimeUnit.SECONDS);
+
+        Position resetMarkDeletePosition = ((ManagedLedgerImpl) ledger).getPreviousPosition(positions.get(0));
+        assertEquals(cursor.getReadPosition(), positions.get(0));
+        assertEquals(cursor.getMarkDeletedPosition(), resetMarkDeletePosition);
+        assertEquals(cursor.getPersistentMarkDeletedPosition(), resetMarkDeletePosition);
+        assertFalse(cursor.isMessageDeleted(positions.get(5)));
+
+        // Acknowledgments after the reset are persisted
+        holdReads.set(false);
+        cursor.markDelete(positions.get(2));
+        ledger.close();
+
+        ManagedLedger reopenedLedger = factory.open(ledgerName, defaultConfig());
+        ManagedCursorImpl reopenedCursor = (ManagedCursorImpl) reopenedLedger.openCursor("c1");
+        assertEquals(reopenedCursor.getMarkDeletedPosition(), positions.get(2));
+        assertFalse(reopenedCursor.isMessageDeleted(positions.get(5)));
+        reopenedLedger.close();
     }
 
     @SuppressWarnings("try")

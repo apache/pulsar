@@ -28,6 +28,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import io.opentelemetry.api.OpenTelemetry;
@@ -38,8 +39,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -51,6 +50,8 @@ import lombok.CustomLog;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.bookkeeper.common.util.OrderedExecutor;
+import org.apache.bookkeeper.common.util.ThreadBoundExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -73,20 +74,23 @@ public class PendingReadsManagerTest  {
     static final Object CTX2 = "far";
     static final long LEDGER_ID = 123414L;
     private final Map<Pair<Long, Long>, AtomicInteger> entryRangeReadCount = new ConcurrentHashMap<>();
-    ExecutorService orderedExecutor;
+    OrderedExecutor executorPool;
+    ThreadBoundExecutor orderedExecutor;
 
     PendingReadsManagerTest() {
     }
 
     @BeforeClass(alwaysRun = true)
     void before() {
-        orderedExecutor = Executors.newSingleThreadExecutor();
+        executorPool = OrderedExecutor.newBuilder().numThreads(1).name("test").build();
+        orderedExecutor = (ThreadBoundExecutor) executorPool.chooseThread();
     }
 
     @AfterClass(alwaysRun = true)
     void after() {
-        if (orderedExecutor != null) {
-            orderedExecutor.shutdown();
+        if (executorPool != null) {
+            executorPool.shutdown();
+            executorPool = null;
             orderedExecutor = null;
         }
     }
@@ -283,6 +287,38 @@ public class PendingReadsManagerTest  {
             pos++;
         }
 
+    }
+
+    @Test
+    public void singleEntryReadsShareAnIncludingReadAndNotEachOther() throws Exception {
+        IntSupplier expectedReadCount = () -> 0;
+        PreparedReadFromStorage range = prepareReadFromStorage(lh, rangeEntryCache, 100, 199, expectedReadCount);
+        PreparedReadFromStorage single1 = prepareReadFromStorage(lh, rangeEntryCache, 300, 300, expectedReadCount);
+        PreparedReadFromStorage single2 = prepareReadFromStorage(lh, rangeEntryCache, 305, 305, expectedReadCount);
+
+        CapturingReadEntriesCallback rangeCallback = new CapturingReadEntriesCallback();
+        pendingReadsManager.readEntries(lh, 100, 199, NO_MAX_SIZE_LIMIT, expectedReadCount, rangeCallback, CTX);
+        // as a dispatcher's replay reads single entries: one inside the pending range read, two outside of it
+        CapturingReadEntriesCallback included = new CapturingReadEntriesCallback();
+        pendingReadsManager.readEntries(lh, 150, 150, NO_MAX_SIZE_LIMIT, expectedReadCount, included, CTX2);
+        CapturingReadEntriesCallback separate1 = new CapturingReadEntriesCallback();
+        pendingReadsManager.readEntries(lh, 300, 300, NO_MAX_SIZE_LIMIT, expectedReadCount, separate1, CTX);
+        CapturingReadEntriesCallback separate2 = new CapturingReadEntriesCallback();
+        pendingReadsManager.readEntries(lh, 305, 305, NO_MAX_SIZE_LIMIT, expectedReadCount, separate2, CTX);
+
+        range.storageReadCompleted();
+        single1.storageReadCompleted();
+        single2.storageReadCompleted();
+
+        for (CapturingReadEntriesCallback callback : List.of(rangeCallback, included, separate1, separate2)) {
+            callback.get();
+        }
+        verifyRange(rangeCallback.entries, 100, 199);
+        // the included single entry came from the range read
+        verifyRange(included.entries, 150, 150);
+        assertNull(entryRangeReadCount.get(Pair.of(150L, 150L)));
+        verifyRange(separate1.entries, 300, 300);
+        verifyRange(separate2.entries, 305, 305);
     }
 
     @Test

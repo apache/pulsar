@@ -19,12 +19,7 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.AdditionalAnswers.delegatesTo;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
 import java.util.concurrent.TimeUnit;
-import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.Message;
@@ -73,16 +68,12 @@ public class ReaderMessageTTLTest extends SharedPulsarBaseTest {
             // Pause the reader until all published messages are old enough to expire.
             long expiryTime = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(2);
             Awaitility.await().until(() -> System.currentTimeMillis() > expiryTime);
-            PersistentTopic expiryTopic = topic;
-            if (!sharedPosition) {
-                expiryTopic = spy(topic);
-                // Exercise the fallback used by custom ManagedLedger implementations.
-                doReturn(mock(ManagedLedger.class, delegatesTo(topic.getManagedLedger())))
-                        .when(expiryTopic).getManagedLedger();
-            }
-            PersistentTopic topicToCheck = expiryTopic;
             Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
-                topicToCheck.checkMessageExpiry();
+                if (sharedPosition) {
+                    topic.checkMessageExpiry();
+                } else {
+                    topic.checkMessageExpiryWithoutSharedPosition(1);
+                }
                 assertThat(durable.getCursor().getNumberOfEntriesInBacklog(false)).isZero();
             });
             assertThat(readerSubscription.getCursor().getMarkDeletedPosition())
