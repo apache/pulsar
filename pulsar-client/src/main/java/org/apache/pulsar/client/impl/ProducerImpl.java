@@ -1459,6 +1459,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         if (cnx == null || (currentState != State.Ready && currentState != State.RegisteringSchema)) {
             log.info("Closed Producer (not connected)");
             closeAndClearPendingMessages();
+            closeInterceptors();
             return CompletableFuture.completedFuture(null);
         }
 
@@ -1472,8 +1473,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 // connection did break in the meantime. In any case, the producer is gone.
                 log.info("Closed Producer");
                 closeAndClearPendingMessages();
+                closeInterceptors();
                 closeFuture.complete(null);
             } else {
+                closeInterceptors();
                 closeFuture.completeExceptionally(exception);
             }
 

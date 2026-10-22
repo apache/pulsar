@@ -27,7 +27,6 @@ import com.google.common.collect.Lists;
 import io.github.merlimat.slog.Logger;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -677,6 +676,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 return failPendingReceive();
             }, internalPinnedExecutor)
             .whenComplete((r, ex) -> {
+                closeInterceptors();
                 if (ex == null) {
                     closeFuture.complete(null);
                 } else {
@@ -1703,8 +1703,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             }
 
             @Override
-            public void close() throws IOException {
-                multiTopicInterceptors.close();
+            public void close() {
             }
         };
     }
