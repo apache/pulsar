@@ -26,33 +26,34 @@ import (
 
 	log "github.com/apache/pulsar/pulsar-function-go/logutil"
 	pb "github.com/apache/pulsar/pulsar-function-go/pb"
-	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type InstanceControlServicer struct {
+	pb.UnimplementedInstanceControlServer
 	goInstance *goInstance
 }
 
 func (icServicer *InstanceControlServicer) GetFunctionStatus(
-	ctx context.Context, req *empty.Empty) (*pb.FunctionStatus, error) {
+	ctx context.Context, req *emptypb.Empty) (*pb.FunctionStatus, error) {
 	return icServicer.goInstance.getFunctionStatus(), nil
 	//return nil, status.Errorf(codes.Unimplemented, "method GetFunctionStatus not implemented")
 }
 func (icServicer *InstanceControlServicer) GetAndResetMetrics(
-	ctx context.Context, req *empty.Empty) (*pb.MetricsData, error) {
+	ctx context.Context, req *emptypb.Empty) (*pb.MetricsData, error) {
 	return icServicer.goInstance.getAndResetMetrics(), nil
 }
 func (icServicer *InstanceControlServicer) ResetMetrics(
-	ctx context.Context, req *empty.Empty) (*empty.Empty, error) {
+	ctx context.Context, req *emptypb.Empty) (*emptypb.Empty, error) {
 	return icServicer.goInstance.resetMetrics(), nil
 }
 func (icServicer *InstanceControlServicer) GetMetrics(
-	ctx context.Context, req *empty.Empty) (*pb.MetricsData, error) {
+	ctx context.Context, req *emptypb.Empty) (*pb.MetricsData, error) {
 	return icServicer.goInstance.getMetrics(), nil
 }
 func (icServicer *InstanceControlServicer) HealthCheck(
-	ctx context.Context, req *empty.Empty) (*pb.HealthCheckResult, error) {
+	ctx context.Context, req *emptypb.Empty) (*pb.HealthCheckResult, error) {
 	return icServicer.goInstance.healthCheck(), nil
 }
 

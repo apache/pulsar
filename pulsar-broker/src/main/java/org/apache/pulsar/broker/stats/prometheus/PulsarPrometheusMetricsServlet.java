@@ -18,40 +18,52 @@
  */
 package org.apache.pulsar.broker.stats.prometheus;
 
+import static org.apache.pulsar.broker.web.GzipHandlerUtil.isGzipCompressionEnabledForEndpoint;
+import jakarta.servlet.AsyncContext;
+import jakarta.servlet.AsyncEvent;
+import jakarta.servlet.AsyncListener;
+import jakarta.servlet.ServletOutputStream;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.EOFException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.time.Clock;
+import java.util.Arrays;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import javax.servlet.AsyncContext;
-import javax.servlet.AsyncEvent;
-import javax.servlet.AsyncListener;
-import javax.servlet.ServletOutputStream;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
-import org.eclipse.jetty.server.HttpOutput;
+import org.eclipse.jetty.ee10.servlet.HttpOutput;
 
-@Slf4j
+@CustomLog
 public class PulsarPrometheusMetricsServlet extends PrometheusMetricsServlet {
     private static final long serialVersionUID = 1L;
     private static final int EXECUTOR_MAX_THREADS = 4;
 
     private final PrometheusMetricsGenerator prometheusMetricsGenerator;
+    private final boolean gzipCompressionEnabledForMetrics;
 
     public PulsarPrometheusMetricsServlet(PulsarService pulsar, boolean includeTopicMetrics,
                                           boolean includeConsumerMetrics, boolean includeProducerMetrics,
                                           boolean splitTopicAndPartitionLabel) {
+        this(pulsar, new PrometheusMetricsGenerator(pulsar, includeTopicMetrics, includeConsumerMetrics,
+                includeProducerMetrics, splitTopicAndPartitionLabel, Clock.systemUTC()));
+    }
+
+    public PulsarPrometheusMetricsServlet(PulsarService pulsar) {
+        this(pulsar, new PrometheusMetricsGenerator(pulsar, Clock.systemUTC()));
+    }
+
+    private PulsarPrometheusMetricsServlet(PulsarService pulsar, PrometheusMetricsGenerator metricsGenerator) {
         super(pulsar.getConfiguration().getMetricsServletTimeoutMs(), pulsar.getConfiguration().getClusterName(),
                 EXECUTOR_MAX_THREADS);
         MetricsExports.initialize();
-        prometheusMetricsGenerator =
-                new PrometheusMetricsGenerator(pulsar, includeTopicMetrics, includeConsumerMetrics,
-                        includeProducerMetrics, splitTopicAndPartitionLabel, Clock.systemUTC());
+        prometheusMetricsGenerator = metricsGenerator;
+        gzipCompressionEnabledForMetrics = isGzipCompressionEnabledForEndpoint(
+                pulsar.getConfiguration().getHttpServerGzipCompressionExcludedPaths(), DEFAULT_METRICS_PATH);
     }
-
 
     @Override
     public void destroy() {
@@ -100,15 +112,23 @@ public class PulsarPrometheusMetricsServlet extends PrometheusMetricsServlet {
             context.complete();
             return;
         }
-        metricsBuffer.getBufferFuture().whenComplete((buffer, ex) -> executor.execute(() -> {
+        boolean compressOutput = gzipCompressionEnabledForMetrics && isGzipAccepted(request);
+        metricsBuffer.getBufferFuture().thenCompose(responseBuffer -> {
+            if (compressOutput) {
+                return responseBuffer.getCompressedBuffer(executor);
+            } else {
+                return CompletableFuture.completedFuture(responseBuffer.getUncompressedBuffer());
+            }
+        }).whenComplete((buffer, ex) -> executor.execute(() -> {
             try {
                 long elapsedNanos = System.nanoTime() - startNanos;
                 // check if the request has been timed out, implement a soft timeout
                 // so that response writing can continue to up to 2 * timeout
                 if (metricsServletTimeoutMs > 0 && elapsedNanos > TimeUnit.MILLISECONDS.toNanos(
                         metricsServletTimeoutMs)) {
-                    log.warn("Prometheus metrics request was too long in queue ({}ms). Skipping sending metrics.",
-                            TimeUnit.NANOSECONDS.toMillis(elapsedNanos));
+                    log.warn()
+                            .attr("queue", TimeUnit.NANOSECONDS.toMillis(elapsedNanos))
+                            .log("Prometheus metrics request was too long in queue (ms). Skipping sending metrics.");
                     if (!response.isCommitted() && !skipWritingResponse.get()) {
                         response.setStatus(HTTP_STATUS_INTERNAL_SERVER_ERROR_500);
                     }
@@ -123,7 +143,7 @@ public class PulsarPrometheusMetricsServlet extends PrometheusMetricsServlet {
                     return;
                 }
                 if (ex != null) {
-                    log.error("Failed to generate metrics", ex);
+                    log.error().exception(ex).log("Failed to generate metrics");
                     response.setStatus(HTTP_STATUS_INTERNAL_SERVER_ERROR_500);
                     return;
                 }
@@ -132,7 +152,10 @@ public class PulsarPrometheusMetricsServlet extends PrometheusMetricsServlet {
                     response.setStatus(HTTP_STATUS_INTERNAL_SERVER_ERROR_500);
                 } else {
                     response.setStatus(HTTP_STATUS_OK_200);
-                    response.setContentType("text/plain;charset=utf-8");
+                    response.setContentType(PROMETHEUS_CONTENT_TYPE_004);
+                    if (compressOutput) {
+                        response.setHeader("Content-Encoding", "gzip");
+                    }
                     ServletOutputStream outputStream = response.getOutputStream();
                     if (outputStream instanceof HttpOutput) {
                         HttpOutput output = (HttpOutput) outputStream;
@@ -149,11 +172,21 @@ public class PulsarPrometheusMetricsServlet extends PrometheusMetricsServlet {
             } catch (EOFException e) {
                 log.error("Failed to write metrics to response due to EOFException");
             } catch (IOException e) {
-                log.error("Failed to write metrics to response", e);
+                log.error().exception(e).log("Failed to write metrics to response");
             } finally {
                 metricsBuffer.release();
                 context.complete();
             }
         }));
+    }
+
+    private boolean isGzipAccepted(HttpServletRequest request) {
+        String acceptEncoding = request.getHeader("Accept-Encoding");
+        if (acceptEncoding != null) {
+            return Arrays.stream(acceptEncoding.split(","))
+                    .map(String::trim)
+                    .anyMatch(str -> "gzip".equalsIgnoreCase(str));
+        }
+        return false;
     }
 }

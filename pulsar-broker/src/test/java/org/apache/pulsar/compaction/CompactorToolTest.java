@@ -44,11 +44,12 @@ import picocli.CommandLine.Option;
 public class CompactorToolTest {
 
     /**
-     * Test broker-tool generate docs
+     * Test broker-tool generate docs.
      *
      * @throws Exception
      */
     @Test
+    @SuppressWarnings("unchecked")
     public void testGenerateDocs() throws Exception {
         PrintStream oldStream = System.out;
         try {
@@ -98,6 +99,7 @@ public class CompactorToolTest {
         verify(serviceConfiguration, times(1)).getBrokerClientKeyFilePath();
         verify(serviceConfiguration, times(1)).getBrokerClientTrustCertsFilePath();
         verify(serviceConfiguration, times(1)).getBrokerClientCertificateFilePath();
+        serviceConfiguration.setBrokerClientTlsTrustStorePassword(MockedPulsarServiceBaseTest.BROKER_KEYSTORE_PW);
     }
 
     @Test

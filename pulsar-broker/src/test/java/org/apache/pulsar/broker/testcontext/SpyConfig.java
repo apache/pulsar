@@ -112,6 +112,8 @@ public class SpyConfig {
      */
     private final SpyType namespaceService;
 
+    private final SpyType managedLedgerStorage;
+
     /**
      * Create a builder for SpyConfig with no spies by default.
      *
@@ -141,5 +143,6 @@ public class SpyConfig {
         spyConfigBuilder.compactor(defaultSpyType);
         spyConfigBuilder.compactedServiceFactory(defaultSpyType);
         spyConfigBuilder.namespaceService(defaultSpyType);
+        spyConfigBuilder.managedLedgerStorage(defaultSpyType);
     }
 }

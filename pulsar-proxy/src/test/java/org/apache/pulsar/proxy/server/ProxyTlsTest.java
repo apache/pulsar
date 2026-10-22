@@ -20,13 +20,13 @@ package org.apache.pulsar.proxy.server;
 
 import static java.util.Objects.requireNonNull;
 import static org.mockito.Mockito.doReturn;
-
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageRoutingMode;
@@ -34,7 +34,6 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.mockito.Mockito;
 import org.testng.annotations.AfterClass;
@@ -45,17 +44,24 @@ public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
 
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
+    private Authentication proxyClientAuthentication;
 
     @Override
     @BeforeClass
     protected void setup() throws Exception {
         internalSetup();
+        setupDefaultTenantAndNamespace();
 
         proxyConfig.setServicePort(Optional.of(0));
         proxyConfig.setBrokerProxyAllowedTargetPorts("*");
         proxyConfig.setServicePortTls(Optional.of(0));
         proxyConfig.setWebServicePort(Optional.of(0));
         proxyConfig.setWebServicePortTls(Optional.of(0));
+        // Advertise over loopback so the proxy service URL host (localhost) matches the proxy server
+        // certificate's SubjectAltName (proxy.cert.pem carries DNS:localhost, IP:127.0.0.1). TLS hostname
+        // verification is on by default (PIP-478), and the default advertised address resolves
+        // to the machine's canonical hostname/IP, which is not in the cert SAN. Keeps verification enabled.
+        proxyConfig.setAdvertisedAddress("localhost");
         proxyConfig.setTlsEnabledWithBroker(false);
         proxyConfig.setTlsCertificateFilePath(PROXY_CERT_FILE_PATH);
         proxyConfig.setTlsKeyFilePath(PROXY_KEY_FILE_PATH);
@@ -63,9 +69,14 @@ public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
         proxyConfig.setClusterName(configClusterName);
 
+        proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                proxyConfig.getBrokerClientAuthenticationParameters());
+        proxyClientAuthentication.start();
+
         proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
-                                                            PulsarConfigurationLoader.convertFrom(proxyConfig))));
-        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeper))).when(proxyService).createLocalMetadataStore();
+                PulsarConfigurationLoader.convertFrom(proxyConfig)), proxyClientAuthentication));
+        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeper)))
+                .when(proxyService).createLocalMetadataStore();
         doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal))).when(proxyService)
                 .createConfigurationMetadataStore();
 
@@ -78,6 +89,9 @@ public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
         internalCleanup();
 
         proxyService.close();
+        if (proxyClientAuthentication != null) {
+            proxyClientAuthentication.close();
+        }
     }
 
     @Test
@@ -85,8 +99,10 @@ public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
         @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(proxyService.getServiceUrlTls())
-                .allowTlsInsecureConnection(false).tlsTrustCertsFilePath(CA_CERT_FILE_PATH).build();
-        Producer<byte[]> producer = client.newProducer(Schema.BYTES).topic("persistent://sample/test/local/topic").create();
+                .allowTlsInsecureConnection(false)
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).build();
+        Producer<byte[]> producer = client.newProducer(Schema.BYTES)
+                .topic("persistent://public/default/topic").create();
 
         for (int i = 0; i < 10; i++) {
             producer.send("test".getBytes());
@@ -99,15 +115,14 @@ public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(proxyService.getServiceUrlTls())
                 .allowTlsInsecureConnection(false).tlsTrustCertsFilePath(CA_CERT_FILE_PATH).build();
-        TenantInfoImpl tenantInfo = createDefaultTenantInfo();
-        admin.tenants().createTenant("sample", tenantInfo);
-        admin.topics().createPartitionedTopic("persistent://sample/test/local/partitioned-topic", 2);
+        admin.topics().createPartitionedTopic("persistent://public/default/partitioned-topic", 2);
 
-        Producer<byte[]> producer = client.newProducer(Schema.BYTES).topic("persistent://sample/test/local/partitioned-topic")
+        Producer<byte[]> producer = client.newProducer(Schema.BYTES)
+                .topic("persistent://public/default/partitioned-topic")
                 .messageRoutingMode(MessageRoutingMode.RoundRobinPartition).create();
 
         // Create a consumer directly attached to broker
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://sample/test/local/partitioned-topic")
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://public/default/partitioned-topic")
                 .subscriptionName("my-sub").subscribe();
 
         for (int i = 0; i < 10; i++) {

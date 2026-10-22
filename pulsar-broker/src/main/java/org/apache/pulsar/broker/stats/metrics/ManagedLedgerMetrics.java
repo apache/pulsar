@@ -23,16 +23,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerMXBean;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.stats.Metrics;
 
 public class ManagedLedgerMetrics extends AbstractMetrics {
 
     private List<Metrics> metricsCollection;
-    private Map<Metrics, List<ManagedLedgerImpl>> ledgersByDimensionMap;
+    private Map<Metrics, List<ManagedLedger>> ledgersByDimensionMap;
     // temp map to prepare aggregation metrics
     private Map<String, Double> tempAggregatedMetricsMap;
     private static final Buckets
@@ -53,8 +52,7 @@ public class ManagedLedgerMetrics extends AbstractMetrics {
         this.metricsCollection = new ArrayList<>();
         this.ledgersByDimensionMap = new HashMap<>();
         this.tempAggregatedMetricsMap = new HashMap<>();
-        this.statsPeriodSeconds = ((ManagedLedgerFactoryImpl) pulsar.getManagedLedgerFactory())
-                .getConfig().getStatsPeriodSeconds();
+        this.statsPeriodSeconds = pulsar.getDefaultManagedLedgerFactory().getConfig().getStatsPeriodSeconds();
     }
 
     @Override
@@ -71,20 +69,20 @@ public class ManagedLedgerMetrics extends AbstractMetrics {
      * @param ledgersByDimension
      * @return
      */
-    private List<Metrics> aggregate(Map<Metrics, List<ManagedLedgerImpl>> ledgersByDimension) {
+    private List<Metrics> aggregate(Map<Metrics, List<ManagedLedger>> ledgersByDimension) {
 
         metricsCollection.clear();
 
-        for (Entry<Metrics, List<ManagedLedgerImpl>> e : ledgersByDimension.entrySet()) {
+        for (Entry<Metrics, List<ManagedLedger>> e : ledgersByDimension.entrySet()) {
             Metrics metrics = e.getKey();
-            List<ManagedLedgerImpl> ledgers = e.getValue();
+            List<ManagedLedger> ledgers = e.getValue();
 
             // prepare aggregation map
             tempAggregatedMetricsMap.clear();
 
             // generate the collections by each metrics and then apply the aggregation
 
-            for (ManagedLedgerImpl ledger : ledgers) {
+            for (ManagedLedger ledger : ledgers) {
                 ManagedLedgerMXBean lStats = ledger.getStats();
 
                 populateAggregationMapWithSum(tempAggregatedMetricsMap, "brk_ml_AddEntryBytesRate",
@@ -151,17 +149,17 @@ public class ManagedLedgerMetrics extends AbstractMetrics {
      *
      * @return
      */
-    private Map<Metrics, List<ManagedLedgerImpl>> groupLedgersByDimension() {
+    private Map<Metrics, List<ManagedLedger>> groupLedgersByDimension() {
 
         ledgersByDimensionMap.clear();
 
         // get the current topics statistics from StatsBrokerFilter
         // Map : topic-name->dest-stat
 
-        for (Entry<String, ManagedLedgerImpl> e : getManagedLedgers().entrySet()) {
+        for (Entry<String, ManagedLedger> e : getManagedLedgers().entrySet()) {
 
             String ledgerName = e.getKey();
-            ManagedLedgerImpl ledger = e.getValue();
+            ManagedLedger ledger = e.getValue();
 
             // we want to aggregate by NS dimension
 

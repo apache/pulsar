@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.naming;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.util.Reflections;
 
@@ -27,6 +28,11 @@ public class TopicBundleAssignmentFactory {
             "org.apache.pulsar.common.naming.ConsistentHashingTopicBundleAssigner";
 
     private static volatile TopicBundleAssignmentStrategy strategy;
+
+    @VisibleForTesting
+    static void reset() {
+        strategy = null;
+    }
 
     public static TopicBundleAssignmentStrategy create(PulsarService pulsar) {
         if (strategy != null) {

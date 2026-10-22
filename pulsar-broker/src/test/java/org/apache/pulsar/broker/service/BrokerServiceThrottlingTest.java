@@ -86,11 +86,11 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         var metricName = BrokerService.TOPIC_LOOKUP_LIMIT_METRIC_NAME;
         // Validate that the configuration has not been overridden.
         assertThat(admin.brokers().getAllDynamicConfigurations()).doesNotContainKey(configName);
-        assertLongSumValue(metricName, 50_000);
+        assertOtelMetricLongSumValue(metricName, 50_000);
         assertThat(lookupRequestSemaphore.get().availablePermits()).isNotEqualTo(0);
         admin.brokers().updateDynamicConfiguration(configName, Integer.toString(0));
         waitAtMost(1, TimeUnit.SECONDS).until(() -> lookupRequestSemaphore.get().availablePermits() == 0);
-        assertLongSumValue(metricName, 0);
+        assertOtelMetricLongSumValue(metricName, 0);
     }
 
     /**
@@ -104,19 +104,11 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         var metricName = BrokerService.TOPIC_LOAD_LIMIT_METRIC_NAME;
         // Validate that the configuration has not been overridden.
         assertThat(admin.brokers().getAllDynamicConfigurations()).doesNotContainKey(configName);
-        assertLongSumValue(metricName, 5_000);
+        assertOtelMetricLongSumValue(metricName, 5_000);
         assertThat(topicLoadRequestSemaphore.get().availablePermits()).isNotEqualTo(0);
         admin.brokers().updateDynamicConfiguration(configName, Integer.toString(0));
         waitAtMost(1, TimeUnit.SECONDS).until(() -> topicLoadRequestSemaphore.get().availablePermits() == 0);
-        assertLongSumValue(metricName, 0);
-    }
-
-    private void assertLongSumValue(String metricName, int value) {
-        assertThat(pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics())
-                .anySatisfy(metric -> assertThat(metric)
-                        .hasName(metricName)
-                        .hasLongSumSatisfying(
-                                sum -> sum.hasPointsSatisfying(point -> point.hasValue(value))));
+        assertOtelMetricLongSumValue(metricName, 0);
     }
 
     /**
@@ -125,6 +117,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testLookupThrottlingForClientByBroker0Permit() throws Exception {
 
@@ -169,6 +162,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testLookupThrottlingForClientByBroker() throws Exception {
         final String topicName = "persistent://prop/ns-abc/newTopic";
@@ -198,7 +192,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(20, false,
                 new DefaultThreadFactory("test-pool", Thread.currentThread().isDaemon()));
         ExecutorService executor = Executors.newFixedThreadPool(10);
-        try (ConnectionPool pool = new ConnectionPool(InstrumentProvider.NOOP, conf, eventLoop)) {
+        try (ConnectionPool pool = new ConnectionPool(InstrumentProvider.NOOP, conf, eventLoop, null)) {
             final int totalConsumers = 20;
             List<Future<?>> futures = new ArrayList<>();
 
@@ -206,7 +200,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
             for (int i = 0; i < totalConsumers; i++) {
                 long reqId = 0xdeadbeef + i;
                 Future<?> f = executor.submit(() -> {
-                        ByteBuf request = Commands.newPartitionMetadataRequest(topicName, reqId);
+                        ByteBuf request = Commands.newPartitionMetadataRequest(topicName, reqId, true);
                         pool.getConnection(resolver.resolveHost())
                             .thenCompose(clientCnx -> clientCnx.newLookup(request, reqId))
                             .get();
@@ -224,8 +218,8 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
                     while (rootCause instanceof ExecutionException) {
                         rootCause = rootCause.getCause();
                     }
-                    if (rootCause instanceof
-                        org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException) {
+                    if (rootCause
+                            instanceof org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException) {
                         rejects++;
                     } else {
                         throw e;
@@ -257,8 +251,8 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
                     while (rootCause instanceof ExecutionException) {
                         rootCause = rootCause.getCause();
                     }
-                    if (rootCause instanceof
-                        org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException) {
+                    if (rootCause
+                            instanceof org.apache.pulsar.client.api.PulsarClientException.TooManyRequestsException) {
                         rejects++;
                     } else {
                         throw e;
@@ -286,6 +280,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testLookupThrottlingForClientByBrokerInternalRetry() throws Exception {
         final String topicName = "persistent://prop/ns-abc/newTopic-" + UUID.randomUUID().toString();

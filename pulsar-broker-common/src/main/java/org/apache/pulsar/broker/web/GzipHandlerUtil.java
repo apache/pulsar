@@ -19,8 +19,12 @@
 package org.apache.pulsar.broker.web;
 
 import java.util.List;
+import org.eclipse.jetty.compression.gzip.GzipCompression;
+import org.eclipse.jetty.compression.server.CompressionConfig;
+import org.eclipse.jetty.compression.server.CompressionHandler;
+import org.eclipse.jetty.http.pathmap.PathSpecSet;
 import org.eclipse.jetty.server.Handler;
-import org.eclipse.jetty.server.handler.gzip.GzipHandler;
+import org.eclipse.jetty.util.IncludeExclude;
 
 public class GzipHandlerUtil {
     public static Handler wrapWithGzipHandler(Handler innerHandler, List<String> gzipCompressionExcludedPaths) {
@@ -30,10 +34,13 @@ public class GzipHandlerUtil {
             wrappedHandler = innerHandler;
         } else {
             // add GZIP handler which is active when the request contains "Accept-Encoding: gzip" header
-            GzipHandler gzipHandler = new GzipHandler();
+            CompressionHandler gzipHandler = new CompressionHandler();
+            gzipHandler.putCompression(new GzipCompression());
             gzipHandler.setHandler(innerHandler);
             if (gzipCompressionExcludedPaths != null && gzipCompressionExcludedPaths.size() > 0) {
-                gzipHandler.setExcludedPaths(gzipCompressionExcludedPaths.toArray(new String[0]));
+                CompressionConfig.Builder compressConfigBuilder = CompressionConfig.builder().defaults();
+                gzipCompressionExcludedPaths.forEach(compressConfigBuilder::compressExcludePath);
+                gzipHandler.putConfiguration("/", compressConfigBuilder.build());
             }
             wrappedHandler = gzipHandler;
         }
@@ -44,5 +51,24 @@ public class GzipHandlerUtil {
         return gzipCompressionExcludedPaths != null && gzipCompressionExcludedPaths.size() == 1
                 && (gzipCompressionExcludedPaths.get(0).equals("^.*")
                 || gzipCompressionExcludedPaths.get(0).equals("^.*$"));
+    }
+
+    /**
+     * Check if GZIP compression is enabled for the given endpoint.
+     * @param gzipCompressionExcludedPaths list of paths that should not be compressed
+     * @param endpoint the endpoint to check
+     * @return true if GZIP compression is enabled for the endpoint, false otherwise
+     */
+    public static boolean isGzipCompressionEnabledForEndpoint(List<String> gzipCompressionExcludedPaths,
+                                                              String endpoint) {
+        if (gzipCompressionExcludedPaths == null || gzipCompressionExcludedPaths.isEmpty()) {
+            return true;
+        }
+        if (isGzipCompressionCompletelyDisabled(gzipCompressionExcludedPaths)) {
+            return false;
+        }
+        IncludeExclude<String> paths = new IncludeExclude<>(PathSpecSet.class);
+        paths.exclude(gzipCompressionExcludedPaths.toArray(new String[0]));
+        return paths.test(endpoint);
     }
 }

@@ -96,6 +96,7 @@ public class PulsarBrokerStarterTest {
      * method returns a non-null {@link ServiceConfiguration} instance where all required settings are filled in and (2)
      * if the property variables inside the given property file are correctly referred to that returned object.
      */
+    @SuppressWarnings("deprecation")
     public void testLoadConfig() throws SecurityException, NoSuchMethodException, IOException, IllegalArgumentException,
             IllegalAccessException, InvocationTargetException {
 
@@ -172,6 +173,7 @@ public class PulsarBrokerStarterTest {
      * method returns a non-null {@link ServiceConfiguration} instance where all required settings are filled in and (2)
      * if the property variables inside the given property file are correctly referred to that returned object.
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testLoadBalancerConfig() throws SecurityException, NoSuchMethodException, IOException,
             IllegalArgumentException, IllegalAccessException, InvocationTargetException {
@@ -221,6 +223,7 @@ public class PulsarBrokerStarterTest {
      * method returns a non-null {@link ServiceConfiguration} instance where all required settings are filled in and (2)
      * if the property variables inside the given property file are correctly referred to that returned object.
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testGlobalZooKeeperConfig() throws SecurityException, NoSuchMethodException, IOException,
             IllegalArgumentException, IllegalAccessException, InvocationTargetException {
@@ -283,6 +286,7 @@ public class PulsarBrokerStarterTest {
      */
     @Test
     public void testMainWithNoArgument() throws Exception {
+        @Cleanup("shutdown")
         BrokerStarter brokerStarter = new BrokerStarter();
         @Cleanup
         StringWriter err = new StringWriter();
@@ -301,6 +305,7 @@ public class PulsarBrokerStarterTest {
     public void testMainRunBookieAndAutoRecoveryNoConfig() throws Exception {
         File testConfigFile = createValidBrokerConfigFile();
         String[] args = {"-c", testConfigFile.getAbsolutePath(), "-rb", "-ra", "-bc", ""};
+        @Cleanup("shutdown")
         BrokerStarter starter = new BrokerStarter();
         @Cleanup
         StringWriter err = new StringWriter();
@@ -319,6 +324,7 @@ public class PulsarBrokerStarterTest {
     public void testMainRunBookieRecoveryNoConfig() throws Exception {
         File testConfigFile = createValidBrokerConfigFile();
         String[] args = {"-c", testConfigFile.getAbsolutePath(), "-ra", "-bc", ""};
+        @Cleanup("shutdown")
         BrokerStarter starter = new BrokerStarter();
         @Cleanup
         StringWriter err = new StringWriter();
@@ -336,6 +342,7 @@ public class PulsarBrokerStarterTest {
     public void testMainRunBookieNoConfig() throws Exception {
         File testConfigFile = createValidBrokerConfigFile();
         String[] args = {"-c", testConfigFile.getAbsolutePath(), "-rb", "-bc", ""};
+        @Cleanup("shutdown")
         BrokerStarter starter = new BrokerStarter();
         @Cleanup
         StringWriter err = new StringWriter();
@@ -353,6 +360,7 @@ public class PulsarBrokerStarterTest {
     public void testMainEnableRunBookieThroughBrokerConfig() throws Exception {
         File testConfigFile = createValidBrokerConfigFile();
         String[] args = {"-c", testConfigFile.getAbsolutePath()};
+        @Cleanup("shutdown")
         BrokerStarter starter = new BrokerStarter();
         @Cleanup
         StringWriter err = new StringWriter();
@@ -370,7 +378,7 @@ public class PulsarBrokerStarterTest {
             ByteArrayOutputStream baoStream = new ByteArrayOutputStream();
             System.setOut(new PrintStream(baoStream));
 
-            Class argumentsClass = Class.forName("org.apache.pulsar.PulsarBrokerStarter$StarterArguments");
+            Class<?> argumentsClass = Class.forName("org.apache.pulsar.PulsarBrokerStarter$StarterArguments");
             PulsarBrokerStarter.main(new String[]{"-g"});
 
             String message = baoStream.toString();

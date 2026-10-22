@@ -30,11 +30,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.LedgerHandle;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -55,7 +56,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
-@Slf4j
+@CustomLog
 public class NonDurableSubscriptionTest extends ProducerConsumerBase {
 
     private final AtomicInteger numFlow = new AtomicInteger(0);
@@ -124,7 +125,7 @@ public class NonDurableSubscriptionTest extends ProducerConsumerBase {
             consumer.acknowledge(message);
         }
         // 4 trigger reconnect
-        ((ConsumerImpl)consumer).getClientCnx().close();
+        ((ConsumerImpl) consumer).getClientCnx().close();
         // 5 for non-durable we are going to restart from the next entry
         for (int i = 5; i < messageNum; i++) {
             Message<String> message = consumer.receive();
@@ -208,8 +209,8 @@ public class NonDurableSubscriptionTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "subscriptionTypes")
     public void testNonDurableSubscriptionRecovery(SubscriptionType subscriptionType) throws Exception {
-        log.info("testing {}", subscriptionType);
-        String topicName = "persistent://my-property/my-ns/nonDurable-sub-recorvery-"+subscriptionType;
+        log.info().attr("testing", subscriptionType).log("testing");
+        String topicName = "persistent://my-property/my-ns/nonDurable-sub-recorvery-" + subscriptionType;
         // 1 setup producer、consumer
         @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName)
@@ -234,7 +235,7 @@ public class NonDurableSubscriptionTest extends ProducerConsumerBase {
             consumer.acknowledge(message);
         }
         // 4 trigger reconnect
-        ((ConsumerImpl)consumer).getClientCnx().close();
+        ((ConsumerImpl) consumer).getClientCnx().close();
 
         // 5 for non-durable we are going to restart from the next entry
         for (int i = 5; i < 10; i++) {
@@ -337,7 +338,7 @@ public class NonDurableSubscriptionTest extends ProducerConsumerBase {
         if (msgReceived == null) {
             assertFalse(hasMessageAvailable);
         } else {
-            log.info("receive msg: {}", msgReceived.getValue());
+            log.info().attr("receiveMsg", msgReceived.getValue()).log("receive msg");
             assertTrue(hasMessageAvailable);
             assertEquals(msgReceived.getValue(), "1");
         }
@@ -367,7 +368,7 @@ public class NonDurableSubscriptionTest extends ProducerConsumerBase {
                 (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().get();
         ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
         LedgerHandle currentLedger = WhiteboxImpl.getInternalState(ml, "currentLedger");
-        log.info("currentLedger: {}", currentLedger.getId());
+        log.info().attr("currentledger", currentLedger.getId()).log("currentLedger");
 
         // Less than the first ledger, and entry id is "-1".
         log.info("start test s1");
@@ -376,8 +377,10 @@ public class NonDurableSubscriptionTest extends ProducerConsumerBase {
         Reader<String> reader1 = pulsarClient.newReader(Schema.STRING).topic(topicName).subscriptionName(s1)
                 .receiverQueueSize(0).startMessageId(startMessageId1).create();
         ManagedLedgerInternalStats.CursorStats cursor1 = admin.topics().getInternalStats(topicName).cursors.get(s1);
-        log.info("cursor1 readPosition: {}, markDeletedPosition: {}", cursor1.readPosition, cursor1.markDeletePosition);
-        PositionImpl p1 = parseReadPosition(cursor1);
+        log.info().attr("cursor1ReadPosition", cursor1.readPosition)
+                .attr("markdeletedposition", cursor1.markDeletePosition)
+                .log("cursor1 readPosition, markDeletedPosition");
+        Position p1 = parseReadPosition(cursor1);
         assertEquals(p1.getLedgerId(), ledgers.get(0));
         assertEquals(p1.getEntryId(), 0);
         reader1.close();
@@ -389,8 +392,10 @@ public class NonDurableSubscriptionTest extends ProducerConsumerBase {
         Reader<String> reader2 = pulsarClient.newReader(Schema.STRING).topic(topicName).subscriptionName(s2)
                 .receiverQueueSize(0).startMessageId(startMessageId2).create();
         ManagedLedgerInternalStats.CursorStats cursor2 = admin.topics().getInternalStats(topicName).cursors.get(s2);
-        log.info("cursor2 readPosition: {}, markDeletedPosition: {}", cursor2.readPosition, cursor2.markDeletePosition);
-        PositionImpl p2 = parseReadPosition(cursor2);
+        log.info().attr("cursor2ReadPosition", cursor2.readPosition)
+                .attr("markdeletedposition", cursor2.markDeletePosition)
+                .log("cursor2 readPosition, markDeletedPosition");
+        Position p2 = parseReadPosition(cursor2);
         assertEquals(p2.getLedgerId(), ledgers.get(0));
         assertEquals(p2.getEntryId(), 0);
         reader2.close();
@@ -402,8 +407,10 @@ public class NonDurableSubscriptionTest extends ProducerConsumerBase {
         Reader<String> reader3 = pulsarClient.newReader(Schema.STRING).topic(topicName).subscriptionName(s3)
                 .receiverQueueSize(0).startMessageId(startMessageId3).create();
         ManagedLedgerInternalStats.CursorStats cursor3 = admin.topics().getInternalStats(topicName).cursors.get(s3);
-        log.info("cursor3 readPosition: {}, markDeletedPosition: {}", cursor3.readPosition, cursor3.markDeletePosition);
-        PositionImpl p3 = parseReadPosition(cursor3);
+        log.info().attr("cursor3ReadPosition", cursor3.readPosition)
+                .attr("markdeletedposition", cursor3.markDeletePosition)
+                .log("cursor3 readPosition, markDeletedPosition");
+        Position p3 = parseReadPosition(cursor3);
         assertEquals(p3.getLedgerId(), currentLedger.getId());
         assertEquals(p3.getEntryId(), 0);
         reader3.close();
@@ -415,8 +422,10 @@ public class NonDurableSubscriptionTest extends ProducerConsumerBase {
         Reader<String> reader4 = pulsarClient.newReader(Schema.STRING).topic(topicName).subscriptionName(s4)
                 .receiverQueueSize(0).startMessageId(startMessageId4).create();
         ManagedLedgerInternalStats.CursorStats cursor4 = admin.topics().getInternalStats(topicName).cursors.get(s4);
-        log.info("cursor4 readPosition: {}, markDeletedPosition: {}", cursor4.readPosition, cursor4.markDeletePosition);
-        PositionImpl p4 = parseReadPosition(cursor4);
+        log.info().attr("cursor4ReadPosition", cursor4.readPosition)
+                .attr("markdeletedposition", cursor4.markDeletePosition)
+                .log("cursor4 readPosition, markDeletedPosition");
+        Position p4 = parseReadPosition(cursor4);
         assertEquals(p4.getLedgerId(), currentLedger.getId());
         assertEquals(p4.getEntryId(), 0);
         reader4.close();
@@ -424,12 +433,14 @@ public class NonDurableSubscriptionTest extends ProducerConsumerBase {
         // Ledger id and entry id both are Long.MAX_VALUE.
         log.info("start test s5");
         String s5 = "s5";
-        MessageIdImpl startMessageId5 = new MessageIdImpl(currentLedger.getId() + 1, Long.MAX_VALUE, -1);
+        MessageIdImpl startMessageId5 = new MessageIdImpl(Long.MAX_VALUE, Long.MAX_VALUE, -1);
         Reader<String> reader5 = pulsarClient.newReader(Schema.STRING).topic(topicName).subscriptionName(s5)
                 .receiverQueueSize(0).startMessageId(startMessageId5).create();
         ManagedLedgerInternalStats.CursorStats cursor5 = admin.topics().getInternalStats(topicName).cursors.get(s5);
-        log.info("cursor5 readPosition: {}, markDeletedPosition: {}", cursor5.readPosition, cursor5.markDeletePosition);
-        PositionImpl p5 = parseReadPosition(cursor5);
+        log.info().attr("cursor5ReadPosition", cursor5.readPosition)
+                .attr("markdeletedposition", cursor5.markDeletePosition)
+                .log("cursor5 readPosition, markDeletedPosition");
+        Position p5 = parseReadPosition(cursor5);
         assertEquals(p5.getLedgerId(), currentLedger.getId());
         assertEquals(p5.getEntryId(), 0);
         reader5.close();
@@ -441,21 +452,25 @@ public class NonDurableSubscriptionTest extends ProducerConsumerBase {
         Reader<String> reader6 = pulsarClient.newReader(Schema.STRING).topic(topicName).subscriptionName(s6)
                 .receiverQueueSize(0).startMessageId(startMessageId6).create();
         ManagedLedgerInternalStats.CursorStats cursor6 = admin.topics().getInternalStats(topicName).cursors.get(s6);
-        log.info("cursor6 readPosition: {}, markDeletedPosition: {}", cursor6.readPosition, cursor6.markDeletePosition);
-        PositionImpl p6 = parseReadPosition(cursor6);
+        log.info().attr("cursor6ReadPosition", cursor6.readPosition)
+                .attr("markdeletedposition", cursor6.markDeletePosition)
+                .log("cursor6 readPosition, markDeletedPosition");
+        Position p6 = parseReadPosition(cursor6);
         assertEquals(p6.getLedgerId(), ledgers.get(ledgers.size() - 1));
         assertEquals(p6.getEntryId(), 0);
         reader6.close();
 
-        // Larger than the latest ledger, and entry id is Long.MAX_VALUE.
+        // Ledger id equals LAC, and entry id is Long.MAX_VALUE.
         log.info("start test s7");
         String s7 = "s7";
         MessageIdImpl startMessageId7 = new MessageIdImpl(ledgers.get(ledgers.size() - 1), Long.MAX_VALUE, -1);
         Reader<String> reader7 = pulsarClient.newReader(Schema.STRING).topic(topicName).subscriptionName(s7)
                 .receiverQueueSize(0).startMessageId(startMessageId7).create();
         ManagedLedgerInternalStats.CursorStats cursor7 = admin.topics().getInternalStats(topicName).cursors.get(s7);
-        log.info("cursor7 readPosition: {}, markDeletedPosition: {}", cursor7.readPosition, cursor7.markDeletePosition);
-        PositionImpl p7 = parseReadPosition(cursor7);
+        log.info().attr("cursor7ReadPosition", cursor7.readPosition)
+                .attr("markdeletedposition", cursor7.markDeletePosition)
+                .log("cursor7 readPosition, markDeletedPosition");
+        Position p7 = parseReadPosition(cursor7);
         assertEquals(p7.getLedgerId(), currentLedger.getId());
         assertEquals(p7.getEntryId(), 0);
         reader7.close();
@@ -463,39 +478,44 @@ public class NonDurableSubscriptionTest extends ProducerConsumerBase {
         // A middle ledger id, and entry id is "-1".
         log.info("start test s8");
         String s8 = "s8";
-        MessageIdImpl startMessageId8 = new MessageIdImpl(ledgers.get(2), 0, -1);
+        MessageIdImpl startMessageId8 = new MessageIdImpl(ledgers.get(2), -1, -1);
         Reader<String> reader8 = pulsarClient.newReader(Schema.STRING).topic(topicName).subscriptionName(s8)
                 .receiverQueueSize(0).startMessageId(startMessageId8).create();
         ManagedLedgerInternalStats.CursorStats cursor8 = admin.topics().getInternalStats(topicName).cursors.get(s8);
-        log.info("cursor8 readPosition: {}, markDeletedPosition: {}", cursor8.readPosition, cursor8.markDeletePosition);
-        PositionImpl p8 = parseReadPosition(cursor8);
+        log.info().attr("cursor8ReadPosition", cursor8.readPosition)
+                .attr("markdeletedposition", cursor8.markDeletePosition)
+                .log("cursor8 readPosition, markDeletedPosition");
+        Position p8 = parseReadPosition(cursor8);
         assertEquals(p8.getLedgerId(), ledgers.get(2));
         assertEquals(p8.getEntryId(), 0);
         reader8.close();
 
-        // Larger than the latest ledger, and entry id is Long.MAX_VALUE.
+        // A middle ledger id, and entry id is Long.MAX_VALUE.
         log.info("start test s9");
         String s9 = "s9";
         MessageIdImpl startMessageId9 = new MessageIdImpl(ledgers.get(2), Long.MAX_VALUE, -1);
         Reader<String> reader9 = pulsarClient.newReader(Schema.STRING).topic(topicName).subscriptionName(s9)
                 .receiverQueueSize(0).startMessageId(startMessageId9).create();
         ManagedLedgerInternalStats.CursorStats cursor9 = admin.topics().getInternalStats(topicName).cursors.get(s9);
-        log.info("cursor9 readPosition: {}, markDeletedPosition: {}", cursor9.readPosition,
-                cursor9.markDeletePosition);
-        PositionImpl p9 = parseReadPosition(cursor9);
+        log.info().attr("cursor9ReadPosition", cursor9.readPosition)
+                .attr("markdeletedposition", cursor9.markDeletePosition)
+                .log("cursor9 readPosition, markDeletedPosition");
+        Position p9 = parseReadPosition(cursor9);
         assertEquals(p9.getLedgerId(), ledgers.get(3));
         assertEquals(p9.getEntryId(), 0);
         reader9.close();
 
-        // Larger than the latest ledger, and entry id equals with the max entry id of this ledger.
+        // A middle ledger id, and entry id equals with the max entry id of this ledger.
         log.info("start test s10");
         String s10 = "s10";
         MessageIdImpl startMessageId10 = new MessageIdImpl(ledgers.get(2), 0, -1);
         Reader<String> reader10 = pulsarClient.newReader(Schema.STRING).topic(topicName).subscriptionName(s10)
                 .receiverQueueSize(0).startMessageId(startMessageId10).create();
         ManagedLedgerInternalStats.CursorStats cursor10 = admin.topics().getInternalStats(topicName).cursors.get(s10);
-        log.info("cursor10 readPosition: {}, markDeletedPosition: {}", cursor10.readPosition, cursor10.markDeletePosition);
-        PositionImpl p10 = parseReadPosition(cursor10);
+        log.info().attr("cursor10ReadPosition", cursor10.readPosition)
+                .attr("markdeletedposition", cursor10.markDeletePosition)
+                .log("cursor10 readPosition, markDeletedPosition");
+        Position p10 = parseReadPosition(cursor10);
         assertEquals(p10.getLedgerId(), ledgers.get(2));
         assertEquals(p10.getEntryId(), 0);
         reader10.close();
@@ -504,9 +524,9 @@ public class NonDurableSubscriptionTest extends ProducerConsumerBase {
         admin.topics().delete(topicName, false);
     }
 
-    private PositionImpl parseReadPosition(ManagedLedgerInternalStats.CursorStats cursorStats) {
+    private Position parseReadPosition(ManagedLedgerInternalStats.CursorStats cursorStats) {
         String[] ledgerIdAndEntryId = cursorStats.readPosition.split(":");
-        return PositionImpl.get(Long.valueOf(ledgerIdAndEntryId[0]), Long.valueOf(ledgerIdAndEntryId[1]));
+        return PositionFactory.create(Long.valueOf(ledgerIdAndEntryId[0]), Long.valueOf(ledgerIdAndEntryId[1]));
     }
 
     @Test
@@ -539,17 +559,17 @@ public class NonDurableSubscriptionTest extends ProducerConsumerBase {
         Awaitility.await().untilAsserted(() -> {
             SubscriptionStats subscriptionStats = admin.topics()
                     .getStats(topicName, true, true, true).getSubscriptions().get("s1");
-            log.info("backlog size: {}", subscriptionStats.getMsgBacklog());
+            log.info().attr("backlogSize", subscriptionStats.getMsgBacklog()).log("backlog size");
             assertEquals(subscriptionStats.getMsgBacklog(), 0);
             ManagedLedgerInternalStats.CursorStats cursorStats =
                     admin.topics().getInternalStats(topicName).cursors.get("s1");
             String[] ledgerIdAndEntryId = cursorStats.markDeletePosition.split(":");
-            PositionImpl actMarkDeletedPos =
-                    PositionImpl.get(Long.valueOf(ledgerIdAndEntryId[0]), Long.valueOf(ledgerIdAndEntryId[1]));
-            PositionImpl expectedMarkDeletedPos =
-                    PositionImpl.get(msgIdInDeletedLedger5.getLedgerId(), msgIdInDeletedLedger5.getEntryId());
-            log.info("Expected mark deleted position: {}", expectedMarkDeletedPos);
-            log.info("Actual mark deleted position: {}", cursorStats.markDeletePosition);
+            Position actMarkDeletedPos =
+                    PositionFactory.create(Long.valueOf(ledgerIdAndEntryId[0]), Long.valueOf(ledgerIdAndEntryId[1]));
+            Position expectedMarkDeletedPos =
+                    PositionFactory.create(msgIdInDeletedLedger5.getLedgerId(), msgIdInDeletedLedger5.getEntryId());
+            log.info().attr("deletedPosition", expectedMarkDeletedPos).log("Expected mark deleted position");
+            log.info().attr("deletedPosition", cursorStats.markDeletePosition).log("Actual mark deleted position");
             assertTrue(actMarkDeletedPos.compareTo(expectedMarkDeletedPos) >= 0);
         });
 
@@ -600,17 +620,17 @@ public class NonDurableSubscriptionTest extends ProducerConsumerBase {
         Awaitility.await().untilAsserted(() -> {
             SubscriptionStats subscriptionStats = admin.topics().getStats(topicName, true, true, true)
                     .getSubscriptions().get(nonDurableCursor);
-            log.info("backlog size: {}", subscriptionStats.getMsgBacklog());
+            log.info().attr("backlogSize", subscriptionStats.getMsgBacklog()).log("backlog size");
             assertEquals(subscriptionStats.getMsgBacklog(), 0);
             ManagedLedgerInternalStats.CursorStats cursorStats =
                     admin.topics().getInternalStats(topicName).cursors.get(nonDurableCursor);
             String[] ledgerIdAndEntryId = cursorStats.markDeletePosition.split(":");
-            PositionImpl actMarkDeletedPos =
-                    PositionImpl.get(Long.valueOf(ledgerIdAndEntryId[0]), Long.valueOf(ledgerIdAndEntryId[1]));
-            PositionImpl expectedMarkDeletedPos =
-                    PositionImpl.get(msgIdInDeletedLedger5.getLedgerId(), msgIdInDeletedLedger5.getEntryId());
-            log.info("Expected mark deleted position: {}", expectedMarkDeletedPos);
-            log.info("Actual mark deleted position: {}", cursorStats.markDeletePosition);
+            Position actMarkDeletedPos =
+                    PositionFactory.create(Long.valueOf(ledgerIdAndEntryId[0]), Long.valueOf(ledgerIdAndEntryId[1]));
+            Position expectedMarkDeletedPos =
+                    PositionFactory.create(msgIdInDeletedLedger5.getLedgerId(), msgIdInDeletedLedger5.getEntryId());
+            log.info().attr("deletedPosition", expectedMarkDeletedPos).log("Expected mark deleted position");
+            log.info().attr("deletedPosition", cursorStats.markDeletePosition).log("Actual mark deleted position");
             Assert.assertTrue(actMarkDeletedPos.compareTo(expectedMarkDeletedPos) >= 0);
         });
 
@@ -620,7 +640,7 @@ public class NonDurableSubscriptionTest extends ProducerConsumerBase {
             if (msg == null) {
                 break;
             }
-            log.info("clear msg: {}", msg.getValue());
+            log.info().attr("clearMsg", msg.getValue()).log("clear msg");
         }
 
         // The following tests are designed to verify the api "getNumberOfEntries" and "consumedEntries" still work

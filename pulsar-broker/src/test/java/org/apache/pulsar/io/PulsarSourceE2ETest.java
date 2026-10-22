@@ -23,10 +23,10 @@ import static org.apache.pulsar.functions.worker.PulsarFunctionLocalRunTest.getP
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
-
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import java.util.Map;
 import java.util.Set;
-
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Utils;
@@ -36,12 +36,10 @@ import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.worker.TestPulsarFunctionUtils;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-
 /**
- * Test Pulsar Source
+ * Test Pulsar Source.
  */
+@lombok.CustomLog
 @Test(groups = "broker-io")
 public class PulsarSourceE2ETest extends AbstractPulsarE2ETest {
 
@@ -52,7 +50,7 @@ public class PulsarSourceE2ETest extends AbstractPulsarE2ETest {
         final String sourceName = "PulsarSource-test";
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
-        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters, false);
 
         SourceConfig sourceConfig = createSourceConfig(tenant, namespacePortion, sourceName, sinkTopic);
         if (jarFilePathUrl.startsWith(Utils.BUILTIN)) {
@@ -85,7 +83,8 @@ public class PulsarSourceE2ETest extends AbstractPulsarE2ETest {
                 return sourceStats.getPublishers().size() == 1
                         && sourceStats.getPublishers().get(0).getMetadata() != null
                         && sourceStats.getPublishers().get(0).getMetadata().containsKey("id")
-                        && sourceStats.getPublishers().get(0).getMetadata().get("id").equals(String.format("%s/%s/%s", tenant, namespacePortion, sourceName));
+                        && sourceStats.getPublishers().get(0).getMetadata().get("id").equals(String.format("%s/%s/%s",
+                        tenant, namespacePortion, sourceName));
             } catch (PulsarAdminException e) {
                 return false;
             }
@@ -95,11 +94,13 @@ public class PulsarSourceE2ETest extends AbstractPulsarE2ETest {
         assertEquals(sourceStats.getPublishers().size(), 1);
         assertNotNull(sourceStats.getPublishers().get(0).getMetadata());
         assertTrue(sourceStats.getPublishers().get(0).getMetadata().containsKey("id"));
-        assertEquals(sourceStats.getPublishers().get(0).getMetadata().get("id"), String.format("%s/%s/%s", tenant, namespacePortion, sourceName));
+        assertEquals(sourceStats.getPublishers().get(0).getMetadata().get("id"), String.format("%s/%s/%s",
+                tenant, namespacePortion, sourceName));
 
         retryStrategically((test) -> {
             try {
-                return (admin.topics().getStats(sinkTopic2).getPublishers().size() == 1) && (admin.topics().getInternalStats(sinkTopic2, false).numberOfEntries > 4);
+                return (admin.topics().getStats(sinkTopic2).getPublishers().size() == 1)
+                        && (admin.topics().getInternalStats(sinkTopic2, false).numberOfEntries > 4);
             } catch (PulsarAdminException e) {
                 return false;
             }
@@ -107,7 +108,7 @@ public class PulsarSourceE2ETest extends AbstractPulsarE2ETest {
         assertEquals(admin.topics().getStats(sinkTopic2).getPublishers().size(), 1);
 
         String prometheusMetrics = TestPulsarFunctionUtils.getPrometheusMetrics(pulsar.getListenPortHTTP().get());
-        log.info("prometheusMetrics: {}", prometheusMetrics);
+        log.info().attr("prometheusMetrics", prometheusMetrics).log("prometheus metrics");
 
         Map<String, TestPulsarFunctionUtils.Metric> metrics = TestPulsarFunctionUtils.parseMetrics(prometheusMetrics);
         TestPulsarFunctionUtils.Metric m = metrics.get("pulsar_source_received_total");
@@ -115,76 +116,86 @@ public class PulsarSourceE2ETest extends AbstractPulsarE2ETest {
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), sourceName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sourceName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion,
+                sourceName));
         assertTrue(m.value > 0.0);
         m = metrics.get("pulsar_source_received_1min_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), sourceName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sourceName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion,
+                sourceName));
         assertTrue(m.value > 0.0);
         m = metrics.get("pulsar_source_written_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), sourceName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sourceName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion,
+                sourceName));
         assertTrue(m.value > 0.0);
         m = metrics.get("pulsar_source_written_1min_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), sourceName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sourceName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion,
+                sourceName));
         assertTrue(m.value > 0.0);
         m = metrics.get("pulsar_source_source_exceptions_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), sourceName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sourceName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion,
+                sourceName));
         assertEquals(m.value, 0.0);
         m = metrics.get("pulsar_source_source_exceptions_1min_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), sourceName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sourceName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion,
+                sourceName));
         assertEquals(m.value, 0.0);
         m = metrics.get("pulsar_source_system_exceptions_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), sourceName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sourceName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion,
+                sourceName));
         assertEquals(m.value, 0.0);
         m = metrics.get("pulsar_source_system_exceptions_1min_total");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), sourceName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sourceName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion,
+                sourceName));
         assertEquals(m.value, 0.0);
         m = metrics.get("pulsar_source_last_invocation");
         assertEquals(m.tags.get("cluster"), config.getClusterName());
         assertEquals(m.tags.get("instance_id"), "0");
         assertEquals(m.tags.get("name"), sourceName);
         assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sourceName));
+        assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion,
+                sourceName));
         assertTrue(m.value > 0.0);
 
         tempDirectory.assertThatFunctionDownloadTempFilesHaveBeenDeleted();
         admin.sources().deleteSource(tenant, namespacePortion, sourceName);
     }
 
-    @Test(timeOut = 20000, groups = "builtin")
+    @Test(timeOut = 120000, groups = "builtin")
     public void testPulsarSourceStatsBuiltin() throws Exception {
         String jarFilePathUrl = String.format("%s://data-generator", Utils.BUILTIN);
         testPulsarSourceStats(jarFilePathUrl);
     }
 
-    @Test(timeOut = 20000, groups = "builtin", expectedExceptions = {PulsarAdminException.class}, expectedExceptionsMessageRegExp = "Built-in source is not available")
+    @Test(timeOut = 120000, groups = "builtin", expectedExceptions = {PulsarAdminException.class},
+            expectedExceptionsMessageRegExp = "Built-in source is not available")
     public void testPulsarSourceStatsBuiltinDoesNotExist() throws Exception {
         String jarFilePathUrl = String.format("%s://foo", Utils.BUILTIN);
         testPulsarSourceStats(jarFilePathUrl);
@@ -201,7 +212,8 @@ public class PulsarSourceE2ETest extends AbstractPulsarE2ETest {
         testPulsarSourceStats(fileServer.getUrl("/pulsar-io-data-generator.nar"));
     }
 
-    private static SourceConfig createSourceConfig(String tenant, String namespace, String functionName, String sinkTopic) {
+    private static SourceConfig createSourceConfig(String tenant, String namespace,
+                                                   String functionName, String sinkTopic) {
         SourceConfig sourceConfig = new SourceConfig();
         sourceConfig.setTenant(tenant);
         sourceConfig.setNamespace(namespace);

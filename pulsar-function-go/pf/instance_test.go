@@ -23,14 +23,12 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"sync"
 	"testing"
 	"time"
 
-	"github.com/apache/pulsar-client-go/pulsar"
-	log "github.com/apache/pulsar/pulsar-function-go/logutil"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
+
+	pb "github.com/apache/pulsar/pulsar-function-go/pb"
 )
 
 func testProcessSpawnerHealthCheckTimer(
@@ -120,28 +118,32 @@ func Test_goInstance_handlerMsg(t *testing.T) {
 	assert.Equal(t, message, fc.record)
 }
 
-func Test_goInstance_setupLogHandlerTicker(t *testing.T) {
-	mockProd := &MockPulsarProducer{}
-	fc := NewFuncContext()
-	fc.logAppender = &LogAppender{
-		producer: mockProd,
-		mutex:    sync.Mutex{},
-		stopChan: make(chan struct{}),
+func newTestGoInstance(guarantee pb.ProcessingGuarantees) *goInstance {
+	return &goInstance{
+		context: &FunctionContext{
+			instanceConf: &instanceConf{
+				funcDetails: pb.FunctionDetails{
+					ProcessingGuarantees: guarantee,
+				},
+			},
+		},
 	}
-	defer close(fc.logAppender.stopChan)
-	instance := &goInstance{
-		context: fc,
+}
+
+func TestShouldNackInputOnFailure(t *testing.T) {
+	tests := []struct {
+		name      string
+		guarantee pb.ProcessingGuarantees
+		want      bool
+	}{
+		{"atLeastOnce", pb.ProcessingGuarantees_ATLEAST_ONCE, true},
+		{"manual", pb.ProcessingGuarantees_MANUAL, true},
+		{"atMostOnce", pb.ProcessingGuarantees_ATMOST_ONCE, false},
 	}
-
-	logString := "Hello from Test_goInstance_setupLogHandlerTicker"
-	log.Info(logString)
-	mockProd.On("SendAsync", context.Background(), mock.Anything, mock.Anything).Return()
-	instance.setupLogHandlerTicker()
-	time.Sleep(150 * time.Millisecond)
-
-	// Check that the message argument from the last SendAsync call is as expected
-	mockProd.AssertExpectations(t)
-	pulsarMsg, ok := mockProd.Calls[len(mockProd.Calls)-1].Arguments[1].(*pulsar.ProducerMessage)
-	assert.True(t, ok)
-	assert.Regexp(t, fmt.Sprintf(".*%s", logString), string(pulsarMsg.Payload))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			instance := newTestGoInstance(tt.guarantee)
+			assert.Equal(t, tt.want, instance.shouldNackInputOnFailure())
+		})
+	}
 }

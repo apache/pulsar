@@ -40,6 +40,7 @@ public class TableViewConfigurationDataTest {
 
         assertEquals(configMap.get("topicName"), config.getTopicName());
         assertEquals(configMap.get("subscriptionName"), config.getSubscriptionName());
-        assertEquals(configMap.get("autoUpdatePartitionsSeconds"), String.valueOf(config.getAutoUpdatePartitionsSeconds()));
+        assertEquals(configMap.get("autoUpdatePartitionsSeconds"),
+                String.valueOf(config.getAutoUpdatePartitionsSeconds()));
     }
 }

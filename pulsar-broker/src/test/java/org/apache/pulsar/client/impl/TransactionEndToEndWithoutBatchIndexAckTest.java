@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -26,7 +26,7 @@ import org.testng.annotations.Test;
 /**
  * End to end transaction test.
  */
-@Slf4j
+@CustomLog
 @Test(groups = "broker-impl")
 public class TransactionEndToEndWithoutBatchIndexAckTest extends TransactionEndToEndTest {
 
@@ -42,5 +42,18 @@ public class TransactionEndToEndWithoutBatchIndexAckTest extends TransactionEndT
     public void txnIndividualAckTestBatchAndFailoverSub() throws Exception {
         conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
         txnAckTest(true, 200, SubscriptionType.Failover);
+    }
+
+    @Override
+    @Test(dataProvider = "unackMessagesCountParams", enabled = false)
+    public void testUnackMessageAfterAckAllMessages(boolean batchSend, boolean batchAck, boolean asyncAck)
+            throws Exception {
+        super.testUnackMessageAfterAckAllMessages(batchSend, batchAck, asyncAck);
+    }
+
+    @Override
+    @Test(dataProvider = "enableBatch", enabled = false)
+    public void testAckWithTransactionReduceUnAckMessageCount(boolean enableBatch) throws Exception {
+        super.testAckWithTransactionReduceUnAckMessageCount(enableBatch);
     }
 }

@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.authentication.oidc;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertNull;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.interfaces.DecodedJWT;
@@ -29,9 +31,9 @@ import java.security.KeyPair;
 import java.sql.Date;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
@@ -39,6 +41,7 @@ import javax.naming.AuthenticationException;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
+import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -59,16 +62,33 @@ import org.testng.annotations.Test;
 public class AuthenticationProviderOpenIDTest {
 
     // https://www.rfc-editor.org/rfc/rfc7518#section-3.1
+    @SuppressWarnings("deprecation")
+    private static final Set<SignatureAlgorithm> SUPPORTED_ALGORITHMS = Set.of(
+            SignatureAlgorithm.RS256,
+            SignatureAlgorithm.RS384,
+            SignatureAlgorithm.RS512,
+            SignatureAlgorithm.ES256,
+            SignatureAlgorithm.ES384,
+            SignatureAlgorithm.ES512
+    );
+
     @DataProvider(name = "supportedAlgorithms")
     public static Object[][] supportedAlgorithms() {
-        return new Object[][] {
-                { SignatureAlgorithm.RS256 },
-                { SignatureAlgorithm.RS384 },
-                { SignatureAlgorithm.RS512 },
-                { SignatureAlgorithm.ES256 },
-                { SignatureAlgorithm.ES384 },
-                { SignatureAlgorithm.ES512 }
-        };
+        return buildDataProvider(SUPPORTED_ALGORITHMS);
+    }
+
+    @SuppressWarnings("deprecation")
+    @DataProvider(name = "unsupportedAlgorithms")
+    public static Object[][] unsupportedAlgorithms() {
+        var unsupportedAlgorithms = Set.of(SignatureAlgorithm.values())
+                .stream()
+                .filter(alg -> !SUPPORTED_ALGORITHMS.contains(alg))
+                .toList();
+        return buildDataProvider(unsupportedAlgorithms);
+    }
+
+    private static Object[][] buildDataProvider(Collection<?> collection) {
+        return collection.stream().map(o -> new Object[] { o }).toArray(Object[][]::new);
     }
 
     // Provider to use in common tests that are not verifying the configuration of the provider itself.
@@ -83,7 +103,7 @@ public class AuthenticationProviderOpenIDTest {
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setProperties(properties);
         basicProvider = new AuthenticationProviderOpenID();
-        basicProvider.initialize(conf);
+        basicProvider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
     }
 
     @AfterClass
@@ -91,6 +111,7 @@ public class AuthenticationProviderOpenIDTest {
         basicProvider.close();
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testNullToken() throws IOException {
         @Cleanup
@@ -100,31 +121,23 @@ public class AuthenticationProviderOpenIDTest {
     }
 
     @Test
-    public void testThatNullAlgFails() throws IOException {
-        @Cleanup
-        AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
-        Assert.assertThrows(AuthenticationException.class,
-                () -> provider.verifyJWT(null, null, null));
+    public void testThatNullAlgFails() {
+        assertThatThrownBy(() -> basicProvider.verifyJWT(null, null, null))
+                .isInstanceOf(AuthenticationException.class)
+                .hasMessage("PublicKey algorithm cannot be null");
     }
 
-    @Test
-    public void testThatUnsupportedAlgsThrowExceptions() {
-        Set<SignatureAlgorithm> unsupportedAlgs = new HashSet<>(Set.of(SignatureAlgorithm.values()));
-        Arrays.stream(supportedAlgorithms()).map(o -> (SignatureAlgorithm) o[0]).toList()
-                .forEach(unsupportedAlgs::remove);
-        unsupportedAlgs.forEach(unsupportedAlg -> {
-            try {
-                @Cleanup
-                AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
-                // We don't create a public key because it's irrelevant
-                Assert.assertThrows(AuthenticationException.class,
-                        () -> provider.verifyJWT(null, unsupportedAlg.getValue(), null));
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        });
+    @SuppressWarnings("deprecation")
+    @Test(dataProvider = "unsupportedAlgorithms")
+    public void testThatUnsupportedAlgsThrowExceptions(SignatureAlgorithm unsupportedAlg) {
+        var algorithm = unsupportedAlg.getValue();
+        // We don't create a public key because it's irrelevant
+        assertThatThrownBy(() -> basicProvider.verifyJWT(null, algorithm, null))
+                .isInstanceOf(AuthenticationException.class)
+                .hasMessage("Unsupported algorithm: " + algorithm);
     }
 
+    @SuppressWarnings("deprecation")
     @Test(dataProvider = "supportedAlgorithms")
     public void testThatSupportedAlgsWork(SignatureAlgorithm alg) throws AuthenticationException {
         KeyPair keyPair = Keys.keyPairFor(alg);
@@ -138,34 +151,35 @@ public class AuthenticationProviderOpenIDTest {
         Assert.assertEquals(expectedValue, actualValue);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testThatSupportedAlgWithMismatchedPublicKeyFromDifferentAlgFamilyFails() throws IOException {
         KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.RS256);
-        @Cleanup
-        AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
         DefaultJwtBuilder defaultJwtBuilder = new DefaultJwtBuilder();
         addValidMandatoryClaims(defaultJwtBuilder, basicProviderAudience);
         defaultJwtBuilder.signWith(keyPair.getPrivate());
         DecodedJWT jwt = JWT.decode(defaultJwtBuilder.compact());
         // Choose a different algorithm from a different alg family
-        Assert.assertThrows(AuthenticationException.class,
-                () -> provider.verifyJWT(keyPair.getPublic(), SignatureAlgorithm.ES512.getValue(), jwt));
+        assertThatThrownBy(() -> basicProvider.verifyJWT(keyPair.getPublic(), SignatureAlgorithm.ES512.getValue(), jwt))
+                .isInstanceOf(AuthenticationException.class)
+                .hasMessage("Expected PublicKey alg [ES512] does match actual alg.");
     }
 
+    @SuppressWarnings("deprecation")
     @Test
-    public void testThatSupportedAlgWithMismatchedPublicKeyFromSameAlgFamilyFails() throws IOException {
+    public void testThatSupportedAlgWithMismatchedPublicKeyFromSameAlgFamilyFails() {
         KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.RS256);
-        @Cleanup
-        AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
         DefaultJwtBuilder defaultJwtBuilder = new DefaultJwtBuilder();
         addValidMandatoryClaims(defaultJwtBuilder, basicProviderAudience);
         defaultJwtBuilder.signWith(keyPair.getPrivate());
         DecodedJWT jwt = JWT.decode(defaultJwtBuilder.compact());
         // Choose a different algorithm but within the same alg family as above
-        Assert.assertThrows(AuthenticationException.class,
-                () -> provider.verifyJWT(keyPair.getPublic(), SignatureAlgorithm.RS512.getValue(), jwt));
+        assertThatThrownBy(() -> basicProvider.verifyJWT(keyPair.getPublic(), SignatureAlgorithm.RS512.getValue(), jwt))
+                .isInstanceOf(AuthenticationException.class)
+                .hasMessageStartingWith("JWT algorithm does not match Public Key algorithm");
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void ensureExpiredTokenFails() {
         KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.RS256);
@@ -178,6 +192,7 @@ public class AuthenticationProviderOpenIDTest {
                 () -> basicProvider.verifyJWT(keyPair.getPublic(), SignatureAlgorithm.RS256.getValue(), jwt));
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void ensureFutureNBFFails() throws Exception {
         KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.RS256);
@@ -191,6 +206,22 @@ public class AuthenticationProviderOpenIDTest {
                 () -> basicProvider.verifyJWT(keyPair.getPublic(), SignatureAlgorithm.RS256.getValue(), jwt));
     }
 
+    @SuppressWarnings("deprecation")
+    @Test
+    public void ensureWithoutNBFSucceeds() throws Exception {
+        KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.RS256);
+        DefaultJwtBuilder defaultJwtBuilder = new DefaultJwtBuilder();
+        addValidMandatoryClaims(defaultJwtBuilder, basicProviderAudience);
+        // remove "nbf" claim
+        defaultJwtBuilder.setNotBefore(null);
+        defaultJwtBuilder.signWith(keyPair.getPrivate());
+        DecodedJWT jwt = JWT.decode(defaultJwtBuilder.compact());
+        assertThat(jwt.getNotBefore()).isNull();
+        assertThat(jwt.getClaims().get("nbf")).isNull();
+        basicProvider.verifyJWT(keyPair.getPublic(), SignatureAlgorithm.RS256.getValue(), jwt);
+    }
+
+    @SuppressWarnings("deprecation")
     @Test
     public void ensureFutureIATFails() throws Exception {
         KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.RS256);
@@ -204,6 +235,7 @@ public class AuthenticationProviderOpenIDTest {
                 () -> basicProvider.verifyJWT(keyPair.getPublic(), SignatureAlgorithm.RS256.getValue(), jwt));
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void ensureRecentlyExpiredTokenWithinConfiguredLeewaySucceeds() throws Exception {
         KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.RS256);
@@ -217,7 +249,7 @@ public class AuthenticationProviderOpenIDTest {
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "https://localhost:8080");
         ServiceConfiguration config = new ServiceConfiguration();
         config.setProperties(props);
-        provider.initialize(config);
+        provider.initialize(AuthenticationProvider.Context.builder().config(config).build());
 
         // Build the JWT with an only recently expired token
         DefaultJwtBuilder defaultJwtBuilder = new DefaultJwtBuilder();
@@ -244,7 +276,8 @@ public class AuthenticationProviderOpenIDTest {
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "");
         ServiceConfiguration config = new ServiceConfiguration();
         config.setProperties(props);
-        Assert.assertThrows(IllegalArgumentException.class, () -> provider.initialize(config));
+        Assert.assertThrows(IllegalArgumentException.class,
+                () -> provider.initialize(AuthenticationProvider.Context.builder().config(config).build()));
     }
 
     @Test
@@ -256,7 +289,8 @@ public class AuthenticationProviderOpenIDTest {
         props.setProperty(AuthenticationProviderOpenID.FALLBACK_DISCOVERY_MODE, "DISABLED");
         ServiceConfiguration config = new ServiceConfiguration();
         config.setProperties(props);
-        Assert.assertThrows(IllegalArgumentException.class, () -> provider.initialize(config));
+        Assert.assertThrows(IllegalArgumentException.class,
+                () -> provider.initialize(AuthenticationProvider.Context.builder().config(config).build()));
     }
 
     @Test
@@ -269,7 +303,7 @@ public class AuthenticationProviderOpenIDTest {
         props.setProperty(AuthenticationProviderOpenID.FALLBACK_DISCOVERY_MODE, "KUBERNETES_DISCOVER_TRUSTED_ISSUER");
         ServiceConfiguration config = new ServiceConfiguration();
         config.setProperties(props);
-        provider.initialize(config);
+        provider.initialize(AuthenticationProvider.Context.builder().config(config).build());
     }
 
     @Test
@@ -282,7 +316,7 @@ public class AuthenticationProviderOpenIDTest {
         props.setProperty(AuthenticationProviderOpenID.FALLBACK_DISCOVERY_MODE, "KUBERNETES_DISCOVER_PUBLIC_KEYS");
         ServiceConfiguration config = new ServiceConfiguration();
         config.setProperties(props);
-        provider.initialize(config);
+        provider.initialize(AuthenticationProvider.Context.builder().config(config).build());
     }
 
     @Test
@@ -292,7 +326,8 @@ public class AuthenticationProviderOpenIDTest {
         ServiceConfiguration config = new ServiceConfiguration();
         // Make sure this still defaults to null.
         assertNull(config.getProperties().get(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS));
-        Assert.assertThrows(IllegalArgumentException.class, () -> provider.initialize(config));
+        Assert.assertThrows(IllegalArgumentException.class,
+                () -> provider.initialize(AuthenticationProvider.Context.builder().config(config).build()));
     }
 
     @Test
@@ -300,10 +335,12 @@ public class AuthenticationProviderOpenIDTest {
         @Cleanup
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
         Properties props = new Properties();
-        props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "https://myissuer.com,http://myissuer.com");
+        props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS,
+                "https://myissuer.com,http://myissuer.com");
         ServiceConfiguration config = new ServiceConfiguration();
         config.setProperties(props);
-        Assert.assertThrows(IllegalArgumentException.class, () -> provider.initialize(config));
+        Assert.assertThrows(IllegalArgumentException.class,
+                () -> provider.initialize(AuthenticationProvider.Context.builder().config(config).build()));
     }
 
     @Test void ensureMissingRoleClaimReturnsNull() throws Exception {
@@ -325,7 +362,7 @@ public class AuthenticationProviderOpenIDTest {
         props.setProperty(AuthenticationProviderOpenID.ROLE_CLAIM, "sub");
         ServiceConfiguration config = new ServiceConfiguration();
         config.setProperties(props);
-        provider.initialize(config);
+        provider.initialize(AuthenticationProvider.Context.builder().config(config).build());
 
         // Build an empty JWT
         DefaultJwtBuilder defaultJwtBuilder = new DefaultJwtBuilder();
@@ -345,11 +382,11 @@ public class AuthenticationProviderOpenIDTest {
         props.setProperty(AuthenticationProviderOpenID.ROLE_CLAIM, "roles");
         ServiceConfiguration config = new ServiceConfiguration();
         config.setProperties(props);
-        provider.initialize(config);
+        provider.initialize(AuthenticationProvider.Context.builder().config(config).build());
 
         // Build an empty JWT
         DefaultJwtBuilder defaultJwtBuilder = new DefaultJwtBuilder();
-        HashMap<String, List<String>> claims = new HashMap();
+        HashMap<String, List<String>> claims = new HashMap<>();
         claims.put("roles", Collections.singletonList("my-role"));
         defaultJwtBuilder.setClaims(claims);
         defaultJwtBuilder.setAudience(basicProviderAudience);
@@ -367,7 +404,7 @@ public class AuthenticationProviderOpenIDTest {
         props.setProperty(AuthenticationProviderOpenID.ROLE_CLAIM, "roles");
         ServiceConfiguration config = new ServiceConfiguration();
         config.setProperties(props);
-        provider.initialize(config);
+        provider.initialize(AuthenticationProvider.Context.builder().config(config).build());
 
         // Build an empty JWT
         DefaultJwtBuilder defaultJwtBuilder = new DefaultJwtBuilder();
@@ -389,7 +426,7 @@ public class AuthenticationProviderOpenIDTest {
         props.setProperty(AuthenticationProviderOpenID.ROLE_CLAIM, "roles");
         ServiceConfiguration config = new ServiceConfiguration();
         config.setProperties(props);
-        provider.initialize(config);
+        provider.initialize(AuthenticationProvider.Context.builder().config(config).build());
 
         // Build an empty JWT
         DefaultJwtBuilder defaultJwtBuilder = new DefaultJwtBuilder();
