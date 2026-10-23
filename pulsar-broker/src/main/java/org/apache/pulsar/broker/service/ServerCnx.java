@@ -3223,35 +3223,17 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 .log("redeliverUnacknowledged from consumer");
 
         CompletableFuture<Consumer> consumerFuture = consumers.get(redeliver.getConsumerId());
-        if (consumerFuture == null) {
-            return;
-        }
 
-        if (consumerFuture.isDone()) {
-            if (!consumerFuture.isCompletedExceptionally()) {
-                redeliverUnacknowledgedMessages(consumerFuture.getNow(null), redeliver);
-            }
-        } else {
-            // A reconnecting client sends the redeliver right after the subscribe, with its new epoch. Apply it
-            // once the consumer is created: dropping it would leave the broker on the subscribe's older epoch,
-            // and the client would discard every message dispatched with it. If the subscribe fails, the client
-            // subscribes again with its current epoch.
-            CommandRedeliverUnacknowledgedMessages redeliverCopy =
-                    new CommandRedeliverUnacknowledgedMessages().copyFrom(redeliver);
-            consumerFuture.thenAcceptAsync(consumer -> redeliverUnacknowledgedMessages(consumer, redeliverCopy),
-                    ctx.executor());
-        }
-    }
-
-    private static void redeliverUnacknowledgedMessages(Consumer consumer,
-                                                        CommandRedeliverUnacknowledgedMessages redeliver) {
-        if (redeliver.getMessageIdsCount() > 0 && Subscription.isIndividualAckMode(consumer.subType())) {
-            consumer.redeliverUnacknowledgedMessages(redeliver.getMessageIdsList());
-        } else {
-            if (redeliver.hasConsumerEpoch()) {
-                consumer.redeliverUnacknowledgedMessages(redeliver.getConsumerEpoch());
+        if (consumerFuture != null && consumerFuture.isDone() && !consumerFuture.isCompletedExceptionally()) {
+            Consumer consumer = consumerFuture.getNow(null);
+            if (redeliver.getMessageIdsCount() > 0 && Subscription.isIndividualAckMode(consumer.subType())) {
+                consumer.redeliverUnacknowledgedMessages(redeliver.getMessageIdsList());
             } else {
-                consumer.redeliverUnacknowledgedMessages(DEFAULT_CONSUMER_EPOCH);
+                if (redeliver.hasConsumerEpoch()) {
+                    consumer.redeliverUnacknowledgedMessages(redeliver.getConsumerEpoch());
+                } else {
+                    consumer.redeliverUnacknowledgedMessages(DEFAULT_CONSUMER_EPOCH);
+                }
             }
         }
     }
