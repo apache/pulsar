@@ -1132,7 +1132,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             acquireSLANamespace();
 
-
             // start packages management service if necessary
             if (config.isEnablePackagesManagement()) {
                 this.startPackagesManagementService();
