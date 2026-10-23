@@ -519,6 +519,8 @@ public class LoadManagerShared {
 
     /**
      * It returns map of broker and count of namespace that are belong to the same anti-affinity group as given.
+     * The given namespace itself is not counted, so that a broker already owning other bundles of that namespace
+     * does not look like it owns another namespace of the group.
      *
      * @param pulsar
      * @param namespaceName
@@ -541,7 +543,7 @@ public class LoadManagerShared {
             final var brokerToNamespaces = brokerToNamespaceToBundleRange.getBrokerToNamespacesMap();
             FutureUtil.waitForAll(brokerToNamespaces.entrySet().stream().flatMap(e -> {
                 final var broker = e.getKey();
-                return e.getValue().stream().map(namespace -> {
+                return e.getValue().stream().filter(namespace -> !namespace.equals(namespaceName)).map(namespace -> {
                     final var future = new CompletableFuture<Void>();
                     countAntiAffinityNamespaceOwnedBrokers(broker, namespace, future,
                             pulsar, antiAffinityGroup, brokerToAntiAffinityNamespaceCount);
@@ -591,14 +593,14 @@ public class LoadManagerShared {
             bundleOwnershipData
                     .forEach(etr -> {
                         var stateData = etr.getValue();
-                        var bundle = etr.getKey();
+                        var namespace = LoadManagerShared.getNamespaceNameFromBundleName(etr.getKey());
                         if (stateData.state() == ServiceUnitState.Owned
-                                && StringUtils.isNotBlank(stateData.dstBroker())) {
+                                && StringUtils.isNotBlank(stateData.dstBroker())
+                                && !namespace.equals(namespaceName)) {
                             CompletableFuture<Void> future = new CompletableFuture<>();
                             futures.add(future);
                             countAntiAffinityNamespaceOwnedBrokers
-                                    (stateData.dstBroker(),
-                                            LoadManagerShared.getNamespaceNameFromBundleName(bundle),
+                                    (stateData.dstBroker(), namespace,
                                             future, pulsar,
                                             antiAffinityGroup, brokerToAntiAffinityNamespaceCount);
                         }
@@ -677,14 +679,17 @@ public class LoadManagerShared {
                 int nsCount = brokerNamespaceCount.getOrDefault(broker, 0);
                 if (currentBroker.equals(broker)) {
                     currentBrokerNsCount = nsCount;
-                }
-                if (leastNsCount > nsCount) {
+                } else if (leastNsCount > nsCount) {
+                    // only the other brokers, so that we can tell whether one of them can take the bundle
                     leastNsCount = nsCount;
                 }
             }
             // check if there is any other broker has less number of ns
             if (leastNsCount == 0 || currentBrokerNsCount > leastNsCount) {
                 return true;
+            } else if (currentBrokerNsCount < leastNsCount) {
+                // the current broker is the only one with the least number of ns, the bundle would come back to it
+                return false;
             }
             // check if all the brokers having same number of ns-count then broker can't unload
             int leastNsOwnerBrokers = 0;
