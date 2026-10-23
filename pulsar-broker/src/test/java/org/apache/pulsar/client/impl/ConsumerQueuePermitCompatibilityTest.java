@@ -57,6 +57,7 @@ public class ConsumerQueuePermitCompatibilityTest extends SharedPulsarBaseTest {
             try (MultiTopicsConsumerImpl<String> consumer = (MultiTopicsConsumerImpl<String>)
                     client.newConsumer(Schema.STRING).topics(List.of(firstTopic, secondTopic))
                             .subscriptionName(SUBSCRIPTION).receiverQueueSize(2)
+                            .isAckReceiptEnabled(true).acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS)
                             .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe()) {
                 assertThat(consumer.getConsumers()).hasSize(2);
                 assertThat(receiveRound(consumer, expected.size())).containsExactlyInAnyOrderElementsOf(expected);
@@ -180,7 +181,8 @@ public class ConsumerQueuePermitCompatibilityTest extends SharedPulsarBaseTest {
             assertThat(message).as("message %s of %s", i + 1, count).isNotNull();
             try {
                 values.add(message.getValue());
-                consumer.acknowledge(message);
+                // Each round finishes after the broker confirms its acknowledgments, before disconnect or seek.
+                consumer.acknowledgeAsync(message).get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
             } finally {
                 message.release();
             }
